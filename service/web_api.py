@@ -31,7 +31,6 @@ def llm_chat():
     llm_params = llm_biz.LLMParams(**params)
     sse_invoker = LLM_SSE_Adapter()
     it = sse_invoker.text_conversation(llm_params)
-    # 返回Response对象，使用stream_with_context来创建事件流
     return Response(stream_with_context(it), content_type="text/event-stream")
 
 
@@ -100,7 +99,6 @@ def sd_generate():
     base_params.safe_check = request.form.get("safe_check", default=1, type=int)
     sse_invoker = SD_SSE_Adapter(request.url_root)
     it = sse_invoker.generate(params)
-    # 返回Response对象，使用stream_with_context来创建事件流
     return Response(stream_with_context(it), content_type="text/event-stream")
 
 
@@ -244,7 +242,6 @@ def stop_download_model():
     return jsonify({"code": 0, "message": "success"})
 
 
-# 获得rag索引文件列表
 @app.route("/api/llm/getRagFiles", methods=["GET"])
 def get_rag_files():
     try:
