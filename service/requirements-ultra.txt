@@ -26,4 +26,4 @@ faiss-cpu==1.8.0
 docx2txt==0.8
 pypdf==4.2.0
 unstructured==0.14.6
-setuptools==69.5.1
+setuptools==70.0.0
