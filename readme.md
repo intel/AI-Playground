@@ -23,13 +23,11 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	AI Playground v01.0b for Desktop-dGPU - coming soon.
+*	AI Playground for Desktop-dGPU - [Installer Releases](https://github.com/intel/AI-Playground/releases)
 
-*	AI Playground v01.0b for Intel Core Ultra-H  - coming soon.
+*	AI Playground for Intel Core Ultra-H  - coming soon.
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
-  
-*	Release Notes- coming soon.
 
 
 ## Install from Source
