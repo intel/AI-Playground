@@ -13,7 +13,7 @@ Welcome to AI Playground beta open source project and AI PC starter app for doin
 AI Playground beta is currently available as a packaged installer, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
-*	Intel Core Ultra-H Processor OR Intel Arc GPU (discrete) with 8GB of vRAM
+*	Intel Core Ultra-H Processor (coming soon) OR Intel Arc GPU (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
 AI Playground has multiple packaged installers, each specific to the hardware. 
