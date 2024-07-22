@@ -20,10 +20,7 @@ def generate_mask_image(mask_flag_bytes: bytes, width: int, height: int):
     from PIL import Image
     import numpy as np
 
-    # 将字节数据转换为 NumPy 数组
     np_data = np.frombuffer(mask_flag_bytes, dtype=np.uint8)
-
-    # 根据 NumPy 数组创建黑白图像
     image = Image.fromarray(np_data.reshape((height, width)), mode="L").convert("RGB")
 
     return image
