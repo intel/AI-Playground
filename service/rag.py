@@ -111,7 +111,6 @@ class EmbeddingDatabase:
             return list()
 
     def __save_index(self, file_base_name: str, md5: str, doc_ids: str):
-        # 保存文档索引配置文件
         self.index_list.append({"name": file_base_name, "md5": md5, "doc_ids": doc_ids})
         if not os.path.exists(INDEX_DATABASE_PATH):
             os.makedirs(INDEX_DATABASE_PATH)
