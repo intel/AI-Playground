@@ -1,0 +1,8 @@
+{
+  "llm": "./models/llm/checkpoints",
+  "stableDiffusion": "./models/stable_diffusion/checkpoints",
+  "lora": "./models/stable_diffusion/lora",
+  "vae": "./models/stable_diffusion/vae",
+  "sampler": "./models/stable_diffusion/sampler",
+  "ESRGAN":"./models/ESRGAN/RealESRGAN/RealESRGAN_x2plus.pth"
+}

@@ -1,0 +1,15 @@
+.vscode/
+__pycache__/
+models/llm/
+models/stable_diffusion/*
+!models/stable_diffusion/ESRGAN/
+!models/stable_diffusion/preview/
+temp/
+static/*
+!static/assets/
+test/
+dist/
+build/
+cache/
+db/
+test/
