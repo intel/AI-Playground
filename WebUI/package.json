@@ -1,0 +1,52 @@
+{
+  "name": "ai-playground",
+  "private": true,
+  "version": "0.0.1",
+
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build && call build\\before_build.bat&& electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
+    "build:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
+    "dir:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --dir --config build\\ultra-build.json&&call build\\after_build.bat",
+    "build:arc": "vue-tsc && vite build && call build\\arc_before_build.bat&& electron-builder --config build\\arc-build.json&&call build\\after_build.bat",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.4.19",
+    "highlight.js": "^11.9.0",
+    "koffi": "^2.8.8",
+    "marked": "^12.0.2",
+    "marked-highlight": "^2.1.1",
+    "pinia": "^2.1.7",
+    "sudo-prompt": "^9.2.1",
+    "unplugin-auto-import": "^0.17.5",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@types/exif": "^0.6.5",
+    "@types/node": "^20.8.10",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "@vue/devtools": "^7.3.6",
+    "dmg-builder": "^25.0.0-alpha.7",
+    "electron": "^31.2.1",
+    "electron-builder": "^24.13.3",
+    "electron-builder-squirrel-windows": "^25.0.0-alpha.7",
+    "postcss": "^8.4.31",
+    "postcss-import": "^15.1.0",
+    "tailwindcss": "^3.3.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0",
+    "vite-plugin-electron": "^0.28.7",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vue-tsc": "^2.0.6"
+  },
+  "debug": {
+    "env": {
+      "VITE_DEV_SERVER_HOSTNAME": "127.0.0.1",
+      "VITE_DEV_SERVER_PORT": 25413,
+      "VITE_DEV_SERVER_URL": "http://127.0.0.1:25413",
+      "VSCODE_DEBUG": 1
+    }
+  },
+  "main": "dist/main/main.js"
+}

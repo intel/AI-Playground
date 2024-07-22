@@ -1,0 +1,6 @@
+@media (min-width: 1441px) {
+  .max-image-size {
+    max-width: 1024px;
+    max-height: 768px;
+  }
+}

@@ -1,0 +1,348 @@
+from huggingface_hub import HfFileSystem, hf_hub_url
+from typing import Any, Callable, Dict, List
+from os import path, makedirs, rename
+import requests
+import queue
+from threading import Thread, Lock
+import time
+import psutil
+from psutil._common import bytes2human
+from exceptions import DownloadException
+import traceback
+import concurrent.futures
+import utils
+
+model_list_cache = dict()
+model_lock = Lock()
+
+
+class HFFileItem:
+    relpath: str
+    size: int
+    url: str
+
+    def __init__(self, relpath: str, size: int, url: str) -> None:
+        self.relpath = relpath
+        self.size = size
+        self.url = url
+
+
+class HFDonloadItem:
+    name: str
+    size: int
+    url: str
+    disk_file_size: int
+    save_filename: str
+
+    def __init__(
+        self, name: str, size: int, url: str, disk_file_size: int, save_filename: str
+    ) -> None:
+        self.name = name
+        self.size = size
+        self.url = url
+        self.disk_file_size = disk_file_size
+        self.save_filename = save_filename
+
+
+class NotEnoughDiskSpaceException(Exception):
+    requires_space: int
+    free_space: int
+
+    def __init__(self, requires_space: int, free_space: int):
+        self.requires_space = requires_space
+        self.free_space = free_space
+        message = "Not enough disk space. It requires {}, but only {} of free space is available".format(
+            bytes2human(requires_space), bytes2human(free_space)
+        )
+        super().__init__(message)
+
+
+class HFPlaygroundDownloader:
+    fs: HfFileSystem
+    file_queue: queue.Queue[HFDonloadItem]
+    total_size: int
+    download_size: int
+    prev_sec_download_size: int
+    on_download_progress: Callable[[str, int, int, int], None] = None
+    on_download_completed: Callable[[str, Exception], None] = None
+    thread_alive: int
+    thread_lock: Lock
+    download_stop: bool
+    completed: bool
+    wait_for_complete: bool
+    repo_id: str
+    save_path: str
+    save_path_tmp: str
+    error: Exception
+
+    def __init__(self) -> None:
+        self.fs = HfFileSystem()
+        self.total_size = 0
+        self.download_size = 0
+        self.thread_lock = Lock()
+
+    def download(self, repo_id: str, model_type: int, thread_count: int = 4):
+        self.repo_id = repo_id
+        self.total_size = 0
+        self.download_size = 0
+        self.file_queue = queue.Queue()
+        self.download_stop = False
+        self.completed = False
+        self.error = None
+        self.save_path = path.join(utils.get_model_path(model_type))
+        self.save_path_tmp = path.abspath(
+            path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
+        )
+        if not path.exists(self.save_path_tmp):
+            makedirs(self.save_path_tmp)
+        key = f"{repo_id}_{model_type}"
+        cache_item = model_list_cache.get(key)
+        if cache_item is None:
+            file_list = list()
+            self.enum_file_list(file_list, repo_id, model_type)
+            model_list_cache.__setitem__(
+                {"size": self.total_size, "queue": self.file_queue}
+            )
+        else:
+            self.total_size = cache_item["size"]
+            file_list: list = cache_item["queue"]
+
+        self.build_queue(file_list)
+
+        usage = psutil.disk_usage(self.save_path)
+        if self.total_size - self.download_size > usage.free:
+            raise NotEnoughDiskSpaceException(
+                self.total_size - self.download_size, usage.free
+            )
+        self.multiple_thread_downlod(thread_count)
+
+    def build_queue(self, file_list: list[HFFileItem]):
+        for file in file_list:
+            save_filename = path.abspath(path.join(self.save_path_tmp, file.relpath))
+            if path.exists(save_filename):
+                local_file_size = path.getsize(save_filename)
+                self.download_size += local_file_size
+                # if local file size less thand network file size download it, else skip it!
+                if local_file_size < file.size:
+                    self.file_queue.put(
+                        HFDonloadItem(
+                            file.relpath,
+                            file.size,
+                            file.url,
+                            local_file_size,
+                            save_filename,
+                        )
+                    )
+            else:
+                self.file_queue.put(
+                    HFDonloadItem(file.relpath, file.size, file.url, 0, save_filename)
+                )
+
+    def get_model_total_size(self, repo_id: str, model_type: int):
+        key = f"{repo_id}_{model_type}"
+        self.repo_id = repo_id
+        with model_lock:
+            item = model_list_cache.get(key)
+
+        if item is None:
+            file_list = list()
+            self.enum_file_list(file_list, repo_id, model_type)
+            with model_lock:
+                model_list_cache.__setitem__(
+                    key, {"size": self.total_size, "queue": file_list}
+                )
+            return self.total_size
+        else:
+            return item["size"]
+
+    def enum_file_list(
+        self, file_list: List, enum_path: str, model_type: int, is_root=True
+    ):
+        list = self.fs.ls(enum_path, detail=True)
+        if model_type == 1 and enum_path == self.repo_id + "/unet":
+            list = self.enum_sd_unet(list)
+        for item in list:
+            name: str = item.get("name")
+            size: int = item.get("size")
+            type: str = item.get("type")
+            if type == "directory":
+                self.enum_file_list(file_list, name, model_type, False)
+            else:
+                # sd model ignore root .safetensors .pt .ckpt files
+                if (
+                    model_type == 1
+                    and is_root
+                    and (
+                        name.endswith(".safetensors")
+                        or name.endswith(".pt")
+                        or name.endswith(".ckpt")
+                    )
+                ):
+                    continue
+                elif model_type == 5 and (
+                    name.endswith(".safetensors") or name.endswith(".onnx")
+                ):
+                    continue
+                # ignore no used files
+                elif (
+                    name.endswith(".png")
+                    or name.endswith(".gitattributes")
+                    or name.endswith(".md")
+                    or name.endswith(".jpg")
+                    or name.endswith(".pdf")
+                    or name.endswith(".html")
+                ):
+                    continue
+
+                self.total_size += size
+                relative_path = path.relpath(name, self.repo_id)
+                subfolder = path.dirname(relative_path).replace("\\", "/")
+                filename = path.basename(relative_path)
+                url = hf_hub_url(
+                    repo_id=self.repo_id, subfolder=subfolder, filename=filename
+                )
+                file_list.append(HFFileItem(relative_path, size, url))
+
+    def enum_sd_unet(self, file_list: List[str | Dict[str, Any]]):
+        cur_level = 0
+        first_model = None
+        model_levels = [(".fp32.", 3), (".fp16.", 2), ("", 1)]
+        new_list = list()
+        for item in file_list:
+            name = str(item.get("name"))
+            if name.endswith(".safetensors") or name.endswith(".bin"):
+                for lv_item in model_levels:
+                    ext, lv = lv_item
+                    if name.__contains__(ext):
+                        if lv > cur_level:
+                            cur_level = lv
+                            first_model = item
+            else:
+                new_list.append(item)
+        new_list.append(first_model)
+        return new_list
+
+    def multiple_thread_downlod(self, thread_count: int):
+        self.download_stop = False
+        if self.on_download_progress is not None:
+            self.prev_sec_download_size = 0
+            report_thread = self.start_report_download_progress()
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=thread_count
+        ) as executor:
+            futures = [
+                executor.submit(self.download_model_file)
+                for _ in range(min(thread_count, self.file_queue.qsize()))
+            ]
+            concurrent.futures.wait(futures)
+            executor.shutdown()
+        self.completed = True
+        if report_thread is not None:
+            report_thread.join()
+        if self.on_download_completed is not None:
+            self.on_download_completed(self.repo_id, self.error)
+        if not self.download_stop and self.error is None:
+            rename(
+                self.save_path_tmp,
+                path.abspath(
+                    path.join(self.save_path, self.repo_id.replace("/", "---"))
+                ),
+            )
+
+    def start_report_download_progress(self):
+        thread = Thread(target=self.report_download_progress)
+        thread.start()
+        return thread
+
+    def report_download_progress(self):
+        while not self.download_stop and not self.completed:
+            self.on_download_progress(
+                self.repo_id,
+                self.download_size,
+                self.total_size,
+                self.download_size - self.prev_sec_download_size,
+            )
+
+            self.prev_sec_download_size = self.download_size
+            time.sleep(1)
+
+    def init_download(self, file: HFDonloadItem):
+        makedirs(path.dirname(file.save_filename), exist_ok=True)
+
+        if file.disk_file_size > 0:
+            # download skip exists part
+            response = requests.get(
+                file.url,
+                stream=True,
+                verify=False,
+                headers={"Range": f"bytes={file.disk_file_size}-"},
+            )
+            fw = open(file.save_filename, "ab")
+        else:
+            response = requests.get(file.url, stream=True, verify=False)
+            fw = open(file.save_filename, "wb")
+
+        return response, fw
+
+    def download_model_file(self):
+        try:
+            while not self.download_stop and not self.file_queue.empty():
+                file = self.file_queue.get_nowait()
+                download_retry = 0
+                while True:
+                    try:
+                        response, fw = self.init_download(file)
+                        # start download file
+                        with response:
+                            with fw:
+                                for bytes in response.iter_content(chunk_size=4096):
+                                    download_len = bytes.__len__()
+                                    with self.thread_lock:
+                                        self.download_size += download_len
+                                    file.disk_file_size += fw.write(bytes)
+                                    if self.download_stop:
+                                        print(
+                                            f"thread {Thread.native_id} exit by user stop"
+                                        )
+                                        break
+                        break
+                    except Exception:
+                        traceback.print_exc()
+                        download_retry += 1
+                        if download_retry < 4:
+                            print(
+                                f"download file {file.url} failed. retry {download_retry} time"
+                            )
+                            time.sleep(download_retry)
+                        else:
+                            raise DownloadException(file.url)
+
+        except Exception as ex:
+            self.error = ex
+            traceback.print_exc()
+
+    def stop_download(self):
+        self.download_stop = True
+
+
+def test_download_progress(dowanlod_size: int, total_size: int, speed: int):
+    print(f"download {dowanlod_size/1024}/{total_size /1024}KB  speed {speed}/s")
+
+
+def test_download_complete(ex: Exception):
+    if ex is None:
+        print("download success")
+    else:
+        print(f"{ex}")
+
+
+def init():
+    downloader = HFPlaygroundDownloader()
+    downloader.on_download_progress = test_download_progress
+    downloader.on_download_completed = test_download_complete
+    total_size = downloader.download("RunDiffusion/Juggernaut-X-v10", 1, thread_count=1)
+    print(f"total-size: {total_size}")
+
+
+if __name__ == "__main__":
+    init()

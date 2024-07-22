@@ -1,0 +1,8 @@
+{
+  "llm": "./resources/service/models/llm/checkpoints",
+  "embedding": "./resources/service/models/llm/embedding",
+  "stableDiffusion": "./resources/service/models/stable_diffusion/checkpoints",
+  "inpaint": "./resources/service/models/stable_diffusion/inpaint",
+  "lora": "./resources/service/models/stable_diffusion/lora",
+  "vae": "./resources/service/models/stable_diffusion/vae"
+}

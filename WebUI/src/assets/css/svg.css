@@ -1,0 +1,161 @@
+.svg-icon {
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-image: var(--svg);
+  mask-image: var(--svg);
+}
+
+.i-setup {
+  --svg: url("@/assets/svg/setup.svg");
+}
+
+.i-mini {
+  --svg: url("@/assets/svg/mini.svg");
+}
+
+.i-close {
+  --svg: url("@/assets/svg/close.svg");
+}
+
+.i-tab-active {
+  --svg: url("@/assets/svg/tab-active.svg");
+}
+.i-tab-active-first {
+  --svg: url("@/assets/svg/tab-active-first.svg");
+}
+
+.i-generate-add {
+  --svg: url("@/assets/svg/generate-add.svg");
+}
+
+.i-history {
+  --svg: url("@/assets/svg/history.svg");
+}
+
+.i-copy {
+  --svg: url("@/assets/svg/copy.svg");
+}
+
+.i-download {
+  --svg: url("@/assets/svg/download.svg");
+}
+
+.i-refresh {
+  --svg: url("@/assets/svg/refresh.svg");
+}
+
+.i-delete {
+  --svg: url("@/assets/svg/delete.svg");
+}
+
+.i-outpaint-dir {
+  --svg: url("@/assets/svg/outpaint-dir.svg");
+}
+
+.i-pdf {
+  --svg: url("@/assets/svg/pdf.svg");
+}
+
+.i-txt {
+  --svg: url("@/assets/svg/txt.svg");
+}
+
+.i-ppt {
+  --svg: url("@/assets/svg/ppt.svg");
+}
+
+.i-word {
+  --svg: url("@/assets/svg/word.svg");
+}
+
+.i-md {
+  --svg: url("@/assets/svg/md.svg");
+}
+
+
+.i-add {
+  --svg: url("@/assets/svg/add.svg");
+}
+
+.i-queue {
+  --svg: url("@/assets/svg/queue.svg");
+}
+
+.i-right {
+  --svg: url("@/assets/svg/right.svg");
+}
+
+.i-arrow-right {
+  --svg: url("@/assets/svg/arrow-right.svg");
+}
+
+.i-loading {
+  --svg: url("@/assets/svg/loading.svg");
+}
+
+.i-add-box {
+  --svg: url("@/assets/svg/add-box.svg");
+}
+
+.i-pen {
+  --svg: url("@/assets/svg/pen.svg");
+}
+
+.i-easer {
+  --svg: url("@/assets/svg/easer.svg");
+}
+
+.i-broom {
+  --svg: url("@/assets/svg/broom.svg");
+}
+
+.i-right-arrow {
+  --svg: url("@/assets/svg/right-arrow.svg");
+}
+.i-dice {
+  --svg: url("@/assets/svg/dice.svg");
+}
+
+.i-reset {
+  --svg: url("@/assets/svg/reset.svg");
+}
+
+.i-folder {
+  --svg: url("@/assets/svg/folder.svg");
+}
+
+.i-transfer {
+  --svg: url("@/assets/svg/transfer.svg");
+}
+.i-zoom-in {
+  --svg: url("@/assets/svg/zoom-in.svg");
+}
+
+.i-clear {
+  --svg: url("@/assets/svg/clear.svg");
+}
+
+.i-upload {
+  --svg: url("@/assets/svg/upload.svg");
+}
+
+.i-stop {
+  --svg: url("@/assets/svg/stop.svg");
+}
+
+.i-info {
+  --svg: url("@/assets/svg/info.svg");
+}
+
+.i-fullscreen {
+  --svg: url("@/assets/svg/fullscreen.svg");
+}
+
+
+.i-fullscreen-exit {
+  --svg: url("@/assets/svg/fullscreen-exit.svg");
+}
