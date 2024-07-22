@@ -1,3 +1,6 @@
+## code credit goes to https://github.com/vladmandic/automatic/blob/master/modules/intel/ipex/hijacks.py
+## 
+
 import os
 from functools import wraps
 from contextlib import nullcontext
