@@ -30,8 +30,8 @@ This second phase of installation **will take several minutes** and require a st
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
 
-## Install from Source
-### service (python)
+## Project Development
+### Dev Environment Setup (backend, python)
 
 1. Create and switch the conda environment and go to the service directory.
 ```cmd
@@ -40,22 +40,23 @@ activate aipg_xpu
 pip install -r requirements.txt
 ```
 
-3. Download the Intel ONEAPI AOT environment. Depending on your hardware, download all whl files from the link below.
+3. Download the Intel Extension For Pytorch* AOT Packages. Depending on your hardware, download cp310 whl files from the links below.
 
-Ultra iGPU https://github.com/Nuullll/intel-extension-for-pytorch/releases/tag/v2.1.20%2Bmtl%2Boneapi
+Core Ultra-H https://github.com/Nuullll/intel-extension-for-pytorch/releases/tag/v2.1.20%2Bmtl%2Boneapi
 
 The Arc A - Series dGPU https://github.com/Nuullll/intel-extension-for-pytorch/releases/tag/v2.1.10%2Bxpu
 
-Install all downloaded whl files using the pip instal command
+Install all downloaded whl files using the pip install command
 
 4. Check whether the XPU environment is correct
 ```cmd
 python -c "import torch; import intel_extension_for_pytorch as ipex; print(torch.version); print(ipex.version); [print(f'[{i}]: {torch.xpu.get_device_properties(i)}') for i in range(torch.xpu.device_count())];"
 ```
 
-env pythoon directory created
 
-1. Switch to the root directory of the project, that is, the service directory and WebUI directory
+### Linking Dev Environment to Project Environment
+
+1. Switch to the root directory of the project. (AI-Playground)
 
 2. Run the following command to view the path of the conda virtual environment
 
@@ -74,12 +75,12 @@ mklink /J "./env" "{aipg_xpu_env_path}"
 
 1. Install Nodejs development environment, you can get it from https://nodejs.org/en/download.
 
-2. Switch to the WebUI directory and install all Nodejs dependent libraries. Execute a command
+2. Switch to the WebUI directory and install all Nodejs dependencies. 
 ```
 npm install
 ```
 
-3. In the WebUI directory, run the UI program
+3. In the WebUI directory, run the below command to get started with development
 ```
 npm run dev
 ```
