@@ -6,7 +6,7 @@ This example is based on the xpu implementation of Intel Arc A-Series dGPU and U
 
 Welcome to AI Playground beta open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU.  AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.
 
-# README.md
+## README.md
 - English (readme.md)
 
 ## Min Specs
