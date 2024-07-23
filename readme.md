@@ -1,6 +1,6 @@
+# AI Playground
+
 ![image](https://github.com/user-attachments/assets/66086f2c-216e-4a79-8ff9-01e04db7e71d)
-
-
 
 This example is based on the xpu implementation of Intel Arc A-Series dGPU and Ultra iGPU
 
