@@ -90,17 +90,21 @@ AI Playground supports PyTorch LLM, SD1.5, and SDXL models. AI Playground does n
 Models currently linked from the application 
 | Model                                      | License                                                                                                                                                                      | Background Information/Model Card                                                                                      |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Dreamshaper 8 Model                        | [https://huggingface.co/spaces/CompVis/stable-diffusion-license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [https://huggingface.co/Lykon/dreamshaper-8](https://huggingface.co/Lykon/dreamshaper-8)                               |
-| Dreamshaper 8 Inpainting Model             | [https://huggingface.co/spaces/CompVis/stable-diffusion-license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [https://huggingface.co/Lykon/dreamshaper-8-inpainting](https://huggingface.co/Lykon/dreamshaper-8-inpainting)         |
-| JuggernautXL v9 Model                      | [https://huggingface.co/spaces/CompVis/stable-diffusion-license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [https://huggingface.co/RunDiffusion/Juggernaut-XL-v9](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9)           |
-| Phi3-mini-4k-instruct                      | [https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [https://huggingface.co/microsoft/Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
-| bge-large-en-v1.5                          | [https://github.com/FlagOpen/FlagEmbedding/blob/master/LICENSE](https://github.com/FlagOpen/FlagEmbedding/blob/master/LICENSE)                 | [https://huggingface.co/BAAI/bge-large-en-v1.5](https://huggingface.co/BAAI/bge-large-en-v1.5)                         |
-| Latent Consistency Model (LCM) LoRA: SD1.5 | [https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [https://huggingface.co/latent-consistency/lcm-lora-sdv1-5](https://huggingface.co/latent-consistency/lcm-lora-sdv1-5) |
-| Latent Consistency Model (LCM) LoRA:SDXL   | [https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [https://huggingface.co/latent-consistency/lcm-lora-sdxl](https://huggingface.co/latent-consistency/lcm-lora-sdxl)     |
+| Dreamshaper 8 Model                        | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8)                               |
+| Dreamshaper 8 Inpainting Model             | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8-inpainting)         |
+| JuggernautXL v9 Model                      | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9)           |
+| Phi3-mini-4k-instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
+| bge-large-en-v1.5                          | [license](https://github.com/FlagOpen/FlagEmbedding/blob/master/LICENSE)                 | [site](https://huggingface.co/BAAI/bge-large-en-v1.5)                         |
+| Latent Consistency Model (LCM) LoRA: SD1.5 | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdv1-5) |
+| Latent Consistency Model (LCM) LoRA:SDXL   | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdxl)     |
 
-Check the [User Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf) for details or [watch this video](https://www.youtube.com/watch?v=1FXrk9Xcx2g) on how to add alternative Stable Diffusion models to AI Playground
+Be sure to check license terms for any model used in AI Playground especially taking note of any restrictions.
 
+### Use Alternative Models
+Check the [User Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf) for details or [watch this video](https://www.youtube.com/watch?v=1FXrk9Xcx2g) on how to add alternative Stable Diffusion models to AI Playground<\br >
+</br ></br >
 The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third Party Notices file accompanying the software.
 
-Notices and Disclaimers: For information on AI Playground terms, license and disclaimers, visit the project and files on GitHub repo:</br >
+### Notices and Disclaimers: 
+For information on AI Playground terms, license and disclaimers, visit the project and files on GitHub repo:</br >
 [License](https://github.com/intel/ai-playground/blob/main/LICENSE) | [Notices & Disclaimers](https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md)
