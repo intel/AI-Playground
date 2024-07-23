@@ -103,8 +103,10 @@ Be sure to check license terms for any model used in AI Playground especially ta
 ### Use Alternative Models
 Check the [User Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf) for details or [watch this video](https://www.youtube.com/watch?v=1FXrk9Xcx2g) on how to add alternative Stable Diffusion models to AI Playground<\br >
 </br ></br >
-The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third Party Notices file accompanying the software.
 
 ### Notices and Disclaimers: 
 For information on AI Playground terms, license and disclaimers, visit the project and files on GitHub repo:</br >
 [License](https://github.com/intel/ai-playground/blob/main/LICENSE) | [Notices & Disclaimers](https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md)
+
+The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third Party Notices file accompanying the software.
+
