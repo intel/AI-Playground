@@ -211,7 +211,6 @@ const imagePromptCompt = ref<InstanceType<typeof ImagePromptOptions>>();
 const inpaintCompt = ref<InstanceType<typeof InpaintOptions>>();
 const outpaintCompt = ref<InstanceType<typeof OutpaintOptions>>();
 const prompt = ref("");
-const apiUrl = `${useGlobalSetup().apiHost}/api/sd/generate`;
 const stepText = ref("");
 const inpaintMaskCompt = ref<InstanceType<typeof InpaintMask>>();
 const maskData = reactive({
@@ -478,7 +477,7 @@ async function sendGenerate() {
         if (!abortContooler) {
             abortContooler = new AbortController();
         }
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${globalSetup.apiHost}/api/sd/generate`, {
             method: "POST",
             body: util.convertToFromData(lastPostParams),
             signal: abortContooler.signal

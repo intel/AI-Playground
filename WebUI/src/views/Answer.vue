@@ -152,7 +152,6 @@ import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 
 const globalSetup = useGlobalSetup();
-const apiUrl = `${globalSetup.apiHost}/api/llm/chat`;
 const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
@@ -347,7 +346,7 @@ async function generate(chatContext: ChatItem[]) {
             enable_rag: ragData.enable,
             model_repo_id: globalSetup.modelSettings.llm_model
         };
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${globalSetup.apiHost}/api/llm/chat`, {
             method: "POST", headers: {
                 "Content-Type": "application/json"
             },
