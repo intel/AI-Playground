@@ -228,9 +228,8 @@ function download() {
     percent.value = 0;
     completeCount.value = 0;
     abortController = new AbortController();
-    const url = `${globalSetup.apiHost}/api/downloadModel`;
     curDownloadTip.value = "";
-    fetch(url, {
+    fetch(`${globalSetup.apiHost}/api/downloadModel`, {
         method: "POST",
         body: JSON.stringify(toRaw(downloadList.value)),
         headers: {

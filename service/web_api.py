@@ -322,4 +322,8 @@ def cache_mask_image():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=9999)
+    import argparse
+    parser = argparse.ArgumentParser(description="AI Playground Web service")
+    parser.add_argument('--port', type=int, default=59999, help='Service listen port')
+    args = parser.parse_args()
+    app.run(host="127.0.0.1", port=args.port)

@@ -1,4 +1,5 @@
 {
     "envType": "arc",
-    "debug":1
+    "debug":1,
+    "port":56789
 }

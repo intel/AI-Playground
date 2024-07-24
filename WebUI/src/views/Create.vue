@@ -85,7 +85,6 @@ import PaintInfo from '@/components/PaintInfo.vue';
 import { useGlobalSetup } from '@/assets/js/store/globalSetup';
 import { Const } from '@/assets/js/const';
 
-const apiUrl = `${useGlobalSetup().apiHost}/api/sd/generate`;
 const i18nState = useI18N().state;
 const globalSetup = useGlobalSetup();
 const currentState = ref<SDGenerateState>("no_start");
@@ -242,7 +241,7 @@ async function sendGenerate() {
         generateIdx.value = 0;
         previewIdx.value = 0;
         stepText.value = i18nState.COM_GENERATING;
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${useGlobalSetup().apiHost}/api/sd/generate`, {
             method: "POST",
             body: util.convertToFromData(lastPostParams),
             signal: abortContooler.signal
