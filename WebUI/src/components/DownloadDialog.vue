@@ -206,7 +206,7 @@ function getInfoUrl(repoId: string, type: number) {
 function getFunctionTip(type: number) {
     switch (type) {
         case Const.MODEL_TYPE_LLM:
-            return i18nState.DOWNLOADER_FOR_ANWSER_GENERATE;
+            return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE;
         case Const.MODEL_TYPE_EMBEDDING:
             return i18nState.DOWNLOADER_FOR_RAG_QUERY;
         case Const.MODEL_TYPE_STABLE_DIFFUSION:
