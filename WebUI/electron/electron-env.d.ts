@@ -35,6 +35,7 @@ type LocalSettings = {
   settingPath: string;
   debug: number;
   envType: string;
+  port:number;
 } & KVObject;
 
 type ModelPaths = {
@@ -57,6 +58,7 @@ type ModelLists = {
 } & { [key: string]: Array<string> }
 
 type SetupData = {
+  apiHost:string,
   modelPaths: ModelPaths,
   modelLists: ModelLists,
   envType: string,

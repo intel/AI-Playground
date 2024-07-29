@@ -6,10 +6,10 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     const state = reactive<KVObject>({
         isAdminExec: false,
         device: "",
-        version:"0.0.0.1"
+        version: "0.0.0.1"
     });
 
-    const apiHost = "http://127.0.0.1:9999";
+    const apiHost = ref("http://127.0.0.1:9999");
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -72,6 +72,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         models.value.inpaint.push(useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL);
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
+        apiHost.value = setupData.apiHost;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         while (true) {
@@ -95,7 +96,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     async function reloadGraphics() {
         const formData = new FormData();
         formData.append("env", envType);
-        const response = await fetch(`${apiHost}/api/getGraphics`, {
+        const response = await fetch(`${apiHost.value}/api/getGraphics`, {
             body: formData,
             method: "POST"
         });
@@ -120,8 +121,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function initWebSettings(postJson: string) {
-        const url = `${apiHost}/api/init`;
-        const response = await fetch(url, {
+        const response = await fetch(`${apiHost.value}/api/init`, {
             headers: {
                 "Content-Type": "application/json",
             },
@@ -263,7 +263,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function checkModelExists(params: CheckModelExistParam[]) {
-        const response = await fetch(`${apiHost}/api/checkModelExist`, {
+        const response = await fetch(`${apiHost.value}/api/checkModelExist`, {
             method: "POST",
             body: JSON.stringify(params),
             headers: {

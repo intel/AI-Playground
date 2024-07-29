@@ -67,7 +67,8 @@ const settings: LocalSettings = {
   settingPath: "",
   isAdminExec: false,
   debug: 0,
-  envType: "ultra"
+  envType: "ultra",
+  port: 59999
 };
 
 
@@ -86,6 +87,7 @@ function loadSettings() {
       }
     });
   }
+  settings.apiHost = `http://127.0.0.1:${settings.port}`;
 }
 
 async function createWindow() {
@@ -263,14 +265,14 @@ function initEventHandle() {
   ipcMain.handle(
     "restorePathsSettings",
     (event: IpcMainInvokeEvent) => {
-      const paths = app.isPackaged ?  {
+      const paths = app.isPackaged ? {
         "llm": "./resources/service/models/llm/checkpoints",
         "embedding": "./resources/service/models/llm/embedding",
         "stableDiffusion": "./resources/service/models/stable_diffusion/checkpoints",
         "inpaint": "./resources/service/models/stable_diffusion/inpaint",
         "lora": "./resources/service/models/stable_diffusion/lora",
         "vae": "./resources/service/models/stable_diffusion/vae"
-      }:{
+      } : {
         "llm": "../service/models/llm/checkpoints",
         "embedding": "../service/models/llm/embedding",
         "stableDiffusion": "../service/models/stable_diffusion/checkpoints",
@@ -362,11 +364,12 @@ function initEventHandle() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) { return; }
     return {
+      apiHost:settings.apiHost,
       modelLists: pathsManager.sacanAll(),
       modelPaths: pathsManager.modelPaths,
       envType: settings.envType,
       isAdminExec: settings.isAdminExec,
-      version :app.getVersion()
+      version: app.getVersion()
     };
 
   });
@@ -458,18 +461,20 @@ function wakeupApiService() {
     "PYTHONIOENCODING": "utf-8"
   };
 
-  const options = settings.debug ? {
-    cwd: wordkDir,
-    detached: true,
-    windowsHide: false,
-    env: Object.assign(process.env, newEnv)
-  } : {
-    cwd: wordkDir,
-    windowsHide: true,
-    env: Object.assign(process.env, newEnv)
+  if (settings.debug) {
+    apiService.webProcess = spawn("cmd.exe", ["/c", pytonExe, "web_api.py", "--port", settings.port.toString()], {
+      cwd: wordkDir,
+      detached: true,
+      windowsHide: false,
+      env: Object.assign(process.env, newEnv)
+    });
+  } else {
+    apiService.webProcess = spawn(pytonExe, ["web_api.py", "--port", settings.port.toString()], {
+      cwd: wordkDir,
+      windowsHide: true,
+      env: Object.assign(process.env, newEnv)
+    });
   }
-
-  apiService.webProcess = spawn("cmd.exe", ["/c", pythonExe, "web_api.py"], options);
 }
 
 function closeApiService() {

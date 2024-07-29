@@ -4,19 +4,28 @@
         <div class="flex justify-between items-center px-3">
             <div class="flex items-center gap-2">
                 <button class="panel-tab" :class="{ 'active': tabIndex == 0 }" @click="tabIndex = 0">
-                    {{ languages.SETTINGS_TAB_MODEL }}
+                    {{ languages.SETTINGS_TAB_BASIC }}
                 </button>
                 <button class="panel-tab" :class="{ 'active': tabIndex == 1 }" @click="tabIndex = 1">
-                    {{ languages.SETTINGS_TAB_BASIC }}
+                    {{ languages.SETTINGS_TAB_MODEL }}
                 </button>
             </div>
             <button class="w-6 h-6" @click="emits('close')">
                 <span class="svg-icon i-right-arrow h-4 w-4"></span>
             </button>
         </div>
-        <!--BaiscSettingsTab-->
+        <!--BasicSettingsTab-->
         <div v-show="tabIndex == 0" class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter">
             <div class="px-3 flex-none flex flex-col gap-3">
+                <div class="flex flex-col gap-2">
+                    <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <radio-bolck :checked="i18n.langName == 'en_US'" :text="languages.SETTINGS_BASIC_LANGUAGE_EN"
+                            @click="() => { i18n.switchLanguage('en_US') }"></radio-bolck>
+                        <radio-bolck :checked="i18n.langName == 'zh_CN'" :text="languages.SETTINGS_BASIC_LANGUAGE_ZH"
+                            @click="() => { i18n.switchLanguage('zh_CN') }"></radio-bolck>
+                    </div>
+                </div>
                 <div class="flex flex-col gap-2">
                     <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
                     <div class="flex items-center gap-2 flex-wrap">
@@ -205,17 +214,6 @@
         </div>
         <!--Model-->
         <div v-show="tabIndex == 1" class="px-3 flex flex-col overflow-y-auto">
-
-            <!-- <div class="flex flex-col gap-3 border-t border-color-spilter py-4">
-                <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
-                <div class="grid grid-cols-2 gap-2">
-                    <radio-bolck :checked="i18n.langName == 'en_US'" :text="languages.SETTINGS_BASIC_LANGUAGE_EN"
-                        @click="() => { i18n.switchLanguage('en_US') }"></radio-bolck>
-                    <radio-bolck :checked="i18n.langName == 'zh_CN'" :text="languages.SETTINGS_BASIC_LANGUAGE_ZH"
-                        @click="() => { i18n.switchLanguage('zh_CN') }"></radio-bolck>
-                </div>
-            </div> -->
-
             <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
                 <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_SD_PRESET_MODEL }}</h2>
                 <div class="flex flex-col gap-3">
@@ -341,7 +339,7 @@
                         @update:folder="(value) => customPathsSettings('vae', value)"></folder-selector>
                 </div> -->
                 <div class="flex flex-col gap-3">
-                    <p>{{ languages.SETTINGS_MODEL_SD_LOAR }}</p>
+                    <p>{{ languages.SETTINGS_MODEL_SD_LORA }}</p>
                     <folder-selector v-model:folder="paths.lora"
                         @update:folder="(value) => customPathsSettings('lora', value)"></folder-selector>
                 </div>
@@ -414,7 +412,7 @@
                     </div>
                 </div>
                 <div class="flex flex-col gap-3">
-                    <p>{{ languages.DOWNLOADER_FOR_ANWSER_GENERATE }}</p>
+                    <p>{{ languages.DOWNLOADER_FOR_ANSWER_GENERATE }}</p>
                     <div class="flex items-center gap-4">
                         <span class="text-gray-300 flex-auto">microsoft/Phi-3-mini-4k-instruct</span>
                         <span class="flex-none text-right">7.11 GB</span>

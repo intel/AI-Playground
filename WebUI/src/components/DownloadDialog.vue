@@ -206,7 +206,7 @@ function getInfoUrl(repoId: string, type: number) {
 function getFunctionTip(type: number) {
     switch (type) {
         case Const.MODEL_TYPE_LLM:
-            return i18nState.DOWNLOADER_FOR_ANWSER_GENERATE;
+            return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE;
         case Const.MODEL_TYPE_EMBEDDING:
             return i18nState.DOWNLOADER_FOR_RAG_QUERY;
         case Const.MODEL_TYPE_STABLE_DIFFUSION:
@@ -228,9 +228,8 @@ function download() {
     percent.value = 0;
     completeCount.value = 0;
     abortController = new AbortController();
-    const url = `${globalSetup.apiHost}/api/downloadModel`;
     curDownloadTip.value = "";
-    fetch(url, {
+    fetch(`${globalSetup.apiHost}/api/downloadModel`, {
         method: "POST",
         body: JSON.stringify(toRaw(downloadList.value)),
         headers: {

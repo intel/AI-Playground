@@ -1,20 +1,20 @@
 <template>
-    <div id="anwserPanel" class="h-full flex flex-col p-4 relative">
+    <div id="answerPanel" class="h-full flex flex-col p-4 relative">
         <div id="chatPanel" class="chat-panel flex-auto flex flex-col h-0 gap-6 m-4 overflow-y-auto text-white text-sm">
             <template v-for="chat, i in chatHistories">
                 <div class="flex items-start gap-3">
                     <img src="@/assets/svg/user-icon.svg" />
                     <div class="flex flex-col gap-3 max-w-3/4">
-                        <p>{{ languages.ANWSER_USER_NAME }}</p>
+                        <p>{{ languages.ANSWER_USER_NAME }}</p>
                         <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
                     <img src="@/assets/svg/ai-icon.svg" />
                     <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
-                        <p>{{ languages.ANWSER_AI_NAME }}</p>
-                        <div class="ai-anwser chat-content" v-html="markdownParser.parseMarkdown(chat.answer)"></div>
-                        <div class="anwser-tools flex gap-3 items-center text-gray-300">
+                        <p>{{ languages.ANSWER_AI_NAME }}</p>
+                        <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)"></div>
+                        <div class="answer-tools flex gap-3 items-center text-gray-300">
                             <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
                                 <span class="svg-icon i-copy w-4 h-4"></span>
                                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
@@ -35,15 +35,15 @@
             <div class="flex items-start gap-3" v-show="processing">
                 <img src="@/assets/svg/user-icon.svg" />
                 <div class="flex flex-col gap-3 max-w-3/4">
-                    <p>{{ languages.ANWSER_USER_NAME }}</p>
+                    <p>{{ languages.ANSWER_USER_NAME }}</p>
                     <p v-html="textIn"></p>
                 </div>
             </div>
             <div class="flex items-start gap-3" v-show="processing">
                 <img src="@/assets/svg/ai-icon.svg" />
                 <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
-                    <p>{{ languages.ANWSER_AI_NAME }}</p>
-                    <div v-if="!downloadModel.downloading && !loadingModel" class="ai-anwser cursor-block break-all"
+                    <p>{{ languages.ANSWER_AI_NAME }}</p>
+                    <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
                         v-html="textOut">
                     </div>
                     <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
@@ -79,7 +79,7 @@
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-6"
                             @click="clearSession">
                             <span class="svg-icon i-clear w-4 h-4"></span>
-                            <span>{{ languages.ANWSER_ERROR_CLEAR_SESSION }}</span>
+                            <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
                         </button>
                     </div>
                     <div class="flex justify-center items-center gap-2">
@@ -88,13 +88,13 @@
                                 :class="{ 'v-checkbox-checked': ragData.enable }" @click="toggleRag(!ragData.enable)">
                             </button>
                             <span v-show="ragData.processEnable" class="w-4 h-4 svg-icon i-loading flex-none"></span>
-                            <label class="v-checkbox-label">{{ languages.ANWSER_RAG_ENABLE }}</label>
+                            <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
                         </div>
                         <button
                             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
                             @click="ragData.showUploader = true" :disabled="!ragData.enable || processing">
                             <span class="svg-icon i-upload w-4 h-4"></span>
-                            <span>{{ languages.ANWSER_RAG_OPEN_DIALOG }}</span>
+                            <span>{{ languages.ANSWER_RAG_OPEN_DIALOG }}</span>
                         </button>
                         <drop-selector :array="globalSetup.models.embedding" @change="changeEmbeddingModel"
                             :disabled="ragData.enable || processing" class="w-96">
@@ -130,7 +130,7 @@
             </div>
             <rag v-if="ragData.showUploader" ref="ragPanel" @close="ragData.showUploader = false"></rag>
         </div>
-        <teleport to="#anwserPanel" v-if="showDowloadDlg">
+        <teleport to="#answerPanel" v-if="showDowloadDlg">
             <download-dialog ref="downloadDigCompt"></download-dialog>
         </teleport>
     </div>
@@ -152,7 +152,6 @@ import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 
 const globalSetup = useGlobalSetup();
-const apiUrl = `${globalSetup.apiHost}/api/llm/chat`;
 const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
@@ -295,7 +294,7 @@ async function newPromptGenerate() {
 
     const newPrompt = question.value.trim();
     if (newPrompt == "") {
-        toast.error(useI18N().state.ANWSER_ERROR_NOT_PROMPT);
+        toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT);
         return;
     }
     try {
@@ -347,7 +346,7 @@ async function generate(chatContext: ChatItem[]) {
             enable_rag: ragData.enable,
             model_repo_id: globalSetup.modelSettings.llm_model
         };
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${globalSetup.apiHost}/api/llm/chat`, {
             method: "POST", headers: {
                 "Content-Type": "application/json"
             },
