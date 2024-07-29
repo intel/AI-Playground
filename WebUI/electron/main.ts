@@ -454,7 +454,7 @@ function isProcessRunning(pid: number) {
 function wakeupApiService() {
   const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
   const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-  const pytonExe = path.resolve(path.join(baseDir, "env/python.exe"));
+  const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
   const newEnv = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
     "SYCL_CACHE_PERSISTENT": "1",
