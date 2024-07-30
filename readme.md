@@ -86,7 +86,7 @@ npm run dev
 ```
 
 ## Model Support
-AI Playground supports PyTorch LLM, SD1.5, and SDXL models. AI Playground does not ship with any models but does make  models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.com or CivitAI.com and placing them in the appropriate model folder. 
+AI Playground supports PyTorch LLM, SD1.5, and SDXL models. AI Playground does not ship with any models but does make  models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
 
 Models currently linked from the application 
 | Model                                      | License                                                                                                                                                                      | Background Information/Model Card                                                                                      |
