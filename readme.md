@@ -23,7 +23,7 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	AI Playground for Desktop-dGPU - Temporarily Unvavailable - New pelease pending, check back shortly.
+*	AI Playground for Desktop-dGPU - Temporarily Unvavailable - New release pending, check back shortly.
 
 *	AI Playground for Intel Core Ultra-H  - coming soon.
 
