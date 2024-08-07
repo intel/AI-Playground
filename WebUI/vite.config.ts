@@ -31,6 +31,7 @@ export default defineConfig(({ command }) => {
   const isServe = command === "serve";
   const isBuild = command === "build";
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
+  const dependenciesToBeTranspiled = ['get-port'];
   return {
     plugins: [
       vue(),
@@ -59,7 +60,7 @@ export default defineConfig(({ command }) => {
               rollupOptions: {
                 external: Object.keys(
                   "dependencies" in pkg ? pkg.dependencies : {}
-                ),
+                ).filter((d) => !dependenciesToBeTranspiled.includes(d)),
               },
             },
           },

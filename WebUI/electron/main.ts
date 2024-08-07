@@ -18,6 +18,7 @@ import { randomUUID } from "node:crypto";
 import koffi from 'koffi';
 import sudo from "sudo-prompt";
 import { PathsManager } from "./pathsManager";
+import getPort, { portNumbers } from "get-port";
 
 // }
 // The built directory structure
@@ -72,7 +73,7 @@ const settings: LocalSettings = {
 };
 
 
-function loadSettings() {
+async function loadSettings() {
   const settingPath = app.isPackaged
     ? path.join(process.resourcesPath, "settings.json")
     : path.join(__dirname, "../../external/settings-dev.json");
@@ -87,6 +88,7 @@ function loadSettings() {
       }
     });
   }
+  settings.port = await getPort({ port: portNumbers(59000, 59999) });
   settings.apiHost = `http://127.0.0.1:${settings.port}`;
 }
 
@@ -364,7 +366,7 @@ function initEventHandle() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) { return; }
     return {
-      apiHost:settings.apiHost,
+      apiHost: settings.apiHost,
       modelLists: pathsManager.sacanAll(),
       modelPaths: pathsManager.modelPaths,
       envType: settings.envType,
@@ -584,7 +586,7 @@ app.whenReady().then(async () => {
     });
     app.exit();
   } else {
-    loadSettings();
+    await loadSettings();
     initEventHandle();
     createWindow();
     wakeupApiService();

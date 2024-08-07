@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.19",
+    "get-port": "^7.1.0",
     "highlight.js": "^11.9.0",
     "koffi": "^2.8.8",
     "marked": "^12.0.2",
