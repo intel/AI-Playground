@@ -8,7 +8,7 @@ Flask==3.0.3
 huggingface_hub==0.22.2
 ipex_llm==2.1.0b20240705
 langchain==0.2.2
-langchain_community==0.2.3
+langchain_community==0.2.9
 langchain_core==0.2.4
 numpy==1.26.4
 opencv_python==4.9.0.80
