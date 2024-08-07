@@ -462,14 +462,14 @@ function wakeupApiService() {
   };
 
   if (settings.debug) {
-    apiService.webProcess = spawn("cmd.exe", ["/c", pytonExe, "web_api.py", "--port", settings.port.toString()], {
+    apiService.webProcess = spawn("cmd.exe", ["/c", pythonExe, "web_api.py", "--port", settings.port.toString()], {
       cwd: wordkDir,
       detached: true,
       windowsHide: false,
       env: Object.assign(process.env, newEnv)
     });
   } else {
-    apiService.webProcess = spawn(pytonExe, ["web_api.py", "--port", settings.port.toString()], {
+    apiService.webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
       cwd: wordkDir,
       windowsHide: true,
       env: Object.assign(process.env, newEnv)

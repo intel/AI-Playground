@@ -42,7 +42,7 @@
     <div>
       <p>Al Playground from Intel Corporation <a href="https://github.com/intel/ai-playground" target="_blank"
           class="text-blue-500">https://github.com/intel/ai-playground</a></p>
-      <p>AI Playground version: v{{ "1.0b" }} 
+      <p>AI Playground version: v{{ "1.01b" }} 
         <a href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf" target="_blank"
         class="text-blue-500">  User Guide</a>
 
