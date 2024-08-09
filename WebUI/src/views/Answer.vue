@@ -59,18 +59,12 @@
             <div class="flex flex-col gap-2 flex-auto h-full">
                 <div class="flex items-center justify-between gap-5 text-white px-2">
                     <div class="flex items-center">
-                        <drop-selector :array="globalSetup.models.llm" @change="changeLLMModel" class="w-96">
+                        <drop-selector :array="models.llms" @change="changeLLMModel" class="w-96">
                             <template #selected>
-                                <div class="flex gap-2 items-center overflow-hidden text-ellipsis">
-                                    <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                    <span>{{ globalSetup.modelSettings.llm_model }}</span>
-                                </div>
+                                <model-drop-down-item :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"></model-drop-down-item>
                             </template>
                             <template #list="slotItem">
-                                <div class="flex gap-2 items-center text-ellipsis" :title="slotItem.item">
-                                    <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                    <span class="h-7 overflow-hidden">{{ slotItem.item }}</span>
-                                </div>
+                                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
                             </template>
                         </drop-selector>
                         <button class="svg-icon i-refresh w-5 h-5 text-purple-500 flex-none ml-1"
@@ -142,15 +136,18 @@ import ProgressBar from "../components/ProgressBar.vue";
 import LoadingBar from "../components/LoadingBar.vue";
 import DropSelector from "@/components/DropSelector.vue";
 import DownloadDialog from "@/components/DownloadDialog.vue";
+import ModelDropDownItem from "@/components/ModelDropDownItem.vue";
 import { useI18N } from '@/assets/js/store/i18n';
 import { toast } from '@/assets/js/toast';
 import { util } from '@/assets/js/util';
 import { SSEProcessor } from "@/assets/js/sseProcessor";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
+import { Model, useModels } from "@/assets/js/store/models";
 import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 
+const models = useModels();
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state
 const question = ref("");
@@ -386,14 +383,14 @@ function removeRonate360(ev: AnimationEvent) {
     target.classList.remove("animate-ronate360");
 }
 
-function changeLLMModel(item: any, _: number) {
-    globalSetup.applyModelSettings({ llm_model: item as string });
+function changeLLMModel(model: Model, _: number) {
+    globalSetup.applyModelSettings({ llm_model: model.name });
 }
 
 async function refreshLLMModles(e: Event) {
     const button = e.target as HTMLElement;
     button.classList.add("animate-ronate360");
-    await globalSetup.refreshLLMModles();
+    await models.refreshModels();
 }
 
 async function clearSession() {

@@ -397,6 +397,30 @@ function initEventHandle() {
     return pathsManager.scanLLMModles();
   });
 
+  ipcMain.handle("refreshEmbeddingModels", (event) => {
+    return pathsManager.scanEmbedding();
+  });
+
+  ipcMain.handle("getDownloadedDiffusionModels", (event) => {
+    return pathsManager.scanSDModleLists(false);
+  });
+
+  ipcMain.handle("getDownloadedInpaintModels", (event) => {
+    return pathsManager.scanInpaint(false);
+  });
+
+  ipcMain.handle("getDownloadedLoras", (event) => {
+    return pathsManager.scanLora(false);
+  });
+
+  ipcMain.handle("getDownloadedLLMs", (event) => {
+    return pathsManager.scanLLMModles(false);
+  });
+
+  ipcMain.handle("getDownloadedEmbeddingModels", (event) => {
+    return pathsManager.scanEmbedding(false);
+  });
+
   ipcMain.on("openImageWithSystem", (event, url: string) => {
     // Assuming 'settings' and 'externalRes' are properly defined
     let imagePath = url.replace(settings.apiHost + "/", ""); // Remove the API host part

@@ -35,7 +35,13 @@ type electronAPI = {
     refreshSDModles(): Promise<string[]>,
     refreshLLMModles(): Promise<string[]>,
     refreshLora(): Promise<string[]>,
+    refreshEmbeddingModels(): Promise<string[]>,
     refreshInpaintModles(): Promise<string[]>,
+    getDownloadedDiffusionModels(): Promise<string[]>,
+    getDownloadedInpaintModels(): Promise<string[]>,
+    getDownloadedLoras(): Promise<string[]>,
+    getDownloadedLLMs(): Promise<string[]>,
+    getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void

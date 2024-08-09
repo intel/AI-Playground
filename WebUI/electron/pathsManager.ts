@@ -58,11 +58,11 @@ export class PathsManager {
             throw ex;
         }
     }
-    scanSDModleLists() {
-        const models = [
+    scanSDModleLists(returnDefaults = true) {
+        const models = returnDefaults ? [
             "Lykon/dreamshaper-8",
             "RunDiffusion/Juggernaut-XL-v9",
-        ]
+        ] : [];
         const dir = this.modelPaths.stableDiffusion;
         if (fs.existsSync(dir)) {
 
@@ -92,12 +92,13 @@ export class PathsManager {
         else {
             fs.mkdirSync(dir, { recursive: true });
         }
+        console.log('scanSDModleLists', {dir, models})
         return models
     }
-    scanLLMModles() {
-        const models = [
+    scanLLMModles(returnDefaults = true) {
+        const models = returnDefaults ? [
             "microsoft/Phi-3-mini-4k-instruct",
-        ]
+        ] : [];
         const dir = this.modelPaths.llm;
         if (fs.existsSync(dir)) {
             const modelsSet = new Set(models);
@@ -117,14 +118,15 @@ export class PathsManager {
         else {
             fs.mkdirSync(dir, { recursive: true });
         }
+        console.log('scanLLMModles', {dir, models})
         return models
     }
-    scanLora() {
-        const models = [
+    scanLora(returnDefaults = true) {
+        const models = returnDefaults ? [
             "None",
             "latent-consistency/lcm-lora-sdxl",
             "latent-consistency/lcm-lora-sdv1-5",
-        ]
+        ] : [];
         const loraDir = this.modelPaths.lora;
         if (fs.existsSync(loraDir)) {
             const modelsSet = new Set(models);
@@ -153,16 +155,16 @@ export class PathsManager {
         }
         return models
     }
-    scanEmbedding() {
-        return [
+    scanEmbedding(returnDefaults = true) {
+        return returnDefaults ? [
             "BAAI/bge-large-en-v1.5",
             "BAAI/bge-large-zh-v1.5"
-        ]
+        ] : [];
     }
-    scanInpaint() {
-        const models = [
+    scanInpaint(returnDefaults = true) {
+        const models = returnDefaults ? [
             "Lykon/dreamshaper-8-inpainting"
-        ]
+        ] : [];
         const dir = this.modelPaths.inpaint;
         if (fs.existsSync(dir)) {
             const modelsSet = new Set(models);
