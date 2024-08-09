@@ -1,8 +1,8 @@
 <template>
     <div id="createPanel" class="h-full flex flex-col p-4">
         <div class="image-panel flex-auto flex p-4">
-            <div v-if="destImg.length > 0" class="image-preview-panel flex-none">
-                <div v-for="image, i in destImg" class="image-preview-item flex items-center justify-center"
+            <div v-if="imageUrls.length > 0" class="image-preview-panel flex-none">
+                <div v-for="image, i in imageUrls" class="image-preview-item flex items-center justify-center"
                     :class="{ 'active': previewIdx == i }" @click="swithPreview(i)">
                     <div class="image-preview-item-bg">
                         <img :src="image" class="image-thumb" />
@@ -11,7 +11,7 @@
             </div>
             <div class="flex-auto relative flex items-center justify-center">
                 <div class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg">
-                    <img v-for="image, i in destImg" :src="image" class="max-w-768px max-h-512px"
+                    <img v-for="image, i in imageUrls" :src="image" class="max-w-768px max-h-512px"
                         v-show="previewIdx == i" />
                     <div v-show="generateIdx == previewIdx && processing"
                         class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center">
@@ -90,7 +90,7 @@ const globalSetup = useGlobalSetup();
 const currentState = ref<SDGenerateState>("no_start");
 const previewIdx = ref(0);
 const generateIdx = ref(-999);
-const destImg = ref<string[]>([]);
+const imageUrls = ref<string[]>([]);
 const prompt = ref("")
 const processing = ref(false);
 const stepText = ref("");
@@ -115,22 +115,44 @@ function finishGenerate() {
     processing.value = false;
 }
 
-function updateDestImage(index: number, image: string) {
-    if (index + 1 > destImg.value.length) {
-        destImg.value.push(image);
+async function updateDestImage(index: number, image: string) {
+    image = await replaceBlackImageWithNsfwNotice(image);
+    if (index + 1 > imageUrls.value.length) {
+        imageUrls.value.push(image);
     } else {
-        destImg.value.splice(index, 1, image);
+        imageUrls.value.splice(index, 1, image);
     }
 }
 
-function dataProcess(line: string) {
+const blackImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAA1UlEQVR4nO3BMQEAAADCoPVP7WULoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAGwEtAAHMpTgHAAAAAElFTkSuQmCC";
+async function replaceBlackImageWithNsfwNotice(image: string) {
+    if (image.startsWith('http')) {
+        const result = await fetch(image);
+        const blob = await result.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        const base64String = await new Promise<string>((callback) => {
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                callback(base64String);
+            };
+        });
+        const isNSFW = base64String === blackImage;
+        if (isNSFW) {
+            image = '/src/assets/image/nsfw_result_detected.png';
+        }
+    };
+    return image;
+}
+
+async function dataProcess(line: string) {
     util.log(`SD data: ${line}`);
     const dataJson = line.slice(5);
     const data = JSON.parse(dataJson) as SDOutCallback;
     switch (data.type) {
         case "image_out":
             currentState.value = "image_out";
-            updateDestImage(data.index, data.image);
+            await updateDestImage(data.index, data.image);
             generateParams.push(data.params);
             generateIdx.value++;
             break;
@@ -138,7 +160,7 @@ function dataProcess(line: string) {
             currentState.value = "generating";
             stepText.value = `${i18nState.COM_GENERATING} ${data.step}/${data.total_step}`;
             if (data.image) {
-                updateDestImage(data.index, data.image);
+                await updateDestImage(data.index, data.image);
             }
             if (data.step == 0) {
                 previewIdx.value = data.index;
@@ -267,29 +289,29 @@ async function stopGenerate() {
 }
 
 function postImageToEnhance() {
-    emits("postImageToEnhance", destImg.value[previewIdx.value]);
+    emits("postImageToEnhance", imageUrls.value[previewIdx.value]);
 }
 
 function openImage() {
-    const path = destImg.value[previewIdx.value];
+    const path = imageUrls.value[previewIdx.value];
     window.electronAPI.openImageWithSystem(path);
 
 }
 
 function selecteImage() {
-    window.electronAPI.selecteImage(destImg.value[previewIdx.value]);
+    window.electronAPI.selecteImage(imageUrls.value[previewIdx.value]);
 }
 
 
 function copyImage() {
-    util.copyImage(destImg.value[previewIdx.value]);
+    util.copyImage(imageUrls.value[previewIdx.value]);
     toast.success(i18nState.COM_COPY_SUCCESS_TIP);
 }
 
 function reset() {
     currentState.value = "no_start";
     generateParams.splice(0, generateParams.length);
-    destImg.value.splice(0, destImg.value.length);
+    imageUrls.value.splice(0, imageUrls.value.length);
     generateIdx.value = -999;
     previewIdx.value = -1;
     downloadModel.downloading = false;
