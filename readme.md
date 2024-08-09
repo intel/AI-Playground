@@ -29,6 +29,7 @@ This second phase of installation **will take several minutes** and require a st
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
+IMPORTANT: We have noticed some systems require the VS C++ redistribution, often already installed on Windows systems. If your system is hanging on installation, this may be the issue and can be resolved by installing VS C++ redist https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
 
 ## Project Development
 ### Dev Environment Setup (backend, python)
