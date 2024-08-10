@@ -18,7 +18,7 @@
                 </div>
             </div>
             <div class="flex-auto relative flex items-center justify-center">
-                <div class="flex justify-center items-center bg-color-image-bg rounded-lg relative"
+                <div class="flex justify-center items-center bg-color-image-bg rounded-lg relative border border-white/20"
                     style="width: 768px; height: 400px;">
                     <!--inpaint mask-->
                     <div class="relative">

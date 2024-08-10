@@ -1,7 +1,7 @@
 :root {
   --color-bg-main: rgba(24, 21, 36, 1);
   --color-spilter: #525252;
-  --color-panel-focus: #05010f;
+  --color-panel-focus: #05010fb4;
   --color-gray-666: #666666;
   --color-uploader-bg: #201c31;
   --color-text-main: #ffffff;
@@ -12,7 +12,7 @@
   --main-gradient: linear-gradient(75deg, #2da9ff, #aa05ff);
   --textbox-bg: #38383d;
   --compontents-main: #fff;
-  --color-image-bg: #110f17;
+  --color-image-bg: #110f1779;
   --textbox-gradient-border: linear-gradient(
       var(--textbox-bg),
       var(--textbox-bg)

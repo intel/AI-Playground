@@ -47,7 +47,6 @@ textarea {
 
     &.active {
       color: #fff;
-      background: url("@/assets/svg/tab-active.svg") 0px 0px no-repeat;
       z-index: 10;
     }
   }
@@ -153,7 +152,8 @@ textarea {
   flex-direction: column;
   padding: 8px;
   gap: 14px;
-  background-color: #110f17;
+  background-color: var(--color-image-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 
   .image-preview-item {
     border-radius: 4px;

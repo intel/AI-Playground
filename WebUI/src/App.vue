@@ -1,8 +1,15 @@
 <template>
+  <div class="lnl-grid lnl-top-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
+  <div class="lnl-grid lnl-bottom-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
+  <div class="lnl-gradient"></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-color-spilter text-white">
-    <div class="flex gap-5 items-center">
-      <h1 class="select-none flex gap-2"><span style="color:#00c4fa">AI</span><span>PLAYGROUND</span></h1>
+    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black bg-opacity-20">
+    <div class="flex items-center">
+      <h1 class="select-none flex gap-3 items-baseline">
+        <span style="color:#00c4fa">AI</span>
+        <span>PLAYGROUND</span>
+        <span class="text-sm font-normal">for Intel® Core™ Ultra 200V</span>
+      </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
       <button :title="languages.COM_SETTINGS" class="svg-icon i-setup w-6 h-6" @click="showAppSettings"
@@ -26,8 +33,9 @@
         }}</button>
       <button class="tab" :class="{ 'active': activeTabIdx == 3 }" @click="switchTab(3)">{{ languages.TAB_LEARN_MORE
         }}</button>
+      <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
     </div>
-    <div class="main-content flex-auto rounded-t-lg border-t relative">
+    <div class="main-content flex-auto rounded-t-lg relative">
       <create v-show="activeTabIdx == 0" @postImageToEnhance="postImageToEnhance"
         @show-download-model-confirm="showDownloadModelConfirm"></create>
       <enhance v-show="activeTabIdx == 1" ref="enhanceCompt" @show-download-model-confirm="showDownloadModelConfirm">
@@ -38,7 +46,7 @@
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
   </main>
-  <footer class="flex-none mx-4 border-t border-color-spilter flex justify-between items-center select-none">
+  <footer class="flex-none px-4 flex justify-between items-center select-none bg-black bg-opacity-50">
     <div>
       <p>Al Playground from Intel Corporation <a href="https://github.com/intel/ai-playground" target="_blank"
           class="text-blue-500">https://github.com/intel/ai-playground</a></p>
@@ -54,7 +62,10 @@
       
       </p>
     </div>
-    <img src="@/assets/svg/intel.svg" />
+    <div class="flex gap-2 items-center">
+      <p class="text-gray-300 text-lg mr-2">Powered by</p>
+      <img class="size-20" src="@/assets/image/core_ultra_logo.png" />
+    </div>
   </footer>
 
 </template>
