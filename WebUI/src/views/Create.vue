@@ -116,33 +116,11 @@ function finishGenerate() {
 }
 
 async function updateDestImage(index: number, image: string) {
-    image = await replaceBlackImageWithNsfwNotice(image);
     if (index + 1 > imageUrls.value.length) {
         imageUrls.value.push(image);
     } else {
         imageUrls.value.splice(index, 1, image);
     }
-}
-
-const blackImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAA1UlEQVR4nO3BMQEAAADCoPVP7WULoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAGwEtAAHMpTgHAAAAAElFTkSuQmCC";
-async function replaceBlackImageWithNsfwNotice(image: string) {
-    if (image.startsWith('http')) {
-        const result = await fetch(image);
-        const blob = await result.blob();
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        const base64String = await new Promise<string>((callback) => {
-            reader.onloadend = () => {
-                const base64String = reader.result as string;
-                callback(base64String);
-            };
-        });
-        const isNSFW = base64String === blackImage;
-        if (isNSFW) {
-            image = '/src/assets/image/nsfw_result_detected.png';
-        }
-    };
-    return image;
 }
 
 async function dataProcess(line: string) {
@@ -152,6 +130,9 @@ async function dataProcess(line: string) {
     switch (data.type) {
         case "image_out":
             currentState.value = "image_out";
+            if (!data.safe_check_pass) {
+                data.image = '/src/assets/image/nsfw_result_detected.png'
+            }
             await updateDestImage(data.index, data.image);
             generateParams.push(data.params);
             generateIdx.value++;

@@ -170,6 +170,7 @@ type SDOutImagelCallback = {
     type: "image_out",
     index: number,
     image: string,
+    safe_check_pass: boolean,
     params: KVObject,
 }
 

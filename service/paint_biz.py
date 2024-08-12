@@ -778,14 +778,20 @@ def outpaint(params: OutpaintParams):
             _generate_idx += 1
 
 
+def is_image_completely_black(image: Image):
+    pixels = image.getdata()
+    return all(pixel == (0, 0, 0) for pixel in pixels)
+
+
 def output_image(
     pipe: StableDiffusionPipeline | StableDiffusionXLPipeline,
     image: Image.Image,
     params: TextImageParams,
 ):
     global image_out_callback, _safety_checker, _generate_idx
+    passed_safety_check = not is_image_completely_black(image)
     if image_out_callback is not None:
-        image_out_callback(_generate_idx, image, params, True)
+        image_out_callback(_generate_idx, image, params, passed_safety_check)
 
 
 def generate(params: TextImageParams):
