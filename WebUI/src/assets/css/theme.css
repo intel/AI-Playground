@@ -128,3 +128,78 @@ textarea {
     transform: scale(1);
   }
 }
+
+
+.lnl-background {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, #001f5c, #003b8e);
+  position: relative;
+  overflow: hidden;
+  perspective: 1000px;
+}
+
+.lnl-bottom-grid {
+  transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-25%) rotateX(78deg) skewX(-5deg);
+}
+
+.lnl-top-grid {
+  transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-75%) rotateX(102deg) skewX(-5deg);
+}
+
+.pos-0 {
+--position-index: 0
+}
+
+.pos-1 {
+--position-index: 1
+}
+
+.pos-2 {
+--position-index: 2
+}
+
+.pos-3 {
+--position-index: 3
+}
+
+.lnl-gradient {
+  position: absolute;
+  background: linear-gradient( rgba(0, 25, 138, 0.2) 0%, rgb(0, 25, 138) 35%,  rgb(0, 25, 138) 65%, rgba(0, 25, 138, 0.2) 100%);
+  width: 100%;
+  height: 100%;
+  z-index: -5;
+}
+
+.lnl-grid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  z-index: -10;
+  transition: all 0.8s ease-in-out;
+}
+
+.main-tab-glider {
+transform: translateX(calc(calc(168px + 0.25rem) * var(--position-index)));
+transition: all 0.3s ease-in-out;
+background: url("@/assets/svg/tab-active.svg") 0px 0px no-repeat;
+z-index: -5;
+position: absolute;
+}
+
+.lnl-grid::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 65 65" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="14" height="14" style="fill: hsl(209, 58%, 70%);"/></svg>');
+  background-size: 45px 45px;
+  opacity: 0.3;
+}
