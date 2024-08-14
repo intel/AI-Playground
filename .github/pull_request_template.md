@@ -1,5 +1,3 @@
-**Pull Request Template**
-
 **Description:**
 
 Please provide a brief description of the changes made in this pull request.
