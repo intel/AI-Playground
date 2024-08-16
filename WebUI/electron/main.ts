@@ -497,6 +497,8 @@ function wakeupApiService() {
 
 function spawnAPI(pythonExe: string, wordkDir: string, newEnv: { SYCL_ENABLE_DEFAULT_CONTEXTS: string; SYCL_CACHE_PERSISTENT: string; PYTHONIOENCODING: string; }, retries: number) {
   retries++;
+  let stderrData = '';
+  let maxRetries = 2;
   console.log(`#${retries} try to start python API`)
   
   apiService.webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
@@ -507,30 +509,33 @@ function spawnAPI(pythonExe: string, wordkDir: string, newEnv: { SYCL_ENABLE_DEF
   
 
   const handleFailure = (err: Error | null, code: number | null) => {
-    console.log(`Error: ${err || `Process exited with code ${code}`}`);
-    if (retries < 5) {
+    console.error(`Error: ${err || `Process exited with code ${code}`}`);
+    if (retries < maxRetries) {
       if (apiService.webProcess != null) {
         spawnAPI(pythonExe, wordkDir, newEnv, retries);
       }
     } else {
-      console.log(`Maximum attempts reached. Giving up.`);
-      // Log to user (in frame)
+      console.error(`Maximum attempts reached. Giving up.`);
+      if (apiService.webProcess?.stderr != null) {
+        // TODO: catch + retry
+        throw new Error(`Backend could not start:\n ${stderrData}`) 
+      }
     }
   };
   
-  apiService.webProcess.on('error', (err) => handleFailure(err, null));
+  apiService.webProcess.on('error', (err) =>handleFailure(err, null));
   apiService.webProcess.on('exit', (code, signal) => handleFailure(null, code));
+  apiService.webProcess.stderr?.on('data', (data) => {
+    stderrData = data.toString();
+  });
+
 
   if (settings.debug) {
     apiService.webProcess.stdout?.on('data', (data) => {
       console.log(`backend: ${data}`);
-    });
-    
-    apiService.webProcess.stderr?.on('data', (data) => {
-      console.error(`backend: ${data}`);
-        
-    });
+    })
   }
+    
 }
 
 
