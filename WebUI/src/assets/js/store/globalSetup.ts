@@ -75,16 +75,22 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         apiHost.value = setupData.apiHost;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
+        const delay = 2000;
+
         while (true) {
             try {
                 models.value.scheduler.push(...await initWebSettings(postJson));
                 models.value.scheduler.unshift("None");
                 break;
             } catch (error) {
-                if ((await window.electronAPI.getPythonBackendStatus()).status === "running") {
+                if (error instanceof TypeError) {
+                    console.warn(`Fetch attempt failed. Retrying in ${delay}ms...`);
+                    await util.delay(delay);
+                } else if ((await window.electronAPI.getPythonBackendStatus()).status === "running") {
                     await window.electronAPI.showMessageBoxSync({ message: (error as Error).message, title: "error", icon: "error" });
+                } else {
+                    await util.delay(delay);
                 }
-                await util.delay(2000);
             }
         }
         await reloadGraphics();
