@@ -360,6 +360,10 @@ function initEventHandle() {
     return fs.existsSync(path);
   });
 
+  ipcMain.handle("getPythonBackendStatus", async (event) => {
+    return { status: apiService.webProcess != null && apiService.normalExit ? "running" : "stopped" };
+  })
+
   let pathsManager = new PathsManager(path.join(externalRes, app.isPackaged ? "model_config.json" : "model_config.dev.json"));
 
   ipcMain.handle("getInitSetting", (event) => {
@@ -480,28 +484,55 @@ function isProcessRunning(pid: number) {
 function wakeupApiService() {
   const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
   const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-  const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
+  const pythonExe = path.resolve(path.join(baseDir, "service/env/Scripts/python.exe"));
   const newEnv = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
     "SYCL_CACHE_PERSISTENT": "1",
     "PYTHONIOENCODING": "utf-8"
   };
 
+  let retries = 0;
+  spawnAPI(pythonExe, wordkDir, newEnv, retries);
+}
+
+function spawnAPI(pythonExe: string, wordkDir: string, newEnv: { SYCL_ENABLE_DEFAULT_CONTEXTS: string; SYCL_CACHE_PERSISTENT: string; PYTHONIOENCODING: string; }, retries: number) {
+  retries++;
+  console.log(`#${retries} try to start python API`)
+  
+  apiService.webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
+    cwd: wordkDir,
+    windowsHide: true,
+    env: Object.assign(process.env, newEnv)
+  });
+  
+
+  const handleFailure = (err: Error | null, code: number | null) => {
+    console.log(`Error: ${err || `Process exited with code ${code}`}`);
+    if (retries < 5) {
+      if (apiService.webProcess != null) {
+        spawnAPI(pythonExe, wordkDir, newEnv, retries);
+      }
+    } else {
+      console.log(`Maximum attempts reached. Giving up.`);
+      // Log to user (in frame)
+    }
+  };
+  
+  apiService.webProcess.on('error', (err) => handleFailure(err, null));
+  apiService.webProcess.on('exit', (code, signal) => handleFailure(null, code));
+
   if (settings.debug) {
-    apiService.webProcess = spawn("cmd.exe", ["/c", pythonExe, "web_api.py", "--port", settings.port.toString()], {
-      cwd: wordkDir,
-      detached: true,
-      windowsHide: false,
-      env: Object.assign(process.env, newEnv)
+    apiService.webProcess.stdout?.on('data', (data) => {
+      console.log(`backend: ${data}`);
     });
-  } else {
-    apiService.webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
-      cwd: wordkDir,
-      windowsHide: true,
-      env: Object.assign(process.env, newEnv)
+    
+    apiService.webProcess.stderr?.on('data', (data) => {
+      console.error(`backend: ${data}`);
+        
     });
   }
 }
+
 
 function closeApiService() {
   apiService.normalExit = true;

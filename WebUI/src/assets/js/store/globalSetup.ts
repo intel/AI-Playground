@@ -80,8 +80,11 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 models.value.scheduler.push(...await initWebSettings(postJson));
                 models.value.scheduler.unshift("None");
                 break;
-            } catch {
-                await util.delay(500);
+            } catch (error) {
+                if ((await window.electronAPI.getPythonBackendStatus()).status === "running") {
+                    await window.electronAPI.showMessageBoxSync({ message: (error as Error).message, title: "error", icon: "error" });
+                }
+                await util.delay(2000);
             }
         }
         await reloadGraphics();
@@ -128,6 +131,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             method: "post",
             body: postJson,
         });
+        if (response.status !== 200) {
+            throw new Error(`Received response other than 200:\n\n ${await response.status}:${await response.text}`)
+        }
         return await response.json() as string[];
     }
 
