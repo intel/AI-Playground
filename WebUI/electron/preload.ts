@@ -140,6 +140,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ),
   existsPath: (path: string) => ipcRenderer.invoke("existsPath", path),
   getInitSetting: () => ipcRenderer.invoke("getInitSetting"),
+  getPythonBackendStatus: () => ipcRenderer.invoke("getPythonBackendStatus"),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke("updateModelPaths", modelPaths),
   restorePathsSettings :()=>ipcRenderer.invoke("restorePathsSettings"),
   refreshSDModles: () => ipcRenderer.invoke("refreshSDModles"),

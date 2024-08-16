@@ -65,3 +65,7 @@ type SetupData = {
   isAdminExec:boolean,
   version:string,
 }
+
+type BackendStatus {
+  status: string,
+}

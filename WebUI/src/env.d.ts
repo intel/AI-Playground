@@ -30,6 +30,7 @@ type electronAPI = {
     webServiceExit(callback: (serviceName: string, normalExit: string) => void): void;
     existsPath(path: string): Promise<boolean>;
     getInitSetting(): Promise<SetupData>
+    getPythonBackendStatus(): Promise<BackendStatus>
     updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>,
     restorePathsSettings():Promise<void>,
     refreshSDModles(): Promise<string[]>,
