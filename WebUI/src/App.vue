@@ -8,7 +8,7 @@
       <h1 class="select-none flex gap-3 items-baseline">
         <span style="color:#00c4fa">AI</span>
         <span>PLAYGROUND</span>
-        <span class="text-sm font-normal">for Intel® Core™ Ultra 200V</span>
+        <span v-if="platformTitle" class="text-sm font-normal">{{ platformTitle }}</span>
       </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
@@ -99,6 +99,8 @@ const showDowloadDlg = ref(false);
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>();
 
 const fullscreen = ref(false);
+
+const platformTitle = window.envVars.platformTitle;
 
 onBeforeMount(async () => {
   

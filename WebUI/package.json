@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "dev": "vite",
+    "dev": "VITE_PLATFORM_TITLE='for Local® Dev™ Mode' vite",
     "build": "vue-tsc && vite build && call build\\before_build.bat&& electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
     "build:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
     "dir:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --dir --config build\\ultra-build.json&&call build\\after_build.bat",

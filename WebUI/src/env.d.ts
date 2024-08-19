@@ -1,6 +1,7 @@
 declare interface Window {
     chrome: Chrome;
     electronAPI: electronAPI;
+    envVars: { platformTitle: string };
 }
 
 type electronAPI = {
@@ -46,6 +47,10 @@ type electronAPI = {
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void
 };
+
+type PythonBackendStatus = {
+    status: "running" | "stopped"
+}
 
 type Chrome = {
     webview: WebView;

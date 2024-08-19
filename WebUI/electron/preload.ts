@@ -101,6 +101,9 @@ import { contextBridge, ipcRenderer, dialog } from "electron";
 
 // domReady().then(appendLoading);
 
+contextBridge.exposeInMainWorld("envVars", {
+  platformTitle: process.env.VITE_PLATFORM_TITLE,
+});
 contextBridge.exposeInMainWorld("electronAPI", {
   openUrl: (url: string) => ipcRenderer.send("openUrl", url),
   getLocalSettings: () => ipcRenderer.invoke("getLocalSettings"),
