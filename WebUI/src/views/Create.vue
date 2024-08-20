@@ -11,7 +11,7 @@
             </div>
             <div class="flex-auto relative flex items-center justify-center">
                 <div class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30">
-                    <img v-for="image, i in imageUrls" :src="image" class="max-w-768px max-h-512px"
+                    <img v-for="image, i in imageUrls" :src="image" class="p-1 max-w-768px max-h-512px"
                         v-show="previewIdx == i" />
                     <div v-show="generateIdx == previewIdx && processing"
                         class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center">
