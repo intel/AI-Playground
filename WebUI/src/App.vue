@@ -64,7 +64,8 @@
     </div>
     <div class="flex gap-2 items-center">
       <p class="text-gray-300 text-lg mr-2">Powered by</p>
-      <img class="size-20" src="@/assets/image/core_ultra_logo.png" />
+      <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
+      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
     </div>
   </footer>
 
