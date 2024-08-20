@@ -4,6 +4,8 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite';
 import electron from "vite-plugin-electron";
 import pkg from "./package.json";
+import tailwind from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 const assetParrentArray = [
   { parttern: /.(jpe?g|a?png)$/, folder: "image" },
@@ -33,6 +35,11 @@ export default defineConfig(({ command }) => {
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
   const dependenciesToBeTranspiled = ['get-port'];
   return {
+    css: {
+      postcss: {
+        plugins: [tailwind(), autoprefixer()],
+      },
+    },
     plugins: [
       vue(),
       AutoImport({
