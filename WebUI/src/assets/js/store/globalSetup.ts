@@ -86,6 +86,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;
 
+        const delay = 2000;
+
         while (true) {
             try {
                 models.value.scheduler.push(...await initWebSettings(postJson));
