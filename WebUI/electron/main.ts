@@ -518,12 +518,14 @@ function spawnAPI(pythonExe: string, wordkDir: string, newEnv: { SYCL_ENABLE_DEF
       console.error(`Maximum attempts reached. Giving up.`);
       if (apiService.webProcess?.stderr != null) {
         // TODO: catch + retry
-        throw new Error(`Backend could not start:\n ${stderrData}`) 
+        console.log(`stderrData: ${stderrData}`);
+        win?.webContents.send('reportError', stderrData);
+        //throw new Error(`Backend could not start:\n ${stderrData}`) 
       }
     }
   };
   
-  apiService.webProcess.on('error', (err) =>handleFailure(err, null));
+  apiService.webProcess.on('error', (err) => handleFailure(err, null));
   apiService.webProcess.on('exit', (code, signal) => handleFailure(null, code));
   apiService.webProcess.stderr?.on('data', (data) => {
     stderrData = data.toString();

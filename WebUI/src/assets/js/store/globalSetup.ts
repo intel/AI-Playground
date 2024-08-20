@@ -64,6 +64,15 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     let envType = "";
 
+    const loadingState = ref("loading");
+
+    const errorMessage = ref("");
+
+    window.electronAPI.onReportError((value) => {
+        loadingState.value = "failed";
+        errorMessage.value = value;
+    })
+
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();
         envType = setupData.envType;
@@ -87,7 +96,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                     console.warn(`Fetch attempt failed. Retrying in ${delay}ms...`);
                     await util.delay(delay);
                 } else if ((await window.electronAPI.getPythonBackendStatus()).status === "running") {
-                    await window.electronAPI.showMessageBoxSync({ message: (error as Error).message, title: "error", icon: "error" });
+                    loadingState.value = "failed";
+                    errorMessage.value = (error as Error).message;
                 } else {
                     await util.delay(delay);
                 }
@@ -97,9 +107,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         if (graphicsList.value.length == 0) {
             await window.electronAPI.showMessageBoxSync({ message: useI18N().state.ERROR_UNFOUND_GRAPHICS, title: "error", icon: "error" });
             window.electronAPI.exitApp();
-            return;
         }
         await loadUserSettings();
+        loadingState.value = "running";
     }
 
     async function reloadGraphics() {
@@ -294,6 +304,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         paths,
         apiHost,
         graphicsList,
+        loadingState,
+        errorMessage,
         initSetup,
         applyPathsSettings,
         applyModelSettings,

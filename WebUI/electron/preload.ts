@@ -159,4 +159,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openImageWithSystem: (url: string) => ipcRenderer.send("openImageWithSystem", url),
   selecteImage: (url: string) => ipcRenderer.send("selecteImage", url),
   setFullScreen: (enable: boolean) => ipcRenderer.send("setFullScreen", enable),
+  onReportError: (callback: (errorMessage: string) => void) => ipcRenderer.on('reportError', (_event, value) => callback(value)),
 });

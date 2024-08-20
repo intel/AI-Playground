@@ -20,8 +20,18 @@
       <button :title="languages.COM_CLOSE" @click="closeWindow" class="svg-icon i-close w-6 h-6"></button>
     </div>
   </header>
-  <main v-if="loading" class="flex-auto flex items-center justify-center">
+  <main v-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
+  </main>
+  <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-center justify-center">
+    <div class="dialog-container z-10">
+        <div class="dialog-mask absolute left-0 top-0 w-full h-full bg-black/55 flex justify-center items-center">
+            <div class="py-20 px-20 w-768px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-8 text-white">
+                Backend initialization failed. Please check the following reasons:
+                <pre>{{ globalSetup.errorMessage }}</pre>
+            </div>
+        </div>
+    </div>
   </main>
   <main v-else class="flex-auto flex flex-col relative">
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
@@ -103,9 +113,11 @@ const fullscreen = ref(false);
 
 const platformTitle = window.envVars.platformTitle;
 
+const globalSetup = useGlobalSetup();
+
 onBeforeMount(async () => {
-  
-  await useGlobalSetup().initSetup();
+  await globalSetup.initSetup();
+
   document.body.addEventListener("mousedown", autoHideAppSettings);
   document.body.addEventListener("keydown", (e) => {
     if (e.key == "F11") {
@@ -113,8 +125,8 @@ onBeforeMount(async () => {
       e.preventDefault();
     }
   })
-  loading.value = false;
 })
+
 
 function showAppSettings() {
   if (showSetting.value === false) {
@@ -128,6 +140,7 @@ function showAppSettings() {
 function hideAppSettings() {
   showSetting.value = false;
 }
+
 function autoHideAppSettings(e: MouseEvent) {
   if (showSetting.value && e.target != showSettingBtn.value && !e.composedPath().find((item)=>{ return item instanceof HTMLElement && item.classList.contains("v-drop-select-list")})) {
     const appSettingsPanel = document.getElementById("app-settings-panel");

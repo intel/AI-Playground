@@ -46,7 +46,8 @@ type electronAPI = {
     getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
-    setFullScreen(enable: boolean): void
+    setFullScreen(enable: boolean): void,
+    onReportError(callback: (errorMessage: string) => void): void,
 };
 
 type PythonBackendStatus = {
