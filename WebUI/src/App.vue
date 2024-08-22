@@ -158,6 +158,9 @@ function autoHideAppSettings(e: MouseEvent) {
     const appSettingsPanel = document.getElementById("app-settings-panel");
 
     if (appSettingsPanel != null) {
+      if (e.target instanceof HTMLElement && e.target.closest("#app-settings-panel") != null) {
+        return;
+      }
       const rect = appSettingsPanel.getBoundingClientRect();
       if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
         hideAppSettings();

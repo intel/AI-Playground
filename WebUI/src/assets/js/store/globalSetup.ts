@@ -68,6 +68,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const errorMessage = ref("");
 
+    const hdPersistentConfirmation = ref(false);
+
     window.electronAPI.onReportError((value) => {
         loadingState.value = "failed";
         errorMessage.value = value;
@@ -307,6 +309,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         graphicsList,
         loadingState,
         errorMessage,
+        hdPersistentConfirmation,
         initSetup,
         applyPathsSettings,
         applyModelSettings,

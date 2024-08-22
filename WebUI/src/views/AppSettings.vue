@@ -1,6 +1,27 @@
 <template>
     <div id="app-settings-panel"
         class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4">
+        <dialog ref="hdConfirmationDialog" class="w-96 p-6 bg-white rounded-lg shadow-lg">
+            <form method="dialog">
+            <p class="text-gray-700 mb-4">
+                HD Mode can result in slower than normal performance on systems with less than 12 GB of VRAM or 24GB of system memory for Intel Core Ultra PCs
+            </p>
+            <div class="flex justify-end space-x-4">
+                <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+                Cancel
+                </button>
+                <button @click="() => changeResolution(1, true)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Continue
+                </button>
+                <button @click="() => { 
+                    globalSetup.hdPersistentConfirmation = true; 
+                    changeResolution(1, true) 
+                    }" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                Do Not Show Again
+                </button>
+            </div>
+            </form>
+        </dialog>
         <div class="flex justify-between items-center px-3">
             <div class="flex items-center gap-2">
                 <button class="panel-tab" :class="{ 'active': tabIndex == 0 }" @click="tabIndex = 0">
@@ -470,6 +491,8 @@ const widthRange = ref<NumberRange>({
     max: 768,
 });
 
+const hdConfirmationDialog = ref<HTMLDialogElement>();
+
 const heightRange = ref<NumberRange>({
     min: 256,
     max: 768,
@@ -626,7 +649,11 @@ function applyModelSettings() {
     modelSettingsChange.value = false;
 }
 
-function changeResolution(value: number) {
+function changeResolution(value: number, dialogConfirmation = false) {
+    if (value === 1 && !globalSetup.hdPersistentConfirmation && !dialogConfirmation) {
+        hdConfirmationDialog.value?.showModal();
+        return;
+    }
     modelSettings.resolution = value;
     setModelOptionByPreset();
 }
