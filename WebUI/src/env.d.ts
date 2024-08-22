@@ -4,6 +4,14 @@ declare interface Window {
     envVars: { platformTitle: string };
 }
 
+interface ImportMetaEnv {
+  readonly VITE_PLATFORM_TITLE: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
 type electronAPI = {
     openUrl(url: string): void
     changeWindowMessageFilter(): void;

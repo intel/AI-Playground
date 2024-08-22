@@ -102,7 +102,7 @@ import { contextBridge, ipcRenderer, dialog } from "electron";
 // domReady().then(appendLoading);
 
 contextBridge.exposeInMainWorld("envVars", {
-  platformTitle: process.env.VITE_PLATFORM_TITLE,
+  platformTitle: import.meta.env.VITE_PLATFORM_TITLE,
 });
 contextBridge.exposeInMainWorld("electronAPI", {
   openUrl: (url: string) => ipcRenderer.send("openUrl", url),
