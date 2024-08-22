@@ -1,6 +1,6 @@
 <template>
     <div id="answerPanel" class="h-full flex flex-col p-4 relative">
-        <div id="chatPanel" class="chat-panel flex-auto flex flex-col h-0 gap-6 m-4 overflow-y-auto text-white text-sm">
+        <div id="chatPanel" class="chat-panel flex-auto flex flex-col h-0 gap-6 m-4 overflow-y-auto text-white" :class="fontSizeClass">
             <template v-for="chat, i in chatHistories">
                 <div class="flex items-start gap-3">
                     <img src="@/assets/svg/user-icon.svg" />
@@ -74,6 +74,24 @@
                             @click="clearSession">
                             <span class="svg-icon i-clear w-4 h-4"></span>
                             <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
+                        </button>
+                        <button
+                            class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
+                            @click="increaseFontSize"
+                            :disabled="isMaxSize" 
+                            :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }"
+                            >
+                            <span class="svg-icon i-zoom-in w-4 h-4"></span>
+                            <span>{{ languages.INCREASE_FONT_SIZE }}</span>
+                        </button>
+                        <button
+                            class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
+                            @click="decreaseFontSize"
+                            :disabled="isMinSize" 
+                            :class="{ 'opacity-50 cursor-not-allowed': isMinSize }"
+                            >
+                            <span class="svg-icon i-zoom-out w-4 h-4"></span>
+                            <span>{{ languages.DECREASE_FONT_SIZE }}</span>
                         </button>
                     </div>
                     <div class="flex justify-center items-center gap-2">
@@ -182,6 +200,25 @@ const emits = defineEmits<{
 }>();
 let abortContooler: AbortController | null;
 const stopping = ref(false);
+const fontSizeIndex = ref(1); // sets default to text-sm
+
+const fontSizes = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];
+const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value]);
+const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
+const isMinSize = computed(() => fontSizeIndex.value <= 0);
+
+const increaseFontSize = () => {
+  if (!isMaxSize.value) {
+    fontSizeIndex.value++;
+  }
+};
+
+const decreaseFontSize = () => {
+  if (!isMinSize.value) {
+    fontSizeIndex.value--;
+  }
+};
+
 
 onMounted(async () => {
     chatPanel = document.getElementById("chatPanel")!;
