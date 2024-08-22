@@ -12,6 +12,9 @@ const predefinedModels: Model[] = [
     { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'llm', downloaded: false },
     { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'llm', downloaded: false },
     { name: 'meta-llama/Meta-Llama-3.1-8B-Instruct', type: 'llm', downloaded: false },
+    { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'llm', downloaded: false },
+    { name: 'google/gemma-7b', type: 'llm', downloaded: false },
+    { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
 ]    
 
 export const useModels = defineStore("models", () => {
