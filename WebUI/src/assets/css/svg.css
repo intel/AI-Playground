@@ -131,8 +131,13 @@
 .i-transfer {
   --svg: url("@/assets/svg/transfer.svg");
 }
+
 .i-zoom-in {
   --svg: url("@/assets/svg/zoom-in.svg");
+}
+
+.i-zoom-out {
+  --svg: url("@/assets/svg/zoom-out.svg");
 }
 
 .i-clear {

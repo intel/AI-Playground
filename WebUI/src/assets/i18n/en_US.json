@@ -116,6 +116,8 @@
   "ANSWER_AI_NAME": "Playground",
   "ANSWER_ERROR_NOT_PROMPT": "Please input prompt",
   "ANSWER_ERROR_CLEAR_SESSION":"Clear Chat History",
+  "INCREASE_FONT_SIZE": "Enlarge Text",
+  "DECREASE_FONT_SIZE": "Shrink Text",
   "ANSWER_RAG_ENABLE":"Enable File Query",
   "ANSWER_RAG_OPEN_DIALOG":"Open File Uploader",
   "DOWNLOADER_CONFRIM_TIP":"You are missing one or more models needed to run. Would you like to download the model(s) listed below?",

@@ -116,6 +116,8 @@
   "ANSWER_AI_NAME": "Playground",
   "ANSWER_ERROR_NOT_PROMPT": "请输入您的问题",
   "ANSWER_ERROR_CLEAR_SESSION":"清空聊天记录",
+  "INCREASE_FONT_SIZE": "增大字体",
+  "DECRESAE_FONT_SIZE": "减小字体",
   "ANSWER_RAG_ENABLE":"启用文件检索增强(RAG)",
   "ANSWER_RAG_OPEN_DIALOG":"上传文件",
   "DOWNLOADER_CONFRIM_TIP":"您缺少运行所需的一个或多个模型。您想下载以下模型吗？",
