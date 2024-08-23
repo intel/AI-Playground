@@ -5,6 +5,7 @@ declare interface Window {
 }
 
 type electronAPI = {
+    openDevTools(): void
     openUrl(url: string): void
     changeWindowMessageFilter(): void;
     getWinSize(): Promise<{
@@ -48,6 +49,7 @@ type electronAPI = {
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void,
     onReportError(callback: (errorMessage: string) => void): void,
+    onDebugLog(callback: (data: { level: 'error' | 'info', source: 'ai-backend', message: string}) => void): void,
 };
 
 type PythonBackendStatus = {

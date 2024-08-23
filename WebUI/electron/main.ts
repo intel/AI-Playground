@@ -72,6 +72,25 @@ const settings: LocalSettings = {
   port: 59999
 };
 
+const logger = {
+  info: (message: string, source: 'electron-backend' | 'ai-backend' = 'electron-backend') => {
+    console.info(`[${source}]: ${message}`);
+    try {
+      win?.webContents.send('debugLog', { level: 'info', source, message })
+    } catch (error) {
+      console.error('Could not send debug log to renderer process');
+    }
+  },
+  error: (message: string, source: 'electron-backend' | 'ai-backend' = 'electron-backend') => {
+    console.error(`[${source}]: ${message}`);
+    try {
+      win?.webContents.send('debugLog', { level: 'error', source, message })
+    } catch (error) {
+      console.error('Could not send debug log to renderer process');
+    }
+  }
+}
+
 
 async function loadSettings() {
   const settingPath = app.isPackaged
@@ -160,7 +179,7 @@ async function createWindow() {
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
-    console.log("load url:" + VITE_DEV_SERVER_URL);
+    logger.info("load url:" + VITE_DEV_SERVER_URL);
   } else {
     win.loadFile(path.join(process.env.DIST, "index.html"));
   }
@@ -176,7 +195,7 @@ function logMessage(message: string) {
   if (app.isPackaged) {
     fs.appendFileSync(path.join(externalRes, "debug.log"), message + "\r\n");
   } else {
-    console.log(message);
+    logger.info(message);
   }
 }
 
@@ -326,13 +345,13 @@ function initEventHandle() {
           const arrayBuffer = await response.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
           fs.writeFileSync(result.filePath, buffer);
-          console.log("File downloaded and saved:", result.filePath);
+          logger.info(`File downloaded and saved: ${result.filePath}`);
         } catch (error) {
-          console.error("Download and save error:", error);
+          logger.error(`Download and save error: ${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`);
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      logger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`);
     };
   });
 
@@ -361,6 +380,7 @@ function initEventHandle() {
   });
 
   ipcMain.handle("getPythonBackendStatus", async (event) => {
+    console.log({ wp: apiService.webProcess, ne: apiService.normalExit});
     return { status: apiService.webProcess != null && apiService.normalExit ? "running" : "stopped" };
   })
 
@@ -421,8 +441,8 @@ function initEventHandle() {
     return pathsManager.scanLLMModles(false);
   });
 
-  ipcMain.handle("getDownloadedEmbeddingModels", (event) => {
-    return pathsManager.scanEmbedding(false);
+  ipcMain.on("openDevTools", () => {
+    win?.webContents.openDevTools({ mode: "detach", activate: true });
   });
 
   ipcMain.on("openImageWithSystem", (event, url: string) => {
@@ -484,60 +504,60 @@ function isProcessRunning(pid: number) {
 function wakeupApiService() {
   const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
   const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-  const pythonExe = path.resolve(path.join(baseDir, "service/env/Scripts/python.exe"));
-  const newEnv = {
+  const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
+  const additionalEnvVariables = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
     "SYCL_CACHE_PERSISTENT": "1",
     "PYTHONIOENCODING": "utf-8"
   };
 
-  let retries = 0;
-  spawnAPI(pythonExe, wordkDir, newEnv, retries);
+  spawnAPI(pythonExe, wordkDir, additionalEnvVariables);
 }
 
-function spawnAPI(pythonExe: string, wordkDir: string, newEnv: { SYCL_ENABLE_DEFAULT_CONTEXTS: string; SYCL_CACHE_PERSISTENT: string; PYTHONIOENCODING: string; }, retries: number) {
+function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, retries = 0) {
   retries++;
   let stderrData = '';
   let maxRetries = 2;
-  console.log(`#${retries} try to start python API`)
+  logger.info(`#${retries} try to start python API`)
   
-  apiService.webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
+  const webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
     cwd: wordkDir,
     windowsHide: true,
-    env: Object.assign(process.env, newEnv)
+    env: Object.assign(process.env, additionalEnvVariables)
   });
+
+  apiService.webProcess = webProcess;
   
 
   const handleFailure = (err: Error | null, code: number | null) => {
-    console.error(`Error: ${err || `Process exited with code ${code}`}`);
+    logger.error(`Error: ${err || `Process exited with code ${code}`}`);
     if (retries < maxRetries) {
       if (apiService.webProcess != null) {
-        spawnAPI(pythonExe, wordkDir, newEnv, retries);
+        spawnAPI(pythonExe, wordkDir, additionalEnvVariables, retries);
       }
     } else {
-      console.error(`Maximum attempts reached. Giving up.`);
-      if (apiService.webProcess?.stderr != null) {
+      logger.error(`Maximum attempts reached. Giving up.`);
+      if (webProcess.stderr != null) {
         // TODO: catch + retry
-        console.log(`stderrData: ${stderrData}`);
+        logger.info(`stderrData: ${stderrData}`);
         win?.webContents.send('reportError', stderrData);
         //throw new Error(`Backend could not start:\n ${stderrData}`) 
       }
     }
   };
   
-  apiService.webProcess.on('error', (err) => handleFailure(err, null));
-  apiService.webProcess.on('exit', (code, signal) => handleFailure(null, code));
-  apiService.webProcess.stderr?.on('data', (data) => {
+  webProcess.on('error', (err) => handleFailure(err, null));
+  webProcess.on('exit', (code, signal) => handleFailure(null, code));
+  webProcess.stderr?.on('data', (data) => {
     stderrData = data.toString();
   });
 
-
-  if (settings.debug) {
-    apiService.webProcess.stdout?.on('data', (data) => {
-      console.log(`backend: ${data}`);
+    webProcess.stdout.on('data', (message) => {
+      logger.info(`${message}`, 'ai-backend')
     })
-  }
-    
+    webProcess.stderr.on('data', (message) => {
+      logger.error(`${message}`, 'ai-backend')
+    })
 }
 
 
@@ -585,8 +605,8 @@ ipcMain.on("openImageWin", (_: IpcMainEvent, url: string, title: string, width: 
 ipcMain.handle('showSaveDialog', async (event, options: Electron.SaveDialogOptions) => {
   dialog.showSaveDialog(options).then(result => {
     return result;
-  }).catch(err => {
-    console.error(err);
+  }).catch(error => {
+    logger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`);
   });
 });
 

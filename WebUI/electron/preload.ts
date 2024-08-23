@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld("envVars", {
   platformTitle: process.env.VITE_PLATFORM_TITLE,
 });
 contextBridge.exposeInMainWorld("electronAPI", {
+  openDevTools: () => ipcRenderer.send("openDevTools"),
   openUrl: (url: string) => ipcRenderer.send("openUrl", url),
   getLocalSettings: () => ipcRenderer.invoke("getLocalSettings"),
   getWinSize: () => ipcRenderer.invoke("getWinSize"),
@@ -160,4 +161,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   selecteImage: (url: string) => ipcRenderer.send("selecteImage", url),
   setFullScreen: (enable: boolean) => ipcRenderer.send("setFullScreen", enable),
   onReportError: (callback: (errorMessage: string) => void) => ipcRenderer.on('reportError', (_event, value) => callback(value)),
+  onDebugLog: (callback: (data: { level: string, source: string, message: string}) => void) => ipcRenderer.on('debugLog', (_event, value) => callback(value)),
 });

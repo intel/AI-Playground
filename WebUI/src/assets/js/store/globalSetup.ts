@@ -149,7 +149,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             body: postJson,
         });
         if (response.status !== 200) {
-            throw new Error(`Received response other than 200:\n\n ${await response.status}:${await response.text()}`)
+            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
         }
         return await response.json() as string[];
     }

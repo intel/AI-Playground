@@ -150,5 +150,9 @@
   "ERROR_GENERATE_UNKONW_EXCEPTION": "An unknown error occurred. failed to generate from model",
   "ERROR_FOLDER_NOT_EXISTS": "The specified directory does not exist",
   "ERROR_ENHANCE_IMAGE_NOT_SET": "Please configure the input image to be generated",
-  "ERROR_UNFOUND_GRAPHICS": "If the necessary hardware for program execution is not detected on the computer device, the program will terminate upon clicking OK."
+  "ERROR_UNFOUND_GRAPHICS": "If the necessary hardware for program execution is not detected on the computer device, the program will terminate upon clicking OK.",
+  "ERROR_PYTHON_BACKEND_INIT": "Backend initialization failed",
+  "ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "The AI inference backend failed to initialize. Please try restarting the application. If the problem persists, you can check the Details for additional information about the error.",
+  "ERROR_PYTHON_BACKEND_INIT_DETAILS": "Details",
+  "ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log"
 }

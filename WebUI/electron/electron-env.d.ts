@@ -66,6 +66,6 @@ type SetupData = {
   version:string,
 }
 
-type BackendStatus {
+type BackendStatus = {
   status: string,
 }

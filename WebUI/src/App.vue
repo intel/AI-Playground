@@ -23,21 +23,26 @@
   <main v-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
-  <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-center justify-center">
-    <div class="dialog-container z-10 text-white">
-        <Collapsible v-model:open="isOpen" class="w-[600px] space-y-2">
-          <div class="flex items-center justify-between space-x-4 px-4">
-            <h2 class="text-base font-semibold text-red-600"> <!-- added error color -->
-              Backend initialization failed.
-            </h2>
+  <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
+    <div class="dialog-container z-10 text-white w-[60vw] align-top bg-black bg-opacity-50 p-4 rounded-lg border border-gray-400">
+        <Collapsible v-model:open="isOpen" class=" space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-col gap-4">
+              <h2 class="text-xl font-semibold">{{ languages.ERROR_PYTHON_BACKEND_INIT}}</h2>
+              <p>{{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT }}</p>
+            </div>
             <CollapsibleTrigger>
               <button variant="default" size="sm" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded">
                 <i class="fas fa-chevron-down" /> 
-                Details
+                {{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS }}
               </button>
             </CollapsibleTrigger>
+              <button @click="openDevTools" variant="default" size="sm" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded">
+                <i class="fas fa-chevron-down" /> 
+                {{ languages.ERROR_PYTHON_BACKEND_INIT_OPEN_LOG }}
+              </button>
           </div>
-          <CollapsibleContent class="px-4 py-2">
+          <CollapsibleContent class="max-h-[50vh] overflow-scroll px-4 py-2">
             <pre class="whitespace-pre-wrap">{{ globalSetup.errorMessage }}</pre>
           </CollapsibleContent>
         </Collapsible>
@@ -128,6 +133,14 @@ const platformTitle = window.envVars.platformTitle;
 const globalSetup = useGlobalSetup();
 
 onBeforeMount(async () => {
+  window.electronAPI.onDebugLog(({ level, source, message}) => {
+    if (level == "error") {
+      console.error(`[${source}] ${message}`);
+    }
+    if (level == "info") {
+      console.log(`[${source}] ${message}`);
+    }
+  })
   await globalSetup.initSetup();
 
   document.body.addEventListener("mousedown", autoHideAppSettings);
@@ -181,6 +194,10 @@ function toggleFullScreen() {
 
 function closeWindow() {
   window.electronAPI.exitApp();
+}
+
+function openDevTools() {
+  window.electronAPI.openDevTools();
 }
 
 function postImageToEnhance(imageUrl: string) {
