@@ -3,14 +3,14 @@
         <div id="chatPanel" class="chat-panel flex-auto flex flex-col h-0 gap-6 m-4 overflow-y-auto text-white" :class="fontSizeClass">
             <template v-for="chat, i in chatHistories">
                 <div class="flex items-start gap-3">
-                    <img src="@/assets/svg/user-icon.svg" />
+                    <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
                     <div class="flex flex-col gap-3 max-w-3/4">
                         <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
                         <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
-                    <img src="@/assets/svg/ai-icon.svg" />
+                    <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
                     <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
                         <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
                         <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)"></div>
@@ -32,15 +32,15 @@
                     </div>
                 </div>
             </template>
-            <div class="flex items-start gap-3" v-show="processing">
-                <img src="@/assets/svg/user-icon.svg" />
+            <div class="flex items-start gap-3" v-show="true">
+                <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
                 <div class="flex flex-col gap-3 max-w-3/4">
                     <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
                     <p v-html="textIn"></p>
                 </div>
             </div>
-            <div class="flex items-start gap-3" v-show="processing">
-                <img src="@/assets/svg/ai-icon.svg" />
+            <div class="flex items-start gap-3" v-show="true">
+                <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
                 <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
                     <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
                     <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
@@ -171,7 +171,7 @@ const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
 let textOutFinish = false;
-const chatHistories = ref<ChatItem[]>([]);
+const chatHistories = ref<ChatItem[]>([{question: "Hi", answer: "Hi, There"}, {question: "How are you?", answer: "I'm fine, thank you."}]);
 let abortController = new AbortController();
 const textOutQueue = new Array<string>();
 const textIn = ref("");
@@ -203,8 +203,10 @@ const stopping = ref(false);
 const fontSizeIndex = ref(1); // sets default to text-sm
 
 const fontSizes = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];
+const iconSizes = ['size-[40px]', 'size-[42px]', 'size-[44px]', 'size-[46px]', 'size-[48px]', 'size-[50px]', 'size-[52px]', 'size-[54px]', 'size-[56px]', 'size-[58px]', 'size-[60px]', 'size-[62px]', 'size-[64px]'];
 const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value]);
 const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)]);
+const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
 
