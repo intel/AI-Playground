@@ -1,6 +1,29 @@
 <template>
     <div id="app-settings-panel"
         class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4">
+         <dialog ref="hdConfirmationDialog" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+            <form method="dialog" class="items-center justify-center">
+            <p class="mb-4">
+                {{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM }}
+            </p>
+            <div class="flex justify-between space-x-4 items-center">
+                <button class="bg-slate-700 py-1 px-4 rounded">
+                    {{ languages.COM_CANCEL }}
+                </button>
+                <div class="flex-end space-x-4">
+                    <button @click="() => changeResolution(1, true)" class="bg-color-active py-1 px-4 rounded">
+                        {{ languages.COM_CONFIRM }}
+                    </button>
+                    <button @click="() => { 
+                        globalSetup.hdPersistentConfirmation = true; 
+                        changeResolution(1, true) 
+                        }" class="bg-blue-500 py-1 px-4 rounded">
+                        {{ languages.COM_DO_NOT_SHOW_AGAIN }}
+                    </button>
+                </div>
+            </div>
+            </form>
+        </dialog>
         <div class="flex justify-between items-center px-3">
             <div class="flex items-center gap-2">
                 <button class="panel-tab" :class="{ 'active': tabIndex == 0 }" @click="tabIndex = 0">
@@ -469,6 +492,8 @@ const widthRange = ref<NumberRange>({
     max: 768,
 });
 
+const hdConfirmationDialog = ref<HTMLDialogElement>();
+
 const heightRange = ref<NumberRange>({
     min: 256,
     max: 768,
@@ -625,7 +650,11 @@ function applyModelSettings() {
     modelSettingsChange.value = false;
 }
 
-function changeResolution(value: number) {
+function changeResolution(value: number, dialogConfirmation = false) {
+    if (value === 1 && !globalSetup.hdPersistentConfirmation && !dialogConfirmation) {
+        hdConfirmationDialog.value?.showModal();
+        return;
+    }
     modelSettings.resolution = value;
     setModelOptionByPreset();
 }
