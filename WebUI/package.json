@@ -3,11 +3,11 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
+    "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" VITE_HF_TOKEN=hf_myhftoken vite",
     "build": "vue-tsc && env && vite build && call build\\before_build.bat&& electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
     "build:ultra": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --config build\\ultra-build.json&&call build\\after_build.bat\"",
     "dir:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --dir --config build\\ultra-build.json&&call build\\after_build.bat",
-    "build:arc": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"vue-tsc && vite build && call build\\arc_before_build.bat&& electron-builder --config build\\arc-build.json&&call build\\after_build.bat\"",
+    "build:arc": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && call build\\arc_before_build.bat&& electron-builder --config build\\arc-build.json&&call build\\after_build.bat\"",
     "preview": "vite preview"
   },
   "dependencies": {

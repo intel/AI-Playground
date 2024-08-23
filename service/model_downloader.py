@@ -269,17 +269,22 @@ class HFPlaygroundDownloader:
     def init_download(self, file: HFDonloadItem):
         makedirs(path.dirname(file.save_filename), exist_ok=True)
 
+        headers={}
+        if (utils.get_hf_token() is not None):
+            headers["Authorization"] = f"Bearer {utils.get_hf_token()}"
+
         if file.disk_file_size > 0:
             # download skip exists part
+            headers["Range"] = f"bytes={file.disk_file_size}-"
             response = requests.get(
                 file.url,
                 stream=True,
                 verify=False,
-                headers={"Range": f"bytes={file.disk_file_size}-"},
+                headers=headers,
             )
             fw = open(file.save_filename, "ab")
         else:
-            response = requests.get(file.url, stream=True, verify=False)
+            response = requests.get(file.url, stream=True, verify=False, headers=headers)
             fw = open(file.save_filename, "wb")
 
         return response, fw

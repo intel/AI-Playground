@@ -484,7 +484,8 @@ function wakeupApiService() {
   const newEnv = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
     "SYCL_CACHE_PERSISTENT": "1",
-    "PYTHONIOENCODING": "utf-8"
+    "PYTHONIOENCODING": "utf-8",
+    ...(import.meta.env.VITE_HF_TOKEN ? { "HF_TOKEN": import.meta.env.VITE_HF_TOKEN } : {})
   };
 
   if (settings.debug) {
