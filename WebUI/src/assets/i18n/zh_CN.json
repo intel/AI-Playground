@@ -35,6 +35,8 @@
   "COM_HIGH": "高",
   "COM_FULLSCREEN": "全屏",
   "COM_FULLSCREEN_EXIT": "退出全屏",
+  "COM_DO_NOT_SHOW_AGAIN": "不再显示",
+  "SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM": "高清模式可能导致性能下降，特别是在显存小于12GB或系统内存小于24GB的Intel Core Ultra PC上。",
   "SETTINGS_TAB_BASIC": "基本设置",
   "SETTINGS_TAB_MODEL": "模型",
   "SETTINGS_INFERENCE_DEVICE": "推理设备",

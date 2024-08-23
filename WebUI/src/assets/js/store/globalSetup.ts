@@ -68,7 +68,11 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const errorMessage = ref("");
 
-    const hdPersistentConfirmation = ref(false);
+    const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
+
+    watchEffect(() => {
+        localStorage.setItem("HdPersistentConfirmation", hdPersistentConfirmation.value.toString());
+    });
 
     window.electronAPI.onReportError((value) => {
         loadingState.value = "failed";

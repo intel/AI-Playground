@@ -1,24 +1,26 @@
 <template>
     <div id="app-settings-panel"
         class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4">
-        <dialog ref="hdConfirmationDialog" class="w-96 p-6 bg-white rounded-lg shadow-lg">
-            <form method="dialog">
-            <p class="text-gray-700 mb-4">
-                HD Mode can result in slower than normal performance on systems with less than 12 GB of VRAM or 24GB of system memory for Intel Core Ultra PCs
+         <dialog ref="hdConfirmationDialog" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+            <form method="dialog" class="items-center justify-center">
+            <p class="mb-4">
+                {{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM }}
             </p>
-            <div class="flex justify-end space-x-4">
-                <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
-                Cancel
+            <div class="flex justify-between space-x-4 items-center">
+                <button class="bg-slate-700 py-1 px-4 rounded">
+                    {{ languages.COM_CANCEL }}
                 </button>
-                <button @click="() => changeResolution(1, true)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                Continue
-                </button>
-                <button @click="() => { 
-                    globalSetup.hdPersistentConfirmation = true; 
-                    changeResolution(1, true) 
-                    }" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                Do Not Show Again
-                </button>
+                <div class="flex-end space-x-4">
+                    <button @click="() => changeResolution(1, true)" class="bg-color-active py-1 px-4 rounded">
+                        {{ languages.COM_CONFIRM }}
+                    </button>
+                    <button @click="() => { 
+                        globalSetup.hdPersistentConfirmation = true; 
+                        changeResolution(1, true) 
+                        }" class="bg-blue-500 py-1 px-4 rounded">
+                        {{ languages.COM_DO_NOT_SHOW_AGAIN }}
+                    </button>
+                </div>
             </div>
             </form>
         </dialog>
