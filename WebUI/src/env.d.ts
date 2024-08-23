@@ -13,6 +13,7 @@ interface ImportMeta {
 }
 
 type electronAPI = {
+    openDevTools(): void
     openUrl(url: string): void
     changeWindowMessageFilter(): void;
     getWinSize(): Promise<{
@@ -39,6 +40,7 @@ type electronAPI = {
     webServiceExit(callback: (serviceName: string, normalExit: string) => void): void;
     existsPath(path: string): Promise<boolean>;
     getInitSetting(): Promise<SetupData>
+    getPythonBackendStatus(): Promise<BackendStatus>
     updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>,
     restorePathsSettings():Promise<void>,
     refreshSDModles(): Promise<string[]>,
@@ -53,7 +55,9 @@ type electronAPI = {
     getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
-    setFullScreen(enable: boolean): void
+    setFullScreen(enable: boolean): void,
+    onReportError(callback: (errorMessage: string) => void): void,
+    onDebugLog(callback: (data: { level: 'error' | 'info', source: 'ai-backend', message: string}) => void): void,
 };
 
 type PythonBackendStatus = {

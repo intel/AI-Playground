@@ -92,7 +92,6 @@ export class PathsManager {
         else {
             fs.mkdirSync(dir, { recursive: true });
         }
-        console.log('scanSDModleLists', {dir, models})
         return models
     }
     scanLLMModles(returnDefaults = true) {
@@ -118,7 +117,6 @@ export class PathsManager {
         else {
             fs.mkdirSync(dir, { recursive: true });
         }
-        console.log('scanLLMModles', {dir, models})
         return models
     }
     scanLora(returnDefaults = true) {

@@ -150,5 +150,9 @@
   "ERROR_GENERATE_UNKONW_EXCEPTION": "发生未知错误。模型生成失败。",
   "ERROR_FOLDER_NOT_EXISTS": "指定的文件夹不存在",
   "ERROR_ENHANCE_IMAGE_NOT_SET": "请设置输入图片",
-  "ERROR_UNFOUND_GRAPHICS": "如果未检测到运行此程序所需的硬件，点击确定后程序将终止。"
+  "ERROR_UNFOUND_GRAPHICS": "如果未检测到运行此程序所需的硬件，点击确定后程序将终止。",
+  "ERROR_PYTHON_BACKEND_INIT": "后端初始化失败",
+  "ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "AI 后端初始化失败。请尝试重新启动应用程序。如果问题仍然存在，您可以查看详细信息以获取有关错误的更多信息。",
+  "ERROR_PYTHON_BACKEND_INIT_DETAILS": "详细信息",
+  "ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "打开日志"
 }

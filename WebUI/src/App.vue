@@ -20,8 +20,33 @@
       <button :title="languages.COM_CLOSE" @click="closeWindow" class="svg-icon i-close w-6 h-6"></button>
     </div>
   </header>
-  <main v-if="loading" class="flex-auto flex items-center justify-center">
+  <main v-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
+  </main>
+  <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
+    <div class="dialog-container z-10 text-white w-[60vw] align-top bg-black bg-opacity-50 p-4 rounded-lg border border-gray-400">
+        <Collapsible v-model:open="isOpen" class=" space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-col gap-4">
+              <h2 class="text-xl font-semibold">{{ languages.ERROR_PYTHON_BACKEND_INIT}}</h2>
+              <p>{{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT }}</p>
+            </div>
+            <CollapsibleTrigger>
+              <button variant="default" size="sm" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded">
+                <i class="fas fa-chevron-down" /> 
+                {{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS }}
+              </button>
+            </CollapsibleTrigger>
+              <button @click="openDevTools" variant="default" size="sm" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded">
+                <i class="fas fa-chevron-down" /> 
+                {{ languages.ERROR_PYTHON_BACKEND_INIT_OPEN_LOG }}
+              </button>
+          </div>
+          <CollapsibleContent class="max-h-[50vh] overflow-scroll px-4 py-2">
+            <pre class="whitespace-pre-wrap">{{ globalSetup.errorMessage }}</pre>
+          </CollapsibleContent>
+        </Collapsible>
+    </div>
   </main>
   <main v-else class="flex-auto flex flex-col relative">
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
@@ -82,8 +107,10 @@ import AppSettings from "./views/AppSettings.vue";
 import "./assets/css/index.css";
 import { useGlobalSetup } from "./assets/js/store/globalSetup";
 import DownloadDialog from '@/components/DownloadDialog.vue';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
-const loading = ref(true);
+
+const isOpen = ref(false);
 
 const i18n = useI18N();
 
@@ -103,9 +130,19 @@ const fullscreen = ref(false);
 
 const platformTitle = window.envVars.platformTitle;
 
+const globalSetup = useGlobalSetup();
+
 onBeforeMount(async () => {
-  
-  await useGlobalSetup().initSetup();
+  window.electronAPI.onDebugLog(({ level, source, message}) => {
+    if (level == "error") {
+      console.error(`[${source}] ${message}`);
+    }
+    if (level == "info") {
+      console.log(`[${source}] ${message}`);
+    }
+  })
+  await globalSetup.initSetup();
+
   document.body.addEventListener("mousedown", autoHideAppSettings);
   document.body.addEventListener("keydown", (e) => {
     if (e.key == "F11") {
@@ -113,8 +150,8 @@ onBeforeMount(async () => {
       e.preventDefault();
     }
   })
-  loading.value = false;
 })
+
 
 function showAppSettings() {
   if (showSetting.value === false) {
@@ -128,6 +165,7 @@ function showAppSettings() {
 function hideAppSettings() {
   showSetting.value = false;
 }
+
 function autoHideAppSettings(e: MouseEvent) {
   if (showSetting.value && e.target != showSettingBtn.value && !e.composedPath().find((item)=>{ return item instanceof HTMLElement && item.classList.contains("v-drop-select-list")})) {
     const appSettingsPanel = document.getElementById("app-settings-panel");
@@ -156,6 +194,10 @@ function toggleFullScreen() {
 
 function closeWindow() {
   window.electronAPI.exitApp();
+}
+
+function openDevTools() {
+  window.electronAPI.openDevTools();
 }
 
 function postImageToEnhance(imageUrl: string) {

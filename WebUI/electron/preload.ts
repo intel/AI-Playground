@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld("envVars", {
   platformTitle: import.meta.env.VITE_PLATFORM_TITLE,
 });
 contextBridge.exposeInMainWorld("electronAPI", {
+  openDevTools: () => ipcRenderer.send("openDevTools"),
   openUrl: (url: string) => ipcRenderer.send("openUrl", url),
   getLocalSettings: () => ipcRenderer.invoke("getLocalSettings"),
   getWinSize: () => ipcRenderer.invoke("getWinSize"),
@@ -143,6 +144,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ),
   existsPath: (path: string) => ipcRenderer.invoke("existsPath", path),
   getInitSetting: () => ipcRenderer.invoke("getInitSetting"),
+  getPythonBackendStatus: () => ipcRenderer.invoke("getPythonBackendStatus"),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke("updateModelPaths", modelPaths),
   restorePathsSettings :()=>ipcRenderer.invoke("restorePathsSettings"),
   refreshSDModles: () => ipcRenderer.invoke("refreshSDModles"),
@@ -158,4 +160,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openImageWithSystem: (url: string) => ipcRenderer.send("openImageWithSystem", url),
   selecteImage: (url: string) => ipcRenderer.send("selecteImage", url),
   setFullScreen: (enable: boolean) => ipcRenderer.send("setFullScreen", enable),
+  onReportError: (callback: (errorMessage: string) => void) => ipcRenderer.on('reportError', (_event, value) => callback(value)),
+  onDebugLog: (callback: (data: { level: string, source: string, message: string}) => void) => ipcRenderer.on('debugLog', (_event, value) => callback(value)),
 });
