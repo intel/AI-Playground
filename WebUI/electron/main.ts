@@ -438,6 +438,10 @@ function initEventHandle() {
     return pathsManager.scanLLMModles(false);
   });
 
+  ipcMain.handle("getDownloadedEmbeddingModels", (event) => {
+    return pathsManager.scanEmbedding(false);
+  });
+
   ipcMain.on("openDevTools", () => {
     win?.webContents.openDevTools({ mode: "detach", activate: true });
   });
