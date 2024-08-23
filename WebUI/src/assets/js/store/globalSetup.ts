@@ -92,16 +92,16 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 models.value.scheduler.unshift("None");
                 break;
             } catch (error) {
-                if (error instanceof TypeError) {
-                    console.warn(`Fetch attempt failed. Retrying in ${delay}ms...`);
-                    await util.delay(delay);
-                } else if ((await window.electronAPI.getPythonBackendStatus()).status === "running") {
+                const backendStatus = (await window.electronAPI.getPythonBackendStatus()).status;
+                if (backendStatus === "stopped") {
+                    return;
+                }
+                if (backendStatus === "running" && !(error instanceof TypeError)) {
                     loadingState.value = "failed";
                     errorMessage.value = (error as Error).message;
                     return;
-                } else {
-                    await util.delay(delay);
                 }
+                await util.delay(delay);
             }
         }
         await reloadGraphics();

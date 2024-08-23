@@ -379,10 +379,7 @@ function initEventHandle() {
     return fs.existsSync(path);
   });
 
-  ipcMain.handle("getPythonBackendStatus", async (event) => {
-    console.log({ wp: apiService.webProcess, ne: apiService.normalExit});
-    return { status: apiService.webProcess != null && apiService.normalExit ? "running" : "stopped" };
-  })
+  ipcMain.handle("getPythonBackendStatus", () => apiService.status)
 
   let pathsManager = new PathsManager(path.join(externalRes, app.isPackaged ? "model_config.json" : "model_config.dev.json"));
 
@@ -487,10 +484,14 @@ function initEventHandle() {
 }
 const apiService: {
   webProcess: ChildProcess | null,
-  normalExit: boolean
+  normalExit: boolean,
+  status: BackendStatus,
+  desiredState: 'running' | 'stopped'
 } = {
   webProcess: null,
-  normalExit: true
+  normalExit: true,
+  status: { status: "starting" },
+  desiredState: 'running'
 }
 
 function isProcessRunning(pid: number) {
@@ -514,12 +515,13 @@ function wakeupApiService() {
   spawnAPI(pythonExe, wordkDir, additionalEnvVariables);
 }
 
-function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, retries = 0) {
-  retries++;
+function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
+  if (apiService.desiredState === 'stopped') return;
+  tries++;
   let stderrData = '';
-  let maxRetries = 2;
-  logger.info(`#${retries} try to start python API`)
-  
+  let maxTries = 2;
+  logger.info(`#${tries} try to start python API`)
+
   const webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
     cwd: wordkDir,
     windowsHide: true,
@@ -527,15 +529,13 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
   });
 
   apiService.webProcess = webProcess;
-  
 
   const handleFailure = (err: Error | null, code: number | null) => {
     logger.error(`Error: ${err || `Process exited with code ${code}`}`);
-    if (retries < maxRetries) {
-      if (apiService.webProcess != null) {
-        spawnAPI(pythonExe, wordkDir, additionalEnvVariables, retries);
-      }
+    if (tries < maxTries) {
+      spawnAPI(pythonExe, wordkDir, additionalEnvVariables, tries);
     } else {
+      apiService.status = { status: "stopped" };
       logger.error(`Maximum attempts reached. Giving up.`);
       if (webProcess.stderr != null) {
         // TODO: catch + retry
@@ -545,24 +545,27 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
       }
     }
   };
-  
+
+  apiService.status = { status: "running" };
+
   webProcess.on('error', (err) => handleFailure(err, null));
   webProcess.on('exit', (code, signal) => handleFailure(null, code));
   webProcess.stderr?.on('data', (data) => {
     stderrData = data.toString();
   });
 
-    webProcess.stdout.on('data', (message) => {
-      logger.info(`${message}`, 'ai-backend')
-    })
-    webProcess.stderr.on('data', (message) => {
-      logger.error(`${message}`, 'ai-backend')
-    })
+  webProcess.stdout.on('data', (message) => {
+    logger.info(`${message}`, 'ai-backend')
+  })
+  webProcess.stderr.on('data', (message) => {
+    logger.error(`${message}`, 'ai-backend')
+  })
 }
 
 
 function closeApiService() {
   apiService.normalExit = true;
+  apiService.desiredState = 'stopped';
   if (apiService.webProcess != null && apiService.webProcess.pid && isProcessRunning(apiService.webProcess.pid)) {
     apiService.webProcess.kill();
     apiService.webProcess = null;

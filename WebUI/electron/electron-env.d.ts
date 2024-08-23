@@ -67,5 +67,5 @@ type SetupData = {
 }
 
 type BackendStatus = {
-  status: string,
+  status: 'starting' | 'running' | 'stopped',
 }
