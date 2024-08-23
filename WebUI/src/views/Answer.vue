@@ -32,14 +32,14 @@
                     </div>
                 </div>
             </template>
-            <div class="flex items-start gap-3" v-show="true">
+            <div class="flex items-start gap-3" v-show="processing">
                 <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
                 <div class="flex flex-col gap-3 max-w-3/4">
                     <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
                     <p v-html="textIn"></p>
                 </div>
             </div>
-            <div class="flex items-start gap-3" v-show="true">
+            <div class="flex items-start gap-3" v-show="processing">
                 <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
                 <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
                     <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
@@ -171,7 +171,7 @@ const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
 let textOutFinish = false;
-const chatHistories = ref<ChatItem[]>([{question: "Hi", answer: "Hi, There"}, {question: "How are you?", answer: "I'm fine, thank you."}]);
+const chatHistories = ref<ChatItem[]>([]);
 let abortController = new AbortController();
 const textOutQueue = new Array<string>();
 const textIn = ref("");
