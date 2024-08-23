@@ -82,28 +82,12 @@
             <div class="overflow-y-auto">
                 <div class="border-t border-color-spilter flex-auto justify-center pt-3 grid grid-cols-1 gap-5 mx-3">
                     <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_ADJUSTABLE_OPTIONS }}</h2>
-                    <!-- 
                     <div class="flex flex-col gap-2">
-                        <p>Fast Resolution</p>
-                        <drop-selector :array="sizePreset" @change="changeSize">
-                            <template #selected>
-                                <span>{{ sizeChoose }}</span>
-                            </template>
-<template #list="slotItem">
-                                <span>{{ `${slotItem.item.width} x ${slotItem.item.height}` }}</span>
-                            </template>
-</drop-selector>
-</div>
--->
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}</p>
-                        <slide-bar v-model:current="modelSettings.width" :min="widthRange.min" :max="widthRange.max"
-                            :step="8" @update:current="applyModelSettings"></slide-bar>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}</p>
-                        <slide-bar v-model:current="modelSettings.height" :min="heightRange.min" :max="heightRange.max"
-                            :step="8" @update:current="applyModelSettings"></slide-bar>
+                        <div class="flex flex-row justify-between">
+                            <span>{{ languages.SETTINGS_MODEL_IMAGE_SIZE }}</span>
+                            <span class="rounded-sm border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]">{{ globalSetup.modelSettings.width }} x {{ globalSetup.modelSettings.height }}</span>
+                        </div>
+                        <ResolutionPicker :disabled="modelSettings.resolution === 3" />
                     </div>
                     <div class="flex flex-col gap-2">
                         <p>{{ languages.SETTINGS_MODEL_IMAGE_STEPS }}</p>
@@ -177,6 +161,20 @@
                             <button class="svg-icon i-refresh w-5 h-5 text-purple-500" @animationend="removeRonate360"
                                 @click="refreshInpaintModles"></button>
                         </div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <p>{{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}</p>
+                        <slide-bar v-model:current="modelSettings.width" :min="widthRange.min" :max="widthRange.max"
+                            :step="8" @update:current="applyModelSettings"
+                            :disabled="modelSettings.resolution != 3"
+                            ></slide-bar>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <p>{{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}</p>
+                        <slide-bar v-model:current="modelSettings.height" :min="heightRange.min" :max="heightRange.max"
+                            :step="8" @update:current="applyModelSettings"
+                            :disabled="modelSettings.resolution != 3"
+                            ></slide-bar>
                     </div>
                     <div class="flex flex-col gap-2">
                         <p>{{ languages.SETTINGS_MODEL_SCHEDULER }}</p>
@@ -450,6 +448,7 @@ import SlideBar from "../components/SlideBar.vue";
 import RadioBolck from "../components/RadioBlock.vue";
 import RandomNumber from "../components/RandomNumber.vue";
 import FolderSelector from "../components/FolderSelector.vue";
+import { ResolutionPicker } from "../components/ui/slider";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 import { useI18N } from "@/assets/js/store/i18n";
 import { toast } from "@/assets/js/toast";
@@ -675,8 +674,8 @@ function setModelOptionByPreset() {
     } else if (resolution == 1) {
         modelSettings.sd_model = globalSetup.presetModel.SDHD;
         modelSettings.inpaint_model = globalSetup.presetModel.SDHDInpaint;
-        modelSettings.width = 1080;
-        modelSettings.height = 1080;
+        modelSettings.width = 1024;
+        modelSettings.height = 1024;
         if (quality == 0) {
             modelSettings.guidanceScale = 7;
             modelSettings.inferenceSteps = 20;
