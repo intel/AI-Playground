@@ -5,14 +5,14 @@
                 <div class="flex items-start gap-3">
                     <img src="@/assets/svg/user-icon.svg" />
                     <div class="flex flex-col gap-3 max-w-3/4">
-                        <p>{{ languages.ANSWER_USER_NAME }}</p>
+                        <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
                         <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
                     <img src="@/assets/svg/ai-icon.svg" />
                     <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
-                        <p>{{ languages.ANSWER_AI_NAME }}</p>
+                        <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
                         <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)"></div>
                         <div class="answer-tools flex gap-3 items-center text-gray-300">
                             <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
@@ -35,14 +35,14 @@
             <div class="flex items-start gap-3" v-show="processing">
                 <img src="@/assets/svg/user-icon.svg" />
                 <div class="flex flex-col gap-3 max-w-3/4">
-                    <p>{{ languages.ANSWER_USER_NAME }}</p>
+                    <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
                     <p v-html="textIn"></p>
                 </div>
             </div>
             <div class="flex items-start gap-3" v-show="processing">
                 <img src="@/assets/svg/ai-icon.svg" />
                 <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
-                    <p>{{ languages.ANSWER_AI_NAME }}</p>
+                    <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
                     <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
                         v-html="textOut">
                     </div>
@@ -204,6 +204,7 @@ const fontSizeIndex = ref(1); // sets default to text-sm
 
 const fontSizes = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];
 const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value]);
+const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
 
