@@ -148,6 +148,7 @@ type DropListItem = {
 type ChatItem = {
     question: string,
     answer: string,
+    title?: string,
 }
 
 type ChatRequestParams = {

@@ -1,67 +1,78 @@
 <template>
-    <div id="answerPanel" class="h-full flex flex-col p-4 relative">
-        <div id="chatPanel" class="chat-panel flex-auto flex flex-col h-0 gap-6 m-4 overflow-y-auto text-white" :class="fontSizeClass">
-            <template v-for="chat, i in chatHistories">
-                <div class="flex items-start gap-3">
+    <div id="answerPanel" class="h-full flex flex-col pr-4 pb-4 relative bg-origin-padding ">
+        <div class="flex flex-row flex-auto overflow-y-auto">
+            <div id="chatHistoryPanel" class="w-56 flex-shrink-0 overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 sticky top-0">
+                <h3 class="text-sm p-4 text-[#00c4fa]">Chat History</h3>
+                <div @click="newChat" class="cursor-pointer text-black m-2 p-2 bg-[#00c4fa]/80 hover:bg-[#00c4fa]/100 rounded">New Chat</div>
+                <div @click="() => chat = aSingleChat" alt="Das ist ein toller Alt Text" class="cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50" :class="chat === aSingleChat ? 'bg-[#00c4fa]/50' : ''"  v-for="aSingleChat in chatHistory.slice().reverse()">{{ aSingleChat[0].title }}</div>
+            </div>
+            <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white"
+                :class="fontSizeClass">
+                <template v-for="chat, i in chat">
+                    <div class="flex items-start gap-3">
+                        <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
+                        <div class="flex flex-col gap-3 max-w-3/4">
+                            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
+                            <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+                        <div
+                            class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
+                            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+                            <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)">
+                            </div>
+                            <div class="answer-tools flex gap-3 items-center text-gray-300">
+                                <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
+                                    <span class="svg-icon i-copy w-4 h-4"></span>
+                                    <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+                                </button>
+                                <button class="flex items-end" :title="languages.COM_REGENERATE"
+                                    @click="regenerate(chat, i)" v-if="i + 1 == chat.length">
+                                    <span class="svg-icon i-refresh w-4 h-4"></span>
+                                    <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
+                                </button>
+                                <button class="flex items-end" :title="languages.COM_DELETE" @click="deleteChat(i)">
+                                    <span class="svg-icon i-delete w-4 h-4"></span>
+                                    <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                <div class="flex items-start gap-3" v-show="processing">
                     <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
                     <div class="flex flex-col gap-3 max-w-3/4">
                         <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-                        <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+                        <p v-html="textIn"></p>
                     </div>
                 </div>
-                <div class="flex items-start gap-3">
+                <div class="flex items-start gap-3" v-show="processing">
                     <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
-                    <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
+                    <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
                         <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
-                        <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)"></div>
-                        <div class="answer-tools flex gap-3 items-center text-gray-300">
-                            <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
-                                <span class="svg-icon i-copy w-4 h-4"></span>
-                                <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
-                            </button>
-                            <button class="flex items-end" :title="languages.COM_REGENERATE"
-                                @click="regenerate(chat, i)" v-if="i + 1 == chatHistories.length">
-                                <span class="svg-icon i-refresh w-4 h-4"></span>
-                                <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
-                            </button>
-                            <button class="flex items-end" :title="languages.COM_DELETE" @click="deleteChat(i)">
-                                <span class="svg-icon i-delete w-4 h-4"></span>
-                                <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
-                            </button>
+                        <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
+                            v-html="textOut">
                         </div>
-                    </div>
-                </div>
-            </template>
-            <div class="flex items-start gap-3" v-show="processing">
-                <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
-                <div class="flex flex-col gap-3 max-w-3/4">
-                    <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-                    <p v-html="textIn"></p>
-                </div>
-            </div>
-            <div class="flex items-start gap-3" v-show="processing">
-                <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
-                <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
-                    <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
-                    <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
-                        v-html="textOut">
-                    </div>
-                    <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
-                        <progress-bar v-if="downloadModel.downloading" :text="downloadModel.text"
-                            :percent="downloadModel.percent" class="w-512px"></progress-bar>
-                        <loading-bar v-else-if="loadingModel" :text="languages.COM_LOADING_MODEL"
-                            class="w-512px"></loading-bar>
+                        <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
+                            <progress-bar v-if="downloadModel.downloading" :text="downloadModel.text"
+                                :percent="downloadModel.percent" class="w-512px"></progress-bar>
+                            <loading-bar v-else-if="loadingModel" :text="languages.COM_LOADING_MODEL"
+                                class="w-512px"></loading-bar>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4">
+        <div class="pl-4 h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4">
             <div class="flex flex-col gap-2 flex-auto h-full">
                 <div class="flex items-center justify-between gap-5 text-white px-2">
                     <div class="flex items-center">
                         <drop-selector :array="models.llms" @change="changeLLMModel" class="w-96">
                             <template #selected>
-                                <model-drop-down-item :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"></model-drop-down-item>
+                                <model-drop-down-item
+                                    :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"></model-drop-down-item>
                             </template>
                             <template #list="slotItem">
                                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
@@ -77,19 +88,15 @@
                         </button>
                         <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-                            @click="increaseFontSize"
-                            :disabled="isMaxSize" 
-                            :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }"
-                            >
+                            @click="increaseFontSize" :disabled="isMaxSize"
+                            :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }">
                             <span class="svg-icon i-zoom-in w-4 h-4"></span>
                             <span>{{ languages.INCREASE_FONT_SIZE }}</span>
                         </button>
                         <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-                            @click="decreaseFontSize"
-                            :disabled="isMinSize" 
-                            :class="{ 'opacity-50 cursor-not-allowed': isMinSize }"
-                            >
+                            @click="decreaseFontSize" :disabled="isMinSize"
+                            :class="{ 'opacity-50 cursor-not-allowed': isMinSize }">
                             <span class="svg-icon i-zoom-out w-4 h-4"></span>
                             <span>{{ languages.DECREASE_FONT_SIZE }}</span>
                         </button>
@@ -165,13 +172,17 @@ import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 
+const chatHistory = ref<ChatItem[][]>([
+    [{ question: "What is the weather today?", answer: "It's sunny today.", title: "Weather" }],
+    [{ question: "What is for dinner today?", answer: "🍔!", title: "Dinner" }]
+]);
 const models = useModels();
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
 let textOutFinish = false;
-const chatHistories = ref<ChatItem[]>([]);
+const chat = ref<ChatItem[]>([]);
 let abortController = new AbortController();
 const textOutQueue = new Array<string>();
 const textIn = ref("");
@@ -209,17 +220,23 @@ const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2,
 const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
+const currentTitle = ref("");
+
+const newChat = () => {
+    chat.value = [];
+    currentTitle.value = "";
+}
 
 const increaseFontSize = () => {
-  if (!isMaxSize.value) {
-    fontSizeIndex.value++;
-  }
+    if (!isMaxSize.value) {
+        fontSizeIndex.value++;
+    }
 };
 
 const decreaseFontSize = () => {
-  if (!isMinSize.value) {
-    fontSizeIndex.value--;
-  }
+    if (!isMinSize.value) {
+        fontSizeIndex.value--;
+    }
 };
 
 
@@ -233,12 +250,13 @@ function finishGenerate() {
 
 function dataProcess(line: string) {
     console.log(`[${util.dateFormat(new Date(), "hh:mm:ss:fff")}] LLM data: ${line}`);
+
     const dataJson = line.slice(5);
     const data = JSON.parse(dataJson) as LLMOutCallback;
     switch (data.type) {
         case "text_out":
             if (data.dtype == 1) {
-                const text = (firstOutput ? data.value : data.value).replace(/<[^>]+>/g, "");
+                const text = (firstOutput ? data.value : data.value) //.replace(/<[^>]+>/g, "");
                 textOutQueue.push(text);
                 if (firstOutput) {
                     firstOutput = false;
@@ -285,6 +303,48 @@ function scrollToBottom(smooth = true) {
     }
 }
 
+async function updateTitle(chatItem: ChatItem[]) {
+    const chatStartItem = chatItem[0];
+    const prompt = "Create me a creative but descriptive, general title for the following conversation in a maximum of 20 characters:" + "\r\n```User1:\t" + chatStartItem.question + "\r\User2:\t" + chatStartItem.answer + "```";
+    console.log("prompt", prompt);
+    const chatContext = [{ question: prompt , answer: "" }];
+    const requestParams = {
+        device: globalSetup.modelSettings.graphics,
+        prompt: chatContext,
+        enable_rag: false,
+        model_repo_id: globalSetup.modelSettings.llm_model
+    };
+    const response = await fetch(`${globalSetup.apiHost}/api/llm/chat`, {
+        method: "POST", headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestParams),
+        signal: abortController.signal
+    });
+    const reader = response.body!.getReader();
+    await new SSEProcessor(reader, processTitle, finishGenerate).start(); // is finishGenerate needed here? Cannot use it because of void input
+
+    // remove everything
+    let title = currentTitle.value.replace(/"/g, '')
+    title = title.replace(/<[^>]+>/g, "");
+    title = title.length > 20 ? title.slice(0, 20) + "..." : title;
+    chatHistory.value.push([{ question: chatItem[0].question, answer: chatItem[0].answer, title: title }]);
+    chat.value = chatHistory.value[chatHistory.value.length - 1];
+}
+
+function processTitle(line: string) {
+    console.log(`[${util.dateFormat(new Date(), "hh:mm:ss:fff")}] LLM data: ${line}`);
+    const dataJson = line.slice(5);
+    const data = JSON.parse(dataJson) as LLMOutCallback;
+    switch (data.type) {
+        case "text_out":
+            if (data.dtype == 1) {
+                currentTitle.value += data.value;
+            }
+    }
+}
+
+
 async function simulatedInput() {
     while (textOutQueue.length > 0) {
         const newText = textOutQueue.shift()!;
@@ -298,10 +358,13 @@ async function simulatedInput() {
         await util.delay(20);
         await simulatedInput();
     } else {
-        chatHistories.value.push({
+        chat.value.push({
             question: textIn.value,
             answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
         });
+        if (currentTitle.value == "") {
+            updateTitle(chat.value);
+        }
         processing.value = false;
         textIn.value = "";
         textOut.value = "";
@@ -336,7 +399,7 @@ async function newPromptGenerate() {
     }
     try {
         await checkModel();
-        const chatContext = [...toRaw(chatHistories.value)];
+        const chatContext = [...toRaw(chat.value)];
         chatContext.push({ question: newPrompt, answer: "" });
         generate(chatContext);
         question.value = "";
@@ -434,19 +497,19 @@ async function refreshLLMModles(e: Event) {
 }
 
 async function clearSession() {
-    chatHistories.value.splice(0, chatHistories.value.length);
+    chat.value.splice(0, chat.value.length);
 }
 
 function regenerate(item: ChatItem, index: number) {
     const prompt = item.question;
-    chatHistories.value.splice(index, 1);
-    const chatContext = [...toRaw(chatHistories.value)];
+    chat.value.splice(index, 1);
+    const chatContext = [...toRaw(chat.value)];
     chatContext.push({ question: prompt, answer: "" });
     generate(chatContext);
 }
 
 function deleteChat(index: number) {
-    chatHistories.value.splice(index, 1);
+    chat.value.splice(index, 1);
 }
 
 function copyCode(e: MouseEvent) {
