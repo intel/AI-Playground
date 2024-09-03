@@ -6,7 +6,7 @@
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm p-4 text-[#00c4fa]">Chat History</h3>
                     <button @click="isHistoryVisible = false" >
-                        <img :class="iconSizeClass" src="@/assets/svg/hide-history.svg" />
+                        <img :class="iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
                     </button>
                 </div>
                 <div @click="newChat" class="cursor-pointer text-black m-2 p-2 bg-[#00c4fa]/80 hover:bg-[#00c4fa]/100 rounded">New Chat</div>
@@ -17,13 +17,16 @@
                     alt="Das ist ein toller Alt Text"
                     class="cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
                     :class="chat === chatItems ? 'bg-[#00c4fa]/50' : ''"
-                >
+                >   
+                    <div class="flex justify-between">
                     {{ chatItems[0].title }}
+                    <span class="svg-icon i-delete w-5 h-5"></span>
+                    </div>
                 </div>
             </div>
             <div v-else>
-                <button @click="isHistoryVisible = true" class="m-1" >
-                    <img :class="iconSizeClass" src="@/assets/svg/history.svg" />
+                <button @click="isHistoryVisible = true" class="m-2" >
+                    <img :class="iconSizeClass" src="@/assets/svg/expand.svg" class="w-8 h-8"/>
                 </button>
             </div>
             <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white"
