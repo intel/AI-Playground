@@ -1,10 +1,30 @@
 <template>
     <div id="answerPanel" class="h-full flex flex-col pr-4 pb-4 relative bg-origin-padding ">
         <div class="flex flex-row flex-auto overflow-y-auto">
-            <div id="chatHistoryPanel" class="w-56 flex-shrink-0 overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 sticky top-0">
-                <h3 class="text-sm p-4 text-[#00c4fa]">Chat History</h3>
+            <div v-if="isHistoryVisible" id="chatHistoryPanel" class="w-56 flex-shrink-0 overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 sticky top-0">
+
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm p-4 text-[#00c4fa]">Chat History</h3>
+                    <button @click="isHistoryVisible = false" >
+                        <img :class="iconSizeClass" src="@/assets/svg/hide-history.svg" />
+                    </button>
+                </div>
                 <div @click="newChat" class="cursor-pointer text-black m-2 p-2 bg-[#00c4fa]/80 hover:bg-[#00c4fa]/100 rounded">New Chat</div>
-                <div @click="() => chat = aSingleChat" alt="Das ist ein toller Alt Text" class="cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50" :class="chat === aSingleChat ? 'bg-[#00c4fa]/50' : ''"  v-for="aSingleChat in chatHistory.slice().reverse()">{{ aSingleChat[0].title }}</div>
+                <div
+                    v-for="([key, chatItems], index) in Object.entries(chatHistory).reverse()"
+                    :key="key"
+                    @click="() => chat = chatItems"
+                    alt="Das ist ein toller Alt Text"
+                    class="cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
+                    :class="chat === chatItems ? 'bg-[#00c4fa]/50' : ''"
+                >
+                    {{ chatItems[0].title }}
+                </div>
+            </div>
+            <div v-else>
+                <button @click="isHistoryVisible = true" class="m-1" >
+                    <img :class="iconSizeClass" src="@/assets/svg/history.svg" />
+                </button>
             </div>
             <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white"
                 :class="fontSizeClass">
@@ -172,10 +192,10 @@ import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 
-const chatHistory = ref<ChatItem[][]>([
-    [{ question: "What is the weather today?", answer: "It's sunny today.", title: "Weather" }],
-    [{ question: "What is for dinner today?", answer: "🍔!", title: "Dinner" }]
-]);
+const chatHistory = ref<{ [key: string]: ChatItem[]}>({
+    1: [{ question: "What is the weather today?", answer: "It's sunny today.", title: "Weather" }],
+    2: [{ question: "What is for dinner today?", answer: "🍔!", title: "Dinner" }]
+});
 const models = useModels();
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state
@@ -221,6 +241,11 @@ const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
 const currentTitle = ref("");
+const isHistoryVisible = ref(true);
+
+const generateUniqueId = () => {
+    return Math.random().toString(36).substring(2, 9);
+}
 
 const newChat = () => {
     chat.value = [];
@@ -303,6 +328,18 @@ function scrollToBottom(smooth = true) {
     }
 }
 
+function addNewChatItem(question: string, answer: string, title?: string) {
+  const newKey = generateUniqueId();
+  const newChatItem: ChatItem = {
+    question: question,
+    answer: answer,
+  };
+  if (title) {
+    newChatItem.title = title;
+  }
+  chatHistory.value[newKey] = [newChatItem];
+}
+
 async function updateTitle(chatItem: ChatItem[]) {
     const chatStartItem = chatItem[0];
     const prompt = "Create me a creative but descriptive, general title for the following conversation in a maximum of 20 characters:" + "\r\n```User1:\t" + chatStartItem.question + "\r\User2:\t" + chatStartItem.answer + "```";
@@ -328,8 +365,7 @@ async function updateTitle(chatItem: ChatItem[]) {
     let title = currentTitle.value.replace(/"/g, '')
     title = title.replace(/<[^>]+>/g, "");
     title = title.length > 20 ? title.slice(0, 20) + "..." : title;
-    chatHistory.value.push([{ question: chatItem[0].question, answer: chatItem[0].answer, title: title }]);
-    chat.value = chatHistory.value[chatHistory.value.length - 1];
+    addNewChatItem(chatItem[0].question, chatItem[0].answer, title);
 }
 
 function processTitle(line: string) {
@@ -362,6 +398,7 @@ async function simulatedInput() {
             question: textIn.value,
             answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
         });
+        // check if key exists
         if (currentTitle.value == "") {
             updateTitle(chat.value);
         }
