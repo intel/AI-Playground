@@ -1,67 +1,104 @@
 <template>
-    <div id="answerPanel" class="h-full flex flex-col p-4 relative">
-        <div id="chatPanel" class="chat-panel flex-auto flex flex-col h-0 gap-6 m-4 overflow-y-auto text-white" :class="fontSizeClass">
-            <template v-for="chat, i in chatHistories">
-                <div class="flex items-start gap-3">
+    <div id="answerPanel" class="h-full flex flex-col pr-4 pb-4 relative bg-origin-padding ">
+        <div class="flex flex-row flex-auto overflow-y-auto">
+            <div id="chatHistoryPanel" :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
+                class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all">
+                <div class="flex flex-col-reverse">
+                    <div v-if="isHistoryVisible" v-for="(conversation, conversationKey) in conversations.conversationList" :key="conversationKey"
+                        @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title"
+                        class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
+                        :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
+                        <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{ conversation?.[0]?.title ?? 'New Conversation' }}</span>
+                        <span v-if="!conversations.isNewConversation(conversationKey)" @click="() => conversations.deleteConversation(conversationKey)" class="svg-icon i-delete w-5 h-5"></span>
+                    </div>
+                    <div v-else v-for="(_, conversationKey) in conversations.conversationList" :inVisibleKey="conversationKey"
+                        @click="() => conversations.activeKey = conversationKey"
+                        class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
+                        :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
+                        <svg v-if="conversations.isNewConversation(conversationKey)" class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        <svg v-else class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
+                        </svg>
+
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+                        <img v-if="!isHistoryVisible" :class="iconSizeClass" src="@/assets/svg/expand.svg" class="w-8 h-8" />
+                        <img v-else :class="iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
+                    </button>
+                </div>
+            </div>
+            <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white"
+                :class="fontSizeClass">
+                <template v-for="chat, i in conversations.activeConversation">
+                    <div class="flex items-start gap-3">
+                        <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
+                        <div class="flex flex-col gap-3 max-w-3/4">
+                            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
+                            <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+                        <div
+                            class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
+                            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+                            <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)">
+                            </div>
+                            <div class="answer-tools flex gap-3 items-center text-gray-300">
+                                <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
+                                    <span class="svg-icon i-copy w-4 h-4"></span>
+                                    <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+                                </button>
+                                <button class="flex items-end" :title="languages.COM_REGENERATE"
+                                    @click="() => regenerateLastResponse(conversations.activeKey)"
+                                    v-if="i + 1 == conversations.activeConversation.length">
+                                    <span class="svg-icon i-refresh w-4 h-4"></span>
+                                    <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
+                                </button>
+                                <button class="flex items-end" :title="languages.COM_DELETE" @click="() => conversations.deleteItemFromConversation(conversations.activeKey, i)">
+                                    <span class="svg-icon i-delete w-4 h-4"></span>
+                                    <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                <div class="flex items-start gap-3" v-show="processing">
                     <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
                     <div class="flex flex-col gap-3 max-w-3/4">
                         <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-                        <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+                        <p v-html="textIn"></p>
                     </div>
                 </div>
-                <div class="flex items-start gap-3">
+                <div class="flex items-start gap-3" v-show="processing">
                     <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
-                    <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
+                    <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
                         <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
-                        <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)"></div>
-                        <div class="answer-tools flex gap-3 items-center text-gray-300">
-                            <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
-                                <span class="svg-icon i-copy w-4 h-4"></span>
-                                <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
-                            </button>
-                            <button class="flex items-end" :title="languages.COM_REGENERATE"
-                                @click="regenerate(chat, i)" v-if="i + 1 == chatHistories.length">
-                                <span class="svg-icon i-refresh w-4 h-4"></span>
-                                <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
-                            </button>
-                            <button class="flex items-end" :title="languages.COM_DELETE" @click="deleteChat(i)">
-                                <span class="svg-icon i-delete w-4 h-4"></span>
-                                <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
-                            </button>
+                        <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
+                            v-html="textOut">
                         </div>
-                    </div>
-                </div>
-            </template>
-            <div class="flex items-start gap-3" v-show="processing">
-                <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
-                <div class="flex flex-col gap-3 max-w-3/4">
-                    <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-                    <p v-html="textIn"></p>
-                </div>
-            </div>
-            <div class="flex items-start gap-3" v-show="processing">
-                <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
-                <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
-                    <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
-                    <div v-if="!downloadModel.downloading && !loadingModel" class="ai-answer cursor-block break-all"
-                        v-html="textOut">
-                    </div>
-                    <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
-                        <progress-bar v-if="downloadModel.downloading" :text="downloadModel.text"
-                            :percent="downloadModel.percent" class="w-512px"></progress-bar>
-                        <loading-bar v-else-if="loadingModel" :text="languages.COM_LOADING_MODEL"
-                            class="w-512px"></loading-bar>
+                        <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
+                            <progress-bar v-if="downloadModel.downloading" :text="downloadModel.text"
+                                :percent="downloadModel.percent" class="w-512px"></progress-bar>
+                            <loading-bar v-else-if="loadingModel" :text="languages.COM_LOADING_MODEL"
+                                class="w-512px"></loading-bar>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4">
+        <div class="pl-4 h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4">
             <div class="flex flex-col gap-2 flex-auto h-full">
                 <div class="flex items-center justify-between gap-5 text-white px-2">
                     <div class="flex items-center">
                         <drop-selector :array="models.llms" @change="changeLLMModel" class="w-96">
                             <template #selected>
-                                <model-drop-down-item :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"></model-drop-down-item>
+                                <model-drop-down-item
+                                    :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"></model-drop-down-item>
                             </template>
                             <template #list="slotItem">
                                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
@@ -69,27 +106,23 @@
                         </drop-selector>
                         <button class="svg-icon i-refresh w-5 h-5 text-purple-500 flex-none ml-1"
                             @animationend="removeRonate360" @click="refreshLLMModles"></button>
-                        <button
+                        <!-- <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-6"
-                            @click="clearSession">
+                            @click="() => conversations.clearConversation(conversations.activeKey)">
                             <span class="svg-icon i-clear w-4 h-4"></span>
                             <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
-                        </button>
+                        </button> -->
                         <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-                            @click="increaseFontSize"
-                            :disabled="isMaxSize" 
-                            :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }"
-                            >
+                            @click="increaseFontSize" :disabled="isMaxSize"
+                            :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }">
                             <span class="svg-icon i-zoom-in w-4 h-4"></span>
                             <span>{{ languages.INCREASE_FONT_SIZE }}</span>
                         </button>
                         <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-                            @click="decreaseFontSize"
-                            :disabled="isMinSize" 
-                            :class="{ 'opacity-50 cursor-not-allowed': isMinSize }"
-                            >
+                            @click="decreaseFontSize" :disabled="isMinSize"
+                            :class="{ 'opacity-50 cursor-not-allowed': isMinSize }">
                             <span class="svg-icon i-zoom-out w-4 h-4"></span>
                             <span>{{ languages.DECREASE_FONT_SIZE }}</span>
                         </button>
@@ -164,14 +197,15 @@ import { Model, useModels } from "@/assets/js/store/models";
 import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
+import { useConversations } from "@/assets/js/store/conversations";
 
+const conversations = useConversations();
 const models = useModels();
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
 let textOutFinish = false;
-const chatHistories = ref<ChatItem[]>([]);
 let abortController = new AbortController();
 const textOutQueue = new Array<string>();
 const textIn = ref("");
@@ -209,17 +243,18 @@ const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2,
 const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
+const isHistoryVisible = ref(false);
 
 const increaseFontSize = () => {
-  if (!isMaxSize.value) {
-    fontSizeIndex.value++;
-  }
+    if (!isMaxSize.value) {
+        fontSizeIndex.value++;
+    }
 };
 
 const decreaseFontSize = () => {
-  if (!isMinSize.value) {
-    fontSizeIndex.value--;
-  }
+    if (!isMinSize.value) {
+        fontSizeIndex.value--;
+    }
 };
 
 
@@ -233,12 +268,13 @@ function finishGenerate() {
 
 function dataProcess(line: string) {
     console.log(`[${util.dateFormat(new Date(), "hh:mm:ss:fff")}] LLM data: ${line}`);
+
     const dataJson = line.slice(5);
     const data = JSON.parse(dataJson) as LLMOutCallback;
     switch (data.type) {
         case "text_out":
             if (data.dtype == 1) {
-                const text = (firstOutput ? data.value : data.value).replace(/<[^>]+>/g, "");
+                const text = (firstOutput ? data.value : data.value) //.replace(/<[^>]+>/g, "");
                 textOutQueue.push(text);
                 if (firstOutput) {
                     firstOutput = false;
@@ -285,6 +321,38 @@ function scrollToBottom(smooth = true) {
     }
 }
 
+async function updateTitle(conversation: ChatItem[]) {
+    const instruction = `Create me a short descriptive title for the following conversation in a maximum of 20 characters. Don't use unnecessary words like 'Conversation about': `;
+    const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``;
+    console.log("prompt", prompt);
+    const chatContext = [{ question: prompt , answer: "" }];
+    const requestParams = {
+        device: globalSetup.modelSettings.graphics,
+        prompt: chatContext,
+        enable_rag: false,
+        model_repo_id: globalSetup.modelSettings.llm_model
+    };
+    const response = await fetch(`${ globalSetup.apiHost }/api/llm/chat`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestParams),
+        signal: abortController.signal
+    });
+    const reader = response.body!.getReader();
+    const responses: LLMOutCallback[] = []
+    const getResponse = (line: string) => {
+        responses.push(JSON.parse(line.slice(5)))
+    }
+
+    await new SSEProcessor(reader, getResponse, finishGenerate).start(); // is finishGenerate needed here? Cannot use it because of void input
+
+    const isTextCallback = (item: LLMOutCallback): item is LLMOutTextCallback => item.type == "text_out" && item.dtype == 1;
+    const newTitle = responses.filter(isTextCallback).reduce((acc, item) => acc + item.value, "").replace(/"/g, '');
+    conversation[0].title = newTitle;
+}
+
 async function simulatedInput() {
     while (textOutQueue.length > 0) {
         const newText = textOutQueue.shift()!;
@@ -298,10 +366,14 @@ async function simulatedInput() {
         await util.delay(20);
         await simulatedInput();
     } else {
-        chatHistories.value.push({
+        conversations.addToActiveConversation({
             question: textIn.value,
             answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
         });
+        if (conversations.activeConversation.length <= 3) {
+            console.log('Conversations is less than 4 items long, generating new title');
+            updateTitle(conversations.activeConversation);
+        }
         processing.value = false;
         textIn.value = "";
         textOut.value = "";
@@ -336,7 +408,7 @@ async function newPromptGenerate() {
     }
     try {
         await checkModel();
-        const chatContext = [...toRaw(chatHistories.value)];
+        const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation));
         chatContext.push({ question: newPrompt, answer: "" });
         generate(chatContext);
         question.value = "";
@@ -433,20 +505,13 @@ async function refreshLLMModles(e: Event) {
     await models.refreshModels();
 }
 
-async function clearSession() {
-    chatHistories.value.splice(0, chatHistories.value.length);
-}
-
-function regenerate(item: ChatItem, index: number) {
+function regenerateLastResponse(conversationKey: string) {
+    const item = conversations.conversationList[conversationKey].pop();
+    if (!item) return;
     const prompt = item.question;
-    chatHistories.value.splice(index, 1);
-    const chatContext = [...toRaw(chatHistories.value)];
+    const chatContext = [...toRaw(conversations.conversationList[conversationKey])];
     chatContext.push({ question: prompt, answer: "" });
     generate(chatContext);
-}
-
-function deleteChat(index: number) {
-    chatHistories.value.splice(index, 1);
 }
 
 function copyCode(e: MouseEvent) {
