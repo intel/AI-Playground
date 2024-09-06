@@ -15,9 +15,6 @@ def image_to_base64(image: Image.Image):
         base64.b64encode(buffered.getvalue()).decode("utf-8")
     )
 
-def get_hf_token():
-    return os.getenv("HF_TOKEN")
-
 def generate_mask_image(mask_flag_bytes: bytes, width: int, height: int):
     from PIL import Image
     import numpy as np

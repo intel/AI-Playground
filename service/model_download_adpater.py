@@ -19,7 +19,7 @@ class Model_Downloader_Adapter:
     has_error: bool
     user_stop:bool
 
-    def __init__(self):
+    def __init__(self, hf_token=None):
         self.msg_queue = Queue(-1)
         self.finish = False
         self.user_stop = False
@@ -31,7 +31,7 @@ class Model_Downloader_Adapter:
         self.file_downloader.on_download_completed = (
             self.download_model_completed_callback
         )
-        self.hf_downloader = HFPlaygroundDownloader()
+        self.hf_downloader = HFPlaygroundDownloader(hf_token)
         self.hf_downloader.on_download_progress = self.download_model_progress_callback
         self.hf_downloader.on_download_completed = (
             self.download_model_completed_callback

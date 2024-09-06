@@ -1,4 +1,4 @@
-from huggingface_hub import HfFileSystem, hf_hub_url
+from huggingface_hub import HfFileSystem, hf_hub_url, model_info
 from typing import Any, Callable, Dict, List
 from os import path, makedirs, rename
 import requests
@@ -74,12 +74,22 @@ class HFPlaygroundDownloader:
     save_path: str
     save_path_tmp: str
     error: Exception
+    hf_token: str | None
 
-    def __init__(self) -> None:
+    def __init__(self, hf_token=None) -> None:
         self.fs = HfFileSystem()
         self.total_size = 0
         self.download_size = 0
         self.thread_lock = Lock()
+        self.hf_token = hf_token
+
+    def is_gated(self, repo_id: str):
+        try:
+            info = model_info(repo_id)
+            return info.gated != False
+        except Exception as ex:
+            print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
+            return False
 
     def download(self, repo_id: str, model_type: int, thread_count: int = 4):
         self.repo_id = repo_id
@@ -270,8 +280,8 @@ class HFPlaygroundDownloader:
         makedirs(path.dirname(file.save_filename), exist_ok=True)
 
         headers={}
-        if (utils.get_hf_token() is not None):
-            headers["Authorization"] = f"Bearer {utils.get_hf_token()}"
+        if (self.hf_token is not None):
+            headers["Authorization"] = f"Bearer {self.hf_token}"
 
         if file.disk_file_size > 0:
             # download skip exists part
@@ -297,6 +307,9 @@ class HFPlaygroundDownloader:
                 while True:
                     try:
                         response, fw = self.init_download(file)
+                        if (response.status_code != 200):
+                            download_retry += 2 # we only want to retry once in case of non network errors
+                            raise DownloadException(file.url)
                         # start download file
                         with response:
                             with fw:
