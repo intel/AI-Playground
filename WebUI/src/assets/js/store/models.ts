@@ -19,6 +19,7 @@ const predefinedModels: Model[] = [
 
 export const useModels = defineStore("models", () => {
 
+    const hfToken = ref<string | undefined>(undefined);
     const models = ref(predefinedModels);
     const llms = computed(() => models.value.filter(m => m.type === 'llm'));
 
@@ -48,6 +49,12 @@ export const useModels = defineStore("models", () => {
     return {
         models,
         llms,
+        hfToken,
+        hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
         refreshModels,
+    }
+}, {
+    persist: {
+        pick: ['hfToken'],
     }
 });

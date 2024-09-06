@@ -236,6 +236,16 @@
         <!--Model-->
         <div v-show="tabIndex == 1" class="px-3 flex flex-col overflow-y-auto">
             <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+                <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_HUGGINGFACE }}</h2>
+                <div class="flex flex-col gap-3">
+                    <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
+                    <div class="flex flex-col items-start gap-1">
+                        <Input v-model="models.hfToken" :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"/>
+                        <div class="text-xs text-red-500 select-none" :class="{'opacity-0': !(models.hfToken && !models.hfTokenIsValid)}">{{ languages.SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
                 <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_SD_PRESET_MODEL }}</h2>
                 <div class="flex flex-col gap-3">
                     <p>{{ languages.SETTINGS_MODEL_SD_STANDARD_MODEL }}</p>
@@ -471,14 +481,17 @@ import SlideBar from "../components/SlideBar.vue";
 import RadioBolck from "../components/RadioBlock.vue";
 import RandomNumber from "../components/RandomNumber.vue";
 import FolderSelector from "../components/FolderSelector.vue";
+import { Input } from '@/components/ui/input'
 import { ResolutionPicker } from "../components/ui/slider";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 import { useI18N } from "@/assets/js/store/i18n";
 import { toast } from "@/assets/js/toast";
 import { Const } from "@/assets/js/const";
+import { useModels } from "@/assets/js/store/models";
 
 const i18n = useI18N();
 const globalSetup = useGlobalSetup();
+const models = useModels();
 const tabIndex = ref(0);
 const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)));
