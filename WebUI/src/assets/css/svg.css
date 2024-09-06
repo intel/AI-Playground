@@ -36,6 +36,10 @@
   --svg: url("@/assets/svg/history.svg");
 }
 
+.i-hide-history {
+  --svg: url("@/assets/svg/hide-history.svg");
+}
+
 .i-copy {
   --svg: url("@/assets/svg/copy.svg");
 }
