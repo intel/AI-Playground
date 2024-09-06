@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" VITE_HF_TOKEN=hf_myhftoken vite",
+    "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "build": "vue-tsc && env && vite build && call build\\before_build.bat&& electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
     "build:ultra": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --config build\\ultra-build.json&&call build\\after_build.bat\"",
     "dir:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --dir --config build\\ultra-build.json&&call build\\after_build.bat",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",
+    "@vueuse/core": "^11.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",

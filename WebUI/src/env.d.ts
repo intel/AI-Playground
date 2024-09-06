@@ -164,7 +164,7 @@ type RagFileItem = {
 }
 
 
-type LLMOutCallback = LoadModelCallback | LLMOutTextCallback | DownloadModelProgressCallback | DownloadModelCompleted | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
+type LLMOutCallback = LoadModelCallback | LoadModelAllComplete | LLMOutTextCallback | DownloadModelProgressCallback | DownloadModelCompleted | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
 
 type LLMOutTextCallback = {
     type: "text_out",
@@ -173,6 +173,10 @@ type LLMOutTextCallback = {
 }
 
 type SDOutCallback = LoadModelCallback | LoadModelcomponentsCallback | SDOutImagelCallback | SDStepEndCallback | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
+
+type LoadModelAllComplete = {
+    type: "allComplete"
+}
 
 type LoadModelCallback = {
     type: "load_model",
@@ -286,7 +290,7 @@ type CheckModelExistParam = {
 
 type DownloadModelParam = CheckModelExistParam
 
-type DownloadModelRender = { size: string } & CheckModelExistParam
+type DownloadModelRender = { size: string, gated?: boolean } & CheckModelExistParam
 
 type CheckModelExistResult = {
     exist: boolean

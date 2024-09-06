@@ -155,7 +155,7 @@ async function createWindow() {
         ...details.responseHeaders,
         "Access-Control-Allow-Origin": ["*"],
         "Access-Control-Allow-Methods": ["GET,POST"],
-        "Access-Control-Allow-Headers": ["x-requested-with,Content-Type"],
+        "Access-Control-Allow-Headers": ["x-requested-with,Content-Type,Authorization"],
       }
       callback(details);
     } else {
@@ -513,8 +513,7 @@ function wakeupApiService() {
   const additionalEnvVariables = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
     "SYCL_CACHE_PERSISTENT": "1",
-    "PYTHONIOENCODING": "utf-8",
-    ...(import.meta.env.VITE_HF_TOKEN ? { "HF_TOKEN": import.meta.env.VITE_HF_TOKEN } : {})
+    "PYTHONIOENCODING": "utf-8"
   };
 
   spawnAPI(pythonExe, wordkDir, additionalEnvVariables);
