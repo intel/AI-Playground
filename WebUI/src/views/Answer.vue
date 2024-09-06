@@ -1,37 +1,39 @@
 <template>
     <div id="answerPanel" class="h-full flex flex-col pr-4 pb-4 relative bg-origin-padding ">
         <div class="flex flex-row flex-auto overflow-y-auto">
-            <div v-if="isHistoryVisible" id="chatHistoryPanel" class="w-56 flex-shrink-0 overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 sticky top-0">
+            <div id="chatHistoryPanel" :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
+                class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all">
+                <div class="flex flex-col-reverse">
+                    <div v-if="isHistoryVisible" v-for="(conversation, conversationKey) in conversations.conversationList" :key="conversationKey"
+                        @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title"
+                        class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
+                        :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
+                        <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{ conversation?.[0]?.title ?? 'New Conversation' }}</span>
+                        <span v-if="!conversations.isNewConversation(conversationKey)" @click="() => conversations.deleteConversation(conversationKey)" class="svg-icon i-delete w-5 h-5"></span>
+                    </div>
+                    <div v-else v-for="(_, conversationKey) in conversations.conversationList" :inVisibleKey="conversationKey"
+                        @click="() => conversations.activeKey = conversationKey"
+                        class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
+                        :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
+                        <svg v-if="conversations.isNewConversation(conversationKey)" class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        <svg v-else class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
+                        </svg>
 
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm p-4 text-[#00c4fa]">Chat History</h3>
-                    <button @click="isHistoryVisible = false" >
-                        <img :class="iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
-                    </button>
-                </div>
-                <div @click="newChat" class="cursor-pointer text-black m-2 p-2 bg-[#00c4fa]/80 hover:bg-[#00c4fa]/100 rounded">New Chat</div>
-                <div
-                    v-for="([key, chatItems], index) in Object.entries(chatHistory).reverse()"
-                    :key="key"
-                    @click="() => chat = chatItems"
-                    alt="Das ist ein toller Alt Text"
-                    class="cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
-                    :class="chat === chatItems ? 'bg-[#00c4fa]/50' : ''"
-                >   
-                    <div class="flex justify-between">
-                    {{ chatItems[0].title }}
-                    <span class="svg-icon i-delete w-5 h-5"></span>
                     </div>
                 </div>
-            </div>
-            <div v-else>
-                <button @click="isHistoryVisible = true" class="m-2" >
-                    <img :class="iconSizeClass" src="@/assets/svg/expand.svg" class="w-8 h-8"/>
-                </button>
+                <div class="flex justify-end">
+                    <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+                        <img v-if="!isHistoryVisible" :class="iconSizeClass" src="@/assets/svg/expand.svg" class="w-8 h-8" />
+                        <img v-else :class="iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
+                    </button>
+                </div>
             </div>
             <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white"
                 :class="fontSizeClass">
-                <template v-for="chat, i in chat">
+                <template v-for="chat, i in conversations.activeConversation">
                     <div class="flex items-start gap-3">
                         <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
                         <div class="flex flex-col gap-3 max-w-3/4">
@@ -52,11 +54,12 @@
                                     <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
                                 </button>
                                 <button class="flex items-end" :title="languages.COM_REGENERATE"
-                                    @click="regenerate(chat, i)" v-if="i + 1 == chat.length">
+                                    @click="() => regenerateLastResponse(conversations.activeKey)"
+                                    v-if="i + 1 == conversations.activeConversation.length">
                                     <span class="svg-icon i-refresh w-4 h-4"></span>
                                     <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
                                 </button>
-                                <button class="flex items-end" :title="languages.COM_DELETE" @click="deleteChat(i)">
+                                <button class="flex items-end" :title="languages.COM_DELETE" @click="() => conversations.deleteItemFromConversation(conversations.activeKey, i)">
                                     <span class="svg-icon i-delete w-4 h-4"></span>
                                     <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
                                 </button>
@@ -103,12 +106,12 @@
                         </drop-selector>
                         <button class="svg-icon i-refresh w-5 h-5 text-purple-500 flex-none ml-1"
                             @animationend="removeRonate360" @click="refreshLLMModles"></button>
-                        <button
+                        <!-- <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-6"
-                            @click="clearSession">
+                            @click="() => conversations.clearConversation(conversations.activeKey)">
                             <span class="svg-icon i-clear w-4 h-4"></span>
                             <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
-                        </button>
+                        </button> -->
                         <button
                             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
                             @click="increaseFontSize" :disabled="isMaxSize"
@@ -194,18 +197,15 @@ import { Model, useModels } from "@/assets/js/store/models";
 import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
+import { useConversations } from "@/assets/js/store/conversations";
 
-const chatHistory = ref<{ [key: string]: ChatItem[]}>({
-    1: [{ question: "What is the weather today?", answer: "It's sunny today.", title: "Weather" }],
-    2: [{ question: "What is for dinner today?", answer: "🍔!", title: "Dinner" }]
-});
+const conversations = useConversations();
 const models = useModels();
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
 let textOutFinish = false;
-const chat = ref<ChatItem[]>([]);
 let abortController = new AbortController();
 const textOutQueue = new Array<string>();
 const textIn = ref("");
@@ -243,17 +243,7 @@ const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2,
 const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
-const currentTitle = ref("");
-const isHistoryVisible = ref(true);
-
-const generateUniqueId = () => {
-    return Math.random().toString(36).substring(2, 9);
-}
-
-const newChat = () => {
-    chat.value = [];
-    currentTitle.value = "";
-}
+const isHistoryVisible = ref(false);
 
 const increaseFontSize = () => {
     if (!isMaxSize.value) {
@@ -331,21 +321,9 @@ function scrollToBottom(smooth = true) {
     }
 }
 
-function addNewChatItem(question: string, answer: string, title?: string) {
-  const newKey = generateUniqueId();
-  const newChatItem: ChatItem = {
-    question: question,
-    answer: answer,
-  };
-  if (title) {
-    newChatItem.title = title;
-  }
-  chatHistory.value[newKey] = [newChatItem];
-}
-
-async function updateTitle(chatItem: ChatItem[]) {
-    const chatStartItem = chatItem[0];
-    const prompt = "Create me a creative but descriptive, general title for the following conversation in a maximum of 20 characters:" + "\r\n```User1:\t" + chatStartItem.question + "\r\User2:\t" + chatStartItem.answer + "```";
+async function updateTitle(conversation: ChatItem[]) {
+    const instruction = `Create me a short descriptive title for the following conversation in a maximum of 20 characters. Don't use unnecessary words like 'Conversation about': `;
+    const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``;
     console.log("prompt", prompt);
     const chatContext = [{ question: prompt , answer: "" }];
     const requestParams = {
@@ -354,35 +332,26 @@ async function updateTitle(chatItem: ChatItem[]) {
         enable_rag: false,
         model_repo_id: globalSetup.modelSettings.llm_model
     };
-    const response = await fetch(`${globalSetup.apiHost}/api/llm/chat`, {
-        method: "POST", headers: {
+    const response = await fetch(`${ globalSetup.apiHost }/api/llm/chat`, {
+        method: "POST",
+        headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify(requestParams),
         signal: abortController.signal
     });
     const reader = response.body!.getReader();
-    await new SSEProcessor(reader, processTitle, finishGenerate).start(); // is finishGenerate needed here? Cannot use it because of void input
-
-    // remove everything
-    let title = currentTitle.value.replace(/"/g, '')
-    title = title.replace(/<[^>]+>/g, "");
-    title = title.length > 20 ? title.slice(0, 20) + "..." : title;
-    addNewChatItem(chatItem[0].question, chatItem[0].answer, title);
-}
-
-function processTitle(line: string) {
-    console.log(`[${util.dateFormat(new Date(), "hh:mm:ss:fff")}] LLM data: ${line}`);
-    const dataJson = line.slice(5);
-    const data = JSON.parse(dataJson) as LLMOutCallback;
-    switch (data.type) {
-        case "text_out":
-            if (data.dtype == 1) {
-                currentTitle.value += data.value;
-            }
+    const responses: LLMOutCallback[] = []
+    const getResponse = (line: string) => {
+        responses.push(JSON.parse(line.slice(5)))
     }
-}
 
+    await new SSEProcessor(reader, getResponse, finishGenerate).start(); // is finishGenerate needed here? Cannot use it because of void input
+
+    const isTextCallback = (item: LLMOutCallback): item is LLMOutTextCallback => item.type == "text_out" && item.dtype == 1;
+    const newTitle = responses.filter(isTextCallback).reduce((acc, item) => acc + item.value, "").replace(/"/g, '');
+    conversation[0].title = newTitle;
+}
 
 async function simulatedInput() {
     while (textOutQueue.length > 0) {
@@ -397,13 +366,13 @@ async function simulatedInput() {
         await util.delay(20);
         await simulatedInput();
     } else {
-        chat.value.push({
+        conversations.addToActiveConversation({
             question: textIn.value,
             answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
         });
-        // check if key exists
-        if (currentTitle.value == "") {
-            updateTitle(chat.value);
+        if (conversations.activeConversation.length <= 3) {
+            console.log('Conversations is less than 4 items long, generating new title');
+            updateTitle(conversations.activeConversation);
         }
         processing.value = false;
         textIn.value = "";
@@ -439,7 +408,7 @@ async function newPromptGenerate() {
     }
     try {
         await checkModel();
-        const chatContext = [...toRaw(chat.value)];
+        const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation));
         chatContext.push({ question: newPrompt, answer: "" });
         generate(chatContext);
         question.value = "";
@@ -536,20 +505,13 @@ async function refreshLLMModles(e: Event) {
     await models.refreshModels();
 }
 
-async function clearSession() {
-    chat.value.splice(0, chat.value.length);
-}
-
-function regenerate(item: ChatItem, index: number) {
+function regenerateLastResponse(conversationKey: string) {
+    const item = conversations.conversationList[conversationKey].pop();
+    if (!item) return;
     const prompt = item.question;
-    chat.value.splice(index, 1);
-    const chatContext = [...toRaw(chat.value)];
+    const chatContext = [...toRaw(conversations.conversationList[conversationKey])];
     chatContext.push({ question: prompt, answer: "" });
     generate(chatContext);
-}
-
-function deleteChat(index: number) {
-    chat.value.splice(index, 1);
 }
 
 function copyCode(e: MouseEvent) {
