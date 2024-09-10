@@ -23,12 +23,15 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	AI Playground for Desktop-dGPU - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta/AI.Playground-v1.01b-Desktop_dGPU.exe) 
+*	AI Playground for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta/AI.Playground-v1.01b-Desktop_dGPU.exe) 
 
-*	AI Playground for Intel Core Ultra-H  - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta.mtl) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta.mtl/AI.Playground-v1.01b-Mobile_MTL-H.exe) 
+*	AI Playground for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta.mtl) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta.mtl/AI.Playground-v1.01b-Mobile_MTL-H.exe) 
+
+*	AI Playground for Intel Core Ultra 200V (LNL) - Coming soon  [watch video](https://www.youtube.com/watch?v=zDQn6cIcmKY) 
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
+IMPORTANT: We have noticed some systems require the VS C++ redistribution, often already installed on Windows systems. If AI Playground is hanging on the load screen , this may be the issue and can be resolved by installing VS C++ redist https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
 
 ## Project Development
 ### Dev Environment Setup (backend, python)
