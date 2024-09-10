@@ -94,8 +94,8 @@ async function createWindow() {
   win = new BrowserWindow({
     title: "AI PLAYGROUND",
     icon: path.join(process.env.VITE_PUBLIC, "app-ico.svg"),
-    transparent: true,
-    resizable: false,
+    transparent: false,
+    resizable: true,
     frame: false,
     // fullscreen: true,
     width: 1440,
