@@ -132,7 +132,7 @@
   "DOWNLOADER_GATED":"Gated",
   "DOWNLOADER_GATED_INFO":"Some of the models you are trying to download are gated.",
   "DOWNLOADER_GATED_TOKEN":"Please add your huggingface.co API token in the settings.",
-  "DOWNLOADER_GATED_ACCEPT":"Please make sure to visit the model info page and request access.",
+  "DOWNLOADER_GATED_ACCEPT":"Please make sure to visit the model info page and request access. If you have not been granted access to a gated model, the download will fail.",
   "DOWNLOADER_REASON":"Reason",
   "DOWNLOADER_TERMS":"Visit",
   "DOWNLOADER_CONFLICT":"Another download task is currently in progress, and a new task cannot be started. You can cancel the current download task and start a new download task",

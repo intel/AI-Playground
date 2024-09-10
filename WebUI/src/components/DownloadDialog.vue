@@ -43,7 +43,7 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div v-if="downloadList.some((i) => i.gated)" class="flex flex-col items-start gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
+                    <div v-if="downloadList.some((i) => i.gated)" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
                         <span class="font-bold mx-4">{{ languages.DOWNLOADER_GATED_INFO }}</span>
                         <ul>
                             <li v-if="!models.hfTokenIsValid" class="text-left">{{ languages.DOWNLOADER_GATED_TOKEN }}</li>
