@@ -5,20 +5,20 @@
                 class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all">
                 <div class="flex flex-col-reverse">
                     <div v-if="isHistoryVisible" v-for="(conversation, conversationKey) in conversations.conversationList" :key="conversationKey"
-                        @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title"
+                        @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title ?? 'New Conversation'"
                         class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
                         :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
                         <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{ conversation?.[0]?.title ?? 'New Conversation' }}</span>
                         <span v-if="!conversations.isNewConversation(conversationKey)" @click="() => conversations.deleteConversation(conversationKey)" class="svg-icon i-delete w-5 h-5"></span>
                     </div>
-                    <div v-else v-for="(_, conversationKey) in conversations.conversationList" :inVisibleKey="conversationKey"
-                        @click="() => conversations.activeKey = conversationKey"
+                    <div v-else v-for="(conversation, conversationKey) in conversations.conversationList" :inVisibleKey="conversationKey"
+                        @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title ?? 'New Conversation'"
                         class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
                         :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
                         <svg v-if="conversations.isNewConversation(conversationKey)" class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                         </svg>
-                        <svg v-else class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg v-else class="m-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
                         </svg>
 
@@ -31,7 +31,7 @@
                     </button>
                 </div>
             </div>
-            <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white"
+            <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
                 :class="fontSizeClass">
                 <template v-for="chat, i in conversations.activeConversation">
                     <div class="flex items-start gap-3">
