@@ -69,7 +69,8 @@ const settings: LocalSettings = {
   isAdminExec: false,
   debug: 0,
   envType: "ultra",
-  port: 59999
+  port: 59999,
+  availableThemes: ["dark", "lnl"],
 };
 
 const logger = {
@@ -252,6 +253,12 @@ function initEventHandle() {
         display.workAreaSize.height
       );
     }
+  });
+
+  ipcMain.handle("getThemeSettings", async () => {
+    return {
+      availableThemes: settings.availableThemes,
+    };
   });
 
   ipcMain.handle("getLocalSettings", async () => {

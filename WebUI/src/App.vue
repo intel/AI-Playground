@@ -1,7 +1,7 @@
 <template>
-  <div class="lnl-grid lnl-top-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
-  <div class="lnl-grid lnl-bottom-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
-  <div class="lnl-gradient"></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-top-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-bottom-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-gradient"></div>
   <header
     class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black bg-opacity-20">
     <div class="flex items-center">
@@ -71,7 +71,7 @@
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
   </main>
-  <footer class="flex-none px-4 flex justify-between items-center select-none bg-black bg-opacity-50">
+  <footer class="flex-none px-4 flex justify-between items-center select-none" :class="{'bg-black bg-opacity-50': theme.active === 'lnl', 'border-t border-color-spilter': theme.active === 'dark'}">
     <div>
       <p>Al Playground from Intel Corporation <a href="https://github.com/intel/ai-playground" target="_blank"
           class="text-blue-500">https://github.com/intel/ai-playground</a></p>
@@ -87,11 +87,12 @@
       
       </p>
     </div>
-    <div class="flex gap-2 items-center">
+    <div v-if="theme.active==='lnl'" class="flex gap-2 items-center">
       <p class="text-gray-300 text-lg mr-2">Powered by</p>
       <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
       <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
     </div>
+    <img v-else-if="theme.active==='dark'" src="@/assets/svg/intel.svg" />
   </footer>
 
 </template>
@@ -108,11 +109,14 @@ import "./assets/css/index.css";
 import { useGlobalSetup } from "./assets/js/store/globalSetup";
 import DownloadDialog from '@/components/DownloadDialog.vue';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { useTheme } from "./assets/js/store/theme.ts";
 
 
 const isOpen = ref(false);
 
 const i18n = useI18N();
+
+const theme = useTheme();
 
 const activeTabIdx = ref(0);
 

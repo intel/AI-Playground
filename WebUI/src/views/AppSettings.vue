@@ -49,6 +49,13 @@
                             @click="() => { i18n.switchLanguage('zh_CN') }"></radio-bolck>
                     </div>
                 </div>
+                <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
+                    <p>Theme</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <radio-bolck class="uppercase" v-for="themeName in theme.availableThemes" :checked="theme.active === themeName" :text="themeName"
+                            @click="() => theme.selected = themeName"></radio-bolck>
+                    </div>
+                </div>
                 <div class="flex flex-col gap-2">
                     <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
                     <div class="flex items-center gap-2 flex-wrap">
@@ -488,10 +495,12 @@ import { useI18N } from "@/assets/js/store/i18n";
 import { toast } from "@/assets/js/toast";
 import { Const } from "@/assets/js/const";
 import { useModels } from "@/assets/js/store/models";
+import { useTheme } from "@/assets/js/store/theme";
 
 const i18n = useI18N();
 const globalSetup = useGlobalSetup();
 const models = useModels();
+const theme = useTheme();
 const tabIndex = ref(0);
 const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)));

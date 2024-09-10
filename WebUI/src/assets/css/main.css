@@ -9,7 +9,7 @@ textarea {
   -webkit-app-region: none;
 }
 #app {
-  background: rgba(24, 21, 36, 1);
+  background: rgba(30, 26, 43, 1);
   height: 100vh;
   display: flex;
   flex-direction: column;

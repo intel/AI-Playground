@@ -129,13 +129,9 @@ textarea {
   }
 }
 
-
 .lnl-background {
   width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, #001f5c, #003b8e);
   position: relative;
-  overflow: hidden;
   perspective: 80vh;
 }
 

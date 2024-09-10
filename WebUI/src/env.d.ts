@@ -22,6 +22,7 @@ type electronAPI = {
         maxChatContentHeight: number;
     }>;
     getLocalSettings(): Promise<LocalSettings>;
+    getThemeSettings(): Promise<ThemeSettings>;
     setWinSize(width: number, height: number): Promise<void>;
     showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
     showMessageBox(options: Electron.MessageBoxOptions): Promise<number>

@@ -108,6 +108,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openDevTools: () => ipcRenderer.send("openDevTools"),
   openUrl: (url: string) => ipcRenderer.send("openUrl", url),
   getLocalSettings: () => ipcRenderer.invoke("getLocalSettings"),
+  getThemeSettings: () => ipcRenderer.invoke("getThemeSettings"),
   getWinSize: () => ipcRenderer.invoke("getWinSize"),
   setWinSize: (width: number, height: number) =>
     ipcRenderer.invoke("setWinSize", width, height),
