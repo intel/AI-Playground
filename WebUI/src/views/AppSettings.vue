@@ -24,6 +24,8 @@
                             @click="() => { i18n.switchLanguage('en_US') }"></radio-bolck>
                         <radio-bolck :checked="i18n.langName == 'zh_CN'" :text="languages.SETTINGS_BASIC_LANGUAGE_ZH"
                             @click="() => { i18n.switchLanguage('zh_CN') }"></radio-bolck>
+                        <radio-bolck :checked="i18n.langName == 'ko_KR'" :text="languages.SETTINGS_BASIC_LANGUAGE_KO"
+                            @click="() => { i18n.switchLanguage('ko_KR') }"></radio-bolck>
                     </div>
                 </div>
                 <div class="flex flex-col gap-2">
