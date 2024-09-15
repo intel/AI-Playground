@@ -30,6 +30,8 @@ type KVObject = {
   [key: string]: any;
 };
 
+type Theme = 'dark' | 'lnl';
+
 type LocalSettings = {
   apiHost: string;
   settingPath: string;
@@ -37,6 +39,10 @@ type LocalSettings = {
   envType: string;
   port:number;
 } & KVObject;
+
+type ThemeSettings = {
+  availableThemes: Theme[];
+};
 
 type ModelPaths = {
   llm: string,
@@ -64,4 +70,8 @@ type SetupData = {
   envType: string,
   isAdminExec:boolean,
   version:string,
+}
+
+type BackendStatus = {
+  status: 'starting' | 'running' | 'stopped',
 }

@@ -18,7 +18,7 @@
                 </div>
             </div>
             <div class="flex-auto relative flex items-center justify-center">
-                <div class="flex justify-center items-center bg-color-image-bg rounded-lg relative"
+                <div class="flex justify-center items-center bg-color-image-bg rounded-lg relative border border-white/20"
                     style="width: 768px; height: 400px;">
                     <!--inpaint mask-->
                     <div class="relative">
@@ -107,7 +107,7 @@
                         </button>
                     </div>
                     <img v-for=" image, i in destImg " :src="image" v-show="previewIdx == i"
-                        class="max-w-768px max-h-400px" />
+                        class="p-1 max-w-768px max-h-400px" />
                     <div v-show="processing && generateIdx == previewIdx"
                         class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center">
                         <loading-bar v-if="['load_model', 'load_model_components'].includes(generateState)"

@@ -64,6 +64,21 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     let envType = "";
 
+    const loadingState = ref("loading");
+
+    const errorMessage = ref("");
+
+    const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
+
+    watchEffect(() => {
+        localStorage.setItem("HdPersistentConfirmation", hdPersistentConfirmation.value.toString());
+    });
+
+    window.electronAPI.onReportError((value) => {
+        loadingState.value = "failed";
+        errorMessage.value = value;
+    })
+
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();
         envType = setupData.envType;
@@ -75,22 +90,33 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         apiHost.value = setupData.apiHost;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
+        const delay = 2000;
+
         while (true) {
             try {
                 models.value.scheduler.push(...await initWebSettings(postJson));
                 models.value.scheduler.unshift("None");
                 break;
-            } catch {
-                await util.delay(500);
+            } catch (error) {
+                const backendStatus = (await window.electronAPI.getPythonBackendStatus()).status;
+                if (backendStatus === "stopped") {
+                    return;
+                }
+                if (backendStatus === "running" && !(error instanceof TypeError)) {
+                    loadingState.value = "failed";
+                    errorMessage.value = (error as Error).message;
+                    return;
+                }
+                await util.delay(delay);
             }
         }
         await reloadGraphics();
         if (graphicsList.value.length == 0) {
             await window.electronAPI.showMessageBoxSync({ message: useI18N().state.ERROR_UNFOUND_GRAPHICS, title: "error", icon: "error" });
             window.electronAPI.exitApp();
-            return;
         }
         await loadUserSettings();
+        loadingState.value = "running";
     }
 
     async function reloadGraphics() {
@@ -128,6 +154,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             method: "post",
             body: postJson,
         });
+        if (response.status !== 200) {
+            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
+        }
         return await response.json() as string[];
     }
 
@@ -282,6 +311,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         paths,
         apiHost,
         graphicsList,
+        loadingState,
+        errorMessage,
+        hdPersistentConfirmation,
         initSetup,
         applyPathsSettings,
         applyModelSettings,

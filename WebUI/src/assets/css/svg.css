@@ -36,6 +36,10 @@
   --svg: url("@/assets/svg/history.svg");
 }
 
+.i-hide-history {
+  --svg: url("@/assets/svg/hide-history.svg");
+}
+
 .i-copy {
   --svg: url("@/assets/svg/copy.svg");
 }
@@ -131,8 +135,13 @@
 .i-transfer {
   --svg: url("@/assets/svg/transfer.svg");
 }
+
 .i-zoom-in {
   --svg: url("@/assets/svg/zoom-in.svg");
+}
+
+.i-zoom-out {
+  --svg: url("@/assets/svg/zoom-out.svg");
 }
 
 .i-clear {

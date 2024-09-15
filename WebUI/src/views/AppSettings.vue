@@ -1,6 +1,29 @@
 <template>
     <div id="app-settings-panel"
         class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4">
+         <dialog ref="hdConfirmationDialog" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+            <form method="dialog" class="items-center justify-center">
+            <p class="mb-4">
+                {{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM }}
+            </p>
+            <div class="flex justify-between space-x-4 items-center">
+                <button class="bg-slate-700 py-1 px-4 rounded">
+                    {{ languages.COM_CANCEL }}
+                </button>
+                <div class="flex-end space-x-4">
+                    <button @click="() => changeResolution(1, true)" class="bg-color-active py-1 px-4 rounded">
+                        {{ languages.COM_CONFIRM }}
+                    </button>
+                    <button @click="() => { 
+                        globalSetup.hdPersistentConfirmation = true; 
+                        changeResolution(1, true) 
+                        }" class="bg-blue-500 py-1 px-4 rounded">
+                        {{ languages.COM_DO_NOT_SHOW_AGAIN }}
+                    </button>
+                </div>
+            </div>
+            </form>
+        </dialog>
         <div class="flex justify-between items-center px-3">
             <div class="flex items-center gap-2">
                 <button class="panel-tab" :class="{ 'active': tabIndex == 0 }" @click="tabIndex = 0">
@@ -24,6 +47,13 @@
                             @click="() => { i18n.switchLanguage('en_US') }"></radio-bolck>
                         <radio-bolck :checked="i18n.langName == 'zh_CN'" :text="languages.SETTINGS_BASIC_LANGUAGE_ZH"
                             @click="() => { i18n.switchLanguage('zh_CN') }"></radio-bolck>
+                    </div>
+                </div>
+                <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
+                    <p>Theme</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <radio-bolck class="uppercase" v-for="themeName in theme.availableThemes" :checked="theme.active === themeName" :text="themeName"
+                            @click="() => theme.selected = themeName"></radio-bolck>
                     </div>
                 </div>
                 <div class="flex flex-col gap-2">
@@ -82,28 +112,12 @@
             <div class="overflow-y-auto">
                 <div class="border-t border-color-spilter flex-auto justify-center pt-3 grid grid-cols-1 gap-5 mx-3">
                     <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_ADJUSTABLE_OPTIONS }}</h2>
-                    <!-- 
                     <div class="flex flex-col gap-2">
-                        <p>Fast Resolution</p>
-                        <drop-selector :array="sizePreset" @change="changeSize">
-                            <template #selected>
-                                <span>{{ sizeChoose }}</span>
-                            </template>
-<template #list="slotItem">
-                                <span>{{ `${slotItem.item.width} x ${slotItem.item.height}` }}</span>
-                            </template>
-</drop-selector>
-</div>
--->
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}</p>
-                        <slide-bar v-model:current="modelSettings.width" :min="widthRange.min" :max="widthRange.max"
-                            :step="8" @update:current="applyModelSettings"></slide-bar>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}</p>
-                        <slide-bar v-model:current="modelSettings.height" :min="heightRange.min" :max="heightRange.max"
-                            :step="8" @update:current="applyModelSettings"></slide-bar>
+                        <div class="flex flex-row justify-between">
+                            <span>{{ languages.SETTINGS_MODEL_IMAGE_SIZE }}</span>
+                            <span class="rounded-sm border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]">{{ globalSetup.modelSettings.width }} x {{ globalSetup.modelSettings.height }}</span>
+                        </div>
+                        <ResolutionPicker :disabled="modelSettings.resolution === 3" />
                     </div>
                     <div class="flex flex-col gap-2">
                         <p>{{ languages.SETTINGS_MODEL_IMAGE_STEPS }}</p>
@@ -179,6 +193,20 @@
                         </div>
                     </div>
                     <div class="flex flex-col gap-2">
+                        <p>{{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}</p>
+                        <slide-bar v-model:current="modelSettings.width" :min="widthRange.min" :max="widthRange.max"
+                            :step="8" @update:current="applyModelSettings"
+                            :disabled="modelSettings.resolution != 3"
+                            ></slide-bar>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <p>{{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}</p>
+                        <slide-bar v-model:current="modelSettings.height" :min="heightRange.min" :max="heightRange.max"
+                            :step="8" @update:current="applyModelSettings"
+                            :disabled="modelSettings.resolution != 3"
+                            ></slide-bar>
+                    </div>
+                    <div class="flex flex-col gap-2">
                         <p>{{ languages.SETTINGS_MODEL_SCHEDULER }}</p>
                         <drop-selector :array="globalSetup.models.scheduler" @change="changeScheduler"
                             :disabled="modelSettings.resolution != 3">
@@ -214,6 +242,16 @@
         </div>
         <!--Model-->
         <div v-show="tabIndex == 1" class="px-3 flex flex-col overflow-y-auto">
+            <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+                <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_HUGGINGFACE }}</h2>
+                <div class="flex flex-col gap-3">
+                    <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
+                    <div class="flex flex-col items-start gap-1">
+                        <Input v-model="models.hfToken" :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"/>
+                        <div class="text-xs text-red-500 select-none" :class="{'opacity-0': !(models.hfToken && !models.hfTokenIsValid)}">{{ languages.SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT }}</div>
+                    </div>
+                </div>
+            </div>
             <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
                 <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_SD_PRESET_MODEL }}</h2>
                 <div class="flex flex-col gap-3">
@@ -450,13 +488,19 @@ import SlideBar from "../components/SlideBar.vue";
 import RadioBolck from "../components/RadioBlock.vue";
 import RandomNumber from "../components/RandomNumber.vue";
 import FolderSelector from "../components/FolderSelector.vue";
+import { Input } from '@/components/ui/input'
+import { ResolutionPicker } from "../components/ui/slider";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 import { useI18N } from "@/assets/js/store/i18n";
 import { toast } from "@/assets/js/toast";
 import { Const } from "@/assets/js/const";
+import { useModels } from "@/assets/js/store/models";
+import { useTheme } from "@/assets/js/store/theme";
 
 const i18n = useI18N();
 const globalSetup = useGlobalSetup();
+const models = useModels();
+const theme = useTheme();
 const tabIndex = ref(0);
 const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)));
@@ -469,6 +513,8 @@ const widthRange = ref<NumberRange>({
     min: 256,
     max: 768,
 });
+
+const hdConfirmationDialog = ref<HTMLDialogElement>();
 
 const heightRange = ref<NumberRange>({
     min: 256,
@@ -626,7 +672,11 @@ function applyModelSettings() {
     modelSettingsChange.value = false;
 }
 
-function changeResolution(value: number) {
+function changeResolution(value: number, dialogConfirmation = false) {
+    if (value === 1 && !globalSetup.hdPersistentConfirmation && !dialogConfirmation) {
+        hdConfirmationDialog.value?.showModal();
+        return;
+    }
     modelSettings.resolution = value;
     setModelOptionByPreset();
 }
@@ -675,8 +725,8 @@ function setModelOptionByPreset() {
     } else if (resolution == 1) {
         modelSettings.sd_model = globalSetup.presetModel.SDHD;
         modelSettings.inpaint_model = globalSetup.presetModel.SDHDInpaint;
-        modelSettings.width = 1080;
-        modelSettings.height = 1080;
+        modelSettings.width = 1024;
+        modelSettings.height = 1024;
         if (quality == 0) {
             modelSettings.guidanceScale = 7;
             modelSettings.inferenceSteps = 20;

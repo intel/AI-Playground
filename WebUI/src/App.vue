@@ -1,8 +1,15 @@
 <template>
+  <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-top-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-bottom-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-gradient"></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-color-spilter text-white">
-    <div class="flex gap-5 items-center">
-      <h1 class="select-none flex gap-2"><span style="color:#00c4fa">AI</span><span>PLAYGROUND</span></h1>
+    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black bg-opacity-20">
+    <div class="flex items-center">
+      <h1 class="select-none flex gap-3 items-baseline">
+        <span style="color:#00c4fa">AI</span>
+        <span>PLAYGROUND</span>
+        <span v-if="platformTitle" class="text-sm font-normal">{{ platformTitle }}</span>
+      </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
       <button :title="languages.COM_SETTINGS" class="svg-icon i-setup w-6 h-6" @click="showAppSettings"
@@ -13,8 +20,33 @@
       <button :title="languages.COM_CLOSE" @click="closeWindow" class="svg-icon i-close w-6 h-6"></button>
     </div>
   </header>
-  <main v-if="loading" class="flex-auto flex items-center justify-center">
+  <main v-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
+  </main>
+  <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
+    <div class="dialog-container z-10 text-white w-[60vw] align-top bg-black bg-opacity-50 p-4 rounded-lg border border-gray-400">
+        <Collapsible v-model:open="isOpen" class=" space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-col gap-4">
+              <h2 class="text-xl font-semibold">{{ languages.ERROR_PYTHON_BACKEND_INIT}}</h2>
+              <p>{{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT }}</p>
+            </div>
+            <CollapsibleTrigger>
+              <button variant="default" size="sm" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded">
+                <i class="fas fa-chevron-down" /> 
+                {{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS }}
+              </button>
+            </CollapsibleTrigger>
+              <button @click="openDevTools" variant="default" size="sm" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded">
+                <i class="fas fa-chevron-down" /> 
+                {{ languages.ERROR_PYTHON_BACKEND_INIT_OPEN_LOG }}
+              </button>
+          </div>
+          <CollapsibleContent class="max-h-[50vh] overflow-scroll px-4 py-2">
+            <pre class="whitespace-pre-wrap">{{ globalSetup.errorMessage }}</pre>
+          </CollapsibleContent>
+        </Collapsible>
+    </div>
   </main>
   <main v-else class="flex-auto flex flex-col relative">
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
@@ -26,8 +58,9 @@
         }}</button>
       <button class="tab" :class="{ 'active': activeTabIdx == 3 }" @click="switchTab(3)">{{ languages.TAB_LEARN_MORE
         }}</button>
+      <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
     </div>
-    <div class="main-content flex-auto rounded-t-lg border-t relative">
+    <div class="main-content flex-auto rounded-t-lg relative">
       <create v-show="activeTabIdx == 0" @postImageToEnhance="postImageToEnhance"
         @show-download-model-confirm="showDownloadModelConfirm"></create>
       <enhance v-show="activeTabIdx == 1" ref="enhanceCompt" @show-download-model-confirm="showDownloadModelConfirm">
@@ -38,7 +71,7 @@
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
   </main>
-  <footer class="flex-none mx-4 border-t border-color-spilter flex justify-between items-center select-none">
+  <footer class="flex-none px-4 flex justify-between items-center select-none" :class="{'bg-black bg-opacity-50': theme.active === 'lnl', 'border-t border-color-spilter': theme.active === 'dark'}">
     <div>
       <p>Al Playground from Intel Corporation <a href="https://github.com/intel/ai-playground" target="_blank"
           class="text-blue-500">https://github.com/intel/ai-playground</a></p>
@@ -54,7 +87,12 @@
       
       </p>
     </div>
-    <img src="@/assets/svg/intel.svg" />
+    <div v-if="theme.active==='lnl'" class="flex gap-2 items-center">
+      <p class="text-gray-300 text-lg mr-2">Powered by</p>
+      <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
+      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+    </div>
+    <img v-else-if="theme.active==='dark'" src="@/assets/svg/intel.svg" />
   </footer>
 
 </template>
@@ -70,10 +108,15 @@ import AppSettings from "./views/AppSettings.vue";
 import "./assets/css/index.css";
 import { useGlobalSetup } from "./assets/js/store/globalSetup";
 import DownloadDialog from '@/components/DownloadDialog.vue';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { useTheme } from "./assets/js/store/theme.ts";
 
-const loading = ref(true);
+
+const isOpen = ref(false);
 
 const i18n = useI18N();
+
+const theme = useTheme();
 
 const activeTabIdx = ref(0);
 
@@ -89,9 +132,21 @@ const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>();
 
 const fullscreen = ref(false);
 
+const platformTitle = window.envVars.platformTitle;
+
+const globalSetup = useGlobalSetup();
+
 onBeforeMount(async () => {
-  
-  await useGlobalSetup().initSetup();
+  window.electronAPI.onDebugLog(({ level, source, message}) => {
+    if (level == "error") {
+      console.error(`[${source}] ${message}`);
+    }
+    if (level == "info") {
+      console.log(`[${source}] ${message}`);
+    }
+  })
+  await globalSetup.initSetup();
+
   document.body.addEventListener("mousedown", autoHideAppSettings);
   document.body.addEventListener("keydown", (e) => {
     if (e.key == "F11") {
@@ -99,8 +154,8 @@ onBeforeMount(async () => {
       e.preventDefault();
     }
   })
-  loading.value = false;
 })
+
 
 function showAppSettings() {
   if (showSetting.value === false) {
@@ -114,11 +169,15 @@ function showAppSettings() {
 function hideAppSettings() {
   showSetting.value = false;
 }
+
 function autoHideAppSettings(e: MouseEvent) {
   if (showSetting.value && e.target != showSettingBtn.value && !e.composedPath().find((item)=>{ return item instanceof HTMLElement && item.classList.contains("v-drop-select-list")})) {
     const appSettingsPanel = document.getElementById("app-settings-panel");
 
     if (appSettingsPanel != null) {
+      if (e.target instanceof HTMLElement && e.target.closest("#app-settings-panel") != null) {
+        return;
+      }
       const rect = appSettingsPanel.getBoundingClientRect();
       if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
         hideAppSettings();
@@ -142,6 +201,10 @@ function toggleFullScreen() {
 
 function closeWindow() {
   window.electronAPI.exitApp();
+}
+
+function openDevTools() {
+  window.electronAPI.openDevTools();
 }
 
 function postImageToEnhance(imageUrl: string) {

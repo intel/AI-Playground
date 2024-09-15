@@ -23,7 +23,7 @@ export class MarkdownParser {
             renderer: new Renderer(),
             pedantic: false,
             gfm: true,
-            breaks: false,
+            breaks: true,
         });
     }
 
@@ -46,7 +46,7 @@ export class MarkdownParser {
                             <span class="text-sm">${this.copyText}</span>
                         </button>
                     </div>
-                    <div class="p-4 code-content">${this.marked.parse(matches[0])}</div>
+                    <div class="p-4 code-content overflow-auto">${this.marked.parse(matches[0])}</div>
                 </div>`;
             lastIndex = index + matches[0].length;
         }
