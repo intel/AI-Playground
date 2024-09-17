@@ -1,5 +1,6 @@
 {
     "envType": "arc",
     "debug":1,
-    "port":56789
+    "port":56789,
+    "availableThemes": ["dark","lnl"]
 }

@@ -152,6 +152,20 @@ size_cache = dict()
 lock = threading.Lock()
 
 
+@app.route("/api/isModelGated", methods=["POST"])
+def is_model_gated():
+    list = request.get_json()
+    downloader = HFPlaygroundDownloader()
+    gated = { item["repo_id"]: downloader.is_gated(item["repo_id"]) for item in list }
+    
+    return jsonify(
+        {
+            "code": 0,
+            "message": "success",
+            "gatedList": gated,
+        }
+    )
+
 @app.route("/api/getModelSize", methods=["POST"])
 def get_model_size():
     import concurrent.futures
@@ -215,6 +229,11 @@ def disable_rag():
         rag.dispose()
     return jsonify({"code": 0, "message": "success"})
 
+def get_bearer_token(request):
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        return auth_header.split(' ')[1]
+    return None
 
 @app.route("/api/downloadModel", methods=["POST"])
 def download_model():
@@ -223,7 +242,7 @@ def download_model():
         model_download_adpater._adapter.stop_download()
     try:
         model_download_adpater._adapter = (
-            model_download_adpater.Model_Downloader_Adapter()
+            model_download_adpater.Model_Downloader_Adapter(hf_token=get_bearer_token(request))
         )
         iterator = model_download_adpater._adapter.download(list)
         return Response(stream_with_context(iterator), content_type="text/event-stream")

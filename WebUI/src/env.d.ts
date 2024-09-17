@@ -1,9 +1,19 @@
 declare interface Window {
     chrome: Chrome;
     electronAPI: electronAPI;
+    envVars: { platformTitle: string };
+}
+
+interface ImportMetaEnv {
+  readonly VITE_PLATFORM_TITLE: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
 }
 
 type electronAPI = {
+    openDevTools(): void
     openUrl(url: string): void
     changeWindowMessageFilter(): void;
     getWinSize(): Promise<{
@@ -12,6 +22,7 @@ type electronAPI = {
         maxChatContentHeight: number;
     }>;
     getLocalSettings(): Promise<LocalSettings>;
+    getThemeSettings(): Promise<ThemeSettings>;
     setWinSize(width: number, height: number): Promise<void>;
     showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
     showMessageBox(options: Electron.MessageBoxOptions): Promise<number>
@@ -30,16 +41,29 @@ type electronAPI = {
     webServiceExit(callback: (serviceName: string, normalExit: string) => void): void;
     existsPath(path: string): Promise<boolean>;
     getInitSetting(): Promise<SetupData>
+    getPythonBackendStatus(): Promise<BackendStatus>
     updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>,
     restorePathsSettings():Promise<void>,
     refreshSDModles(): Promise<string[]>,
     refreshLLMModles(): Promise<string[]>,
     refreshLora(): Promise<string[]>,
+    refreshEmbeddingModels(): Promise<string[]>,
     refreshInpaintModles(): Promise<string[]>,
+    getDownloadedDiffusionModels(): Promise<string[]>,
+    getDownloadedInpaintModels(): Promise<string[]>,
+    getDownloadedLoras(): Promise<string[]>,
+    getDownloadedLLMs(): Promise<string[]>,
+    getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
-    setFullScreen(enable: boolean): void
+    setFullScreen(enable: boolean): void,
+    onReportError(callback: (errorMessage: string) => void): void,
+    onDebugLog(callback: (data: { level: 'error' | 'info', source: 'ai-backend', message: string}) => void): void,
 };
+
+type PythonBackendStatus = {
+    status: "running" | "stopped"
+}
 
 type Chrome = {
     webview: WebView;
@@ -125,6 +149,7 @@ type DropListItem = {
 type ChatItem = {
     question: string,
     answer: string,
+    title?: string,
 }
 
 type ChatRequestParams = {
@@ -140,7 +165,7 @@ type RagFileItem = {
 }
 
 
-type LLMOutCallback = LoadModelCallback | LLMOutTextCallback | DownloadModelProgressCallback | DownloadModelCompleted | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
+type LLMOutCallback = LoadModelCallback | LoadModelAllComplete | LLMOutTextCallback | DownloadModelProgressCallback | DownloadModelCompleted | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
 
 type LLMOutTextCallback = {
     type: "text_out",
@@ -149,6 +174,10 @@ type LLMOutTextCallback = {
 }
 
 type SDOutCallback = LoadModelCallback | LoadModelcomponentsCallback | SDOutImagelCallback | SDStepEndCallback | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
+
+type LoadModelAllComplete = {
+    type: "allComplete"
+}
 
 type LoadModelCallback = {
     type: "load_model",
@@ -164,6 +193,7 @@ type SDOutImagelCallback = {
     type: "image_out",
     index: number,
     image: string,
+    safe_check_pass: boolean,
     params: KVObject,
 }
 
@@ -261,7 +291,7 @@ type CheckModelExistParam = {
 
 type DownloadModelParam = CheckModelExistParam
 
-type DownloadModelRender = { size: string } & CheckModelExistParam
+type DownloadModelRender = { size: string, gated?: boolean } & CheckModelExistParam
 
 type CheckModelExistResult = {
     exist: boolean

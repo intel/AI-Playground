@@ -15,7 +15,6 @@ def image_to_base64(image: Image.Image):
         base64.b64encode(buffered.getvalue()).decode("utf-8")
     )
 
-
 def generate_mask_image(mask_flag_bytes: bytes, width: int, height: int):
     from PIL import Image
     import numpy as np
@@ -174,6 +173,6 @@ def get_support_graphics(env_type: str):
     graphics = list()
     for i in range(device_count):
         device_name = torch.xpu.get_device_name(i)
-        if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\) [^ ]+ Graphics", device_name) is not None:
+        if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
             graphics.append({"index": i, "name": device_name})
     return graphics

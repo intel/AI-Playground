@@ -10,6 +10,7 @@
                             <tr class=" text-gray-300 font-bold">
                                 <td>{{ languages.DOWNLOADER_MODEL }}</td>
                                 <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
+                                <td>{{ languages.DOWNLOADER_GATED }}</td>
                                 <td>{{ languages.DOWNLOADER_INFO }}</td>
                                 <td>{{ languages.DOWNLOADER_REASON }}</td>
                             </tr>
@@ -20,6 +21,15 @@
                                 <td>
                                     <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
                                     <span v-else>{{ item.size }}</span>
+                                </td>
+                                <td>
+                                    <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
+                                    <svg v-if="item.gated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
+                                    <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
                                 </td>
                                 <td>
                                     <a :href="getInfoUrl(item.repo_id, item.type)" target="_blank"
@@ -33,6 +43,13 @@
                             </tr>
                         </tbody>
                     </table>
+                    <div v-if="downloadList.some((i) => i.gated)" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
+                        <span class="font-bold mx-4">{{ languages.DOWNLOADER_GATED_INFO }}</span>
+                        <ul>
+                            <li v-if="!models.hfTokenIsValid" class="text-left">{{ languages.DOWNLOADER_GATED_TOKEN }}</li>
+                            <li class="text-left">{{ languages.DOWNLOADER_GATED_ACCEPT }}</li>
+                        </ul>
+                    </div>
                     <div class="flex items-center gap-2">
                         <button class="v-checkbox-control flex-none w-5 h-5"
                             :class="{ 'v-checkbox-checked': readTerms }" @click="readTerms = !readTerms">
@@ -70,9 +87,11 @@ import { SSEProcessor } from '@/assets/js/sseProcessor';
 import { util } from '@/assets/js/util';
 import { Const } from '@/assets/js/const';
 import { toast } from '@/assets/js/toast';
+import { useModels } from '@/assets/js/store/models';
 
 const i18nState = useI18N().state;
 const globalSetup = useGlobalSetup();
+const models = useModels();
 let downloding = false;
 const curDownloadTip = ref("");
 const allDownloadTip = ref("");
@@ -117,6 +136,11 @@ function dataProcess(line: string) {
                 percent.value = 100;
                 allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} ${completeCount.value}/${allTaskCount}`;
             }
+            models.refreshModels();
+            break;
+        case "allComplete":
+            downloding = false;
+            emits("close");
             break;
         case "error":
             hashError.value = true;
@@ -126,6 +150,7 @@ function dataProcess(line: string) {
                     break;
                 case "download_exception":
                     errorText.value = i18nState.ERR_DOWNLOAD_FAILED;
+                    toast.error(i18nState.ERR_DOWNLOAD_FAILED);
                     break;
                 case "runtime_error":
                     errorText.value = i18nState.ERROR_RUNTIME_ERROR;
@@ -159,16 +184,25 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
     downloadResolve = success;
     downloadReject = fail;
     try {
-        const response = await fetch(`${globalSetup.apiHost}/api/getModelSize`, {
+        const sizeResponse = await fetch(`${globalSetup.apiHost}/api/getModelSize`, {
             method: "POST",
             body: JSON.stringify(downList),
             headers: {
                 "Content-Type": "application/json"
             }
         });
-        const data = (await response.json()) as ApiResponse & { sizeList: StringKV };
+        const gatedResponse = await fetch(`${globalSetup.apiHost}/api/isModelGated`, {
+            method: "POST",
+            body: JSON.stringify(downList),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+        const sizeData = (await sizeResponse.json()) as ApiResponse & { sizeList: StringKV };
+        const gatedData = (await gatedResponse.json()) as ApiResponse & { gatedList: Record<string, boolean> };
         for (const item of downloadList.value) {
-            item.size = data.sizeList[`${item.repo_id}_${item.type}`] || "";
+            item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || "";
+            item.gated = gatedData.gatedList[item.repo_id] || false;
         }
         downloadList.value = downloadList.value;
         sizeRequesting.value = false;
@@ -233,7 +267,8 @@ function download() {
         method: "POST",
         body: JSON.stringify(toRaw(downloadList.value)),
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {})
         },
         signal: abortController.signal
     }).then((response) => {
