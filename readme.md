@@ -1,5 +1,10 @@
 # AI Playground
 
+<a href="https://scan.coverity.com/projects/ai-playground">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/30694/badge.svg"/>
+</a>
+
 ![image](https://github.com/user-attachments/assets/66086f2c-216e-4a79-8ff9-01e04db7e71d)
 
 This example is based on the xpu implementation of Intel Arc A-Series dGPU and Ultra iGPU
