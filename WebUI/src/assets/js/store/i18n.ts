@@ -1,6 +1,10 @@
 import { defineStore } from "pinia";
 
 export const useI18N = defineStore("i18n", () => {
+  const languageOptions = [
+    { value: 'en_US', text: 'English' },
+    { value: 'zh_CN', text: 'Chinese' },
+  ]
   const langName = ref("en_US");
   const state = reactive<StringKV>({
   });
@@ -19,6 +23,11 @@ export const useI18N = defineStore("i18n", () => {
     return switchLanguage(navigator.language == "zh-CN" ? "zh_CN" : "en_US");
   }
 
+  function changeLanguage(value: any, index: number) { 
+    
+    switchLanguage(value.value)
+  } 
+
   function updateLanguageRecord(record: Record<string, string>) {
     Object.keys(record).forEach((key) => {
       state[key] = record[key];
@@ -36,7 +45,9 @@ export const useI18N = defineStore("i18n", () => {
   return {
     state,
     langName,
+    languageOptions,
     init,
     switchLanguage,
+    changeLanguage,
   };
 });

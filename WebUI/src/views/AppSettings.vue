@@ -42,14 +42,20 @@
             <div class="px-3 flex-none flex flex-col gap-3">
                 <div class="flex flex-col gap-2">
                     <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <radio-bolck :checked="i18n.langName == 'en_US'" :text="languages.SETTINGS_BASIC_LANGUAGE_EN"
-                            @click="() => { i18n.switchLanguage('en_US') }"></radio-bolck>
-                        <radio-bolck :checked="i18n.langName == 'zh_CN'" :text="languages.SETTINGS_BASIC_LANGUAGE_ZH"
-                            @click="() => { i18n.switchLanguage('zh_CN') }"></radio-bolck>
-                        <radio-bolck :checked="i18n.langName == 'ko_KR'" :text="languages.SETTINGS_BASIC_LANGUAGE_KO"
-                            @click="() => { i18n.switchLanguage('ko_KR') }"></radio-bolck>
-                    </div>
+                    <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage">
+                        <template #selected>
+                            <div class="flex gap-2 items-center">
+                                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                                <span>{{ languages.SETTINGS_BASIC_LANGUAGE_EN }}</span>
+                            </div>
+                        </template>
+                        <template #list="slotItem">
+                            <div class="flex gap-2 items-center">
+                                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                                <span>{{ slotItem.item.text }}</span>
+                            </div>
+                        </template>
+                    </drop-selector>
                 </div>
                 <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
                     <p>Theme</p>
