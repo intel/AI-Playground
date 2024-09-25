@@ -46,13 +46,13 @@
                         <template #selected>
                             <div class="flex gap-2 items-center">
                                 <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                <span>{{ languages.SETTINGS_BASIC_LANGUAGE_EN }}</span>
+                                <span>{{ i18n.currentLanguageName }}</span>
                             </div>
                         </template>
                         <template #list="slotItem">
                             <div class="flex gap-2 items-center">
                                 <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                <span>{{ slotItem.item.text }}</span>
+                                <span>{{ slotItem.item.name }}</span>
                             </div>
                         </template>
                     </drop-selector>
