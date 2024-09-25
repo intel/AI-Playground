@@ -51,13 +51,6 @@
                             @click="() => { i18n.switchLanguage('ko_KR') }"></radio-bolck>
                     </div>
                 </div>
-                <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
-                    <p>Theme</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <radio-bolck class="uppercase" v-for="themeName in theme.availableThemes" :checked="theme.active === themeName" :text="themeName"
-                            @click="() => theme.selected = themeName"></radio-bolck>
-                    </div>
-                </div>
                 <div class="flex flex-col gap-2">
                     <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
                     <div class="flex items-center gap-2 flex-wrap">

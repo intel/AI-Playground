@@ -9,6 +9,7 @@ export const useTheme = defineStore("theme", () => {
     window.electronAPI.getThemeSettings().then((themeSettings) => {
         const themesFromSettings = themeSettings.availableThemes.filter(t => knownThemes.includes(t));
         if (themesFromSettings.length > 0) availableThemes.value = themesFromSettings;
+        if (knownThemes.includes(themeSettings.currentTheme)) selected.value = themeSettings.currentTheme;
     });
 
     return {
