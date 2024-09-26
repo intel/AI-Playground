@@ -260,6 +260,7 @@ function initEventHandle() {
     return {
       availableThemes: settings.availableThemes,
       currentTheme:settings.currentTheme
+
     };
   });
 

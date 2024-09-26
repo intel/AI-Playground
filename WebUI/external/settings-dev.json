@@ -4,4 +4,5 @@
     "port":56789,
     "availableThemes": ["dark","lnl"],
     "currentTheme": "lnl"
+
 }
