@@ -51,7 +51,7 @@
                             </p>
                         </div>
                         <a href="https://github.com/lllyasviel/Fooocus" 
-                            class="flex gap-1 items-center "><span class="">Leam more</span><span
+                            class="flex gap-1 items-center "><span class="">Learn more</span><span
                                 class="svg-icon i-arrow-right w-4 h-4"></span></a>
                     </div>
                 </div>
@@ -67,7 +67,7 @@
                             </p>
                         </div>
                         <a href="https://github.com/comfyanonymous/ComfyUI" 
-                            class="flex gap-1 items-center "><span class="">Leam more</span><span
+                            class="flex gap-1 items-center "><span class="">Learn more</span><span
                                 class="svg-icon i-arrow-right w-4 h-4"></span></a>
                     </div>
                 </div>
@@ -81,7 +81,7 @@
                             </p>
                         </div>
                         <a href="https://github.com/AUTOMATIC1111/stable-diffusion-webui" 
-                            class="flex gap-1 items-center "><span class="">Leam more</span><span
+                            class="flex gap-1 items-center "><span class="">Learn more</span><span
                                 class="svg-icon i-arrow-right w-4 h-4"></span></a>
                     </div>
                 </div>
@@ -95,7 +95,7 @@
                             </p>
                         </div>
                         <a href="https://github.com/vladmandic/automatic" 
-                            class="flex gap-1 items-center "><span class="">Leam more</span><span
+                            class="flex gap-1 items-center "><span class="">Learn more</span><span
                                 class="svg-icon i-arrow-right w-4 h-4"></span></a>
                     </div>
                 </div>
@@ -110,7 +110,7 @@
                 determined near launch}</p>
             <div class="pt-3 flex justify-center">
                 <a href="https://github.com/intel/ai-playground" 
-                    class="flex gap-1 items-center"><span class="">Leam more</span><span
+                    class="flex gap-1 items-center"><span class="">Learn more</span><span
                         class="svg-icon i-arrow-right w-4 h-4"></span></a>
             </div>
         </div>
