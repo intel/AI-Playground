@@ -71,6 +71,7 @@ const settings: LocalSettings = {
   envType: "ultra",
   port: 59999,
   availableThemes: ["dark", "lnl"],
+  currentTheme:"lnl"
 };
 
 const logger = {
@@ -258,6 +259,8 @@ function initEventHandle() {
   ipcMain.handle("getThemeSettings", async () => {
     return {
       availableThemes: settings.availableThemes,
+      currentTheme:settings.currentTheme
+
     };
   });
 

@@ -1,5 +1,10 @@
 # AI Playground
 
+<a href="https://scan.coverity.com/projects/ai-playground">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/30694/badge.svg"/>
+</a>
+
 ![image](https://github.com/user-attachments/assets/66086f2c-216e-4a79-8ff9-01e04db7e71d)
 
 This example is based on the xpu implementation of Intel Arc A-Series dGPU and Ultra iGPU
@@ -37,23 +42,33 @@ IMPORTANT: We have noticed some systems require the VS C++ redistribution, often
 ### Dev Environment Setup (backend, python)
 
 1. Create and switch the conda environment and go to the service directory.
+
 ```cmd
 conda create -n aipg_xpu python=3.10 -y
-activate aipg_xpu
-pip install -r requirements.txt
+conda activate aipg_xpu
+conda install libuv -y
+
+cd service
+
+@REM for Desktop-dGPU (e.g. A770)
+pip install -r requriements-arc.txt
+
+@REM for Intel Core Ultra-H (MTL)
+pip install -r requriements-ultra.txt
 ```
 
-3. Download the Intel Extension For Pytorch* AOT Packages. Depending on your hardware, download cp310 whl files from the links below.
+2. Check whether the XPU environment is correct
 
-Core Ultra-H https://github.com/Nuullll/intel-extension-for-pytorch/releases/tag/v2.1.20%2Bmtl%2Boneapi
-
-The Arc A - Series dGPU https://github.com/Nuullll/intel-extension-for-pytorch/releases/tag/v2.1.10%2Bxpu
-
-Install all downloaded whl files using the pip install command
-
-4. Check whether the XPU environment is correct
 ```cmd
-python -c "import torch; import intel_extension_for_pytorch as ipex; print(torch.version); print(ipex.version); [print(f'[{i}]: {torch.xpu.get_device_properties(i)}') for i in range(torch.xpu.device_count())];"
+python -c "import torch; import intel_extension_for_pytorch as ipex; print(torch.__version__); print(ipex.__version__); [print(f'[{i}]: {torch.xpu.get_device_properties(i)}') for i in range(torch.xpu.device_count())];"
+```
+
+Example output:
+
+```txt
+2.1.0.post3+cxx11.abi
+2.1.40+xpu
+[0]: _DeviceProperties(name='Intel(R) Arc(TM) Graphics', platform_name='Intel(R) Level-Zero', dev_type='gpu', driver_version='1.3.29283', has_fp64=1, total_memory=14765MB, max_compute_units=112, gpu_eu_count=112)
 ```
 
 
