@@ -24,7 +24,7 @@ pypdf==4.2.0
 unstructured==0.14.6
 setuptools==69.5.1
 
---extra-index-url https://pytorch-extension.intel.com/release-whl/stable/mtl/us/
+--extra-index-url https://pytorch-extension.intel.com/release-whl/stable/lnl/us/
 torch==2.3.1+cxx11.abi
 torchvision==0.18.1+cxx11.abi
 torchaudio==2.3.1+cxx11.abi
