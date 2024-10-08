@@ -39,6 +39,13 @@ This second phase of installation **will take several minutes** and require a st
 IMPORTANT: We have noticed some systems require the VS C++ redistribution, often already installed on Windows systems. If AI Playground is hanging on the load screen , this may be the issue and can be resolved by installing VS C++ redist https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
 
 ## Project Development
+### Checkout Source Code
+
+```cmd
+git clone -b dev https://github.com/intel/AI-Playground.git
+cd AI-Playground
+```
+
 ### Dev Environment Setup (backend, python)
 
 1. Create and switch the conda environment and go to the service directory.
