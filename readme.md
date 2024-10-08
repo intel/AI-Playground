@@ -18,7 +18,7 @@ Welcome to AI Playground beta open source project and AI PC starter app for doin
 AI Playground beta is currently available as a packaged installer, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
-*	Intel Core Ultra-H Processor (coming soon) OR Intel Arc GPU (discrete) with 8GB of vRAM
+*	Intel Core Ultra-H Processor, Intel Core Ultra 200V series processor OR Intel Arc GPU (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
 AI Playground has multiple packaged installers, each specific to the hardware. 
@@ -28,11 +28,11 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	AI Playground for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta/AI.Playground-v1.01b-Desktop_dGPU.exe) 
+*	**AI Playground 1.21b for Intel Core Ultra 200V** (LNL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.21beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.21beta/AI.Playground-v1.21b-Mobile-ICU-200v_LNL.exe)
 
-*	AI Playground for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta.mtl) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta.mtl/AI.Playground-v1.01b-Mobile_MTL-H.exe) 
+*	AI Playground 1.01b for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta.mtl) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta.mtl/AI.Playground-v1.01b-Mobile_MTL-H.exe) 
 
-*	AI Playground for Intel Core Ultra 200V (LNL) - Coming soon  [watch video](https://www.youtube.com/watch?v=zDQn6cIcmKY) 
+*	AI Playground 1.01b for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta/AI.Playground-v1.01b-Desktop_dGPU.exe) 
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
