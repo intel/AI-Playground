@@ -6,7 +6,7 @@ from functools import cache
 
 # ARC GPUs can't allocate more than 4GB to a single block so we slice the attetion layers
 
-sdpa_slice_trigger_rate = float(os.environ.get('IPEX_SDPA_SLICE_TRIGGER_RATE', 6))
+sdpa_slice_trigger_rate = float(os.environ.get('IPEX_SDPA_SLICE_TRIGGER_RATE', 4))
 attention_slice_rate = float(os.environ.get('IPEX_ATTENTION_SLICE_RATE', 4))
 
 # Find something divisible with the input_tokens
