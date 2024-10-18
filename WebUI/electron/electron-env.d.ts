@@ -43,7 +43,7 @@ type LocalSettings = {
 type ThemeSettings = {
   availableThemes: Theme[];
   currentTheme: Theme;
-
+}
 
 type ModelPaths = {
   llm: string,
