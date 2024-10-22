@@ -12,9 +12,12 @@ from rich.traceback import install
 # Optional: Enable rich traceback to improve error handling output
 install()
 
-def install_package(package_name):
+def install_package(package_name, extra_index_url=None):
     try:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package_name, "--no-cache-dir", "--no-warn-script-location"])
+        if extra_index_url:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', package_name, "--no-cache-dir", "--no-warn-script-location", "--extra-index-url", extra_index_url])
+        else:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', package_name, "--no-cache-dir", "--no-warn-script-location"])
         return True
     except subprocess.CalledProcessError:
         return False
@@ -26,9 +29,13 @@ def install_packages_from_file(requirements_file):
     with Progress(transient=True) as progress:
         task = progress.add_task("[cyan]Installing packages...", total=len(packages))
         console = Console()
+        extra_index_url = None
 
         for package in packages:
-            result = install_package(package)
+            if package.startswith("--extra-index-url"):
+                extra_index_url = package.split(" ")[1]
+                continue
+            result = install_package(package, extra_index_url)
             if result:
                 progress.update(task, advance=1, description=f"[green]Installed {package}")
             else:
