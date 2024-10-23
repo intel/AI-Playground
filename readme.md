@@ -58,10 +58,10 @@ conda install libuv -y
 cd service
 
 @REM for Desktop-dGPU (e.g. A770)
-pip install -r requriements-arc.txt
+pip install -r requirements-arc.txt
 
 @REM for Intel Core Ultra-H (MTL)
-pip install -r requriements-ultra.txt
+pip install -r requirements-ultra.txt
 ```
 
 2. Check whether the XPU environment is correct
