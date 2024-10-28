@@ -2,8 +2,9 @@
   <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-top-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
   <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-bottom-grid" :class="{ [`pos-${activeTabIdx}`]: true }"></div>
   <div v-if="theme.active === 'lnl'" class="lnl-gradient"></div>
+  <div v-if="theme.active === 'bmg'" class="absolute -z-50 w-screen h-screen bg-cover bg-center bg-bmg"></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black bg-opacity-20">
+    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black bg-opacity-20" >
     <div class="flex items-center">
       <h1 class="select-none flex gap-3 items-baseline">
         <span style="color:#00c4fa">AI</span>
@@ -71,7 +72,7 @@
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
   </main>
-  <footer class="flex-none px-4 flex justify-between items-center select-none" :class="{'bg-black bg-opacity-50': theme.active === 'lnl', 'border-t border-color-spilter': theme.active === 'dark'}">
+  <footer class="flex-none px-4 flex justify-between items-center select-none" :class="{'bg-black bg-opacity-50': theme.active === 'lnl', 'bg-black bg-opacity-80': theme.active === 'bmg', 'border-t border-color-spilter': theme.active === 'dark'}">
     <div>
       <p>Al Playground from Intel Corporation <a href="https://github.com/intel/ai-playground" target="_blank"
           class="text-blue-500">https://github.com/intel/ai-playground</a></p>
@@ -90,6 +91,10 @@
     <div v-if="theme.active==='lnl'" class="flex gap-2 items-center">
       <p class="text-gray-300 text-lg mr-2">Powered by</p>
       <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
+      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+    </div>
+    <div v-if="theme.active==='bmg'" class="flex gap-2 items-center">
+      <p class="text-gray-300 text-lg mr-2">Powered by</p>
       <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
     </div>
     <img v-else-if="theme.active==='dark'" src="@/assets/svg/intel.svg" />
