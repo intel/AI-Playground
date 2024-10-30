@@ -8,7 +8,7 @@ ipex_llm==2.1.0
 bigdl-core-xe-21==2.5.0
 bigdl-core-xe-addons-21==2.5.0
 bigdl-core-xe-batch-21==2.5.0
-langchain_community==0.2.9
+langchain_community==0.3.0
 numpy==1.26.4
 opencv_python==4.9.0.80
 peft==0.10.0
