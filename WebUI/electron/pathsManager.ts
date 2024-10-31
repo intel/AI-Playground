@@ -4,6 +4,7 @@ import path from "node:path";
 export class PathsManager {
     modelPaths: ModelPaths = {
         llm: "",
+        ggufLLM: "",
         embedding: "",
         stableDiffusion: "",
         inpaint: "",
@@ -107,6 +108,28 @@ export class PathsManager {
                     path.join(fullPath)
                 )) {
                     const modelName = pathname.replace("---", "/")
+                    if (!modelsSet.has(modelName)) {
+                        modelsSet.add(modelName)
+                        models.push(modelName)
+                    }
+                }
+            });
+        }
+        else {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        return models
+    }
+    scanGGUFLLMModels(returnDefaults = true) {
+        const models = returnDefaults ? [
+            "lanok/Meta-Llama-3.1-8B-Instruct-Q5_K_M-GGUF",
+        ] : [];
+        const dir = this.modelPaths.ggufLLM;
+        if (fs.existsSync(dir)) {
+            const modelsSet = new Set(models);
+            fs.readdirSync(dir).forEach(pathname => {
+                if (pathname.endsWith(".gguf")) {
+                    const modelName = pathname;
                     if (!modelsSet.has(modelName)) {
                         modelsSet.add(modelName)
                         models.push(modelName)

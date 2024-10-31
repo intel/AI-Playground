@@ -53,6 +53,7 @@ type electronAPI = {
     getDownloadedInpaintModels(): Promise<string[]>,
     getDownloadedLoras(): Promise<string[]>,
     getDownloadedLLMs(): Promise<string[]>,
+    getDownloadedGGUFLLMs(): Promise<string[]>,
     getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
@@ -294,7 +295,7 @@ type CheckModelAlreadyLoadedParameters = {
     backend: BackendType;
 }
 
-type BackendType = "comfyui" | "default"
+type BackendType = "comfyui" | "default" | "llama_cpp"
 
 type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: boolean } & CheckModelAlreadyLoadedParameters
 

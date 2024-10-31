@@ -14,6 +14,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
     const backendServices = useBackendServices();
+    const llamaBackendUrl = ref("http://127.0.0.1:8888");
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -31,6 +32,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         quality: 0,
         enableRag: false,
         llm_model: "microsoft/Phi-3-mini-4k-instruct",
+        ggufLLM_model: "meta-llama-3.1-8b-instruct.Q5_K_M.gguf",
         sd_model: "Lykon/dreamshaper-8",
         inpaint_model: "Lykon/dreamshaper-8-inpainting",
         negativePrompt: "bad hands, nsfw",
@@ -49,6 +51,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const paths = ref<ModelPaths>({
         llm: "",
+        ggufLLM: "",
         embedding: "",
         stableDiffusion: "",
         inpaint: "",
@@ -83,6 +86,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
         defaultBackendBaseUrl.value = apiServiceInformation.find(item => item.serviceName === "ai-backend")!.baseUrl;
+        llamaBackendUrl.value = apiServiceInformation.find(item => item.serviceName === "llama-cpp-backend")!.baseUrl;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;
@@ -298,6 +302,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         models,
         paths,
         apiHost: defaultBackendBaseUrl,
+        llamaHost: llamaBackendUrl,
         graphicsList,
         loadingState,
         errorMessage,

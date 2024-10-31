@@ -95,10 +95,20 @@
       <div class="flex flex-col gap-2 flex-auto h-full">
         <div class="flex items-center justify-between gap-5 text-white px-2">
           <div class="flex items-center">
-            <drop-selector :array="models.llms" @change="changeLLMModel" class="w-96">
+            <drop-selector v-if="textInference.backend === 'IPEX-LLM'" :array="models.llms" @change="(i) => textInference.activeModel = i.name" class="w-96">
+              {{ console.log('models.llms', models.llms) }}
               <template #selected>
                 <model-drop-down-item
                     :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"></model-drop-down-item>
+              </template>
+              <template #list="slotItem">
+                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
+              </template>
+            </drop-selector>
+            <drop-selector v-if="textInference.backend === 'LLAMA.CPP'" :array="models.ggufLLMs" @change="(i) => textInference.activeModel = i.name" class="w-96">
+              <template #selected>
+                <model-drop-down-item
+                  :model="models.ggufLLMs.find((m) => m.name === globalSetup.modelSettings.ggufLLM_model)"></model-drop-down-item>
               </template>
               <template #list="slotItem">
                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
@@ -196,11 +206,13 @@ import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 import { useConversations } from "@/assets/js/store/conversations";
 import { useComfyUi } from "@/assets/js/store/comfyUi";
+import { useTextInference } from "@/assets/js/store/textInference";
 
 const conversations = useConversations();
 const comfyUi = useComfyUi();
 const models = useModels();
 const globalSetup = useGlobalSetup();
+const textInference = useTextInference();
 const i18nState = useI18N().state
 const question = ref("");
 const processing = ref(false);
@@ -244,6 +256,7 @@ const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
 const isHistoryVisible = ref(false);
+const currentBackendAPI = computed(() => textInference.backend === 'LLAMA.CPP' ? globalSetup.llamaHost : globalSetup.apiHost);
 
 const increaseFontSize = () => {
   if (!isMaxSize.value) {
@@ -330,10 +343,11 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
-    model_repo_id: globalSetup.modelSettings.llm_model,
+    model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
+    backend_type: textInference.backend,
     print_metrics: false
   };
-  const response = await fetch(`${ globalSetup.apiHost }/api/llm/chat`, {
+  const response = await fetch(`${ currentBackendAPI.value }/api/llm/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -423,7 +437,12 @@ async function newPromptGenerate() {
 
 async function checkModel() {
   return new Promise<void>(async (resolve, reject) => {
-    const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: globalSetup.modelSettings.llm_model, type: Const.MODEL_TYPE_LLM, backend: "default" }];
+    let checkList: CheckModelAlreadyLoadedParameters[];
+    if (textInference.backend === "LLAMA.CPP") {
+      checkList = [{ repo_id: globalSetup.modelSettings.ggufLLM_model, type: Const.MODEL_TYPE_LLAMA_CPP, backend: "llama_cpp" }];
+    } else {
+      checkList = [{ repo_id: globalSetup.modelSettings.llm_model, type: Const.MODEL_TYPE_LLM, backend: "default" }];
+    }
     if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
       emits(
           "showDownloadModelConfirm",
@@ -458,10 +477,11 @@ async function generate(chatContext: ChatItem[]) {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       enable_rag: ragData.enable,
-      model_repo_id: globalSetup.modelSettings.llm_model
+      model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
+      backend_type: textInference.backend
     };
     comfyUi.free();
-    const response = await fetch(`${globalSetup.apiHost}/api/llm/chat`, {
+    const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
       method: "POST", headers: {
         "Content-Type": "application/json"
       },
@@ -478,7 +498,7 @@ async function generate(chatContext: ChatItem[]) {
 async function stopGenerate() {
   if (processing.value && !stopping.value) {
     stopping.value = true;
-    await fetch(`${globalSetup.apiHost}/api/llm/stopGenerate`);
+    await fetch(`${currentBackendAPI.value}/api/llm/stopGenerate`);
     if (abortContooler) {
       abortContooler.abort();
       abortContooler = null;

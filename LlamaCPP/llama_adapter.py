@@ -3,10 +3,10 @@ from queue import Empty, Queue
 import json
 import traceback
 from typing import Dict, List, Callable
-from model_downloader import NotEnoughDiskSpaceException, DownloadException
-from psutil._common import bytes2human
-from llm_interface import LLMInterface
-from llm_params import LLMParams
+#from model_downloader import NotEnoughDiskSpaceException, DownloadException
+#from psutil._common import bytes2human
+from llama_interface import LLMInterface
+from llama_params import LLMParams
 
 
 RAG_PROMPT_FORMAT = "Answer the questions based on the information below. \n{context}\n\nQuestion: {prompt}"
@@ -64,19 +64,19 @@ class LLM_SSE_Adapter:
                     "err_type": "repositories_not_found",
                 }
             )
-        elif isinstance(ex, NotEnoughDiskSpaceException):
-            self.put_msg(
-                {
-                    "type": "error",
-                    "err_type": "not_enough_disk_space",
-                    "need": bytes2human(ex.requires_space),
-                    "free": bytes2human(ex.free_space),
-                }
-            )
-        elif isinstance(ex, DownloadException):
-            self.put_msg({"type": "error", "err_type": "download_exception"})
-        # elif isinstance(ex, llm_biz.StopGenerateException):
-        #     pass
+        # elif isinstance(ex, NotEnoughDiskSpaceException):
+        #     self.put_msg(
+        #         {
+        #             "type": "error",
+        #             "err_type": "not_enough_disk_space",
+        #             "need": bytes2human(ex.requires_space),
+        #             "free": bytes2human(ex.free_space),
+        #         }
+        #     )
+        # elif isinstance(ex, DownloadException):
+        #     self.put_msg({"type": "error", "err_type": "download_exception"})
+        # # elif isinstance(ex, llm_biz.StopGenerateException):
+        # #     pass
         elif isinstance(ex, RuntimeError):
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
@@ -111,6 +111,7 @@ class LLM_SSE_Adapter:
         params: LLMParams,
     ):
         try:
+            print("sdnmsd", self.llm_interface)
             if (not self.llm_interface._model):
                 self.load_model_callback('start')
                 self.llm_interface.load_model(params)
@@ -140,6 +141,7 @@ class LLM_SSE_Adapter:
                 try:
                     data = self.msg_queue.get_nowait()
                     msg = f"data:{json.dumps(data)}\0"
+                    print(msg)
                     yield msg
                 except Empty(Exception):
                     break
