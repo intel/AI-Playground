@@ -74,11 +74,16 @@ const settings: LocalSettings = {
   currentTheme:"lnl"
 };
 
+const comfyuiState = {
+  currentVersion: null,
+  port: 0,
+}
+
 let webContentsFinishedLoad = false;
-const startupMessageCache: {message: string, source: 'electron-backend' | 'ai-backend', level: 'error' | 'info'}[] = []
+const startupMessageCache: {message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend', level: 'error' | 'info'}[] = []
 
 const logger = {
-  info: (message: string, source: 'electron-backend' | 'ai-backend' = 'electron-backend') => {
+  info: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
     console.info(`[${source}]: ${message}`);
     if (webContentsFinishedLoad) {
       try {
@@ -90,7 +95,7 @@ const logger = {
       startupMessageCache.push({ level: 'info', source, message })
     }
   },
-  error: (message: string, source: 'electron-backend' | 'ai-backend' = 'electron-backend') => {
+  error: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
     console.error(`[${source}]: ${message}`);
     if (webContentsFinishedLoad) {
       try {
@@ -120,6 +125,7 @@ async function loadSettings() {
     });
   }
   settings.port = await getPort({ port: portNumbers(59000, 59999) });
+  comfyuiState.port = await getPort({ port: portNumbers(59000, 59999) });
   settings.apiHost = `http://127.0.0.1:${settings.port}`;
 }
 
@@ -131,8 +137,10 @@ async function createWindow() {
     resizable: true,
     frame: false,
     // fullscreen: true,
-    width: 1440,
-    height: 951,
+    x: 2800,
+    y: 600,
+    width: 2440,
+    height: 1400,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js"),
       contextIsolation: true
@@ -475,6 +483,25 @@ function initEventHandle() {
     win?.webContents.openDevTools({ mode: "detach", activate: true });
   });
 
+  ipcMain.handle("getComfyuiState", () => {
+    return comfyuiState;
+  });
+
+  ipcMain.handle("updateComfyui", () => {
+    return;
+  });
+
+  ipcMain.handle("reloadImageWorkflows", () => {
+    const files = fs.readdirSync(path.join(externalRes, "workflows"));
+    const workflows = files.map((file) => fs.readFileSync(path.join(externalRes, "workflows", file), { encoding: "utf-8" }));
+    return workflows;
+  });
+
+  ipcMain.handle("startComfyui", () => {
+    console.log('startComfyui')
+    return;
+  });
+
   ipcMain.on("openImageWithSystem", (event, url: string) => {
     // Assuming 'settings' and 'externalRes' are properly defined
     let imagePath = url.replace(settings.apiHost + "/", ""); // Remove the API host part
@@ -537,6 +564,7 @@ function isProcessRunning(pid: number) {
 
 function wakeupApiService() {
   const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
+  const comfyWordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "ComfyUI") : path.join(__dirname, "../../../ComfyUI"));
   const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
   const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
   const additionalEnvVariables = {
@@ -568,6 +596,7 @@ function wakeupApiService() {
   }
 
   spawnAPI(pythonExe, wordkDir, additionalEnvVariables);
+  spawnComfy(pythonExe, comfyWordkDir, additionalEnvVariables);
 }
 
 function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
@@ -614,6 +643,23 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
   })
   webProcess.stderr.on('data', (message) => {
     logger.error(`${message}`, 'ai-backend')
+  })
+}
+
+function spawnComfy(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
+  logger.info(`#1 try to start ComfyUI API`)
+
+  const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", "--bf16-unet", "--lowvram"], {
+    cwd: wordkDir,
+    windowsHide: true,
+    env: Object.assign(process.env, additionalEnvVariables)
+  });
+
+  webProcess.stdout.on('data', (message) => {
+    logger.info(`${message}`, 'comfyui-backend')
+  })
+  webProcess.stderr.on('data', (message) => {
+    logger.info(`${message}`, 'comfyui-backend')
   })
 }
 

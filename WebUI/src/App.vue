@@ -119,8 +119,6 @@ import { useTheme } from "./assets/js/store/theme.ts";
 
 const isOpen = ref(false);
 
-const i18n = useI18N();
-
 const theme = useTheme();
 
 const activeTabIdx = ref(0);

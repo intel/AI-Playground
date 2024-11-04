@@ -23,6 +23,8 @@ export const useModels = defineStore("models", () => {
     const models = ref(predefinedModels);
     const llms = computed(() => models.value.filter(m => m.type === 'llm'));
 
+    const downloadList = ref<DownloadModelParam[]>([]);
+
     async function refreshModels() {
         const sdModels = await window.electronAPI.getDownloadedDiffusionModels();
         const llmModels = await window.electronAPI.getDownloadedLLMs();
@@ -44,6 +46,8 @@ export const useModels = defineStore("models", () => {
 
         }
 
+    async function download(models: DownloadModelParam[]) {
+    };
     refreshModels()
 
     return {
@@ -51,7 +55,9 @@ export const useModels = defineStore("models", () => {
         llms,
         hfToken,
         hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
+        downloadList,
         refreshModels,
+        download,
     }
 }, {
     persist: {

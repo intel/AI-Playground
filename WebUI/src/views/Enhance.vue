@@ -479,7 +479,7 @@ async function sendGenerate() {
         }
         const response = await fetch(`${globalSetup.apiHost}/api/sd/generate`, {
             method: "POST",
-            body: util.convertToFromData(lastPostParams),
+            body: util.convertToFormData(lastPostParams),
             signal: abortContooler.signal
         })
         const reader = response.body!.getReader();

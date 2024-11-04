@@ -27,9 +27,12 @@
         <div class="flex justify-between items-center px-3">
             <div class="flex items-center gap-2">
                 <button class="panel-tab" :class="{ 'active': tabIndex == 0 }" @click="tabIndex = 0">
-                    {{ languages.SETTINGS_TAB_BASIC }}
+                    {{ "Image" }}
                 </button>
                 <button class="panel-tab" :class="{ 'active': tabIndex == 1 }" @click="tabIndex = 1">
+                    {{ "Basic" }}
+                </button>
+                <button class="panel-tab" :class="{ 'active': tabIndex == 2 }" @click="tabIndex = 2">
                     {{ languages.SETTINGS_TAB_MODEL }}
                 </button>
             </div>
@@ -37,219 +40,20 @@
                 <span class="svg-icon i-right-arrow h-4 w-4"></span>
             </button>
         </div>
-        <!--BasicSettingsTab-->
-        <div v-show="tabIndex == 0" class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter">
+        <!--ImageSettingsTab-->
+        <div v-show="tabIndex == 0" class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto">
             <div class="px-3 flex-none flex flex-col gap-3">
-                <div class="flex flex-col gap-2">
-                    <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
-                    <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage">
-                        <template #selected>
-                            <div class="flex gap-2 items-center">
-                                <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                <span>{{ i18n.currentLanguageName }}</span>
-                            </div>
-                        </template>
-                        <template #list="slotItem">
-                            <div class="flex gap-2 items-center">
-                                <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                <span>{{ slotItem.item.name }}</span>
-                            </div>
-                        </template>
-                    </drop-selector>
-                </div>
-                <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
-                    <p>Theme</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <radio-bolck class="uppercase" v-for="themeName in theme.availableThemes" :checked="theme.active === themeName" :text="themeName"
-                            @click="() => theme.selected = themeName"></radio-bolck>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <drop-selector :array="globalSetup.graphicsList" @change="changeGraphics">
-                            <template #selected>
-                                <div class="flex gap-2 items-center">
-                                    <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                    <span>{{ graphicsName }}</span>
-                                </div>
-                            </template>
-                            <template #list="slotItem">
-                                <div class="flex gap-2 items-center">
-                                    <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                    <span>{{ slotItem.item.name }}</span>
-                                </div>
-                            </template>
-                        </drop-selector>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <p>{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION }}</p>
-                    <div class="grid grid-cols-3 items-center gap-2 flex-wrap">
-                        <radio-bolck :checked="modelSettings.resolution == 0"
-                            :text="languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STRANDARD"
-                            @click="() => { changeResolution(0) }"></radio-bolck>
-                        <radio-bolck :checked="modelSettings.resolution == 1"
-                            :text="languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD"
-                            @click="() => { changeResolution(1) }"></radio-bolck>
-                        <radio-bolck :checked="modelSettings.resolution == 3"
-                            :text="languages.SETTINGS_MODEL_QUALITY_MANUAL"
-                            @click="() => { changeResolution(3) }"></radio-bolck>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <p>{{ languages.SETTINGS_MODEL_QUALITY }}</p>
-                    <div class="grid grid-cols-3 items-center gap-2 flex-wrap">
-                        <radio-bolck :checked="modelSettings.quality == 0"
-                            :text="languages.SETTINGS_MODEL_QUALITY_STANDARD" @click="() => { changeQuality(0) }"
-                            :disabled="qualityDisable"></radio-bolck>
-                        <radio-bolck :checked="modelSettings.quality == 1" :text="languages.SETTINGS_MODEL_QUALITY_HIGH"
-                            @click="() => { changeQuality(1) }" :disabled="qualityDisable"></radio-bolck>
-                        <radio-bolck :checked="modelSettings.quality == 2" :text="languages.SETTINGS_MODEL_QUALITY_FAST"
-                            @click="() => { changeQuality(2) }" :disabled="qualityDisable"></radio-bolck>
-                    </div>
-                </div>
-                <div class="flex items-center gap-5">
-                    <p>{{ languages.SETTINGS_MODEL_IMAGE_PREVIEW }}</p>
-                    <button v-show=true class="v-checkbox-control flex-none w-5 h-5"
-                        :class="{ 'v-checkbox-checked': globalSetup.modelSettings.imagePreview }"
-                        @click="() => toggleImagePreview(!globalSetup.modelSettings.imagePreview)">
-                    </button>
-                </div>
+                <SettingsImageGeneration></SettingsImageGeneration>
             </div>
-            <div class="overflow-y-auto">
-                <div class="border-t border-color-spilter flex-auto justify-center pt-3 grid grid-cols-1 gap-5 mx-3">
-                    <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_ADJUSTABLE_OPTIONS }}</h2>
-                    <div class="flex flex-col gap-2">
-                        <div class="flex flex-row justify-between">
-                            <span>{{ languages.SETTINGS_MODEL_IMAGE_SIZE }}</span>
-                            <span class="rounded-sm border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]">{{ globalSetup.modelSettings.width }} x {{ globalSetup.modelSettings.height }}</span>
-                        </div>
-                        <ResolutionPicker :disabled="modelSettings.resolution === 3" />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_STEPS }}</p>
-                        <slide-bar v-model:current="modelSettings.inferenceSteps" :min="1" :max="50" :step="1"
-                            :disabled="modelSettings.resolution != 3" @update:current="applyModelSettings"></slide-bar>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_SEED }}</p>
-
-                        <random-number v-model:value="modelSettings.seed" :default="-1" :min="0" :max="4294967295"
-                            :scale="1" @update:value="applyModelSettings"></random-number>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_GENERATE_NUMBER }}</p>
-                        <slide-bar v-model:current="modelSettings.generateNumber" :min="1" :max="4" :step="1"
-                            @update:current="applyModelSettings"></slide-bar>
-                    </div>
-                    <div class="flex items-center gap-5">
-                        <p>{{ languages.SETTINGS_MODEL_SAFE_CHECK }}</p>
-                        <button v-show=true class="v-checkbox-control flex-none w-5 h-5"
-                            :class="{ 'v-checkbox-checked': globalSetup.modelSettings.safeCheck }"
-                            @click="() => toggleSafeCheck(!globalSetup.modelSettings.safeCheck)">
-                        </button>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_NEGATIVE_PROMPT }}</p>
-                        <textarea class="h-32 rounded-lg resize-none" v-model="modelSettings.negativePrompt"
-                            @change="applyModelSettings"></textarea>
-                    </div>
-                    <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_MANUAL_OPTIONS }}</h2>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_MODEL }}</p>
-                        <div class="flex items-center gap-2">
-                            <drop-selector :array="globalSetup.models.stableDiffusion" @change="changeSDModel"
-                                :disabled="modelSettings.resolution != 3">
-                                <template #selected>
-                                    <div class="flex gap-2 items-center">
-                                        <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                        <span>{{ modelSettings.sd_model }}</span>
-                                    </div>
-                                </template>
-                                <template #list="slotItem">
-                                    <div class="flex gap-2 items-center">
-                                        <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                        <span>{{ slotItem.item }}</span>
-                                    </div>
-                                </template>
-                            </drop-selector>
-                            <button class="svg-icon i-refresh w-5 h-5 text-purple-500" @animationend="removeRonate360"
-                                @click="refreshSDModles"></button>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_INPAINT_MODEL }}</p>
-                        <div class="flex items-center gap-2">
-                            <drop-selector :array="globalSetup.models.inpaint" @change="changeInpaintModel"
-                                :disabled="modelSettings.resolution != 3">
-                                <template #selected>
-                                    <div class="flex gap-2 items-center">
-                                        <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                        <span>{{ globalSetup.modelSettings.inpaint_model }}</span>
-                                    </div>
-                                </template>
-                                <template #list="slotItem">
-                                    <div class="flex gap-2 items-center">
-                                        <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                        <span>{{ slotItem.item }}</span>
-                                    </div>
-                                </template>
-                            </drop-selector>
-                            <button class="svg-icon i-refresh w-5 h-5 text-purple-500" @animationend="removeRonate360"
-                                @click="refreshInpaintModles"></button>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}</p>
-                        <slide-bar v-model:current="modelSettings.width" :min="widthRange.min" :max="widthRange.max"
-                            :step="8" @update:current="applyModelSettings"
-                            :disabled="modelSettings.resolution != 3"
-                            ></slide-bar>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}</p>
-                        <slide-bar v-model:current="modelSettings.height" :min="heightRange.min" :max="heightRange.max"
-                            :step="8" @update:current="applyModelSettings"
-                            :disabled="modelSettings.resolution != 3"
-                            ></slide-bar>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_SCHEDULER }}</p>
-                        <drop-selector :array="globalSetup.models.scheduler" @change="changeScheduler"
-                            :disabled="modelSettings.resolution != 3">
-                            <template #selected>
-                                {{ modelSettings.scheduler == "None" ? languages.COM_DEFAULT : modelSettings.scheduler
-                                }}
-                            </template>
-                            <template #list="slotItem">
-                                {{ slotItem.item == "None" ? languages.COM_DEFAULT : slotItem.item }}
-                            </template>
-                        </drop-selector>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_LORA }}</p>
-                        <div class="flex items-center gap-2">
-                            <drop-selector :array="globalSetup.models.lora" @change="changeLora"
-                                :disabled="modelSettings.resolution != 3">
-                                <template #selected>
-                                    {{ modelSettings.lora }}
-                                </template>
-                            </drop-selector>
-                            <button class="svg-icon i-refresh w-5 h-5 text-purple-500" @animationend="removeRonate360"
-                                @click="refreshLora"></button>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <p>{{ languages.SETTINGS_MODEL_IMAGE_CFG }}</p>
-                        <slide-bar v-model:current="modelSettings.guidanceScale" :min="0" :max="10" :step="1"
-                            :disabled="modelSettings.resolution != 3" @update:current="applyModelSettings"></slide-bar>
-                    </div>
-                </div>
+        </div>
+        <!--BasicSettingsTab-->
+        <div v-show="tabIndex == 1" class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter">
+            <div class="px-3 flex-none flex flex-col gap-3">
+                <SettingsUi></SettingsUi>
             </div>
         </div>
         <!--Model-->
-        <div v-show="tabIndex == 1" class="px-3 flex flex-col overflow-y-auto">
+        <div v-show="tabIndex == 2" class="px-3 flex flex-col overflow-y-auto">
             <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
                 <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_HUGGINGFACE }}</h2>
                 <div class="flex flex-col gap-3">
@@ -492,10 +296,11 @@
 </template>
 <script setup lang="ts">
 import DropSelector from "../components/DropSelector.vue";
-import SlideBar from "../components/SlideBar.vue";
 import RadioBolck from "../components/RadioBlock.vue";
+import SlideBar from "../components/SlideBar.vue";
 import RandomNumber from "../components/RandomNumber.vue";
 import FolderSelector from "../components/FolderSelector.vue";
+import SettingsUi from "@/components/SettingsUi.vue";
 import { Input } from '@/components/ui/input'
 import { ResolutionPicker } from "../components/ui/slider";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
@@ -503,12 +308,11 @@ import { useI18N } from "@/assets/js/store/i18n";
 import { toast } from "@/assets/js/toast";
 import { Const } from "@/assets/js/const";
 import { useModels } from "@/assets/js/store/models";
-import { useTheme } from "@/assets/js/store/theme";
+import SettingsImageGeneration from "@/components/SettingsImageGeneration.vue";
 
 const i18n = useI18N();
 const globalSetup = useGlobalSetup();
 const models = useModels();
-const theme = useTheme();
 const tabIndex = ref(0);
 const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)));
@@ -824,10 +628,6 @@ function changeSize(item: any, index: number) {
 
 function changeInpaintModel(value: any, index: number) {
     globalSetup.applyModelSettings({ inpaint_model: value as string });
-}
-
-function changeGraphics(value: any, index: number) {
-    globalSetup.applyModelSettings({ graphics: (value as GraphicsItem).index });
 }
 
 function downloadModel(model_repo_id: string, type: number) {

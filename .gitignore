@@ -8,3 +8,4 @@ installer.nsh
 *.exe
 *.7z
 *.whl
+ComfyUI/

@@ -12,7 +12,16 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
+type ComfyUiState = {
+    currentVersion: string | null;
+    port: number | null;
+}
+
 type electronAPI = {
+    getComfyuiState(): Promise<ComfyUiState>
+    updateComfyui(): Promise<ComfyUiState>
+    startComfyui(): Promise<ComfyUiState>
+    reloadImageWorkflows(): Promise<string[]>
     openDevTools(): void
     openUrl(url: string): void
     changeWindowMessageFilter(): void;
