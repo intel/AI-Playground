@@ -1,1 +1,7 @@
 env/
+package_res/
+WebUI/external/7zr.exe
+WebUI/external/service/
+WebUI/external/env.7z
+WebUI/external/arc-ipex-wheels/
+release/
