@@ -538,17 +538,6 @@ function isProcessRunning(pid: number) {
 function wakeupApiService() {
   const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
   const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-  
-  try {
-    // replace `torchvision.transforms.functional_tensor` with `torchvision.transforms.functional` in `degradations.py`
-    const basicSrPathFileToBePatched = path.resolve(path.join(baseDir, "env/Lib/site-packages/basicsr/data/degradations.py"));
-    const fileContent = fs.readFileSync(basicSrPathFileToBePatched, 'utf8');
-    const patchedContent = fileContent.replace('torchvision.transforms.functional_tensor', 'torchvision.transforms.functional');
-    fs.writeFileSync(basicSrPathFileToBePatched, patchedContent, 'utf8');
-  } catch (error) {
-    logger.error(`Could not patch torchvision.transforms.functional_tensor in degradations.py: ${error}`);
-  }
-
   const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
   const additionalEnvVariables = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
