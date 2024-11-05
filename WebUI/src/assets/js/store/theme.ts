@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 
-const knownThemes: Theme[] = ['dark', 'lnl'];
+const knownThemes: Theme[] = ['dark', 'lnl', 'bmg'];
 export const useTheme = defineStore("theme", () => {
 
     const selected = ref<Theme | null>(null);
