@@ -51,7 +51,7 @@ cd AI-Playground
 1. Create and switch the conda environment and go to the service directory.
 
 ```cmd
-conda create -n aipg_xpu python=3.10 -y
+conda create -n aipg_xpu python=3.11 -y
 conda activate aipg_xpu
 conda install libuv -y
 
