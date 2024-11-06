@@ -1,3 +1,5 @@
 {
-    "envType": "ultra"
+    "envType": "ultra",
+    "availableThemes": ["dark"],
+    "currentTheme": "dark"
 }

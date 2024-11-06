@@ -5,7 +5,7 @@
     IfFileExists "$INSTDIR\resources\env.7z" extracting end
 
     extracting:
-        SetDetailsPrint both
+        SetDetailsPrint textonly
         DetailPrint "Extracting python environment..."
         nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\env.7z" -o"$INSTDIR\resources"'
         Delete "$INSTDIR\resources\env.7z"
@@ -25,7 +25,7 @@
         continue:
             nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements-${PLATFORM}.txt"'
     end:
-        SetDetailsPrint both
+        DetailPrint "Installation completed."
 !macroend
 
 
