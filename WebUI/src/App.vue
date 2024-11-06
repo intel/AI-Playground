@@ -76,7 +76,7 @@
     <div>
       <p>Al Playground from Intel Corporation <a href="https://github.com/intel/ai-playground" target="_blank"
           class="text-blue-500">https://github.com/intel/ai-playground</a></p>
-      <p>AI Playground version: v{{ "1.01b" }} 
+      <p>AI Playground version: v{{ productVersion }} 
         <a href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf" target="_blank"
         class="text-blue-500">  User Guide</a>
 
@@ -138,6 +138,8 @@ const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>();
 const fullscreen = ref(false);
 
 const platformTitle = window.envVars.platformTitle;
+
+const productVersion = window.envVars.productVersion;
 
 const globalSetup = useGlobalSetup();
 

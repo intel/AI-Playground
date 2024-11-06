@@ -1,13 +1,12 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.22.0-beta",
   "scripts": {
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
-    "build": "vue-tsc && env && vite build && call build\\before_build.bat&& electron-builder --config build\\ultra-build.json&&call build\\after_build.bat",
-    "build:ultra": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --config build\\ultra-build.json&&call build\\after_build.bat\"",
-    "dir:ultra": "call build\\ultra_before_build.bat&&vue-tsc && vite build && electron-builder --dir --config build\\ultra-build.json&&call build\\after_build.bat",
-    "build:arc": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && call build\\arc_before_build.bat&& electron-builder --config build\\arc-build.json&&call build\\after_build.bat\"",
+    "pack-python": "node build\\pack-python.js .\\package_res",
+    "prebuild": "node build\\prebuild.js .\\package_res ..\\service .\\external",
+    "build:ultra": "cross-env-shell PLATFORM=\"ultra\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra\" \"vue-tsc && vite build && node .\\build\\render-template.js && electron-builder --config build\\build-config.json\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -36,7 +35,8 @@
     "@types/node": "^20.16.11",
     "@vitejs/plugin-vue": "^5.1.4",
     "@vue/devtools": "^7.4.6",
-    "electron": "^33.0.0",
+    "adm-zip": "^0.5.16",
+    "electron": "^33.1.0",
     "electron-builder": "^25.1.8",
     "electron-builder-squirrel-windows": "^25.1.8",
     "postcss": "^8.4.47",

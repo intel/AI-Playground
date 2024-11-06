@@ -38,15 +38,11 @@
       "to": "env.7z"
     },
     {
-      "from": "external/arc-ipex-wheels",
-      "to":"arc-ipex-wheels"
-    },
-    {
       "from": "external/model_config.json",
       "to": "model_config.json"
     },
     {
-      "from": "build/arc-settings.json",
+      "from": "build/${env.PLATFORM}-settings.json",
       "to": "settings.json"
     },
     {
@@ -73,7 +69,7 @@
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",
-    "artifactName": "${productName}-${version}-For-Arc.${ext}",
+    "artifactName": "${productName}-${version}-For-${env.PLATFORM}.${ext}",
     "electronLanguages": ["en-US", "zh-CN"]
   },
   "nsis": {

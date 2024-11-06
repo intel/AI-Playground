@@ -77,7 +77,7 @@ console.log('Wrote custom content to:', pthFile);
 // 7z compress the env directory
 // create folder if not exists
 if (!fs.existsSync(packageResDir)) {
-    fs.mkdirSync(outputZipFolder, { recursive: true });
+    fs.mkdirSync(packageResDir, { recursive: true });
 }
 const sevenZipExe = path.join(packageResDir, '7zr.exe');
 if (!fs.existsSync(sevenZipExe)) {

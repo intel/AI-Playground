@@ -1,5 +1,6 @@
 !macro customHeader
   ShowInstDetails show
+  DetailPrint "Preparing for installation..."
 !macroend
 !macro customInstall
     IfFileExists "$INSTDIR\resources\env.7z" extracting end
@@ -23,7 +24,7 @@
             Abort ; Abort the installation if Cancel is clicked
 
         continue:
-            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements-ultra.txt"'
+            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements-${PLATFORM}.txt"'
     end:
         SetDetailsPrint both
 !macroend
