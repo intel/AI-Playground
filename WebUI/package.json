@@ -6,6 +6,7 @@
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "pack-python": "node build\\pack-python.js .\\package_res",
     "prebuild": "node build\\prebuild.js .\\package_res ..\\service .\\external",
+    "build": "npm run prebuild && npm run build:arc && npm run build:ultra && npm run build:ultra2",
     "build:arc": "cross-env-shell PLATFORM=\"arc\" VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && node .\\build\\render-template.js && electron-builder --config build\\build-config.json\"",
     "build:ultra": "cross-env-shell PLATFORM=\"ultra\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra\" \"vue-tsc && vite build && node .\\build\\render-template.js && electron-builder --config build\\build-config.json\"",
     "build:ultra2": "cross-env-shell PLATFORM=\"ultra2\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"vue-tsc && vite build && node .\\build\\render-template.js && electron-builder --config build\\build-config.json\"",
