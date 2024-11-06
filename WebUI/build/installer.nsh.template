@@ -1,12 +1,11 @@
 !macro customHeader
   ShowInstDetails show
-  DetailPrint "Preparing for installation..."
 !macroend
 !macro customInstall
     IfFileExists "$INSTDIR\resources\env.7z" extracting end
 
     extracting:
-        SetDetailsPrint textonly
+        SetDetailsPrint both
         DetailPrint "Extracting python environment..."
         nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\env.7z" -o"$INSTDIR\resources"'
         Delete "$INSTDIR\resources\env.7z"

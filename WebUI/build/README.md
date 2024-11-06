@@ -22,4 +22,11 @@ npm run prepack <python_embed_zip> <get_pip_py> <ref_conda_env>
 
 `package_res/env.7z` would be reused for all platforms.
 
-## 
+## Package
+
+```
+npm run prebuild
+npm run build:arc
+npm run build:ultra
+npm run build:ultra2
+```
