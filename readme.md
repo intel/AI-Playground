@@ -28,7 +28,7 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	*AI Playground 1.22b for Intel Core Ultra 200V* (LNL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core-ultra2_LNL.exe)
+*	AI Playground 1.22b for Intel Core Ultra 200V (LNL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core-ultra2_LNL.exe)
 
 *	AI Playground 1.22b for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core_ultra1_MTL-H.exe) 
 
