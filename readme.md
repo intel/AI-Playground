@@ -28,9 +28,9 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	**AI Playground 1.21b for Intel Core Ultra 200V** (LNL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.21beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.21beta/AI.Playground-v1.21b-Mobile-ICU-200v_LNL.exe)
+*	**AI Playground 1.22b for Intel Core Ultra 200V** (LNL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core-ultra2_LNL.exe)
 
-*	AI Playground 1.01b for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta.mtl) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta.mtl/AI.Playground-v1.01b-Mobile_MTL-H.exe) 
+*	AI Playground 1.22b for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core_ultra1_MTL-H.exe) 
 
 *	AI Playground 1.01b for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta/AI.Playground-v1.01b-Desktop_dGPU.exe) 
 
