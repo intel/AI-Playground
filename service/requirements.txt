@@ -3,7 +3,7 @@ compel==2.0.2
 datasets==2.18.0
 diffusers==0.27.2
 Flask==3.0.3
-langchain_community==0.2.9
+langchain_community==0.3.0
 numpy==1.26.4
 opencv_python==4.9.0.80
 peft==0.10.0
