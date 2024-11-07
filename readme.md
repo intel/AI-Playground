@@ -36,7 +36,11 @@ This second phase of installation **will take several minutes** and require a st
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
-IMPORTANT: We have noticed some systems require the VS C++ redistribution, often already installed on Windows systems. If AI Playground is hanging on the load screen , this may be the issue and can be resolved by installing VS C++ redist https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
+TROUBLESHOOTING INSTALLATION: 
+1. Be sure your system has an Intel Arc GPU. Go to your Windows Start Menu. Type "Device Manager"  Under Display Adapters look at the name of your GPU device. It should describe an an Intel Arc GPU. If it says "Intel(R) Graphics" your system does not have a built-in Intel Arc GPU and does not meet minimum specifications
+2. Interrupted Installation: The online installation portion can be interuppted or blocked by an IT network, firewall, or can sleep settings.  Be sure to be on an open network, with firewall off, and set sleep settings to never while powered on.
+3. Some Windows systems may be missing needed libraries. This can be fixed by installing the 64bit VC++ redistribution from Microsoft here https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
+4. There have been reports of an Huggingface version error. This is due to a 3rd party component changing a version. This issue is corrected in our v1.22b mid November release.  
 
 ## Project Development
 ### Dev Environment Setup (backend, python)
