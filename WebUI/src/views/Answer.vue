@@ -330,7 +330,8 @@ async function updateTitle(conversation: ChatItem[]) {
         device: globalSetup.modelSettings.graphics,
         prompt: chatContext,
         enable_rag: false,
-        model_repo_id: globalSetup.modelSettings.llm_model
+        model_repo_id: globalSetup.modelSettings.llm_model,
+        print_metrics: false
     };
     const response = await fetch(`${ globalSetup.apiHost }/api/llm/chat`, {
         method: "POST",

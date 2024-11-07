@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "1.22.0-rc1",
+  "version": "1.22.0-rc3",
   "scripts": {
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "pack-python": "node build\\pack-python.js .\\package_res",
