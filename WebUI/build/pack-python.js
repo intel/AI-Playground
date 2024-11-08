@@ -1,11 +1,11 @@
-// Usage: node prepack.js <output_package_res_dir> <python_embed_zip> <get_pip_file> <reference_conda_env>
+// Usage: node pack-python.js <output_package_res_dir> <python_embed_zip> <get_pip_file> <reference_conda_env>
 
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 
 if (process.argv.length < 6) {
-    console.error('Usage: node prepack.js <output_package_res_dir> <python_embed_zip> <get_pip_file> <reference_conda_env>');
+    console.error('Usage: node pack-python.js <output_package_res_dir> <python_embed_zip> <get_pip_file> <reference_conda_env>');
     process.exit(1);
 }
 

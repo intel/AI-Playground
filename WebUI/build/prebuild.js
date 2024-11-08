@@ -27,14 +27,25 @@ if (fs.existsSync(serviceLink)) {
 fs.symlinkSync(serviceDir, serviceLink, 'junction');
 console.log('Created symlink:', serviceDir);
 
-// copy 7zr.exe to <build_dir>/7zr.exe
-const sevenZipExe = path.join(packageResDir, '7zr.exe');
-const sevenZipDest = path.join(buildDir, '7zr.exe');
-fs.copyFileSync(sevenZipExe, sevenZipDest);
-console.log('Copied 7zr.exe to:', sevenZipDest);
+// Copy all files under package_res_dir to build_dir
+const files = fs.readdirSync(packageResDir);
+for (const file of files) {
+    const src = path.join(packageResDir, file);
+    const dest = path.join(buildDir, file);
+    fs.copyFileSync(src, dest);
+    console.log('Copied:', src, 'to:', dest);
+}
 
-// copy env.7z to <build_dir>/env.7z
-const envArchive = path.join(packageResDir, 'env.7z');
-const envArchiveDest = path.join(buildDir, 'env.7z');
-fs.copyFileSync(envArchive, envArchiveDest);
-console.log('Copied env.7z to:', envArchiveDest);
+// check 7zr.exe exists
+const sevenZipExe = path.join(buildDir, '7zr.exe');
+if (!fs.existsSync(sevenZipExe)) {
+    console.error('7zr.exe not found:', sevenZipExe);
+    process.exit(1);
+}
+
+// check there's at least one .7z file in build_dir
+const archives = fs.readdirSync(buildDir).filter(f => f.endsWith('.7z'));
+if (archives.length === 0) {
+    console.error('No .7z file found in:', buildDir);
+    process.exit(1);
+}
