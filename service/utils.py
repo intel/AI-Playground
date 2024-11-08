@@ -173,6 +173,6 @@ def get_support_graphics(env_type: str):
     graphics = list()
     for i in range(device_count):
         device_name = torch.xpu.get_device_name(i)
-        if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
-            graphics.append({"index": i, "name": device_name})
+        # if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
+        graphics.append({"index": i, "name": device_name})
     return graphics

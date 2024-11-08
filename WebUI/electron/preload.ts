@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, dialog } from "electron";
+import pkg from "../package.json";
 
 // function domReady(
 //   condition: DocumentReadyState[] = ["complete", "interactive"]
@@ -103,6 +104,7 @@ import { contextBridge, ipcRenderer, dialog } from "electron";
 
 contextBridge.exposeInMainWorld("envVars", {
   platformTitle: import.meta.env.VITE_PLATFORM_TITLE,
+  productVersion: pkg.version,
 });
 contextBridge.exposeInMainWorld("electronAPI", {
   openDevTools: () => ipcRenderer.send("openDevTools"),

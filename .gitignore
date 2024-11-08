@@ -1,1 +1,10 @@
+.vscode/
 env/
+package_res/
+release/
+WebUI/external/service/
+
+installer.nsh
+*.exe
+*.7z
+*.whl
