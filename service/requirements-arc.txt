@@ -1,18 +1,33 @@
--r requirements.txt
+basicsr==1.4.2
+compel==2.0.2
+datasets==2.18.0
+diffusers==0.27.2
+Flask==3.0.3
+huggingface_hub==0.22.2
+ipex_llm==2.1.0
+bigdl-core-xe-21==2.5.0
+bigdl-core-xe-addons-21==2.5.0
+bigdl-core-xe-batch-21==2.5.0
+langchain_community==0.2.9
+numpy==1.26.4
+opencv_python==4.9.0.80
+peft==0.10.0
+Pillow==10.3.0
+psutil==5.9.8
+Requests==2.32.3
+sentence_transformers==2.3.1
+transformers==4.39.0
+trl==0.9.3
+faiss-cpu==1.8.0
+docx2txt==0.8
+pypdf==4.2.0
+unstructured==0.14.6
+setuptools==69.5.1
 
-# IPEX
+
 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
---extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/
-torch==2.3.1.post0+cxx11.abi
-torchvision==0.18.1.post0+cxx11.abi
-torchaudio==2.3.1.post0+cxx11.abi
-intel-extension-for-pytorch==2.3.110.post0+xpu
+torch==2.3.1+cxx11.abi
+torchvision==0.18.1+cxx11.abi
+torchaudio==2.3.1+cxx11.abi
+intel-extension-for-pytorch==2.3.110+xpu
 mkl-dpcpp==2024.2.1
-
-# IPEX-LLM
---pre
-ipex_llm==2.2.0b2
-bigdl-core-xe-23==2.6.0b2
-bigdl-core-xe-addons-23==2.6.0b2
-bigdl-core-xe-batch-23==2.6.0b2
-onednn-devel==2024.1.1

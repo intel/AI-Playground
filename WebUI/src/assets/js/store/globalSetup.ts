@@ -100,7 +100,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             } catch (error) {
                 const backendStatus = (await window.electronAPI.getPythonBackendStatus()).status;
                 if (backendStatus === "stopped") {
-                    loadingState.value = "failed";
                     return;
                 }
                 if (backendStatus === "running" && !(error instanceof TypeError)) {

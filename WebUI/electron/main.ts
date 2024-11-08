@@ -74,35 +74,25 @@ const settings: LocalSettings = {
   currentTheme:"lnl"
 };
 
-let webContentsFinishedLoad = false;
-const startupMessageCache: {message: string, source: 'electron-backend' | 'ai-backend', level: 'error' | 'info'}[] = []
-
 const logger = {
   info: (message: string, source: 'electron-backend' | 'ai-backend' = 'electron-backend') => {
     console.info(`[${source}]: ${message}`);
-    if (webContentsFinishedLoad) {
-      try {
-        win?.webContents.send('debugLog', { level: 'info', source, message })
-      } catch (error) {
-        console.error('Could not send debug log to renderer process');
-      }
-    } else {
-      startupMessageCache.push({ level: 'info', source, message })
+    try {
+      win?.webContents.send('debugLog', { level: 'info', source, message })
+    } catch (error) {
+      console.error('Could not send debug log to renderer process');
     }
   },
   error: (message: string, source: 'electron-backend' | 'ai-backend' = 'electron-backend') => {
     console.error(`[${source}]: ${message}`);
-    if (webContentsFinishedLoad) {
-      try {
-        win?.webContents.send('debugLog', { level: 'error', source, message })
-      } catch (error) {
-        console.error('Could not send debug log to renderer process');
-      }
-    } else {
-      startupMessageCache.push({ level: 'error', source, message })
+    try {
+      win?.webContents.send('debugLog', { level: 'error', source, message })
+    } catch (error) {
+      console.error('Could not send debug log to renderer process');
     }
   }
 }
+
 
 async function loadSettings() {
   const settingPath = app.isPackaged
@@ -138,14 +128,6 @@ async function createWindow() {
       contextIsolation: true
     },
   });
-  win.webContents.on('did-finish-load', () => {
-    setTimeout(() => {
-      webContentsFinishedLoad = true;
-      startupMessageCache.forEach((logEntry) => {
-        win?.webContents.send('debugLog', logEntry)
-      });
-    }, 100);
-  })
 
 
   const session = win.webContents.session;

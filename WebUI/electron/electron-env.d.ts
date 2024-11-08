@@ -30,7 +30,7 @@ type KVObject = {
   [key: string]: any;
 };
 
-type Theme = 'dark' | 'lnl' | 'bmg';
+type Theme = 'dark' | 'lnl';
 
 type LocalSettings = {
   apiHost: string;
@@ -43,7 +43,7 @@ type LocalSettings = {
 type ThemeSettings = {
   availableThemes: Theme[];
   currentTheme: Theme;
-}
+
 
 type ModelPaths = {
   llm: string,

@@ -8,7 +8,7 @@
 import { type Model } from "../assets/js/store/models";
 
 const props = withDefaults(defineProps<{
-    model?: Model
+    model: Model
 }>(), {
     model: () => ({
         name: "model not found",

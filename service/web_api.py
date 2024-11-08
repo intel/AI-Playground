@@ -1,18 +1,3 @@
-import sys
-
-# Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
-# Related issues:
-# + https://github.com/XPixelGroup/BasicSR/issues/649
-# + https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/13985
-try:
-    import torchvision.transforms.functional_tensor
-except ImportError:
-    try:
-        import torchvision.transforms.functional as functional
-        sys.modules["torchvision.transforms.functional_tensor"] = functional
-    except ImportError:
-        pass
-
 from datetime import datetime
 import os
 import threading

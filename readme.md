@@ -43,29 +43,22 @@ TROUBLESHOOTING INSTALLATION:
 4. There have been reports of an Huggingface version error. This is due to a 3rd party component changing a version. This issue is corrected in our v1.22b mid November release.  
 
 ## Project Development
-### Checkout Source Code
-
-```cmd
-git clone -b dev https://github.com/intel/AI-Playground.git
-cd AI-Playground
-```
-
 ### Dev Environment Setup (backend, python)
 
 1. Create and switch the conda environment and go to the service directory.
 
 ```cmd
-conda create -n aipg_xpu python=3.11 -y
+conda create -n aipg_xpu python=3.10 -y
 conda activate aipg_xpu
 conda install libuv -y
 
 cd service
 
 @REM for Desktop-dGPU (e.g. A770)
-pip install -r requirements-arc.txt
+pip install -r requriements-arc.txt
 
 @REM for Intel Core Ultra-H (MTL)
-pip install -r requirements-ultra.txt
+pip install -r requriements-ultra.txt
 ```
 
 2. Check whether the XPU environment is correct
