@@ -1,7 +1,7 @@
 declare interface Window {
     chrome: Chrome;
     electronAPI: electronAPI;
-    envVars: { platformTitle: string };
+    envVars: { platformTitle: string, productVersion: string };
 }
 
 interface ImportMetaEnv {

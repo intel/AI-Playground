@@ -2,7 +2,7 @@
     "envType": "arc",
     "debug":1,
     "port":56789,
-    "availableThemes": ["dark","lnl"],
-    "currentTheme": "lnl"
+    "availableThemes": ["dark","lnl","bmg"],
+    "currentTheme": "bmg"
 
 }

@@ -4,6 +4,8 @@ import threading
 import time
 import traceback
 import torch
+import logging
+import sys
 
 from typing import List, Dict
 from os import path
@@ -30,14 +32,16 @@ class LLMParams:
     device: int
     enable_rag: bool 
     model_repo_id: str
+    print_metrics: bool
 
     def __init__(
-        self, prompt: list, device: int, enable_rag: bool, model_repo_id: str
+        self, prompt: list, device: int, enable_rag: bool, model_repo_id: str, print_metrics: bool = True
     ) -> None:
         self.prompt = prompt
         self.device = device
         self.enable_rag = enable_rag
         self.model_repo_id = model_repo_id
+        self.print_metrics = print_metrics
 
 
 RAG_PROMPT_FORMAT = "Answer the questions based on the information below. \n{context}\n\nQuestion: {prompt}"
@@ -64,9 +68,9 @@ def stream_chat_generate(
     args: dict,
     error_callback: Callable[[Exception], None] = None,
 ):
-    print(args)
     try:
         model.generate(**args)
+        sys.stdout.flush()
     except Exception as ex:
         traceback.print_exc()
         if error_callback is not None:
@@ -80,6 +84,7 @@ def generate(
     max_new_tokens: int,
     error_callback: Callable[[Exception], None] = None,
 ):
+    logging.info(f"got prompt: {prompt}")
     global _stop_generate, _default_prompt
     _stop_generate = False
     
@@ -216,8 +221,6 @@ def chat(
 
         assert_stop_generate()
 
-        is_first = True
-
         if enable_rag:
             last_prompt = prompt[prompt.__len__() - 1]
             last_prompt.__setitem__(
@@ -225,6 +228,13 @@ def chat(
             )
 
         _model = _model.to(model_config.device)
+
+        num_tokens = 0
+        start_time = time.time()
+        is_first = True
+        first_token_time = 0
+        last_token_time = 0
+        total_time = 0
         with torch.inference_mode():
             all_stream_output = ""
             for stream_output in generate(
@@ -232,6 +242,7 @@ def chat(
             ):
                 assert_stop_generate()
 
+                num_tokens += 1
                 if is_first:
                     first_token_time = time.time()
                     is_first = False
@@ -243,18 +254,15 @@ def chat(
 
         last_token_time = time.time()
         torch.xpu.empty_cache()
-        print("\r\n----------inference finish----------")
-        print("cost_time : {:.7f}s".format(last_token_time - first_token_time))
-        print(
-            "first_token_time : {}".format(
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(first_token_time))
-            )
-        )
-        print(
-            "last_token_time : {}".format(
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_token_time))
-            )
-        )
+        if params.print_metrics:
+            logging.info(f"""
+                ----------inference finish----------
+                num_tokens : {num_tokens}
+                total_time : {last_token_time - start_time:.4f} s
+                overall tokens/s : {num_tokens / (last_token_time - start_time):.4f}
+                2nd+ token/s : {(num_tokens - 1) / (last_token_time - first_token_time):.4f}
+                first_token_latency : {first_token_time - start_time:.4f} s
+                after_token_latency : {(last_token_time - first_token_time)/(num_tokens - 1):.4f} s""")
     finally:
         _generating = False
 
