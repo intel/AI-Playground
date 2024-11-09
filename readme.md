@@ -32,7 +32,7 @@ This second phase of installation **will take several minutes** and require a st
 
 *	AI Playground 1.22b for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core_ultra1_MTL-H.exe) 
 
-*	AI Playground 1.01b for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.01beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.01beta/AI.Playground-v1.01b-Desktop_dGPU.exe) 
+*	AI Playground 1.01b for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-1.22.1beta-Arc-dGPU_ACM.exe) 
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
