@@ -21,7 +21,7 @@ AI Playground beta is currently available as a packaged installer, or available 
 *	Intel Core Ultra-H Processor, Intel Core Ultra 200V series processor OR Intel Arc GPU (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
-AI Playground has multiple packaged installers, each specific to the hardware. These packages make it easier for an end user to install AI Playground and get it running on their PC. Please note while this does make the process much easier, this is open source beta software, where components and version can have conflicts. Check the Troublshooting section for known issues.
+AI Playground has multiple packaged installers, each specific to the hardware. These packages make it easier for an end user to install AI Playground and get it running on their PC. Please note while this does make the process much easier, this is open source beta software, where components and version can have conflicts. Check the Troubleshooting section for known issues.
 1. Choose the correct installer (for Desktop systems with Intel Arc GPUs,or for Intel Core Ultra-H systems), download to your PC then run the installer.
 2. The installer will have two phases.  It will first install components and environment from the installer. The second phase will pull in components from their source. </b >
 This second phase of installation **will take several minutes** and require a steady internet connection.
