@@ -10,7 +10,7 @@ from psutil._common import bytes2human
 from exceptions import DownloadException
 import traceback
 import concurrent.futures
-import utils
+import aipg_utils as utils
 
 model_list_cache = dict()
 model_lock = Lock()

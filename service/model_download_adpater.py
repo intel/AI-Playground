@@ -7,7 +7,7 @@ from model_downloader import NotEnoughDiskSpaceException, DownloadException
 from psutil._common import bytes2human
 from model_downloader import HFPlaygroundDownloader
 import realesrgan
-import utils
+import aipg_utils as utils
 
 
 class Model_Downloader_Adapter:

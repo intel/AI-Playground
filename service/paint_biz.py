@@ -4,7 +4,7 @@ import queue
 import random
 import time
 from typing import Any, Callable, Dict, List
-import utils
+import aipg_utils as utils
 import model_config
 import inpaint_utils
 from diffusers import (

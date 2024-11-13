@@ -4,7 +4,7 @@ import torch
 import time
 import os
 import re
-import utils
+import aipg_utils as utils
 import model_config
 from langchain_core.embeddings import Embeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter

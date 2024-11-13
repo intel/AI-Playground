@@ -30,7 +30,7 @@ from paint_biz import (
 )
 import paint_biz
 import llm_biz
-import utils
+import aipg_utils as utils
 import rag
 import model_config
 from model_downloader import HFPlaygroundDownloader
