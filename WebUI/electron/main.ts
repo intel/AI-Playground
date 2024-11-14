@@ -288,6 +288,7 @@ function initEventHandle() {
       showIndex: settings.showIndex,
       showBenchmark: settings.showBenchmark,
       isAdminExec: isAdmin(),
+      locale: app.getLocale(),
     };
   });
 
