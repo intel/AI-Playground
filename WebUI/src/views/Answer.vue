@@ -104,6 +104,7 @@
                                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
                             </template>
                         </drop-selector>
+                        <button class="svg-icon i-generate-add w-10 h-10 text-purple-500 ml-1.5" @click="addLLMModel"></button>
                         <button class="svg-icon i-refresh w-5 h-5 text-purple-500 flex-none ml-1"
                             @animationend="removeRonate360" @click="refreshLLMModles"></button>
                         <!-- <button
@@ -178,6 +179,9 @@
         <teleport to="#answerPanel" v-if="showDowloadDlg">
             <download-dialog ref="downloadDigCompt"></download-dialog>
         </teleport>
+        <teleport to="#answerPanel" v-if="showModelRequestDialog">
+            <add-l-l-m-dialog ref="addLLMDialog" @add-model="checkModel"></add-l-l-m-dialog>
+        </teleport>
     </div>
 
 </template>
@@ -187,6 +191,7 @@ import ProgressBar from "../components/ProgressBar.vue";
 import LoadingBar from "../components/LoadingBar.vue";
 import DropSelector from "@/components/DropSelector.vue";
 import DownloadDialog from "@/components/DownloadDialog.vue";
+import AddLLMDialog from "@/components/AddLLMDialog.vue";
 import ModelDropDownItem from "@/components/ModelDropDownItem.vue";
 import { useI18N } from '@/assets/js/store/i18n';
 import { toast } from '@/assets/js/toast';
@@ -222,16 +227,20 @@ let receiveOut = "";
 let chatPanel: HTMLElement;
 const markdownParser = new MarkdownParser(i18nState.COM_COPY);
 const showDowloadDlg = ref(false);
+const showModelRequestDialog = ref(false);
 const ragData = reactive({
     enable: false,
     processEnable: false,
     showUploader: false,
 });
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
+const addLLMDialog = ref<InstanceType<typeof AddLLMDialog>>()
+
 const source = ref("");
 const emits = defineEmits<{
     (e: "showDownloadModelConfirm", downloadList: DownloadModelParam[], success?: () => void, fail?: () => void): void,
-}>();
+  (e: "showModelRequest", success?: () => void, fail?: () => void): void}>();
+
 let abortContooler: AbortController | null;
 const stopping = ref(false);
 const fontSizeIndex = ref(1); // sets default to text-sm
@@ -420,9 +429,10 @@ async function newPromptGenerate() {
 }
 
 async function checkModel() {
-    return new Promise<void>(async (resolve, reject) => {
+  return new Promise<void>(async (resolve, reject) => {
         const checkList: CheckModelExistParam[] = [{ repo_id: globalSetup.modelSettings.llm_model, type: Const.MODEL_TYPE_LLM }];
         if (!(await globalSetup.checkModelExists(checkList))[0].exist) {
+          console.log(checkList)
             emits(
                 "showDownloadModelConfirm",
                 checkList,
@@ -434,6 +444,8 @@ async function checkModel() {
         }
     });
 }
+
+
 
 async function generate(chatContext: ChatItem[]) {
     if (processing.value || chatContext.length == 0) { return; }
@@ -499,6 +511,15 @@ function removeRonate360(ev: AnimationEvent) {
 function changeLLMModel(model: Model, _: number) {
     globalSetup.applyModelSettings({ llm_model: model.name });
 }
+
+async function addLLMModel() {
+    return new Promise<void>(async (resolve, reject) => {
+      emits("showModelRequest", resolve, reject);
+    })
+
+}
+
+
 
 async function refreshLLMModles(e: Event) {
     const button = e.target as HTMLElement;
@@ -574,5 +595,5 @@ async function enableRag() {
     ragData.processEnable = false;
 }
 
-
+defineExpose({checkModel});
 </script>
