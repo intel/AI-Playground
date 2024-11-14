@@ -239,7 +239,8 @@ const addLLMDialog = ref<InstanceType<typeof AddLLMDialog>>()
 const source = ref("");
 const emits = defineEmits<{
     (e: "showDownloadModelConfirm", downloadList: DownloadModelParam[], success?: () => void, fail?: () => void): void,
-  (e: "showModelRequest", success?: () => void, fail?: () => void): void}>();
+    (e: "showModelRequest", success?: () => void, fail?: () => void): void
+}>();
 
 let abortContooler: AbortController | null;
 const stopping = ref(false);
@@ -432,7 +433,6 @@ async function checkModel() {
   return new Promise<void>(async (resolve, reject) => {
         const checkList: CheckModelExistParam[] = [{ repo_id: globalSetup.modelSettings.llm_model, type: Const.MODEL_TYPE_LLM }];
         if (!(await globalSetup.checkModelExists(checkList))[0].exist) {
-          console.log(checkList)
             emits(
                 "showDownloadModelConfirm",
                 checkList,
@@ -519,8 +519,6 @@ async function addLLMModel() {
 
 }
 
-
-
 async function refreshLLMModles(e: Event) {
     const button = e.target as HTMLElement;
     button.classList.add("animate-ronate360");
@@ -595,5 +593,8 @@ async function enableRag() {
     ragData.processEnable = false;
 }
 
-defineExpose({checkModel});
+defineExpose({
+  checkModel
+})
+
 </script>

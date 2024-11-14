@@ -16,15 +16,12 @@
 </template>
 <script setup lang="ts">
 import { useGlobalSetup } from '@/assets/js/store/globalSetup';
-import ProgressBar from './ProgressBar.vue';
-import Answer from '@/views/Answer.vue';
 import { useI18N } from '@/assets/js/store/i18n';
 import { SSEProcessor } from '@/assets/js/sseProcessor';
 import { util } from '@/assets/js/util';
 import { Const } from '@/assets/js/const';
 import { toast } from '@/assets/js/toast';
 import { useModels } from '@/assets/js/store/models';
-import DownloadDialog from "@/components/DownloadDialog.vue";
 
 const i18nState = useI18N().state;
 const globalSetup = useGlobalSetup();
@@ -43,11 +40,11 @@ const errorText = ref("");
 let abortController: AbortController;
 const animate = ref(false);
 const emits = defineEmits<{
-    (e: "close"): void, (e: "addModel"): void
+    (e: "close"): void,
+    (e: "callCheckModel"): void
 }>();
 const readTerms = ref(false);
 const downloadList = ref<DownloadModelRender[]>([]);
-const componentAnswer = ref<InstanceType<typeof Answer>>();
 
 
 onDeactivated(() => {
@@ -71,10 +68,9 @@ function addModel() {
   // Check if model is not already in list
   // go to download dialog
   globalSetup.modelSettings.llm_model =  modelRequest.value
-  // ToDo: try to connect to checkModel in a better way
-  emits("addModel");
-  // componentAnswer.value!.checkModel()
-  // ToDo: close panel when download dialog works
+  emits("callCheckModel");
+  // ToDo: close panel, only when download dialog works
+  emits("close")
 }
 
 

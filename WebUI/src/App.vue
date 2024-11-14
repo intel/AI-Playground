@@ -66,12 +66,12 @@
         @show-download-model-confirm="showDownloadModelConfirm"></create>
       <enhance v-show="activeTabIdx == 1" ref="enhanceCompt" @show-download-model-confirm="showDownloadModelConfirm">
       </enhance>
-      <answer v-show="activeTabIdx == 2" @show-download-model-confirm="showDownloadModelConfirm" @show-model-request="showModelRequest"></answer>
+      <answer v-show="activeTabIdx == 2" ref = "answer" @show-download-model-confirm="showDownloadModelConfirm" @show-model-request="showModelRequest"></answer>
       <learn-more v-show="activeTabIdx == 3"></learn-more>
       <app-settings v-if="showSetting" @close="hideAppSettings" @show-download-model-confirm="showDownloadModelConfirm"></app-settings>
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
-    <add-l-l-m-dialog v-show="showModelRequestDialog" ref="addLLMCompt" @close="showModelRequestDialog = false"></add-l-l-m-dialog>
+    <add-l-l-m-dialog v-show="showModelRequestDialog" ref="addLLMCompt" @close="showModelRequestDialog = false" @call-check-model="callCheckModel"></add-l-l-m-dialog>
   </main>
   <footer class="flex-none px-4 flex justify-between items-center select-none" :class="{'bg-black bg-opacity-50': theme.active === 'lnl', 'bg-black bg-opacity-80': theme.active === 'bmg', 'border-t border-color-spilter': theme.active === 'dark'}">
     <div>
@@ -128,6 +128,8 @@ const activeTabIdx = ref(0);
 const showSetting = ref(false);
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>();
+
+const answer = ref<InstanceType<typeof Answer>>();
 
 const showSettingBtn = ref<HTMLButtonElement>();
 
@@ -235,5 +237,10 @@ function showDownloadModelConfirm(downList: DownloadModelParam[], success?: () =
 function showModelRequest(success?: () => void, fail?: () => void) {
   showModelRequestDialog.value = true;
 }
+
+function callCheckModel(){
+  answer.value!.checkModel();
+}
+
 
 </script>
