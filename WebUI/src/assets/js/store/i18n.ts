@@ -9,16 +9,27 @@ export const useI18N = defineStore("i18n", () => {
   // locale naming reference:
   // https://source.chromium.org/chromium/chromium/src/+/main:ui/base/l10n/l10n_util.cc
   const languageOptions = ref([
+    { value: 'de', name: "Deutsch" },
     { value: 'en-US', name: "English" },
-    { value: 'zh-CN', name: "简体中文" },
+    { value: 'id', name: "Bahasa Indonesia" },
+    { value: 'ja', name: "日本語" },
     { value: 'ko', name: "영어" },
+    { value: 'pl', name: "język polski" },
+    { value: 'th', name: "ภาษาไทย" },
+    { value: 'zh-CN', name: "简体中文" },
   ]);
 
   window.electronAPI.getLocalSettings().then((settings) => {
-    if (settings.locale) {
-      console.debug("system locale:", settings.locale);
-      if (languageOptions.value.find((item) => item.value === settings.locale)) {
-        langName.value = settings.locale;
+    const locale = settings.locale;
+    console.debug("system locale:", locale);
+    if (locale) {
+      if (languageOptions.value.find((item) => item.value === locale)) { // use the locale directly if it's supported
+        langName.value = locale;
+      } else if (locale.includes('-')) { // fallback if the locale contains '-'
+        const lang = locale.split('-')[0];
+        langName.value = languageOptions.value.find((item) => item.value.includes(lang))?.value || 'en-US';
+      } else { // fallback to en-US
+        langName.value = 'en-US';
       }
     }
   });
