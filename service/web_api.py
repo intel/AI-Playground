@@ -5,6 +5,7 @@ try:
     # Create a subprocess to import IPEX and list devices
     import subprocess
     import os
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     device_detect_script = os.path.join(script_dir, "device_detect.py")
 
@@ -18,16 +19,16 @@ try:
     # Check if the subprocess ran successfully
     if result.returncode != 0:
         raise Exception(f"Device detection failed: {result.stderr}")
-    
+
     # Get the supported device IDs
     supported_ids = result.stdout.strip()
     if not supported_ids:
         raise Exception("No supported devices found")
-    
+
     # Set the environment variable to filter devices
     os.environ["ONEAPI_DEVICE_SELECTOR"] = f"*:{supported_ids}"
     print(f"Set ONEAPI_DEVICE_SELECTOR={os.environ['ONEAPI_DEVICE_SELECTOR']}")
-except: # noqa: E722
+except:  # noqa: E722
     pass
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -35,10 +36,11 @@ except: # noqa: E722
 # + https://github.com/XPixelGroup/BasicSR/issues/649
 # + https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/13985
 try:
-    import torchvision.transforms.functional_tensor # noqa: F401
+    import torchvision.transforms.functional_tensor  # noqa: F401
 except ImportError:
     try:
         import torchvision.transforms.functional as functional
+
         sys.modules["torchvision.transforms.functional_tensor"] = functional
     except ImportError:
         pass
@@ -201,8 +203,8 @@ lock = threading.Lock()
 def is_model_gated():
     list = request.get_json()
     downloader = HFPlaygroundDownloader()
-    gated = { item["repo_id"]: downloader.is_gated(item["repo_id"]) for item in list }
-    
+    gated = {item["repo_id"]: downloader.is_gated(item["repo_id"]) for item in list}
+
     return jsonify(
         {
             "code": 0,
@@ -210,6 +212,7 @@ def is_model_gated():
             "gatedList": gated,
         }
     )
+
 
 @app.route("/api/getModelSize", methods=["POST"])
 def get_model_size():
@@ -264,7 +267,7 @@ def enable_rag():
     if not rag.Is_Inited:
         repo_id = request.form.get("repo_id", default="", type=str)
         device = request.form.get("device", default=0, type=int)
-        rag.init(repo_id,device)
+        rag.init(repo_id, device)
     return jsonify({"code": 0, "message": "success"})
 
 
@@ -274,11 +277,13 @@ def disable_rag():
         rag.dispose()
     return jsonify({"code": 0, "message": "success"})
 
+
 def get_bearer_token(request):
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.startswith('Bearer '):
-        return auth_header.split(' ')[1]
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
     return None
+
 
 @app.route("/api/downloadModel", methods=["POST"])
 def download_model():
@@ -287,7 +292,9 @@ def download_model():
         model_download_adpater._adapter.stop_download()
     try:
         model_download_adpater._adapter = (
-            model_download_adpater.Model_Downloader_Adapter(hf_token=get_bearer_token(request))
+            model_download_adpater.Model_Downloader_Adapter(
+                hf_token=get_bearer_token(request)
+            )
         )
         iterator = model_download_adpater._adapter.download(list)
         return Response(stream_with_context(iterator), content_type="text/event-stream")
@@ -387,7 +394,8 @@ def cache_mask_image():
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="AI Playground Web service")
-    parser.add_argument('--port', type=int, default=59999, help='Service listen port')
+    parser.add_argument("--port", type=int, default=59999, help="Service listen port")
     args = parser.parse_args()
     app.run(host="127.0.0.1", port=args.port)

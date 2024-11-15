@@ -9,7 +9,7 @@ class ModelDownloaderApi:
     file_queue: list
     total_size: int
     fs: HfFileSystem
-    repo_folder:str
+    repo_folder: str
 
     def __init__(self):
         self.file_queue = list()
@@ -17,7 +17,7 @@ class ModelDownloaderApi:
 
     def get_info(self, repo_id: str, is_sd=False):
         self.repo_id = repo_id
-        self.repo_folder = repo_id.replace('/','---')
+        self.repo_folder = repo_id.replace("/", "---")
         self.file_queue.clear()
         self.total_size = 0
         self.enum_file_list(repo_id, is_sd, True)
@@ -60,7 +60,11 @@ class ModelDownloaderApi:
                     repo_id=self.repo_id, filename=filename, subfolder=subfolder
                 )
                 self.file_queue.append(
-                    {"name": name.replace(self.repo_id, self.repo_folder), "size": size, "url": url}
+                    {
+                        "name": name.replace(self.repo_id, self.repo_folder),
+                        "size": size,
+                        "url": url,
+                    }
                 )
 
 

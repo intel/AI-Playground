@@ -17,7 +17,7 @@ class Model_Downloader_Adapter:
     file_downloader: FileDownloader
     hf_downloader: HFPlaygroundDownloader
     has_error: bool
-    user_stop:bool
+    user_stop: bool
 
     def __init__(self, hf_token=None):
         self.msg_queue = Queue(-1)
@@ -46,7 +46,10 @@ class Model_Downloader_Adapter:
     ):
         print(
             "download {} {}/{} speed {}".format(
-                repo_id, bytes2human(download_size), bytes2human(total_size), bytes2human(speed)
+                repo_id,
+                bytes2human(download_size),
+                bytes2human(total_size),
+                bytes2human(speed),
             )
         )
         data = {
@@ -117,7 +120,7 @@ class Model_Downloader_Adapter:
                         realesrgan.ESRGAN_MODEL_URL,
                         os.path.join(
                             utils.get_model_path(item["type"]),
-                            os.path.basename(realesrgan.ESRGAN_MODEL_URL)
+                            os.path.basename(realesrgan.ESRGAN_MODEL_URL),
                         ),
                     )
                 else:
@@ -133,7 +136,6 @@ class Model_Downloader_Adapter:
             self.file_downloader.stop_download()
         if not self.hf_downloader.completed:
             self.hf_downloader.stop_download()
-
 
     def generator(self):
         while True:

@@ -15,6 +15,7 @@ def image_to_base64(image: Image.Image):
         base64.b64encode(buffered.getvalue()).decode("utf-8")
     )
 
+
 def generate_mask_image(mask_flag_bytes: bytes, width: int, height: int):
     from PIL import Image
     import numpy as np
@@ -52,13 +53,10 @@ def check_mmodel_exist(type: int, repo_id: str):
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
-            return (
-                os.path.exists(
-                    os.path.join(dir, folder_name, "pytorch_lora_weights.safetensors")
-                )
-                or os.path.exists(
-                    os.path.join(dir, folder_name, "pytorch_lora_weights.bin")
-                )
+            return os.path.exists(
+                os.path.join(dir, folder_name, "pytorch_lora_weights.safetensors")
+            ) or os.path.exists(
+                os.path.join(dir, folder_name, "pytorch_lora_weights.bin")
             )
     elif type == 3:
         dir = model_config.config.get("vae")
@@ -78,7 +76,9 @@ def check_mmodel_exist(type: int, repo_id: str):
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
-            return os.path.exists(os.path.join(dir, repo_id.replace("/", "---"), "model_index.json"))
+            return os.path.exists(
+                os.path.join(dir, repo_id.replace("/", "---"), "model_index.json")
+            )
     elif type == 7:
         dir = model_config.config.get("preview")
         return (
@@ -152,8 +152,10 @@ def cache_file(file_path: IO[bytes] | str, file_size: int):
         os.remove(file_path)
     os.link(cache_path, file_path)
 
-def is_single_file(filename:str):
-    return filename.endswith('.safetensors') or filename.endswith('.bin')
+
+def is_single_file(filename: str):
+    return filename.endswith(".safetensors") or filename.endswith(".bin")
+
 
 def get_ESRGAN_size():
     import requests

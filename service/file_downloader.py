@@ -106,17 +106,13 @@ class FileDownloader:
                     time.sleep(1)
                     response, fw = self.__init_download(self.url, self.filename)
 
-
     def __start_report_download_progress(self):
         report_thread = Thread(target=self.__report_download_progress)
         report_thread.start()
         return report_thread
 
     def __report_download_progress(self):
-        while (
-            not self.download_stop
-            and not self.completed
-        ):
+        while not self.download_stop and not self.completed:
             self.on_download_progress(
                 self.basename,
                 self.download_size,

@@ -279,8 +279,8 @@ class HFPlaygroundDownloader:
     def init_download(self, file: HFDonloadItem):
         makedirs(path.dirname(file.save_filename), exist_ok=True)
 
-        headers={}
-        if (self.hf_token is not None):
+        headers = {}
+        if self.hf_token is not None:
             headers["Authorization"] = f"Bearer {self.hf_token}"
 
         if file.disk_file_size > 0:
@@ -294,7 +294,9 @@ class HFPlaygroundDownloader:
             )
             fw = open(file.save_filename, "ab")
         else:
-            response = requests.get(file.url, stream=True, verify=False, headers=headers)
+            response = requests.get(
+                file.url, stream=True, verify=False, headers=headers
+            )
             fw = open(file.save_filename, "wb")
 
         return response, fw
@@ -307,8 +309,8 @@ class HFPlaygroundDownloader:
                 while True:
                     try:
                         response, fw = self.init_download(file)
-                        if (response.status_code != 200):
-                            download_retry += 2 # we only want to retry once in case of non network errors
+                        if response.status_code != 200:
+                            download_retry += 2  # we only want to retry once in case of non network errors
                             raise DownloadException(file.url)
                         # start download file
                         with response:

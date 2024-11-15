@@ -52,7 +52,7 @@ class SD_SSE_Adapter:
         self.put_msg(data)
 
     def load_model_components_callback(self, event: str):
-        data = {"type": "load_model_components","event": event}
+        data = {"type": "load_model_components", "event": event}
         self.put_msg(data)
 
     def step_end_callback(
@@ -82,7 +82,7 @@ class SD_SSE_Adapter:
         index: int,
         image: Image.Image | None,
         params: paint_biz.TextImageParams = None,
-        safe_check_pass: bool = True
+        safe_check_pass: bool = True,
     ):
         now = datetime.now()
         folder = now.strftime("%d_%m_%Y")
@@ -108,7 +108,7 @@ class SD_SSE_Adapter:
             "index": index,
             "image": image_url,
             "params": response_params,
-            "safe_check_pass":safe_check_pass,
+            "safe_check_pass": safe_check_pass,
         }
         self.put_msg(data)
 
@@ -160,7 +160,9 @@ class SD_SSE_Adapter:
     ):
         try:
             paint_biz.load_model_callback = self.load_model_callback
-            paint_biz.load_model_components_callback = self.load_model_components_callback
+            paint_biz.load_model_components_callback = (
+                self.load_model_components_callback
+            )
             paint_biz.step_end_callback = self.step_end_callback
             paint_biz.image_out_callback = self.image_out_callback
             paint_biz.download_progress_callback = self.download_model_progress_callback
@@ -204,16 +206,14 @@ class SD_SSE_Adapter:
                 "generate_number",
                 "image_preview",
                 "width",
-                "height"
+                "height",
             ] or isinstance(value, Image.Image):
                 continue
             response_params.__setitem__(key, value)
 
         return response_params
 
-    def log_to_file(
-        self, params: Any, folder: str, base_name: str
-    ):
+    def log_to_file(self, params: Any, folder: str, base_name: str):
         from shutil import copyfile
 
         json_path = f"./static/sd_out/{folder}/history.json"
@@ -234,8 +234,8 @@ class SD_SSE_Adapter:
             if k == "generate_number" or k == "image_preview":
                 continue
             elif k == "image" or k == "mask_image":
-                save_path = os.path.abspath(str(v)) 
-                save_path = save_path.replace(base_output, "../../").replace('\\', '/')
+                save_path = os.path.abspath(str(v))
+                save_path = save_path.replace(base_output, "../../").replace("\\", "/")
                 param_list.append(
                     {
                         "name": k,

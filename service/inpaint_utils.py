@@ -72,7 +72,7 @@ def calc_out_size(width: int, height: int, is_sdxl=False) -> tuple[int, int, int
             radio = width / max
             return max, make_multiple_of_8(int(height / radio)), radio
     elif height > max:
-        radio =  height / max
+        radio = height / max
         return make_multiple_of_8(int(width / radio)), max, radio
     return make_multiple_of_8(width), make_multiple_of_8(height), 1
 
@@ -86,7 +86,7 @@ def resize_by_max(image: Image.Image, max_size: int, multiple_of_8=True):
         if image.width > image.height:
             downscale_ratio = image.width / max_size
             downscale_width = int(image.width / downscale_ratio)
-            downscale_height = int(image.height/ downscale_ratio)
+            downscale_height = int(image.height / downscale_ratio)
             if multiple_of_8:
                 new_width = make_multiple_of_8(downscale_width)
                 new_height = make_multiple_of_8(downscale_height)
@@ -94,12 +94,13 @@ def resize_by_max(image: Image.Image, max_size: int, multiple_of_8=True):
         else:
             downscale_ratio = image.height / max_size
             downscale_width = int(image.width / downscale_ratio)
-            downscale_height = int(image.height/ downscale_ratio)
+            downscale_height = int(image.height / downscale_ratio)
             if multiple_of_8:
                 new_width = make_multiple_of_8(downscale_width)
                 new_height = make_multiple_of_8(downscale_height)
             return image.resize((new_width, new_height)), downscale_ratio
     return image, 1
+
 
 # def resize_by_max(image: Image.Image, max_size):
 #     if image.width > max_size or image.height > max_size:

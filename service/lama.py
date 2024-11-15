@@ -1,4 +1,3 @@
-
 import cv2
 import torch
 import numpy as np
@@ -16,6 +15,7 @@ def get_image(img):
         img = img[np.newaxis, ...]
     img = img.astype(np.float32) / 255
     return img
+
 
 def prepare_img_and_mask(image, mask, device, pad_out_to_modulo=8, scale_factor=None):
     def ceil_modulo(x, mod):
@@ -48,7 +48,9 @@ def prepare_img_and_mask(image, mask, device, pad_out_to_modulo=8, scale_factor=
             img = img[0]
         else:
             img = np.transpose(img, (1, 2, 0))
-        img = cv2.resize(img, dsize=None, fx=factor, fy=factor, interpolation=interpolation)
+        img = cv2.resize(
+            img, dsize=None, fx=factor, fy=factor, interpolation=interpolation
+        )
         if img.ndim == 2:
             img = img[None, ...]
         else:
@@ -96,7 +98,7 @@ class SimpleLama:
         if image is None:
             return None
         if mask is None:
-            mask = Image.new('L', image.size, 0)
+            mask = Image.new("L", image.size, 0)
             return None
         image, mask = prepare_img_and_mask(image, mask, self.device)
         with torch.inference_mode():
@@ -105,10 +107,11 @@ class SimpleLama:
             cur_res = np.clip(cur_res * 255, 0, 255).astype(np.uint8)
             cur_res = Image.fromarray(cur_res)
             return cur_res
-        
+
+
 if __name__ == "__main__":
     lama = SimpleLama()
     image = Image.open("C:\\Users\\X\\Desktop\\inpaint_test.png")
     mask_image = Image.open("C:\\Users\\X\\Desktop\\1mask.png")
-    result_image = lama(image,mask_image)
+    result_image = lama(image, mask_image)
     result_image.show()

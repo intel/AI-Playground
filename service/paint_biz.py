@@ -129,7 +129,14 @@ _safety_checker: StableDiffusionSafetyChecker = None
 
 
 def get_basic_model(input_model_name: str) -> DiffusionPipeline | Any:
-    global _last_model_name, _basic_model_pipe, load_model_callback, _last_lora, _last_scheduler, _taesd_vae, _safety_checker
+    global \
+        _last_model_name, \
+        _basic_model_pipe, \
+        load_model_callback, \
+        _last_lora, \
+        _last_scheduler, \
+        _taesd_vae, \
+        _safety_checker
 
     assert_stop_generate()
 
@@ -294,7 +301,11 @@ def load_model_from_pretrained(model_dir: str):
 
 
 def set_lora(pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, lora: str):
-    global _default_scheduler, _last_lora, download_progress_callback, download_completed_callback
+    global \
+        _default_scheduler, \
+        _last_lora, \
+        download_progress_callback, \
+        download_completed_callback
     if lora == _last_lora:
         return
     if lora != "None":
@@ -335,7 +346,12 @@ def set_components(
     ),
     params: TextImageParams,
 ):
-    global _last_scheduler, _last_lora, load_model_components_callback, _taesd_vae, _safety_checker
+    global \
+        _last_scheduler, \
+        _last_lora, \
+        load_model_components_callback, \
+        _taesd_vae, \
+        _safety_checker
 
     if load_model_components_callback is not None:
         load_model_components_callback("start")
@@ -346,7 +362,6 @@ def set_components(
     if params.safe_check and isinstance(
         pipe, StableDiffusionPipeline | StableDiffusionInpaintPipeline
     ):
-
         pipe.safety_checker = _safety_checker
     else:
         pipe.safety_checker = None
@@ -396,7 +411,12 @@ def __callback_on_step_end__(
     timesteps: int,
     callback_kwargs: Dict,
 ):
-    global step_end_callback, _generate_idx, _preview_enabled, _taesd_vae, _preview_queue
+    global \
+        step_end_callback, \
+        _generate_idx, \
+        _preview_enabled, \
+        _taesd_vae, \
+        _preview_queue
 
     assert_stop_generate()
 
@@ -795,7 +815,15 @@ def output_image(
 
 
 def generate(params: TextImageParams):
-    global _last_model_name, _last_mode, _basic_model_pipe, _ext_model_pipe, _realESRGANer, _stop_generate, _generating, _preview_enabled
+    global \
+        _last_model_name, \
+        _last_mode, \
+        _basic_model_pipe, \
+        _ext_model_pipe, \
+        _realESRGANer, \
+        _stop_generate, \
+        _generating, \
+        _preview_enabled
 
     try:
         stop_generate()
@@ -834,7 +862,14 @@ def generate(params: TextImageParams):
 
 
 def dispose_basic_model():
-    global _basic_model_pipe, _ext_model_pipe, _taesd_vae, _last_lora, _last_scheduler, _last_mode, _last_model_name
+    global \
+        _basic_model_pipe, \
+        _ext_model_pipe, \
+        _taesd_vae, \
+        _last_lora, \
+        _last_scheduler, \
+        _last_mode, \
+        _last_model_name
 
     stop_generate()
 

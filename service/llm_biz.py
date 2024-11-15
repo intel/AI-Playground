@@ -30,12 +30,17 @@ import model_config
 class LLMParams:
     prompt: List[Dict[str, str]]
     device: int
-    enable_rag: bool 
+    enable_rag: bool
     model_repo_id: str
     print_metrics: bool
 
     def __init__(
-        self, prompt: list, device: int, enable_rag: bool, model_repo_id: str, print_metrics: bool = True
+        self,
+        prompt: list,
+        device: int,
+        enable_rag: bool,
+        model_repo_id: str,
+        print_metrics: bool = True,
     ) -> None:
         self.prompt = prompt
         self.device = device
@@ -52,10 +57,9 @@ _stop_generate = False
 _stop_event = threading.Event()
 _last_repo_id: str = None
 _default_prompt = {
-        "role": "system",
-        "content": "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user. Please keep the output text language the same as the user input.",
-    }
-
+    "role": "system",
+    "content": "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user. Please keep the output text language the same as the user input.",
+}
 
 
 def user_stop(input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs):
@@ -87,7 +91,7 @@ def generate(
     logging.debug(f"got prompt: {prompt}")
     global _stop_generate, _default_prompt
     _stop_generate = False
-    
+
     chat_history = [_default_prompt]
     prompt_len = prompt.__len__()
     i = 0
@@ -99,16 +103,14 @@ def generate(
             )
         i = i + 1
 
-    
-
     new_prompt = tokenizer.apply_chat_template(
-         chat_history, tokenize=False, add_generation_prompt=True
+        chat_history, tokenize=False, add_generation_prompt=True
     )
-    
+
     while len(tokenizer.tokenize(new_prompt)) > 2000:
         chat_history.remove(chat_history[1])
         new_prompt = tokenizer.apply_chat_template(
-             chat_history, tokenize=False, add_generation_prompt=True
+            chat_history, tokenize=False, add_generation_prompt=True
         )
 
     model_inputs = tokenizer(new_prompt, return_tensors="pt").to(model_config.device)
@@ -148,6 +150,7 @@ def process_rag(
     text_out_callback: Callable[[str, int], None] = None,
 ):
     import rag
+
     rag.to(model_config.device)
     query_success, context, rag_source = rag.query(prompt)
     if query_success:
@@ -197,13 +200,13 @@ def chat(
                 load_model_callback("start")
             start = time.time()
 
-            load_in_low_bit="sym_int4"
+            load_in_low_bit = "sym_int4"
 
             _model = AutoModelForCausalLM.from_pretrained(
                 model_path,
                 torch_dtype=torch.float16,
                 trust_remote_code=True,
-                load_in_low_bit= load_in_low_bit,
+                load_in_low_bit=load_in_low_bit,
                 # load_in_4bit=True,
             )
 

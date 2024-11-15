@@ -49,7 +49,7 @@ def preprocess_outpaint(direction: str, image: Image.Image):
     )
 
     image_ndarray = Image.fromarray(image_ndarray)
-    
+
     inpaint_mask = outpaint_canny_gradient(
         inpaint_mask, top_pad, bottom_pad, left_pad, right_pad
     )
