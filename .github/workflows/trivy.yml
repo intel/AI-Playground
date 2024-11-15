@@ -1,13 +1,7 @@
 name: build
 on:
-  push:
-    branches:
-      - main
-      - dev
-  pull_request:
-    branches:
-      - main
-      - dev
+  schedule:
+    - cron: '42 21 * * 0'
 jobs:
   trivy-scan:
     name: Trivy Scan
