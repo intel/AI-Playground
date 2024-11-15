@@ -165,7 +165,6 @@ def get_ESRGAN_size():
 
 
 def get_support_graphics(env_type: str):
-    import re
     import model_config
 
     device_count = torch.xpu.device_count()

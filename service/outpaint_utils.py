@@ -85,7 +85,7 @@ def outpaint_canny_gradient(
     left_pad: int,
     right_pad: int,
 ):
-    if type(image) == Image.Image:
+    if isinstance(image, Image.Image):
         img_ndata = np.array(image)
     else:
         img_ndata = image
@@ -119,7 +119,7 @@ def outpaint_canny_blur(
     left_pad: int,
     right_pad: int,
 ):
-    if type(image) == Image.Image:
+    if isinstance(image, Image.Image):
         img_ndata = np.array(image)
     else:
         img_ndata = image

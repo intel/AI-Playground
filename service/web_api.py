@@ -27,7 +27,7 @@ try:
     # Set the environment variable to filter devices
     os.environ["ONEAPI_DEVICE_SELECTOR"] = f"*:{supported_ids}"
     print(f"Set ONEAPI_DEVICE_SELECTOR={os.environ['ONEAPI_DEVICE_SELECTOR']}")
-except:
+except: # noqa: E722
     pass
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -35,7 +35,7 @@ except:
 # + https://github.com/XPixelGroup/BasicSR/issues/649
 # + https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/13985
 try:
-    import torchvision.transforms.functional_tensor
+    import torchvision.transforms.functional_tensor # noqa: F401
 except ImportError:
     try:
         import torchvision.transforms.functional as functional

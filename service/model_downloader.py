@@ -86,7 +86,7 @@ class HFPlaygroundDownloader:
     def is_gated(self, repo_id: str):
         try:
             info = model_info(repo_id)
-            return info.gated != False
+            return info.gated
         except Exception as ex:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
             return False

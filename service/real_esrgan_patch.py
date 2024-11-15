@@ -1,4 +1,3 @@
-import os
 import sys
 
 def patch_import(file_path):

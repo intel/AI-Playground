@@ -234,7 +234,6 @@ def chat(
         is_first = True
         first_token_time = 0
         last_token_time = 0
-        total_time = 0
         with torch.inference_mode():
             all_stream_output = ""
             for stream_output in generate(

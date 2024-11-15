@@ -164,11 +164,11 @@ class MatteMatting:
         :return: 返回替换白色后的透明图
         """
         img = img.convert("RGBA")
-        L, H = img.size
+        W, H = img.size
         color_0 = (255, 255, 255, 255)  # 要替换的颜色
         for h in range(H):
-            for l in range(L):
-                dot = (l, h)
+            for w in range(W):
+                dot = (w, h)
                 color_1 = img.getpixel(dot)
                 if color_1 == color_0:
                     color_1 = color_1[:-1] + (0,)

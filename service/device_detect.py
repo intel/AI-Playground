@@ -1,5 +1,5 @@
 import torch
-import intel_extension_for_pytorch as ipex
+import intel_extension_for_pytorch as ipex # noqa: F401
 
 # filter out non-Arc devices
 supported_ids = []
