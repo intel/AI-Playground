@@ -11,7 +11,9 @@ export const useI18N = defineStore("i18n", () => {
   const languageOptions = ref([
     { value: 'de', name: "Deutsch" },
     { value: 'en-US', name: "English" },
+    { value: 'es', name: "Español" },
     { value: 'id', name: "Bahasa Indonesia" },
+    { value: 'it', name: "Italiano" },
     { value: 'ja', name: "日本語" },
     { value: 'ko', name: "영어" },
     { value: 'pl', name: "język polski" },
@@ -36,6 +38,10 @@ export const useI18N = defineStore("i18n", () => {
   });
 
   async function init() {
+    const locale = localStorage.getItem("locale");
+    if (locale) {
+      langName.value = locale;
+    }
     console.debug("init i18n:", langName.value);
     await switchLanguage(langName.value);
   }
@@ -56,6 +62,8 @@ export const useI18N = defineStore("i18n", () => {
     updateLanguageRecord(languageRecords);
     langName.value = lang;
     currentLanguageName.value = languageOptions.value.find((item) => item.value === lang)?.name || "Unknown";
+
+    localStorage.setItem("locale", lang);
   }
 
   return {
