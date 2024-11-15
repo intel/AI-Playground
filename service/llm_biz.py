@@ -84,7 +84,7 @@ def generate(
     max_new_tokens: int,
     error_callback: Callable[[Exception], None] = None,
 ):
-    logging.info(f"got prompt: {prompt}")
+    logging.debug(f"got prompt: {prompt}")
     global _stop_generate, _default_prompt
     _stop_generate = False
     
