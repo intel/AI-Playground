@@ -1,5 +1,8 @@
 import sys
 import os
+import unittest
+from web_api import app
+import logging
 
 service_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, service_dir)
@@ -13,11 +16,6 @@ model_paths = {
     "stableDiffusion": os.path.join(model_dir, "stable_diffusion", "checkpoints"),
     "vae": os.path.join(model_dir, "stable_diffusion", "vae"),
 }
-
-import unittest
-from web_api import app
-import logging
-
 
 class TestAPI(unittest.TestCase):
     def setUp(self):
