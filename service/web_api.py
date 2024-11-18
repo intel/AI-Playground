@@ -34,6 +34,7 @@ import aipg_utils as utils
 import rag
 import model_config
 from model_downloader import HFPlaygroundDownloader
+import huggingface_hub as hf
 from psutil._common import bytes2human
 import traceback
 
@@ -163,6 +164,21 @@ def check_model_exist():
         result_list.append({"repo_id": repo_id, "type": type, "exist": exist})
     return jsonify({"code": 0, "message": "success", "exists": result_list})
 
+@app.route("/api/checkURLExists", methods=["POST"])
+def check_url_exists():
+    address = request.get_json()
+    downloader = HFPlaygroundDownloader()
+    exists = True
+    try:
+        downloader.probe_url(address)
+    except hf.utils._errors.RepositoryNotFoundError:
+        exists = False
+
+    return jsonify(
+            {
+                "exists": exists
+            }
+        )
 
 size_cache = dict()
 lock = threading.Lock()

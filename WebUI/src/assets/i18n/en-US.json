@@ -162,6 +162,8 @@
   "ERROR_RUNTIME_ERROR": "If a critical failure occurs, please restart the program and try again",
   "ERROR_GENERATE_UNKONW_EXCEPTION": "An unknown error occurred. failed to generate from model",
   "ERROR_FOLDER_NOT_EXISTS": "The specified directory does not exist",
+  "ERROR_REPO_NOT_EXISTS": "The specified repository-ID could not be found",
+  "ERROR_ALREADY_IN_MODELS": "The specified model is already in the list",
   "ERROR_ENHANCE_IMAGE_NOT_SET": "Please configure the input image to be generated",
   "ERROR_UNFOUND_GRAPHICS": "If the necessary hardware for program execution is not detected on the computer device, the program will terminate upon clicking OK.",
   "ERROR_PYTHON_BACKEND_INIT": "Backend initialization failed",

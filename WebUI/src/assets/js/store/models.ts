@@ -17,6 +17,9 @@ const predefinedModels: Model[] = [
     // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
 ]    
 
+export const userModels: Model[] = [
+]
+
 export const useModels = defineStore("models", () => {
 
     const hfToken = ref<string | undefined>(undefined);
@@ -39,9 +42,10 @@ export const useModels = defineStore("models", () => {
             ...inpaintModels.map<Model>(name => ({ name, type: 'inpaint', downloaded: true })),
             ...embeddingModels.map<Model>(name => ({ name, type: 'embedding', downloaded: true })),
         ];
+
         const notYetDownloaded = (model: Model) => !downloadedModels.map(m => m.name).includes(model.name);
 
-        models.value = [...downloadedModels, ...predefinedModels.filter(notYetDownloaded)];
+        models.value = [...downloadedModels, ...userModels, ...predefinedModels.filter(notYetDownloaded)];
         console.log(models);
 
         }

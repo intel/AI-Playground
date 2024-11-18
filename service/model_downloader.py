@@ -83,6 +83,9 @@ class HFPlaygroundDownloader:
         self.thread_lock = Lock()
         self.hf_token = hf_token
 
+    def probe_url(self, repo_id: str):
+        model_info(repo_id)
+
     def is_gated(self, repo_id: str):
         try:
             info = model_info(repo_id)
