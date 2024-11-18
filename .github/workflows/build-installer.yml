@@ -11,8 +11,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Cache npm modules
+        uses: actions/cache@v3
+        id: npm-cache
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm
+
+      - name: Install Node.js and npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Miniforge
+        run: |
+          choco install miniforge3
+
+      - name: Install libuv dependency with Miniforge
+        run: |
+          conda create -n cp311_libuv python=3.11 libuv -y
+          # copy the path to this conda env
+          conda env list | findstr cp311_libuv
+
       - name: pwd
         run: |
           pwd
-          ls
 
+      - name: pwd
+        working-directory: "WebUI"
+        run: |
+          pwd
+
+      - name: pwd
+        run: |
+          pwd
+
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: "WebUI"
