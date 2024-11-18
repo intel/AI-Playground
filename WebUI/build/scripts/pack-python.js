@@ -111,7 +111,7 @@ function patchCondaDllsIntoPythonEnv(pyEnvDirPath) {
 }
 
 function compressPythonEnvDirectory(pyEnvDirPath) {
-    const outputFile = path.join(pythonPackageResourcesDir, 'env.7z');
+    const outputFile = path.join(pythonEmbedDir, 'env.7z');
     console.log(`7zipping env directory into ${outputFile}`)
     if (fs.existsSync(outputFile)) {
         console.warn("Removing existing 7z file:", outputFile);

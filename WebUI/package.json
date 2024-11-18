@@ -4,6 +4,7 @@
   "version": "1.22.1-beta",
   "scripts": {
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
+    "fetch-build-resources": "cross-env node ./build/scripts/fetch-python-package-resources.js ../python_package_res",
     "pack-offline": "cross-env node build/scripts/pack-offline.js ./package_res",
     "pack-python": "cross-env node build/scripts/pack-python.js ../python_package_res ./npm_package_res",
     "prebuild": "cross-env node build/scripts/prebuild.js ./npm_package_res ../service ./external",

@@ -1,12 +1,12 @@
-// Usage: node pack-offline.js <package_res_dir> <platform>
-
+// Usage: node pack-offline.js <npm_package_res_dir> <platform>
+//
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 const childProcess = require('child_process');
 
 if (process.argv.length < 4) {
-    console.error('Usage: node pack-offline.js <package_res_dir> <platform>');
+    console.error('Usage: node pack-offline.js <npm_package_res_dir> <platform>');
     process.exit(1);
 }
 
