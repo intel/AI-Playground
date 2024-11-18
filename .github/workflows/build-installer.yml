@@ -23,14 +23,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Miniforge
-        run: |
-          choco install miniforge3
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-activate-base: true
+          python-version: "3.11"
+          miniforge-version: latest
 
       - name: Install libuv dependency with Miniforge
         run: |
           conda create -n cp311_libuv python=3.11 libuv -y
-          # copy the path to this conda env
+          conda env list
           conda env list | findstr cp311_libuv
 
       - name: pwd
