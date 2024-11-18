@@ -1,5 +1,3 @@
--r requirements.txt
-
 # IPEX
 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/lnl/us/
 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/lnl/cn/

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
+const buildDir = path.join(__dirname, '..')
 // Function to render the template with environment variables
 function renderTemplate(templatePath, outputPath, variables) {
   // Read the template content
@@ -29,8 +29,8 @@ function renderTemplate(templatePath, outputPath, variables) {
 }
 
 // Example usage
-const templatePath = path.join(__dirname, 'installer.nsh.template');
-const outputPath = path.join(__dirname, 'installer.nsh');
+const templatePath = path.join(buildDir, 'installer.nsh.template');
+const outputPath = path.join(buildDir, 'installer.nsh');
 const variables = {
   PLATFORM: process.env.PLATFORM || 'arc'
 };

@@ -23,7 +23,9 @@
             Abort ; Abort the installation if Cancel is clicked
 
         continue:
-            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements-${PLATFORM}.txt"'
+            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "$INSTDIR\resources\env\get-pip.py" "--no-warn-script-location"'
+            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements-${PLATFORM}.txt" "--no-warn-script-location"'
+            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements.txt" "--no-warn-script-location"'
     end:
         DetailPrint "Installation completed."
 !macroend
