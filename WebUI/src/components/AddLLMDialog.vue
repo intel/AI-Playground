@@ -1,15 +1,15 @@
 <template>
     <div class="dialog-container z-10">
         <div class="dialog-mask absolute left-0 top-0 w-full h-full bg-black/55 flex justify-center items-center">
-            <div class="py-20 px-20 w-768px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-8 text-white"
+            <div class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-6 text-white"
                 :class="{ 'animate-scale-in': animate }">
-              <p>{{ i18nState.REQUEST_LLM_MODEL_NAME }}</p>
-              <textarea class="rounded-xl border border-color-spilter flex-auto w-full h-auto resize-none"
+              <p v-html= "i18nState.REQUEST_LLM_MODEL_NAME"></p>
+              <textarea class="rounded-xl border border-color-spilter flex-auto w-full h-auto resize-none" rows="1"
                         :placeholder="languages.COM_LLM_HF_PROMPT" v-model="modelRequest" @keydown="fastGenerate"></textarea>
               <p v-show = "addModelError" style="color: #F44336;">{{ addModelErrorMessage }}</p>
               <div class="flex justify-center items-center gap-9">
-                <button @click="closeAdd" class="rounded border bg-red-500 py-1 px-4">{{ i18nState.COM_CLOSE }}</button>
-                <button @click="addModel" class="rounded border bg-red-500 py-1 px-4">{{ i18nState.COM_ADD }}</button>
+                <button @click="closeAdd" class="bg-color-control-bg  py-1 px-4 rounded">{{ i18nState.COM_CLOSE }}</button>
+                <button @click="addModel" class="bg-color-control-bg  py-1 px-4 rounded">{{ i18nState.COM_ADD }}</button>
               </div>
             </div>
         </div>
@@ -61,7 +61,7 @@ async function addModel() {
     console.log(models.models)
     globalSetup.modelSettings.llm_model = modelRequest.value;
     emits("callCheckModel");
-    emits("close")
+    closeAdd()
   } else if (is_in_models) {
     globalSetup.modelSettings.llm_model = previousModel
     addModelErrorMessage.value = i18nState.ERROR_ALREADY_IN_MODELS
