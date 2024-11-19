@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 
-type ModelType = "llm" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae";
+export type ModelType = "llm" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae" | "undefined";
 
 export type Model = {
     name: string;

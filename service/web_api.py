@@ -180,6 +180,21 @@ def check_url_exists():
             }
         )
 
+@app.route("/api/isLLM", methods=["POST"])
+def is_llm():
+    address = request.get_json()
+    downloader = HFPlaygroundDownloader()
+    try:
+        model_type_hf = downloader.probe_type(address)
+    except:
+        model_type_hf = "undefined"
+    return jsonify(
+            {
+            "isllm": model_type_hf == "text-generation"
+            }
+        )
+
+
 size_cache = dict()
 lock = threading.Lock()
 

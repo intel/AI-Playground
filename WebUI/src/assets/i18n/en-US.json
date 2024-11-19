@@ -125,7 +125,7 @@
   "DECREASE_FONT_SIZE": "Shrink Text",
   "ANSWER_RAG_ENABLE":"Enable File Query",
   "ANSWER_RAG_OPEN_DIALOG":"Open File Uploader",
-  "REQUEST_LLM_MODEL_NAME":"Add a model of your choice from huggingface.co,<br />e.g. meta-llama/Llama-3.2-11B-Vision-Instruct: ",
+  "REQUEST_LLM_MODEL_NAME":"Add a model of your choice from huggingface.co,<br />for example: <i>meta-llama/Llama-3.2-1B </i>",
   "DOWNLOADER_CONFRIM_TIP":"You are missing one or more models needed to run. Would you like to download the model(s) listed below?",
   "DOWNLOADER_MODEL":"Model",
   "DOWNLOADER_INFO":"Info",
@@ -169,5 +169,6 @@
   "ERROR_PYTHON_BACKEND_INIT": "Backend initialization failed",
   "ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "The AI inference backend failed to initialize. Please try restarting the application. If the problem persists, you can check the Details for additional information about the error.",
   "ERROR_PYTHON_BACKEND_INIT_DETAILS": "Details",
-  "ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log"
+  "ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log",
+  "WARNING_MODEL_TYPE_WRONG": "The model type doesn't seem to fit the requirements. Are you sure, you want to continue?"
 }

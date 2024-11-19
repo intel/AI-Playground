@@ -71,7 +71,8 @@
       <app-settings v-if="showSetting" @close="hideAppSettings" @show-download-model-confirm="showDownloadModelConfirm"></app-settings>
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
-    <add-l-l-m-dialog v-show="showModelRequestDialog" ref="addLLMCompt" @close="showModelRequestDialog = false" @call-check-model="callCheckModel"></add-l-l-m-dialog>
+    <add-l-l-m-dialog v-show="showModelRequestDialog" ref="addLLMCompt" @close="showModelRequestDialog = false" @call-check-model="callCheckModel" @show-warning="showWarning"></add-l-l-m-dialog>
+    <warning-dialog v-show="showWarningDialog" ref="warningCompt" @close="showWarningDialog = false"></warning-dialog>
   </main>
   <footer class="flex-none px-4 flex justify-between items-center select-none" :class="{'bg-black bg-opacity-50': theme.active === 'lnl', 'bg-black bg-opacity-80': theme.active === 'bmg', 'border-t border-color-spilter': theme.active === 'dark'}">
     <div>
@@ -117,6 +118,7 @@ import DownloadDialog from '@/components/DownloadDialog.vue';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useTheme } from "./assets/js/store/theme.ts";
 import AddLLMDialog from "@/components/AddLLMDialog.vue";
+import WarningDialog from "@/components/WarningDialog.vue";
 
 
 const isOpen = ref(false);
@@ -137,9 +139,13 @@ const showDowloadDlg = ref(false);
 
 const showModelRequestDialog = ref(false);
 
+const showWarningDialog = ref(false);
+
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>();
 
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>();
+
+const warningCompt = ref<InstanceType<typeof WarningDialog>>();
 
 const fullscreen = ref(false);
 
@@ -168,7 +174,6 @@ onBeforeMount(async () => {
     }
   })
 })
-
 
 function showAppSettings() {
   if (showSetting.value === false) {
@@ -227,14 +232,12 @@ function postImageToEnhance(imageUrl: string) {
 
 function showDownloadModelConfirm(downList: DownloadModelParam[], success?: () => void, fail?: () => void) {
   showDowloadDlg.value = true;
-  console.log(downList)
   nextTick(() => {
     downloadDigCompt.value!.showConfirm(downList, success, fail);
-    console.log(showDowloadDlg.value)
   });
 }
 
-function showModelRequest(success?: () => void, fail?: () => void) {
+function showModelRequest() {
   showModelRequestDialog.value = true;
 }
 
@@ -242,5 +245,10 @@ function callCheckModel(){
   answer.value!.checkModel();
 }
 
+function showWarning(message : string, func : () => void) {
+  warningCompt.value!.warningMessage = message;
+  showWarningDialog.value = true;
+  warningCompt.value!.confirmFunction = func;
+}
 
 </script>

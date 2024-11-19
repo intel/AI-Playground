@@ -86,6 +86,9 @@ class HFPlaygroundDownloader:
     def probe_url(self, repo_id: str):
         model_info(repo_id)
 
+    def probe_type(self, repo_id : str):
+        return model_info(repo_id).pipeline_tag
+
     def is_gated(self, repo_id: str):
         try:
             info = model_info(repo_id)
