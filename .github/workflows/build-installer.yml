@@ -1,5 +1,7 @@
 name: build installer
 
+run-name: installer-build-${{ github.sha }}
+
 on:
   workflow_dispatch:
 
@@ -11,44 +13,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: npm-cache
+      - name: setup miniforge
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm
-
-      - name: Install Node.js and npm
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-activate-base: true
-          python-version: "3.11"
           miniforge-version: latest
+          python-version: "3.11"
+          activate-environment: 'cp311_libuv'
 
-      - name: Install libuv dependency with Miniforge
+      - name: Install libuv dependency
         run: |
-          conda create -n cp311_libuv python=3.11 libuv -y
+          conda install -y libuv
           conda env list
-          conda env list | findstr cp311_libuv
+          conda env list | findstr libuv
+          ls C:\Users\runneradmin\miniconda3\envs\cp311_libuv
+          echo "$(conda env list | findstr libuv)"
+          echo "$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)" 
+          echo "LIBUV_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)"
+          echo "LIBUV_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)" >> $env:GITHUB_ENV
 
-      - name: pwd
+      - name: test
         run: |
-          pwd
-
-      - name: pwd
-        working-directory: "WebUI"
-        run: |
-          pwd
-
-      - name: pwd
-        run: |
-          pwd
-
-
-      - name: Install dependencies
-        run: npm install
-        working-directory: "WebUI"
+          echo "${{ env.LIBUV_PATH }}"
+          echo "${{ env.LIBUV_PATH }}\Library"
+          dir "${{ env.LIBUV_PATH }}"
+          dir "${{ env.LIBUV_PATH }}\Library" -recurse -depth 2
