@@ -23,17 +23,46 @@ jobs:
       - name: Install libuv dependency
         run: |
           conda install -y libuv
-          conda env list
           conda env list | findstr libuv
-          ls C:\Users\runneradmin\miniconda3\envs\cp311_libuv
-          echo "$(conda env list | findstr libuv)"
-          echo "$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)" 
-          echo "LIBUV_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)"
-          echo "LIBUV_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)" >> $env:GITHUB_ENV
+          echo "LIBUV_DLLS_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)\Library\bin"
+          echo "LIBUV_DLLS_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)\Library\bin" >> $env:GITHUB_ENV
 
-      - name: test
+      - name: copy libuv dlls to workspace
         run: |
-          echo "${{ env.LIBUV_PATH }}"
-          echo "${{ env.LIBUV_PATH }}\Library"
-          dir "${{ env.LIBUV_PATH }}"
-          dir "${{ env.LIBUV_PATH }}\Library" -recurse -depth 2
+          New-Item -ItemType Directory -Path "python_package_res\conda\Library\bin" -Force
+          copy "${{ env.LIBUV_DLLS_PATH }}\*.dll" "python_package_res\conda\Library\bin"
+
+      - name: Install Node.js and npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: setup npm project
+        working-directory: "WebUI"
+        run: npm install
+
+      - name: build installer
+        working-directory: "WebUI"
+        run: |
+          npm install
+          npm run fetch-build-resources
+          npm run pack-python
+          npm run prebuild
+          npm run build:arc
+
+      - name: set release path
+        run: |
+          echo "INSTALLER_EXE_PATH=$((Resolve-Path -Path '.\release\AI Playground-1.22.1-beta-For-arc.exe').Path)"
+          echo "INSTALLER_EXE_PATH=$((Resolve-Path -Path '.\release\AI Playground-1.22.1-beta-For-arc.exe').Path)" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          # Name of the artifact to upload.
+          # Optional. Default is 'artifact'
+          name: arc-installer-windows.exe
+          # A file, directory or wildcard pattern that describes what to upload
+          # Required.
+          path: ${{ env.INSTALLER_EXE_PATH }}
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
