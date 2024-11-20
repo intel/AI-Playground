@@ -1,10 +1,19 @@
 name: build installer
 
-run-name: installer-build-${{ github.sha }}
+run-name: installer-build-${{ inputs.platform }}-${{ github.sha }}
 
 on:
   workflow_dispatch:
-
+    inputs:
+      platform:
+        type: choice
+        description: installer(s) to build
+        required: true
+        options:
+          - arc
+          - ultra
+          - ultra2
+          - all
 jobs:
   build:
     runs-on: windows-latest
@@ -48,22 +57,24 @@ jobs:
           npm run fetch-build-resources
           npm run pack-python
           npm run prebuild
-          npm run build:arc
+          npm run build:${{ inputs.platform }}
 
       - name: set release path
         working-directory: "release"
         run: |
-          echo "INSTALLER_EXE_PATH=$(Get-ChildItem -Path . -Filter *.exe | Select-Object -ExpandProperty FullName)"
-          echo "INSTALLER_EXE_PATH=$(Get-ChildItem -Path . -Filter *.exe | Select-Object -ExpandProperty FullName)" >> $env:GITHUB_ENV
+          echo "RELEASE_DIR=$((pwd).Path)"
+          echo "RELEASE_DIR=$((pwd).Path)" >> $env:GITHUB_ENV
 
-      - uses: actions/upload-artifact@v4
+      - name: upload single release
+        uses: actions/upload-artifact@v4
         with:
           # Name of the artifact to upload.
           # Optional. Default is 'artifact'
-          name: arc-installer-windows.exe
+          name: "${{ inputs.platform }}_installers"
           # A file, directory or wildcard pattern that describes what to upload
           # Required.
-          path: ${{ env.INSTALLER_EXE_PATH }}
+          path: ${{ env.RELEASE_DIR }}\*.exe
           if-no-files-found: error
           retention-days: 1
           overwrite: true
+
