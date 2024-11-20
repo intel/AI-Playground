@@ -51,9 +51,10 @@ jobs:
           npm run build:arc
 
       - name: set release path
+        working-directory: "release"
         run: |
-          echo "INSTALLER_EXE_PATH=$((Resolve-Path -Path '.\release\AI Playground-1.22.1-beta-For-arc.exe').Path)"
-          echo "INSTALLER_EXE_PATH=$((Resolve-Path -Path '.\release\AI Playground-1.22.1-beta-For-arc.exe').Path)" >> $env:GITHUB_ENV
+          echo "INSTALLER_EXE_PATH=$(Get-ChildItem -Path . -Filter *.exe | Select-Object -ExpandProperty FullName)"
+          echo "INSTALLER_EXE_PATH=$(Get-ChildItem -Path . -Filter *.exe | Select-Object -ExpandProperty FullName)" >> $env:GITHUB_ENV
 
       - uses: actions/upload-artifact@v4
         with:
