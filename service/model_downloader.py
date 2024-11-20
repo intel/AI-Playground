@@ -332,6 +332,18 @@ class HFPlaygroundDownloader:
 
         return response, fw
 
+    def is_token_valid(self, repo_id: str):
+        headers={}
+        if (self.hf_token is not None):
+            headers["Authorization"] = f"Bearer {self.hf_token}"
+
+        name = self.fs.ls(repo_id, detail=True)[0].get("name")
+        url = hf_hub_url(repo_id=repo_id, filename = path.basename(path.relpath(name, repo_id)))
+        response = requests.get(url, stream=True, verify=False, headers=headers)
+
+        return response.status_code == 200, url, response.status_code
+
+
     def download_model_file(self):
         try:
             while not self.download_stop and not self.file_queue.empty():
