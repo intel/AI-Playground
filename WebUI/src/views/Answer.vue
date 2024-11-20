@@ -176,12 +176,6 @@
             </div>
             <rag v-if="ragData.showUploader" ref="ragPanel" @close="ragData.showUploader = false"></rag>
         </div>
-        <teleport to="#answerPanel" v-if="showDowloadDlg">
-            <download-dialog ref="downloadDigCompt"></download-dialog>
-        </teleport>
-        <teleport to="#answerPanel" v-if="showModelRequestDialog">
-            <add-l-l-m-dialog ref="addLLMDialog" @add-model="checkModel"></add-l-l-m-dialog>
-        </teleport>
     </div>
 
 </template>
@@ -190,8 +184,6 @@ import Rag from "../components/Rag.vue";
 import ProgressBar from "../components/ProgressBar.vue";
 import LoadingBar from "../components/LoadingBar.vue";
 import DropSelector from "@/components/DropSelector.vue";
-import DownloadDialog from "@/components/DownloadDialog.vue";
-import AddLLMDialog from "@/components/AddLLMDialog.vue";
 import ModelDropDownItem from "@/components/ModelDropDownItem.vue";
 import { useI18N } from '@/assets/js/store/i18n';
 import { toast } from '@/assets/js/toast';
@@ -226,15 +218,11 @@ const loadingModel = ref(false);
 let receiveOut = "";
 let chatPanel: HTMLElement;
 const markdownParser = new MarkdownParser(i18nState.COM_COPY);
-const showDowloadDlg = ref(false);
-const showModelRequestDialog = ref(false);
 const ragData = reactive({
     enable: false,
     processEnable: false,
     showUploader: false,
 });
-const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
-const addLLMDialog = ref<InstanceType<typeof AddLLMDialog>>()
 
 const source = ref("");
 const emits = defineEmits<{

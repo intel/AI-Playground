@@ -22,9 +22,6 @@ const emits = defineEmits<{
     (e: "close"): void
 }>();
 
-onDeactivated(() => {
-    animate.value = false;
-})
 
 async function confirmAdd() {
   confirmFunction.value()
@@ -35,7 +32,11 @@ function cancelConfirm() {
   emits("close");
 }
 
-defineExpose({warningMessage, confirmFunction});
+function onShow(){
+  animate.value = true
+}
+
+defineExpose({warningMessage, confirmFunction, onShow });
 
 </script>
 <style scoped>

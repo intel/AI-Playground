@@ -111,10 +111,6 @@ const readTerms = ref(false);
 const downloadList = ref<DownloadModelRender[]>([]);
 
 
-onDeactivated(() => {
-    animate.value = false;
-})
-
 function dataProcess(line: string) {
     console.log(line);
     const dataJson = line.slice(5);

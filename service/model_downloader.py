@@ -1,4 +1,5 @@
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
+from huggingface_hub.utils._errors import RepositoryNotFoundError
 from typing import Any, Callable, Dict, List
 from os import path, makedirs, rename
 import requests
@@ -11,10 +12,10 @@ from exceptions import DownloadException
 import traceback
 import concurrent.futures
 import aipg_utils as utils
+import shutil
 
 model_list_cache = dict()
 model_lock = Lock()
-
 
 class HFFileItem:
     relpath: str
@@ -83,8 +84,12 @@ class HFPlaygroundDownloader:
         self.thread_lock = Lock()
         self.hf_token = hf_token
 
-    def probe_url(self, repo_id: str):
-        model_info(repo_id)
+    def hf_url_exists(self, repo_id: str):
+        try:
+            model_info(repo_id)
+            return True
+        except RepositoryNotFoundError:
+            return False
 
     def probe_type(self, repo_id : str):
         return model_info(repo_id).pipeline_tag
@@ -264,6 +269,9 @@ class HFPlaygroundDownloader:
                     path.join(self.save_path, self.repo_id.replace("/", "---"))
                 ),
             )
+        else:
+            # Download aborted
+            shutil.rmtree(self.save_path_tmp)
 
     def start_report_download_progress(self):
         thread = Thread(target=self.report_download_progress)

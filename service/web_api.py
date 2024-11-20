@@ -164,15 +164,12 @@ def check_model_exist():
         result_list.append({"repo_id": repo_id, "type": type, "exist": exist})
     return jsonify({"code": 0, "message": "success", "exists": result_list})
 
+
 @app.route("/api/checkURLExists", methods=["POST"])
 def check_url_exists():
     address = request.get_json()
     downloader = HFPlaygroundDownloader()
-    exists = True
-    try:
-        downloader.probe_url(address)
-    except hf.utils._errors.RepositoryNotFoundError:
-        exists = False
+    exists = downloader.hf_url_exists(address)
 
     return jsonify(
             {

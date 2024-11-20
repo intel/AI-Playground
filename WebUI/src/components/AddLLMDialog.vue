@@ -34,9 +34,6 @@ const emits = defineEmits<{
     (e: "showWarning", warning : string, func : () => void): void
 }>();
 
-onDeactivated(() => {
-    animate.value = false;
-})
 
 function fastGenerate(e: KeyboardEvent) {
   if (e.code == "Enter") {
@@ -47,6 +44,10 @@ function fastGenerate(e: KeyboardEvent) {
       addModel()
     }
   }
+}
+
+function onShow() {
+  animate.value = true;
 }
 
 async function addModel() {
@@ -67,7 +68,6 @@ async function addModel() {
         globalSetup.modelSettings.llm_model = previousModel
         addModelErrorMessage.value = i18nState.ERROR_REPO_NOT_EXISTS
         addModelError.value = true;
-        console.log("Hey")
       }
   } else {
     globalSetup.modelSettings.llm_model = previousModel
@@ -111,6 +111,8 @@ function closeAdd() {
   modelRequest.value = "";
   emits("close");
 }
+
+defineExpose({ onShow });
 
 </script>
 <style scoped>

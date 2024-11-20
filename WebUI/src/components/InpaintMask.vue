@@ -108,7 +108,6 @@ function moveWithShadow(e: MouseEvent) {
 
 function showShadow() {
     shadowPos.show = true;
-    console.log("showShadow");
 }
 
 defineExpose({ clearMaskImage, getMaskImage })

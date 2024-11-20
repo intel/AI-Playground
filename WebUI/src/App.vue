@@ -239,6 +239,9 @@ function showDownloadModelConfirm(downList: DownloadModelParam[], success?: () =
 
 function showModelRequest() {
   showModelRequestDialog.value = true;
+  nextTick(() => {
+    addLLMCompt.value!.onShow();
+  });
 }
 
 function callCheckModel(){
@@ -249,6 +252,9 @@ function showWarning(message : string, func : () => void) {
   warningCompt.value!.warningMessage = message;
   showWarningDialog.value = true;
   warningCompt.value!.confirmFunction = func;
+  nextTick(() => {
+    warningCompt.value!.onShow();
+  });
 }
 
 </script>
