@@ -18,9 +18,9 @@ export const useI18N = defineStore("i18n", () => {
     { value: 'ko', name: "영어" },
     { value: 'pl', name: "język polski" },
     { value: 'th', name: "ภาษาไทย" },
+    { value: 'vi', name: "Tiếng Việt" },
     { value: 'zh-CN', name: "简体中文" },
     { value: 'zh-TW', name: "繁體中文" },
-    { value: 'vi', name: "Tiếng Việt" },
   ]);
 
   window.electronAPI.getLocalSettings().then((settings) => {
