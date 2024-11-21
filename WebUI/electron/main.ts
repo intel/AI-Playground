@@ -137,10 +137,8 @@ async function createWindow() {
     resizable: true,
     frame: false,
     // fullscreen: true,
-    x: 2800,
-    y: 600,
-    width: 2440,
-    height: 1400,
+    width: 1440,
+    height: 951,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js"),
       contextIsolation: true
