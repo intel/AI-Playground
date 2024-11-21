@@ -15,7 +15,7 @@ on:
           - ultra2
           - all
 jobs:
-  build:
+  build-installer:
     runs-on: windows-latest
 
     steps:
@@ -65,7 +65,7 @@ jobs:
           echo "RELEASE_DIR=$((pwd).Path)"
           echo "RELEASE_DIR=$((pwd).Path)" >> $env:GITHUB_ENV
 
-      - name: upload single release
+      - name: upload release
         uses: actions/upload-artifact@v4
         with:
           # Name of the artifact to upload.
