@@ -332,16 +332,27 @@ class HFPlaygroundDownloader:
 
         return response, fw
 
-    def is_token_valid(self, repo_id: str):
+    def is_access_granted(self, repo_id: str, model_type):
+
         headers={}
         if (self.hf_token is not None):
             headers["Authorization"] = f"Bearer {self.hf_token}"
 
-        name = self.fs.ls(repo_id, detail=True)[0].get("name")
-        url = hf_hub_url(repo_id=repo_id, filename = path.basename(path.relpath(name, repo_id)))
-        response = requests.get(url, stream=True, verify=False, headers=headers)
+        self.file_queue = queue.Queue()
+        self.repo_id = repo_id
+        self.save_path = path.join(utils.get_model_path(model_type))
+        self.save_path_tmp = path.abspath(
+            path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
+        )
 
-        return response.status_code == 200, url, response.status_code
+        file_list = list()
+        self.enum_file_list(file_list, repo_id, model_type)
+        self.build_queue(file_list)
+        file = self.file_queue.get_nowait()
+
+        response = requests.get(file.url, stream=True, verify=False, headers=headers)
+
+        return response.status_code == 200
 
 
     def download_model_file(self):

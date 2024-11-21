@@ -301,9 +301,10 @@ type CheckModelAlreadyLoadedParameters = {
 
 type BackendType = "comfyui" | "default"
 
+type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: boolean } & CheckModelAlreadyLoadedParameters
+
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
-type DownloadModelRender = { size: string, gated?: boolean } & CheckModelAlreadyLoadedParameters
 
 type CheckModelAlreadyLoadedResult = {
     already_loaded: boolean

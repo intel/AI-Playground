@@ -43,12 +43,21 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div v-if="downloadList.some((i) => i.gated)" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
-                        <span class="font-bold mx-4">{{ languages.DOWNLOADER_GATED_INFO }}</span>
-                        <ul>
-                            <li v-if="!models.hfTokenIsValid" class="text-left">{{ languages.DOWNLOADER_GATED_TOKEN }}</li>
-                            <li class="text-left">{{ languages.DOWNLOADER_GATED_ACCEPT }}</li>
-                        </ul>
+                    <div v-if="downloadList.some((i) => i.gated && !i.accessGranted) && downloadList.length === 1" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
+                        <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO_SINGLE }}</span>
+                        <span class="text-left">
+                          {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : ""}}
+                          {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE : ""}}
+                          {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT_SINGLE : ""}}
+                        </span>
+                    </div>
+                    <div v-if="downloadList.some((i) => i.gated && !i.accessGranted) && downloadList.length > 1" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
+                      <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO }}</span>
+                      <span class="text-left">
+                        {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : ""}}
+                        {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : ""}}
+                        {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT : ""}}
+                      </span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button class="v-checkbox-control flex-none w-5 h-5"
@@ -60,7 +69,7 @@
                         <button @click="cancelConfirm" class="bg-color-control-bg  py-1 px-4 rounded">{{
                             i18nState.COM_CANCEL
                         }}</button>
-                        <button @click="confirmDownload" :disabled="sizeRequesting || !readTerms"
+                        <button @click="confirmDownload" :disabled="sizeRequesting || !readTerms || downloadList.every((i) => !i.accessGranted)"
                             class="bg-color-active py-1 px-4 rounded">{{
                                 i18nState.COM_CONFIRM
                             }}</button>
@@ -194,18 +203,26 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
                 "Content-Type": "application/json"
             }
         });
+        const accessResponse = await fetch(`${globalSetup.apiHost}/api/isAccessGranted`, {
+          method: "POST",
+          body: JSON.stringify([downList,models.hfToken]),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
         const sizeData = (await sizeResponse.json()) as ApiResponse & { sizeList: StringKV };
         const gatedData = (await gatedResponse.json()) as ApiResponse & { gatedList: Record<string, boolean> };
+        const accessData = (await accessResponse.json()) as ApiResponse & { accessList: Record<string, boolean> };
         for (const item of downloadList.value) {
-          item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || "";
-          item.gated = gatedData.gatedList[item.repo_id] || false;
+            item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || "";
+            item.gated = gatedData.gatedList[item.repo_id] || false;
+            item.accessGranted = accessData.accessList[item.repo_id] || false;
         }
         downloadList.value = downloadList.value;
         sizeRequesting.value = false;
     } catch (ex) {
         fail && fail({ type: "error", error: ex });
     }
-  check_model_access()
 }
 
 function getInfoUrl(repoId: string, type: number) {
@@ -255,7 +272,7 @@ function getFunctionTip(type: number) {
 
 function download() {
     downloding = true;
-    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${downloadList.value.length}`;
+    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${downloadList.value.filter(item => item.accessGranted === true).length}`;
     percent.value = 0;
     completeCount.value = 0;
     abortController = new AbortController();
@@ -275,22 +292,6 @@ function download() {
         downloadReject && downloadReject({ type: "error", error: ex });
         downloding = false;
     })
-}
-
-async function check_model_access() {
-  const response = await fetch(`${globalSetup.apiHost}/api/checkModelAccess`, {
-    method: "POST",
-    body: JSON.stringify([downloadList.value[0].repo_id, models.hfToken]),
-    headers: {
-      "Content-Type": "application/json"
-    }
-  })
-  const data = await response.json()
-  console.log("Is URL valid:")
-  console.log(data.valid)
-  console.log(data.url)
-  console.log(data.status)
-  return data.valid
 }
 
 function cancelConfirm() {

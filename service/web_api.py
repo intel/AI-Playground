@@ -194,19 +194,6 @@ def is_llm():
             }
         )
 
-@app.route("/api/checkModelAccess", methods=["POST"])
-def checkModelAccess():
-    repo_id, hf_token = request.get_json()
-    downloader = HFPlaygroundDownloader(hf_token)
-    valid, url, status = downloader.is_token_valid(repo_id)
-    return jsonify(
-        {
-            "valid": valid,
-            "url": url,
-            "status": status
-        }
-    )
-
 size_cache = dict()
 lock = threading.Lock()
 
@@ -225,6 +212,16 @@ def is_model_gated():
         }
     )
 
+@app.route("/api/isAccessGranted", methods=["POST"])
+def is_access_granted():
+    list, hf_token = request.get_json()
+    downloader = HFPlaygroundDownloader(hf_token)
+    accessGranted = { item["repo_id"] : downloader.is_access_granted(item["repo_id"], item["type"]) for item in list }
+    return jsonify(
+        {
+            "accessList": accessGranted
+        }
+    )
 
 @app.post("/api/getModelSize")
 def get_model_size():
