@@ -34,7 +34,6 @@ import aipg_utils as utils
 import rag
 import model_config
 from model_downloader import HFPlaygroundDownloader
-import huggingface_hub as hf
 from psutil._common import bytes2human
 import traceback
 
@@ -183,7 +182,7 @@ def is_llm():
     downloader = HFPlaygroundDownloader()
     try:
         model_type_hf = downloader.probe_type(address)
-    except:
+    except Exception:
         model_type_hf = "undefined"
     return jsonify(
             {
