@@ -1,13 +1,13 @@
 <template>
     <div class="items-center flex-wrap grid grid-cols-1 gap-2">
         <div class="flex flex-col gap-2">
-            <p>{{ "Backend" }}</p>
+            <p>{{ "Mode" }}</p>
             <div class="grid grid-cols-2 items-center gap-2 flex-wrap">
                 <radio-bolck :checked="imageGeneration.backend === 'default'"
                     :text="'Default'"
                     @click="() => { imageGeneration.backend = 'default' }"></radio-bolck>
                 <radio-bolck :checked="imageGeneration.backend === 'comfyui'"
-                    :text="'ComfyUI'"
+                    :text="'Workflow'"
                     @click="() => { imageGeneration.backend = 'comfyui' }"></radio-bolck>
             </div>
         </div>
@@ -133,15 +133,24 @@ const classicQuality = computed({
       })
 
 const stringToColour = (str: string) => {
+  const colors = [
+    '#ff00ff', // Magenta
+    '#ff33cc', // Light Magenta
+    '#cc00ff', // Purple
+    '#9900ff', // Dark Purple
+    '#6600ff', // Indigo
+    '#3300ff', // Blue
+    '#00ccff', // Light Blue
+    '#00ffff', // Cyan
+  ];
+
   let hash = 0;
   str.split('').forEach(char => {
-    hash = char.charCodeAt(0) + ((hash << 5) - hash)
-  })
-  let colour = '#'
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xff
-    colour += value.toString(16).padStart(2, '0')
-  }
-  return colour
-}
+    hash = char.charCodeAt(0) + ((hash << 5) - hash);
+  });
+
+  // Use the hash to select a color from the palette
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+};
 </script>
