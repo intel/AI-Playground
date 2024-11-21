@@ -13,11 +13,11 @@ conda create -n cp311_libuv python=3.11 libuv -y
 conda env list | findstr cp311_libuv
 ```
 
-5. Run prepack script with 3 additional arguments, this will generate `env.7z` under `WebUI\package_res` folder.
+5. Run pack-python script with 3 additional arguments, this will generate `env.7z` under `WebUI\package_res` folder.
 
 ```
 cd WebUI
-npm run prepack <python_embed_zip> <get_pip_py> <ref_conda_env>
+npm run pack-python <python_embed_zip> <get_pip_py> <ref_conda_env>
 ```
 
 `package_res/env.7z` could be reused for all platforms.
