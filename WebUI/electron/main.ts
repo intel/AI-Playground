@@ -153,7 +153,6 @@ async function createWindow() {
     }, 100);
   })
 
-
   const session = win.webContents.session;
 
   if (!app.isPackaged || settings.debug) {
@@ -170,7 +169,7 @@ async function createWindow() {
     });
   });
   session.webRequest.onHeadersReceived((details, callback) => {
-    if (details.url.startsWith(settings.apiHost)) {
+    if (details.url.match(/^http:\/\/(localhost|127.0.0.1)/)) {
       // if (details.method === "OPTIONS") {
       //   details.statusLine = "HTTP/1.1 200 OK";
       //   details.statusCode = 200;
@@ -500,35 +499,42 @@ function initEventHandle() {
     return;
   });
 
-  ipcMain.on("openImageWithSystem", (event, url: string) => {
-    // Assuming 'settings' and 'externalRes' are properly defined
-    let imagePath = url.replace(settings.apiHost + "/", ""); // Remove the API host part
+  const getImagePathFromUrl = (url: string) => {
+    const imageUrl = URL.parse(url)
+    if (!imageUrl) { 
+      console.error('Could not find image for URL', {url})
+      return;
+    }
+    const backend = url.includes(settings.apiHost) ? 'service' : 'ComfyUI';
 
+    let imagePath: string;
+    if (backend === 'service') {
+      imagePath = imageUrl.pathname.replace(/^\/*/, '')
+    } else {
+      const s = imageUrl.searchParams;
+      imagePath = `${s.get('type')}/${s.get('filename')}`
+    }
     if (app.isPackaged) {
       // Resolve path relative to app when packaged
-      imagePath = path.join(externalRes, "service", imagePath);
+      imagePath = path.join(externalRes, backend, imagePath);
     } else {
       // Resolve path relative to current directory during development
       const cwd = app.getAppPath();
       const parent_dir = path.dirname(cwd);
-      imagePath = path.join(parent_dir, "service", imagePath);
+      imagePath = path.join(parent_dir, backend, imagePath);
     }
+    return imagePath;
+  }
 
+  ipcMain.on("openImageWithSystem", (event, url: string) => {
+    const imagePath = getImagePathFromUrl(url);
+    if (!imagePath) return;
     shell.openPath(imagePath)
-
   });
 
   ipcMain.on("selecteImage", (event, url: string) => {
-    // Assuming 'settings' and 'externalRes' are properly defined
-    let imagePath = url.replace(settings.apiHost + "/", ""); // Remove the API host part
-
-    if (app.isPackaged) {
-      // Resolve path relative to app when packaged
-      imagePath = path.join(externalRes, "service", imagePath);
-    } else {
-      // Resolve path relative to current directory during development
-      imagePath = path.join("..", "service", imagePath);
-    }
+    const imagePath = getImagePathFromUrl(url);
+    if (!imagePath) return;
 
     // Open the image with the default system image viewer
     if (process.platform === 'win32') {

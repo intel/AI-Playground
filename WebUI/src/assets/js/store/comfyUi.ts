@@ -85,6 +85,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
                                 imageGeneration.generateIdx++;
                             });                            
                             console.log('executed', { detail: msg.data })
+                            imageGeneration.processing = false;
                             break
                         case 'execution_start':
                             console.log('execution_start', { detail: msg.data })
@@ -127,6 +128,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
         }
         try {
             imageGeneration.processing = true;
+            imageGeneration.currentState = 'load_model'
 
             const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow))
             const seed = imageGeneration.seed === -1 ? (Math.random()*1000000).toFixed(0) : imageGeneration.seed;
@@ -144,7 +146,6 @@ export const useComfyUi = defineStore("comfyUi", () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                mode: 'no-cors',
                 body: JSON.stringify({
                     prompt: mutableWorkflow,
                     client_id: clientId
@@ -153,7 +154,6 @@ export const useComfyUi = defineStore("comfyUi", () => {
         } catch (ex) {
             console.error('Error generating image', ex);
         } finally {
-            imageGeneration.processing = false;
         }
     }
 
