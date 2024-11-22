@@ -26,6 +26,8 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
+          channels: conda-forge
+          conda-remove-defaults: "true"
           python-version: "3.11"
           activate-environment: 'cp311_libuv'
 
@@ -53,7 +55,6 @@ jobs:
       - name: build installer
         working-directory: "WebUI"
         run: |
-          npm install
           npm run fetch-build-resources
           npm run pack-python
           npm run prebuild
@@ -68,13 +69,8 @@ jobs:
       - name: upload release
         uses: actions/upload-artifact@v4
         with:
-          # Name of the artifact to upload.
-          # Optional. Default is 'artifact'
-          name: "${{ inputs.platform }}_installers"
-          # A file, directory or wildcard pattern that describes what to upload
-          # Required.
+          name: "installers-${{ inputs.platform }}-${{ github.sha }}"
           path: ${{ env.RELEASE_DIR }}\*.exe
           if-no-files-found: error
           retention-days: 1
           overwrite: true
-
