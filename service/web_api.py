@@ -164,11 +164,11 @@ def check_model_exist():
     return jsonify({"code": 0, "message": "success", "exists": result_list})
 
 
-@app.route("/api/checkURLExists", methods=["POST"])
+@app.route("/api/checkURLExists", methods=["GET"])
 def check_url_exists():
-    address = request.get_json()
+    repo_id = request.args.get('repo_id')
     downloader = HFPlaygroundDownloader()
-    exists = downloader.hf_url_exists(address)
+    exists = downloader.hf_url_exists(repo_id)
 
     return jsonify(
             {
@@ -176,12 +176,12 @@ def check_url_exists():
             }
         )
 
-@app.route("/api/isLLM", methods=["POST"])
+@app.route("/api/isLLM", methods=["GET"])
 def is_llm():
-    address = request.get_json()
+    repo_id = request.args.get('repo_id')
     downloader = HFPlaygroundDownloader()
     try:
-        model_type_hf = downloader.probe_type(address)
+        model_type_hf = downloader.probe_type(repo_id)
     except Exception:
         model_type_hf = "undefined"
     return jsonify(

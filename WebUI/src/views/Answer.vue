@@ -388,14 +388,16 @@ async function simulatedInput() {
 }
 
 function fastGenerate(e: KeyboardEvent) {
-    if (e.code == "Enter") {
-        if (e.ctrlKey || e.shiftKey || e.altKey) {
-            question.value += "\n";
-        } else {
-            e.preventDefault();
-            newPromptGenerate();
-        }
+  if (e.code == "Enter") {
+    if (e.ctrlKey || e.shiftKey || e.altKey) {
+      question.value += "\n";
+    } else {
+      e.preventDefault();
+      if (question.value !== "") {
+        newPromptGenerate()
+      }
     }
+  }
 }
 
 async function newPromptGenerate() {

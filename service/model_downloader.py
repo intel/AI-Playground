@@ -1,5 +1,5 @@
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
-from huggingface_hub.utils._errors import RepositoryNotFoundError
+from huggingface_hub.utils import RepositoryNotFoundError
 from typing import Any, Callable, Dict, List
 from os import path, makedirs, rename
 import requests

@@ -41,7 +41,9 @@ function fastGenerate(e: KeyboardEvent) {
       modelRequest.value += "\n";
     } else {
       e.preventDefault();
-      addModel()
+      if (modelRequest.value !== "") {
+        addModel()
+      }
     }
   }
 }
@@ -85,23 +87,13 @@ async function performDownload() {
 }
 
 async function urlExists(repo_id: string) {
-  const response = await fetch(`${globalSetup.apiHost}/api/checkURLExists`, {
-    method: "POST",
-    body: JSON.stringify(repo_id),
-    headers: {
-      "Content-Type": "application/json"
-    }})
+  const response = await fetch(`${globalSetup.apiHost}/api/checkURLExists?repo_id=${repo_id}`)
   const data = await response.json()
   return data.exists;
 }
 
 async function isLLM(repo_id: string) {
-  const response = await fetch(`${globalSetup.apiHost}/api/isLLM`, {
-    method: "POST",
-    body: JSON.stringify(repo_id),
-    headers: {
-      "Content-Type": "application/json"
-    }})
+  const response = await fetch(`${globalSetup.apiHost}/api/isLLM?repo_id=${repo_id}`)
   const data = await response.json()
   return data.isllm
 }
