@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { WebSocket } from "partysocket";
 import { ComfyUIApiWorkflow, Setting, useImageGeneration } from "./imageGeneration";
 import { useI18N } from "./i18n";
+import { toast } from "../toast";
 
 const WEBSOCKET_OPEN = 1;
 
@@ -141,7 +142,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
             modifySettingInWorkflow(mutableWorkflow, 'negativePrompt', imageGeneration.negativePrompt);
             modifySettingInWorkflow(mutableWorkflow, 'batchSize', imageGeneration.batchSize);
 
-            fetch(`http://${comfyHostAndPort.value}/prompt`, {
+            const result = await fetch(`http://${comfyHostAndPort.value}/prompt`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -151,8 +152,14 @@ export const useComfyUi = defineStore("comfyUi", () => {
                     client_id: clientId
                 })
             })
+            if (result.status > 299) {
+                throw new Error(`ComfyUI Backend responded with ${result.status}: ${await result.text()}`)
+            }
         } catch (ex) {
             console.error('Error generating image', ex);
+            toast.error('Backend could not generate image.');
+            imageGeneration.processing = false;
+            imageGeneration.currentState = "no_start"
         } finally {
         }
     }
