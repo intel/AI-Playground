@@ -194,8 +194,11 @@ import PaintInfo from "@/components/PaintInfo.vue";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 import InpaintMask from "../components/InpaintMask.vue";
 import { Const } from "@/assets/js/const";
+import { useImageGeneration } from "@/assets/js/store/imageGeneration";
+
 const i18nState = useI18N().state;
 const globalSetup = useGlobalSetup();
+const imageGeneration = useImageGeneration();
 const mode = ref(1);
 const sourceImage = ref<HTMLImageElement>();
 const sourceImg = ref<string>("");
@@ -385,6 +388,10 @@ function getParams(): KVObject {
 
 
 async function generate() {
+    if (imageGeneration.activeWorkflow.backend === 'comfyui'){
+        toast.error('"Enhance" does not support Workflow mode at the moment. Please pick one of the Default modes.');
+        return;
+    } 
     if (sourceImgFile == null) {
         toast.error(i18nState.ENHANCE_INPUT_IMAGE_REQUIRED);
         return;
@@ -395,26 +402,26 @@ async function generate() {
         processing.value = true;
         const extParams = getParams();
         const model_repo_id =
-            [3, 4].includes(mode.value) && globalSetup.modelSettings.inpaint_model != i18nState.ENHANCE_INPAINT_USE_IMAGE_MODEL
-                ? `inpaint:${globalSetup.modelSettings.inpaint_model}`
-                : `stableDiffusion:${globalSetup.modelSettings.sd_model}`;
+            [3, 4].includes(mode.value) && imageGeneration.inpaintModel != i18nState.ENHANCE_INPAINT_USE_IMAGE_MODEL
+                ? `inpaint:${imageGeneration.inpaintModel}`
+                : `stableDiffusion:${imageGeneration.imageModel}`;
         lastPostParams = Object.assign({
             mode: mode.value,
             device: globalSetup.modelSettings.graphics,
             prompt: prompt.value,
             model_repo_id: model_repo_id,
-            negative_prompt: globalSetup.modelSettings.negativePrompt,
+            negative_prompt: imageGeneration.negativePrompt,
             image: sourceImgFile,
-            generate_number: globalSetup.modelSettings.generateNumber,
-            inference_steps: globalSetup.modelSettings.inferenceSteps,
-            guidance_scale: globalSetup.modelSettings.guidanceScale,
-            seed: globalSetup.modelSettings.seed,
-            height: globalSetup.modelSettings.height,
-            width: globalSetup.modelSettings.width,
-            lora: globalSetup.modelSettings.lora,
-            scheduler: globalSetup.modelSettings.scheduler,
-            image_preview: globalSetup.modelSettings.imagePreview,
-            safe_check: globalSetup.modelSettings.safeCheck
+            generate_number: imageGeneration.batchSize,
+            inference_steps: imageGeneration.inferenceSteps,
+            guidance_scale: imageGeneration.guidanceScale,
+            seed: imageGeneration.seed,
+            height: imageGeneration.height,
+            width: imageGeneration.width,
+            lora: imageGeneration.lora,
+            scheduler: imageGeneration.scheduler,
+            image_preview: imageGeneration.imagePreview,
+            safe_check: imageGeneration.safeCheck
         }, extParams);
 
         await sendGenerate();
@@ -429,18 +436,18 @@ async function generate() {
 async function checkModel() {
     return new Promise<void>(async (resolve, reject) => {
         const checkList: CheckModelExistParam[] = [];
-        if ([3, 4].includes(mode.value) && globalSetup.modelSettings.inpaint_model != i18nState.ENHANCE_INPAINT_USE_IMAGE_MODEL) {
-            checkList.push({ repo_id: globalSetup.modelSettings.inpaint_model, type: Const.MODEL_TYPE_INPAINT });
+        if ([3, 4].includes(mode.value) && imageGeneration.inpaintModel != i18nState.ENHANCE_INPAINT_USE_IMAGE_MODEL) {
+            checkList.push({ repo_id: imageGeneration.inpaintModel, type: Const.MODEL_TYPE_INPAINT });
         } else {
-            checkList.push({ repo_id: globalSetup.modelSettings.sd_model, type: Const.MODEL_TYPE_STABLE_DIFFUSION });
+            checkList.push({ repo_id: imageGeneration.imageModel, type: Const.MODEL_TYPE_STABLE_DIFFUSION });
         }
         if ([1, 3, 4].includes(mode.value)) {
             checkList.push({ repo_id: "RealESRGAN_x2plus", type: Const.MODEL_TYPE_ESRGAN })
         }
-        if (globalSetup.modelSettings.lora != "None") {
-            checkList.push({ repo_id: globalSetup.modelSettings.lora, type: Const.MODEL_TYPE_LORA })
+        if (imageGeneration.lora != "None") {
+            checkList.push({ repo_id: imageGeneration.lora, type: Const.MODEL_TYPE_LORA })
         }
-        if (globalSetup.modelSettings.imagePreview) {
+        if (imageGeneration.imagePreview) {
             checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW })
             checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW })
         }

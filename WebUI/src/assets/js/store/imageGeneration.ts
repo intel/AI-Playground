@@ -133,6 +133,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const safeCheck = ref<boolean>(true); // TODO wire up to settings
     const scheduler = ref<string>("None");
     const imageModel = ref(activeWorkflow.value.defaultSettings?.imageModel ?? globalDefaultSettings.imageModel);
+    const inpaintModel = ref(activeWorkflow.value.defaultSettings?.inpaintModel ?? globalDefaultSettings.inpaintModel);
     const lora = ref<string>("None");
     const guidanceScale = ref<number>(7.5);
 
@@ -308,6 +309,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         previewIdx,
         generateIdx,
         imageModel,
+        inpaintModel,
         lora,
         scheduler,
         guidanceScale,
