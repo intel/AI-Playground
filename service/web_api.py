@@ -29,6 +29,7 @@ try:
     os.environ["ONEAPI_DEVICE_SELECTOR"] = f"*:{supported_ids}"
     print(f"Set ONEAPI_DEVICE_SELECTOR={os.environ['ONEAPI_DEVICE_SELECTOR']}")
 except:  # noqa: E722
+    print("Warning: Device detection failed, using all devices")
     pass
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
