@@ -197,8 +197,8 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
         const sizeData = (await sizeResponse.json()) as ApiResponse & { sizeList: StringKV };
         const gatedData = (await gatedResponse.json()) as ApiResponse & { gatedList: Record<string, boolean> };
         for (const item of downloadList.value) {
-            item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || "";
-            item.gated = gatedData.gatedList[item.repo_id] || false;
+          item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || "";
+          item.gated = gatedData.gatedList[item.repo_id] || false;
         }
         downloadList.value = downloadList.value;
         sizeRequesting.value = false;

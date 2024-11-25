@@ -84,19 +84,22 @@ class HFPlaygroundDownloader:
         self.thread_lock = Lock()
         self.hf_token = hf_token
 
+    def trim_repo(self, repo_id):
+        return "/".join(repo_id.split("/")[:2])
+
     def hf_url_exists(self, repo_id: str):
         try:
-            model_info(repo_id)
+            model_info(self.trim_repo(repo_id))
             return True
         except RepositoryNotFoundError:
             return False
 
     def probe_type(self, repo_id : str):
-        return model_info(repo_id).pipeline_tag
+        return model_info(self.trim_repo(repo_id)).pipeline_tag
 
     def is_gated(self, repo_id: str):
         try:
-            info = model_info(repo_id)
+            info = model_info(self.trim_repo(repo_id))
             return info.gated
         except Exception as ex:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
@@ -179,6 +182,7 @@ class HFPlaygroundDownloader:
     def enum_file_list(
         self, file_list: List, enum_path: str, model_type: int, is_root=True
     ):
+        # repo = "/".join(enum_path.split("/")[:2])
         list = self.fs.ls(enum_path, detail=True)
         if model_type == 1 and enum_path == self.repo_id + "/unet":
             list = self.enum_sd_unet(list)
@@ -216,13 +220,14 @@ class HFPlaygroundDownloader:
                     continue
 
                 self.total_size += size
-                relative_path = path.relpath(name, self.repo_id)
+                relative_path = path.relpath(name, self.trim_repo(self.repo_id))
                 subfolder = path.dirname(relative_path).replace("\\", "/")
                 filename = path.basename(relative_path)
                 url = hf_hub_url(
-                    repo_id=self.repo_id, subfolder=subfolder, filename=filename
+                    repo_id=self.trim_repo(self.repo_id), subfolder=subfolder, filename=filename
                 )
                 file_list.append(HFFileItem(relative_path, size, url))
+
 
     def enum_sd_unet(self, file_list: List[str | Dict[str, Any]]):
         cur_level = 0
