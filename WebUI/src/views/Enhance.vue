@@ -389,7 +389,7 @@ function getParams(): KVObject {
 
 async function generate() {
     if (imageGeneration.activeWorkflow.backend === 'comfyui'){
-        toast.error('"Enhance" does not support Workflow mode at the moment. Please pick one of the Default modes.');
+        toast.error('"Enhance" does not support Workflow mode at the moment. Please go to settings and change from Workflows to Default modes.');
         return;
     } 
     if (sourceImgFile == null) {

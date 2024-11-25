@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { WebSocket } from "partysocket";
 import { ComfyUIApiWorkflow, Setting, useImageGeneration } from "./imageGeneration";
 import { useI18N } from "./i18n";
@@ -16,6 +16,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
     });
     const websocket = ref<WebSocket | null>(null);
     const clientId = '12345';
+    const loaderNodes = ref<string[]>([]);
 
     window.electronAPI.getComfyuiState().then((stateFromBackend) => {
         comfyUiState.value = stateFromBackend;
@@ -56,7 +57,8 @@ export const useComfyUi = defineStore("comfyUi", () => {
                             const imageUrl = URL.createObjectURL(imageBlob)
                             console.log('image url', imageUrl)
                             if (imageBlob) {
-                                imageGeneration.updateDestImage(0, imageUrl);
+                                imageGeneration.previewIdx = imageGeneration.generateIdx;
+                                imageGeneration.updateDestImage(imageGeneration.generateIdx, imageUrl);
                             }
                             break
                         default:
@@ -78,23 +80,33 @@ export const useComfyUi = defineStore("comfyUi", () => {
                             console.log('executing', {
                                 detail: msg.data.display_node || msg.data.node
                             })
+                            if (loaderNodes.value.includes(msg?.data?.node)) {
+                                imageGeneration.currentState = 'load_model'
+                            } else {
+                                imageGeneration.currentState = 'generating'
+                            }
                             break
                         case 'executed':
                             const images: { filename: string, type: string, subfolder: string }[] = msg.data?.output?.images?.filter((i: { type: string }) => i.type === 'output');
-                            images.forEach((image, i) => {
-                                imageGeneration.updateDestImage(i, `http://${comfyHostAndPort.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`);
+                            images.forEach((image) => {
+                                imageGeneration.updateDestImage(imageGeneration.generateIdx, `http://${comfyHostAndPort.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`);
                                 imageGeneration.generateIdx++;
-                            });                            
+                            });
                             console.log('executed', { detail: msg.data })
-                            imageGeneration.processing = false;
                             break
                         case 'execution_start':
+                            imageGeneration.processing = true;
                             console.log('execution_start', { detail: msg.data })
                             break
                         case 'execution_success':
+                            imageGeneration.processing = false;
                             console.log('execution_success', { detail: msg.data })
                             break
                         case 'execution_error':
+                            imageGeneration.processing = false;
+                            break
+                        case 'execution_interrupted':
+                            imageGeneration.processing = false;
                             break
                         case 'execution_cached':
                             break
@@ -128,32 +140,35 @@ export const useComfyUi = defineStore("comfyUi", () => {
             return;
         }
         try {
-            imageGeneration.processing = true;
-            imageGeneration.currentState = 'load_model'
-
             const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow))
-            const seed = imageGeneration.seed === -1 ? (Math.random()*1000000).toFixed(0) : imageGeneration.seed;
+            const seed = imageGeneration.seed === -1 ? (Math.random() * 1000000) : imageGeneration.seed;
 
-            modifySettingInWorkflow(mutableWorkflow, 'seed', seed);
             modifySettingInWorkflow(mutableWorkflow, 'inferenceSteps', imageGeneration.inferenceSteps);
             modifySettingInWorkflow(mutableWorkflow, 'height', imageGeneration.height);
             modifySettingInWorkflow(mutableWorkflow, 'width', imageGeneration.width);
             modifySettingInWorkflow(mutableWorkflow, 'prompt', imageGeneration.prompt);
             modifySettingInWorkflow(mutableWorkflow, 'negativePrompt', imageGeneration.negativePrompt);
-            modifySettingInWorkflow(mutableWorkflow, 'batchSize', imageGeneration.batchSize);
 
-            const result = await fetch(`http://${comfyHostAndPort.value}/prompt`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt: mutableWorkflow,
-                    client_id: clientId
+            loaderNodes.value = [
+                ...findKeysByClassType(mutableWorkflow, 'CheckpointLoaderSimple'),
+                ...findKeysByClassType(mutableWorkflow, 'Unet Loader (GGUF)'),
+                ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
+            ];
+
+            for (let i = 0; i < imageGeneration.batchSize; i++) {
+                modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`); const result = await fetch(`http://${comfyHostAndPort.value}/prompt`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: mutableWorkflow,
+                        client_id: clientId
+                    })
                 })
-            })
-            if (result.status > 299) {
-                throw new Error(`ComfyUI Backend responded with ${result.status}: ${await result.text()}`)
+                if (result.status > 299) {
+                    throw new Error(`ComfyUI Backend responded with ${result.status}: ${await result.text()}`)
+                }
             }
         } catch (ex) {
             console.error('Error generating image', ex);
@@ -164,8 +179,20 @@ export const useComfyUi = defineStore("comfyUi", () => {
         }
     }
 
-    function stop() {
-        console.log('stop comfyui ##### NOT IMPLEMENTED')
+    async function stop() {
+        await fetch(`http://${comfyHostAndPort.value}/queue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ clear: true })
+        })
+        await fetch(`http://${comfyHostAndPort.value}/interrupt`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
     }
 
     return {
@@ -191,8 +218,10 @@ const settingToComfyInputsName = {
     'batchSize': ['batch_size'],
 } satisfies Partial<Record<Setting, string[]>>;
 type ComfySetting = keyof typeof settingToComfyInputsName;
-const findKeysByTitle = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => 
-    Object.entries(workflow).filter(([_key, value]) => (value as any)?.['_meta']?.title === setting).map(([key, _value]) => key);
+const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader') =>
+    Object.entries(workflow).filter(([_key, value]) => (value as any)?.['_meta']?.title === title).map(([key, _value]) => key);
+const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
+    Object.entries(workflow).filter(([_key, value]) => (value as any)?.['class_type'] === classType).map(([key, _value]) => key);
 const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
     for (const inputName of settingToComfyInputsName[setting]) {
         if (inputName === 'text') continue;
@@ -220,4 +249,8 @@ function modifySettingInWorkflow(workflow: ComfyUIApiWorkflow, setting: ComfySet
     if (workflow[key]?.inputs?.[getInputNameBySettingAndKey(workflow, key, setting)] !== undefined) {
         workflow[key].inputs[getInputNameBySettingAndKey(workflow, key, setting)] = value;
     }
+}
+
+if (import.meta.hot) {
+    import.meta.hot.accept(acceptHMRUpdate(useComfyUi, import.meta.hot))
 }

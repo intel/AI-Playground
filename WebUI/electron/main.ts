@@ -70,6 +70,13 @@ const settings: LocalSettings = {
   debug: 0,
   envType: "ultra",
   port: 59999,
+  comfyUiParameters: [
+    "--lowvram",
+    "--disable-ipex-optimize",
+    "--bf16-unet",
+    "--reserve-vram",
+    "6.0"
+  ],
   availableThemes: ["dark", "lnl"],
   currentTheme:"lnl"
 };
@@ -653,7 +660,7 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
 function spawnComfy(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
   logger.info(`#1 try to start ComfyUI API`)
 
-  const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", "--bf16-unet", "--lowvram"], {
+  const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", ...settings.comfyUiParameters], {
     cwd: wordkDir,
     windowsHide: true,
     env: Object.assign(process.env, additionalEnvVariables)

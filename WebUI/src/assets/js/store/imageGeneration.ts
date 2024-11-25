@@ -1,5 +1,4 @@
-import { defineStore } from "pinia";
-import { effect } from "vue";
+import { acceptHMRUpdate, defineStore } from "pinia";
 import z from "zod";
 import { useComfyUi } from "./comfyUi";
 import { useStableDiffusion } from "./stableDiffusion";
@@ -47,22 +46,6 @@ const SettingsSchema = z.object({
 const SettingSchema = SettingsSchema.keyof();
 
 export type Setting = z.infer<typeof SettingSchema>
-
-// const SettingsSchema = z.enum([
-//     'imageModel',
-//     'inpaintModel',
-//     'guidanceScale',
-//     'inferenceSteps',
-//     'seed',
-//     'negativePrompt',
-//     'batchSize',
-//     'imagePreview',
-//     'safetyCheck',
-//     'width',
-//     'height',
-//     'scheduler',
-//     'lora',
-// ]);
 
 const WorkflowRequirementSchema = z.enum(['high-vram'])
 export type WorkflowRequirement = z.infer<typeof WorkflowRequirementSchema>
@@ -128,9 +111,9 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const seed = ref<number>(-1);
     const width = ref<number>(512);
     const height = ref<number>(512);
-    const batchSize = ref<number>(1);
+    const batchSize = ref<number>(1); // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
     const imagePreview = ref<boolean>(true);
-    const safeCheck = ref<boolean>(true); // TODO wire up to settings
+    const safeCheck = ref<boolean>(true);
     const scheduler = ref<string>("None");
     const imageModel = ref(activeWorkflow.value.defaultSettings?.imageModel ?? globalDefaultSettings.imageModel);
     const inpaintModel = ref(activeWorkflow.value.defaultSettings?.inpaintModel ?? globalDefaultSettings.inpaintModel);
@@ -139,21 +122,21 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 
     const backend = computed({
         get() {
-          return activeWorkflow.value.backend;
+            return activeWorkflow.value.backend;
         },
         set(newValue) {
             activeWorkflowName.value = workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
         }
-      });
+    });
 
     const resolution = computed({
         get() {
-          return `${width.value}x${height.value}`
+            return `${width.value}x${height.value}`
         },
         set(newValue) {
             [width.value, height.value] = newValue.split('x').map(Number);
         }
-      })
+    })
 
     const inferenceSteps = ref<number>(20);
 
@@ -171,11 +154,11 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             let saved = undefined;
             if (isModifiable(settingName)) {
                 saved = settingsPerWorkflow.value[activeWorkflowName.value]?.[settingName];
-                console.log('got saved', {settingName, saved});
+                console.log('got saved', { settingName, saved });
             }
             settings[settingName].value = saved ?? activeWorkflow.value?.defaultSettings?.[settingName] ?? globalDefaultSettings[settingName];
         }
-        
+
         getSavedOrDefault('inferenceSteps');
         getSavedOrDefault('width');
         getSavedOrDefault('height');
@@ -204,7 +187,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                     ...settingsPerWorkflow.value[activeWorkflowName.value],
                     [settingName]: settings[settingName].value
                 }
-                console.log('saving', {settingName, value: settings[settingName].value});
+                console.log('saving', { settingName, value: settings[settingName].value });
             }
         }
         saveToSettingsPerWorkflow('inferenceSteps');
@@ -240,13 +223,13 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             try {
                 return WorkflowSchema.parse(JSON.parse(workflow));
             } catch (error) {
-                console.error('Failed to parse workflow', {error, workflow});
+                console.error('Failed to parse workflow', { error, workflow });
                 return undefined;
             }
         }).filter((wf) => wf !== undefined);
         workflows.value = [...predefinedWorkflows, ...parsedWorkflows];
     }
-    
+
     async function getMissingModels() {
         const checkList: CheckModelExistParam[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION }];
         if (lora.value !== "None") {
@@ -560,3 +543,7 @@ const predefinedWorkflows: Workflow[] = [
         ]
     },
 ]
+
+if (import.meta.hot) {
+    import.meta.hot.accept(acceptHMRUpdate(useImageGeneration, import.meta.hot))
+}
