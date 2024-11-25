@@ -46,6 +46,22 @@ function unzippedPackagedPyenv(pyenvArchive) {
     return offlineEnvDir
 }
 
+function installPip(getPipFilePath, workingDir) {
+    const runGetPip = spawn(pythonExe, [getPipFilePath], { cwd: workingDir });
+    runGetPip.stdout.on('data', (data) => {
+        console.log(data.toString());
+    });
+    runGetPip.stderr.on('data', (data) => {
+        console.error(data.toString());
+    });
+    pipInstall.on('close', (code) => {
+        if (code !== 0) {
+            console.error('Failed to install pip');
+            process.exit(1);
+        }
+    });
+}
+
 function runPipInstall(requirementsFilePath, workingDir) {
     const pipInstall = spawn(pythonExe, ['-m', 'pip', 'install', '-r', requirementsFilePath], { cwd: workingDir });
     pipInstall.stdout.on('data', (data) => {
@@ -81,8 +97,11 @@ function main() {
     const offlineEnvDir = unzippedPackagedPyenv(zippedPyenv)
     const pythonExe = existingFileOrExit(path.join(offlineEnvDir, 'python.exe'));
 
+    const getPipFile = existingFileOrExit(path.join(offlineEnvDir, 'get-pip.py'));
     const platformSpecificRequirementsTxt = existingFileOrExit(path.join(__dirname, '..', '..', 'service', `requirements-${platform}.txt`));
-    const requirementsTxt = existingFileOrExit(path.join(__dirname, '..', '..', 'service', `requirements-${platform}.txt`));
+    const requirementsTxt = existingFileOrExit(path.join(__dirname, '..', '..', 'service', `requirements.txt`));
+
+    installPip(getPipFile, offlineEnvDir)
     runPipInstall(platformSpecificRequirementsTxt, offlineEnvDir)
     runPipInstall(requirementsTxt, offlineEnvDir)
 
