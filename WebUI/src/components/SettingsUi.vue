@@ -30,13 +30,13 @@
                 <template #selected>
                     <div class="flex gap-2 items-center">
                         <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                        <span>My Intel XPU</span>
+                        <span>{{ graphicsName }}</span>
                     </div>
                 </template>
                 <template #list="slotItem">
                     <div class="flex gap-2 items-center">
                         <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                        <span>My Intel XPU</span>
+                        <span>{{ slotItem.item.name }}</span>
                     </div>
                 </template>
             </drop-selector>
@@ -61,6 +61,11 @@ const themeToDisplayName = (theme: Theme) => {
     }
 }
 
+
+const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
+const graphicsName = computed(() => {
+    return globalSetup.graphicsList.find(item => modelSettings.graphics as number == item.index)?.name || "";
+})
 function changeGraphics(value: any, index: number) {
     globalSetup.applyModelSettings({ graphics: (value as GraphicsItem).index });
 }

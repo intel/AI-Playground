@@ -343,10 +343,6 @@ const sizeChoose = computed(() => {
     return "custom";
 });
 
-const graphicsName = computed(() => {
-    return globalSetup.graphicsList.find(item => modelSettings.graphics as number == item.index)?.name || "";
-})
-
 const sizeLimit = reactive<{ [key: string]: ResolutionSettings }>({
     standard: {
         width: { min: 256, max: 768 },
