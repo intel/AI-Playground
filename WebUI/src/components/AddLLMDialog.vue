@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { useGlobalSetup } from '@/assets/js/store/globalSetup';
 import { useI18N } from '@/assets/js/store/i18n';
-import { useModels, userModels , ModelType} from '@/assets/js/store/models';
+import { useModels, userModels } from '@/assets/js/store/models';
 
 
 const i18nState = useI18N().state;
@@ -62,9 +62,15 @@ async function addModel() {
       addModelError.value = false
       const is_llm = await isLLM(modelRequest.value);
       if (!is_llm) {
-        emits("showWarning", i18nState.WARNING_MODEL_TYPE_WRONG, () => {performDownload()});
+        emits("showWarning", i18nState.WARNING_MODEL_TYPE_WRONG, async() => {
+          await registerModel();
+          emits("callCheckModel");
+          closeAdd();
+        });
       } else {
-        await performDownload()
+        await registerModel()
+        emits("callCheckModel");
+        closeAdd();
       }
     } else {
         globalSetup.modelSettings.llm_model = previousModel
@@ -78,16 +84,14 @@ async function addModel() {
   }
 }
 
-async function performDownload() {
+async function registerModel() {
   userModels.push({name: modelRequest.value, type: 'llm', downloaded: false})
   await models.refreshModels()
   globalSetup.modelSettings.llm_model = modelRequest.value;
-  emits("callCheckModel");
-  closeAdd()
 }
 
 async function urlExists(repo_id: string) {
-  const response = await fetch(`${globalSetup.apiHost}/api/checkURLExists?repo_id=${repo_id}`)
+  const response = await fetch(`${globalSetup.apiHost}/api/checkHFRepoExists?repo_id=${repo_id}`)
   const data = await response.json()
   return data.exists;
 }
@@ -99,6 +103,7 @@ async function isLLM(repo_id: string) {
 }
 
 function closeAdd() {
+  addModelErrorMessage.value = "";
   addModelError.value = false;
   modelRequest.value = "";
   emits("close");
@@ -107,9 +112,3 @@ function closeAdd() {
 defineExpose({ onShow });
 
 </script>
-<style scoped>
-table {
-    border-collapse: separate;
-    border-spacing: 10px;
-}
-</style>

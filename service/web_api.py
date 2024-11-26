@@ -164,8 +164,8 @@ def check_model_exist():
     return jsonify({"code": 0, "message": "success", "exists": result_list})
 
 
-@app.route("/api/checkURLExists", methods=["GET"])
-def check_url_exists():
+@app.route("/api/checkHFRepoExists", methods=["GET"])
+def check_if_huggingface_repo_exists():
     repo_id = request.args.get('repo_id')
     downloader = HFPlaygroundDownloader()
     exists = downloader.hf_url_exists(repo_id)

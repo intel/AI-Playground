@@ -39,9 +39,3 @@ function onShow(){
 defineExpose({warningMessage, confirmFunction, onShow });
 
 </script>
-<style scoped>
-table {
-    border-collapse: separate;
-    border-spacing: 10px;
-}
-</style>
