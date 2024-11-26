@@ -1,29 +1,6 @@
 <template>
     <div id="app-settings-panel"
         class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4">
-         <dialog ref="hdConfirmationDialog" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
-            <form method="dialog" class="items-center justify-center">
-            <p class="mb-4">
-                {{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM }}
-            </p>
-            <div class="flex justify-between space-x-4 items-center">
-                <button class="bg-slate-700 py-1 px-4 rounded">
-                    {{ languages.COM_CANCEL }}
-                </button>
-                <div class="flex-end space-x-4">
-                    <button @click="() => changeResolution(1, true)" class="bg-color-active py-1 px-4 rounded">
-                        {{ languages.COM_CONFIRM }}
-                    </button>
-                    <button @click="() => { 
-                        globalSetup.hdPersistentConfirmation = true; 
-                        changeResolution(1, true) 
-                        }" class="bg-blue-500 py-1 px-4 rounded">
-                        {{ languages.COM_DO_NOT_SHOW_AGAIN }}
-                    </button>
-                </div>
-            </div>
-            </form>
-        </dialog>
         <div class="flex justify-between items-center px-3">
             <div class="flex items-center gap-2">
                 <button class="panel-tab" :class="{ 'active': tabIndex == 0 }" @click="tabIndex = 0">
@@ -296,13 +273,9 @@
 </template>
 <script setup lang="ts">
 import DropSelector from "../components/DropSelector.vue";
-import RadioBolck from "../components/RadioBlock.vue";
-import SlideBar from "../components/SlideBar.vue";
-import RandomNumber from "../components/RandomNumber.vue";
 import FolderSelector from "../components/FolderSelector.vue";
 import SettingsUi from "@/components/SettingsUi.vue";
 import { Input } from '@/components/ui/input'
-import { ResolutionPicker } from "../components/ui/slider";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 import { useI18N } from "@/assets/js/store/i18n";
 import { toast } from "@/assets/js/toast";
@@ -321,46 +294,6 @@ console.log(toRaw(globalSetup.presetModel))
 const presetModelChange = ref(false);
 const modelSettingsChange = ref(false);
 const pathsChange = ref(false);
-const widthRange = ref<NumberRange>({
-    min: 256,
-    max: 768,
-});
-
-const hdConfirmationDialog = ref<HTMLDialogElement>();
-
-const heightRange = ref<NumberRange>({
-    min: 256,
-    max: 768,
-});
-const qualityDisable = computed(() => modelSettings.resolution == 3);
-const sizePreset = ref<Size[]>([]);
-const sizeChoose = computed(() => {
-    for (const item of sizePreset.value) {
-        if (modelSettings.width == item.width && modelSettings.height == item.height) {
-            return `${item.width} x ${item.height}`
-        }
-    }
-    return "custom";
-});
-
-const sizeLimit = reactive<{ [key: string]: ResolutionSettings }>({
-    standard: {
-        width: { min: 256, max: 768 },
-        height: { min: 256, max: 768 },
-        preset: [{ width: 256, height: 256 }, { width: 512, height: 512 }, { width: 768, height: 768 }]
-    },
-    hd: {
-        width: { min: 768, max: 1536 },
-        height: { min: 768, max: 1536 },
-        preset: [{ width: 768, height: 768 }, { width: 1024, height: 1024 }, { width: 1536, height: 1536 }]
-    },
-    manual: {
-        width: { min: 256, max: 1536 },
-        height: { min: 256, max: 1536 },
-        preset: [{ width: 256, height: 256 }, { width: 512, height: 512 }, { width: 768, height: 768 }, { width: 1024, height: 1024 }, { width: 1536, height: 1536 }]
-    }
-});
-
 
 const emits = defineEmits<{
     (e: "showDownloadModelConfirm", downloadList: DownloadModelParam[], success?: () => void, fail?: () => void): void,
@@ -377,73 +310,12 @@ const modelSettingsWatcher = watchEffect(() => {
 onMounted(() => {
     cancelModelSettingsChange();
     cancelPathsSettings();
-    updateSizeLimit();
 })
 
 onUnmounted(() => {
     modelSettingsWatcher();
 })
 
-function updateSizeLimit() {
-    const settings = modelSettings.resolution == 0 ?
-        sizeLimit.standard :
-        modelSettings.resolution == 1 ?
-            sizeLimit.hd :
-            sizeLimit.manual;
-    widthRange.value = settings.width;
-    heightRange.value = settings.height;
-    sizePreset.value = settings.preset;
-    if (modelSettings.width > settings.width.max) {
-        modelSettings.width = settings.width.max;
-    }
-    else if (modelSettings.width < settings.width.min) {
-        modelSettings.width = settings.width.min;
-    }
-    if (modelSettings.height > settings.height.max) {
-        modelSettings.height = settings.height.max;
-    }
-    else if (modelSettings.height < settings.height.min) {
-        modelSettings.height = settings.height.min;
-    }
-}
-
-
-function changeSDModel(item: any, _: number) {
-    modelSettings.sd_model = item as string;
-    applyModelSettings();
-}
-
-function changeLora(item: any, _: number) {
-    modelSettings.lora = item as string;
-    applyModelSettings();
-}
-
-function changeScheduler(item: any, _: number) {
-    modelSettings.scheduler = item as string;
-    applyModelSettings();
-}
-
-async function toggleImagePreview(value: boolean) {
-    if (value) {
-        modelSettings.imagePreview = 1
-        applyModelSettings();
-    }
-    else {
-        modelSettings.imagePreview = 0
-        applyModelSettings();
-    };
-}
-
-async function toggleSafeCheck(value: boolean) {
-    if (value) {
-        modelSettings.safeCheck = 1
-        applyModelSettings();
-    }
-    else {
-        modelSettings.safeCheck = 0
-        applyModelSettings();
-    };
-}
 
 async function customPathsSettings(key: string, path: string) {
     if (!await window.electronAPI.existsPath(path)) {
@@ -475,89 +347,6 @@ function cancelModelSettingsChange() {
     });
 }
 
-function applyModelSettings() {
-    globalSetup.applyModelSettings(toRaw(modelSettings));
-    modelSettingsChange.value = false;
-}
-
-function changeResolution(value: number, dialogConfirmation = false) {
-    if (value === 1 && !globalSetup.hdPersistentConfirmation && !dialogConfirmation) {
-        hdConfirmationDialog.value?.showModal();
-        return;
-    }
-    modelSettings.resolution = value;
-    setModelOptionByPreset();
-}
-
-function changeQuality(value: number) {
-    modelSettings.quality = value;
-    setModelOptionByPreset();
-}
-
-function setModelOptionByPreset() {
-    const resolution = modelSettings.resolution;
-    const quality = modelSettings.quality;
-    if (resolution == 3) {
-        const manualModelSettings = globalSetup.getManualModelSettings();
-        Object.keys(toRaw(modelSettings)).forEach((key) => {
-            if (key != "quality" && key in manualModelSettings) {
-                modelSettings[key] = manualModelSettings[key];
-            }
-        });
-        applyModelSettings();
-    }
-    else if (resolution == 0) {
-        modelSettings.sd_model = globalSetup.presetModel.SDStandard;
-        modelSettings.inpaint_model = globalSetup.presetModel.SDStandardInpaint;
-        if (quality == 0) {
-            modelSettings.width = 512;
-            modelSettings.height = 512;
-            modelSettings.guidanceScale = 7;
-            modelSettings.inferenceSteps = 20;
-            modelSettings.lora = "None";
-            modelSettings.scheduler = "DPM++ SDE Karras";
-            applyModelSettings();
-        } else if (quality == 1) {
-            modelSettings.guidanceScale = 7;
-            modelSettings.inferenceSteps = 50;
-            modelSettings.lora = "None";
-            modelSettings.scheduler = "DPM++ SDE Karras";
-            applyModelSettings();
-        } else if (quality == 2) {
-            modelSettings.guidanceScale = 1;
-            modelSettings.inferenceSteps = 6;
-            modelSettings.lora = "latent-consistency/lcm-lora-sdv1-5";
-            modelSettings.scheduler = "LCM";
-            applyModelSettings();
-        }
-    } else if (resolution == 1) {
-        modelSettings.sd_model = globalSetup.presetModel.SDHD;
-        modelSettings.inpaint_model = globalSetup.presetModel.SDHDInpaint;
-        modelSettings.width = 1024;
-        modelSettings.height = 1024;
-        if (quality == 0) {
-            modelSettings.guidanceScale = 7;
-            modelSettings.inferenceSteps = 20;
-            modelSettings.lora = "None";
-            modelSettings.scheduler = "DPM++ SDE";
-            applyModelSettings();
-        } else if (quality == 1) {
-            modelSettings.guidanceScale = 7;
-            modelSettings.inferenceSteps = 50;
-            modelSettings.lora = "None";
-            modelSettings.scheduler = "DPM++ SDE";
-            applyModelSettings();
-        } else if (quality == 2) {
-            modelSettings.guidanceScale = 1;
-            modelSettings.inferenceSteps = 6;
-            modelSettings.lora = "latent-consistency/lcm-lora-sdxl";
-            modelSettings.scheduler = "LCM";
-            applyModelSettings();
-        }
-    }
-    updateSizeLimit();
-}
-
 function removeRonate360(ev: AnimationEvent) {
     const target = ev.target as HTMLElement;
     target.classList.remove("animate-ronate360");
@@ -575,12 +364,6 @@ async function refreshInpaintModles(e: Event) {
     await globalSetup.refreshInpaintModles();
 }
 
-async function refreshLora(e: Event) {
-    const button = e.target as HTMLElement;
-    button.classList.add("animate-ronate360");
-    await globalSetup.refreshLora();
-}
-
 function customPresetModel(key: string, value: any) {
     presetModel[key] = value as string;
     presetModelChange.value = true;
@@ -595,14 +378,6 @@ function cancelPresetModelChange() {
 
 function applyPresetModelSettings() {
     globalSetup.applyPresetModelSettings(toRaw(presetModel));
-    if (globalSetup.modelSettings.resolution == 0) {
-        globalSetup.modelSettings.sd_model = globalSetup.presetModel.SDStandard;
-        toast.warning(i18n.state.SETTINGS_MODEL_LIST_CHANGE_TIP);
-    } else if (globalSetup.modelSettings.resolution == 1) {
-        globalSetup.modelSettings.sd_model = globalSetup.presetModel.SDHD;
-        toast.warning(i18n.state.SETTINGS_MODEL_LIST_CHANGE_TIP);
-    }
-    setModelOptionByPreset();
     presetModelChange.value = false;
 }
 
@@ -613,17 +388,6 @@ function restorePresetModelSettings() {
     presetModel.SDHDInpaint = useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL;
 
     applyPresetModelSettings();
-}
-
-function changeSize(item: any, index: number) {
-    const size = item as Size;
-    modelSettings.width = size.width;
-    modelSettings.height = size.height;
-    applyModelSettings();
-}
-
-function changeInpaintModel(value: any, index: number) {
-    globalSetup.applyModelSettings({ inpaint_model: value as string });
 }
 
 function downloadModel(model_repo_id: string, type: number) {

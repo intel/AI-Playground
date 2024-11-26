@@ -96,6 +96,8 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const stableDiffusion = useStableDiffusion();
     const globalSetup = useGlobalSetup();
     const i18nState = useI18N().state;
+    
+    const hdWarningDismissed = ref(false);
 
     const workflows = ref<Workflow[]>(predefinedWorkflows);
     const activeWorkflowName = ref<string | null>('Standard');
@@ -279,6 +281,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     loadWorkflowsFromJson();
 
     return {
+        hdWarningDismissed,
         backend,
         workflows,
         activeWorkflowName,
@@ -315,7 +318,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 }, {
     persist: {
         debug: true,
-        pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow']
+        pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow', 'hdWarningDismissed']
     }
 });
 

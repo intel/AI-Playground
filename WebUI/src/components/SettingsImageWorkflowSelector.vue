@@ -1,4 +1,24 @@
 <template>
+    <dialog ref="hdConfirmationDialog" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+       <form method="dialog" class="items-center justify-center">
+       <p class="mb-4">
+           {{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM }}
+       </p>
+       <div class="flex justify-between space-x-4 items-center">
+           <button class="bg-slate-700 py-1 px-4 rounded">
+               {{ languages.COM_CANCEL }}
+           </button>
+           <div class="flex-end space-x-4">
+               <button @click="() => {hdWarningOverride = true; classicModel = 'sdxl'}" class="bg-color-active py-1 px-4 rounded">
+                   {{ languages.COM_CONFIRM }}
+               </button>
+               <button @click="() => {imageGeneration.hdWarningDismissed = true; classicModel = 'sdxl'}" class="bg-blue-500 py-1 px-4 rounded">
+                   {{ languages.COM_DO_NOT_SHOW_AGAIN }}
+               </button>
+           </div>
+       </div>
+       </form>
+   </dialog>
     <div class="items-center flex-wrap grid grid-cols-1 gap-2">
         <div class="flex flex-col gap-2">
             <p>{{ "Mode" }}</p>
@@ -75,11 +95,11 @@
 import { useImageGeneration } from "@/assets/js/store/imageGeneration";
 import DropSelector from "../components/DropSelector.vue";
 import RadioBolck from "../components/RadioBlock.vue";
-import { useI18N } from '@/assets/js/store/i18n';
 
 const imageGeneration = useImageGeneration();
 
-const i18n = useI18N();
+const hdConfirmationDialog = ref<HTMLDialogElement>();
+const hdWarningOverride = ref(false);
 
 const classicModel = computed({
         get() {
@@ -95,15 +115,17 @@ const classicModel = computed({
           return 'sd1.5'
         },
         set(newValue) {
-            if (newValue === 'sd1.5') {
-                imageGeneration.activeWorkflowName = imageGeneration.workflows.find(w => w.tags.includes('sd1.5') && (classicQuality.value === 'standard' || w.tags.includes(classicQuality.value)))?.name ?? 'Standard'
-            };
-            if (newValue === 'sdxl') {
-                imageGeneration.activeWorkflowName = imageGeneration.workflows.find(w => w.tags.includes('sdxl') && (classicQuality.value === 'standard' || w.tags.includes(classicQuality.value)))?.name ?? 'Standard'
-            };
             if (newValue === 'manual') {
                 imageGeneration.activeWorkflowName = 'Manual'
             };
+            if (newValue === 'sdxl' && !imageGeneration.hdWarningDismissed && !hdWarningOverride.value) {
+                hdConfirmationDialog.value?.showModal();
+                return;
+            } else {
+                hdWarningOverride.value = false;
+            }
+            const targetWorkflow = imageGeneration.workflows.find(w => w.tags.includes(newValue) && (classicQuality.value === 'standard' || w.tags.includes(classicQuality.value)))?.name ?? 'Standard'
+            imageGeneration.activeWorkflowName = targetWorkflow;
         }
       })
 const classicQuality = computed({

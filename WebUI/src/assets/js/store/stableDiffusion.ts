@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { StableDiffusionSettings, useImageGeneration } from "./imageGeneration";
+import { useImageGeneration } from "./imageGeneration";
 import { useGlobalSetup } from "./globalSetup";
 import { Const } from "../const";
 import { useModels } from "./models";
@@ -27,65 +27,14 @@ type BackendParams = {
 }
 
 export const useStableDiffusion = defineStore("stableDiffusion", () => {
-    const settings = ref<StableDiffusionSettings>({
-        resolution: 'standard',
-        quality: 'standard',
-        negativePrompt: "bad hands, nsfw",
-        batchSize: 1,
-        seed: -1,
-        width: 512,
-        height: 512,
-        imageModel: "Lykon/dreamshaper-8",
-        inpaintModel: "Lykon/dreamshaper-8-inpainting",
-        guidanceScale: 7.5,
-        inferenceSteps: 20,
-        lora: null,
-        scheduler: null,
-        imagePreview: true,
-        safetyCheck: true
-    });
-
-    const manualModeSettings = ref<StableDiffusionSettings>({
-        resolution: 'standard',
-        quality: 'standard',
-        imageModel: "Lykon/dreamshaper-8",
-        inpaintModel: "Lykon/dreamshaper-8-inpainting",
-        negativePrompt: "bad hands, nsfw",
-        batchSize: 1,
-        width: 512,
-        height: 512,
-        guidanceScale: 7.5,
-        inferenceSteps: 20,
-        seed: -1,
-        lora: null,
-        scheduler: null,
-        imagePreview: true,
-        safetyCheck: true
-    });
 
     const imageGeneration = useImageGeneration();
     const globalSetup = useGlobalSetup();
     const i18nState = useI18N().state;
-    const hdWarningDismissed = ref(false);
-    const hdWarningModalActive = ref(false);
     const models = useModels();
 
     let abortContooler: AbortController | null;
     const generateParams = ref(new Array<KVObject>());
-
-    const setModel = (model: 'sd' | 'inpaint', modelId: string) => {
-        if (model === 'sd') settings.value.imageModel = modelId;
-        if (model === 'inpaint') settings.value.inpaintModel = modelId;
-    }
-
-    const setResolution = (resolution?: StableDiffusionSettings['resolution'], confirm = false) => {
-        if (resolution === 'hd' && !hdWarningDismissed.value && !confirm) {
-            hdWarningModalActive.value = true;
-            return;
-        }
-        if (resolution) settings.value.resolution = resolution;
-        hdWarningModalActive.value = false;
-    }
 
     async function generate() {
         if (imageGeneration.processing) { return; }
@@ -228,12 +177,7 @@ export const useStableDiffusion = defineStore("stableDiffusion", () => {
 
 
     return {
-        settings,
-        hdWarningDismissed,
-        hdWarningModalActive,
         generateParams,
-        setResolution,
-        setModel,
         generate,
         stop,
     }
