@@ -34,8 +34,8 @@
       "to": "7zr.exe"
     },
     {
-      "from": "external/env-offline-${env.PLATFORM}.7z",
-      "to": "env-offline.7z"
+      "from": "external/env.7z",
+      "to": "env.7z"
     },
     {
       "from": "external/model_config.json",

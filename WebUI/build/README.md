@@ -1,7 +1,9 @@
-## Prepare a base python 3.11 environment
+# Installer Build
 
-1. fetch resources via web by calling ```npm run fetch-build-resources```
-2. provide windows libuv dlls:
+## Fetch remote dependencies for build
+
+1. run ```npm install```
+2. aquire windows libuv dlls, e.g. via miniforge:
    - Install miniforge: https://github.com/conda-forge/miniforge
    - Create a reference conda environment with libuv installed
     ```
@@ -9,16 +11,24 @@
     # copy the path to this conda env
     conda env list | findstr cp311_libuv
     ```
-    - symlink or copy the conda env path into /python_package_resources
-3. run ```npm run pack-python```
+    - copy the path of the Library directory of your conda env  
+3. run ```npm run fetch-build-resources --conda_env_library_dir=$PATH_TO_CONDA_ENV_LIBRARY_DIR```
 
-The resulting `WebUI/npm_package_res/env.7z` could be reused for all platforms.
+## decide for offline or online installer
 
-## Package
+### online installer
 
+run 
 ```
-npm run prebuild
-npm run build:arc
-npm run build:ultra
-npm run build:ultra2
+npm run prepare-build:${PLATFORM}
+npm run build:${PLATFORM}
 ```
+
+### offline installer
+run
+```
+npm run prepare-build:${PLATFORM}-offline
+npm run build:${PLATFORM}-offline
+```
+
+Fetching, installing and compressing the full python dependencies takes a considerable amount of time.

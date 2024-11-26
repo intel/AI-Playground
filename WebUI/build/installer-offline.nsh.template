@@ -2,13 +2,13 @@
   ShowInstDetails show
 !macroend
 !macro customInstall
-    IfFileExists "$INSTDIR\resources\env-offline.7z" extracting end
+    IfFileExists "$INSTDIR\resources\env.7z" extracting end
 
     extracting:
         SetDetailsPrint textonly
         DetailPrint "Extracting python environment..."
-        nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\env-offline.7z" -o"$INSTDIR\resources"'
-        Delete "$INSTDIR\resources\env-offline.7z"
+        nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\env.7z" -o"$INSTDIR\resources"'
+        Delete "$INSTDIR\resources\env.7z"
         Delete "$INSTDIR\resources\7zr.exe"
 
     end:
