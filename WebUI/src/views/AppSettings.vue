@@ -36,7 +36,7 @@
                 <div class="flex flex-col gap-3">
                     <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
                     <div class="flex flex-col items-start gap-1">
-                        <Input v-model="models.hfToken" :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"/>
+                        <Input type="password" v-model="models.hfToken" :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"/>
                         <div class="text-xs text-red-500 select-none" :class="{'opacity-0': !(models.hfToken && !models.hfTokenIsValid)}">{{ languages.SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT }}</div>
                     </div>
                 </div>
