@@ -75,7 +75,7 @@ const settings: LocalSettings = {
     "--disable-ipex-optimize",
     "--bf16-unet",
     "--reserve-vram",
-    "6.0"
+    "4.0"
   ],
   availableThemes: ["dark", "lnl"],
   currentTheme:"lnl"
