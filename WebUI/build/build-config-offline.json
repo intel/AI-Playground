@@ -22,6 +22,27 @@
       ]
     },
     {
+      "from": "external/ComfyUI",
+      "to": "ComfyUI",
+      "filter": [
+        "**/*",
+        "!models/",
+        "!.vscode/",
+        "!__pycache__/",
+        "!test/",
+        "!db/",
+        "!cache/",
+        "!static/",
+        "!temp/",
+        "!dist/",
+        "*.bat"
+      ]
+    },
+    {
+      "from": "external/workflows",
+      "to": "workflows"
+    },
+    {
       "from": "external/service/models/stable_diffusion/ESRGAN",
       "to": "service/models/stable_diffusion/ESRGAN"
     },

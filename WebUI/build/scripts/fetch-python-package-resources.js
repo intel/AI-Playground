@@ -2,6 +2,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const childProcess = require('child_process');
 
 
 const argv = require('minimist')(process.argv.slice(2));
@@ -78,12 +79,35 @@ function copyLibuvDllsIfNotPresent() {
     }
 }
 
+function fetchComfyUIIfNotPresent() {
+    const comfyUICloneDir = path.join(targetDir, 'ComfyUI')
+    if (fs.existsSync(comfyUICloneDir)) {
+        console.log(`omitting fetching of comfyUI as ${comfyUICloneDir} already exists`)
+    } else {
+        gitClone("https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneDir)
+        gitClone("https://github.com/city96/ComfyUI-GGUF.git", path.join(comfyUICloneDir, 'custom_nodes', 'ComfyUI-GGUF'))
+    }
+}
+
+
+function gitClone(repoURL, targetDir) {
+    const gitClone = childProcess.spawnSync("git", ["clone", repoURL, targetDir]);
+    console.log(gitClone.stdout.toString());
+    console.error(gitClone.stderr.toString());
+    if (gitClone.status!== 0) {
+        console.error('Failed to clone repo: ', repoURL);
+        process.exit(1);
+    }
+    console.log('Successfully fetched: ', repoURL);
+}
+
 
 function main() {
     prepareTargetPath()
     fetchFileIfNotPresent(embeddablePythonUrl)
     fetchFileIfNotPresent(getPipScriptUrl)
     fetchFileIfNotPresent(sevenZrExeUrl)
+    fetchComfyUIIfNotPresent()
     copyLibuvDllsIfNotPresent()
 }
 

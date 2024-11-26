@@ -48,11 +48,17 @@ function zipPythonEnv(sevenZipExe, pythonEnvDir, targetPath) {
     console.log('Offline env has been compressed to:', targetPath);
 }
 
-function copyResources(targetDir, ...files) {
+function copyFiles(targetDir, ...files) {
     for (const file of files) {
-        console.log(file)
         fs.copyFileSync(file, path.join(targetDir, path.basename(file)));
         console.log('Copied:', file, 'to:', path.join(targetDir, path.basename(file)));
+    }
+}
+
+function copyDirectories(targetDir, ...dirs) {
+    for (const dir of dirs) {
+        fs.cpSync(dir, path.join(targetDir, path.basename(dir)), { recursive: true });
+        console.log('Copied:', dir, 'to:', path.join(targetDir, path.basename(dir)));
     }
 }
 
@@ -66,13 +72,18 @@ function clearPreviousZip(zipFilePath) {
 
 function main() {
     const sevenZipExe = path.join(buildResourcesDir, '7zr.exe');
+    const comfyUI = path.join(buildResourcesDir, 'ComfyUI');
 
     clearPreviousZip(path.join(targetDir, `env.7z`));
     zipPythonEnv(sevenZipExe, pythenEnvDir, path.join(targetDir, `env.7z`));
 
     symlinkBackendDir(backendDir, path.join(targetDir, 'service'))
-    copyResources(targetDir,
+    copyFiles(targetDir,
         sevenZipExe
+    )
+
+    copyDirectories(targetDir,
+        comfyUI
     )
 }
 

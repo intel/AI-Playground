@@ -1,7 +1,8 @@
 .vscode/
 env/
 package_res/
-python_package_res/
+build_resources/
+build_envs/
 release/
 WebUI/external/service/
 
