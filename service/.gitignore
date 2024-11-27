@@ -14,3 +14,5 @@ cache/
 db/
 test/
 env/
+
+!tools/*.exe
