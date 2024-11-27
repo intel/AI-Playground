@@ -1,11 +1,14 @@
 import base64
-import math
-from typing import IO
-from PIL import Image
-import io
-import os
 import hashlib
+import io
+import math
+import os
+from typing import IO
+
 import torch
+from PIL import Image
+
+import model_config
 
 
 def image_to_base64(image: Image.Image):
@@ -35,10 +38,31 @@ def get_image_shape_ceil(image: Image.Image):
     return get_shape_ceil(H, W)
 
 
-def check_mmodel_exist(type: int, repo_id: str):
+def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
+    match(backend):
+        case "default":  return check_defaultbackend_mmodel_exist(type, repo_id)
+        case "comfyui": return check_comfyui_model_exists(type, repo_id)
+        case _: raise NameError("Unknown Backend")
+
+def check_comfyui_model_exists(type, repo_id) -> bool:
+    model_dir = model_config.comfyUIConfig.get(convert_model_type(type))
+    dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
+    print(dir_to_look_for)
+    return os.path.exists(dir_to_look_for)
+
+def trim_repo(repo_id):
+    return "/".join(repo_id.split("/")[:2])
+
+def extract_model_id_pathsegments(repo_id) -> str:
+    return "/".join(repo_id.split("/")[2:])
+
+def repo_local_root_dir_name(repo_id):
+    return "---".join(repo_id.split("/")[:2])
+
+def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
     import model_config
 
-    folder_name = repo_id.replace("/", "---")
+    folder_name = repo_local_root_dir_name(repo_id)
     if type == 0:
         dir = model_config.config.get("llm")
         return os.path.exists(os.path.join(dir, folder_name, "config.json"))
@@ -105,14 +129,24 @@ def convert_model_type(type: int):
         return "inpaint"
     elif type == 7:
         return "preview"
+
+    elif type == 100:
+        return "unet"
+    elif type == 101:
+        return "clip"
+    elif type == 102:
+        return "vae"
     else:
         raise Exception(f"uwnkown model type value {type}")
 
 
-def get_model_path(type: int):
-    import model_config
+def get_model_path(type: int, backend: str):
+    match backend:
+        case "default":
+            return model_config.config.get(convert_model_type(type))
+        case "comfyui":
+            return model_config.comfyUIConfig.get(convert_model_type(type))
 
-    return model_config.config.get(convert_model_type(type))
 
 
 def calculate_md5(file_path: str):

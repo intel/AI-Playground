@@ -295,8 +295,11 @@ type DownloadFailedParams = { type: "error" | "cancelConfrim" | "cancelDownload"
 
 type CheckModelExistParam = {
     repo_id: string;
-    type: number
+    type: number;
+    backend: BackendType;
 }
+
+type BackendType = "comfyui" | "default"
 
 type DownloadModelParam = CheckModelExistParam
 
@@ -304,10 +307,6 @@ type DownloadModelRender = { size: string, gated?: boolean } & CheckModelExistPa
 
 type CheckModelExistResult = {
     exist: boolean
-} & CheckModelExistParam
-
-type CheckModelSizeResult = {
-    size: string
 } & CheckModelExistParam
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"

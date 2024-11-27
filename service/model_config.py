@@ -1,3 +1,4 @@
+
 # CONFIG_PATH = "./model_config.json"
 
 config = {
@@ -9,6 +10,12 @@ config = {
     "inpaint": "./models/stable_diffusion/inpaint",
     "ESRGAN": "./models/stable_diffusion/ESRGAN",
     "preview": "./models/stable_diffusion/preview",
+}
+
+comfyUIConfig = {
+    "unet": "../ComfyUI/models/unet",
+    "clip": "../ComfyUI/models/clip",
+    "vae": "../ComfyUI/models/vae",
 }
 
 device = "xpu"

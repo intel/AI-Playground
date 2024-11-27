@@ -68,19 +68,19 @@ export const useStableDiffusion = defineStore("stableDiffusion", () => {
 
     async function checkModel() {
         return new Promise<void>(async (resolve, reject) => {
-            const checkList: CheckModelExistParam[] = [{ repo_id: globalSetup.modelSettings.sd_model, type: Const.MODEL_TYPE_STABLE_DIFFUSION }];
+            const checkList: CheckModelExistParam[] = [{ repo_id: globalSetup.modelSettings.sd_model, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" }];
             if (globalSetup.modelSettings.lora != "None") {
-                checkList.push({ repo_id: globalSetup.modelSettings.lora, type: Const.MODEL_TYPE_LORA })
+                checkList.push({ repo_id: globalSetup.modelSettings.lora, type: Const.MODEL_TYPE_LORA , backend: "default"})
             }
             if (globalSetup.modelSettings.imagePreview) {
-                checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW })
-                checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW })
+                checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
+                checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
             }
             const result = await globalSetup.checkModelExists(checkList);
             const downloadList: CheckModelExistParam[] = [];
             for (const item of result) {
                 if (!item.exist) {
-                    downloadList.push({ repo_id: item.repo_id, type: item.type })
+                    downloadList.push({ repo_id: item.repo_id, type: item.type, backend: "default" })
                 }
             }
             await models.download(downloadList);

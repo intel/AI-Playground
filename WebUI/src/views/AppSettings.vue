@@ -391,7 +391,7 @@ function restorePresetModelSettings() {
 }
 
 function downloadModel(model_repo_id: string, type: number) {
-    const params = [{ repo_id: model_repo_id, type: type }];
+    const params: CheckModelExistParam[] = [{ repo_id: model_repo_id, type: type, backend: "default" }];
     globalSetup.checkModelExists(params)
         .then(exits => {
             if (exits[0].exist) {

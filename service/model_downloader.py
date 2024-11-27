@@ -1,3 +1,5 @@
+import os
+
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
 from huggingface_hub.utils import RepositoryNotFoundError
 from typing import Any, Callable, Dict, List
@@ -84,28 +86,26 @@ class HFPlaygroundDownloader:
         self.thread_lock = Lock()
         self.hf_token = hf_token
 
-    def trim_repo(self, repo_id):
-        return "/".join(repo_id.split("/")[:2])
-
     def hf_url_exists(self, repo_id: str):
         try:
-            model_info(self.trim_repo(repo_id))
+            model_info(utils.trim_repo(repo_id))
             return True
         except RepositoryNotFoundError:
             return False
 
     def probe_type(self, repo_id : str):
-        return model_info(self.trim_repo(repo_id)).pipeline_tag
+        return model_info(utils.trim_repo(repo_id)).pipeline_tag
 
     def is_gated(self, repo_id: str):
         try:
-            info = model_info(self.trim_repo(repo_id))
+            info = model_info(utils.trim_repo(repo_id))
             return info.gated
         except Exception as ex:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
             return False
 
-    def download(self, repo_id: str, model_type: int, thread_count: int = 4):
+    def download(self, repo_id: str, model_type: int, backend: str, thread_count: int = 4):
+        print(f"at download {backend}")
         self.repo_id = repo_id
         self.total_size = 0
         self.download_size = 0
@@ -113,7 +113,7 @@ class HFPlaygroundDownloader:
         self.download_stop = False
         self.completed = False
         self.error = None
-        self.save_path = path.join(utils.get_model_path(model_type))
+        self.save_path = path.join(utils.get_model_path(model_type, backend))
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
         )
@@ -220,11 +220,11 @@ class HFPlaygroundDownloader:
                     continue
 
                 self.total_size += size
-                relative_path = path.relpath(name, self.trim_repo(self.repo_id))
+                relative_path = path.relpath(name, utils.trim_repo(self.repo_id))
                 subfolder = path.dirname(relative_path).replace("\\", "/")
                 filename = path.basename(relative_path)
                 url = hf_hub_url(
-                    repo_id=self.trim_repo(self.repo_id), subfolder=subfolder, filename=filename
+                    repo_id=utils.trim_repo(self.repo_id), subfolder=subfolder, filename=filename
                 )
                 file_list.append(HFFileItem(relative_path, size, url))
 
@@ -268,15 +268,23 @@ class HFPlaygroundDownloader:
         if self.on_download_completed is not None:
             self.on_download_completed(self.repo_id, self.error)
         if not self.download_stop and self.error is None:
-            rename(
-                self.save_path_tmp,
-                path.abspath(
-                    path.join(self.save_path, self.repo_id.replace("/", "---"))
-                ),
-            )
+            self.move_to_desired_position()
         else:
             # Download aborted
             shutil.rmtree(self.save_path_tmp)
+
+    def move_to_desired_position(self):
+        desired_repo_root_dir_name = os.path.join(self.save_path, utils.repo_local_root_dir_name(self.repo_id))
+        if os.path.exists(desired_repo_root_dir_name):
+            for item in os.listdir(self.save_path_tmp):
+                shutil.move(os.path.join(self.save_path_tmp, item), desired_repo_root_dir_name)
+            shutil.rmtree(self.save_path_tmp)
+        else:
+            rename(
+                self.save_path_tmp,
+                path.abspath(desired_repo_root_dir_name)
+            )
+
 
     def start_report_download_progress(self):
         thread = Thread(target=self.report_download_progress)

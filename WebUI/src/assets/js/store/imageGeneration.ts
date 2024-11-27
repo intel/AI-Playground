@@ -5,6 +5,7 @@ import { useStableDiffusion } from "./stableDiffusion";
 import { useI18N } from "./i18n";
 import { Const } from "../const";
 import { useGlobalSetup } from "./globalSetup";
+import {toast} from "@/assets/js/toast.ts";
 
 export type StableDiffusionSettings = {
     resolution: 'standard' | 'hd' | 'manual', // ~ modelSettings.resolution 0, 1, 3
@@ -59,6 +60,7 @@ const WorkflowSchema = z.object({
     name: z.string(),
     backend: z.enum(['default', 'comfyui']),
     tags: z.array(z.string()),
+    requiredModels: z.array(z.string()).optional(),
     requirements: z.array(WorkflowRequirementSchema),
     inputs: z.array(z.object({
         name: z.string(),
@@ -103,7 +105,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const stableDiffusion = useStableDiffusion();
     const globalSetup = useGlobalSetup();
     const i18nState = useI18N().state;
-    
+
     const hdWarningDismissed = ref(false);
 
     const workflows = ref<Workflow[]>(predefinedWorkflows);
@@ -255,26 +257,54 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 
     async function getMissingModels() {
         if (activeWorkflow.value.backend === 'default') {
-            const checkList: CheckModelExistParam[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION }];
-            if (lora.value !== "None") {
-                checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA })
-            }
-            if (imagePreview.value) {
-                checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW })
-                checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW })
-            }
-            const result = await globalSetup.checkModelExists(checkList);
-            const downloadList: CheckModelExistParam[] = [];
-            for (const item of result) {
-                if (!item.exist) {
-                    downloadList.push({ repo_id: item.repo_id, type: item.type })
-                }
-            }
-            return downloadList;
+            return getMissingDefaultBackendModels()
         } else {
-            console.error(`missing models for backend ${activeWorkflow.value.backend} cannot be loaded.`)
-            return []
+            return getMissingComfyuiBackendModels()
         }
+    }
+
+    async function getMissingComfyuiBackendModels() {
+        if (activeWorkflow.value?.requiredModels === undefined) {
+            toast.error('"Defined workflow did not specify required models. Please add "requiredModels" to workflowfile.');
+            return []
+        } else {
+            function extractDownloadModelParamsFromString(modelParamString: string): CheckModelExistParam {
+                const [modelType, repoAddress] = modelParamString.split(":")
+                function modelTypeToId(type: string) {
+                    switch (type) {
+                        case "unet" : return Const.MODEL_TYPE_COMFY_UNET
+                        case "clip" : return Const.MODEL_TYPE_COMFY_CLIP
+                        case "vae" : return Const.MODEL_TYPE_COMFY_VAE
+                        default:
+                            console.warn("received unknown comfyUI type: ", type)
+                            return -1
+                    }
+                }
+                return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
+            }
+            const checkList: CheckModelExistParam[] = activeWorkflow.value.requiredModels.map( extractDownloadModelParamsFromString)
+            const result: CheckModelExistResult[]  = await globalSetup.checkModelExists(checkList);
+            return result
+                .filter(checkModelExistsResult => !checkModelExistsResult.exist)
+                .map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
+        }
+
+    }
+
+    async function getMissingDefaultBackendModels() {
+        const checkList: CheckModelExistParam[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: activeWorkflow.value.backend }];
+        if (lora.value !== "None") {
+            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: activeWorkflow.value.backend })
+        }
+        if (imagePreview.value) {
+            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: activeWorkflow.value.backend})
+            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: activeWorkflow.value.backend})
+        }
+
+        const result = await globalSetup.checkModelExists(checkList);
+        return result
+            .filter(checkModelExistsResult => !checkModelExistsResult.exist)
+            .map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
 
     }
 

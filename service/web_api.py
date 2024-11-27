@@ -159,8 +159,9 @@ def check_model_exist():
     for item in list:
         repo_id = item["repo_id"]
         type = item["type"]
-        exist = utils.check_mmodel_exist(type, repo_id)
-        result_list.append({"repo_id": repo_id, "type": type, "exist": exist})
+        backend = item["backend"]
+        exist = utils.check_mmodel_exist(type, repo_id, backend)
+        result_list.append({"repo_id": repo_id, "type": type, "backend": backend, "exist": exist})
     return jsonify({"code": 0, "message": "success", "exists": result_list})
 
 

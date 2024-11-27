@@ -437,25 +437,25 @@ async function checkModel() {
     return new Promise<void>(async (resolve, reject) => {
         const checkList: CheckModelExistParam[] = [];
         if ([3, 4].includes(mode.value) && imageGeneration.inpaintModel != i18nState.ENHANCE_INPAINT_USE_IMAGE_MODEL) {
-            checkList.push({ repo_id: imageGeneration.inpaintModel, type: Const.MODEL_TYPE_INPAINT });
+            checkList.push({ repo_id: imageGeneration.inpaintModel, type: Const.MODEL_TYPE_INPAINT, backend: imageGeneration.activeWorkflow.backend});
         } else {
-            checkList.push({ repo_id: imageGeneration.imageModel, type: Const.MODEL_TYPE_STABLE_DIFFUSION });
+            checkList.push({ repo_id: imageGeneration.imageModel, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: imageGeneration.activeWorkflow.backend });
         }
         if ([1, 3, 4].includes(mode.value)) {
-            checkList.push({ repo_id: "RealESRGAN_x2plus", type: Const.MODEL_TYPE_ESRGAN })
+            checkList.push({ repo_id: "RealESRGAN_x2plus", type: Const.MODEL_TYPE_ESRGAN, backend: imageGeneration.activeWorkflow.backend })
         }
         if (imageGeneration.lora != "None") {
-            checkList.push({ repo_id: imageGeneration.lora, type: Const.MODEL_TYPE_LORA })
+            checkList.push({ repo_id: imageGeneration.lora, type: Const.MODEL_TYPE_LORA, backend: imageGeneration.activeWorkflow.backend })
         }
         if (imageGeneration.imagePreview) {
-            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW })
-            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW })
+            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW, backend: imageGeneration.activeWorkflow.backend })
+            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW, backend: imageGeneration.activeWorkflow.backend })
         }
         const result = await globalSetup.checkModelExists(checkList);
-        const downloadList: CheckModelExistParam[] = [];
+        const downloadList: DownloadModelParam[] = [];
         for (const item of result) {
             if (!item.exist) {
-                downloadList.push({ repo_id: item.repo_id, type: item.type })
+                downloadList.push({ repo_id: item.repo_id, type: item.type, backend: imageGeneration.activeWorkflow.backend })
             }
         }
         if (downloadList.length > 0) {

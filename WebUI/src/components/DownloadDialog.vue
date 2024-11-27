@@ -174,7 +174,7 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
     hashError.value = false;
     percent.value = 0;
     downloadList.value = downList.map((item) => {
-        return { repo_id: item.repo_id, type: item.type, size: "???" }
+        return { repo_id: item.repo_id, type: item.type, size: "???", backend: item.backend }
     });
     readTerms.value = false;
     downloadResolve = success;

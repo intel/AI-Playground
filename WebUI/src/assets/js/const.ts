@@ -7,4 +7,7 @@ export module Const {
     export const MODEL_TYPE_EMBEDDING = 5;
     export const MODEL_TYPE_INPAINT = 6;
     export const MODEL_TYPE_PREVIEW = 7;
+    export const MODEL_TYPE_COMFY_UNET = 100;
+    export const MODEL_TYPE_COMFY_CLIP = 101;
+    export const MODEL_TYPE_COMFY_VAE = 102;
 }
