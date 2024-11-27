@@ -254,22 +254,28 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingModels() {
-        const checkList: CheckModelExistParam[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION }];
-        if (lora.value !== "None") {
-            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA })
-        }
-        if (imagePreview.value) {
-            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW })
-            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW })
-        }
-        const result = await globalSetup.checkModelExists(checkList);
-        const downloadList: CheckModelExistParam[] = [];
-        for (const item of result) {
-            if (!item.exist) {
-                downloadList.push({ repo_id: item.repo_id, type: item.type })
+        if (activeWorkflow.value.backend === 'default') {
+            const checkList: CheckModelExistParam[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION }];
+            if (lora.value !== "None") {
+                checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA })
             }
+            if (imagePreview.value) {
+                checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW })
+                checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW })
+            }
+            const result = await globalSetup.checkModelExists(checkList);
+            const downloadList: CheckModelExistParam[] = [];
+            for (const item of result) {
+                if (!item.exist) {
+                    downloadList.push({ repo_id: item.repo_id, type: item.type })
+                }
+            }
+            return downloadList;
+        } else {
+            console.error(`missing models for backend ${activeWorkflow.value.backend} cannot be loaded.`)
+            return []
         }
-        return downloadList;
+
     }
 
     function generate() {

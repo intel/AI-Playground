@@ -102,10 +102,29 @@ const emits = defineEmits<{
     (e: "postImageToEnhance", url: string): void
 }>();
 
-async function generateImage() { 
-    reset();
-    await imageGeneration.generate();
+async function generateImage() {
+  await ensureModelsAreAvailable();
+  reset();
+  await imageGeneration.generate();
 }
+
+async function ensureModelsAreAvailable() {
+  return new Promise<void>(async (resolve, reject) => {
+    const downloadList = await imageGeneration.getMissingModels();
+    if (downloadList.length > 0) {
+      emits(
+          "showDownloadModelConfirm",
+          downloadList,
+          resolve,
+          reject
+      );
+    } else {
+      resolve && resolve();
+    }
+  });
+}
+
+
 
 function postImageToEnhance() {
     emits("postImageToEnhance", imageGeneration.imageUrls[imageGeneration.previewIdx]);
