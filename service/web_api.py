@@ -1,37 +1,5 @@
 import sys
 
-# Try to filter out unsupported devices
-try:
-    # Create a subprocess to import IPEX and list devices
-    import subprocess
-    import os
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    device_detect_script = os.path.join(script_dir, "device_detect.py")
-
-    # Run the subprocess
-    result = subprocess.run(
-        [sys.executable, device_detect_script],
-        capture_output=True,
-        text=True,
-    )
-
-    # Check if the subprocess ran successfully
-    if result.returncode != 0:
-        raise Exception(f"Device detection failed: {result.stderr}")
-
-    # Get the supported device IDs
-    supported_ids = result.stdout.strip()
-    if not supported_ids:
-        raise Exception("No supported devices found")
-
-    # Set the environment variable to filter devices
-    os.environ["ONEAPI_DEVICE_SELECTOR"] = f"*:{supported_ids}"
-    print(f"Set ONEAPI_DEVICE_SELECTOR={os.environ['ONEAPI_DEVICE_SELECTOR']}")
-except:  # noqa: E722
-    print("Warning: Device detection failed, using all devices")
-    pass
-
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
 # Related issues:
 # + https://github.com/XPixelGroup/BasicSR/issues/649
