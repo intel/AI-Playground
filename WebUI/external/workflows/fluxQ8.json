@@ -1,10 +1,9 @@
 {
-    "name": "Flux.1 schnell",
+    "name": "Flux.1-Schnell High Quality",
     "backend": "comfyui",
     "tags": [
-        "flux",
-        "comfyui",
-        "high-vram"
+        "Q8",
+        "Fast"
     ],
     "requirements": [
         "high-vram"
@@ -17,13 +16,11 @@
         }
     ],
     "defaultSettings": {
-        "width": 1024,
-        "height": 1024,
+        "resolution": "896x896",
         "inferenceSteps": 4
     },
     "displayedSettings": [
-        "inferenceSteps",
-        "imageModel"
+        "inferenceSteps"
     ],
     "modifiableSettings": [
         "seed",
@@ -75,7 +72,7 @@
         },
         "170": {
             "inputs": {
-                "unet_name": "flux1-schnell-Q2_K.gguf"
+                "unet_name": "flux1-schnell-Q8_0.gguf"
             },
             "class_type": "UnetLoaderGGUF",
             "_meta": {
@@ -102,17 +99,6 @@
             "class_type": "FluxGuidance",
             "_meta": {
                 "title": "FluxGuidance"
-            }
-        },
-        "175": {
-            "inputs": {
-                "clip_name1": "t5xxl_fp8_e4m3fn.safetensors",
-                "clip_name2": "clip_l.safetensors",
-                "type": "flux"
-            },
-            "class_type": "DualCLIPLoader",
-            "_meta": {
-                "title": "DualCLIPLoader"
             }
         },
         "177": {

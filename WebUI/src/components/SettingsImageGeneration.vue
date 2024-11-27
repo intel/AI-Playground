@@ -2,6 +2,9 @@
     <div class="flex flex-col gap-2">
         <WorkflowSelector />
         <div class="items-center flex-wrap grid grid-cols-1 gap-2">
+            <div class="flex flex-col gap-2">
+                <ResolutionPicker v-if="modifiableOrDisplayed('resolution')" :disabled="!modifiable('resolution')" />
+            </div>
             <div class="flex items-center gap-5">
                 <p>{{ languages.SETTINGS_MODEL_IMAGE_PREVIEW }}</p>
                 <button v-show=true class="v-checkbox-control flex-none w-5 h-5"
@@ -31,10 +34,7 @@
                 <textarea :disabled="!modifiable('negativePrompt')" class="h-32 rounded-lg resize-none"
                     v-model="imageGeneration.negativePrompt"></textarea>
             </div>
-            <div class="flex flex-col gap-2">
-                <ResolutionPicker v-if="modifiableOrDisplayed('resolution')" :disabled="!modifiable('resolution')" />
-            </div>
-            <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_MANUAL_OPTIONS }}</h2>
+            <h2 v-if="anyModifiableOrDisplayed(['width', 'height', 'scheduler', 'guidanceScale', 'imageModel', 'inpaintModel', 'lora'])" class="text-center font-bold">{{ languages.SETTINGS_MODEL_MANUAL_OPTIONS }}</h2>
             <div v-if="modifiableOrDisplayed('width')" class="flex flex-col gap-2">
                 <p>{{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}</p>
                 <slide-bar v-model:current="imageGeneration.width" :min="256" :max="2048" :step="64"
@@ -121,6 +121,7 @@
                 </div>
             </div>
         </div>
+        <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings"><div class="svg-icon i-refresh">Reset</div>Load workflow defaults</button>
     </div>
 </template>
 <script setup lang="ts">
@@ -136,6 +137,7 @@ import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 const imageGeneration = useImageGeneration();
 const globalSetup = useGlobalSetup();
 
+const anyModifiableOrDisplayed = (settings: Setting[]) => settings.some(setting => modifiableOrDisplayed(setting))
 const modifiableOrDisplayed = (setting: Setting) => imageGeneration.activeWorkflow.modifiableSettings.includes(setting) || imageGeneration.activeWorkflow.displayedSettings.includes(setting)
 const modifiable = (setting: Setting) => imageGeneration.activeWorkflow.modifiableSettings.includes(setting)
 

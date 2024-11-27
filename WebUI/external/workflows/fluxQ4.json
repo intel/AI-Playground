@@ -1,0 +1,205 @@
+{
+    "name": "Flux.1-Schnell Med Quality",
+    "backend": "comfyui",
+    "tags": [
+        "Q4",
+        "Fast"
+    ],
+    "requirements": [
+        "high-vram"
+    ],
+    "inputs": [],
+    "outputs": [
+        {
+            "name": "output_image",
+            "type": "image"
+        }
+    ],
+    "defaultSettings": {
+        "resolution": "896x896",
+        "inferenceSteps": 4
+    },
+    "displayedSettings": [
+        "inferenceSteps"
+    ],
+    "modifiableSettings": [
+        "seed",
+        "batchSize",
+        "imagePreview",
+        "resolution"
+    ],
+    "comfyUiApiWorkflow": {
+        "167": {
+            "inputs": {
+                "filename_prefix": "ComfyUI",
+                "images": [
+                    "179",
+                    0
+                ]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+                "title": "Save Image"
+            }
+        },
+        "169": {
+            "inputs": {
+                "noise": [
+                    "184",
+                    0
+                ],
+                "guider": [
+                    "178",
+                    0
+                ],
+                "sampler": [
+                    "185",
+                    0
+                ],
+                "sigmas": [
+                    "181",
+                    0
+                ],
+                "latent_image": [
+                    "180",
+                    0
+                ]
+            },
+            "class_type": "SamplerCustomAdvanced",
+            "_meta": {
+                "title": "SamplerCustomAdvanced"
+            }
+        },
+        "170": {
+            "inputs": {
+                "unet_name": "flux1-schnell-Q4_K_S.gguf"
+            },
+            "class_type": "UnetLoaderGGUF",
+            "_meta": {
+                "title": "Unet Loader (GGUF)"
+            }
+        },
+        "171": {
+            "inputs": {
+                "vae_name": "ae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+                "title": "Load VAE"
+            }
+        },
+        "174": {
+            "inputs": {
+                "guidance": 1,
+                "conditioning": [
+                    "177",
+                    0
+                ]
+            },
+            "class_type": "FluxGuidance",
+            "_meta": {
+                "title": "FluxGuidance"
+            }
+        },
+        "177": {
+            "inputs": {
+                "text": "A cool llama wearing a pair of sunglasses, holding a blue and purple neon sign that says \"Lunar Lake\" in front, vibrant colors, blurry cyberpunk gaming background.",
+                "clip": [
+                    "188",
+                    0
+                ]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+                "title": "prompt"
+            }
+        },
+        "178": {
+            "inputs": {
+                "model": [
+                    "170",
+                    0
+                ],
+                "conditioning": [
+                    "174",
+                    0
+                ]
+            },
+            "class_type": "BasicGuider",
+            "_meta": {
+                "title": "BasicGuider"
+            }
+        },
+        "179": {
+            "inputs": {
+                "samples": [
+                    "169",
+                    1
+                ],
+                "vae": [
+                    "171",
+                    0
+                ]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+                "title": "VAE Decode"
+            }
+        },
+        "180": {
+            "inputs": {
+                "width": 768,
+                "height": 768,
+                "batch_size": 1
+            },
+            "class_type": "EmptyLatentImage",
+            "_meta": {
+                "title": "Empty Latent Image"
+            }
+        },
+        "181": {
+            "inputs": {
+                "scheduler": "normal",
+                "steps": 4,
+                "denoise": 1,
+                "model": [
+                    "170",
+                    0
+                ]
+            },
+            "class_type": "BasicScheduler",
+            "_meta": {
+                "title": "BasicScheduler"
+            }
+        },
+        "184": {
+            "inputs": {
+                "noise_seed": 508274201813129
+            },
+            "class_type": "RandomNoise",
+            "_meta": {
+                "title": "RandomNoise"
+            }
+        },
+        "185": {
+            "inputs": {
+                "sampler_name": "euler"
+            },
+            "class_type": "KSamplerSelect",
+            "_meta": {
+                "title": "KSamplerSelect"
+            }
+        },
+        "188": {
+            "inputs": {
+                "clip_name1": "t5-v1_1-xxl-encoder-Q3_K_M.gguf",
+                "clip_name2": "clip_l.safetensors",
+                "type": "flux"
+            },
+            "class_type": "DualCLIPLoaderGGUF",
+            "_meta": {
+                "title": "DualCLIPLoader (GGUF)"
+            }
+        }
+    }
+}

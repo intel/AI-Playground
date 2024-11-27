@@ -117,6 +117,7 @@ const classicModel = computed({
         set(newValue) {
             if (newValue === 'manual') {
                 imageGeneration.activeWorkflowName = 'Manual'
+                return;
             };
             if (newValue === 'sdxl' && !imageGeneration.hdWarningDismissed && !hdWarningOverride.value) {
                 hdConfirmationDialog.value?.showModal();

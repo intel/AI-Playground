@@ -145,6 +145,6 @@ function changeLimit(e: Event) {
                 <span>{{languages.COM_HIGH}}</span>
             </div>
         </div>
-        <input class="v-slide-val" :value="props.current" type="text" @input="inputChange" @change="changeLimit" />
+        <input :disabled="props.disabled" class="v-slide-val" :value="props.current" type="text" @input="inputChange" @change="changeLimit" />
     </div>
 </template>

@@ -90,6 +90,13 @@ const globalDefaultSettings = {
     scheduler: 'DPM++ SDE Karras',
 }
 
+const generalDefaultSettings = {
+    prompt: '',
+    seed: -1,
+    imagePreview: true,
+    safeCheck: true,
+}
+
 export const useImageGeneration = defineStore("imageGeneration", () => {
 
     const comfyUi = useComfyUi();
@@ -108,29 +115,32 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const processing = ref(false);
     const stopping = ref(false);
 
-    const prompt = ref<string>('');
-    const negativePrompt = ref<string>('nsfw');
-    const seed = ref<number>(-1);
-    const width = ref<number>(512);
-    const height = ref<number>(512);
-    const batchSize = ref<number>(1); // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
-    const imagePreview = ref<boolean>(true);
-    const safeCheck = ref<boolean>(true);
-    const scheduler = ref<string>("None");
-    const imageModel = ref(activeWorkflow.value.defaultSettings?.imageModel ?? globalDefaultSettings.imageModel);
+
+    // general settings
+    const prompt = ref<string>(generalDefaultSettings.prompt);
+    const seed = ref<number>(generalDefaultSettings.seed);
+    const imagePreview = ref<boolean>(generalDefaultSettings.imagePreview);
+    const safeCheck = ref<boolean>(generalDefaultSettings.safeCheck);
+    const batchSize = ref<number>(globalDefaultSettings.batchSize); // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
+    
+    const resetActiveWorkflowSettings = () => {
+        prompt.value = generalDefaultSettings.prompt;
+        seed.value = generalDefaultSettings.seed;
+        imagePreview.value = generalDefaultSettings.imagePreview;
+        safeCheck.value = generalDefaultSettings.safeCheck;
+        settingsPerWorkflow.value[activeWorkflowName.value ?? ''] = undefined;
+        loadSettingsForActiveWorkflow();
+    }
+    // model specific settings
+    const negativePrompt = ref<string>(globalDefaultSettings.negativePrompt);
+    const width = ref<number>(globalDefaultSettings.width);
+    const height = ref<number>(globalDefaultSettings.height);
+    const scheduler = ref<string>(globalDefaultSettings.scheduler);
+    const imageModel = ref(globalDefaultSettings.imageModel);
     const inpaintModel = ref(activeWorkflow.value.defaultSettings?.inpaintModel ?? globalDefaultSettings.inpaintModel);
-    const lora = ref<string>("None");
-    const guidanceScale = ref<number>(7.5);
-
-    const backend = computed({
-        get() {
-            return activeWorkflow.value.backend;
-        },
-        set(newValue) {
-            activeWorkflowName.value = workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
-        }
-    });
-
+    const lora = ref<string>(globalDefaultSettings.lora);
+    const guidanceScale = ref<number>(globalDefaultSettings.guidanceScale);
+    const inferenceSteps = ref<number>(globalDefaultSettings.inferenceSteps);
     const resolution = computed({
         get() {
             return `${width.value}x${height.value}`
@@ -140,38 +150,25 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         }
     })
 
-    const inferenceSteps = ref<number>(20);
-
     const settings = { inferenceSteps, width, height, resolution, batchSize, negativePrompt, lora, scheduler, guidanceScale, imageModel };
     type ModifiableSettings = keyof typeof settings;
+    const backend = computed({
+        get() {
+            return activeWorkflow.value.backend;
+        },
+        set(newValue) {
+            activeWorkflowName.value = workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
+        }
+    });
+
+
 
     const settingsPerWorkflow = ref<Record<string, Workflow['defaultSettings']>>({});
 
     const isModifiable = (settingName: ModifiableSettings) => activeWorkflow.value.modifiableSettings.includes(settingName);
 
     watch([activeWorkflowName, workflows], () => {
-        console.log('loading settings');
-        const getSavedOrDefault = (settingName: ModifiableSettings) => {
-            if (!activeWorkflowName.value) return;
-            let saved = undefined;
-            if (isModifiable(settingName)) {
-                saved = settingsPerWorkflow.value[activeWorkflowName.value]?.[settingName];
-                console.log('got saved', { settingName, saved });
-            }
-            settings[settingName].value = saved ?? activeWorkflow.value?.defaultSettings?.[settingName] ?? globalDefaultSettings[settingName];
-        }
-
-        getSavedOrDefault('inferenceSteps');
-        getSavedOrDefault('width');
-        getSavedOrDefault('height');
-        getSavedOrDefault('resolution');
-        getSavedOrDefault('batchSize');
-        getSavedOrDefault('negativePrompt');
-        getSavedOrDefault('lora');
-        getSavedOrDefault('scheduler');
-        getSavedOrDefault('guidanceScale');
-        getSavedOrDefault('imageModel');
-
+        loadSettingsForActiveWorkflow();
     }, {});
 
     watch(resolution, () => {
@@ -210,6 +207,30 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const stepText = ref("");
     const previewIdx = ref(0);
     const generateIdx = ref(-999);
+
+    function loadSettingsForActiveWorkflow() {
+        console.log('loading settings for', activeWorkflowName.value);
+        const getSavedOrDefault = (settingName: ModifiableSettings) => {
+            if (!activeWorkflowName.value) return;
+            let saved = undefined;
+            if (isModifiable(settingName)) {
+                saved = settingsPerWorkflow.value[activeWorkflowName.value]?.[settingName];
+                console.log('got saved', { settingName, saved });
+            }
+            settings[settingName].value = saved ?? activeWorkflow.value?.defaultSettings?.[settingName] ?? globalDefaultSettings[settingName];
+        };
+
+        getSavedOrDefault('inferenceSteps');
+        getSavedOrDefault('width');
+        getSavedOrDefault('height');
+        getSavedOrDefault('resolution');
+        getSavedOrDefault('batchSize');
+        getSavedOrDefault('negativePrompt');
+        getSavedOrDefault('lora');
+        getSavedOrDefault('scheduler');
+        getSavedOrDefault('guidanceScale');
+        getSavedOrDefault('imageModel');
+    }
 
     async function updateDestImage(index: number, image: string) {
         if (index + 1 > imageUrls.value.length) {
@@ -308,6 +329,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         batchSize,
         negativePrompt,
         settingsPerWorkflow,
+        resetActiveWorkflowSettings,
         loadWorkflowsFromJson,
         getMissingModels,
         updateDestImage,
@@ -333,8 +355,7 @@ const predefinedWorkflows: Workflow[] = [
         defaultSettings: {
             imageModel: 'Lykon/dreamshaper-8',
             inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-            width: 512,
-            height: 512,
+            resolution: '512x512',
             guidanceScale: 7,
             inferenceSteps: 20,
             scheduler: "DPM++ SDE Karras"
@@ -365,8 +386,7 @@ const predefinedWorkflows: Workflow[] = [
         defaultSettings: {
             imageModel: 'Lykon/dreamshaper-8',
             inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-            width: 512,
-            height: 512,
+            resolution: '512x512',
             guidanceScale: 7,
             inferenceSteps: 50,
             scheduler: "DPM++ SDE Karras"
@@ -397,8 +417,7 @@ const predefinedWorkflows: Workflow[] = [
         defaultSettings: {
             imageModel: 'Lykon/dreamshaper-8',
             inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-            width: 512,
-            height: 512,
+            resolution: '512x512',
             guidanceScale: 1,
             inferenceSteps: 6,
             scheduler: "LCM",
@@ -431,8 +450,7 @@ const predefinedWorkflows: Workflow[] = [
         defaultSettings: {
             imageModel: 'RunDiffusion/Juggernaut-XL-v9',
             inpaintModel: 'RunDiffusion/Juggernaut-XL-v9',
-            width: 1024,
-            height: 1024,
+            resolution: '1024x1024',
             guidanceScale: 7,
             inferenceSteps: 20,
             scheduler: "DPM++ SDE",
@@ -464,8 +482,7 @@ const predefinedWorkflows: Workflow[] = [
         defaultSettings: {
             imageModel: 'RunDiffusion/Juggernaut-XL-v9',
             inpaintModel: 'RunDiffusion/Juggernaut-XL-v9',
-            width: 1024,
-            height: 1024,
+            resolution: '1024x1024',
             guidanceScale: 7,
             inferenceSteps: 50,
             scheduler: "DPM++ SDE",
@@ -497,8 +514,7 @@ const predefinedWorkflows: Workflow[] = [
         defaultSettings: {
             imageModel: 'RunDiffusion/Juggernaut-XL-v9',
             inpaintModel: 'RunDiffusion/Juggernaut-XL-v9',
-            width: 1024,
-            height: 1024,
+            resolution: '1024x1024',
             guidanceScale: 1,
             inferenceSteps: 6,
             scheduler: "LCM",
