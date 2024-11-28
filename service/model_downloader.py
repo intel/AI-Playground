@@ -6,6 +6,7 @@ import time
 import traceback
 from os import path, makedirs, rename
 from threading import Thread, Lock
+from time import sleep
 from typing import Any, Callable, Dict, List
 
 import psutil
@@ -270,17 +271,24 @@ class HFPlaygroundDownloader:
             # Download aborted
             shutil.rmtree(self.save_path_tmp)
 
-    def move_to_desired_position(self):
+    def move_to_desired_position(self, retriable: bool = True):
         desired_repo_root_dir_name = os.path.join(self.save_path, utils.repo_local_root_dir_name(self.repo_id))
-        if os.path.exists(desired_repo_root_dir_name):
-            for item in os.listdir(self.save_path_tmp):
-                shutil.move(os.path.join(self.save_path_tmp, item), desired_repo_root_dir_name)
-            shutil.rmtree(self.save_path_tmp)
-        else:
-            rename(
-                self.save_path_tmp,
-                path.abspath(desired_repo_root_dir_name)
-            )
+        try:
+            if os.path.exists(desired_repo_root_dir_name):
+                for item in os.listdir(self.save_path_tmp):
+                    shutil.move(os.path.join(self.save_path_tmp, item), desired_repo_root_dir_name)
+                shutil.rmtree(self.save_path_tmp)
+            else:
+                rename(
+                    self.save_path_tmp,
+                    path.abspath(desired_repo_root_dir_name)
+                )
+        except Exception as e:
+            if (retriable):
+                sleep(5)
+                self.move_to_desired_position(retriable=False)
+            else:
+                raise e
 
 
     def start_report_download_progress(self):

@@ -65,7 +65,7 @@ def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
     folder_name = repo_local_root_dir_name(repo_id)
     if type == 0:
         dir = model_config.config.get("llm")
-        return os.path.exists(os.path.join(dir, folder_name, "config.json"))
+        return os.path.exists(os.path.join(dir, folder_name))
     elif type == 1:
         dir = model_config.config.get("stableDiffusion")
         if is_single_file(repo_id):

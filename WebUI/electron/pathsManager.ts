@@ -104,7 +104,7 @@ export class PathsManager {
             fs.readdirSync(dir).forEach(pathname => {
                 const fullPath = path.join(dir, pathname);
                 if (fs.statSync(fullPath).isDirectory() && fs.existsSync(
-                    path.join(fullPath, "config.json")
+                    path.join(fullPath)
                 )) {
                     const modelName = pathname.replace("---", "/")
                     if (!modelsSet.has(modelName)) {

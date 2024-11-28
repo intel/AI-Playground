@@ -40,14 +40,21 @@ function onShow() {
 }
 
 async function addModel() {
+
   const previousModel = globalSetup.modelSettings.llm_model
-  const isInModels = models.models.some((model) => model.name === modelRequest.value)
 
   const cancelAndShowWarning = (text: string) => {
     globalSetup.modelSettings.llm_model = previousModel;
     addModelErrorMessage.value = text;
     addModelError.value = true;
   }
+
+  if(modelRequest.value.split("/").length !== 2) {
+    cancelAndShowWarning("Please provide a valid model reference.")
+    return
+  }
+
+  const isInModels = models.models.some((model) => model.name === modelRequest.value)
 
   if (isInModels) {
     cancelAndShowWarning(i18nState.ERROR_ALREADY_IN_MODELS);
