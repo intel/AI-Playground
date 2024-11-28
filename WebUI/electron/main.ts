@@ -519,18 +519,10 @@ function initEventHandle() {
       imagePath = imageUrl.pathname.replace(/^\/*/, '')
     } else {
       const s = imageUrl.searchParams;
-      imagePath = `${s.get('type')}/${s.get('filename')}`
+      imagePath = `static/sd_out/${s.get('filename')}`
     }
-    if (app.isPackaged) {
-      // Resolve path relative to app when packaged
-      imagePath = path.join(externalRes, backend, imagePath);
-    } else {
-      // Resolve path relative to current directory during development
-      const cwd = app.getAppPath();
-      const parent_dir = path.dirname(cwd);
-      imagePath = path.join(parent_dir, backend, imagePath);
-    }
-    return imagePath;
+
+    return path.join(externalRes, 'service', imagePath);
   }
 
   ipcMain.on("openImageWithSystem", (event, url: string) => {
