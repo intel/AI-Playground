@@ -293,7 +293,7 @@ type NumberRange = {
 
 type DownloadFailedParams = { type: "error" | "cancelConfrim" | "cancelDownload" | "conflict", error?: any }
 
-type CheckModelExistParam = {
+type CheckModelAlreadyLoadedParameters = {
     repo_id: string;
     type: number;
     backend: BackendType;
@@ -301,12 +301,12 @@ type CheckModelExistParam = {
 
 type BackendType = "comfyui" | "default"
 
-type DownloadModelParam = CheckModelExistParam
+type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
-type DownloadModelRender = { size: string, gated?: boolean } & CheckModelExistParam
+type DownloadModelRender = { size: string, gated?: boolean } & CheckModelAlreadyLoadedParameters
 
-type CheckModelExistResult = {
-    exist: boolean
-} & CheckModelExistParam
+type CheckModelAlreadyLoadedResult = {
+    already_loaded: boolean
+} & CheckModelAlreadyLoadedParameters
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"

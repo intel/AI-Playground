@@ -54,7 +54,7 @@ async function addModel() {
     return;
   }
 
-  const urlExists = await checkIfUrlExists(modelRequest.value);
+  const urlExists = await globalSetup.checkIfHuggingFaceUrlExists(modelRequest.value);
   if (!urlExists) {
     cancelAndShowWarning(i18nState.ERROR_REPO_NOT_EXISTS);
     return;
@@ -80,12 +80,6 @@ async function registerModel() {
   userModels.push({ name: modelRequest.value, type: 'llm', downloaded: false })
   await models.refreshModels()
   globalSetup.modelSettings.llm_model = modelRequest.value;
-}
-
-async function checkIfUrlExists(repo_id: string) {
-  const response = await fetch(`${globalSetup.apiHost}/api/checkHFRepoExists?repo_id=${repo_id}`)
-  const data = await response.json()
-  return data.exists;
 }
 
 async function isLLM(repo_id: string) {

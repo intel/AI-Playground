@@ -104,16 +104,16 @@ class Model_Downloader_Adapter:
             self.put_msg({"type": "error", "err_type": "unknow_exception"})
         print(f"exception:{str(ex)}")
 
-    def download(self, modelDownloadList: List[DownloadModelData]):
+    def download(self, model_download_list: List[DownloadModelData]):
         self.has_error = False
-        threading.Thread(target=self.__start_download, kwargs={"modelDownloadList": modelDownloadList}).start()
+        threading.Thread(target=self.__start_download, kwargs={"model_download_list": model_download_list}).start()
         return self.generator()
 
-    def __start_download(self, modelDownloadList: List[DownloadModelData]):
+    def __start_download(self, model_download_list: List[DownloadModelData]):
         self.finish = False
         self.user_stop = False
         try:
-            for item in modelDownloadList:
+            for item in model_download_list:
                 if self.user_stop:
                     break
                 if self.has_error:

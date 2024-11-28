@@ -391,10 +391,10 @@ function restorePresetModelSettings() {
 }
 
 function downloadModel(model_repo_id: string, type: number) {
-    const params: CheckModelExistParam[] = [{ repo_id: model_repo_id, type: type, backend: "default" }];
-    globalSetup.checkModelExists(params)
+    const params: CheckModelAlreadyLoadedParameters[] = [{ repo_id: model_repo_id, type: type, backend: "default" }];
+    globalSetup.checkModelAlreadyLoaded(params)
         .then(exits => {
-            if (exits[0].exist) {
+            if (exits[0].already_loaded) {
                 toast.show(i18n.state.SETTINGS_MODEL_EXIST);
             } else {
                 emits("showDownloadModelConfirm", params);

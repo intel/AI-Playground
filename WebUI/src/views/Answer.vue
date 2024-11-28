@@ -421,8 +421,8 @@ async function newPromptGenerate() {
 
 async function checkModel() {
   return new Promise<void>(async (resolve, reject) => {
-        const checkList: CheckModelExistParam[] = [{ repo_id: globalSetup.modelSettings.llm_model, type: Const.MODEL_TYPE_LLM, backend: "default" }];
-        if (!(await globalSetup.checkModelExists(checkList))[0].exist) {
+        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: globalSetup.modelSettings.llm_model, type: Const.MODEL_TYPE_LLM, backend: "default" }];
+        if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
             emits(
                 "showDownloadModelConfirm",
                 checkList,
@@ -550,8 +550,8 @@ async function toggleRag(value: boolean) {
     ragData.processEnable = true;
     try {
         if (value) {
-            var checkList: CheckModelExistParam[] = [{ repo_id: globalSetup.modelSettings.embedding, type: Const.MODEL_TYPE_EMBEDDING, backend: "default" }];
-            if (!(await globalSetup.checkModelExists(checkList))[0].exist) {
+            var checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: globalSetup.modelSettings.embedding, type: Const.MODEL_TYPE_EMBEDDING, backend: "default" }];
+            if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
                 emits("showDownloadModelConfirm",
                     checkList,
                     enableRag,

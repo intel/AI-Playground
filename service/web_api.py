@@ -1,8 +1,5 @@
 import sys
 
-import marshmallow_dataclass
-from marshmallow import EXCLUDE
-
 from web_request_bodies import DownloadModelRequestBody
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -159,17 +156,17 @@ def applicationExit():
     os.kill(pid, SIGINT)
 
 
-@app.post("/api/checkModelExist")
-def check_model_exist():
-    list = request.get_json()
+@app.post("/api/checkModelAlreadyLoaded")
+@app.input(DownloadModelRequestBody.Schema, location='json', arg_name='download_request_data')
+def check_model_already_loaded(download_request_data: DownloadModelRequestBody):
     result_list = []
-    for item in list:
-        repo_id = item["repo_id"]
-        type = item["type"]
-        backend = item["backend"]
-        exist = utils.check_mmodel_exist(type, repo_id, backend)
-        result_list.append({"repo_id": repo_id, "type": type, "backend": backend, "exist": exist})
-    return jsonify({"code": 0, "message": "success", "exists": result_list})
+    for item in download_request_data.data:
+        repo_id = item.repo_id
+        type = item.type
+        backend = item.backend
+        already_loaded = utils.check_mmodel_exist(type, repo_id, backend)
+        result_list.append({"repo_id": repo_id, "type": type, "backend": backend, "already_loaded": already_loaded})
+    return jsonify({"code": 0, "message": "success", "data": result_list})
 
 
 @app.get("/api/checkHFRepoExists")
@@ -177,7 +174,6 @@ def check_if_huggingface_repo_exists():
     repo_id = request.args.get('repo_id')
     downloader = HFPlaygroundDownloader()
     exists = downloader.hf_url_exists(repo_id)
-
     return jsonify(
             {
                 "exists": exists

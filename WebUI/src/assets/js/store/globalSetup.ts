@@ -292,15 +292,21 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         }
     }
 
-    async function checkModelExists(params: CheckModelExistParam[]) {
-        const response = await fetch(`${apiHost.value}/api/checkModelExist`, {
+    async function checkModelAlreadyLoaded(params: CheckModelAlreadyLoadedParameters[]) {
+        const response = await fetch(`${apiHost.value}/api/checkModelAlreadyLoaded`, {
             method: "POST",
-            body: JSON.stringify(params),
+            body: JSON.stringify({ 'data': params}),
             headers: {
                 "Content-Type": "application/json"
             }
         });
-        const data = (await response.json()) as ApiResponse & { exists: CheckModelExistResult[] };
+        const parsedResponse = (await response.json()) as ApiResponse & { data: CheckModelAlreadyLoadedResult[] };
+        return parsedResponse.data;
+    }
+
+    async function checkIfHuggingFaceUrlExists(repo_id: string) {
+        const response = await fetch(`${apiHost.value}/api/checkHFRepoExists?repo_id=${repo_id}`)
+        const data = await response.json()
         return data.exists;
     }
 
@@ -323,7 +329,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         refreshSDModles,
         refreshInpaintModles,
         refreshLora,
-        checkModelExists,
+        checkModelAlreadyLoaded: checkModelAlreadyLoaded,
+        checkIfHuggingFaceUrlExists,
         applyPresetModelSettings,
         restorePathsSettings,
     };

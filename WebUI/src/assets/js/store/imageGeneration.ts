@@ -265,11 +265,11 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 
     async function getMissingComfyuiBackendModels() {
         if (activeWorkflow.value?.requiredModels === undefined) {
-            toast.error('"Defined workflow did not specify required models. Please add "requiredModels" to workflowfile.');
+            toast.error('Defined workflow did not specify required models. Please add "requiredModels" to workflowfile.');
             return []
         } else {
-            function extractDownloadModelParamsFromString(modelParamString: string): CheckModelExistParam {
-                const [modelType, repoAddress] = modelParamString.split(":")
+            function extractDownloadModelParamsFromString(modelParamString: string): CheckModelAlreadyLoadedParameters {
+                const [modelType, repoAddress] = modelParamString.replace(" ", "").split(":")
                 function modelTypeToId(type: string) {
                     switch (type) {
                         case "unet" : return Const.MODEL_TYPE_COMFY_UNET
@@ -282,17 +282,21 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                 }
                 return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
             }
-            const checkList: CheckModelExistParam[] = activeWorkflow.value.requiredModels.map( extractDownloadModelParamsFromString)
-            const result: CheckModelExistResult[]  = await globalSetup.checkModelExists(checkList);
-            return result
-                .filter(checkModelExistsResult => !checkModelExistsResult.exist)
-                .map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
+            const checkList: CheckModelAlreadyLoadedParameters[] = activeWorkflow.value.requiredModels.map( extractDownloadModelParamsFromString)
+            const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
+            const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
+            for (const item of modelsToBeLoaded) {
+                if(!await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
+                    toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
+                    return []
+                }
+            }
+            return modelsToBeLoaded.map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
         }
-
     }
 
     async function getMissingDefaultBackendModels() {
-        const checkList: CheckModelExistParam[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: activeWorkflow.value.backend }];
+        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: activeWorkflow.value.backend }];
         if (lora.value !== "None") {
             checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: activeWorkflow.value.backend })
         }
@@ -301,9 +305,9 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: activeWorkflow.value.backend})
         }
 
-        const result = await globalSetup.checkModelExists(checkList);
+        const result = await globalSetup.checkModelAlreadyLoaded(checkList);
         return result
-            .filter(checkModelExistsResult => !checkModelExistsResult.exist)
+            .filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
             .map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
 
     }

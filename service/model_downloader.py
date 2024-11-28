@@ -1,20 +1,20 @@
-import os
-
-from huggingface_hub import HfFileSystem, hf_hub_url, model_info
-from huggingface_hub.utils import RepositoryNotFoundError
-from typing import Any, Callable, Dict, List
-from os import path, makedirs, rename
-import requests
-import queue
-from threading import Thread, Lock
-import time
-import psutil
-from psutil._common import bytes2human
-from exceptions import DownloadException
-import traceback
 import concurrent.futures
-import aipg_utils as utils
+import os
+import queue
 import shutil
+import time
+import traceback
+from os import path, makedirs, rename
+from threading import Thread, Lock
+from typing import Any, Callable, Dict, List
+
+import psutil
+import requests
+from huggingface_hub import HfFileSystem, hf_hub_url, model_info
+from psutil._common import bytes2human
+
+import aipg_utils as utils
+from exceptions import DownloadException
 
 model_list_cache = dict()
 model_lock = Lock()
@@ -60,6 +60,7 @@ class NotEnoughDiskSpaceException(Exception):
         super().__init__(message)
 
 
+
 class HFPlaygroundDownloader:
     fs: HfFileSystem
     file_queue: queue.Queue[HFDonloadItem]
@@ -87,11 +88,7 @@ class HFPlaygroundDownloader:
         self.hf_token = hf_token
 
     def hf_url_exists(self, repo_id: str):
-        try:
-            model_info(utils.trim_repo(repo_id))
-            return True
-        except RepositoryNotFoundError:
-            return False
+        return self.fs.exists(repo_id)
 
     def probe_type(self, repo_id : str):
         return model_info(utils.trim_repo(repo_id)).pipeline_tag

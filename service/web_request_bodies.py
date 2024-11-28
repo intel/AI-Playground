@@ -15,3 +15,4 @@ class DownloadModelData:
 @marshmallow_dataclass.dataclass
 class DownloadModelRequestBody:
     data : List[DownloadModelData]
+

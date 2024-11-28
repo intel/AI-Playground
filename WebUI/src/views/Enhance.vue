@@ -435,7 +435,7 @@ async function generate() {
 
 async function checkModel() {
     return new Promise<void>(async (resolve, reject) => {
-        const checkList: CheckModelExistParam[] = [];
+        const checkList: CheckModelAlreadyLoadedParameters[] = [];
         if ([3, 4].includes(mode.value) && imageGeneration.inpaintModel != i18nState.ENHANCE_INPAINT_USE_IMAGE_MODEL) {
             checkList.push({ repo_id: imageGeneration.inpaintModel, type: Const.MODEL_TYPE_INPAINT, backend: imageGeneration.activeWorkflow.backend});
         } else {
@@ -451,10 +451,10 @@ async function checkModel() {
             checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW, backend: imageGeneration.activeWorkflow.backend })
             checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW, backend: imageGeneration.activeWorkflow.backend })
         }
-        const result = await globalSetup.checkModelExists(checkList);
+        const result = await globalSetup.checkModelAlreadyLoaded(checkList);
         const downloadList: DownloadModelParam[] = [];
         for (const item of result) {
-            if (!item.exist) {
+            if (!item.already_loaded) {
                 downloadList.push({ repo_id: item.repo_id, type: item.type, backend: imageGeneration.activeWorkflow.backend })
             }
         }
