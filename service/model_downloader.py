@@ -290,7 +290,6 @@ class HFPlaygroundDownloader:
             else:
                 raise e
 
-
     def start_report_download_progress(self):
         thread = Thread(target=self.report_download_progress)
         thread.start()

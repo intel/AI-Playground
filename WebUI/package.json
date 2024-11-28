@@ -5,20 +5,16 @@
   "scripts": {
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "preview": "vite preview",
-
     "fetch-build-resources": "cross-env node ./build/scripts/fetch-python-package-resources.js --target_dir=../build_resources",
-
     "prepare-python-env": "cross-env node ./build/scripts/prepare-python-env.js --build_resources_dir=../build_resources --target_dir=../build-envs/online/env",
     "install-full-python-env": "cross-env node ./build/scripts/install-full-python-env.js --env_dir=../build-envs/online/env --comfy_ui_dir=../build_resources/ComfyUI",
     "provide-electron-build-resources": "cross-env node build/scripts/provide-electron-build-resources.js --build_resources_dir=../build_resources --backend_dir=../service --target_dir=./external",
-
     "prepare-build:arc": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/env && node ./build/scripts/render-template.js --online_installer --platform=arc",
     "prepare-build:arc-offline": "cross-env && npm run prepare-python-env && npm run install-full-python-env -- --platform=arc && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/offline/arc/env && node ./build/scripts/render-template.js --no-online_installer --platform=arc",
     "prepare-build:ultra": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/env && node ./build/scripts/render-template.js --online_installer --platform=ultra",
     "prepare-build:ultra-offline": "cross-env npm run prepare-python-env && npm run install-full-python-env -- --platform=ultra && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/offline/ultra/env && node ./build/scripts/render-template.js --no-online_installer --platform=ultra",
     "prepare-build:ultra2": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/env && node ./build/scripts/render-template.js --online_installer --platform=ultra2",
     "prepare-build:ultra2-offline": "cross-env npm run prepare-python-env && npm run install-full-python-env -- --platform=ultra2 && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/offline/ultra2/env && node ./build/scripts/render-template.js --no-online_installer --platform=ultra2",
-
     "build:arc": "cross-env-shell PLATFORM=\"arc\" VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "build:arc-offline": "cross-env-shell PLATFORM=\"arc\" VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config-offline.json --win --x64\"",
     "build:ultra": "cross-env-shell PLATFORM=\"ultra\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
@@ -46,6 +42,8 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "unplugin-auto-import": "^0.18.3",
+    "v-popover": "^0.1.13",
+    "v-tooltip": "^2.1.3",
     "vue": "^3.5.12",
     "zod": "^3.23.8"
   },

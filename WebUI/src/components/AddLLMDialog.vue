@@ -4,8 +4,21 @@
       <div
         class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-6 text-white"
         :class="{ 'animate-scale-in': animate }">
-        <p v-html="i18nState.REQUEST_LLM_MODEL_NAME"></p>
-        <Input :placeholder="languages.COM_LLM_HF_PROMPT" v-model="modelRequest" @keyup.enter="addModel"></Input>
+        <b v-html="i18nState.REQUEST_LLM_MODEL_NAME"></b>
+        <div class="flex flex-col items-center gap-2 p-4 border border-yellow-600 bg-yellow-600/10 rounded-lg">
+          <p v-html="i18nState.REQUEST_LLM_MODEL_DISCLAIMER"></p>
+        </div>
+        <div class="container flex">
+          <span @mouseover="showInfo = true" @mouseout="showInfo = false" style="vertical-align: middle;" class="svg-icon i-info w-7 h-7 px-6"></span>
+          <Input :placeholder="languages.COM_LLM_HF_PROMPT" v-model="modelRequest" @keyup.enter="addModel"></Input>
+        </div>
+        <span v-if="showInfo" class="hover-box w-0.6">
+           <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
+          <ul>
+            <li v-html="i18nState.REQUEST_LLM_MODEL_EXAMPLE"></li>
+<!--            <li v-html="i18nState.REQUEST_LLM_SINGLE_EXAMPLE"></li>-->
+          </ul>
+        </span>
         <p v-show="addModelError" style="color: #F44336;">{{ addModelErrorMessage }}</p>
         <div class="flex justify-center items-center gap-9">
           <button @click="closeAdd" class="bg-color-control-bg  py-1 px-4 rounded">{{ i18nState.COM_CLOSE }}</button>
@@ -15,6 +28,7 @@
     </div>
   </div>
 </template>
+
 <script setup lang="ts">
 import { Input } from '@/components/ui/input'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup';
@@ -27,6 +41,7 @@ const globalSetup = useGlobalSetup();
 const models = useModels();
 const modelRequest = ref("");
 const addModelErrorMessage = ref("")
+const showInfo = ref(false);
 const addModelError = ref(false);
 const animate = ref(false);
 const emits = defineEmits<{
@@ -102,6 +117,23 @@ function closeAdd() {
   emits("close");
 }
 
+
+
 defineExpose({ onShow });
 
 </script>
+
+<style>
+ul {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+.hover-box {
+  position: absolute;
+  background-color: rgba(90, 90, 90, 0.91);
+  border: 1px solid #000000;
+  padding: 10px;
+  border-radius: 10px;
+  z-index: 1;
+}
+</style>
