@@ -2,12 +2,15 @@ import os
 import threading
 from queue import Empty, Queue
 import json
+from typing import List
+
 from file_downloader import FileDownloader
 from model_downloader import NotEnoughDiskSpaceException, DownloadException
 from psutil._common import bytes2human
 from model_downloader import HFPlaygroundDownloader
 import realesrgan
 import aipg_utils as utils
+from web_request_bodies import DownloadModelData
 
 
 class Model_Downloader_Adapter:
@@ -101,30 +104,30 @@ class Model_Downloader_Adapter:
             self.put_msg({"type": "error", "err_type": "unknow_exception"})
         print(f"exception:{str(ex)}")
 
-    def download(self, list: list):
+    def download(self, modelDownloadList: List[DownloadModelData]):
         self.has_error = False
-        threading.Thread(target=self.__start_download, kwargs={"list": list}).start()
+        threading.Thread(target=self.__start_download, kwargs={"modelDownloadList": modelDownloadList}).start()
         return self.generator()
 
-    def __start_download(self, list: list):
+    def __start_download(self, modelDownloadList: List[DownloadModelData]):
         self.finish = False
         self.user_stop = False
         try:
-            for item in list:
+            for item in modelDownloadList:
                 if self.user_stop:
                     break
                 if self.has_error:
                     break
-                if item["type"] == 4:
+                if item.type == 4:
                     self.file_downloader.download_file(
                         realesrgan.ESRGAN_MODEL_URL,
                         os.path.join(
-                            utils.get_model_path(item["type"]),
+                            utils.get_model_path(item.type),
                             os.path.basename(realesrgan.ESRGAN_MODEL_URL),
                         ),
                     )
                 else:
-                    self.hf_downloader.download(item["repo_id"], item["type"], item["backend"])
+                    self.hf_downloader.download(item.repo_id, item.type, item.backend)
             self.put_msg({"type": "allComplete"})
             self.finish = True
         except Exception as ex:

@@ -261,7 +261,7 @@ function download() {
     curDownloadTip.value = "";
     fetch(`${globalSetup.apiHost}/api/downloadModel`, {
         method: "POST",
-        body: JSON.stringify(toRaw(downloadList.value)),
+        body: JSON.stringify(toRaw({ 'data': downloadList.value})),
         headers: {
             "Content-Type": "application/json",
             ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {})
