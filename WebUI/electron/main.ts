@@ -660,7 +660,7 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
 function spawnComfy(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
   logger.info(`#1 try to start ComfyUI API`)
 
-  const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", ...settings.comfyUiParameters], {
+  const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...settings.comfyUiParameters], {
     cwd: wordkDir,
     windowsHide: true,
     env: Object.assign(process.env, additionalEnvVariables)
