@@ -6,7 +6,8 @@
         :class="{ 'animate-scale-in': animate }">
         <b v-html="i18nState.REQUEST_LLM_MODEL_NAME"></b>
         <div class="flex flex-col items-center gap-2 p-4 border border-yellow-600 bg-yellow-600/10 rounded-lg">
-          <p v-html="i18nState.REQUEST_LLM_MODEL_DISCLAIMER"></p>
+          <p>{{ i18nState.REQUEST_LLM_MODEL_DISCLAIMER_1 }}</p>
+          <p>{{ i18nState.REQUEST_LLM_MODEL_DISCLAIMER_2 }}</p>
         </div>
         <div class="container flex">
           <span @mouseover="showInfo = true" @mouseout="showInfo = false" style="vertical-align: middle;" class="svg-icon i-info w-7 h-7 px-6"></span>
@@ -15,7 +16,7 @@
         <span v-if="showInfo" class="hover-box w-0.6">
            <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
           <ul>
-            <li v-html="i18nState.REQUEST_LLM_MODEL_EXAMPLE"></li>
+            <li>{{ i18nState.REQUEST_LLM_MODEL_EXAMPLE }}</li>
 <!--            <li v-html="i18nState.REQUEST_LLM_SINGLE_EXAMPLE"></li>-->
           </ul>
         </span>
