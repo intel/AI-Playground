@@ -351,7 +351,7 @@ class HFPlaygroundDownloader:
         self.build_queue(file_list)
         file = self.file_queue.get_nowait()
 
-        response = requests.get(file.url, stream=True, verify=False, headers=headers)
+        response = requests.head(file.url, verify=False, headers=headers, allow_redirects=True)
 
         return response.status_code == 200
 
