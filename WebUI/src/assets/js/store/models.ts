@@ -45,7 +45,7 @@ export const useModels = defineStore("models", () => {
 
         const notYetDownloaded = (model: Model) => !downloadedModels.map(m => m.name).includes(model.name);
 
-        models.value = [...downloadedModels, ...userModels, ...predefinedModels.filter(notYetDownloaded)];
+        models.value = [...downloadedModels, ...userModels.filter(notYetDownloaded), ...predefinedModels.filter(notYetDownloaded)];
 
         }
 

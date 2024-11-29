@@ -247,8 +247,8 @@ function getInfoUrl(repoId: string, type: number) {
             return "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md"
 
     }
-    
-    return `https://huggingface.co/${repoId}`;
+
+    return `https://huggingface.co/${repoId.split('/').slice(0,2).join('/')}`;
 }
 
 function getFunctionTip(type: number) {
