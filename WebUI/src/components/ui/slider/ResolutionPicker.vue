@@ -8,6 +8,8 @@ import { useImageGeneration } from '@/assets/js/store/imageGeneration'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
 
+const imageGeneration = useImageGeneration()
+
 const aspectRatios = [
   { label: '12/5', value: 12 / 5 },
   { label: '16/9', value: 16 / 9 },
@@ -20,12 +22,16 @@ const aspectRatios = [
   { label: '5/12', value: 5 / 12 },
 ]
 
-const megaPixelsOptions = [
+const megaPixelsOptions = computed(() => 
+imageGeneration.activeWorkflow.tags.includes('sd1.5') ? [
+  { label: '0.25', totalPixels: 512 * 512 }
+] :
+[
   { label: '0.25', totalPixels: 512 * 512 },
   { label: '0.5', totalPixels: 704 * 704 },
   { label: '0.8', totalPixels: 896 * 896 },
   { label: '1.0', totalPixels: 1024 * 1024 },
-]
+])
 
 function findBestResolution(totalPixels: number, aspectRatio: number) {
   const MIN_SIZE = 256
@@ -53,29 +59,28 @@ function findBestResolution(totalPixels: number, aspectRatio: number) {
   return { width: bestWidth, height: bestHeight, totalPixels: bestWidth * bestHeight }
 }
 
-const resolutionsPerMegaPixelsOption =
-  megaPixelsOptions.map(megaPixels =>
+const resolutionsPerMegaPixelsOption = computed(() =>
+  megaPixelsOptions.value.map(megaPixels =>
     aspectRatios.map(aspectRatio => ({
       aspectRatio: aspectRatio.label,
       ...findBestResolution(megaPixels.totalPixels, aspectRatio.value)
     })))
-
-const imageGeneration = useImageGeneration()
+  );
 
 const megaPixelsIndex = computed({
   get: () => {
     const currentTotalPixels = imageGeneration.width * imageGeneration.height
-    const bestMatch = megaPixelsOptions.map(
+    const bestMatch = megaPixelsOptions.value.map(
       option => ({ ...option, distance: Math.abs(option.totalPixels - currentTotalPixels) })
     ).sort((a, b) => a.distance - b.distance)[0]
-    const index = megaPixelsOptions.findIndex(option => option.label === bestMatch.label)
+    const index = megaPixelsOptions.value.findIndex(option => option.label === bestMatch.label)
     return index === -1 ? 0 : index
   },
   set: (index) => {
-    const currentAspectRatio = resolutionsPerMegaPixelsOption[index][resolutionIndex.value[0]].aspectRatio;
-    const res = resolutionsPerMegaPixelsOption[index].find(
+    const currentAspectRatio = resolutionsPerMegaPixelsOption.value[index][resolutionIndex.value[0]].aspectRatio;
+    const res = resolutionsPerMegaPixelsOption.value[index].find(
       res => res.aspectRatio === currentAspectRatio
-    ) ?? resolutionsPerMegaPixelsOption[index][0]
+    ) ?? resolutionsPerMegaPixelsOption.value[index][0]
     imageGeneration.width = res.width
     imageGeneration.height = res.height
   }
@@ -83,15 +88,15 @@ const megaPixelsIndex = computed({
 
 const resolutionIndex = computed({
   get: () => {
-    const index = resolutionsPerMegaPixelsOption[megaPixelsIndex.value].findIndex(
+    const index = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
       res => res.width === imageGeneration.width && res.height === imageGeneration.height
     )
-    if (index === -1) return [resolutionsPerMegaPixelsOption[megaPixelsIndex.value].findIndex(
+    if (index === -1) return [resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
       res => res.aspectRatio === '1/1')]
     return [index]
   },
   set: (resIndex) => {
-    const res = resolutionsPerMegaPixelsOption[megaPixelsIndex.value][resIndex[0]]
+    const res = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value][resIndex[0]]
     imageGeneration.width = res.width
     imageGeneration.height = res.height
   }
