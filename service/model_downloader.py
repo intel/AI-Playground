@@ -334,6 +334,7 @@ class HFPlaygroundDownloader:
 
     def is_access_granted(self, repo_id: str, model_type, backend : str):
 
+        repo_id = utils.trim_repo(repo_id)
         headers={}
         if (self.hf_token is not None):
             headers["Authorization"] = f"Bearer {self.hf_token}"
