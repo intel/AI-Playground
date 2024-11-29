@@ -216,7 +216,7 @@ def is_model_gated():
 def is_access_granted():
     list, hf_token = request.get_json()
     downloader = HFPlaygroundDownloader(hf_token)
-    accessGranted = { item["repo_id"] : downloader.is_access_granted(item["repo_id"], item["type"]) for item in list }
+    accessGranted = { item["repo_id"] : downloader.is_access_granted(item["repo_id"], item["type"], item["backend"]) for item in list }
     return jsonify(
         {
             "accessList": accessGranted

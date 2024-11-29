@@ -332,7 +332,7 @@ class HFPlaygroundDownloader:
 
         return response, fw
 
-    def is_access_granted(self, repo_id: str, model_type):
+    def is_access_granted(self, repo_id: str, model_type, backend : str):
 
         headers={}
         if (self.hf_token is not None):
@@ -340,7 +340,7 @@ class HFPlaygroundDownloader:
 
         self.file_queue = queue.Queue()
         self.repo_id = repo_id
-        self.save_path = path.join(utils.get_model_path(model_type))
+        self.save_path = path.join(utils.get_model_path(model_type,backend))
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
         )
