@@ -87,7 +87,7 @@
         },
         "171": {
             "inputs": {
-                "vae_name": "black-forest-labs/FLUX.1-schnell\\ae.safetensors"
+                "vae_name": "black-forest-labs---FLUX.1-schnell\\ae.safetensors"
             },
             "class_type": "VAELoader",
             "_meta": {
