@@ -118,17 +118,16 @@ class Model_Downloader_Adapter:
                     break
                 if self.has_error:
                     break
-                if item["accessGranted"]:
-                    if item.type == 4:
-                        self.file_downloader.download_file(
-                            realesrgan.ESRGAN_MODEL_URL,
-                            os.path.join(
-                                utils.get_model_path(item.type,item.backend),
-                                os.path.basename(realesrgan.ESRGAN_MODEL_URL)
-                            ),
-                        )
-                    else:
-                        self.hf_downloader.download(item.repo_id, item.type, item.backend)
+                if item.type == 4:
+                    self.file_downloader.download_file(
+                        realesrgan.ESRGAN_MODEL_URL,
+                        os.path.join(
+                            utils.get_model_path(item.type,item.backend),
+                            os.path.basename(realesrgan.ESRGAN_MODEL_URL)
+                        ),
+                    )
+                else:
+                    self.hf_downloader.download(item.repo_id, item.type, item.backend)
             self.put_msg({"type": "allComplete"})
             self.finish = True
         except Exception as ex:

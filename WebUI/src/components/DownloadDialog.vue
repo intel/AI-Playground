@@ -46,17 +46,17 @@
                     <div v-if="downloadList.some((i) => i.gated && !i.accessGranted) && downloadList.length === 1" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
                         <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO_SINGLE }}</span>
                         <span class="text-left">
-                          {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : ""}}
-                          {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE : ""}}
-                          {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT_SINGLE : ""}}
+                          {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : "" }}
+                          {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE : "" }}
+                          {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT_SINGLE : "" }}
                         </span>
                     </div>
                     <div v-if="downloadList.some((i) => i.gated && !i.accessGranted) && downloadList.length > 1" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
                       <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO }}</span>
                       <span class="text-left">
-                        {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : ""}}
-                        {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : ""}}
-                        {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT : ""}}
+                        {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : "" }}
+                        {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : "" }}
+                        {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT : "" }}
                       </span>
                     </div>
                     <div class="flex items-center gap-2">
@@ -183,7 +183,7 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
     hashError.value = false;
     percent.value = 0;
     downloadList.value = downList.map((item) => {
-        return { repo_id: item.repo_id, type: item.type, size: "???", backend: item.backend }
+        return { repo_id: item.repo_id, type: item.type, size: "???", backend: item.backend , }
     });
     readTerms.value = false;
     downloadResolve = success;
@@ -218,7 +218,6 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
             item.gated = gatedData.gatedList[item.repo_id] || false;
             item.accessGranted = accessData.accessList[item.repo_id] || false;
         }
-        downloadList.value = downloadList.value;
         sizeRequesting.value = false;
     } catch (ex) {
         fail && fail({ type: "error", error: ex });
@@ -272,14 +271,15 @@ function getFunctionTip(type: number) {
 
 function download() {
     downloding = true;
-    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${downloadList.value.filter(item => item.accessGranted === true).length}`;
+    const accessableDownloadList = downloadList.value.filter(item => item.accessGranted === true)
+    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${accessableDownloadList.length}`;
     percent.value = 0;
     completeCount.value = 0;
     abortController = new AbortController();
     curDownloadTip.value = "";
     fetch(`${globalSetup.apiHost}/api/downloadModel`, {
         method: "POST",
-        body: JSON.stringify(toRaw({ 'data': downloadList.value})),
+        body: JSON.stringify(toRaw({ 'data': accessableDownloadList})),
         headers: {
             "Content-Type": "application/json",
             ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {})
