@@ -175,11 +175,17 @@ export const useStableDiffusion = defineStore("stableDiffusion", () => {
         }
     }
 
+    async function free() {
+        await fetch(`${useGlobalSetup().apiHost}/api/free`, {
+            method: "POST"
+        })
+    }
 
     return {
         generateParams,
         generate,
         stop,
+        free,
     }
 }, {
     persist: {

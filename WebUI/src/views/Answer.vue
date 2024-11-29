@@ -195,8 +195,10 @@ import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
 import { Const } from "@/assets/js/const";
 import { useConversations } from "@/assets/js/store/conversations";
+import { useComfyUi } from "@/assets/js/store/comfyUi";
 
 const conversations = useConversations();
+const comfyUi = useComfyUi();
 const models = useModels();
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state
@@ -458,6 +460,7 @@ async function generate(chatContext: ChatItem[]) {
             enable_rag: ragData.enable,
             model_repo_id: globalSetup.modelSettings.llm_model
         };
+        comfyUi.free();
         const response = await fetch(`${globalSetup.apiHost}/api/llm/chat`, {
             method: "POST", headers: {
                 "Content-Type": "application/json"

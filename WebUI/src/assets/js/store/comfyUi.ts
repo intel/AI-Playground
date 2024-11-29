@@ -156,7 +156,9 @@ export const useComfyUi = defineStore("comfyUi", () => {
             ];
 
             for (let i = 0; i < imageGeneration.batchSize; i++) {
-                modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`); const result = await fetch(`http://${comfyHostAndPort.value}/prompt`, {
+                modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`);
+                
+                const result = await fetch(`http://${comfyHostAndPort.value}/prompt`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -195,10 +197,22 @@ export const useComfyUi = defineStore("comfyUi", () => {
         })
     }
 
+    async function free() {
+        await fetch(`http://${comfyHostAndPort.value}/free`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ free_memory: true,
+                unload_models: true })
+        })
+    }
+
     return {
         comfyUiState,
         generate,
-        stop
+        stop,
+        free
     }
 }, {
     persist: {

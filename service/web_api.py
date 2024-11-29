@@ -53,6 +53,12 @@ def llm_chat():
     it = sse_invoker.text_conversation(llm_params)
     return Response(stream_with_context(it), content_type="text/event-stream")
 
+@app.post("/api/free")
+def free():
+    paint_biz.dispose()
+    import llm_biz
+    llm_biz.dispose()
+    return jsonify({"code": 0, "message": "success"})
 
 @app.get("/api/llm/stopGenerate")
 def stop_llm_generate():
