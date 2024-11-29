@@ -26,9 +26,9 @@
         "inferenceSteps": 4
     },
     "displayedSettings": [
-        "inferenceSteps"
     ],
     "modifiableSettings": [
+        "inferenceSteps",
         "seed",
         "batchSize",
         "imagePreview",
