@@ -101,6 +101,225 @@ const generalDefaultSettings = {
 
 export const useImageGeneration = defineStore("imageGeneration", () => {
 
+    const predefinedWorkflows: Workflow[] = [
+        {
+            name: 'Standard',
+            backend: 'default',
+            tags: ['sd1.5'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            defaultSettings: {
+                imageModel: 'Lykon/dreamshaper-8',
+                inpaintModel: 'Lykon/dreamshaper-8-inpainting',
+                resolution: '512x512',
+                guidanceScale: 7,
+                inferenceSteps: 20,
+                scheduler: "DPM++ SDE Karras"
+            },
+            displayedSettings: [
+                'imageModel',
+                'inpaintModel',
+                'guidanceScale',
+                'inferenceSteps',
+                'scheduler',
+            ],
+            modifiableSettings: [
+                'resolution',
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+            ]
+        },
+        {
+            name: 'Standard - High Quality',
+            backend: 'default',
+            tags: ['sd1.5', 'hq'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            defaultSettings: {
+                imageModel: 'Lykon/dreamshaper-8',
+                inpaintModel: 'Lykon/dreamshaper-8-inpainting',
+                resolution: '512x512',
+                guidanceScale: 7,
+                inferenceSteps: 50,
+                scheduler: "DPM++ SDE Karras"
+            },
+            displayedSettings: [
+                'imageModel',
+                'inpaintModel',
+                'guidanceScale',
+                'inferenceSteps',
+                'scheduler',
+            ],
+            modifiableSettings: [
+                'resolution',
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+            ]
+        },
+        {
+            name: 'Standard - Fast',
+            backend: 'default',
+            tags: ['sd1.5', 'fast'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            defaultSettings: {
+                imageModel: 'Lykon/dreamshaper-8',
+                inpaintModel: 'Lykon/dreamshaper-8-inpainting',
+                resolution: '512x512',
+                guidanceScale: 1,
+                inferenceSteps: 6,
+                scheduler: "LCM",
+                lora: "latent-consistency/lcm-lora-sdv1-5"
+            },
+            displayedSettings: [
+                'imageModel',
+                'inpaintModel',
+                'guidanceScale',
+                'inferenceSteps',
+                'scheduler',
+                'lora'
+            ],
+            modifiableSettings: [
+                'resolution',
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+            ]
+        },
+        {
+            name: 'HD',
+            backend: 'default',
+            tags: ['sdxl', 'high-vram'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            defaultSettings: {
+                imageModel: 'RunDiffusion/Juggernaut-XL-v9',
+                inpaintModel: useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL,
+                resolution: '1024x1024',
+                guidanceScale: 7,
+                inferenceSteps: 20,
+                scheduler: "DPM++ SDE",
+                lora: "None"
+            },
+            displayedSettings: [
+                'imageModel',
+                'inpaintModel',
+                'guidanceScale',
+                'inferenceSteps',
+                'scheduler',
+            ],
+            modifiableSettings: [
+                'resolution',
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+            ]
+        },
+        {
+            name: 'HD - High Quality',
+            backend: 'default',
+            tags: ['sdxl', 'high-vram', 'hq'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            defaultSettings: {
+                imageModel: 'RunDiffusion/Juggernaut-XL-v9',
+                inpaintModel: useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL,
+                resolution: '1024x1024',
+                guidanceScale: 7,
+                inferenceSteps: 50,
+                scheduler: "DPM++ SDE",
+                lora: "None"
+            },
+            displayedSettings: [
+                'imageModel',
+                'inpaintModel',
+                'guidanceScale',
+                'inferenceSteps',
+                'scheduler',
+            ],
+            modifiableSettings: [
+                'resolution',
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+            ]
+        },
+        {
+            name: 'HD - Fast',
+            backend: 'default',
+            tags: ['sdxl', 'high-vram', 'fast'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            defaultSettings: {
+                imageModel: 'RunDiffusion/Juggernaut-XL-v9',
+                inpaintModel: useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL,
+                resolution: '1024x1024',
+                guidanceScale: 1,
+                inferenceSteps: 6,
+                scheduler: "LCM",
+                lora: "latent-consistency/lcm-lora-sdxl"
+            },
+            displayedSettings: [
+                'imageModel',
+                'inpaintModel',
+                'guidanceScale',
+                'inferenceSteps',
+                'scheduler',
+            ],
+            modifiableSettings: [
+                'resolution',
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+            ]
+        },
+        {
+            name: 'Manual',
+            backend: 'default',
+            tags: ['sd1.5', 'sdxl'],
+            requirements: [],
+            inputs: [],
+            outputs: [{ name: 'output_image', type: 'image' }],
+            displayedSettings: [
+            ],
+            modifiableSettings: [
+                'seed',
+                'negativePrompt',
+                'batchSize',
+                'imagePreview',
+                'safetyCheck',
+                'width',
+                'height',
+                'imageModel',
+                'inpaintModel',
+                'inferenceSteps',
+                'guidanceScale',
+                'scheduler',
+                'lora',
+            ]
+        },
+    ]
+
     const comfyUi = useComfyUi();
     const stableDiffusion = useStableDiffusion();
     const globalSetup = useGlobalSetup();
@@ -152,7 +371,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         }
     })
 
-    const settings = { inferenceSteps, width, height, resolution, batchSize, negativePrompt, lora, scheduler, guidanceScale, imageModel };
+    const settings = { inferenceSteps, width, height, resolution, batchSize, negativePrompt, lora, scheduler, guidanceScale, imageModel, inpaintModel };
     type ModifiableSettings = keyof typeof settings;
     const backend = computed({
         get() {
@@ -201,6 +420,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         saveToSettingsPerWorkflow('scheduler');
         saveToSettingsPerWorkflow('guidanceScale');
         saveToSettingsPerWorkflow('imageModel');
+        saveToSettingsPerWorkflow('inpaintModel');
     });
 
 
@@ -232,6 +452,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         getSavedOrDefault('scheduler');
         getSavedOrDefault('guidanceScale');
         getSavedOrDefault('imageModel');
+        getSavedOrDefault('inpaintModel');
     }
 
     async function updateDestImage(index: number, image: string) {
@@ -339,6 +560,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     loadWorkflowsFromJson();
+    
 
     return {
         hdWarningDismissed,
@@ -383,224 +605,8 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 });
 
-const predefinedWorkflows: Workflow[] = [
-    {
-        name: 'Standard',
-        backend: 'default',
-        tags: ['sd1.5'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        defaultSettings: {
-            imageModel: 'Lykon/dreamshaper-8',
-            inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-            resolution: '512x512',
-            guidanceScale: 7,
-            inferenceSteps: 20,
-            scheduler: "DPM++ SDE Karras"
-        },
-        displayedSettings: [
-            'imageModel',
-            'inpaintModel',
-            'guidanceScale',
-            'inferenceSteps',
-            'scheduler',
-        ],
-        modifiableSettings: [
-            'resolution',
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-        ]
-    },
-    {
-        name: 'Standard - High Quality',
-        backend: 'default',
-        tags: ['sd1.5', 'hq'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        defaultSettings: {
-            imageModel: 'Lykon/dreamshaper-8',
-            inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-            resolution: '512x512',
-            guidanceScale: 7,
-            inferenceSteps: 50,
-            scheduler: "DPM++ SDE Karras"
-        },
-        displayedSettings: [
-            'imageModel',
-            'inpaintModel',
-            'guidanceScale',
-            'inferenceSteps',
-            'scheduler',
-        ],
-        modifiableSettings: [
-            'resolution',
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-        ]
-    },
-    {
-        name: 'Standard - Fast',
-        backend: 'default',
-        tags: ['sd1.5', 'fast'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        defaultSettings: {
-            imageModel: 'Lykon/dreamshaper-8',
-            inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-            resolution: '512x512',
-            guidanceScale: 1,
-            inferenceSteps: 6,
-            scheduler: "LCM",
-            lora: "latent-consistency/lcm-lora-sdv1-5"
-        },
-        displayedSettings: [
-            'imageModel',
-            'inpaintModel',
-            'guidanceScale',
-            'inferenceSteps',
-            'scheduler',
-            'lora'
-        ],
-        modifiableSettings: [
-            'resolution',
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-        ]
-    },
-    {
-        name: 'HD',
-        backend: 'default',
-        tags: ['sdxl', 'high-vram'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        defaultSettings: {
-            imageModel: 'RunDiffusion/Juggernaut-XL-v9',
-            inpaintModel: 'RunDiffusion/Juggernaut-XL-v9',
-            resolution: '1024x1024',
-            guidanceScale: 7,
-            inferenceSteps: 20,
-            scheduler: "DPM++ SDE",
-            lora: "None"
-        },
-        displayedSettings: [
-            'imageModel',
-            'inpaintModel',
-            'guidanceScale',
-            'inferenceSteps',
-            'scheduler',
-        ],
-        modifiableSettings: [
-            'resolution',
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-        ]
-    },
-    {
-        name: 'HD - High Quality',
-        backend: 'default',
-        tags: ['sdxl', 'high-vram', 'hq'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        defaultSettings: {
-            imageModel: 'RunDiffusion/Juggernaut-XL-v9',
-            inpaintModel: 'RunDiffusion/Juggernaut-XL-v9',
-            resolution: '1024x1024',
-            guidanceScale: 7,
-            inferenceSteps: 50,
-            scheduler: "DPM++ SDE",
-            lora: "None"
-        },
-        displayedSettings: [
-            'imageModel',
-            'inpaintModel',
-            'guidanceScale',
-            'inferenceSteps',
-            'scheduler',
-        ],
-        modifiableSettings: [
-            'resolution',
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-        ]
-    },
-    {
-        name: 'HD - Fast',
-        backend: 'default',
-        tags: ['sdxl', 'high-vram', 'fast'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        defaultSettings: {
-            imageModel: 'RunDiffusion/Juggernaut-XL-v9',
-            inpaintModel: 'RunDiffusion/Juggernaut-XL-v9',
-            resolution: '1024x1024',
-            guidanceScale: 1,
-            inferenceSteps: 6,
-            scheduler: "LCM",
-            lora: "latent-consistency/lcm-lora-sdxl"
-        },
-        displayedSettings: [
-            'imageModel',
-            'inpaintModel',
-            'guidanceScale',
-            'inferenceSteps',
-            'scheduler',
-        ],
-        modifiableSettings: [
-            'resolution',
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-        ]
-    },
-    {
-        name: 'Manual',
-        backend: 'default',
-        tags: ['sd1.5', 'sdxl'],
-        requirements: [],
-        inputs: [],
-        outputs: [{ name: 'output_image', type: 'image' }],
-        displayedSettings: [
-        ],
-        modifiableSettings: [
-            'seed',
-            'negativePrompt',
-            'batchSize',
-            'imagePreview',
-            'safetyCheck',
-            'width',
-            'height',
-            'imageModel',
-            'inpaintModel',
-            'inferenceSteps',
-            'guidanceScale',
-            'scheduler',
-            'lora',
-        ]
-    },
-]
+
+
 
 if (import.meta.hot) {
     import.meta.hot.accept(acceptHMRUpdate(useImageGeneration, import.meta.hot))

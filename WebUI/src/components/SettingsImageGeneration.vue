@@ -89,11 +89,12 @@
             <div v-if="modifiableOrDisplayed('inpaintModel')" class="flex flex-col gap-2">
                 <p>{{ languages.SETTINGS_MODEL_INPAINT_MODEL }}</p>
                 <div class="flex items-center gap-2">
-                    <drop-selector :array="globalSetup.models.inpaint" :disabled="!modifiable('inpaintModel')">
+                    <drop-selector :array="globalSetup.models.inpaint" 
+                        @change="imageGeneration.inpaintModel = $event" :disabled="!modifiable('inpaintModel')">
                         <template #selected>
                             <div class="flex gap-2 items-center">
                                 <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                                <span>{{ globalSetup.modelSettings.inpaint_model }}</span>
+                                <span>{{ imageGeneration.inpaintModel }}</span>
                             </div>
                         </template>
                         <template #list="slotItem">
