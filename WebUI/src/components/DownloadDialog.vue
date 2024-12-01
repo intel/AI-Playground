@@ -75,7 +75,7 @@
                             }}</button>
                     </div>
                 </div>
-                <div v-else="hashError" class="flex flex-col items-center justify-center gap-4">
+                <div v-else-if="hashError" class="flex flex-col items-center justify-center gap-4">
                     <p>{{ errorText }}</p>
                     <button @click="close" class="bg-red-500 py-1 px-4">{{ i18nState.COM_CLOSE }}</button>
                 </div>
@@ -149,13 +149,16 @@ function dataProcess(line: string) {
             break;
         case "error":
             hashError.value = true;
+            abortController?.abort();
+            fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
+            downloadReject && downloadReject({ type: "error", error: errorText.value });
+
             switch (data.err_type) {
                 case "not_enough_disk_space":
                     errorText.value = i18nState.ERR_NOT_ENOUGH_DISK_SPACE.replace("{requires_space}", data.requires_space).replace("{free_space}", data.free_space);
                     break;
                 case "download_exception":
                     errorText.value = i18nState.ERR_DOWNLOAD_FAILED;
-                    toast.error(i18nState.ERR_DOWNLOAD_FAILED);
                     break;
                 case "runtime_error":
                     errorText.value = i18nState.ERROR_RUNTIME_ERROR;
@@ -171,7 +174,7 @@ function dataProcess(line: string) {
 let downloadResolve: undefined | (() => void);
 let downloadReject: ((args: DownloadFailedParams) => void) | undefined
 
-async function showConfirm(downList: DownloadModelParam[], success?: () => void, fail?: (args: DownloadFailedParams) => void) {
+async function showConfirmDialog(downList: DownloadModelParam[], success?: () => void, fail?: (args: DownloadFailedParams) => void) {
     if (downloding) {
         toast.error(i18nState.DOWNLOADER_CONFLICT);
         fail && fail({ type: "conflict" })
@@ -182,6 +185,7 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
     showComfirm.value = true;
     hashError.value = false;
     percent.value = 0;
+    taskPercent.value = 0;
     downloadList.value = downList.map((item) => {
         return { repo_id: item.repo_id, type: item.type, size: "???", backend: item.backend , }
     });
@@ -308,16 +312,16 @@ function confirmDownload() {
 function cancelDownload() {
     abortController?.abort();
     fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-    emits("close");
     downloadReject && downloadReject({ type: "cancelDownload" });
+    emits("close");
 }
 
 function close() {
-    downloadReject && downloadReject({ type: "error", error: errorText.value });
+    emits("close");
 }
 
 
-defineExpose({ showConfirm, download });
+defineExpose({ showConfirmDialog, download });
 </script>
 <style scoped>
 table {

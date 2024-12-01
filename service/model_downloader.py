@@ -122,9 +122,7 @@ class HFPlaygroundDownloader:
         if cache_item is None:
             file_list = list()
             self.enum_file_list(file_list, repo_id, model_type)
-            model_list_cache.__setitem__(
-                {"size": self.total_size, "queue": self.file_queue}
-            )
+            model_list_cache.__setitem__(key, {"size": self.total_size, "queue": self.file_queue})
         else:
             self.total_size = cache_item["size"]
             file_list: list = cache_item["queue"]

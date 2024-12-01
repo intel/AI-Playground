@@ -154,7 +154,7 @@
   "DOWNLOADER_FOR_IMAGE_PREVIEW":"Image Preview Model",
   "DOWNLOADER_FOR_IMAGE_UPSCALE":"Image Upscale Model",
   "DOWNLOADER_FOR_IMAGE_LORA": "Fast Image Model",
-  "DOWNLOADER_DONWLOAD_TASK_PROGRESS":"Download Model Complete",
+  "DOWNLOADER_DONWLOAD_TASK_PROGRESS":"Model Downloads Complete",
   "RAG_FILE_TOTAL_FORMAT": "File total: {total}",
   "RAG_DRAG_UPLOAD": "Drag files to upload",
   "RAG_DRAG_UPLOAD_UNSUPPORTED": "The current program is started with administrator privileges. Due to Windows UAC limitations, drag and drop upload cannot be used. Please use the add button at the top to upload files.",
