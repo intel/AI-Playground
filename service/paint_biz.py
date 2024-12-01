@@ -184,6 +184,7 @@ def get_basic_model(input_model_name: str) -> DiffusionPipeline | Any:
     else:
         _safety_checker = None
     # perf optimization
+    _basic_model_pipe.enable_model_cpu_offload()
     _basic_model_pipe.enable_vae_tiling()
     _basic_model_pipe.to(model_config.device)
 
