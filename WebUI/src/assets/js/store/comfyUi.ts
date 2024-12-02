@@ -3,6 +3,7 @@ import { WebSocket } from "partysocket";
 import { ComfyUIApiWorkflow, Setting, useImageGeneration } from "./imageGeneration";
 import { useI18N } from "./i18n";
 import { toast } from "../toast";
+import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 
 const WEBSOCKET_OPEN = 1;
 
@@ -205,6 +206,9 @@ export const useComfyUi = defineStore("comfyUi", () => {
             },
             body: JSON.stringify({ free_memory: true,
                 unload_models: true })
+        })
+        await fetch(`${useGlobalSetup().apiHost}/api/triggerxpucacheclear`, {
+            method: "POST"
         })
     }
 

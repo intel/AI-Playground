@@ -533,7 +533,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 
     }
 
-    function generate() {
+    async function generate() {
         generateIdx.value = 0;
         previewIdx.value = 0;
         stepText.value = i18nState.COM_GENERATING;

@@ -926,3 +926,7 @@ def assert_stop_generate():
     if _stop_generate:
         _stop_event.set()
         raise StopGenerateException()
+
+
+def clear_xpu_cache():
+    torch.xpu.empty_cache()
