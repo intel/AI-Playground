@@ -1,25 +1,27 @@
+import gc
 import json
-from typing import Any, List, Dict
-import torch
-import time
 import os
 import re
-import aipg_utils as utils
-import model_config
-from langchain_core.embeddings import Embeddings
+import time
+from typing import Any, List, Dict
+
+# from sentence_transformers import SentenceTransformer
+import intel_extension_for_pytorch as ipex  # noqa: F401
+import torch
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader
+from langchain_community.document_loaders.pdf import PyPDFLoader
+from langchain_community.document_loaders.text import TextLoader
 from langchain_community.document_loaders.word_document import (
     UnstructuredWordDocumentLoader,
     Docx2txtLoader,
 )
-from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader
-from langchain_community.document_loaders.pdf import PyPDFLoader
-from langchain_community.document_loaders.text import TextLoader
 from langchain_community.vectorstores.faiss import FAISS, Document
-
-# from sentence_transformers import SentenceTransformer
-import intel_extension_for_pytorch as ipex  # noqa: F401
+from langchain_core.embeddings import Embeddings
 from sentence_transformers import SentenceTransformer
+
+import aipg_utils as utils
+import model_config
 
 #### CONFIGURATIONS ------------------------------------------------------------------------------------------------------------------------
 INDEX_DATABASE_PATH = "./db/"  # Faiss database folder
@@ -290,3 +292,5 @@ def dispose():
             del embedding_database
             embedding_database = None
         Is_Inited = False
+    gc.collect()
+    torch.xpu.empty_cache()
