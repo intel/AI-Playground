@@ -49,16 +49,28 @@ const SettingSchema = SettingsSchema.keyof();
 export type Setting = z.infer<typeof SettingSchema>
 
 const WorkflowRequirementSchema = z.enum(['high-vram'])
-export type WorkflowRequirement = z.infer<typeof WorkflowRequirementSchema>
+
+const comfyUIBackendSchema = z.object({comfyUI: z.object({
+        customNodes: z.array(z.string()),
+        requiredModels: z.array(z.string()),
+    })})
+export type comfyUIBackend = z.infer<typeof comfyUIBackendSchema>
+
 const ComfyUIApiWorkflowSchema = z.record(z.string(), z.object({
     inputs: z.object({
         text: z.string().optional(),
     }).passthrough().optional(),
 }).passthrough());
 export type ComfyUIApiWorkflow = z.infer<typeof ComfyUIApiWorkflowSchema>;
+
+
+
 const WorkflowSchema = z.object({
     name: z.string(),
-    backend: z.enum(['default', 'comfyui']),
+    backend: z.union([
+        comfyUIBackendSchema,
+        z.enum(['default']),
+        ]),
     tags: z.array(z.string()),
     requiredModels: z.array(z.string()).optional(),
     requirements: z.array(WorkflowRequirementSchema),
@@ -77,6 +89,14 @@ const WorkflowSchema = z.object({
     comfyUiApiWorkflow: ComfyUIApiWorkflowSchema.optional()
 })
 export type Workflow = z.infer<typeof WorkflowSchema>;
+
+function isDefaultBackend(data: Workflow): boolean {
+    return data.backend === "default"
+}
+
+function isComfyUiBackend(data: string | comfyUIBackend): data is comfyUIBackend {
+    return data !== "default"
+}
 
 const globalDefaultSettings = {
     width: 512,
@@ -477,15 +497,16 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingModels() {
-        if (activeWorkflow.value.backend === 'default') {
+        if (isComfyUiBackend(activeWorkflow.value!.backend)) {
+            return getMissingComfyuiBackendModels(activeWorkflow.value!.backend)
+        }
+        else {
             return getMissingDefaultBackendModels()
-        } else {
-            return getMissingComfyuiBackendModels()
         }
     }
 
-    async function getMissingComfyuiBackendModels() {
-        if (activeWorkflow.value?.requiredModels === undefined) {
+    async function getMissingComfyuiBackendModels(comfyUIBackend: comfyUIBackend) {
+        if (comfyUIBackend.comfyUI.requiredModels === undefined) {
             toast.error('Defined workflow did not specify required models. Please add "requiredModels" to workflowfile.');
             return []
         } else {
@@ -503,7 +524,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                 }
                 return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
             }
-            const checkList: CheckModelAlreadyLoadedParameters[] = activeWorkflow.value.requiredModels.map( extractDownloadModelParamsFromString)
+            const checkList: CheckModelAlreadyLoadedParameters[] = comfyUIBackend.comfyUI.requiredModels.map( extractDownloadModelParamsFromString)
             const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
             const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
             for (const item of modelsToBeLoaded) {
@@ -517,13 +538,13 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingDefaultBackendModels() {
-        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: activeWorkflow.value.backend }];
+        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" }];
         if (lora.value !== "None") {
-            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: activeWorkflow.value.backend })
+            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: "default" })
         }
         if (imagePreview.value) {
-            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: activeWorkflow.value.backend})
-            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: activeWorkflow.value.backend})
+            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
+            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
         }
 
         const result = await globalSetup.checkModelAlreadyLoaded(checkList);
