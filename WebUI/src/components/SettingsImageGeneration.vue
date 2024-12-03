@@ -125,6 +125,8 @@
         <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings"><div class="svg-icon i-refresh">Reset</div>Load workflow defaults</button>
     </div>
 </template>
+
+
 <script setup lang="ts">
 import { Setting, useImageGeneration } from "@/assets/js/store/imageGeneration";
 import WorkflowSelector from "../components/SettingsImageWorkflowSelector.vue";
@@ -132,7 +134,6 @@ import SlideBar from "../components/SlideBar.vue";
 import ResolutionPicker from "../components/ui/slider/ResolutionPicker.vue";
 import RandomNumber from "../components/RandomNumber.vue";
 import DropSelector from "../components/DropSelector.vue";
-import { useI18N } from '@/assets/js/store/i18n';
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 
 const imageGeneration = useImageGeneration();
@@ -141,7 +142,5 @@ const globalSetup = useGlobalSetup();
 const anyModifiableOrDisplayed = (settings: Setting[]) => settings.some(setting => modifiableOrDisplayed(setting))
 const modifiableOrDisplayed = (setting: Setting) => imageGeneration.activeWorkflow.modifiableSettings.includes(setting) || imageGeneration.activeWorkflow.displayedSettings.includes(setting)
 const modifiable = (setting: Setting) => imageGeneration.activeWorkflow.modifiableSettings.includes(setting)
-
-const i18n = useI18N();
 
 </script>
