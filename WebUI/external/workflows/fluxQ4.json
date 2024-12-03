@@ -4,18 +4,17 @@
         "Q4",
         "Fast"
     ],
-    "backend": {
-        "comfyUI": {
-            "customNodes": [
-                "city96/ComfyUI-GGUF"
-            ],
-            "requiredModels": [
-                "unet:city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf",
-                "clip:city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf",
-                "clip:comfyanonymous/flux_text_encoders/clip_l.safetensors",
-                "vae:black-forest-labs/FLUX.1-schnell/ae.safetensors"
-            ]
-        }
+    "backend": "comfyui",
+    "comfyUIRequirements": {
+        "customNodes": [
+            "city96/ComfyUI-GGUF"
+        ],
+        "requiredModels": [
+            "unet:city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf",
+            "clip:city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf",
+            "clip:comfyanonymous/flux_text_encoders/clip_l.safetensors",
+            "vae:black-forest-labs/FLUX.1-schnell/ae.safetensors"
+        ]
     },
 
     "requirements": [

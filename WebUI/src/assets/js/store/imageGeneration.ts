@@ -50,12 +50,6 @@ export type Setting = z.infer<typeof SettingSchema>
 
 const WorkflowRequirementSchema = z.enum(['high-vram'])
 
-const comfyUIBackendSchema = z.object({comfyUI: z.object({
-        customNodes: z.array(z.string()),
-        requiredModels: z.array(z.string()),
-    })})
-export type comfyUIBackend = z.infer<typeof comfyUIBackendSchema>
-
 const ComfyUIApiWorkflowSchema = z.record(z.string(), z.object({
     inputs: z.object({
         text: z.string().optional(),
@@ -67,10 +61,11 @@ export type ComfyUIApiWorkflow = z.infer<typeof ComfyUIApiWorkflowSchema>;
 
 const WorkflowSchema = z.object({
     name: z.string(),
-    backend: z.union([
-        comfyUIBackendSchema,
-        z.enum(['default']),
-        ]),
+    backend: z.enum(['default', 'comfyui']),
+    comfyUIRequirements: z.object({
+        customNodes: z.array(z.string()),
+        requiredModels: z.array(z.string()),
+    }).optional(),
     tags: z.array(z.string()),
     requiredModels: z.array(z.string()).optional(),
     requirements: z.array(WorkflowRequirementSchema),
@@ -90,13 +85,6 @@ const WorkflowSchema = z.object({
 })
 export type Workflow = z.infer<typeof WorkflowSchema>;
 
-function isDefaultBackend(data: Workflow): boolean {
-    return data.backend === "default"
-}
-
-function isComfyUiBackend(data: string | comfyUIBackend): data is comfyUIBackend {
-    return data !== "default"
-}
 
 const globalDefaultSettings = {
     width: 512,
@@ -497,16 +485,15 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingModels() {
-        if (isComfyUiBackend(activeWorkflow.value!.backend)) {
-            return getMissingComfyuiBackendModels(activeWorkflow.value!.backend)
-        }
-        else {
+        if (activeWorkflow.value!.backend === "default") {
             return getMissingDefaultBackendModels()
+        } else {
+            return getMissingComfyuiBackendModels()
         }
     }
 
-    async function getMissingComfyuiBackendModels(comfyUIBackend: comfyUIBackend) {
-        if (comfyUIBackend.comfyUI.requiredModels === undefined) {
+    async function getMissingComfyuiBackendModels() {
+        if (activeWorkflow.value!.comfyUIRequirements!.requiredModels === undefined) {
             toast.error('Defined workflow did not specify required models. Please add "requiredModels" to workflowfile.');
             return []
         } else {
@@ -524,7 +511,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                 }
                 return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
             }
-            const checkList: CheckModelAlreadyLoadedParameters[] = comfyUIBackend.comfyUI.requiredModels.map( extractDownloadModelParamsFromString)
+            const checkList: CheckModelAlreadyLoadedParameters[] = activeWorkflow.value!.comfyUIRequirements!.requiredModels.map( extractDownloadModelParamsFromString)
             const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
             const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
             for (const item of modelsToBeLoaded) {
