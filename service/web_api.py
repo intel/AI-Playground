@@ -1,6 +1,6 @@
 import sys
 
-from web_request_bodies import DownloadModelRequestBody
+from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
 # Related issues:
@@ -372,6 +372,27 @@ def delete_rag_file():
     except Exception:
         traceback.print_exc()
         return jsonify({"code": -1, "message": "failed"})
+
+
+@app.post("/api/comfy-ui/is_installed")
+def is_comfyUI_loaded():
+    return jsonify({"is_comfyUI_loaded": True})
+
+@app.post("/api/comfy-ui/install")
+def is_comfyUI_loaded():
+    return jsonify({"success": True, "error_message": ""})
+
+
+@app.post("/api/comfy-ui/are_custom_nodes_loaded")
+@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='download_request_data')
+def is_comfyUI_loaded(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
+    return jsonify({ f"{x.username}/{x.reponame}" : True for x in comfyNodeRequest.data })
+
+
+@app.post("/api/comfy-ui/load_custom_nodes")
+@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='download_request_data')
+def is_comfyUI_loaded(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
+    return jsonify({ f"{x.username}/{x.reponame}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data })
 
 
 def cache_input_image():

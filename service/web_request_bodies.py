@@ -16,3 +16,11 @@ class DownloadModelData:
 class DownloadModelRequestBody:
     data : List[DownloadModelData]
 
+@marshmallow_dataclass.dataclass
+class ComfyUICustomNodesGithubRepoId:
+    username: str
+    reponame: str
+
+@marshmallow_dataclass.dataclass
+class ComfyUICustomNodesDownloadRequest:
+    data : List[ComfyUICustomNodesGithubRepoId]
