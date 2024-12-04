@@ -48,7 +48,7 @@ def _fetch_portable_git(seven_zipped_portable_git_target):
                 for chunk in response.iter_content(chunk_size=1024):
                     file.write(chunk)
         else:
-            print("Failed to download file")
+            logging.error(f"Failed fetching resources")
             #TODO: raise exception
     except Exception as e:
         logging.error(f"Failed to fetch portable git from ${git_download_url} with error {e}")

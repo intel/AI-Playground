@@ -90,7 +90,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
         apiHost.value = setupData.apiHost;
-        isComfyUiInstalled.value = setupData.isComfyUiInstalled;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;

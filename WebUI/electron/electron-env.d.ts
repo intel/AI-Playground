@@ -72,7 +72,6 @@ type SetupData = {
   envType: string,
   isAdminExec:boolean,
   version:string,
-  isComfyUiInstalled:boolean
 }
 
 type BackendStatus = {
