@@ -39,6 +39,7 @@
   "COM_FULLSCREEN_EXIT": "FullScreen Exit",
   "COM_DO_NOT_SHOW_AGAIN": "Do not show again",
   "SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM": "HD Mode can result in slower than normal performance on systems with less than 12 GB of VRAM or 24GB of system memory for Intel Core Ultra PCs",
+  "SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM": "The use of the workflow mode requires ComfyUI to be installed. This is an additional module that will be installed upon confirmation. Please make sure you have a stable internet connection.",
   "SETTINGS_TAB_IMAGE": "Image",
   "SETTINGS_TAB_BASIC": "Basic",
   "SETTINGS_TAB_MODEL": "Models",
