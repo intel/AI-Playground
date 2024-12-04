@@ -1,14 +1,18 @@
 import base64
 import hashlib
 import io
+import logging
 import math
 import os
+import shutil
 from typing import IO
 
 import torch
 from PIL import Image
 
-import model_config
+import service_config
+import subprocess
+import shlex
 
 
 def image_to_base64(image: Image.Image):
@@ -45,9 +49,8 @@ def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
         case _: raise NameError("Unknown Backend")
 
 def check_comfyui_model_exists(type, repo_id) -> bool:
-    model_dir = model_config.comfyUIConfig.get(convert_model_type(type))
+    model_dir = service_config.comfyUIModels.get(convert_model_type(type))
     dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
-    print(dir_to_look_for)
     return os.path.exists(dir_to_look_for)
 
 def trim_repo(repo_id):
@@ -60,20 +63,20 @@ def repo_local_root_dir_name(repo_id):
     return "---".join(repo_id.split("/")[:2])
 
 def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
-    import model_config
+    import service_config
 
     folder_name = repo_local_root_dir_name(repo_id)
     if type == 0:
-        dir = model_config.config.get("llm")
+        dir = service_config.service_model_paths.get("llm")
         return os.path.exists(os.path.join(dir, folder_name))
     elif type == 1:
-        dir = model_config.config.get("stableDiffusion")
+        dir = service_config.service_model_paths.get("stableDiffusion")
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
             return os.path.exists(os.path.join(dir, folder_name, "model_index.json"))
     elif type == 2:
-        dir = model_config.config.get("lora")
+        dir = service_config.service_model_paths.get("lora")
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
@@ -83,20 +86,20 @@ def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
                 os.path.join(dir, folder_name, "pytorch_lora_weights.bin")
             )
     elif type == 3:
-        dir = model_config.config.get("vae")
+        dir = service_config.service_model_paths.get("vae")
         return os.path.exists(os.path.join(dir, folder_name))
     elif type == 4:
         import realesrgan
 
-        dir = model_config.config.get("ESRGAN")
+        dir = service_config.service_model_paths.get("ESRGAN")
         return os.path.exists(
             os.path.join(dir, realesrgan.ESRGAN_MODEL_URL.split("/")[-1])
         )
     elif type == 5:
-        dir = model_config.config.get("embedding")
+        dir = service_config.service_model_paths.get("embedding")
         return os.path.exists(os.path.join(dir, folder_name))
     elif type == 6:
-        dir = model_config.config.get("inpaint")
+        dir = service_config.service_model_paths.get("inpaint")
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
@@ -104,7 +107,7 @@ def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
                 os.path.join(dir, repo_id.replace("/", "---"), "model_index.json")
             )
     elif type == 7:
-        dir = model_config.config.get("preview")
+        dir = service_config.service_model_paths.get("preview")
         return (
             os.path.exists(os.path.join(dir, folder_name, "config.json"))
             or os.path.exists(os.path.join(dir, f"{repo_id}.safetensors"))
@@ -143,9 +146,9 @@ def convert_model_type(type: int):
 def get_model_path(type: int, backend: str):
     match backend:
         case "default":
-            return model_config.config.get(convert_model_type(type))
+            return service_config.service_model_paths.get(convert_model_type(type))
         case "comfyui":
-            return model_config.comfyUIConfig.get(convert_model_type(type))
+            return service_config.comfyUIModels.get(convert_model_type(type))
 
 
 
@@ -201,13 +204,40 @@ def get_ESRGAN_size():
 
 
 def get_support_graphics(env_type: str):
-    import model_config
+    import re
+    import service_config
 
     device_count = torch.xpu.device_count()
-    model_config.env_type = env_type
+    print('xpu device_count:', device_count)
+    service_config.env_type = env_type
     graphics = list()
     for i in range(device_count):
         device_name = torch.xpu.get_device_name(i)
-        # if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
+        print('device_name', device_name)
+        if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
+            graphics.append({"index": i, "name": device_name})
+    device_count = torch.cuda.device_count()
+    print('cuda device_count:', device_count)
+    service_config.env_type = env_type
+    for i in range(device_count):
+        device_name = torch.cuda.get_device_name(i)
+        print('device_name', device_name)
         graphics.append({"index": i, "name": device_name})
     return graphics
+
+
+def call_subprocess(process_command: str) -> str:
+    args = shlex.split(process_command)
+    try:
+        output = subprocess.check_output(args)
+        return output.decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to call subprocess {process_command} with error {e}")
+        raise e
+
+def remove_existing_filesystem_resource(path: str):
+    if os.path.exists(path):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)

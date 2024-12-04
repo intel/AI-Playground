@@ -1,6 +1,8 @@
 import sys
 
+import comfyui_downloader
 from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest
+
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
 # Related issues:
@@ -33,10 +35,11 @@ from paint_biz import (
     UpscaleImageParams,
 )
 import paint_biz
+import aipg_utils
+# import rag
 import llm_biz
 import aipg_utils as utils
-import rag
-import model_config
+import service_config
 from model_downloader import HFPlaygroundDownloader
 from psutil._common import bytes2human
 import traceback
@@ -149,8 +152,8 @@ def get_init_settings():
 
     post_config: dict = request.get_json()
     for k, v in post_config.items():
-        if model_config.config.__contains__(k):
-            model_config.config.__setitem__(k, v)
+        if service_config.service_model_paths.__contains__(k):
+            service_config.service_model_paths.__setitem__(k, v)
 
     return jsonify(schedulers_util.schedulers)
 
@@ -374,25 +377,36 @@ def delete_rag_file():
         return jsonify({"code": -1, "message": "failed"})
 
 
-@app.post("/api/comfy-ui/is_installed")
+@app.get("/api/comfy-ui/is_installed")
 def is_comfyUI_loaded():
-    return jsonify({"is_comfyUI_loaded": True})
+    return jsonify({"is_comfyUI_loaded": comfyui_downloader.is_comfyUI_installed()})
 
 @app.post("/api/comfy-ui/install")
-def is_comfyUI_loaded():
-    return jsonify({"success": True, "error_message": ""})
+def install_comfyUI():
+    try:
+        installation_success = comfyui_downloader.install_comfyUI()
+        return jsonify({"success": installation_success, "error_message": ""})
+    except Exception as e:
+        return jsonify({'error_message': f'failed to install comfyUI due to {e}'}), 501
 
 
 @app.post("/api/comfy-ui/are_custom_nodes_loaded")
-@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='download_request_data')
-def is_comfyUI_loaded(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
-    return jsonify({ f"{x.username}/{x.reponame}" : True for x in comfyNodeRequest.data })
+@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
+def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
+    response = { f"{x.username}/{x.reponame}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data }
+    return jsonify(response)
 
 
 @app.post("/api/comfy-ui/load_custom_nodes")
-@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='download_request_data')
-def is_comfyUI_loaded(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
-    return jsonify({ f"{x.username}/{x.reponame}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data })
+@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
+def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
+    try:
+        for x in comfyNodeRequest.data:
+            comfyui_downloader.download_custom_node(x)
+        return jsonify({ f"{x.username}/{x.reponame}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data })
+    except Exception as e:
+        return jsonify({'error_message': f'failed to at least one custom node due to {e}'}), 501
+
 
 
 def cache_input_image():

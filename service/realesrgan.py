@@ -10,10 +10,10 @@ import threading
 import torch
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from torch.nn import functional as F
-import model_config
-import xpu_hijacks
+import service_config
+# import xpu_hijacks
 
-xpu_hijacks.ipex_hijacks()
+# xpu_hijacks.ipex_hijacks()
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -50,7 +50,7 @@ class RealESRGANer:
         self.deivce = torch.device(DEVICE)
         model_path: str = os.path.abspath(
             os.path.join(
-                model_config.config.get("ESRGAN"), ESRGAN_MODEL_URL.split("/")[-1]
+                service_config.service_model_paths.get("ESRGAN"), ESRGAN_MODEL_URL.split("/")[-1]
             )
         )
         if model_path.endswith("RealESRGAN_x2plus.pth"):

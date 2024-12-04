@@ -21,7 +21,7 @@ from langchain_core.embeddings import Embeddings
 from sentence_transformers import SentenceTransformer
 
 import aipg_utils as utils
-import model_config
+import service_config
 
 #### CONFIGURATIONS ------------------------------------------------------------------------------------------------------------------------
 INDEX_DATABASE_PATH = "./db/"  # Faiss database folder
@@ -35,12 +35,12 @@ MAX_NEW_TOKENS = 320  # Max length of LLM output
 class EmbeddingWrapper(Embeddings):
     def __init__(self, repo_id: str):
         model_embd_path = os.path.join(
-            model_config.config.get("embedding"), repo_id.replace("/", "---")
+            service_config.service_model_paths.get("embedding"), repo_id.replace("/", "---")
         )
         start = time.time()
         print(f"******* loading {model_embd_path} start ")
         self.model = SentenceTransformer(
-            model_embd_path, trust_remote_code=True, device=model_config.device
+            model_embd_path, trust_remote_code=True, device=service_config.device
         )
 
         print(
@@ -276,7 +276,7 @@ Is_Inited = False
 def init(repo_id: str, device: int):
     global embedding_database, embedding_wrapper, Is_Inited
     torch.xpu.set_device(device)
-    model_config.device = f"xpu:{device}"
+    service_config.device = f"xpu:{device}"
     embedding_wrapper = EmbeddingWrapper(repo_id)
     embedding_database = EmbeddingDatabase(embedding_wrapper)
     Is_Inited = True

@@ -15,16 +15,17 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    AutoModelForCausalLM,
 )
 
-from ipex_llm.transformers import AutoModelForCausalLM
+#from ipex_llm.transformers import AutoModelForCausalLM
 from typing import Callable
 from transformers.generation.stopping_criteria import (
     StoppingCriteria,
     STOPPING_CRITERIA_INPUTS_DOCSTRING,
     add_start_docstrings,
 )
-import model_config
+import service_config
 
 
 import ipex_llm.transformers.models.mistral
@@ -81,6 +82,7 @@ def stream_chat_generate(
     args: dict,
     error_callback: Callable[[Exception], None] = None,
 ):
+    print(args)
     try:
         model.generate(**args)
         sys.stdout.flush()
@@ -122,7 +124,7 @@ def generate(
             chat_history, tokenize=False, add_generation_prompt=True
         )
 
-    model_inputs = tokenizer(new_prompt, return_tensors="pt").to(model_config.device)
+    model_inputs = tokenizer(new_prompt, return_tensors="pt").to(service_config.device)
     ##tensor: torch.Tensor = encoding.get("input_ids")
 
     stopping_criteria = StoppingCriteriaList()
@@ -160,7 +162,7 @@ def process_rag(
 ):
     import rag
 
-    rag.to(model_config.device)
+    rag.to(service_config.device)
     query_success, context, rag_source = rag.query(prompt)
     if query_success:
         print("rag query input\r\n{}output:\r\n{}".format(prompt, context))
@@ -182,8 +184,8 @@ def chat(
         # if prev genera not finish, stop it
         stop_generate()
 
-        torch.xpu.set_device(params.device)
-        model_config.device = f"xpu:{params.device}"
+        torch.cuda.set_device(params.device)
+        service_config.device = f"cuda:{params.device}"
         prompt = params.prompt
         enable_rag = params.enable_rag
         model_repo_id = params.model_repo_id
@@ -198,9 +200,9 @@ def chat(
             if _model is not None:
                 del _model
                 gc.collect()
-                torch.xpu.empty_cache()
+                torch.cuda.empty_cache()
 
-            model_base_path = model_config.config.get("llm")
+            model_base_path = service_config.service_model_paths.get("llm")
             model_name = model_repo_id.replace("/", "---")
             model_path = path.abspath(path.join(model_base_path, model_name))
 
@@ -239,7 +241,7 @@ def chat(
                 "question", process_rag(last_prompt.get("question"), text_out_callback)
             )
 
-        _model = _model.to(model_config.device)
+        _model = _model.to(service_config.device)
 
         num_tokens = 0
         start_time = time.time()
@@ -302,7 +304,7 @@ def dispose():
     del _model
     _model = None
     gc.collect()
-    torch.xpu.empty_cache()
+    torch.cuda.empty_cache()
 
 
 class StopGenerateException(Exception):

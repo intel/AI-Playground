@@ -9,7 +9,7 @@
         DetailPrint "Extracting python environment..."
         nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\env.7z" -o"$INSTDIR\resources"'
         Delete "$INSTDIR\resources\env.7z"
-        Delete "$INSTDIR\resources\7zr.exe"
+
 
         DetailPrint "Downloading and setting up python environment..."
         ; Display a popup message with OK/Cancel options
