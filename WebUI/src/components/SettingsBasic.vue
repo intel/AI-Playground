@@ -67,32 +67,12 @@ const themeToDisplayName = (theme: Theme) => {
 
 const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
 
-const modelSettingsWatcher = watchEffect(() => {
-  modelSettings.llm = globalSetup.modelSettings.llm;
-  modelSettings.sd_model = globalSetup.modelSettings.sd_model;
-  modelSettings.lora = globalSetup.modelSettings.lora;
-});
-
-onMounted(() => {
-  cancelModelSettingsChange();
-})
-
-onUnmounted(() => {
-  modelSettingsWatcher();
-})
-
 const graphicsName = computed(() => {
     return globalSetup.graphicsList.find(item => modelSettings.graphics as number == item.index)?.name || "";
 })
 
 function changeGraphics(value: any, index: number) {
     globalSetup.applyModelSettings({ graphics: (value as GraphicsItem).index });
-}
-
-function cancelModelSettingsChange() {
-  Object.keys(modelSettings).forEach((key) => {
-    modelSettings[key] = globalSetup.modelSettings[key];
-  });
 }
 
 </script>
