@@ -34,7 +34,7 @@ def _install_portable_git():
         _unzip_portable_git(seven_zipped_portable_git_target, git_target_dir)
         assert is_git_installed(), "Failed to install git at expected location"
     except Exception as e:
-        logger.error(f"failed to install git due to {e}. Cleaning up intermediate resources")
+        logging.error(f"failed to install git due to {e}. Cleaning up intermediate resources")
         aipg_utils.remove_existing_filesystem_resource(seven_zipped_portable_git_target)
         aipg_utils.remove_existing_filesystem_resource(git_target_dir)
         raise e
@@ -109,9 +109,9 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
 
             _install_git_repo(expected_git_url, expected_custom_node_path)
             _install_pip_requirements(potential_node_requirements)
-            logger.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")
+            logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")
 
             return
         except Exception as e:
-            logger.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")
+            logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")
             raise e

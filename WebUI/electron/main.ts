@@ -433,10 +433,18 @@ function initEventHandle() {
       modelPaths: pathsManager.modelPaths,
       envType: settings.envType,
       isAdminExec: settings.isAdminExec,
-      version: app.getVersion()
+      version: app.getVersion(),
+      isComfyUiInstalled: isComfyUIDownloaded()
     };
 
   });
+
+  async function isComfyUIDownloaded(){
+    const response = await fetch(`${settings.apiHost}/api/comfy-ui/is_installed`);
+    const data = await response.json()
+    return data.is_comfyUI_installed;
+  }
+
 
   ipcMain.handle("updateModelPaths", (event, modelPaths: ModelPaths) => {
     pathsManager.updateModelPahts(modelPaths);

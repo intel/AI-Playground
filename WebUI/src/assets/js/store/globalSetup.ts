@@ -9,6 +9,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         version: "0.0.0.1"
     });
 
+    const isComfyUiInstalled =  ref(false)
+
     const apiHost = ref("http://127.0.0.1:9999");
 
     const models = ref<ModelLists>({
@@ -88,6 +90,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
         apiHost.value = setupData.apiHost;
+        isComfyUiInstalled.value = setupData.isComfyUiInstalled;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;
@@ -325,6 +328,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         applyPathsSettings,
         applyModelSettings,
         getManualModelSettings,
+        isComfyUiInstalled,
         refreshLLMModles,
         refreshSDModles,
         refreshInpaintModles,

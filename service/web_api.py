@@ -379,7 +379,7 @@ def delete_rag_file():
 
 @app.get("/api/comfy-ui/is_installed")
 def is_comfyUI_loaded():
-    return jsonify({"is_comfyUI_loaded": comfyui_downloader.is_comfyUI_installed()})
+    return jsonify({"is_comfyUI_installed": comfyui_downloader.is_comfyUI_installed()})
 
 @app.post("/api/comfy-ui/install")
 def install_comfyUI():
