@@ -229,6 +229,7 @@ def get_support_graphics(env_type: str):
 def call_subprocess(process_command: str) -> str:
     args = shlex.split(process_command)
     try:
+        logging.info(f"calling cmd process: {args}")
         output = subprocess.check_output(args)
         return output.decode("utf-8")
     except subprocess.CalledProcessError as e:

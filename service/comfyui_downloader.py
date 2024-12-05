@@ -33,6 +33,7 @@ def _install_portable_git():
         _fetch_portable_git(zipped_portable_git_target)
         _unzip_portable_git(zipped_portable_git_target, git_target_dir)
         assert is_git_installed(), "Failed to install git at expected location"
+        logging.info(f"successfully extracted git into {os.path.abspath(git_target_dir)}")
     except Exception as e:
         logging.error(f"failed to install git due to {e}. Cleaning up intermediate resources")
         aipg_utils.remove_existing_filesystem_resource(zipped_portable_git_target)
@@ -48,8 +49,8 @@ def _fetch_portable_git(seven_zipped_portable_git_target):
                 for chunk in response.iter_content(chunk_size=1024):
                     file.write(chunk)
         else:
-            logging.error(f"Failed fetching resources")
-            #TODO: raise exception
+            logging.error(f"Failed fetching resources from {git_download_url}")
+            raise Exception(f"fetching {git_download_url} failed with response: {response}")
     except Exception as e:
         logging.error(f"Failed to fetch portable git from ${git_download_url} with error {e}")
         aipg_utils.remove_existing_filesystem_resource(seven_zipped_portable_git_target)
@@ -63,12 +64,13 @@ def _unzip_portable_git(zipped_git_path, target_dir):
             logging.debug("using system tar to unzip.")
             return f"tar -C {target_dir} -xf {zipped_git_path}"
         except Exception:
-            logging.warn("falling back to powershell command to extract zip, as tar not in PATH")
+            logging.warning("falling back to powershell command to extract zip, as tar not in PATH")
             return f"powershell -command 'Expand-Archive' -Force {zipped_git_path} {target_dir}"
     try:
-        if not os.path.exists(zipped_git_path):
-            os.makedirs(zipped_git_path, exist_ok=True)
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir, exist_ok=True)
         aipg_utils.call_subprocess(get_unzipping_command())
+        logging.info("Unzipped git successfully")
     except Exception as e:
         aipg_utils.remove_existing_filesystem_resource(zipped_git_path)
         aipg_utils.remove_existing_filesystem_resource(target_dir)
@@ -78,13 +80,18 @@ def _install_git_repo(git_repo_url: str, target_dir: str):
     try:
         aipg_utils.remove_existing_filesystem_resource(target_dir)
         aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} clone {git_repo_url} {target_dir}")
+        logging.info(f"Cloned {git_repo_url} into {target_dir}")
     except Exception as e:
+        logging.warning(f"git cloned failed with exception {e}. Cleaning up failed resources.")
         aipg_utils.remove_existing_filesystem_resource(target_dir)
         raise e
 
 def _install_pip_requirements(requirements_txt_path: str):
-    if (os.path.exists(requirements_txt_path)):
-        aipg_utils.call_subprocess(f"{sys.executable} -m pip install -r {requirements_txt_path}")
+    logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
+    if os.path.exists(requirements_txt_path):
+        python_exe_callable_path = "'" + str(sys.executable) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
+        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
+        logging.info(f"python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
 
@@ -100,6 +107,8 @@ def install_comfyUI() -> bool:
         return True
     except Exception as e:
         logging.error(f"comfyUI installation failed due to {e}")
+        if os.path.exists(service_config.comfyUIRootPath):
+            aipg_utils.remove_existing_filesystem_resource(service_config.comfyUIRootPath)
         raise e
 
 
@@ -118,8 +127,6 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
 
             _install_git_repo(expected_git_url, expected_custom_node_path)
             _install_pip_requirements(potential_node_requirements)
-            logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")
-
             return
         except Exception as e:
             logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")

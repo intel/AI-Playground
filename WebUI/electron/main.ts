@@ -653,9 +653,9 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
   });
 
   webProcess.stdout.on('data', (message) => {
-    if(message.startsWith('INFO')) {
+    if(message.toString().startsWith('INFO')) {
       logger.info(`${message}`, 'ai-backend')
-    } else if (message.startsWith('WARN')) {
+    } else if (message.toString().startsWith('WARN')) {
       logger.warn(`${message}`, 'ai-backend')
     } else {
       logger.error(`${message}`, 'ai-backend')
