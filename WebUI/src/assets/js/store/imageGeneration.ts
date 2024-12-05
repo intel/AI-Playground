@@ -511,7 +511,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                 }
                 return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
             }
-            const checkList: CheckModelAlreadyLoadedParameters[] = activeWorkflow.value!.comfyUIRequirements!.requiredModels.map( extractDownloadModelParamsFromString)
+            const checkList: CheckModelAlreadyLoadedParameters[] = activeWorkflow.value!.comfyUIRequirements!.requiredModels.map( extractDownloadModelParamsFromString )
             const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
             const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
             for (const item of modelsToBeLoaded) {

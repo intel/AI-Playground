@@ -19,23 +19,7 @@
        </div>
        </form>
    </dialog>
-  <dialog ref="ComfyUIConfirmationDialog" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
-    <form method="dialog" action="/submit" onsubmit="return false" class="items-center justify-center">
-      <p class="mb-4">
-        {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM }}
-      </p>
-      <div class="flex justify-between space-x-4 items-center">
-        <button @click="() => {cancel()}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
-          {{ languages.COM_CANCEL }}
-        </button>
-        <div class="flex-end space-x-4">
-          <button @click="() => {comfyUIWarningOverride = true; currentWorkflowBackendType = 'comfyui'}" type="submit" class="bg-color-active py-1 px-4 rounded">
-            {{ languages.COM_CONFIRM }}
-          </button>
-        </div>
-      </div>
-    </form>
-  </dialog>
+   <comfy-u-i-download-dialog v-show="showComfyUIDownloadDialog" @close="onComfyUIDialogClose"></comfy-u-i-download-dialog>
     <div class="items-center flex-wrap grid grid-cols-1 gap-2">
         <div class="flex flex-col gap-2">
             <p>{{ "Mode" }}</p>
@@ -45,7 +29,7 @@
                     @click="() => { imageGeneration.backend = 'default' }"></radio-block>
                 <radio-block :checked="imageGeneration.backend === 'comfyui'"
                     :text="'Workflow'"
-                    @click="() => { currentWorkflowBackendType = 'comfyui' }"></radio-block>
+                    @click="() => { onSwitchToComfyUI() }"></radio-block>
             </div>
         </div>
         <div v-if="imageGeneration.backend === 'default'" class="flex flex-col gap-2">
@@ -109,10 +93,11 @@
     </div>
 </template>
 <script setup lang="ts">
-import {useImageGeneration} from "@/assets/js/store/imageGeneration";
+import { useImageGeneration } from "@/assets/js/store/imageGeneration";
 import DropSelector from "../components/DropSelector.vue";
 import RadioBlock from "../components/RadioBlock.vue";
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
+import ComfyUIDownloadDialog from "@/components/comfyUIDownloadDialog/ComfyUIDownloadDialog.vue";
 
 const imageGeneration = useImageGeneration();
 const globalSetup = useGlobalSetup();
@@ -120,8 +105,8 @@ const globalSetup = useGlobalSetup();
 const hdConfirmationDialog = ref<HTMLDialogElement>();
 const hdWarningOverride = ref(false);
 
-const ComfyUIConfirmationDialog = ref<HTMLDialogElement>();
 const comfyUIWarningOverride = ref(false);
+const showComfyUIDownloadDialog = ref(false);
 
 const classicModel = computed({
         get() {
@@ -152,55 +137,20 @@ const classicModel = computed({
         }
       })
 
-const currentWorkflowBackendType = computed({
-        get() {
-          if (imageGeneration.backend === 'default') {
-            return 'default'
-          }
-          if (imageGeneration.backend === 'comfyui') {
-            return 'comfyui'
-          }
-          return 'default'
-        },
-        set(newValue) {
-          if (newValue === 'default') {
-            imageGeneration.backend = 'default'
-            return;
-          }
-          if (newValue === 'comfyui') {
-            if (!globalSetup.isComfyUiInstalled && !comfyUIWarningOverride.value) {
-              ComfyUIConfirmationDialog.value?.showModal();
-              return;
-            } else if (globalSetup.isComfyUiInstalled) {
-              // Comfy installed
-              comfyUIWarningOverride.value = false;
-            } else {
-              // Confirm
-              // comfyUIWarningOverride.value = false;
-              console.info("attempting to install comfyUI")
-              triggerInstallComfyUI().then(value => {
-                if (value.status === 200) {
-                  console.info("installation completed")
-                  globalSetup.isComfyUiInstalled = true
-                } else {
-                  console.error(`installation of comfyUI failed due to ${value.statusText}`)
-                }
-                ComfyUIConfirmationDialog.value?.close();
-              })
-              imageGeneration.backend = 'comfyui'
-            }
-          }
-        }
-})
-
-
-function triggerInstallComfyUI(){
-    return fetch(`${globalSetup.apiHost}/api/comfy-ui/install`, {method: 'POST'});
+function onSwitchToComfyUI() {
+  if (globalSetup.isComfyUiInstalled){
+    imageGeneration.backend = 'comfyui'
+  } else {
+   showComfyUIDownloadDialog.value = true
+  }
 }
 
-function cancel(){
-  // ToDo Cancel everything and delete everything!!
-  ComfyUIConfirmationDialog.value?.close();
+function onComfyUIDialogClose(isInstallationSuccessful: boolean) {
+  if (isInstallationSuccessful) {
+    imageGeneration.backend = 'comfyui'
+    globalSetup.isComfyUiInstalled = true
+  }
+  showComfyUIDownloadDialog.value = false
 }
 
 const classicQuality = computed({

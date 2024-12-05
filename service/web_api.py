@@ -45,6 +45,7 @@ from psutil._common import bytes2human
 import traceback
 
 import logging
+import time
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
@@ -387,6 +388,8 @@ def is_comfyUI_loaded():
 
 @app.post("/api/comfy-ui/install")
 def install_comfyUI():
+    # time.sleep(5)
+    # return jsonify({"success": True, "error_message": "Test Error"})
     try:
         installation_success = comfyui_downloader.install_comfyUI()
         return jsonify({"success": installation_success, "error_message": ""})
@@ -397,7 +400,7 @@ def install_comfyUI():
 @app.post("/api/comfy-ui/are_custom_nodes_loaded")
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
-    response = { f"{x.username}/{x.reponame}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data }
+    response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data}
     return jsonify(response)
 
 
@@ -407,7 +410,7 @@ def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     try:
         for x in comfyNodeRequest.data:
             comfyui_downloader.download_custom_node(x)
-        return jsonify({ f"{x.username}/{x.reponame}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data })
+        return jsonify({ f"{x.username}/{x.repoName}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data})
     except Exception as e:
         return jsonify({'error_message': f'failed to at least one custom node due to {e}'}), 501
 

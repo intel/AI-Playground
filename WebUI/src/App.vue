@@ -68,7 +68,7 @@
       </enhance>
       <answer v-show="activeTabIdx == 2" ref = "answer" @show-download-model-confirm="showDownloadModelConfirm" @show-model-request="showModelRequest"></answer>
       <learn-more v-show="activeTabIdx == 3"></learn-more>
-      <app-settings v-if="showSetting" @close="hideAppSettings" @show-download-model-confirm="showDownloadModelConfirm"></app-settings>
+      <app-settings v-show="showSetting" @close="hideAppSettings" @show-download-model-confirm="showDownloadModelConfirm"></app-settings>
     </div>
     <download-dialog v-show="showDowloadDlg" ref="downloadDigCompt" @close="showDowloadDlg = false"></download-dialog>
     <add-l-l-m-dialog v-show="showModelRequestDialog" ref="addLLMCompt" @close="showModelRequestDialog = false" @call-check-model="callCheckModel" @show-warning="showWarning"></add-l-l-m-dialog>

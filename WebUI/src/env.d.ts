@@ -305,6 +305,11 @@ type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: bool
 
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
+type ComfyUICustomNodesRequestParameters = {
+    username: string,
+    repoName: string
+}
+
 
 type CheckModelAlreadyLoadedResult = {
     already_loaded: boolean

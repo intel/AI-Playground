@@ -113,7 +113,7 @@ def install_comfyUI() -> bool:
 
 
 def is_custom_node_installed(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> bool:
-    expected_custom_node_path = os.path.join(service_config.comfyUIRootPath, "custom_nodes", node_repo_ref.reponame)
+    expected_custom_node_path = os.path.join(service_config.comfyUIRootPath, "custom_nodes", node_repo_ref.repoName)
     return os.path.exists(expected_custom_node_path)
 
 def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
@@ -121,13 +121,13 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
         return
     else:
         try:
-            expected_git_url = f"https://github.com/{node_repo_data.username}/{node_repo_data.reponame}"
-            expected_custom_node_path = os.path.join(service_config.comfyUIRootPath, "custom_nodes", node_repo_data.reponame)
+            expected_git_url = f"https://github.com/{node_repo_data.username}/{node_repo_data.repoName}"
+            expected_custom_node_path = os.path.join(service_config.comfyUIRootPath, "custom_nodes", node_repo_data.repoName)
             potential_node_requirements = os.path.join(expected_custom_node_path, "requirements.txt")
 
             _install_git_repo(expected_git_url, expected_custom_node_path)
             _install_pip_requirements(potential_node_requirements)
             return
         except Exception as e:
-            logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.reponame} due to {e}")
+            logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.repoName} due to {e}")
             raise e
