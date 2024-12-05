@@ -107,7 +107,7 @@ function onConfirm() {
                 setTimeout(() => {
                   //requires proper feedback on server startup...
                   componentState.value = ComponentState.INSTALLATION_SUCCESS
-                }, 3000);
+                }, 10000);
           })
         } else {
           const data = value.json();
@@ -139,7 +139,7 @@ function triggerInstallComfyUI() {
 
 function triggerInstallCustomNodes() {
   console.info("workflows:", imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui'))
-  const uniqueCustomNodes = new Set(imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
+  const uniqueCustomNodes = new Set(imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements!.customNodes))
 
   const toBeInstalledCustomNodes: ComfyUICustomNodesRequestParameters[] = []
   console.info("custom nodes", uniqueCustomNodes)

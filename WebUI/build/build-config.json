@@ -22,6 +22,10 @@
       ]
     },
     {
+      "from": "external/intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl",
+      "to": "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
+    },
+    {
       "from": "external/service/models/stable_diffusion/ESRGAN",
       "to": "service/models/stable_diffusion/ESRGAN"
     },
@@ -58,19 +62,27 @@
   "directories": {
     "output": "../release"
   },
-  "files": ["dist", "dist-electron"],
+  "files": [
+    "dist",
+    "dist-electron"
+  ],
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       }
     ],
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",
     "artifactName": "${productName}-${version}-For-${env.PLATFORM}.${ext}",
-    "electronLanguages": ["en-US", "zh-CN"]
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ]
   },
   "nsis": {
     "license": "build/license.rtf",
