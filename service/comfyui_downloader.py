@@ -9,7 +9,7 @@ import service_config
 from web_request_bodies import ComfyUICustomNodesGithubRepoId
 
 
-git_download_url = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/PortableGit-2.47.1-64-bit.7z.exe"
+git_download_url = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
 comfyUI_git_repo_url = "https://github.com/comfyanonymous/ComfyUI.git"
 comfyUI_manager_git_repo_url = "https://github.com/ltdrdata/ComfyUI-Manager.git"
 
@@ -23,19 +23,19 @@ def _install_portable_git():
     if is_git_installed():
         logging.info("Omitting installation of git, as already present")
         return
-    seven_zipped_portable_git_target = f"{service_config.git.get('rootDirPath')}.7z"
+    zipped_portable_git_target = f"{service_config.git.get('rootDirPath')}.zip"
     git_target_dir = service_config.git.get('rootDirPath')
 
     try:
-        aipg_utils.remove_existing_filesystem_resource(seven_zipped_portable_git_target)
+        aipg_utils.remove_existing_filesystem_resource(zipped_portable_git_target)
         aipg_utils.remove_existing_filesystem_resource(git_target_dir)
 
-        _fetch_portable_git(seven_zipped_portable_git_target)
-        _unzip_portable_git(seven_zipped_portable_git_target, git_target_dir)
+        _fetch_portable_git(zipped_portable_git_target)
+        _unzip_portable_git(zipped_portable_git_target, git_target_dir)
         assert is_git_installed(), "Failed to install git at expected location"
     except Exception as e:
         logging.error(f"failed to install git due to {e}. Cleaning up intermediate resources")
-        aipg_utils.remove_existing_filesystem_resource(seven_zipped_portable_git_target)
+        aipg_utils.remove_existing_filesystem_resource(zipped_portable_git_target)
         aipg_utils.remove_existing_filesystem_resource(git_target_dir)
         raise e
 
@@ -57,9 +57,18 @@ def _fetch_portable_git(seven_zipped_portable_git_target):
 
 
 def _unzip_portable_git(zipped_git_path, target_dir):
+    def get_unzipping_command():
+        try:
+            aipg_utils.call_subprocess("tar --version")
+            logging.debug("using system tar to unzip.")
+            return f"tar -C {target_dir} -xf {zipped_git_path}"
+        except Exception:
+            logging.warn("falling back to powershell command to extract zip, as tar not in PATH")
+            return f"powershell -command 'Expand-Archive' -Force {zipped_git_path} {target_dir}"
     try:
-        unzipping_command = f"{service_config.seven_z_exe_path} x -o{target_dir} {zipped_git_path}"
-        aipg_utils.call_subprocess(unzipping_command)
+        if not os.path.exists(zipped_git_path):
+            os.makedirs(zipped_git_path, exist_ok=True)
+        aipg_utils.call_subprocess(get_unzipping_command())
     except Exception as e:
         aipg_utils.remove_existing_filesystem_resource(zipped_git_path)
         aipg_utils.remove_existing_filesystem_resource(target_dir)

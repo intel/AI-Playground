@@ -160,6 +160,9 @@ onBeforeMount(async () => {
     if (level == "error") {
       console.error(`[${source}] ${message}`);
     }
+    if (level == "warn") {
+      console.warn(`[${source}] ${message}`);
+    }
     if (level == "info") {
       console.log(`[${source}] ${message}`);
     }

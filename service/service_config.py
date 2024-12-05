@@ -16,7 +16,7 @@ comfyUIRootPath = "../ComfyUI"
 seven_z_exe_path = "../7zr.exe"
 git = {
     "rootDirPath": "../git",
-    "exePath": "../git/bin/git.exe",
+    "exePath": "../git/cmd/git.exe",
 }
 
 comfyUIModels = {

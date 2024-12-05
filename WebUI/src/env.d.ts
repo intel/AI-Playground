@@ -67,7 +67,7 @@ type electronAPI = {
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void,
     onReportError(callback: (errorMessage: string) => void): void,
-    onDebugLog(callback: (data: { level: 'error' | 'info', source: 'ai-backend', message: string}) => void): void,
+    onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
 };
 
 type PythonBackendStatus = {

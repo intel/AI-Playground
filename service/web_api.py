@@ -44,6 +44,10 @@ from model_downloader import HFPlaygroundDownloader
 from psutil._common import bytes2human
 import traceback
 
+import logging
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+
 app = APIFlask(__name__)
 
 

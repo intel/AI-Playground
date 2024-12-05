@@ -102,6 +102,18 @@ const logger = {
       startupMessageCache.push({ level: 'info', source, message })
     }
   },
+  warn: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
+    console.warn(`[${source}]: ${message}`);
+    if (webContentsFinishedLoad) {
+      try {
+        win?.webContents.send('debugLog', { level: 'warn', source, message })
+      } catch (error) {
+        console.error('Could not send debug log to renderer process');
+      }
+    } else {
+      startupMessageCache.push({ level: 'error', source, message })
+    }
+  },
   error: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
     console.error(`[${source}]: ${message}`);
     if (webContentsFinishedLoad) {
@@ -641,7 +653,13 @@ function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: R
   });
 
   webProcess.stdout.on('data', (message) => {
-    logger.info(`${message}`, 'ai-backend')
+    if(message.startsWith('INFO')) {
+      logger.info(`${message}`, 'ai-backend')
+    } else if (message.startsWith('WARN')) {
+      logger.warn(`${message}`, 'ai-backend')
+    } else {
+      logger.error(`${message}`, 'ai-backend')
+    }
   })
   webProcess.stderr.on('data', (message) => {
     logger.error(`${message}`, 'ai-backend')
