@@ -19,7 +19,7 @@
       </form>
     </div>
   </div>
-  <div v-else-if="componentState === ComponentState.DOWNLOADING">
+  <div v-else-if="componentState === ComponentState.INSTALLING">
     <div ref="ComfyUIConfirmationdiv"
          class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
       <form method="dialog" action="/submit" onsubmit="return false" class="items-center justify-center">
@@ -73,13 +73,15 @@
 
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 import {useImageGeneration} from "@/assets/js/store/imageGeneration.ts";
+import {ipcRenderer} from "electron";
+
+
 const globalSetup = useGlobalSetup()
 const imageGenerationSettings = useImageGeneration()
 
 enum ComponentState {
-  UNINITIALIZED,
   USER_CONFIRMATION,
-  DOWNLOADING,
+  INSTALLING,
   ERROR,
   INSTALLATION_SUCCESS
 }
@@ -93,16 +95,19 @@ const emits = defineEmits<{
 }>();
 
 function onConfirm() {
-  componentState.value = ComponentState.DOWNLOADING
+  componentState.value = ComponentState.INSTALLING
   console.info("attempting to install comfyUI")
   triggerInstallComfyUI().then(value => {
-    console.log(value)
     if (value.status === 200) {
       console.info("comfyUI installation completed")
       triggerInstallCustomNodes().then(value => {
         if (value.status === 200) {
           console.info("customNode installation completed")
-          componentState.value = ComponentState.INSTALLATION_SUCCESS
+          triggerWakeUpComfyUIProcess()
+          setTimeout(() => {
+            //requires proper feedback on server startup...
+            componentState.value = ComponentState.INSTALLATION_SUCCESS
+          }, 3000);
         } else {
           const data = value.json();
           data.then(response => {
@@ -153,11 +158,17 @@ function triggerInstallCustomNodes() {
   return response
 }
 
+function triggerWakeUpComfyUIProcess() {
+  ipcRenderer.send('wakeupComfyUIService');
+
+}
+
 function concludeDialog(isInstallationSuccessful: boolean) {
   emits("close", isInstallationSuccessful)
   componentState.value = ComponentState.USER_CONFIRMATION
   installationErrorMessage.value = ""
 }
+
 
 </script>
 
