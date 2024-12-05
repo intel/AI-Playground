@@ -306,7 +306,8 @@ function initEventHandle() {
     };
   });
 
-  ipcMain.handle("wakeupComfyUIService", async () => {
+  ipcMain.on("wakeupComfyUIService", async () => {
+    console.log("starting comfyUI")
     return wakeupComfyUIService();
   });
 

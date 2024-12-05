@@ -68,6 +68,7 @@ type electronAPI = {
     setFullScreen(enable: boolean): void,
     onReportError(callback: (errorMessage: string) => void): void,
     onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
+    wakeupComfyUIService(): void,
 };
 
 type PythonBackendStatus = {

@@ -169,4 +169,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setFullScreen: (enable: boolean) => ipcRenderer.send("setFullScreen", enable),
   onReportError: (callback: (errorMessage: string) => void) => ipcRenderer.on('reportError', (_event, value) => callback(value)),
   onDebugLog: (callback: (data: { level: string, source: string, message: string}) => void) => ipcRenderer.on('debugLog', (_event, value) => callback(value)),
+  wakeupComfyUIService: () => ipcRenderer.send('wakeupComfyUIService'),
 });

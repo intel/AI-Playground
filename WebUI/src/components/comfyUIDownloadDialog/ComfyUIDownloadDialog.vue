@@ -103,11 +103,12 @@ function onConfirm() {
       triggerInstallCustomNodes().then(value => {
         if (value.status === 200) {
           console.info("customNode installation completed")
-          triggerWakeUpComfyUIProcess()
-          setTimeout(() => {
-            //requires proper feedback on server startup...
-            componentState.value = ComponentState.INSTALLATION_SUCCESS
-          }, 3000);
+          triggerWakeUpComfyUIProcess().then(() => {
+                setTimeout(() => {
+                  //requires proper feedback on server startup...
+                  componentState.value = ComponentState.INSTALLATION_SUCCESS
+                }, 3000);
+          })
         } else {
           const data = value.json();
           data.then(response => {
@@ -158,9 +159,8 @@ function triggerInstallCustomNodes() {
   return response
 }
 
-function triggerWakeUpComfyUIProcess() {
-  ipcRenderer.send('wakeupComfyUIService');
-
+async function triggerWakeUpComfyUIProcess() {
+  window.electronAPI.wakeupComfyUIService()
 }
 
 function concludeDialog(isInstallationSuccessful: boolean) {
