@@ -27,6 +27,15 @@ from transformers.generation.stopping_criteria import (
 import model_config
 
 
+import ipex_llm.transformers.models.mistral
+
+# W/A for https://github.com/intel/AI-Playground/issues/94
+# Disable decoding_fast_path to avoid calling forward_qkv() which is not supported by bigdl-core-xe-*-23
+ipex_llm.transformers.models.mistral.use_decoding_fast_path = (
+    lambda *args, **kwargs: False
+)
+
+
 class LLMParams:
     prompt: List[Dict[str, str]]
     device: int
