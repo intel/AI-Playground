@@ -73,7 +73,6 @@
 
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 import {useImageGeneration} from "@/assets/js/store/imageGeneration.ts";
-
 const globalSetup = useGlobalSetup()
 const imageGenerationSettings = useImageGeneration()
 
@@ -133,13 +132,17 @@ function triggerInstallComfyUI() {
 }
 
 function triggerInstallCustomNodes() {
+  console.info("workflows:", imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui'))
   const uniqueCustomNodes = new Set(imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
-  const toBeInstalledCustomNodes = []
-  for (nodeName in uniqueCustomNodes) {
+
+  const toBeInstalledCustomNodes: ComfyUICustomNodesRequestParameters[] = []
+  console.info("custom nodes", uniqueCustomNodes)
+  for (var nodeName of uniqueCustomNodes) {
     const [username, repoName] = nodeName.replace(" ", "").split("/")
-    const nodeID = ComfyUICustomNodesRequestParameters(username, repoName)
+    const nodeID: ComfyUICustomNodesRequestParameters = {username: username, repoName: repoName}
     toBeInstalledCustomNodes.push(nodeID)
   }
+  console.info("to be  installed: ", toBeInstalledCustomNodes)
   const response = fetch(`${globalSetup.apiHost}/api/comfy-ui/load_custom_nodes`, {
     method: 'POST',
     body: JSON.stringify(toRaw({'data': toBeInstalledCustomNodes})),
@@ -147,7 +150,7 @@ function triggerInstallCustomNodes() {
       "Content-Type": "application/json"
     }
   })
-  return reponse
+  return response
 }
 
 function concludeDialog(isInstallationSuccessful: boolean) {

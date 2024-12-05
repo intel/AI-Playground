@@ -79,7 +79,7 @@ def _unzip_portable_git(zipped_git_path, target_dir):
 def _install_git_repo(git_repo_url: str, target_dir: str):
     try:
         aipg_utils.remove_existing_filesystem_resource(target_dir)
-        aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} clone {git_repo_url} {target_dir}")
+        aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} clone {git_repo_url} '{target_dir}'")
         logging.info(f"Cloned {git_repo_url} into {target_dir}")
     except Exception as e:
         logging.warning(f"git cloned failed with exception {e}. Cleaning up failed resources.")
