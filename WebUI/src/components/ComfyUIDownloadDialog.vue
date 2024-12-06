@@ -1,70 +1,47 @@
 <template>
-  <div v-if="componentState === ComponentState.USER_CONFIRMATION">
-    <div ref="ComfyUIConfirmationdiv"
-         class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
-      <form method="dialog" action="/submit" onsubmit="return false" class="items-center justify-center">
-        <p class="mb-4">
-          {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM }}
-        </p>
-        <div class="flex justify-between space-x-4 items-center">
-          <button @click="() => {concludeDialog(false)}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
-            {{ languages.COM_CANCEL }}
-          </button>
-          <div class="flex-end space-x-4">
-            <button @click="() => {onConfirm()}" type="submit" class="bg-color-active py-1 px-4 rounded">
-              {{ languages.COM_CONFIRM }}
-            </button>
-          </div>
-        </div>
-      </form>
+  <div v-if="componentState === ComponentState.USER_CONFIRMATION" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+    <p class="mb-4">
+      {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM }}
+    </p>
+    <div class="flex justify-between space-x-4 items-center">
+      <button @click="() => {concludeDialog(false)}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
+        {{ languages.COM_CANCEL }}
+      </button>
+      <div class="flex-end space-x-4">
+        <button @click="() => {onConfirm()}" type="submit" class="bg-color-active py-1 px-4 rounded">
+          {{ languages.COM_CONFIRM }}
+        </button>
+      </div>
     </div>
   </div>
-  <div v-else-if="componentState === ComponentState.INSTALLING">
-    <div ref="ComfyUIConfirmationdiv"
-         class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
-      <form method="dialog" action="/submit" onsubmit="return false" class="items-center justify-center">
-        <p class="mb-4">
-          {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_DOWNLOADING }}
-        </p>
-        <div class="flex justify-between space-x-4 items-center">
-          <!--          <button @click="() => {}" type="submit" class="bg-slate-700 py-1 px-4 rounded">-->
-          <!--            {{ languages.COM_CANCEL }}-->
-          <!--          </button>-->
-          <div class="flex-end space-x-4">
-            <span class="svg-icon i-loading h-6 w-6"></span>
-          </div>
-        </div>
-      </form>
+  <div v-else-if="componentState === ComponentState.INSTALLING" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+    <p class="mb-4">
+      {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_DOWNLOADING }}
+    </p>
+    <div class="flex justify-between space-x-4 items-center">
+      <div class="flex-end space-x-4">
+        <span class="svg-icon i-loading h-6 w-6"></span>
+      </div>
     </div>
   </div>
-  <div v-else-if="componentState === ComponentState.INSTALLATION_SUCCESS">
-    <div ref="ComfyUIConfirmationdiv"
-         class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
-      <form method="dialog" action="/submit" onsubmit="return false" class="items-center justify-center">
-        <p class="mb-4">
-          {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_COMPLETED }}
-        </p>
-        <div class="flex justify-between space-x-4 items-center">
-          <button @click="() => {concludeDialog(true)}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
-            {{ languages.COM_CLOSE }}
-          </button>
-        </div>
-      </form>
+  <div v-else-if="componentState === ComponentState.INSTALLATION_SUCCESS" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+    <p class="mb-4">
+      {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_COMPLETED }}
+    </p>
+    <div class="flex justify-between space-x-4 items-center">
+      <button @click="() => {concludeDialog(true)}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
+        {{ languages.COM_CLOSE }}
+      </button>
     </div>
   </div>
-  <div v-else-if="componentState === ComponentState.ERROR">
-    <div ref="ComfyUIConfirmationdiv"
-         class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
-      <form method="dialog" action="/submit" onsubmit="return false" class="items-center justify-center">
-        <p class="mb-4">
-          {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_ERROR + installationErrorMessage }}
-        </p>
-        <div class="flex justify-between space-x-4 items-center">
-          <button @click="() => {concludeDialog(false)}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
-            {{ languages.COM_CLOSE }}
-          </button>
-        </div>
-      </form>
+  <div v-else-if="componentState === ComponentState.ERROR" class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg  text-white">
+    <p class="mb-4">
+      {{ `${languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_ERROR} ${installationErrorMessage}` }}
+    </p>
+    <div class="flex justify-between space-x-4 items-center">
+      <button @click="() => {concludeDialog(false)}" type="submit" class="bg-slate-700 py-1 px-4 rounded">
+        {{ languages.COM_CLOSE }}
+      </button>
     </div>
   </div>
 </template>
@@ -74,7 +51,6 @@
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 import {useImageGeneration} from "@/assets/js/store/imageGeneration.ts";
 import {useComfyUi} from "@/assets/js/store/comfyUi.ts";
-
 
 const comfyUi = useComfyUi()
 const globalSetup = useGlobalSetup()
@@ -88,7 +64,6 @@ enum ComponentState {
 }
 
 const componentState = ref(ComponentState.USER_CONFIRMATION)
-
 const installationErrorMessage = ref("")
 
 const emits = defineEmits<{
@@ -129,15 +104,13 @@ async function triggerInstallComfyUI() {
 }
 
 async function triggerInstallCustomNodes() {
-  console.info("workflows:", imageGeneration.workflows.filter(w => w.backend === 'comfyui'))
   const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
-
   const toBeInstalledCustomNodes: ComfyUICustomNodesRequestParameters[] = 
   [...uniqueCustomNodes].map((nodeName) => {
     const [username, repoName] = nodeName.replace(" ", "").split("/")
     return {username, repoName}
   })
-  console.info("to be installed: ", toBeInstalledCustomNodes)
+  console.info("Installing custom nodes", { toBeInstalledCustomNodes })
   const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
     method: 'POST',
     body: JSON.stringify({data: toBeInstalledCustomNodes}),
@@ -146,7 +119,7 @@ async function triggerInstallCustomNodes() {
     }
   })
   if (response.status === 200) {
-    console.info("customNode installation completed")
+    console.info("custom node installation completed")
     return;
   }
   const data = await response.json();
@@ -155,13 +128,9 @@ async function triggerInstallCustomNodes() {
 
 function concludeDialog(isInstallationSuccessful: boolean) {
   emits("close", isInstallationSuccessful)
+  globalSetup.isComfyUiInstalled = true
   componentState.value = ComponentState.USER_CONFIRMATION
   installationErrorMessage.value = ""
 }
 
-
 </script>
-
-<style scoped>
-
-</style>
