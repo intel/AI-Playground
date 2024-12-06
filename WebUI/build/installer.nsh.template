@@ -9,7 +9,7 @@
         DetailPrint "Extracting python environment..."
         nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\env.7z" -o"$INSTDIR\resources"'
         Delete "$INSTDIR\resources\env.7z"
-
+        Delete "$INSTDIR\resources\7zr.exe"
 
         DetailPrint "Downloading and setting up python environment..."
         ; Display a popup message with OK/Cancel options
@@ -24,6 +24,7 @@
 
         continue:
             nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "$INSTDIR\resources\env\get-pip.py" "--no-warn-script-location"'
+            nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "$INSTDIR\resources\intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl" "--no-warn-script-location"'
             nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements-${PLATFORM}.txt" "--no-warn-script-location"'
             nsExec::ExecToLog '"$INSTDIR\resources\env\python.exe" "-m" "pip" "install" "-r" "$INSTDIR\resources\service\requirements.txt" "--no-warn-script-location"'
     end:

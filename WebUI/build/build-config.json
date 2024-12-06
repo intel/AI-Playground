@@ -26,6 +26,10 @@
       "to": "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
     },
     {
+      "from": "external/workflows",
+      "to": "workflows"
+    },
+    {
       "from": "external/service/models/stable_diffusion/ESRGAN",
       "to": "service/models/stable_diffusion/ESRGAN"
     },
