@@ -44,9 +44,12 @@ def get_image_shape_ceil(image: Image.Image):
 
 def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
     match(backend):
-        case "default":  return check_defaultbackend_mmodel_exist(type, repo_id)
-        case "comfyui": return check_comfyui_model_exists(type, repo_id)
-        case _: raise NameError("Unknown Backend")
+        case "default":
+            return check_defaultbackend_mmodel_exist(type, repo_id)
+        case "comfyui":
+            return check_comfyui_model_exists(type, repo_id)
+        case _:
+            raise NameError("Unknown Backend")
 
 def check_comfyui_model_exists(type, repo_id) -> bool:
     model_dir = service_config.comfyUIModels.get(convert_model_type(type))

@@ -32,7 +32,8 @@ def _install_portable_git():
 
         _fetch_portable_git(zipped_portable_git_target)
         _unzip_portable_git(zipped_portable_git_target, git_target_dir)
-        assert is_git_installed(), "Failed to install git at expected location"
+        if not is_git_installed():
+            raise AssertionError("Failed to install git at expected location")
         logging.info(f"successfully extracted git into {os.path.abspath(git_target_dir)}")
     except Exception as e:
         logging.error(f"failed to install git due to {e}. Cleaning up intermediate resources")
@@ -43,7 +44,7 @@ def _install_portable_git():
 
 def _fetch_portable_git(seven_zipped_portable_git_target):
     try:
-        response = requests.get(git_download_url, stream=True)
+        response = requests.get(git_download_url, stream=True, timeout=30)
         if response.status_code == 200:
             with open(seven_zipped_portable_git_target, "wb") as file:
                 for chunk in response.iter_content(chunk_size=1024):
@@ -91,7 +92,7 @@ def _install_pip_requirements(requirements_txt_path: str):
     if os.path.exists(requirements_txt_path):
         python_exe_callable_path = "'" + str(sys.executable) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
         aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
-        logging.info(f"python requirements installation completed.")
+        logging.info("python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
 
