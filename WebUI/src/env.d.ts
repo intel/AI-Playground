@@ -15,6 +15,7 @@ interface ImportMeta {
 type ComfyUiState = {
     currentVersion: string | null;
     port: number | null;
+    up: boolean
 }
 
 type electronAPI = {

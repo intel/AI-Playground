@@ -19,10 +19,14 @@ export const useComfyUi = defineStore("comfyUi", () => {
     const clientId = '12345';
     const loaderNodes = ref<string[]>([]);
 
-    window.electronAPI.getComfyuiState().then((stateFromBackend) => {
-        comfyUiState.value = stateFromBackend;
-        console.log('comfyUiState from backend', comfyUiState.value);
-    });
+    updateComfyState()
+
+    function updateComfyState() {
+        window.electronAPI.getComfyuiState().then((stateFromBackend) => {
+            comfyUiState.value = stateFromBackend;
+            console.log('comfyUiState from backend', comfyUiState.value);
+        });
+    }
 
     function connectToComfyUi() {
         if (!comfyUiState.value) {
@@ -199,6 +203,10 @@ export const useComfyUi = defineStore("comfyUi", () => {
     }
 
     async function free() {
+        if (!comfyUiState.value) {
+            console.debug('ComfyUI backend not running, nothing to free');
+            return;
+        }
         await fetch(`http://${comfyHostAndPort.value}/free`, {
             method: 'POST',
             headers: {
@@ -213,7 +221,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
     }
 
     return {
-        comfyUiState,
+        updateComfyState,
         generate,
         stop,
         free

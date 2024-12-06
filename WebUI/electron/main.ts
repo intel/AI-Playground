@@ -308,7 +308,7 @@ function initEventHandle() {
 
   ipcMain.on("wakeupComfyUIService", async () => {
     console.log("starting comfyUI")
-    return wakeupComfyUIService();
+    wakeupComfyUIService()
   });
 
   ipcMain.handle("getLocalSettings", async () => {

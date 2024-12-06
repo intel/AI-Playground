@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { util } from "../util";
 import { useI18N } from "./i18n";
+import {useComfyUi} from "@/assets/js/store/comfyUi.ts";
 
 export const useGlobalSetup = defineStore("globalSetup", () => {
     const state = reactive<KVObject>({
@@ -119,7 +120,25 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             window.electronAPI.exitApp();
         }
         await loadUserSettings();
-        loadingState.value = "running";
+
+        isComfyUiInstalled.value = await isComfyUIDownloaded()
+        if (isComfyUiInstalled.value) {
+            window.electronAPI.wakeupComfyUIService()
+            setTimeout(() => {
+                //requires proper feedback on server startup...
+                useComfyUi().updateComfyState()
+                loadingState.value = "running";
+            }, 10000);
+        } else {
+            loadingState.value = "running";
+        }
+    }
+
+    async function isComfyUIDownloaded(){
+        const response = await fetch(`${apiHost.value}/api/comfy-ui/is_installed`);
+        const data = await response.json()
+        console.info(data)
+        return data.is_comfyUI_installed;
     }
 
     async function reloadGraphics() {

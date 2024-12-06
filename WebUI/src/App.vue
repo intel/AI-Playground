@@ -168,7 +168,6 @@ onBeforeMount(async () => {
     }
   })
   await globalSetup.initSetup();
-  globalSetup.isComfyUiInstalled = await isComfyUIDownloaded()
 
   document.body.addEventListener("mousedown", autoHideAppSettings);
   document.body.addEventListener("keydown", (e) => {
@@ -179,13 +178,6 @@ onBeforeMount(async () => {
   })
 })
 
-
-async function isComfyUIDownloaded(){
-  const response = await fetch(`${globalSetup.apiHost}/api/comfy-ui/is_installed`);
-  const data = await response.json()
-  console.info(data)
-  return data.is_comfyUI_installed;
-}
 
 function showAppSettings() {
   if (showSetting.value === false) {

@@ -74,6 +74,7 @@
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 import {useImageGeneration} from "@/assets/js/store/imageGeneration.ts";
 import {ipcRenderer} from "electron";
+import {useComfyUi} from "@/assets/js/store/comfyUi.ts";
 
 
 const globalSetup = useGlobalSetup()
@@ -106,6 +107,7 @@ function onConfirm() {
           triggerWakeUpComfyUIProcess().then(() => {
                 setTimeout(() => {
                   //requires proper feedback on server startup...
+                  useComfyUi().updateComfyState()
                   componentState.value = ComponentState.INSTALLATION_SUCCESS
                 }, 10000);
           })
