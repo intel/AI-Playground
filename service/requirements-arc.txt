@@ -5,7 +5,7 @@ mkl-dpcpp==2024.2.1
 torch==2.3.1.post0+cxx11.abi
 torchvision==0.18.1.post0+cxx11.abi
 torchaudio==2.3.1.post0+cxx11.abi
-intel-extension-for-pytorch==2.3.110.post0+xpu
+# intel-extension-for-pytorch==2.3.110.post0+xpu # is installed by installer.nsh.
 
 # IPEX-LLM
 --pre
