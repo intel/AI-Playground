@@ -11,9 +11,7 @@ service_model_paths = {
 }
 
 
-device = "cuda"
 comfyUIRootPath = "../ComfyUI"
-seven_z_exe_path = "../7zr.exe"
 git = {
     "rootDirPath": "../git",
     "exePath": "../git/cmd/git.exe",
@@ -24,8 +22,6 @@ comfyUIModels = {
     "clip": f"{comfyUIRootPath}/models/clip",
     "vae": f"{comfyUIRootPath}/models/vae",
 }
-
-
 
 device = "xpu"
 env_type = "arc"

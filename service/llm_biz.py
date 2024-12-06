@@ -15,10 +15,10 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
-    AutoModelForCausalLM,
+    AutoModelForCausalLM
 )
 
-#from ipex_llm.transformers import AutoModelForCausalLM
+from ipex_llm.transformers import AutoModelForCausalLM
 from typing import Callable
 from transformers.generation.stopping_criteria import (
     StoppingCriteria,
@@ -45,12 +45,12 @@ class LLMParams:
     print_metrics: bool
 
     def __init__(
-        self,
-        prompt: list,
-        device: int,
-        enable_rag: bool,
-        model_repo_id: str,
-        print_metrics: bool = True,
+            self,
+            prompt: list,
+            device: int,
+            enable_rag: bool,
+            model_repo_id: str,
+            print_metrics: bool = True,
     ) -> None:
         self.prompt = prompt
         self.device = device
@@ -78,11 +78,10 @@ def user_stop(input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs):
 
 
 def stream_chat_generate(
-    model: PreTrainedModel,
-    args: dict,
-    error_callback: Callable[[Exception], None] = None,
+        model: PreTrainedModel,
+        args: dict,
+        error_callback: Callable[[Exception], None] = None,
 ):
-    print(args)
     try:
         model.generate(**args)
         sys.stdout.flush()
@@ -93,11 +92,11 @@ def stream_chat_generate(
 
 
 def generate(
-    prompt: List[Dict[str, str]],
-    model: PreTrainedModel,
-    tokenizer: PreTrainedTokenizer,
-    max_new_tokens: int,
-    error_callback: Callable[[Exception], None] = None,
+        prompt: List[Dict[str, str]],
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizer,
+        max_new_tokens: int,
+        error_callback: Callable[[Exception], None] = None,
 ):
     logging.debug(f"got prompt: {prompt}")
     global _stop_generate, _default_prompt
@@ -157,8 +156,8 @@ def generate(
 
 
 def process_rag(
-    prompt: str,
-    text_out_callback: Callable[[str, int], None] = None,
+        prompt: str,
+        text_out_callback: Callable[[str, int], None] = None,
 ):
     import rag
 
@@ -173,10 +172,10 @@ def process_rag(
 
 
 def chat(
-    params: LLMParams,
-    load_model_callback: Callable[[str], None] = None,
-    text_out_callback: Callable[[str, int], None] = None,
-    error_callback: Callable[[Exception], None] = None,
+        params: LLMParams,
+        load_model_callback: Callable[[str], None] = None,
+        text_out_callback: Callable[[str, int], None] = None,
+        error_callback: Callable[[Exception], None] = None,
 ):
     global _model, _last_repo_id, _generating, _tokenizer, _stop_generate
 
@@ -184,8 +183,8 @@ def chat(
         # if prev genera not finish, stop it
         stop_generate()
 
-        torch.cuda.set_device(params.device)
-        service_config.device = f"cuda:{params.device}"
+        torch.xpu.set_device(params.device)
+        service_config.device = f"xpu:{params.device}"
         prompt = params.prompt
         enable_rag = params.enable_rag
         model_repo_id = params.model_repo_id
@@ -200,7 +199,7 @@ def chat(
             if _model is not None:
                 del _model
                 gc.collect()
-                torch.cuda.empty_cache()
+                torch.xpu.empty_cache()
 
             model_base_path = service_config.service_model_paths.get("llm")
             model_name = model_repo_id.replace("/", "---")
@@ -251,7 +250,7 @@ def chat(
         with torch.inference_mode():
             all_stream_output = ""
             for stream_output in generate(
-                prompt, _model, _tokenizer, max_token, error_callback
+                    prompt, _model, _tokenizer, max_token, error_callback
             ):
                 assert_stop_generate()
 
@@ -304,7 +303,7 @@ def dispose():
     del _model
     _model = None
     gc.collect()
-    torch.cuda.empty_cache()
+    torch.xpu.empty_cache()
 
 
 class StopGenerateException(Exception):
@@ -318,6 +317,6 @@ class CustomStopCriteria(StoppingCriteria):
 
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
     def __call__(
-        self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs
+            self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs
     ) -> bool:
         return self.stop_callback(input_ids, scores, **kwargs)

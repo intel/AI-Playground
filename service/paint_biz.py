@@ -30,10 +30,11 @@ import re
 import schedulers_util
 from compel import Compel
 from threading import Event
-# from cuda_hijacks import ipex_hijacks
+from xpu_hijacks import ipex_hijacks
 
-# ipex_hijacks()
+ipex_hijacks()
 print("workarounds applied")
+
 
 # region class define
 
@@ -93,12 +94,12 @@ class NoWatermark:
 
 _basic_model_pipe: StableDiffusionPipeline | StableDiffusionXLPipeline = None
 _ext_model_pipe: (
-    StableDiffusionPipeline
-    | StableDiffusionXLPipeline
-    | StableDiffusionImg2ImgPipeline
-    | StableDiffusionXLImg2ImgPipeline
-    | StableDiffusionInpaintPipeline
-    | StableDiffusionXLInpaintPipeline
+        StableDiffusionPipeline
+        | StableDiffusionXLPipeline
+        | StableDiffusionImg2ImgPipeline
+        | StableDiffusionXLImg2ImgPipeline
+        | StableDiffusionInpaintPipeline
+        | StableDiffusionXLInpaintPipeline
 ) = None
 _realESRGANer: RealESRGANer = None
 _last_mode: int = None
@@ -121,6 +122,7 @@ _generating = False
 _stop_event = Event()
 _preview_queue = queue.Queue()
 _safety_checker: StableDiffusionSafetyChecker = None
+
 
 # endregion
 
@@ -186,7 +188,6 @@ def get_basic_model(input_model_name: str) -> DiffusionPipeline | Any:
     # perf optimization
     _basic_model_pipe.enable_model_cpu_offload()
     _basic_model_pipe.enable_vae_tiling()
-    print('model_config', model_config)
     _basic_model_pipe.to(service_config.device)
 
     print(
@@ -207,10 +208,10 @@ def process_preview_taesd():
     global _taesd_vae_type, _taesd_vae
 
     if isinstance(
-        _basic_model_pipe,
-        StableDiffusionXLPipeline
-        | StableDiffusionXLImg2ImgPipeline
-        | StableDiffusionXLInpaintPipeline,
+            _basic_model_pipe,
+            StableDiffusionXLPipeline
+            | StableDiffusionXLImg2ImgPipeline
+            | StableDiffusionXLInpaintPipeline,
     ) and (_taesd_vae_type != "sdxl" or _taesd_vae is None):
         _taesd_vae = AutoencoderTiny.from_pretrained(
             os.path.join(service_config.service_model_paths.get("preview"), "madebyollin---taesdxl"),
@@ -218,10 +219,10 @@ def process_preview_taesd():
         )
         _taesd_vae_type = "sdxl"
     elif isinstance(
-        _basic_model_pipe,
-        StableDiffusionPipeline
-        | StableDiffusionImg2ImgPipeline
-        | StableDiffusionInpaintPipeline,
+            _basic_model_pipe,
+            StableDiffusionPipeline
+            | StableDiffusionImg2ImgPipeline
+            | StableDiffusionInpaintPipeline,
     ) and (_taesd_vae_type != "sd1.5" or _taesd_vae is None):
         _taesd_vae = AutoencoderTiny.from_pretrained(
             os.path.join(service_config.service_model_paths.get("preview"), "madebyollin---taesd"),
@@ -241,7 +242,7 @@ def get_ext_pipe(params: TextImageParams, pipe_classes: List, init_class: any):
                 return _ext_model_pipe
         del _ext_model_pipe
         gc.collect()
-        torch.cuda.empty_cache()
+        torch.xpu.empty_cache()
 
     basic_model_pipe = get_basic_model(params.model_name)
     _ext_model_pipe = init_class.from_pipe(basic_model_pipe)
@@ -279,7 +280,7 @@ def load_model_from_single_file(model_signle_file: str):
 
 def load_model_from_pretrained(model_dir: str):
     if os.path.exists(
-        os.path.join(model_dir, "unet/diffusion_pytorch_model.fp32.safetensors")
+            os.path.join(model_dir, "unet/diffusion_pytorch_model.fp32.safetensors")
     ) or os.path.exists(
         os.path.join(model_dir, "unet/diffusion_pytorch_model.fp32.bin")
     ):
@@ -290,7 +291,7 @@ def load_model_from_pretrained(model_dir: str):
             device=service_config.device,
         )
     elif os.path.exists(
-        os.path.join(model_dir, "unet/diffusion_pytorch_model.fp16.safetensors")
+            os.path.join(model_dir, "unet/diffusion_pytorch_model.fp16.safetensors")
     ) or os.path.exists(
         os.path.join(model_dir, "unet/diffusion_pytorch_model.fp16.bin")
     ):
@@ -332,7 +333,7 @@ def set_lora(pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, lora: st
 
 
 def set_scheduler(
-    pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, scheduler_name: str
+        pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, scheduler_name: str
 ):
     global _last_scheduler
     schedulers_util.set_scheduler(pipe, scheduler_name)
@@ -340,13 +341,13 @@ def set_scheduler(
 
 
 def set_components(
-    pipe: (
-        StableDiffusionPipeline
-        | StableDiffusionXLPipeline
-        | StableDiffusionInpaintPipeline
-        | StableDiffusionXLInpaintPipeline
-    ),
-    params: TextImageParams,
+        pipe: (
+                StableDiffusionPipeline
+                | StableDiffusionXLPipeline
+                | StableDiffusionInpaintPipeline
+                | StableDiffusionXLInpaintPipeline
+        ),
+        params: TextImageParams,
 ):
     global \
         _last_scheduler, \
@@ -362,7 +363,7 @@ def set_components(
         process_preview_taesd()
 
     if params.safe_check and isinstance(
-        pipe, StableDiffusionPipeline | StableDiffusionInpaintPipeline
+            pipe, StableDiffusionPipeline | StableDiffusionInpaintPipeline
     ):
         pipe.safety_checker = _safety_checker
     else:
@@ -403,15 +404,15 @@ def convert_prompt_to_compel_format(prompt):
 
 
 def __callback_on_step_end__(
-    model: (
-        StableDiffusionPipeline
-        | StableDiffusionXLPipeline
-        | StableDiffusionInpaintPipeline
-        | StableDiffusionXLInpaintPipeline
-    ),
-    step: int,
-    timesteps: int,
-    callback_kwargs: Dict,
+        model: (
+                StableDiffusionPipeline
+                | StableDiffusionXLPipeline
+                | StableDiffusionInpaintPipeline
+                | StableDiffusionXLInpaintPipeline
+        ),
+        step: int,
+        timesteps: int,
+        callback_kwargs: Dict,
 ):
     global \
         step_end_callback, \
@@ -461,7 +462,7 @@ def __callback_on_step_end__(
 
 
 def convet_compel_prompt(
-    prompt: str, pipe: StableDiffusionPipeline | StableDiffusionXLPipeline
+        prompt: str, pipe: StableDiffusionPipeline | StableDiffusionXLPipeline
 ):
     custom_inputs = {}
 
@@ -496,7 +497,7 @@ def convet_compel_prompt(
 
 
 def text_to_image(
-    params: TextImageParams,
+        params: TextImageParams,
 ):
     global _generate_idx, image_out_callback
     pipe = get_basic_model(params.model_name)
@@ -806,9 +807,9 @@ def is_image_completely_black(image: Image):
 
 
 def output_image(
-    pipe: StableDiffusionPipeline | StableDiffusionXLPipeline,
-    image: Image.Image,
-    params: TextImageParams,
+        pipe: StableDiffusionPipeline | StableDiffusionXLPipeline,
+        image: Image.Image,
+        params: TextImageParams,
 ):
     global image_out_callback, _safety_checker, _generate_idx
     passed_safety_check = not is_image_completely_black(image)
@@ -829,8 +830,8 @@ def generate(params: TextImageParams):
 
     try:
         stop_generate()
-        torch.cuda.set_device(params.device)
-        # service_config.device = f"cuda:{params.device}"
+        torch.xpu.set_device(params.device)
+        # service_config.device = f"xpu:{params.device}"
         if _last_model_name != params.model_name:
             # hange model dispose basic model
             if _basic_model_pipe is not None:
@@ -855,7 +856,7 @@ def generate(params: TextImageParams):
             text_to_image(params)
         _last_mode = params.mode
 
-        torch.cuda.empty_cache()
+        torch.xpu.empty_cache()
     finally:
         _generating = False
 
@@ -893,7 +894,7 @@ def dispose_basic_model():
     _last_mode = None
 
     gc.collect()
-    torch.cuda.empty_cache()
+    torch.xpu.empty_cache()
 
 
 def dispose_ext_model():
@@ -901,7 +902,7 @@ def dispose_ext_model():
     del _ext_model_pipe
     _ext_model_pipe = None
     gc.collect()
-    torch.cuda.empty_cache()
+    torch.xpu.empty_cache()
 
 
 def dispose():

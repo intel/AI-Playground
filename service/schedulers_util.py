@@ -67,7 +67,7 @@ def set_scheduler(pipe: diffusers.DiffusionPipeline, name: str):
         if hasattr(pipe.scheduler, "scheduler_config"):
             default_class_name = pipe.scheduler.scheduler_config["_class_name"]
         else:
-            default_class_name = pipe.scheduler.service_model_paths["_class_name"]
+            default_class_name = pipe.scheduler.config["_class_name"]
         # same scheduler
         if default_class_name == type(pipe.scheduler).__name__:
             return
@@ -79,7 +79,7 @@ def set_scheduler(pipe: diffusers.DiffusionPipeline, name: str):
         scheduler_class = getattr(diffusers, scheduler_cfg["class_name"])
     print(f"load scheduler {name}")
     pipe.scheduler = scheduler_class.from_config(
-        pipe.scheduler.service_model_paths, **scheduler_cfg["kwargs"]
+        pipe.scheduler.config, **scheduler_cfg["kwargs"]
     )
 
 
