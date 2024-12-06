@@ -42,7 +42,7 @@
   "SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM": "The use of the workflow mode requires ComfyUI to be installed. This is an additional module that will be installed upon confirmation. Please make sure you have a stable internet connection.",
   "SETTINGS_MODEL_WORKFLOW_COMFYUI_DOWNLOADING": "Installation in progress...",
   "SETTINGS_MODEL_WORKFLOW_COMFYUI_COMPLETED": "Installation successful!",
-  "SETTINGS_MODEL_WORKFLOW_COMFYUI_ERROR": "Installation failed, due to ",
+  "SETTINGS_MODEL_WORKFLOW_COMFYUI_ERROR": "Installation failed, due to",
   "SETTINGS_TAB_IMAGE": "Image",
   "SETTINGS_TAB_BASIC": "Basic",
   "SETTINGS_TAB_MODEL": "Models",

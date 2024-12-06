@@ -57,15 +57,33 @@ const ComfyUIApiWorkflowSchema = z.record(z.string(), z.object({
 }).passthrough());
 export type ComfyUIApiWorkflow = z.infer<typeof ComfyUIApiWorkflowSchema>;
 
-
-
-const WorkflowSchema = z.object({
+const DefaultWorkflowSchema = z.object({
     name: z.string(),
-    backend: z.enum(['default', 'comfyui']),
+    backend: z.literal('default'),
+    tags: z.array(z.string()),
+    requiredModels: z.array(z.string()).optional(),
+    requirements: z.array(WorkflowRequirementSchema),
+    inputs: z.array(z.object({
+        name: z.string(),
+        type: z.enum(['image', 'mask', 'text'])
+    })),
+    outputs: z.array(z.object({
+        name: z.string(),
+        type: z.literal('image')
+    })),
+    defaultSettings: SettingsSchema.partial().optional(),
+    displayedSettings: z.array(SettingsSchema.keyof()),
+    modifiableSettings: z.array(SettingsSchema.keyof()),
+    dependencies: z.array(z.unknown()).optional()
+});
+export type DefaultWorkflow = z.infer<typeof DefaultWorkflowSchema>;
+const ComfyUiWorkflowSchema = z.object({
+    name: z.string(),
+    backend: z.literal('comfyui'),
     comfyUIRequirements: z.object({
         customNodes: z.array(z.string()),
         requiredModels: z.array(z.string()),
-    }).optional(),
+    }),
     tags: z.array(z.string()),
     requiredModels: z.array(z.string()).optional(),
     requirements: z.array(WorkflowRequirementSchema),
@@ -81,8 +99,15 @@ const WorkflowSchema = z.object({
     displayedSettings: z.array(SettingsSchema.keyof()),
     modifiableSettings: z.array(SettingsSchema.keyof()),
     dependencies: z.array(z.unknown()).optional(),
-    comfyUiApiWorkflow: ComfyUIApiWorkflowSchema.optional()
-})
+    comfyUiApiWorkflow: ComfyUIApiWorkflowSchema
+});
+export type ComfyUiWorkflow = z.infer<typeof ComfyUiWorkflowSchema>;
+const WorkflowSchema = 
+z.discriminatedUnion('backend', [
+    DefaultWorkflowSchema,
+    ComfyUiWorkflowSchema
+]
+)
 export type Workflow = z.infer<typeof WorkflowSchema>;
 
 
@@ -485,43 +510,38 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingModels() {
-        if (activeWorkflow.value!.backend === "default") {
+        if (activeWorkflow.value.backend === "default") {
             return getMissingDefaultBackendModels()
         } else {
-            return getMissingComfyuiBackendModels()
+            return getMissingComfyuiBackendModels(activeWorkflow.value)
         }
     }
 
-    async function getMissingComfyuiBackendModels() {
-        if (activeWorkflow.value!.comfyUIRequirements!.requiredModels === undefined) {
-            toast.error('Defined workflow did not specify required models. Please add "requiredModels" to workflowfile.');
-            return []
-        } else {
-            function extractDownloadModelParamsFromString(modelParamString: string): CheckModelAlreadyLoadedParameters {
-                const [modelType, repoAddress] = modelParamString.replace(" ", "").split(":")
-                function modelTypeToId(type: string) {
-                    switch (type) {
-                        case "unet" : return Const.MODEL_TYPE_COMFY_UNET
-                        case "clip" : return Const.MODEL_TYPE_COMFY_CLIP
-                        case "vae" : return Const.MODEL_TYPE_COMFY_VAE
-                        default:
-                            console.warn("received unknown comfyUI type: ", type)
-                            return -1
-                    }
-                }
-                return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
-            }
-            const checkList: CheckModelAlreadyLoadedParameters[] = activeWorkflow.value!.comfyUIRequirements!.requiredModels.map( extractDownloadModelParamsFromString )
-            const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
-            const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
-            for (const item of modelsToBeLoaded) {
-                if(!await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
-                    toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
-                    return []
+    async function getMissingComfyuiBackendModels(workflow: ComfyUiWorkflow) {
+        function extractDownloadModelParamsFromString(modelParamString: string): CheckModelAlreadyLoadedParameters {
+            const [modelType, repoAddress] = modelParamString.replace(" ", "").split(":")
+            function modelTypeToId(type: string) {
+                switch (type) {
+                    case "unet" : return Const.MODEL_TYPE_COMFY_UNET
+                    case "clip" : return Const.MODEL_TYPE_COMFY_CLIP
+                    case "vae" : return Const.MODEL_TYPE_COMFY_VAE
+                    default:
+                        console.warn("received unknown comfyUI type: ", type)
+                        return -1
                 }
             }
-            return modelsToBeLoaded.map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
+            return {type: modelTypeToId(modelType), repo_id: repoAddress, backend: "comfyui"}
         }
+        const checkList: CheckModelAlreadyLoadedParameters[] = workflow.comfyUIRequirements.requiredModels.map( extractDownloadModelParamsFromString )
+        const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
+        const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
+        for (const item of modelsToBeLoaded) {
+            if(!await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
+                toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
+                return []
+            }
+        }
+        return modelsToBeLoaded.map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
     }
 
     async function getMissingDefaultBackendModels() {

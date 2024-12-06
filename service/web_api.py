@@ -380,14 +380,12 @@ def delete_rag_file():
         return jsonify({"code": -1, "message": "failed"})
 
 
-@app.get("/api/comfy-ui/is_installed")
+@app.get("/api/comfyUi/isInstalled")
 def is_comfyUI_loaded():
     return jsonify({"is_comfyUI_installed": comfyui_downloader.is_comfyUI_installed()})
 
-@app.post("/api/comfy-ui/install")
+@app.post("/api/comfyUi/install")
 def install_comfyUI():
-    # time.sleep(5)
-    # return jsonify({"success": True, "error_message": "Test Error"})
     try:
         installation_success = comfyui_downloader.install_comfyUI()
         return jsonify({"success": installation_success, "error_message": ""})
@@ -395,14 +393,14 @@ def install_comfyUI():
         return jsonify({'error_message': f'failed to install comfyUI due to {e}'}), 501
 
 
-@app.post("/api/comfy-ui/are_custom_nodes_loaded")
+@app.post("/api/comfyUi/areCustomNodesLoaded")
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data}
     return jsonify(response)
 
 
-@app.post("/api/comfy-ui/load_custom_nodes")
+@app.post("/api/comfyUi/loadCustomNodes")
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     try:

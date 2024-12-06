@@ -21,11 +21,9 @@ export const useComfyUi = defineStore("comfyUi", () => {
 
     updateComfyState()
 
-    function updateComfyState() {
-        window.electronAPI.getComfyuiState().then((stateFromBackend) => {
-            comfyUiState.value = stateFromBackend;
-            console.log('comfyUiState from backend', comfyUiState.value);
-        });
+    async function updateComfyState() {
+        comfyUiState.value = await window.electronAPI.getComfyuiState()
+        console.log('comfyUiState from backend', comfyUiState.value);
     }
 
     function connectToComfyUi() {
@@ -132,8 +130,8 @@ export const useComfyUi = defineStore("comfyUi", () => {
 
     async function generate() {
         console.log('generateWithComfy')
-        if (!imageGeneration.activeWorkflow.comfyUiApiWorkflow) {
-            console.warn('No comfyUiApiWorkflow found in activeWorkflow');
+        if (imageGeneration.activeWorkflow.backend !== 'comfyui') {
+            console.warn('The selected workflow is not a comfyui workflow');
             return;
         }
         if (imageGeneration.processing) {

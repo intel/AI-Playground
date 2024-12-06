@@ -15,7 +15,6 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
-    AutoModelForCausalLM
 )
 
 from ipex_llm.transformers import AutoModelForCausalLM

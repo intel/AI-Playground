@@ -73,12 +73,12 @@
 
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 import {useImageGeneration} from "@/assets/js/store/imageGeneration.ts";
-import {ipcRenderer} from "electron";
 import {useComfyUi} from "@/assets/js/store/comfyUi.ts";
 
 
+const comfyUi = useComfyUi()
 const globalSetup = useGlobalSetup()
-const imageGenerationSettings = useImageGeneration()
+const imageGeneration = useImageGeneration()
 
 enum ComponentState {
   USER_CONFIRMATION,
@@ -95,74 +95,62 @@ const emits = defineEmits<{
   (e: "close", success: boolean): void,
 }>();
 
-function onConfirm() {
+async function onConfirm() {
   componentState.value = ComponentState.INSTALLING
-  console.info("attempting to install comfyUI")
-  triggerInstallComfyUI().then(value => {
-    if (value.status === 200) {
-      console.info("comfyUI installation completed")
-      triggerInstallCustomNodes().then(value => {
-        if (value.status === 200) {
-          console.info("customNode installation completed")
-          triggerWakeUpComfyUIProcess().then(() => {
-                setTimeout(() => {
-                  //requires proper feedback on server startup...
-                  useComfyUi().updateComfyState()
-                  componentState.value = ComponentState.INSTALLATION_SUCCESS
-                }, 10000);
-          })
-        } else {
-          const data = value.json();
-          data.then(response => {
-            componentState.value = ComponentState.ERROR
-            console.error('installation of comfyUI failed')
-            if (value.status === 501) {
-              installationErrorMessage.value = response.error_message;
-            }
-          })
-        }
-      })
-    } else {
-      const data = value.json();
-      data.then(response => {
-        componentState.value = ComponentState.ERROR
-        console.error('installation of comfyUI failed')
-        if (value.status === 501) {
-          installationErrorMessage.value = response.error_message;
-        }
-      })
+  try {
+    await triggerInstallComfyUI()
+    await triggerInstallCustomNodes()
+    window.electronAPI.wakeupComfyUIService()
+    setTimeout(() => {
+      // TODO: should get proper feedback on server startup
+      comfyUi.updateComfyState()
+      componentState.value = ComponentState.INSTALLATION_SUCCESS
+    }, 10000);
+  } catch (error) {
+    console.error('installation of comfyUI failed', {error})
+    componentState.value = ComponentState.ERROR
+    if (error instanceof Error) {
+      installationErrorMessage.value = error.message;
     }
-  })
-}
-
-function triggerInstallComfyUI() {
-  return fetch(`${globalSetup.apiHost}/api/comfy-ui/install`, {method: 'POST'});
-}
-
-function triggerInstallCustomNodes() {
-  console.info("workflows:", imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui'))
-  const uniqueCustomNodes = new Set(imageGenerationSettings.workflows.filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements!.customNodes))
-
-  const toBeInstalledCustomNodes: ComfyUICustomNodesRequestParameters[] = []
-  console.info("custom nodes", uniqueCustomNodes)
-  for (var nodeName of uniqueCustomNodes) {
-    const [username, repoName] = nodeName.replace(" ", "").split("/")
-    const nodeID: ComfyUICustomNodesRequestParameters = {username: username, repoName: repoName}
-    toBeInstalledCustomNodes.push(nodeID)
+    return;
   }
-  console.info("to be  installed: ", toBeInstalledCustomNodes)
-  const response = fetch(`${globalSetup.apiHost}/api/comfy-ui/load_custom_nodes`, {
+}
+
+async function triggerInstallComfyUI() {
+  console.info("attempting to install comfyUI")
+  const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/install`, {method: 'POST'});
+  if (response.status === 200) {
+    console.info("comfyUI installation completed")
+    return;
+  }
+  const data = await response.json();
+  installationErrorMessage.value = data.error_message;
+  throw new Error(data.error_message);
+}
+
+async function triggerInstallCustomNodes() {
+  console.info("workflows:", imageGeneration.workflows.filter(w => w.backend === 'comfyui'))
+  const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
+
+  const toBeInstalledCustomNodes: ComfyUICustomNodesRequestParameters[] = 
+  [...uniqueCustomNodes].map((nodeName) => {
+    const [username, repoName] = nodeName.replace(" ", "").split("/")
+    return {username, repoName}
+  })
+  console.info("to be installed: ", toBeInstalledCustomNodes)
+  const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
     method: 'POST',
-    body: JSON.stringify(toRaw({'data': toBeInstalledCustomNodes})),
+    body: JSON.stringify({data: toBeInstalledCustomNodes}),
     headers: {
       "Content-Type": "application/json"
     }
   })
-  return response
-}
-
-async function triggerWakeUpComfyUIProcess() {
-  window.electronAPI.wakeupComfyUIService()
+  if (response.status === 200) {
+    console.info("customNode installation completed")
+    return;
+  }
+  const data = await response.json();
+  throw new Error(data.error_message);
 }
 
 function concludeDialog(isInstallationSuccessful: boolean) {

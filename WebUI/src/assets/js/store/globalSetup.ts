@@ -135,7 +135,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function isComfyUIDownloaded(){
-        const response = await fetch(`${apiHost.value}/api/comfy-ui/is_installed`);
+        const response = await fetch(`${apiHost.value}/api/comfyUi/isInstalled`);
         const data = await response.json()
         console.info(data)
         return data.is_comfyUI_installed;
