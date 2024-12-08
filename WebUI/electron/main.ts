@@ -603,6 +603,8 @@ async function wakeupApiService(settings: LocalSettings) {
     const startupPromise = backend.start()
     const severState = await startupPromise
     logger.info(`server started in state: ${severState.status}`)
+    logger.info("testing stop")
+    await backend.stop()
 }
 
 function wakeupComfyUIService() {
