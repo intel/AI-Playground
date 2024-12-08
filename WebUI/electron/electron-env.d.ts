@@ -34,7 +34,6 @@ type Theme = 'dark' | 'lnl' | 'bmg';
 
 type LocalSettings = {
   apiHost: string;
-  settingPath: string;
   debug: number;
   envType: string;
   port:number;
@@ -75,5 +74,5 @@ type SetupData = {
 }
 
 type BackendStatus = {
-  status: 'starting' | 'running' | 'stopped',
+  status: 'uninitialized' | 'starting' | 'running' | 'stopped' | 'failed',
 }
