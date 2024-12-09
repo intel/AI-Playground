@@ -1,25 +1,26 @@
 import {
     app,
     BrowserWindow,
-    shell,
+    dialog,
     ipcMain,
-    screen,
     IpcMainEvent,
     IpcMainInvokeEvent,
-    dialog,
-    OpenDialogSyncOptions,
-    MessageBoxSyncOptions,
     MessageBoxOptions,
+    MessageBoxSyncOptions,
+    OpenDialogSyncOptions,
+    screen,
+    shell,
 } from "electron";
 import path from "node:path";
 import fs from "fs";
-import {exec, spawn, ChildProcess, spawnSync} from "node:child_process";
+import {ChildProcess, exec, spawn} from "node:child_process";
 import {randomUUID} from "node:crypto";
 import koffi from 'koffi';
 import sudo from "sudo-prompt";
 import {PathsManager} from "./pathsManager";
 import getPort, {portNumbers} from "get-port";
 import {DefaultBackend} from "./subprocesses/apiService.ts";
+import {AppLogger} from "./logging/logger.ts";
 
 // }
 // The built directory structure
@@ -34,12 +35,12 @@ import {DefaultBackend} from "./subprocesses/apiService.ts";
 process.env.DIST = path.join(__dirname, "../");
 process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? "../.." : "../../../public");
 
-const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
-const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
+export const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
 const singleInstanceLock = app.requestSingleInstanceLock();
 
-// Menu.setApplicationMenu(null);
 let win: BrowserWindow | null;
+const appLogger = AppLogger
+
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 // const APP_TOOL_HEIGHT = 209;
@@ -71,51 +72,7 @@ const comfyuiState = {
     port: 0,
 }
 
-let webContentsFinishedLoad = false;
-const startupMessageCache: {
-    message: string,
-    source: 'electron-backend' | 'ai-backend' | 'comfyui-backend',
-    level: 'error' | 'warn' | 'info'
-}[] = []
 
-const logger = {
-    info: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
-        console.info(`[${source}]: ${message}`);
-        if (webContentsFinishedLoad) {
-            try {
-                win?.webContents.send('debugLog', {level: 'info', source, message})
-            } catch (error) {
-                console.error('Could not send debug log to renderer process');
-            }
-        } else {
-            startupMessageCache.push({level: 'info', source, message})
-        }
-    },
-    warn: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
-        console.warn(`[${source}]: ${message}`);
-        if (webContentsFinishedLoad) {
-            try {
-                win?.webContents.send('debugLog', {level: 'warn', source, message})
-            } catch (error) {
-                console.error('Could not send debug log to renderer process');
-            }
-        } else {
-            startupMessageCache.push({level: 'error', source, message})
-        }
-    },
-    error: (message: string, source: 'electron-backend' | 'ai-backend' | 'comfyui-backend' = 'electron-backend') => {
-        console.error(`[${source}]: ${message}`);
-        if (webContentsFinishedLoad) {
-            try {
-                win?.webContents.send('debugLog', {level: 'error', source, message})
-            } catch (error) {
-                console.error('Could not send debug log to renderer process');
-            }
-        } else {
-            startupMessageCache.push({level: 'error', source, message})
-        }
-    }
-}
 
 async function loadSettings() {
     const settingPath = app.isPackaged
@@ -154,10 +111,7 @@ async function createWindow() {
     });
     win.webContents.on('did-finish-load', () => {
         setTimeout(() => {
-            webContentsFinishedLoad = true;
-            startupMessageCache.forEach((logEntry) => {
-                win?.webContents.send('debugLog', logEntry)
-            });
+            appLogger.onWebcontentReady(win!.webContents)
         }, 100);
     })
 
@@ -212,7 +166,7 @@ async function createWindow() {
 
     if (VITE_DEV_SERVER_URL) {
         await win.loadURL(VITE_DEV_SERVER_URL);
-        logger.info("load url:" + VITE_DEV_SERVER_URL);
+        appLogger.info("load url:" + VITE_DEV_SERVER_URL, 'electron-backend');
     } else {
         await win.loadFile(path.join(process.env.DIST, "index.html"));
     }
@@ -222,14 +176,6 @@ async function createWindow() {
         if (url.startsWith("https:")) shell.openExternal(url);
         return {action: "deny"};
     });
-}
-
-function logMessage(message: string) {
-    if (app.isPackaged) {
-        fs.appendFileSync(path.join(externalRes, "debug.log"), message + "\r\n");
-    } else {
-        logger.info(message);
-    }
 }
 
 app.on("quit", async () => {
@@ -394,13 +340,13 @@ function initEventHandle() {
                     const arrayBuffer = await response.arrayBuffer();
                     const buffer = Buffer.from(arrayBuffer);
                     fs.writeFileSync(result.filePath, buffer);
-                    logger.info(`File downloaded and saved: ${result.filePath}`);
+                    appLogger.info(`File downloaded and saved: ${result.filePath}`, 'electron-backend');
                 } catch (error) {
-                    logger.error(`Download and save error: ${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`);
+                    appLogger.error(`Download and save error: ${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend');
                 }
             }
         } catch (error) {
-            logger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`);
+            appLogger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend');
         }
     });
 
@@ -602,21 +548,12 @@ async function wakeupApiService(settings: LocalSettings) {
     const backend = new DefaultBackend(settings.port.toString())
     const startupPromise = backend.start()
     const severState = await startupPromise
-    logger.info(`server started in state: ${severState.status}`)
-    logger.info("testing stop")
+    appLogger.info(`server started in state: ${severState.status}`, 'electron-backend')
+    appLogger.info("testing stop", 'electron-backend')
     await backend.stop()
 }
 
-function wakeupComfyUIService() {
-    const comfyWordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "ComfyUI") : path.join(__dirname, "../../../ComfyUI"));
-    const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-    const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
-    const additionalEnvVariables = {
-        "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
-        "SYCL_CACHE_PERSISTENT": "1",
-        "PYTHONIOENCODING": "utf-8",
-        "ONEAPI_DEVICE_SELECTOR": "level_zero:*"
-    };
+
 async function writeComfyExtraModelsConfig(aipgBasePath: string, comfyUiPath: string) {
   const extraModelsYaml = `aipg:
   base_path: ${path.resolve(aipgBasePath, 'service/models/stable_diffusion')}
@@ -643,62 +580,8 @@ async function wakeupComfyUIService() {
     spawnComfy(pythonExe, comfyWordkDir, additionalEnvVariables);
 }
 
-
-function spawnAPI(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
-    if (apiService.desiredState === 'stopped') return;
-    tries++;
-    let stderrData = '';
-    let maxTries = 2;
-    logger.info(`#${tries} try to start python API`)
-
-    const webProcess = spawn(pythonExe, ["web_api.py", "--port", settings.port.toString()], {
-        cwd: wordkDir,
-        windowsHide: true,
-        env: Object.assign(process.env, additionalEnvVariables)
-    });
-
-    apiService.webProcess = webProcess;
-
-    const handleFailure = (err: Error | null, code: number | null) => {
-        logger.error(`Error: ${err || `Process exited with code ${code}`}`);
-        if (tries < maxTries) {
-            spawnAPI(pythonExe, wordkDir, additionalEnvVariables, tries);
-        } else {
-            apiService.status = {status: "stopped"};
-            logger.error(`Maximum attempts reached. Giving up.`);
-            if (webProcess.stderr != null) {
-                // TODO: catch + retry
-                logger.info(`stderrData: ${stderrData}`);
-                win?.webContents.send('reportError', stderrData);
-                //throw new Error(`Backend could not start:\n ${stderrData}`)
-            }
-        }
-    };
-
-    apiService.status = {status: "running"};
-
-    webProcess.on('error', (err) => handleFailure(err, null));
-    webProcess.on('exit', (code, signal) => handleFailure(null, code));
-    webProcess.stderr?.on('data', (data) => {
-        stderrData = data.toString();
-    });
-
-    webProcess.stdout.on('data', (message) => {
-        if (message.toString().startsWith('INFO')) {
-            logger.info(`${message}`, 'ai-backend')
-        } else if (message.toString().startsWith('WARN')) {
-            logger.warn(`${message}`, 'ai-backend')
-        } else {
-            logger.error(`${message}`, 'ai-backend')
-        }
-    })
-    webProcess.stderr.on('data', (message) => {
-        logger.error(`${message}`, 'ai-backend')
-    })
-}
-
 function spawnComfy(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
-    logger.info(`#1 try to start ComfyUI API`)
+    appLogger.info(`#1 try to start ComfyUI API`, 'electron-backend')
 
     const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...settings.comfyUiParameters], {
         cwd: wordkDir,
@@ -707,10 +590,10 @@ function spawnComfy(pythonExe: string, wordkDir: string, additionalEnvVariables:
     });
 
     webProcess.stdout.on('data', (message) => {
-        logger.info(`${message}`, 'comfyui-backend')
+        appLogger.info(`${message}`, 'comfyui-backend')
     })
     webProcess.stderr.on('data', (message) => {
-        logger.info(`${message}`, 'comfyui-backend')
+        appLogger.info(`${message}`, 'comfyui-backend')
     })
 }
 
@@ -760,7 +643,7 @@ ipcMain.handle('showSaveDialog', async (event, options: Electron.SaveDialogOptio
     dialog.showSaveDialog(options).then(result => {
         return result;
     }).catch(error => {
-        logger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`);
+        appLogger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend');
     });
 });
 

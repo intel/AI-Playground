@@ -3,9 +3,14 @@ import path from "node:path";
 import {app} from "electron";
 import fs from "fs";
 import {settings} from "../main"
+import {AppLogger} from "../logging/logger.ts";
+import {backend} from "./apiServiceRegistry.ts";
+
+const appLogger = AppLogger
+
 
 export interface ApiService {
-    readonly name: string
+    readonly name: backend
     readonly port: string
     readonly host: string
     currentStatus: BackendStatus;
@@ -16,7 +21,7 @@ export interface ApiService {
 }
 
 export class DefaultBackend implements ApiService {
-    readonly name = "default"
+    readonly name = "ai-backend"
     readonly port: string
     readonly host: string
 
@@ -64,7 +69,7 @@ export class DefaultBackend implements ApiService {
                     return resolve({status: "failed"});
                 }
             } catch (error) {
-                console.error(` failed to start server due to ${error}`, this.name)
+                appLogger.error(` failed to start server due to ${error}`, this.name)
                 this.currentStatus = {status: "failed"}
                 this.encapsulatedProcess?.kill()
                 this.encapsulatedProcess = null
@@ -75,7 +80,7 @@ export class DefaultBackend implements ApiService {
 
 
     stop(): Promise<BackendStatus> {
-        console.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus.status}`)
+        appLogger.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus.status}`, this.name)
         this.desiredStatus = {status: "stopped"}
         this.encapsulatedProcess?.kill()
         this.encapsulatedProcess = null
@@ -84,7 +89,7 @@ export class DefaultBackend implements ApiService {
     }
 
     spawnAPIProcess(pythonExe: string, wordkDir: string): {process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean>} {
-        console.info(` trying to start ${this.name} python API`, this.name)
+        appLogger.info(` trying to start ${this.name} python API`, this.name)
         const additionalEnvVariables = {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
@@ -102,30 +107,30 @@ export class DefaultBackend implements ApiService {
         //otherwise we cannot really track errors given the nature of spawn() with a longlived process
         const didProcessExitEarlyTracker = new Promise<boolean>((resolve, reject) => {
             apiProcess.on('exit', () => {
-                console.error(`encountered unexpected exit in ${this.name}.`)
+                appLogger.error(`encountered unexpected exit in ${this.name}.`, this.name)
                 resolve(true);
             });
             apiProcess.on('error', (error) => {
-                console.error(`encountered error of process in ${this.name} : ${error}`)
+                appLogger.error(`encountered error of process in ${this.name} : ${error}`, this.name)
                 resolve(true);
             });
         });
 
         apiProcess.stdout.on('data', (message) => {
             if (message.toString().startsWith('INFO')) {
-                console.info(`${message}`, this.name)
+                appLogger.info(`${message}`, this.name)
             } else if (message.toString().startsWith('WARN')) {
-                console.warn(`${message}`, this.name)
+                appLogger.warn(`${message}`, this.name)
             } else {
-                console.error(`${message}`, this.name)
+                appLogger.error(`${message}`, this.name)
             }
         })
 
         apiProcess.stderr.on('data', (message) => {
-            console.error(`${message}`, this.name)
+            appLogger.error(`${message}`, this.name)
         })
         apiProcess.on('error', (message) => {
-            console.error(`backend process ${this.name} exited abruptly due to : ${message}`, this.name)
+            appLogger.error(`backend process ${this.name} exited abruptly due to : ${message}`, this.name)
         })
 
         return {
@@ -138,7 +143,7 @@ export class DefaultBackend implements ApiService {
         const processStartupCompletePromise = new Promise<boolean>((resolve) => {
             setTimeout(() => {
                 //TODO: call health endpoint or query logs for startup complete log...
-                console.log("####### mocked server ready signal return true ####")
+                appLogger.info("####### mocked server ready signal return true ####", this.name)
                 resolve(true)
             }, 4000)
         })
@@ -156,7 +161,7 @@ export class DefaultBackend implements ApiService {
             const dest = path.resolve(path.join(this.pythonExe, "../Library/bin/ls_level_zero.exe"));
             fs.copyFileSync(lsLevelZeroDevices, dest);
             const ls = spawnSync(dest);
-            console.info(`ls_level_zero.exe stdout: ${ls.stdout.toString()}`, this.name);
+            appLogger.info(`ls_level_zero.exe stdout: ${ls.stdout.toString()}`, this.name);
             const devices = JSON.parse(ls.stdout.toString());
             const supportedIDs = [];
             for (const device of devices) {
@@ -165,10 +170,10 @@ export class DefaultBackend implements ApiService {
                 }
             }
             const oneapiDeviceSelector = "level_zero:" + supportedIDs.join(",")
-            console.info(`Set ONEAPI_DEVICE_SELECTOR=${oneapiDeviceSelector}`, this.name);
+            appLogger.info(`Set ONEAPI_DEVICE_SELECTOR=${oneapiDeviceSelector}`, this.name);
             return oneapiDeviceSelector
         } catch (error) {
-            console.error(`Failed to detect Level Zero devices: ${error}`, this.name);
+            appLogger.error(`Failed to detect Level Zero devices: ${error}`, this.name);
             return "level_zero:*"
         }
     }
