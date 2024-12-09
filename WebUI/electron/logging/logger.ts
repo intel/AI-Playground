@@ -1,12 +1,12 @@
 import WebContents = Electron.WebContents;
 import fs from "fs";
 import path from "node:path";
-import {externalRes} from "../main.ts";
+import {app} from "electron";
 
 
 class Logger {
     webContents: WebContents | null = null
-    private pathToLogFiles: string = externalRes
+    private pathToLogFiles: string = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
     private startupMessageCache: {
         message: string,
         source: string,
@@ -74,8 +74,15 @@ class Logger {
 
 
     logMessage(message: string) {
-        fs.appendFileSync(path.join(this.pathToLogFiles, "debug.log"), message + "\r\n");
+        const fileName = `${this.getDebugFileName()}.log`
+        fs.appendFileSync(path.join(this.pathToLogFiles, fileName), message + "\r\n");
+    }
+
+    getDebugFileName(): string {
+        const currentDate = new Date();
+        const formattedDate = currentDate.toISOString().split('T')[0];
+        return `aip-${formattedDate}`
     }
 }
 
-export const AppLogger = new Logger()
+export const appLoggerInstance = new Logger()

@@ -13,14 +13,16 @@ import {
 } from "electron";
 import path from "node:path";
 import fs from "fs";
-import {ChildProcess, exec, spawn} from "node:child_process";
+import {ChildProcess, exec} from "node:child_process";
 import {randomUUID} from "node:crypto";
 import koffi from 'koffi';
 import sudo from "sudo-prompt";
 import {PathsManager} from "./pathsManager";
 import getPort, {portNumbers} from "get-port";
-import {DefaultBackend} from "./subprocesses/apiService.ts";
-import {AppLogger} from "./logging/logger.ts";
+import {aiBackendService} from "./subprocesses/aiBackendService.ts";
+import {comfyUIBackendService} from "./subprocesses/comfyUIBackendService.ts";
+import {appLoggerInstance} from "./logging/logger.ts";
+
 
 // }
 // The built directory structure
@@ -38,8 +40,10 @@ process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? "../.." : "../..
 export const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
 const singleInstanceLock = app.requestSingleInstanceLock();
 
+
+
 let win: BrowserWindow | null;
-const appLogger = AppLogger
+const appLogger = appLoggerInstance
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -56,18 +60,11 @@ export const settings: LocalSettings = {
     debug: 0,
     envType: "ultra",
     port: 59999,
-    comfyUiParameters: [
-        "--lowvram",
-        "--disable-ipex-optimize",
-        "--bf16-unet",
-        "--reserve-vram",
-        "4.0"
-    ],
     availableThemes: ["dark", "lnl"],
     currentTheme: "lnl"
 };
 
-const comfyuiState = {
+export const comfyuiState = {
     currentVersion: null,
     port: 0,
 }
@@ -524,78 +521,22 @@ function isProcessRunning(pid: number) {
     }
 }
 
-function getSupportedDeviceEnvVariable() {
-    // Filter out unsupported devices
-    try {
-        const lsLevelZeroDevices = path.resolve(path.join(baseDir, "service/tools/ls_level_zero.exe"));
-        // copy ls_level_zero.exe to env/Library/bin for SYCL environment
-        const dest = path.resolve(path.join(pythonExe, "../Library/bin/ls_level_zero.exe"));
-        fs.copyFileSync(lsLevelZeroDevices, dest);
-        const ls = spawnSync(dest);
-        logger.info(`ls_level_zero.exe stdout: ${ls.stdout.toString()}`);
-        const devices: {name: string, device_id: number, id: string}[] = JSON.parse(ls.stdout.toString()); // TODO: use zod to parse output
-        const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
-        const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};
-        logger.info(`Set ONEAPI_DEVICE_SELECTOR=${additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"]}`);
-        return additionalEnvVariables;
-    } catch (error) {
-        logger.error(`Failed to detect Level Zero devices: ${error}`);
-        return {ONEAPI_DEVICE_SELECTOR:"level_zero:*"};
-    }
-}
 
-async function wakeupApiService(settings: LocalSettings) {
-    const backend = new DefaultBackend(settings.port.toString())
+async function wakeupApiService() {
+    const backend = await aiBackendService()
     const startupPromise = backend.start()
     const severState = await startupPromise
-    appLogger.info(`server started in state: ${severState.status}`, 'electron-backend')
-    appLogger.info("testing stop", 'electron-backend')
-    await backend.stop()
-}
-
-
-async function writeComfyExtraModelsConfig(aipgBasePath: string, comfyUiPath: string) {
-  const extraModelsYaml = `aipg:
-  base_path: ${path.resolve(aipgBasePath, 'service/models/stable_diffusion')}
-  checkpoints: checkpoints
-  clip: checkpoints
-  vae: checkpoints
-  unet: checkpoints
-  loras: lora`
-  await fs.promises.writeFile(path.join(comfyUiPath, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
- return
+    appLogger.info(`server ${backend.name} started in state: ${severState.status}`, 'electron-backend')
 }
 
 
 async function wakeupComfyUIService() {
-  const comfyWorkDir = path.resolve(path.join(baseDir, "ComfyUI"));
-  await writeComfyExtraModelsConfig(baseDir, comfyWorkDir);
-  const additionalEnvVariables = {
-    "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
-    "SYCL_CACHE_PERSISTENT": "1",
-    "PYTHONIOENCODING": "utf-8",
-    ...getSupportedDeviceEnvVariable(),
-  };
-
-    spawnComfy(pythonExe, comfyWordkDir, additionalEnvVariables);
+    const backend = await comfyUIBackendService()
+    const startupPromise = backend.start()
+    const severState = await startupPromise
+    appLogger.info(`server ${backend.name} started in state: ${severState.status}`, 'electron-backend')
 }
 
-function spawnComfy(pythonExe: string, wordkDir: string, additionalEnvVariables: Record<string, string>, tries = 0) {
-    appLogger.info(`#1 try to start ComfyUI API`, 'electron-backend')
-
-    const webProcess = spawn(pythonExe, ["main.py", "--port", comfyuiState.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...settings.comfyUiParameters], {
-        cwd: wordkDir,
-        windowsHide: true,
-        env: Object.assign(process.env, additionalEnvVariables)
-    });
-
-    webProcess.stdout.on('data', (message) => {
-        appLogger.info(`${message}`, 'comfyui-backend')
-    })
-    webProcess.stderr.on('data', (message) => {
-        appLogger.info(`${message}`, 'comfyui-backend')
-    })
-}
 
 
 function closeApiService() {
@@ -707,6 +648,7 @@ app.whenReady().then(async () => {
         await loadSettings();
         initEventHandle();
         await createWindow();
-        await wakeupApiService(settings);
+        await wakeupApiService();
+        await wakeupComfyUIService();
     }
 });

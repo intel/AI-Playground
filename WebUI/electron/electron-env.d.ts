@@ -37,7 +37,6 @@ type LocalSettings = {
   debug: number;
   envType: string;
   port:number;
-  comfyUiParameters: string[];
 } & KVObject;
 
 type ThemeSettings = {
