@@ -22,6 +22,7 @@ import getPort, {portNumbers} from "get-port";
 import {aiBackendService} from "./subprocesses/aiBackendService.ts";
 import {comfyUIBackendService} from "./subprocesses/comfyUIBackendService.ts";
 import {appLoggerInstance} from "./logging/logger.ts";
+import {aiplaygroundApiServiceRegistry, ApiServiceRegistryImpl} from "./subprocesses/apiServiceRegistry.ts";
 
 
 // }
@@ -40,10 +41,10 @@ process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? "../.." : "../..
 export const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
 const singleInstanceLock = app.requestSingleInstanceLock();
 
-
+const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null;
-const appLogger = appLoggerInstance
+let serviceRegistry: ApiServiceRegistryImpl | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -175,6 +176,7 @@ async function createWindow() {
     });
 }
 
+
 app.on("quit", async () => {
     if (singleInstanceLock) {
         app.releaseSingleInstanceLock();
@@ -212,8 +214,29 @@ app.on('second-instance', (event, commandLine, workingDirectory) => {
     }
 });
 
+async function initServiceRegistry() {
+    serviceRegistry = await aiplaygroundApiServiceRegistry()
+}
+
+async function bootUpAllSetUpServices() {
+    if (!serviceRegistry) {
+        appLogger.error("Tried to init services while service registry is not setup", 'electron-backend')
+        return
+    }
+    appLogger.info('Attempting to boot up all set up services', 'electron-backend')
+    const serverBootUpPromises = await serviceRegistry!.bootUpAllSetUpServices()
+    serverBootUpPromises.forEach(promiseResult => {
+        if (promiseResult.state.status !== "running") {
+            appLogger.warn(`Failed to boot up ${promiseResult.serviceName}. It is in state ${promiseResult.state.status}`, 'electron-backend')
+        }
+        if (promiseResult.state.status === "running") {
+            appLogger.info(`${promiseResult.serviceName} boot up successful`, 'electron-backend')
+        }
+    })
+}
 
 function initEventHandle() {
+
     screen.on("display-metrics-changed", (event, display, changedMetrics) => {
         if (win) {
             win.setBounds({
@@ -229,6 +252,7 @@ function initEventHandle() {
             );
         }
     });
+
 
     ipcMain.handle("getThemeSettings", async () => {
         return {
@@ -446,6 +470,10 @@ function initEventHandle() {
         return comfyuiState;
     });
 
+    ipcMain.handle("getServiceRegistry", () => {
+        return serviceRegistry!;
+    });
+
     ipcMain.handle("updateComfyui", () => {
         return;
     });
@@ -522,19 +550,12 @@ function isProcessRunning(pid: number) {
 }
 
 
-async function wakeupApiService() {
-    const backend = await aiBackendService()
-    const startupPromise = backend.start()
-    const severState = await startupPromise
-    appLogger.info(`server ${backend.name} started in state: ${severState.status}`, 'electron-backend')
-}
-
 
 async function wakeupComfyUIService() {
-    const backend = await comfyUIBackendService()
+    /*const backend = await comfyUIBackendService()
     const startupPromise = backend.start()
-    const severState = await startupPromise
-    appLogger.info(`server ${backend.name} started in state: ${severState.status}`, 'electron-backend')
+    const severState = await startupPromise*/
+    appLogger.info(`server started from renderer -> intercepted`, 'electron-backend')
 }
 
 
@@ -647,8 +668,8 @@ app.whenReady().then(async () => {
     } else {
         await loadSettings();
         initEventHandle();
+        await initServiceRegistry();
         await createWindow();
-        await wakeupApiService();
-        await wakeupComfyUIService();
+        await bootUpAllSetUpServices();
     }
 });

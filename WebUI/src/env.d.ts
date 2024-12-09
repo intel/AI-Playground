@@ -1,3 +1,5 @@
+import {ApiServiceRegistry} from "../electron/subprocesses/apiServiceRegistry.ts";
+
 declare interface Window {
     chrome: Chrome;
     electronAPI: electronAPI;
@@ -64,6 +66,7 @@ type electronAPI = {
     getDownloadedLoras(): Promise<string[]>,
     getDownloadedLLMs(): Promise<string[]>,
     getDownloadedEmbeddingModels(): Promise<string[]>,
+    getServiceRegistry(): Promise<ApiServiceRegistry>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void,

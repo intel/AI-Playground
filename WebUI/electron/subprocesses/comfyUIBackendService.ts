@@ -17,7 +17,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         "4.0"
     ]
 
-    setup(): Promise<void> {
+    set_up(): Promise<void> {
         const extraModelsYaml = `aipg:
   base_path: ${path.resolve(this.baseDir, 'service/models/stable_diffusion')}
   checkpoints: checkpoints

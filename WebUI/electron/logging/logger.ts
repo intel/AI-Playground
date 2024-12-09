@@ -27,7 +27,7 @@ class Logger {
     info(message: string, source: string, alsoLogToFile: boolean = true) {
         console.info(`[${source}]: ${message}`);
         if (alsoLogToFile) {
-            this.logMessage(`${source} | ${message}`)
+            this.logMessage(message, source)
         }
         if (this.webContents) {
             try {
@@ -43,7 +43,7 @@ class Logger {
     warn(message: string, source: string, alsoLogToFile: boolean = true) {
         console.warn(`[${source}]: ${message}`);
         if (alsoLogToFile) {
-            this.logMessage(`${source} | ${message}`)
+            this.logMessage(message, source)
         }
         if (this.webContents) {
             try {
@@ -59,7 +59,7 @@ class Logger {
     error(message: string, source: string, alsoLogToFile: boolean = true) {
         console.error(`[${source}]: ${message}`);
         if (alsoLogToFile) {
-            this.logMessage(`${source} | ${message}`)
+            this.logMessage(message, source)
         }
         if (this.webContents) {
             try {
@@ -73,9 +73,16 @@ class Logger {
     }
 
 
-    logMessage(message: string) {
+    logMessage(message: string, source: string) {
         const fileName = `${this.getDebugFileName()}.log`
-        fs.appendFileSync(path.join(this.pathToLogFiles, fileName), message + "\r\n");
+        const currentDate = new Date();
+        const hours = currentDate.getHours().toString().padStart(2, '0');
+        const minutes = currentDate.getMinutes().toString().padStart(2, '0');
+        const seconds = currentDate.getSeconds().toString().padStart(2, '0');
+
+        const formattedTime = `${hours}:${minutes}:${seconds}`;
+        const logMessage = `${formattedTime}|${source}|${message}`
+        fs.appendFileSync(path.join(this.pathToLogFiles, fileName), logMessage + "\r\n");
     }
 
     getDebugFileName(): string {

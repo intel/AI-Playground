@@ -9,7 +9,8 @@ export interface ApiService {
     readonly baseUrl: string
     currentStatus: BackendStatus;
 
-    setup(): Promise<void>;
+    set_up(): Promise<void>;
+    is_set_up(): boolean;
     start(): Promise<BackendStatus>;
     stop(): Promise<BackendStatus>;
 }
@@ -35,9 +36,14 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly workDir: string
     abstract readonly pythonExe: string
 
-    setup(): Promise<void> {
+    set_up(): Promise<void> {
         //TODO setup with pip install etc
         return Promise.resolve();
+    }
+
+    is_set_up(): boolean {
+        //TODO setup with pip install etc
+        return true
     }
 
     start(): Promise<BackendStatus> {
@@ -62,6 +68,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                     return resolve({status: "running"});
                 } else {
                     this.currentStatus = {status: "failed"}
+                    this.appLogger.error(`server ${this.name} failed to boot`, this.name)
                     this.encapsulatedProcess?.kill()
                     return resolve({status: "failed"});
                 }
