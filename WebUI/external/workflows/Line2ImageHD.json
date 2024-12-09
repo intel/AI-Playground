@@ -33,14 +33,14 @@
       "max": 1
     },
     {
-      "nodeTitle": "Canny",
-      "nodeInput": "high_threshold",
+      "nodeTitle": "Apply ControlNet (OLD)",
+      "nodeInput": "strength",
       "type": "number",
-      "label": "Canny - High Threshold",
-      "defaultValue": 0.8,
-      "step": 0.1,
+      "label": "ControlNet - Strength",
+      "defaultValue": 0.6,
+      "step": 0.05,
       "min": 0,
-      "max": 1
+      "max": 1.5
     },
     {
       "nodeTitle": "Load Image",
