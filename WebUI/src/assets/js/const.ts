@@ -10,4 +10,7 @@ export module Const {
     export const MODEL_TYPE_COMFY_UNET = 100;
     export const MODEL_TYPE_COMFY_CLIP = 101;
     export const MODEL_TYPE_COMFY_VAE = 102;
+    export const MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT = 103;
+    export const MODEL_TYPE_COMFY_DEFAULT_LORA = 104;
+    export const MODEL_TYPE_COMFY_CONTROL_NET = 105;
 }

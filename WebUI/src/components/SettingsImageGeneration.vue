@@ -122,6 +122,7 @@
                 </div>
             </div>
         </div>
+        <ComfyDynamic></ComfyDynamic>
         <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings"><div class="svg-icon i-refresh">Reset</div>Load workflow defaults</button>
     </div>
 </template>
@@ -130,6 +131,7 @@
 <script setup lang="ts">
 import { Setting, useImageGeneration } from "@/assets/js/store/imageGeneration";
 import WorkflowSelector from "../components/SettingsImageWorkflowSelector.vue";
+import ComfyDynamic from "../components/SettingsImageComfyDynamic.vue";
 import SlideBar from "../components/SlideBar.vue";
 import ResolutionPicker from "../components/ui/slider/ResolutionPicker.vue";
 import RandomNumber from "../components/RandomNumber.vue";

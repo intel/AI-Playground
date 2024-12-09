@@ -77,6 +77,27 @@ const DefaultWorkflowSchema = z.object({
     dependencies: z.array(z.unknown()).optional()
 });
 export type DefaultWorkflow = z.infer<typeof DefaultWorkflowSchema>;
+
+const ComfyNumberInputSchema = z.object({
+    nodeTitle: z.string(),
+    nodeInput: z.string(),
+    type: z.literal('number'),
+    label: z.string(),
+    defaultValue: z.number(),
+    min: z.number(),
+    max: z.number(),
+    step: z.number(),
+});
+export type ComfyNumberInput = z.infer<typeof ComfyNumberInputSchema>;
+const ComfyImageInputSchema = z.object({
+    nodeTitle: z.string(),
+    nodeInput: z.string(),
+    type: z.literal('image'),
+    defaultValue: z.string(),
+    label: z.string()
+});
+export type ComfyImageInput = z.infer<typeof ComfyImageInputSchema>;
+
 const ComfyUiWorkflowSchema = z.object({
     name: z.string(),
     backend: z.literal('comfyui'),
@@ -87,10 +108,10 @@ const ComfyUiWorkflowSchema = z.object({
     tags: z.array(z.string()),
     requiredModels: z.array(z.string()).optional(),
     requirements: z.array(WorkflowRequirementSchema),
-    inputs: z.array(z.object({
-        name: z.string(),
-        type: z.enum(['image', 'mask', 'text'])
-    })),
+    inputs: z.array(z.discriminatedUnion('type',[
+        ComfyNumberInputSchema,
+        ComfyImageInputSchema
+    ])),
     outputs: z.array(z.object({
         name: z.string(),
         type: z.literal('image')
@@ -415,7 +436,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         }
     });
 
-
+    const comfyInputs = computed(() => activeWorkflow.value.backend === 'comfyui' ? activeWorkflow.value.inputs.map(input => ({ ...input, current: ref(input.defaultValue) })) : []);
 
     const settingsPerWorkflow = ref<Record<string, Workflow['defaultSettings']>>({});
 
@@ -525,6 +546,9 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                     case "unet" : return Const.MODEL_TYPE_COMFY_UNET
                     case "clip" : return Const.MODEL_TYPE_COMFY_CLIP
                     case "vae" : return Const.MODEL_TYPE_COMFY_VAE
+                    case "defaultCheckpoint" : return Const.MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT
+                    case "defaultLora" : return Const.MODEL_TYPE_COMFY_DEFAULT_LORA
+                    case "controlNet" : return Const.MODEL_TYPE_COMFY_CONTROL_NET
                     default:
                         console.warn("received unknown comfyUI type: ", type)
                         return -1
@@ -618,6 +642,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         batchSize,
         negativePrompt,
         settingsPerWorkflow,
+        comfyInputs,
         resetActiveWorkflowSettings,
         loadWorkflowsFromJson,
         getMissingModels,
@@ -632,9 +657,6 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow', 'hdWarningDismissed']
     }
 });
-
-
-
 
 if (import.meta.hot) {
     import.meta.hot.accept(acceptHMRUpdate(useImageGeneration, import.meta.hot))

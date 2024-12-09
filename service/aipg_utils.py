@@ -52,7 +52,7 @@ def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
             raise NameError("Unknown Backend")
 
 def check_comfyui_model_exists(type, repo_id) -> bool:
-    model_dir = service_config.comfyUIModels.get(convert_model_type(type))
+    model_dir = service_config.comfy_ui_model_paths.get(convert_model_type(type))
     dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
     return os.path.exists(dir_to_look_for)
 
@@ -142,8 +142,14 @@ def convert_model_type(type: int):
         return "clip"
     elif type == 102:
         return "vae"
+    elif type == 103:
+        return "defaultCheckpoint"
+    elif type == 104:
+        return "defaultLora"
+    elif type == 105:
+        return "controlNet"
     else:
-        raise Exception(f"uwnkown model type value {type}")
+        raise Exception(f"unknown model type value {type}")
 
 
 def get_model_path(type: int, backend: str):
@@ -151,7 +157,7 @@ def get_model_path(type: int, backend: str):
         case "default":
             return service_config.service_model_paths.get(convert_model_type(type))
         case "comfyui":
-            return service_config.comfyUIModels.get(convert_model_type(type))
+            return service_config.comfy_ui_model_paths.get(convert_model_type(type))
 
 
 

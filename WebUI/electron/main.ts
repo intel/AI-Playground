@@ -40,6 +40,9 @@ const externalRes = path.resolve(app.isPackaged
   ? process.resourcesPath
   : path.join(__dirname, "../../external/"));
 
+const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
+const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
+
 
 
 // try {
@@ -582,17 +585,7 @@ function isProcessRunning(pid: number) {
   }
 }
 
-function wakeupApiService() {
-  const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
-  const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-  const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
-  const additionalEnvVariables = {
-    "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
-    "SYCL_CACHE_PERSISTENT": "1",
-    "PYTHONIOENCODING": "utf-8",
-    "ONEAPI_DEVICE_SELECTOR": "level_zero:*"
-  };
-
+function getSupportedDeviceEnvVariable() {
   // Filter out unsupported devices
   try {
     const lsLevelZeroDevices = path.resolve(path.join(baseDir, "service/tools/ls_level_zero.exe"));
@@ -601,34 +594,54 @@ function wakeupApiService() {
     fs.copyFileSync(lsLevelZeroDevices, dest);
     const ls = spawnSync(dest);
     logger.info(`ls_level_zero.exe stdout: ${ls.stdout.toString()}`);
-    const devices = JSON.parse(ls.stdout.toString());
-    const supportedIDs = [];
-    for (const device of devices) {
-      if (device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B) {
-        supportedIDs.push(device.id);
-      }
-    }
-    additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"] = "level_zero:" + supportedIDs.join(",");
+    const devices: {name: string, device_id: number, id: string}[] = JSON.parse(ls.stdout.toString()); // TODO: use zod to parse output
+    const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
+    const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};
     logger.info(`Set ONEAPI_DEVICE_SELECTOR=${additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"]}`);
+    return additionalEnvVariables;
   } catch (error) {
     logger.error(`Failed to detect Level Zero devices: ${error}`);
+    return {ONEAPI_DEVICE_SELECTOR:"level_zero:*"};
   }
-
-  spawnAPI(pythonExe, wordkDir, additionalEnvVariables);
 }
 
-function wakeupComfyUIService() {
-  const comfyWordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "ComfyUI") : path.join(__dirname, "../../../ComfyUI"));
-  const baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-  const pythonExe = path.resolve(path.join(baseDir, "env/python.exe"));
+function wakeupApiService() {
+  const wordkDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
   const additionalEnvVariables = {
     "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
     "SYCL_CACHE_PERSISTENT": "1",
     "PYTHONIOENCODING": "utf-8",
-    "ONEAPI_DEVICE_SELECTOR": "level_zero:*"
+    ...getSupportedDeviceEnvVariable(),
   };
 
-  spawnComfy(pythonExe, comfyWordkDir, additionalEnvVariables);
+
+  spawnAPI(pythonExe, wordkDir, additionalEnvVariables);
+}
+
+async function writeComfyExtraModelsConfig(aipgBasePath: string, comfyUiPath: string) {
+  const extraModelsYaml = `aipg:
+  base_path: ${path.resolve(aipgBasePath, 'service/models/stable_diffusion')}
+  checkpoints: checkpoints
+  clip: checkpoints
+  vae: checkpoints
+  unet: checkpoints
+  loras: lora`
+  await fs.promises.writeFile(path.join(comfyUiPath, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
+ return 
+}
+    
+
+async function wakeupComfyUIService() {
+  const comfyWorkDir = path.resolve(path.join(baseDir, "ComfyUI"));
+  await writeComfyExtraModelsConfig(baseDir, comfyWorkDir);
+  const additionalEnvVariables = {
+    "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
+    "SYCL_CACHE_PERSISTENT": "1",
+    "PYTHONIOENCODING": "utf-8",
+    ...getSupportedDeviceEnvVariable(),
+  };
+
+  spawnComfy(pythonExe, comfyWorkDir, additionalEnvVariables);
 }
 
 

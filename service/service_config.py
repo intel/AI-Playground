@@ -11,16 +11,19 @@ service_model_paths = {
 }
 
 
-comfyUIRootPath = "../ComfyUI"
+comfy_ui_root_path = "../ComfyUI"
 git = {
     "rootDirPath": "../git",
     "exePath": "../git/cmd/git.exe",
 }
 
-comfyUIModels = {
-    "unet": f"{comfyUIRootPath}/models/unet",
-    "clip": f"{comfyUIRootPath}/models/clip",
-    "vae": f"{comfyUIRootPath}/models/vae",
+comfy_ui_model_paths = {
+    "unet": f"{comfy_ui_root_path}/models/unet",
+    "clip": f"{comfy_ui_root_path}/models/clip",
+    "vae": f"{comfy_ui_root_path}/models/vae",
+    "controlNet": f"{comfy_ui_root_path}/models/controlnet",
+    "defaultCheckpoint": "./models/stable_diffusion/checkpoints",
+    "defaultLora": "./models/stable_diffusion/lora",
 }
 
 device = "xpu"

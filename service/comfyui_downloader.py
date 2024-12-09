@@ -14,7 +14,7 @@ comfyUI_git_repo_url = "https://github.com/comfyanonymous/ComfyUI.git"
 comfyUI_manager_git_repo_url = "https://github.com/ltdrdata/ComfyUI-Manager.git"
 
 def is_comfyUI_installed() -> bool:
-    return os.path.exists(service_config.comfyUIRootPath)
+    return os.path.exists(service_config.comfy_ui_root_path)
 
 def is_git_installed() -> bool:
     return os.path.exists(service_config.git.get("rootDirPath"))
@@ -103,18 +103,18 @@ def install_comfyUI() -> bool:
         return True
     try:
         _install_portable_git()
-        _install_git_repo(comfyUI_git_repo_url, service_config.comfyUIRootPath)
-        _install_pip_requirements(os.path.join(service_config.comfyUIRootPath, "requirements.txt"))
+        _install_git_repo(comfyUI_git_repo_url, service_config.comfy_ui_root_path)
+        _install_pip_requirements(os.path.join(service_config.comfy_ui_root_path, "requirements.txt"))
         return True
     except Exception as e:
         logging.error(f"comfyUI installation failed due to {e}")
-        if os.path.exists(service_config.comfyUIRootPath):
-            aipg_utils.remove_existing_filesystem_resource(service_config.comfyUIRootPath)
+        if os.path.exists(service_config.comfy_ui_root_path):
+            aipg_utils.remove_existing_filesystem_resource(service_config.comfy_ui_root_path)
         raise e
 
 
 def is_custom_node_installed(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> bool:
-    expected_custom_node_path = os.path.join(service_config.comfyUIRootPath, "custom_nodes", node_repo_ref.repoName)
+    expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_ref.repoName)
     return os.path.exists(expected_custom_node_path)
 
 def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
@@ -123,7 +123,7 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
     else:
         try:
             expected_git_url = f"https://github.com/{node_repo_data.username}/{node_repo_data.repoName}"
-            expected_custom_node_path = os.path.join(service_config.comfyUIRootPath, "custom_nodes", node_repo_data.repoName)
+            expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_data.repoName)
             potential_node_requirements = os.path.join(expected_custom_node_path, "requirements.txt")
 
             _install_git_repo(expected_git_url, expected_custom_node_path)
