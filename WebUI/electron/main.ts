@@ -19,10 +19,8 @@ import koffi from 'koffi';
 import sudo from "sudo-prompt";
 import {PathsManager} from "./pathsManager";
 import getPort, {portNumbers} from "get-port";
-import {aiBackendService} from "./subprocesses/aiBackendService.ts";
-import {comfyUIBackendService} from "./subprocesses/comfyUIBackendService.ts";
 import {appLoggerInstance} from "./logging/logger.ts";
-import {aiplaygroundApiServiceRegistry, ApiServiceRegistryImpl} from "./subprocesses/apiServiceRegistry.ts";
+import {aiplaygroundApiServiceRegistry, ApiServiceRegistryImpl} from "./subprocesses/apiServiceRegistry";
 
 
 // }
@@ -471,7 +469,7 @@ function initEventHandle() {
     });
 
     ipcMain.handle("getServiceRegistry", () => {
-        return serviceRegistry!;
+        return serviceRegistry!.getServiceInformation()
     });
 
     ipcMain.handle("updateComfyui", () => {

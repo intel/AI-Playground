@@ -19,17 +19,20 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly name: string
     readonly baseUrl: string
     readonly port: Number
+    desiredStatus: BackendStatus
+    currentStatus: BackendStatus
 
     constructor(name: string, port: Number) {
         this.name = name
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
+        this.currentStatus = {status: "uninitialized"}
+        this.desiredStatus = {status: "uninitialized"}
     }
 
     readonly appLogger = appLoggerInstance
 
-    desiredStatus: BackendStatus = {status: "uninitialized"}
-    currentStatus: BackendStatus = {status: "uninitialized"}
+
     encapsulatedProcess: ChildProcess | null = null
 
     readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");

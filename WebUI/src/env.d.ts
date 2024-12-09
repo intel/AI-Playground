@@ -1,5 +1,3 @@
-import {ApiServiceRegistry} from "../electron/subprocesses/apiServiceRegistry.ts";
-
 declare interface Window {
     chrome: Chrome;
     electronAPI: electronAPI;
@@ -66,13 +64,13 @@ type electronAPI = {
     getDownloadedLoras(): Promise<string[]>,
     getDownloadedLLMs(): Promise<string[]>,
     getDownloadedEmbeddingModels(): Promise<string[]>,
-    getServiceRegistry(): Promise<ApiServiceRegistry>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void,
     onReportError(callback: (errorMessage: string) => void): void,
     onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
     wakeupComfyUIService(): void,
+    getServiceRegistry(): Promise<ApiServiceInformation[]>,
 };
 
 type PythonBackendStatus = {
@@ -321,3 +319,5 @@ type CheckModelAlreadyLoadedResult = {
 } & CheckModelAlreadyLoadedParameters
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
+
+type ApiServiceInformation = { serviceName: string, status: BackendStatus , baseUrl: string, isSetUp: boolean, isRequired: boolean }

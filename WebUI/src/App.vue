@@ -21,7 +21,13 @@
       <button :title="languages.COM_CLOSE" @click="closeWindow" class="svg-icon i-close w-6 h-6"></button>
     </div>
   </header>
-  <main v-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
+  <main v-if="globalSetup.loadingState === 'verifyBackend'" class="flex-auto flex items-center justify-center">
+    <loading-bar :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
+  </main>
+  <main v-else-if="globalSetup.loadingState === 'manageInstallations'" class="flex-auto flex items-center justify-center">
+    <installation-management :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></installation-management>
+  </main>
+  <main v-else-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
   <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
@@ -106,6 +112,7 @@
 
 <script setup lang="ts">
 import LoadingBar from "./components/LoadingBar.vue";
+import InstallationManagement from "./components/InstallationManagement.vue";
 import { useI18N } from "./assets/js/store/i18n.ts"
 import Create from "./views/Create.vue";
 import Enhance from "./views/Enhance.vue";
@@ -155,6 +162,8 @@ const productVersion = window.envVars.productVersion;
 
 const globalSetup = useGlobalSetup();
 
+const initialInstallationCompleted = ref(false)
+
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message}) => {
     if (level == "error") {
@@ -167,6 +176,8 @@ onBeforeMount(async () => {
       console.log(`[${source}] ${message}`);
     }
   })
+  await globalSetup.areBackendServicesStarted()
+
   await globalSetup.initSetup();
 
   document.body.addEventListener("mousedown", autoHideAppSettings);

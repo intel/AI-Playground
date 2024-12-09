@@ -40,6 +40,18 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
         }))
         return await allServerStartups
     }
+
+    getServiceInformation(): ApiServiceInformation[] {
+        return this.getRegistered().map(service => {
+            return {
+                serviceName: service.name,
+                status: service.currentStatus,
+                baseUrl: service.baseUrl,
+                isSetUp: service.is_set_up(),
+                isRequired: service.name === "ai-backend"
+            }
+        })
+    }
 }
 
 

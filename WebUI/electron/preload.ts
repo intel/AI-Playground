@@ -108,8 +108,8 @@ contextBridge.exposeInMainWorld("envVars", {
 });
 contextBridge.exposeInMainWorld("electronAPI", {
   getComfyuiState: () => ipcRenderer.invoke("getComfyuiState"),
-  updateComfyui: () => ipcRenderer.invoke("updateComfyui"),
   getServiceRegistry: () => ipcRenderer.invoke("getServiceRegistry"),
+  updateComfyui: () => ipcRenderer.invoke("updateComfyui"),
   startComfyui: () => ipcRenderer.invoke("startComfyui"),
   reloadImageWorkflows: () => ipcRenderer.invoke("reloadImageWorkflows"),
   openDevTools: () => ipcRenderer.send("openDevTools"),
