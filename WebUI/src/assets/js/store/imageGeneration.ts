@@ -98,6 +98,24 @@ const ComfyImageInputSchema = z.object({
 });
 export type ComfyImageInput = z.infer<typeof ComfyImageInputSchema>;
 
+const ComfyStringInputSchema = z.object({
+    nodeTitle: z.string(),
+    nodeInput: z.string(),
+    type: z.literal('string'),
+    defaultValue: z.string(),
+    label: z.string()
+});
+export type ComfyStringInput = z.infer<typeof ComfyStringInputSchema>;
+
+const ComfyBooleanInputSchema = z.object({
+    nodeTitle: z.string(),
+    nodeInput: z.string(),
+    type: z.literal('boolean'),
+    defaultValue: z.boolean(),
+    label: z.string()
+});
+export type ComfyBooleanInput = z.infer<typeof ComfyBooleanInputSchema>;
+
 const ComfyUiWorkflowSchema = z.object({
     name: z.string(),
     backend: z.literal('comfyui'),
@@ -110,7 +128,9 @@ const ComfyUiWorkflowSchema = z.object({
     requirements: z.array(WorkflowRequirementSchema),
     inputs: z.array(z.discriminatedUnion('type',[
         ComfyNumberInputSchema,
-        ComfyImageInputSchema
+        ComfyImageInputSchema,
+        ComfyStringInputSchema,
+        ComfyBooleanInputSchema
     ])),
     outputs: z.array(z.object({
         name: z.string(),

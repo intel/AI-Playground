@@ -1,11 +1,24 @@
 <template>
     <div v-for="input, i in imageGeneration.comfyInputs" class="flex flex-col gap-2">
         <p>{{ input.label }}</p>
+
+        <!--    Number    -->
         <slide-bar v-if="input.type === 'number'" v-model:current="input.current.value" :min="input.min"
             :max="input.max" :step="input.step"></slide-bar>
+
+        <!--    Image    -->
         <img ref="imgDropZones" v-if="input.type === 'image'" :src="input.current.value" alt="Image" class="w-64 h-64 object-scale-down self-center"></img>
         <Input v-if="input.type === 'image'" accept="image/jpeg,image/png,image/webp" id="picture" type="file"
             v-on:change="(e) => handleFilesEvent(input.current)(e)"></Input>
+
+        <!--    String    -->
+        <Input v-if="input.type === 'string'" v-model:current="input.current.value"></Input>
+
+        <!--    Boolean    -->
+        <button v-if="input.type === 'boolean'" class="v-checkbox-control flex-none w-5 h-5"
+                :class="{ 'v-checkbox-checked': input.current.value }"
+                @click="() => input.current.value = !input.current.value">
+        </button>
     </div>
 </template>
 
