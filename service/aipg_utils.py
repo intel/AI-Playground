@@ -148,6 +148,8 @@ def convert_model_type(type: int):
         return "defaultLora"
     elif type == 105:
         return "controlNet"
+    elif type == 106:
+        return "faceswap"
     else:
         raise Exception(f"unknown model type value {type}")
 

@@ -13,4 +13,5 @@ export module Const {
     export const MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT = 103;
     export const MODEL_TYPE_COMFY_DEFAULT_LORA = 104;
     export const MODEL_TYPE_COMFY_CONTROL_NET = 105;
+    export const MODEL_TYPE_FACESWAP = 106;
 }

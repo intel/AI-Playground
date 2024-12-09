@@ -139,6 +139,36 @@ export const useComfyUi = defineStore("comfyUi", () => {
         return new Blob([intArray], {type:mimeType});
     }
 
+
+    async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
+        for (const input of imageGeneration.comfyInputs) {
+            const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle);
+            if (input.type === 'number' || input.type === 'string' || input.type === 'boolean') {
+                if (input.type === 'string' ) console.log('probably modifying string', input.label, input.current.value);
+                if (mutableWorkflow[keys[0]].inputs !== undefined) {
+                    if (input.type === 'string') console.log('actually modifying string', input.label, input.current.value);
+                    (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value;
+                }
+            }
+            if (input.type === 'image') {
+                if (typeof input.current.value !== 'string') continue;
+                const uploadImageHash = Array.from(new Uint8Array(await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.current.value)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+                const uploadImageExtension = input.current.value.match(/data:image\/(png|jpeg|webp);base64,/)?.[1];
+                const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`;
+                console.log('uploadImageName', uploadImageName);
+                if (mutableWorkflow[keys[0]].inputs !== undefined) {
+                    (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadImageName;
+                }
+                const data = new FormData();
+                data.append('image', dataURItoBlob(input.current.value), uploadImageName);
+                await fetch(`http://${comfyHostAndPort.value}/upload/image`, {
+                    method: 'POST',
+                    body: data
+                });
+            }
+        }
+    }
+
     async function generate() {
         console.log('generateWithComfy')
         if (imageGeneration.activeWorkflow.backend !== 'comfyui') {
@@ -163,30 +193,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
             modifySettingInWorkflow(mutableWorkflow, 'prompt', imageGeneration.prompt);
             modifySettingInWorkflow(mutableWorkflow, 'negativePrompt', imageGeneration.negativePrompt);
 
-            for (const input of imageGeneration.comfyInputs) {
-                const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle);
-                if (input.type === 'number') {
-                    if (mutableWorkflow[keys[0]].inputs !== undefined) {
-                        (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value;
-                    }
-                }
-                if (input.type === 'image') {
-                    if (typeof input.current.value !== 'string') continue;
-                    const uploadImageHash = Array.from(new Uint8Array(await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.current.value)))).map((b) => b.toString(16).padStart(2, "0")).join("");
-                    const uploadImageExtension = input.current.value.match(/data:image\/(png|jpeg|webp);base64,/)?.[1];
-                    const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`;
-                    console.log('uploadImageName', uploadImageName);
-                    if (mutableWorkflow[keys[0]].inputs !== undefined) {
-                        (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadImageName;
-                    }
-                    const data = new FormData();
-                    data.append('image', dataURItoBlob(input.current.value), uploadImageName);
-                    await fetch(`http://${comfyHostAndPort.value}/upload/image`, {
-                        method: 'POST',
-                        body: data
-                    });
-                }
-            }
+            await modifyDynamicSettingsInWorkflow(mutableWorkflow);
 
             loaderNodes.value = [
                 ...findKeysByClassType(mutableWorkflow, 'CheckpointLoaderSimple'),

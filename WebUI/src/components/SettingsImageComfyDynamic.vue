@@ -12,7 +12,7 @@
             v-on:change="(e) => handleFilesEvent(input.current)(e)"></Input>
 
         <!--    String    -->
-        <Input v-if="input.type === 'string'" v-model:current="input.current.value"></Input>
+        <Input v-if="input.type === 'string'" type="text" v-model="input.current.value"></Input>
 
         <!--    Boolean    -->
         <button v-if="input.type === 'boolean'" class="v-checkbox-control flex-none w-5 h-5"
