@@ -71,6 +71,9 @@ type electronAPI = {
     onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
     wakeupComfyUIService(): void,
     getServiceRegistry(): Promise<ApiServiceInformation[]>,
+    sendStartSignal(serviceName: string): Promise<BackendStatus>,
+    sendStopSignal(serviceName: string): Promise<BackendStatus>,
+    sendSetUpSignal(serviceName: string): Promise<Iterable<String>>
 };
 
 type PythonBackendStatus = {
@@ -321,3 +324,7 @@ type CheckModelAlreadyLoadedResult = {
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
 
 type ApiServiceInformation = { serviceName: string, status: BackendStatus , baseUrl: string, isSetUp: boolean, isRequired: boolean }
+
+type BackendStatus = {
+    status: 'uninitialized' | 'starting' | 'running' | 'stopped' | 'failed',
+}

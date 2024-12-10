@@ -129,6 +129,18 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             attempts++;
         }
     }
+    
+    async function sendStartSignal(serviceName: string) {
+        window.electronAPI.sendStartSignal(serviceName)
+    }
+
+    async function sendStopSignal(serviceName: string) {
+        window.electronAPI.sendStopSignal(serviceName)
+    }
+
+    async function sendSetupSignal(serviceName: string) {
+        window.electronAPI.sendSetUpSignal(serviceName)
+    }
 
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();

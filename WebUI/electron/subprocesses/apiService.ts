@@ -9,7 +9,7 @@ export interface ApiService {
     readonly baseUrl: string
     currentStatus: BackendStatus;
 
-    set_up(): Promise<void>;
+    set_up(): Promise<Iterable<String>>;
     is_set_up(): boolean;
     start(): Promise<BackendStatus>;
     stop(): Promise<BackendStatus>;
@@ -39,9 +39,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly workDir: string
     abstract readonly pythonExe: string
 
-    set_up(): Promise<void> {
+    set_up(): Promise<Iterable<String>> {
         //TODO setup with pip install etc
-        return Promise.resolve();
+        return Promise.resolve(["first step", "perfomring second step"]);
     }
 
     is_set_up(): boolean {

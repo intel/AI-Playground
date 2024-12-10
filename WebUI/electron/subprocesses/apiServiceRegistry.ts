@@ -32,6 +32,10 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
         return requiredServices
     }
 
+    getService(serviceName: string): ApiService | undefined {
+        return this.registeredServices.find(item => item.name === serviceName)
+    }
+
     async bootUpAllSetUpServices(): Promise<{ serviceName: string, state: BackendStatus }[]> {
         const setUpServices = this.registeredServices.filter(item => item.is_set_up())
         const allServerStartups = Promise.all(setUpServices.map(service => {

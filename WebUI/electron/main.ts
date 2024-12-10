@@ -472,6 +472,17 @@ function initEventHandle() {
         return serviceRegistry!.getServiceInformation()
     });
 
+    ipcMain.handle("sendStartSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
+        return serviceRegistry!.getService(serviceName)!.start()
+    });
+    ipcMain.handle("sendStopSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
+        return serviceRegistry!.getService(serviceName)!.stop()
+    });
+    ipcMain.handle("sendSetUpSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
+        return serviceRegistry!.getService(serviceName)!.set_up()
+    });
+
+
     ipcMain.handle("updateComfyui", () => {
         return;
     });

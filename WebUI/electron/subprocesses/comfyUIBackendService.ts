@@ -17,7 +17,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         "4.0"
     ]
 
-    set_up(): Promise<void> {
+    set_up(): Promise<Iterable<String>> {
         const extraModelsYaml = `aipg:
   base_path: ${path.resolve(this.baseDir, 'service/models/stable_diffusion')}
   checkpoints: checkpoints
@@ -25,7 +25,8 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
   vae: checkpoints
   unet: checkpoints
   loras: lora`
-        return fs.promises.writeFile(path.join(this.workDir, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
+        fs.promises.writeFile(path.join(this.workDir, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
+        return Promise.resolve(["comfystep1", "perfomring second comfy step", "third step"])
     }
 
     spawnAPIProcess(): {
