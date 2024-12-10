@@ -176,6 +176,7 @@ onBeforeMount(async () => {
       console.log(`[${source}] ${message}`);
     }
   })
+
   await globalSetup.areBackendServicesStarted()
 
   await globalSetup.initSetup();

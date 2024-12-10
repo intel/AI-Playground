@@ -38,6 +38,10 @@
   "COM_FULLSCREEN": "FullScreen",
   "COM_FULLSCREEN_EXIT": "FullScreen Exit",
   "COM_DO_NOT_SHOW_AGAIN": "Do not show again",
+  "COM_INSTALL": "Install",
+  "COM_INSTALL_ALL": "Install/Repair all selected",
+  "COM_REPAIR": "Repair",
+  "COM_CONTINUE": "Continue",
   "SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM": "HD Mode can result in slower than normal performance on systems with less than 12 GB of VRAM or 24GB of system memory for Intel Core Ultra PCs",
   "SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM": "The use of the workflow mode requires ComfyUI to be installed. This is an additional module that will be installed upon confirmation. Please make sure you have a stable internet connection.",
   "SETTINGS_MODEL_WORKFLOW_COMFYUI_DOWNLOADING": "Installation in progress...",
@@ -184,5 +188,16 @@
   "ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "The AI inference backend failed to initialize. Please try restarting the application. If the problem persists, you can check the Details for additional information about the error.",
   "ERROR_PYTHON_BACKEND_INIT_DETAILS": "Details",
   "ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log",
-  "WARNING_MODEL_TYPE_WRONG": "The model type doesn't seem to fit the requirements. Are you sure, you want to continue?"
+  "WARNING_MODEL_TYPE_WRONG": "The model type doesn't seem to fit the requirements. Are you sure, you want to continue?",
+  "BACKEND_MANAGE": "Manage Backend Components",
+  "BACKEND_REQUIRED_COMPONENTS": "Required Components",
+  "BACKEND_OPTIONAL_COMPONENTS": "Optional Components",
+  "BACKEND_SINGLE_COMPONENT": "Component ",
+  "BACKEND_STATUS": "Status ",
+  "BACKEND_INFORMATION": "Information",
+  "BACKEND_TERMS": "Terms*",
+  "BACKEND_ACTION": "Action",
+  "BACKEND_REQUIRED_COMPONENTS_MESSAGE": "In order for AI Playground to run, you need to install the following components:",
+  "BACKEND_OPTIONAL_COMPONENTS_MESSAGE": "These optional backend components are external and only required for special features of AI Playground. Before installation, make sure you have read the terms and conditions, which can be found by clicking on the respective information buttons.",
+  "BACKEND_TERMS_AND_CONDITIONS": "*I have read and accepted the terms and conditions which apply while using this component."
 }
