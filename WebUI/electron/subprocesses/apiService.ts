@@ -39,7 +39,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     encapsulatedProcess: ChildProcess | null = null
 
     readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-    abstract readonly workDir: string
+    abstract readonly serviceDir: string
     abstract readonly pythonExe: string
 
     set_up(): AsyncIterable<SetupProgress> {
@@ -53,6 +53,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     }
         return generateSequence();
     }
+
 
     is_set_up(): boolean {
         //TODO setup with pip install etc

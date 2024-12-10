@@ -6,8 +6,8 @@ import getPort, {portNumbers} from "get-port";
 
 
 class ComfyUiBackendService extends LongLivedPythonApiService {
-    readonly workDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
-    readonly pythonExe = path.resolve(path.join(this.baseDir, "env/python.exe"));
+    readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
+    readonly pythonExe = path.resolve(path.join(this.baseDir, "env", "python.exe"));
     healthEndpointUrl = `${this.baseUrl}/queue`
 
     private readonly comfyUIStartupParameters = [
@@ -26,7 +26,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
   vae: checkpoints
   unet: checkpoints
   loras: lora`
-        fs.promises.writeFile(path.join(this.workDir, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
+        fs.promises.writeFile(path.join(this.serviceDir, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
         return super.set_up()
     }
 
@@ -42,7 +42,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         };
 
         const apiProcess = spawn(this.pythonExe, ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters], {
-            cwd: this.workDir,
+            cwd: this.serviceDir,
             windowsHide: true,
             env: Object.assign(process.env, additionalEnvVariables)
         });

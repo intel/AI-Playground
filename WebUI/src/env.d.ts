@@ -77,7 +77,7 @@ type electronAPI = {
     onServiceSetUpProgress(callback: (data: SetupProgress) => void): void,
 };
 
-type SetupProgress = {serviceName: string, step: string, status: "executing"|"failed", debugMessage: string}
+type SetupProgress = {serviceName: string, step: string, status: "executing"|"failed"|"success", debugMessage: string}
 
 type Chrome = {
     webview: WebView;

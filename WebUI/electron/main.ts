@@ -481,7 +481,12 @@ function initEventHandle() {
     ipcMain.handle("sendSetUpSignal", async (event: IpcMainInvokeEvent, serviceName: string) => {
         const setUpProgressStream = serviceRegistry!.getService(serviceName)!.set_up()
         for await (const progressUpdate of setUpProgressStream) {
-            win!.webContents.send('serviceSetUpProgress', progressUpdate)
+            if (progressUpdate.status === "failed" || progressUpdate.status === "success") {
+                win!.webContents.send('serviceSetUpProgress', progressUpdate)
+                break
+            } else {
+                win!.webContents.send('serviceSetUpProgress', progressUpdate)
+            }
         }
     });
 
