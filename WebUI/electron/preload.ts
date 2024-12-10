@@ -174,4 +174,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onReportError: (callback: (errorMessage: string) => void) => ipcRenderer.on('reportError', (_event, value) => callback(value)),
   onDebugLog: (callback: (data: { level: string, source: string, message: string}) => void) => ipcRenderer.on('debugLog', (_event, value) => callback(value)),
   wakeupComfyUIService: () => ipcRenderer.send('wakeupComfyUIService'),
+  onServiceSetUpProgress: (callback: (data: SetupProgress) => void) => ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value))
 });

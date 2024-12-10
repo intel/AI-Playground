@@ -84,8 +84,17 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         errorMessage.value = value;
     })
 
+    window.electronAPI.onServiceSetUpProgress(async ( data ) => {
+        const name = data.serviceName
+        const step = data.step
+        console.log(`${name} in stage ${step} ${data.status}. Debugmessage: ${data.debugMessage}`)
+    })
 
     async function areBackendServicesStarted(): Promise<boolean> {
+        console.info("debuging setup call")
+        await sendSetupSignal("ai-backend")
+
+        console.info("checking on required services")
         if (await areAllRequiredServicesSetup()) {
             console.info("Waiting for required services to start")
             await waitUntilRequiredServicesReady(20)
@@ -100,11 +109,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function areAllRequiredServicesSetup() {
-        console.info("checking on required services")
         const apiServiceInformation: ApiServiceInformation[] = await window.electronAPI.getServiceRegistry()
-        console.info("services", apiServiceInformation)
         const requiredServices = apiServiceInformation.filter(item => item.isRequired)
-        console.info("required services", requiredServices)
         return (requiredServices.every(service => service.isSetUp ))
     }
 
@@ -139,7 +145,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function sendSetupSignal(serviceName: string) {
-        window.electronAPI.sendSetUpSignal(serviceName)
+        return window.electronAPI.sendSetUpSignal(serviceName)
     }
 
     async function initSetup() {

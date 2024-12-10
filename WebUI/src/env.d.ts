@@ -73,12 +73,11 @@ type electronAPI = {
     getServiceRegistry(): Promise<ApiServiceInformation[]>,
     sendStartSignal(serviceName: string): Promise<BackendStatus>,
     sendStopSignal(serviceName: string): Promise<BackendStatus>,
-    sendSetUpSignal(serviceName: string): Promise<Iterable<String>>
+    sendSetUpSignal(serviceName: string): void
+    onServiceSetUpProgress(callback: (data: SetupProgress) => void): void,
 };
 
-type PythonBackendStatus = {
-    status: "running" | "stopped"
-}
+type SetupProgress = {serviceName: string, step: string, status: "executing"|"failed", debugMessage: string}
 
 type Chrome = {
     webview: WebView;
@@ -324,7 +323,3 @@ type CheckModelAlreadyLoadedResult = {
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
 
 type ApiServiceInformation = { serviceName: string, status: BackendStatus , baseUrl: string, isSetUp: boolean, isRequired: boolean }
-
-type BackendStatus = {
-    status: 'uninitialized' | 'starting' | 'running' | 'stopped' | 'failed',
-}

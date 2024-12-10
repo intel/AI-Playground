@@ -4,12 +4,14 @@ import {app} from "electron";
 import fs from "fs";
 import {appLoggerInstance} from "../logging/logger.ts";
 
+
+
 export interface ApiService {
     readonly name: string
     readonly baseUrl: string
     currentStatus: BackendStatus;
 
-    set_up(): Promise<Iterable<String>>;
+    set_up(): AsyncIterable<SetupProgress>;
     is_set_up(): boolean;
     start(): Promise<BackendStatus>;
     stop(): Promise<BackendStatus>;
@@ -19,18 +21,17 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly name: string
     readonly baseUrl: string
     readonly port: Number
-    desiredStatus: BackendStatus
-    currentStatus: BackendStatus
+    desiredStatus: BackendStatus = {status: "uninitialized"}
+    currentStatus: BackendStatus = {status: "uninitialized"}
 
     constructor(name: string, port: Number) {
         this.name = name
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
-        this.currentStatus = {status: "uninitialized"}
-        this.desiredStatus = {status: "uninitialized"}
     }
 
     readonly appLogger = appLoggerInstance
+
 
 
     encapsulatedProcess: ChildProcess | null = null
@@ -39,9 +40,16 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly workDir: string
     abstract readonly pythonExe: string
 
-    set_up(): Promise<Iterable<String>> {
-        //TODO setup with pip install etc
-        return Promise.resolve(["first step", "perfomring second step"]);
+    set_up(): AsyncIterable<SetupProgress> {
+        this.appLogger.info("called setup function", this.name)
+        const self = this
+        async function* generateSequence(): AsyncGenerator<SetupProgress> {
+            for (let i = 0; i <= 5; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            yield {serviceName: self.name, step: `Step_${i}`, status: "executing", debugMessage: ""};
+        }
+    }
+        return generateSequence();
     }
 
     is_set_up(): boolean {

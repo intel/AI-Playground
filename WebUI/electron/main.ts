@@ -478,8 +478,11 @@ function initEventHandle() {
     ipcMain.handle("sendStopSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
         return serviceRegistry!.getService(serviceName)!.stop()
     });
-    ipcMain.handle("sendSetUpSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
-        return serviceRegistry!.getService(serviceName)!.set_up()
+    ipcMain.handle("sendSetUpSignal", async (event: IpcMainInvokeEvent, serviceName: string) => {
+        const setUpProgressStream = serviceRegistry!.getService(serviceName)!.set_up()
+        for await (const progressUpdate of setUpProgressStream) {
+            win!.webContents.send('serviceSetUpProgress', progressUpdate)
+        }
     });
 
 
