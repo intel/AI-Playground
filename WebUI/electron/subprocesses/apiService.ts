@@ -21,6 +21,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly name: string
     readonly baseUrl: string
     readonly port: Number
+    abstract healthEndpointUrl: string
+
     desiredStatus: BackendStatus = {status: "uninitialized"}
     currentStatus: BackendStatus = {status: "uninitialized"}
 
@@ -71,9 +73,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.desiredStatus = {status: "running"}
         return new Promise<BackendStatus>(async (resolve, reject) => {
             try {
+                this.appLogger.info(` trying to start ${this.name} python API`, this.name)
                 const trackedProcess = this.spawnAPIProcess()
                 this.encapsulatedProcess = trackedProcess.process
-                if (await this.listenServerReady(trackedProcess.process, trackedProcess.didProcessExitEarlyTracker)) {
+                this.pipeProcessLogs(trackedProcess.process)
+                if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
                     this.currentStatus = {status: "running"}
                     this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
                     return resolve({status: "running"});
@@ -105,7 +109,55 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     abstract spawnAPIProcess(): {process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean>}
 
-    abstract listenServerReady(process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean>): Promise<boolean>
+    pipeProcessLogs(process: ChildProcess) {
+        process.stdout!.on('data', (message) => {
+            if (message.toString().startsWith('INFO')) {
+                this.appLogger.info(`${message}`, this.name)
+            } else if (message.toString().startsWith('WARN')) {
+                this.appLogger.warn(`${message}`, this.name)
+            } else {
+                this.appLogger.error(`${message}`, this.name)
+            }
+        })
+
+        process.stderr!.on('data', (message) => {
+            this.appLogger.error(`${message}`, this.name)
+        })
+        process.on('error', (message) => {
+            this.appLogger.error(`backend process ${this.name} exited abruptly due to : ${message}`, this.name)
+        })
+    }
+
+    async listenServerReady(didProcessExitEarlyTracker: Promise<boolean>): Promise<boolean> {
+        const startTime = performance.now()
+        const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
+            const queryIntervalMs = 250
+            const startupPeriodMaxMs = 10000
+            while (performance.now() < startTime + startupPeriodMaxMs) {
+                try {
+                    const serviceHealthResponse = await fetch(this.healthEndpointUrl);
+                    this.appLogger.info(`received response: ${serviceHealthResponse}`, "promise")
+                    if (serviceHealthResponse.status === 200) {
+                        const endTime = performance.now()
+                        this.appLogger.info(`${this.name} server startup complete after ${endTime - startTime / 1000} seconds`, this.name)
+                        resolve(true)
+                        break
+                    }
+                } catch (e) {
+                    //fetch will simply fail while server not up
+                }
+                await new Promise<void>(resolve => setTimeout(resolve, queryIntervalMs));
+            }
+            if (performance.now() >= startTime + startupPeriodMaxMs) {
+                this.appLogger.warn(`Server ${this.name} did not return healthy response within ${startupPeriodMaxMs}`, this.name)
+                resolve(false)
+            }
+        })
+
+        const processStartupFailedDueToEarlyExit = didProcessExitEarlyTracker.then( earlyExit => !earlyExit)
+
+        return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
+    }
 
     getSupportedDeviceEnvVariable(): { ONEAPI_DEVICE_SELECTOR: string; } {
         // Filter out unsupported devices

@@ -50,6 +50,11 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 app = APIFlask(__name__)
 
 
+@app.get("/healthy")
+def healthEndpoint():
+    return jsonify({"health": "OK"})
+
+
 @app.post("/api/llm/chat")
 def llm_chat():
     paint_biz.dispose_basic_model()
