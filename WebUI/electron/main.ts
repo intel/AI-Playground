@@ -479,10 +479,21 @@ function initEventHandle() {
         return serviceRegistry!.getService(serviceName)!.stop()
     });
     ipcMain.handle("sendSetUpSignal", async (event: IpcMainInvokeEvent, serviceName: string) => {
+        if(serviceName == "comfyui-backend") {
+            //side effect of relying on ai-backend python env
+            appLogger.info(`Starting setup of ${serviceName}`, 'electron-backend')
+            if (! serviceRegistry!.getService('ai-backend')!.is_set_up()) {
+                appLogger.warn("Called for setup of comfyUI, which so far depends on ai-backend", 'electron-backend')
+                appLogger.info("Aborting comfyUI setup request", 'electron-backend')
+                win!.webContents.send('serviceSetUpProgress', {serviceName: "comfyui-backend", step: "intercepted", status: "failed", debugMessage: `Setup of comfyUI requires required backend already present`})
+                return
+            }
+        }
         const setUpProgressStream = serviceRegistry!.getService(serviceName)!.set_up()
         for await (const progressUpdate of setUpProgressStream) {
             if (progressUpdate.status === "failed" || progressUpdate.status === "success") {
                 win!.webContents.send('serviceSetUpProgress', progressUpdate)
+                appLogger.info(`Received terminal progress update for set up request for ${serviceName}`, 'electron-backend')
                 break
             } else {
                 win!.webContents.send('serviceSetUpProgress', progressUpdate)

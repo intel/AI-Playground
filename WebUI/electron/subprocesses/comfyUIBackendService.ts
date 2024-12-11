@@ -4,11 +4,16 @@ import path from "node:path";
 import fs from "fs";
 import getPort, {portNumbers} from "get-port";
 import * as filesystem from "fs-extra";
+import {AiBackendService} from "./aiBackendService.ts";
+import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
+import https from "https";
 
 
 class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
-    readonly pythonExe = path.resolve(path.join(this.baseDir, "env", "python.exe"));
+    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `ai-backend-env`)); // use ai-backend python env. THis serivce should receive its own, but we lack the time, to fix this
+    readonly pythonExe = LongLivedPythonApiService.getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroExe = AiBackendService.getLsLevelZeroPath(this.pythonEnvDir) // in the recycled ai-backend, we may conveniently assume, that this is already all setup.
     healthEndpointUrl = `${this.baseUrl}/queue`
 
     private readonly comfyUIStartupParameters = [
@@ -20,19 +25,210 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
     ]
 
     is_set_up(): boolean {
-        return filesystem.existsSync(this.serviceDir)
+        return filesystem.existsSync(this.serviceDir) && filesystem.existsSync(this.lsLevelZeroExe)
     }
 
     set_up(): AsyncIterable<SetupProgress> {
-        const extraModelsYaml = `aipg:
-  base_path: ${path.resolve(this.baseDir, 'service/models/stable_diffusion')}
+        this.appLogger.info("setting up service", this.name)
+        const self = this
+        const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
+
+        const pipInstallStep = (pythonDir: string, skipOnMissingRequirementsTxt = false ) => {
+            return new Promise<void>(async(resolve, reject) => {
+                const requirementsTextPath = path.join(pythonDir, 'requirements.txt')
+                if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
+                    self.appLogger.info(`No requirements.txt for ${pythonDir} - skipping`, self.name)
+                    resolve()
+                } else {
+                    try {
+                        await spawnProcessAsync(self.pythonExe, ["-m", "pip", "install", "-r", requirementsTextPath], logToFileHandler)
+                        self.appLogger.info(`Successfully installed python dependencies for ${pythonDir}`, self.name, true)
+                        resolve()
+                    } catch (e) {
+                        self.appLogger.error(`Failure during installation of python dependencies for ${pythonDir}. Error: ${e}`, self.name, true)
+                        reject(new Error(`Failed to install python dependencies for ${pythonDir}. Error: ${e}`))
+                    }
+                }
+        })}
+
+        const cloneGitStep = (gitExePath: string, url: string, target: string) => {
+            return new Promise<void>((resolve, reject) => {
+                self.appLogger.info(`Cloning from ${url}`, self.name)
+                try {
+                    spawnProcessSync(gitExePath, ["clone", url, target], logToFileHandler)
+                    existingFileOrError(target)
+                    self.appLogger.info(`repo available at ${target}`, self.name)
+                    resolve()
+                } catch (e) {
+                    self.appLogger.error(`comfyUI cloning failed due to ${e}`, self.name)
+                    reject(new Error(`comfyUI cloning failed due to ${e}`))
+                }
+            })
+        }
+
+        async function* setUpWorkEnv(remainingSteps: (comfyUiContainmentDir :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+            const comfyUiContaintmentDir = path.resolve(path.join(self.baseDir, `${self.name}-service_tmp`))
+            const setUpStep: Promise<string> = new Promise<string>((resolve, reject) => {
+                self.appLogger.info(`Preparing installation containment dir at ${comfyUiContaintmentDir}`, self.name, true)
+                try {
+                    if (filesystem.existsSync(comfyUiContaintmentDir)) {
+                        self.appLogger.info(`Cleaning up previously containment directory at ${comfyUiContaintmentDir}`, self.name, true)
+                        filesystem.removeSync(comfyUiContaintmentDir)
+                    }
+                    fs.mkdirSync(comfyUiContaintmentDir, { recursive: true });
+                    resolve(comfyUiContaintmentDir)
+                } catch (e) {
+                    self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
+                    reject(new Error(`Failure during set up of workspace. Error: ${e}`))
+                }
+            })
+
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Creating workdir ${comfyUiContaintmentDir}`};
+            const deviceId: string = await setUpStep
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Created workdir ${comfyUiContaintmentDir}`};
+            yield* remainingSteps(deviceId)
+        }
+
+
+        async function* verifyPythonBackendExists(): AsyncIterable<SetupProgress> {
+            const setUpStep: Promise<void> = new Promise<void>((resolve, reject) => {
+                self.appLogger.info(`verifying python env ${self.pythonEnvDir} exists`, self.name, true)
+                if (filesystem.existsSync(self.lsLevelZeroExe) && filesystem.existsSync(self.pythonExe)) {
+                    resolve()
+                } else {
+                    reject(new Error(`Python env missing or not set up correctly`))
+                }
+            })
+
+            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `verify python environment`};
+            await setUpStep
+            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `python environment set up`};
+        }
+
+        async function* installPortableGit(comfyUiContainmentDir: string, remainingSteps: (gitExe :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+            const zippedGitTargetPath = path.join(comfyUiContainmentDir, "git.zip")
+            const executableGitTargetPath = path.join(self.baseDir, "git")
+
+            const downloadGitStep: Promise<void> = new Promise<void>((resolve, reject) => {
+                const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
+                self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
+                try {
+                    https.get(portableGitUrl, (response) => {
+                        const filePath = path.join(comfyUiContainmentDir, "git.zip")
+                        const file = fs.createWriteStream(filePath);
+                        response.pipe(file);
+                        file.on('finish', () => {
+                            file.close();
+                            self.appLogger.info(`fetched portable git.zip`, self.name, true);
+                            resolve()
+                        });
+                    }).on('error', (err) => {
+                        self.appLogger.error(`fetching portable git failed due to ${err}`, self.name, true);
+                        reject(new Error(`fetching portable git failed due to ${err}`))
+                    });
+                } catch (e) {
+                    self.appLogger.error(`Failed to fetch git from remote. Error: ${e}`, self.name, true)
+                    reject(new Error(`Failed to fetch git from remote. Error: ${e}`))
+                }
+            })
+
+            const unzipGitStep: Promise<string> = new Promise<string>((resolve, reject) => {
+                self.appLogger.info("Unzipping portable git", self.name)
+                try {
+                    spawnProcessSync("tar", ["-C", executableGitTargetPath, "-xf", zippedGitTargetPath], logToFileHandler)
+                    const gitExe = existingFileOrError(path.join(executableGitTargetPath, "bin", "git.exe"))
+                    self.appLogger.info(`portable git callable at ${gitExe}`, self.name)
+                    resolve(gitExe)
+                } catch (e) {
+                    self.appLogger.error(`Failed to unzip portable git. Error: ${e}`, self.name, true)
+                    reject(new Error(`Failed to unzip portable git. Error: ${e}`))
+                }
+            })
+
+            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installing git`};
+            await downloadGitStep
+            const gitExe = await unzipGitStep
+            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of git complete`};
+            yield* remainingSteps(gitExe)
+        }
+
+        async function* setupComfyUiBaseService(containmentDir: string, gitExePath: string, remainingSteps: (comfyUiServiceDir :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+            const comfyUICloneTarget = path.join(containmentDir, 'ComfyUI')
+
+            yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installing comfyUI base repo`};
+            await cloneGitStep(gitExePath, "https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneTarget)
+            await pipInstallStep(comfyUICloneTarget)
+            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
+            yield* remainingSteps(comfyUICloneTarget)
+        }
+
+        async function* configureComfyUI(gitExePath: string, comfyUiServiceDir: string): AsyncIterable<SetupProgress> {
+            const configureExtraModelsStep = new Promise<void>((resolve, reject) => {
+                try {
+                    self.appLogger.info("Configuring extra model paths for comfyUI", self.name)
+                    const extraModelPathsYaml = path.join(comfyUiServiceDir, 'extra_model_paths.yaml')
+                    const extraModelsYaml = `aipg:
+  base_path: ${path.resolve(self.baseDir, 'service/models/stable_diffusion')}
   checkpoints: checkpoints
   clip: checkpoints
   vae: checkpoints
   unet: checkpoints
   loras: lora`
-        fs.promises.writeFile(path.join(this.serviceDir, 'extra_model_paths.yaml'), extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
-        return super.set_up()
+
+                    fs.promises.writeFile(extraModelPathsYaml, extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
+                    self.appLogger.info(`Configured extra model paths for comfyUI at ${extraModelPathsYaml} as ${extraModelsYaml} `, self.name)
+                } catch (e) {
+                    self.appLogger.error("Failed to configure extra model paths for comfyUI", self.name)
+                    reject()
+                }
+            })
+
+            yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configuring comfyUI base repo`};
+            await configureExtraModelsStep
+            yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configured comfyUI base repo`};
+        }
+
+        async function* moveToFinalTarget(comfyUiTmpServiceDir: string): AsyncGenerator<SetupProgress> {
+            const setUpStep : Promise<void> = new Promise<void>((resolve, reject) => {
+                self.appLogger.info(`renaming containment directory ${comfyUiTmpServiceDir} to ${self.serviceDir}`, self.name, true)
+                try {
+                    if (filesystem.existsSync(self.serviceDir)) {
+                        self.appLogger.info(`Cleaning up previously python environment directory at ${self.serviceDir}`, self.name, true)
+                        filesystem.removeSync(self.serviceDir)
+                    }
+                    filesystem.move(comfyUiTmpServiceDir, self.serviceDir)
+                    self.appLogger.info(`comfyUI service dir now available at ${self.serviceDir}`, self.name, true)
+                    resolve()
+                } catch (e) {
+                    self.appLogger.error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`, self.name, true)
+                    reject(new Error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`))
+                }
+            });
+
+            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
+            await setUpStep
+            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+        }
+
+        return async function* () {
+            try {
+                yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up comfyUI environment"};
+                yield* setUpWorkEnv(async function* (comfyUiServiceContainmentDir: string) {
+                    yield* installPortableGit(comfyUiServiceContainmentDir, async function* (gitExe: string) {
+                        yield* verifyPythonBackendExists()
+                        yield* setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe, async function* (comfyUiTmpServiceDir: string) {
+                            yield* configureComfyUI(gitExe, comfyUiTmpServiceDir)
+                            yield* moveToFinalTarget(comfyUiTmpServiceDir)
+                        })
+                    })
+                    yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
+                });
+            } catch (e) {
+                self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
+                self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+                yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup comfyUI service due to ${e}`};
+            }
+        }()
     }
 
     spawnAPIProcess(): {
@@ -43,7 +239,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.getSupportedDeviceEnvVariable(),
+            ...this.getOneApiSupportedDeviceEnvVariable(),
         };
 
         const apiProcess = spawn(this.pythonExe, ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters], {
@@ -68,6 +264,21 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         return {
             process: apiProcess,
             didProcessExitEarlyTracker: didProcessExitEarlyTracker,
+        }
+    }
+
+    getOneApiSupportedDeviceEnvVariable(): { ONEAPI_DEVICE_SELECTOR: string; } {
+        try {
+            const lsLevelZeroOut = spawnProcessSync(this.lsLevelZeroExe, []);
+            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
+            const devices: { name: string, device_id: number, id: string }[] = JSON.parse(lsLevelZeroOut.toString());
+            const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
+            const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};
+            this.appLogger.info(`Set ONEAPI_DEVICE_SELECTOR=${additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"]}`, this.name);
+            return additionalEnvVariables;
+        } catch (error) {
+            this.appLogger.error(`Failed to detect Level Zero devices: ${error}`, this.name);
+            return {ONEAPI_DEVICE_SELECTOR: "level_zero:*"};
         }
     }
 }

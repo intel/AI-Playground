@@ -1,24 +1,20 @@
 import {LongLivedPythonApiService} from "./apiService.ts";
-import {ChildProcess, spawn, spawnSync} from "node:child_process";
+import {ChildProcess, spawn} from "node:child_process";
 import getPort, {portNumbers} from "get-port";
 import path from "node:path";
 import {app} from "electron";
 import * as filesystem from 'fs-extra'
-import {spawnProcessSync, existingFileOrError, spawnProcessAsync, copyFileWithDirs} from './osProcessHelper.ts'
+import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from './osProcessHelper.ts'
 
-class AiBackendService extends LongLivedPythonApiService {
+export class AiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
-    readonly pythonExe = this.getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = this.getLsLevelZeroPath(this.pythonEnvDir)
+    readonly pythonExe = LongLivedPythonApiService.getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroExe = AiBackendService.getLsLevelZeroPath(this.pythonEnvDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
 
 
-    private getPythonPath(basePythonEnvDir: string): string {
-        return path.resolve(path.join(basePythonEnvDir, "python.exe"))
-    }
-
-    private getLsLevelZeroPath(basePythonEnvDir: string): string {
+    public static getLsLevelZeroPath(basePythonEnvDir: string): string {
         return path.resolve(path.join(basePythonEnvDir, "Library/bin/ls_level_zero.exe"));
     }
 
@@ -35,7 +31,7 @@ class AiBackendService extends LongLivedPythonApiService {
             const setUpStep: Promise<void> = new Promise<void>((resolve, reject) => {
                 self.appLogger.info(`installing pip into env ${pythonEnvContainmentDir}`, self.name, true)
                 try {
-                    const pythonExe = existingFileOrError(self.getPythonPath(pythonEnvContainmentDir))
+                    const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
                     const getPipScript = existingFileOrError(path.join(pythonEnvContainmentDir, 'get-pip.py'))
                     spawnProcessSync(pythonExe, [getPipScript], logToFileHandler)
                     self.appLogger.info(`Successfully installed pip into env ${pythonEnvContainmentDir}`, self.name, true)
@@ -55,7 +51,7 @@ class AiBackendService extends LongLivedPythonApiService {
             const setUpStep: Promise<void> = new Promise<void>(async (resolve, reject) => {
                 self.appLogger.info(`installing python dependencies`, self.name, true)
                 try {
-                    const pythonExe = existingFileOrError(self.getPythonPath(pythonEnvContainmentDir))
+                    const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
                     const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
                     const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
                     await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", deviceSpecificRequirements], logToFileHandler)
@@ -63,8 +59,8 @@ class AiBackendService extends LongLivedPythonApiService {
                     self.appLogger.info(`Successfully installed python dependencies`, self.name, true)
                     resolve()
                 } catch (e) {
-                    self.appLogger.error(`Failed to install pip. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failed to install pip. Error: ${e}`))
+                    self.appLogger.error(`Failure during installation of python dependencies: ${e}`, self.name, true)
+                    reject(new Error(`Failed to install python dependencies. Error: ${e}`))
                 }
             })
 
@@ -103,7 +99,7 @@ class AiBackendService extends LongLivedPythonApiService {
             self.appLogger.info("Detecting intel deviceID", self.name)
             const setUpStep : Promise<string> = new Promise(resolve => {
                 self.appLogger.info("Copying ls_level_zero.exe", self.name)
-                const lsLevelZeroBinaryTargetPath = self.getLsLevelZeroPath(pythonEnvContainmentDir)
+                const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
                 const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
                 copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
                 resolve("arc")
@@ -121,12 +117,12 @@ class AiBackendService extends LongLivedPythonApiService {
                 try {
                     // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
                     self.appLogger.info("Copying ls_level_zero.exe", self.name)
-                    const lsLevelZeroBinaryTargetPath = self.getLsLevelZeroPath(pythonEnvContainmentDir)
+                    const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
                     const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
                     copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
 
                     self.appLogger.info("Fetching requirements for ls_level_zero.exe", self.name)
-                    const pythonExe = existingFileOrError(self.getPythonPath(pythonEnvContainmentDir))
+                    const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
                     const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(self.serviceDir, "requirements-ls_level_zero.txt")));
                     await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", lsLevelZeroRequirements], logToFileHandler)
                     const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], logToFileHandler);
@@ -192,7 +188,7 @@ class AiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.getSupportedDeviceEnvVariable(),
+            ...this.getOneApiSupportedDeviceEnvVariable(),
         };
 
         const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {
@@ -217,6 +213,22 @@ class AiBackendService extends LongLivedPythonApiService {
         return {
             process: apiProcess,
             didProcessExitEarlyTracker: didProcessExitEarlyTracker,
+        }
+    }
+
+    getOneApiSupportedDeviceEnvVariable(): { ONEAPI_DEVICE_SELECTOR: string; } {
+        // Filter out unsupported devices
+        try {
+            const lsLevelZeroOut = spawnProcessSync(this.lsLevelZeroExe, []);
+            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
+            const devices: { name: string, device_id: number, id: string }[] = JSON.parse(lsLevelZeroOut.toString());
+            const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
+            const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};
+            this.appLogger.info(`Set ONEAPI_DEVICE_SELECTOR=${additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"]}`, this.name);
+            return additionalEnvVariables;
+        } catch (error) {
+            this.appLogger.error(`Failed to detect Level Zero devices: ${error}`, this.name);
+            return {ONEAPI_DEVICE_SELECTOR: "level_zero:*"};
         }
     }
 }
