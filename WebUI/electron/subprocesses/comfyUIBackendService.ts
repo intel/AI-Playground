@@ -5,7 +5,7 @@ import fs from "fs";
 import getPort, {portNumbers} from "get-port";
 import * as filesystem from "fs-extra";
 import {AiBackendService} from "./aiBackendService.ts";
-import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
+import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
 import https from "https";
 
 
@@ -105,38 +105,18 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `python environment set up`};
         }
 
+
+
         async function* installPortableGit(comfyUiContainmentDir: string, remainingSteps: (gitExe :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
             const zippedGitTargetPath = path.join(comfyUiContainmentDir, "git.zip")
-            const executableGitTargetPath = path.join(self.baseDir, "git")
-
-            const downloadGitStep: Promise<void> = new Promise<void>((resolve, reject) => {
-                const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
-                self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
-                try {
-                    https.get(portableGitUrl, (response) => {
-                        const filePath = path.join(comfyUiContainmentDir, "git.zip")
-                        const file = fs.createWriteStream(filePath);
-                        response.pipe(file);
-                        file.on('finish', () => {
-                            file.close();
-                            self.appLogger.info(`fetched portable git.zip`, self.name, true);
-                            resolve()
-                        });
-                    }).on('error', (err) => {
-                        self.appLogger.error(`fetching portable git failed due to ${err}`, self.name, true);
-                        reject(new Error(`fetching portable git failed due to ${err}`))
-                    });
-                } catch (e) {
-                    self.appLogger.error(`Failed to fetch git from remote. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failed to fetch git from remote. Error: ${e}`))
-                }
-            })
+            const executableGitTargetPath = path.join(comfyUiContainmentDir, "git")
 
             const unzipGitStep: Promise<string> = new Promise<string>((resolve, reject) => {
                 self.appLogger.info("Unzipping portable git", self.name)
                 try {
-                    spawnProcessSync("tar", ["-C", executableGitTargetPath, "-xf", zippedGitTargetPath], logToFileHandler)
-                    const gitExe = existingFileOrError(path.join(executableGitTargetPath, "bin", "git.exe"))
+                    fs.mkdirSync(executableGitTargetPath, { recursive: true })
+                    spawnProcessSync("tar", ["-C", `'${executableGitTargetPath}'`, "-xf", `'${zippedGitTargetPath}'`], logToFileHandler)
+                    const gitExe = existingFileOrError(path.join(executableGitTargetPath, "cmd", "git.exe"))
                     self.appLogger.info(`portable git callable at ${gitExe}`, self.name)
                     resolve(gitExe)
                 } catch (e) {
@@ -144,6 +124,32 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
                     reject(new Error(`Failed to unzip portable git. Error: ${e}`))
                 }
             })
+
+            const downloadGitStep: Promise<string> = new Promise<string>(async (resolve, reject) => {
+                const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
+                self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
+                try {
+                    const response = await fetch(portableGitUrl);
+                    self.appLogger.info(`received response ${response}`, self.name, true)
+                    if (!response.ok) {
+                        reject(new Error(`fetching git returned HTTP cod ${response.status}`))
+                    }
+                    const zippedGitStream = response.body!.getReader();
+                    const fileStream = fs.createWriteStream(zippedGitTargetPath);
+                    let chunk = await zippedGitStream.read();
+                    while (!chunk.done) {
+                        fileStream.write(chunk.value);
+                        chunk = await zippedGitStream.read();
+                    }
+                    fileStream.end();
+                    self.appLogger.info(`Zip file downloaded and saved to ${zippedGitTargetPath}`, self.name, true)
+                    resolve("test")
+                } catch (error) {
+                    self.appLogger.error(`Downloading portable git failed due to ${error}`, self.name, true)
+                    reject(new Error(`Downloading portable git failed due to ${error}`))
+                }
+            })
+
 
             yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installing git`};
             await downloadGitStep

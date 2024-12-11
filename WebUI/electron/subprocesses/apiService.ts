@@ -40,7 +40,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     }
 
     static getPythonPath(basePythonEnvDir: string): string {
-        return path.resolve(path.join(basePythonEnvDir, "bin", "python"))
+        return path.resolve(path.join(basePythonEnvDir, "bin", "python.exe"))
     }
 
     abstract is_set_up(): boolean
