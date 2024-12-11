@@ -222,13 +222,13 @@ async function bootUpAllSetUpServices() {
         return
     }
     appLogger.info('Attempting to boot up all set up services', 'electron-backend')
-    const serverBootUpPromises = await serviceRegistry!.bootUpAllSetUpServices()
-    serverBootUpPromises.forEach(promiseResult => {
-        if (promiseResult.state.status !== "running") {
-            appLogger.warn(`Failed to boot up ${promiseResult.serviceName}. It is in state ${promiseResult.state.status}`, 'electron-backend')
+    const serviceBootUp = await serviceRegistry.bootUpAllSetUpServices()
+    serviceBootUp.forEach(result => {
+        if (result.state.status !== "running") {
+            appLogger.warn(`Failed to boot up ${result.serviceName}. It is in state ${result.state.status}`, 'electron-backend')
         }
-        if (promiseResult.state.status === "running") {
-            appLogger.info(`${promiseResult.serviceName} boot up successful`, 'electron-backend')
+        if (result.state.status === "running") {
+            appLogger.info(`${result.serviceName} boot up successful`, 'electron-backend')
         }
     })
 }
@@ -469,34 +469,59 @@ function initEventHandle() {
     });
 
     ipcMain.handle("getServiceRegistry", () => {
-        return serviceRegistry!.getServiceInformation()
+        if(!serviceRegistry) {
+            appLogger.warn('frontend tried to getServiceRegistry too early during aipg startup', 'electron-backend');
+            return;}
+        return serviceRegistry.getServiceInformation()
     });
 
     ipcMain.handle("sendStartSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
-        return serviceRegistry!.getService(serviceName)!.start()
+        if(!serviceRegistry) {
+            appLogger.warn('received start signal too early during aipg startup', 'electron-backend');
+            return;}
+        const service = serviceRegistry.getService(serviceName);
+        if(!service) {
+            appLogger.warn(`Tried to start service ${serviceName} which is not known`, 'electron-backend')
+            return;
+        }
+        return service.start()
     });
     ipcMain.handle("sendStopSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
-        return serviceRegistry!.getService(serviceName)!.stop()
+        if(!serviceRegistry) {
+            appLogger.warn('received stop signal too early during aipg startup', 'electron-backend');
+            return;}
+        const service = serviceRegistry.getService(serviceName);
+        if(!service) {
+            appLogger.warn(`Tried to stop service ${serviceName} which is not known`, 'electron-backend')
+            return;
+        }
+        return service.stop()
     });
     ipcMain.handle("sendSetUpSignal", async (event: IpcMainInvokeEvent, serviceName: string) => {
+        if(!serviceRegistry || !win) {
+            appLogger.warn('received setup signal too early during aipg startup', 'electron-backend');
+            return;}
+        const service = serviceRegistry.getService(serviceName);
+        if(!service) {
+            appLogger.warn(`Tried to set up service ${serviceName} which is not known`, 'electron-backend')
+            return;
+        }
         if(serviceName == "comfyui-backend") {
             //side effect of relying on ai-backend python env
             appLogger.info(`Starting setup of ${serviceName}`, 'electron-backend')
-            if (! serviceRegistry!.getService('ai-backend')!.is_set_up()) {
+            if (!serviceRegistry.getService('ai-backend')?.is_set_up()) {
                 appLogger.warn("Called for setup of comfyUI, which so far depends on ai-backend", 'electron-backend')
                 appLogger.info("Aborting comfyUI setup request", 'electron-backend')
-                win!.webContents.send('serviceSetUpProgress', {serviceName: "comfyui-backend", step: "intercepted", status: "failed", debugMessage: `Setup of comfyUI requires required backend already present`})
+                win.webContents.send('serviceSetUpProgress', {serviceName: "comfyui-backend", step: "intercepted", status: "failed", debugMessage: `Setup of comfyUI requires required backend already present`})
                 return
             }
         }
-        const setUpProgressStream = serviceRegistry!.getService(serviceName)!.set_up()
-        for await (const progressUpdate of setUpProgressStream) {
+
+        for await (const progressUpdate of service.set_up()) {
+            win.webContents.send('serviceSetUpProgress', progressUpdate)
             if (progressUpdate.status === "failed" || progressUpdate.status === "success") {
-                win!.webContents.send('serviceSetUpProgress', progressUpdate)
                 appLogger.info(`Received terminal progress update for set up request for ${serviceName}`, 'electron-backend')
                 break
-            } else {
-                win!.webContents.send('serviceSetUpProgress', progressUpdate)
             }
         }
     });

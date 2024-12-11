@@ -5,6 +5,11 @@ import path from "node:path";
 import {app} from "electron";
 import * as filesystem from 'fs-extra'
 import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from './osProcessHelper.ts'
+import { z } from "zod";
+
+const LsLevelZeroDeviceSchema = z.object({id: z.number(), name: z.string(), device_id: z.number()});
+const LsLevelZeroOutSchema = z.array(LsLevelZeroDeviceSchema).min(1);
+type LsLevelZeroDevice = z.infer<typeof LsLevelZeroDeviceSchema>;
 
 export class AiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
@@ -22,164 +27,133 @@ export class AiBackendService extends LongLivedPythonApiService {
         return filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe)
     }
 
-    set_up(): AsyncIterable<SetupProgress> {
+    async *set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("setting up service", this.name)
         const self = this
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
 
-        async function* installPip(pythonEnvContainmentDir: string): AsyncIterable<SetupProgress> {
-            const setUpStep: Promise<void> = new Promise<void>((resolve, reject) => {
-                self.appLogger.info(`installing pip into env ${pythonEnvContainmentDir}`, self.name, true)
-                try {
-                    const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
-                    const getPipScript = existingFileOrError(path.join(pythonEnvContainmentDir, 'get-pip.py'))
-                    spawnProcessSync(pythonExe, [getPipScript], logToFileHandler)
-                    self.appLogger.info(`Successfully installed pip into env ${pythonEnvContainmentDir}`, self.name, true)
-                    resolve()
-                } catch (e) {
-                    self.appLogger.error(`Failed to install pip. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failed to install pip. Error: ${e}`))
-                }
-            })
-
-            yield {serviceName: self.name, step: `install pip`, status: "executing", debugMessage: `installing pip`};
-            await setUpStep
-            yield {serviceName: self.name, step: `install pip`, status: "executing", debugMessage: `installing pip complete`};
+        async function installPip(pythonEnvContainmentDir: string): Promise<void> {
+            self.appLogger.info(`installing pip into env ${pythonEnvContainmentDir}`, self.name, true)
+            try {
+                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
+                const getPipScript = existingFileOrError(path.join(pythonEnvContainmentDir, 'get-pip.py'))
+                await spawnProcessAsync(pythonExe, [getPipScript], logToFileHandler)
+                self.appLogger.info(`Successfully installed pip into env ${pythonEnvContainmentDir}`, self.name, true)
+            } catch (e) {
+                self.appLogger.error(`Failed to install pip. Error: ${e}`, self.name, true)
+                throw new Error(`Failed to install pip. Error: ${e}`);
+            }
         }
 
-        async function* runPipInstallSetup(pythonEnvContainmentDir: string, deviceId: string): AsyncIterable<SetupProgress> {
-            const setUpStep: Promise<void> = new Promise<void>(async (resolve, reject) => {
-                self.appLogger.info(`installing python dependencies`, self.name, true)
-                try {
-                    const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
-                    const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
-                    const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-                    await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", deviceSpecificRequirements], logToFileHandler)
-                    await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", commonRequirements], logToFileHandler)
-                    self.appLogger.info(`Successfully installed python dependencies`, self.name, true)
-                    resolve()
-                } catch (e) {
-                    self.appLogger.error(`Failure during installation of python dependencies: ${e}`, self.name, true)
-                    reject(new Error(`Failed to install python dependencies. Error: ${e}`))
-                }
-            })
-
-            yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
-            await setUpStep
-            yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
+        async function runPipInstallSetup(pythonEnvContainmentDir: string, deviceId: string): Promise<void> {
+            self.appLogger.info(`installing python dependencies`, self.name, true)
+            try {
+                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
+                const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
+                const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", deviceSpecificRequirements], logToFileHandler)
+                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", commonRequirements], logToFileHandler)
+                self.appLogger.info(`Successfully installed python dependencies`, self.name, true)
+            } catch (e) {
+                self.appLogger.error(`Failure during installation of python dependencies: ${e}`, self.name, true)
+                throw new Error(`Failed to install python dependencies. Error: ${e}`)
+            }
         }
 
-        async function* setUpWorkEnv(remainingSteps: (pythonEnvContainmentDir :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+        async function setUpWorkEnv(): Promise<string> {
             const archtypePythonEnv = existingFileOrError(self.archtypePythonEnv)
             const targetPythonEnvContainmentDir = path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`))
 
-            const setUpStep: Promise<string> = new Promise<string>((resolve, reject) => {
-                const targetPythonEnvContainmentDir = path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`))
-                self.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetPythonEnvContainmentDir}`, self.name, true)
-                try {
-                    if (filesystem.existsSync(targetPythonEnvContainmentDir)) {
-                        self.appLogger.info(`Cleaning up previously containment directory at ${targetPythonEnvContainmentDir}`, self.name, true)
-                        filesystem.removeSync(targetPythonEnvContainmentDir)
-                    }
-                    copyFileWithDirs(archtypePythonEnv, targetPythonEnvContainmentDir)
-                    resolve(targetPythonEnvContainmentDir)
-                } catch (e) {
-                    self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failure during set up of workspace. Error: ${e}`))
+            self.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetPythonEnvContainmentDir}`, self.name, true)
+            try {
+                if (filesystem.existsSync(targetPythonEnvContainmentDir)) {
+                    self.appLogger.info(`Cleaning up previously containment directory at ${targetPythonEnvContainmentDir}`, self.name, true)
+                    filesystem.removeSync(targetPythonEnvContainmentDir)
                 }
-            })
-
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env ${archtypePythonEnv} into ${targetPythonEnvContainmentDir}`};
-            const deviceId: string = await setUpStep
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
-            yield* remainingSteps(deviceId)
+                copyFileWithDirs(archtypePythonEnv, targetPythonEnvContainmentDir)
+                return targetPythonEnvContainmentDir;
+            } catch (e) {
+                self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
+                throw new Error(`Failure during set up of workspace. Error: ${e}`)
+            }
         }
 
-        async function* detectDeviceArcMock(pythonEnvContainmentDir: string, remainingSteps: (deviceId :string ) => AsyncGenerator<SetupProgress>): AsyncGenerator<SetupProgress> {
+        async function detectDeviceArcMock(pythonEnvContainmentDir: string): Promise<string> {
             self.appLogger.info("Detecting intel deviceID", self.name)
-            const setUpStep : Promise<string> = new Promise(resolve => {
+            self.appLogger.info("Copying ls_level_zero.exe", self.name)
+            const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
+            const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
+            copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
+
+            return 'arc';
+        }
+
+        async function detectDevice(pythonEnvContainmentDir: string): Promise<LsLevelZeroDevice> {
+            self.appLogger.info("Detecting intel deviceID", self.name)
+            try {
+                // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
                 self.appLogger.info("Copying ls_level_zero.exe", self.name)
                 const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
                 const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
                 copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
-                resolve("arc")
-            })
 
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceId: string = await setUpStep
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
-            yield* remainingSteps(deviceId)
+                self.appLogger.info("Fetching requirements for ls_level_zero.exe", self.name)
+                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
+                const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(self.serviceDir, "requirements-ls_level_zero.txt")));
+                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", lsLevelZeroRequirements], logToFileHandler)
+                const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], logToFileHandler);
+                self.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
+                const devices = LsLevelZeroOutSchema.parse(lsLevelZeroOut);
+                return devices[0];
+            } catch (e) {
+                self.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, self.name, true)
+                throw new Error(`Failure to identify intel hardware. Error: ${e}`)
+            }
         }
 
-        async function* detectDevice(pythonEnvContainmentDir: string, remainingSteps: (deviceId :string ) => AsyncGenerator<SetupProgress>): AsyncGenerator<SetupProgress> {
-            self.appLogger.info("Detecting intel deviceID", self.name)
-            const setUpStep : Promise<string> = new Promise<string>(async (resolve, reject) => {
-                try {
-                    // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
-                    self.appLogger.info("Copying ls_level_zero.exe", self.name)
-                    const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
-                    const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
-                    copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
-
-                    self.appLogger.info("Fetching requirements for ls_level_zero.exe", self.name)
-                    const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
-                    const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(self.serviceDir, "requirements-ls_level_zero.txt")));
-                    await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", lsLevelZeroRequirements], logToFileHandler)
-                    const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], logToFileHandler);
-                    self.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
-                    const devices = JSON.parse(lsLevelZeroOut.toString());
-                    resolve(devices) // todo: select first in list or reject!
-                } catch (e) {
-                    self.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failure to identify intel hardware. Error: ${e}`))
+        async function moveToFinalTarget(pythonEnvContainmentDir: string): Promise<void> {
+            self.appLogger.info(`renaming containment directory ${pythonEnvContainmentDir} to ${self.pythonEnvDir}`, self.name, true)
+            try {
+                if (filesystem.existsSync(self.pythonEnvDir)) {
+                    self.appLogger.info(`Cleaning up previously python environment directory at ${self.pythonEnvDir}`, self.name, true)
+                    filesystem.removeSync(self.pythonEnvDir)
                 }
-            });
-
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceId: string = await setUpStep
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
-            yield* remainingSteps(deviceId)
+                filesystem.move(pythonEnvContainmentDir, self.pythonEnvDir)
+                self.appLogger.info(`python environment now available at ${self.pythonEnvDir}`, self.name, true)
+            } catch (e) {
+                self.appLogger.error(`Failure to rename ${pythonEnvContainmentDir} to ${self.pythonEnvDir}. Error: ${e}`, self.name, true)
+                throw new Error(`Failure to rename ${pythonEnvContainmentDir} to ${self.pythonEnvDir}. Error: ${e}`)
+            }
         }
 
-        async function* moveToFinalTarget(pythonEnvContainmentDir: string): AsyncGenerator<SetupProgress> {
-            const setUpStep : Promise<void> = new Promise<void>((resolve, reject) => {
-                self.appLogger.info(`renaming containment directory ${pythonEnvContainmentDir} to ${self.pythonEnvDir}`, self.name, true)
-                try {
-                    if (filesystem.existsSync(self.pythonEnvDir)) {
-                        self.appLogger.info(`Cleaning up previously python environment directory at ${self.pythonEnvDir}`, self.name, true)
-                        filesystem.removeSync(self.pythonEnvDir)
-                    }
-                    filesystem.move(pythonEnvContainmentDir, self.pythonEnvDir)
-                    self.appLogger.info(`python environment now available at ${self.pythonEnvDir}`, self.name, true)
-                    resolve()
-                } catch (e) {
-                    self.appLogger.error(`Failure to rename ${pythonEnvContainmentDir} to ${self.pythonEnvDir}. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failure to rename ${pythonEnvContainmentDir} to ${self.pythonEnvDir}. Error: ${e}`))
-                }
-            });
+        try {
+            yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
+
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
+            const pythonEnvContainmentDir = await setUpWorkEnv()
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
+            
+            yield {serviceName: self.name, step: `install pip`, status: "executing", debugMessage: `installing pip`};
+            await installPip(pythonEnvContainmentDir);
+            yield {serviceName: self.name, step: `install pip`, status: "executing", debugMessage: `installing pip complete`};
+
+            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
+            const deviceId = await detectDeviceArcMock(pythonEnvContainmentDir)
+            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
+
+            yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
+            await runPipInstallSetup(pythonEnvContainmentDir, deviceId)
+            yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await setUpStep
+            await moveToFinalTarget(pythonEnvContainmentDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+            yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
+        } catch (e) {
+            self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
+            self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+            yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup python environment due to ${e}`};
         }
-
-        return async function* () {
-            try {
-                yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
-                yield* setUpWorkEnv(async function* (pythonEnvContainmentDir: string) {
-                    yield* installPip(pythonEnvContainmentDir)
-                    yield* detectDeviceArcMock(pythonEnvContainmentDir, async function* (deviceId: string) {
-                        yield* runPipInstallSetup(pythonEnvContainmentDir, deviceId)
-                    })
-                    yield* moveToFinalTarget(pythonEnvContainmentDir)
-                    yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
-                });   
-            } catch (e) {
-                self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
-                self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
-                yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup python environment due to ${e}`};
-            }
-        }()
     }
 
 

@@ -38,11 +38,9 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
 
     async bootUpAllSetUpServices(): Promise<{ serviceName: string, state: BackendStatus }[]> {
         const setUpServices = this.registeredServices.filter(item => item.is_set_up())
-        const allServerStartups = Promise.all(setUpServices.map(service => {
-            const serverStatusPromise = service.start()
-            return serverStatusPromise.then(stateResult => {return  {serviceName: service.name, state: stateResult}})
-        }))
-        return await allServerStartups
+        return Promise.all(setUpServices.map(service => service.start().then(
+            state => {return  {serviceName: service.name, state}}
+        )))
     }
 
     getServiceInformation(): ApiServiceInformation[] {
