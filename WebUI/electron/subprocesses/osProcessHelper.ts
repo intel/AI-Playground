@@ -1,6 +1,7 @@
 import path from "node:path";
 import * as fs from 'fs-extra'
 import {spawn, spawnSync} from "node:child_process";
+import * as filesystem from "fs-extra";
 
 
 export function existingFileOrError(filePath: string) {
@@ -52,4 +53,10 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
             }
         });
     });
+}
+
+export function copyFileWithDirs(src :string, dest: string) {
+    const destDir = path.dirname(dest);
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copySync(src, dest, {recursive: true});
 }

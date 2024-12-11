@@ -4,21 +4,26 @@ import getPort, {portNumbers} from "get-port";
 import path from "node:path";
 import {app} from "electron";
 import * as filesystem from 'fs-extra'
-import {spawnProcessSync, existingFileOrError, spawnProcessAsync} from './osProcessHelper.ts'
+import {spawnProcessSync, existingFileOrError, spawnProcessAsync, copyFileWithDirs} from './osProcessHelper.ts'
 
 class AiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
     readonly pythonExe = this.getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroExe = this.getLsLevelZeroPath(this.pythonEnvDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
 
 
-    getPythonPath(basePythonEnvDir: string): string {
+    private getPythonPath(basePythonEnvDir: string): string {
         return path.resolve(path.join(basePythonEnvDir, "python.exe"))
     }
 
+    private getLsLevelZeroPath(basePythonEnvDir: string): string {
+        return path.resolve(path.join(basePythonEnvDir, "Library/bin/ls_level_zero.exe"));
+    }
+
     is_set_up(): boolean {
-        return filesystem.existsSync(this.pythonExe)
+        return filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe)
     }
 
     set_up(): AsyncIterable<SetupProgress> {
@@ -80,7 +85,7 @@ class AiBackendService extends LongLivedPythonApiService {
                         self.appLogger.info(`Cleaning up previously containment directory at ${targetPythonEnvContainmentDir}`, self.name, true)
                         filesystem.removeSync(targetPythonEnvContainmentDir)
                     }
-                    filesystem.cpSync(archtypePythonEnv, targetPythonEnvContainmentDir, {recursive: true})
+                    copyFileWithDirs(archtypePythonEnv, targetPythonEnvContainmentDir)
                     resolve(targetPythonEnvContainmentDir)
                 } catch (e) {
                     self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
@@ -96,7 +101,13 @@ class AiBackendService extends LongLivedPythonApiService {
 
         async function* detectDeviceArcMock(pythonEnvContainmentDir: string, remainingSteps: (deviceId :string ) => AsyncGenerator<SetupProgress>): AsyncGenerator<SetupProgress> {
             self.appLogger.info("Detecting intel deviceID", self.name)
-            const setUpStep : Promise<string> = Promise.resolve("arc")
+            const setUpStep : Promise<string> = new Promise(resolve => {
+                self.appLogger.info("Copying ls_level_zero.exe", self.name)
+                const lsLevelZeroBinaryTargetPath = self.getLsLevelZeroPath(pythonEnvContainmentDir)
+                const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
+                copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
+                resolve("arc")
+            })
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
             const deviceId: string = await setUpStep
@@ -110,9 +121,9 @@ class AiBackendService extends LongLivedPythonApiService {
                 try {
                     // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
                     self.appLogger.info("Copying ls_level_zero.exe", self.name)
-                    const lsLevelZeroBinaryTargetPath = path.resolve(path.join(pythonEnvContainmentDir, "Library/bin/ls_level_zero.exe"));
+                    const lsLevelZeroBinaryTargetPath = self.getLsLevelZeroPath(pythonEnvContainmentDir)
                     const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
-                    filesystem.copyFileSync(src, lsLevelZeroBinaryTargetPath);
+                    copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
 
                     self.appLogger.info("Fetching requirements for ls_level_zero.exe", self.name)
                     const pythonExe = existingFileOrError(self.getPythonPath(pythonEnvContainmentDir))
@@ -121,7 +132,7 @@ class AiBackendService extends LongLivedPythonApiService {
                     const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], logToFileHandler);
                     self.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
                     const devices = JSON.parse(lsLevelZeroOut.toString());
-                    return devices // todo: select first in list or reject!
+                    resolve(devices) // todo: select first in list or reject!
                 } catch (e) {
                     self.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, self.name, true)
                     reject(new Error(`Failure to identify intel hardware. Error: ${e}`))
@@ -166,14 +177,13 @@ class AiBackendService extends LongLivedPythonApiService {
                     })
                     yield* moveToFinalTarget(pythonEnvContainmentDir)
                     yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
-                });
+                });   
             } catch (e) {
                 self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
                 self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
                 yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup python environment due to ${e}`};
             }
         }()
-
     }
 
 
