@@ -83,7 +83,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
-  letter-spacing: 0%;
+  letter-spacing: 0;
   text-align: center;
   box-sizing: content-box;
   padding: 4px 12px;
@@ -436,6 +436,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    margin: 0 auto;
+
 
     &::after {
       content: " ";
@@ -443,6 +445,7 @@
       height: 14px;
       background: url("@/assets/svg/right.svg") 0px 0px no-repeat;
       background-size: contain;
+
     }
   }
 }

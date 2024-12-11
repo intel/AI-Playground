@@ -51,8 +51,8 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
                 serviceName: service.name,
                 status: service.currentStatus,
                 baseUrl: service.baseUrl,
-                isSetUp: false, // service.is_set_up(),
-                isRequired: true //service.name === "ai-backend"
+                isSetUp: service.is_set_up(),
+                isRequired: service.name === "ai-backend"
             }
         })
     }

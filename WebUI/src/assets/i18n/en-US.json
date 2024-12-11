@@ -93,6 +93,8 @@
   "SETTINGS_MODEL_SD_STANDARD_INPAINT_MODEL": "Standard Default Inpaint/OutPaint Model",
   "SETTINGS_MODEL_SD_HD_MODEL": "HD Default Model",
   "SETTINGS_MODEL_RAG_MODEL": "Rag Query Model",
+  "SETTINGS_MODEL_BACKEND": "Backend Components",
+  "SETTINGS_MODEL_MANAGE_BACKEND": "Manage Backend Components",
   "SETTINGS_MODEL_EXIST": "The model already exist. Repeating the download is unnecessary.",
   "SETTINGS_MODEL_DOWNLOAD": "Model Download",
   "SETTINGS_MODEL_DOWNLOAD_DESC":"Below is a list of models which can perform various Al tasks in Al Playground. Review terms of each model before download and use. Alternatively choose to add in and select other model sources by changing the model paths and model defaults above.",
