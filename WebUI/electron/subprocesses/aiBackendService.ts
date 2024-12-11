@@ -74,7 +74,7 @@ class AiBackendService extends LongLivedPythonApiService {
         }
 
         async function* setUpWorkEnv(remainingSteps: (pythonEnvContainmentDir :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
-            const archtypePythonEnv = existingFileOrError(path.join(self.baseDir, "..", "arc-env"))
+            const archtypePythonEnv = existingFileOrError(self.archtypePythonEnv)
             const targetPythonEnvContainmentDir = path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`))
 
             const setUpStep: Promise<string> = new Promise<string>((resolve, reject) => {

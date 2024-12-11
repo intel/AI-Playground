@@ -3,6 +3,7 @@ import path from "node:path";
 import {app} from "electron";
 import fs from "fs";
 import {appLoggerInstance} from "../logging/logger.ts";
+import {existingFileOrError} from "./osProcessHelper.ts";
 
 
 
@@ -23,8 +24,17 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly port: Number
     abstract healthEndpointUrl: string
 
+    encapsulatedProcess: ChildProcess | null = null
+
+    readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
+    readonly archtypePythonEnv = existingFileOrError(path.join(this.baseDir, "env"))
+    abstract readonly serviceDir: string
+    abstract readonly pythonExe: string
+
     desiredStatus: BackendStatus = {status: "uninitialized"}
     currentStatus: BackendStatus = {status: "uninitialized"}
+
+    readonly appLogger = appLoggerInstance
 
     constructor(name: string, port: Number) {
         this.name = name
@@ -32,13 +42,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.baseUrl = `http://127.0.0.1:${port}`
     }
 
-    readonly appLogger = appLoggerInstance
-
-    encapsulatedProcess: ChildProcess | null = null
-
-    readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-    abstract readonly serviceDir: string
-    abstract readonly pythonExe: string
 
     set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("called setup function", this.name)
