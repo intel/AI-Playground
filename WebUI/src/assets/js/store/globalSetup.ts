@@ -92,8 +92,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     async function areBackendServicesStarted(): Promise<boolean> {
         console.info("debuging setup call")
-        return Promise.resolve(true)
-        /*await sendSetupSignal("ai-backend")
+        // return Promise.resolve(true)
+        // await sendSetupSignal("ai-backend")
 
         console.info("checking on required services")
         if (await areAllRequiredServicesSetup()) {
@@ -106,7 +106,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             loadingState.value = "manageInstallations"
             await waitUntilRequiredServicesReady()
             return false
-        }*/
+        }
     }
 
     async function areAllRequiredServicesSetup() {
@@ -416,6 +416,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         applyModelSettings,
         getManualModelSettings,
         isComfyUiInstalled,
+        sendSetupSignal,
+        sendStopSignal,
+        sendStartSignal,
         refreshLLMModles,
         refreshSDModles,
         refreshInpaintModles,

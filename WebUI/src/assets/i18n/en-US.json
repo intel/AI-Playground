@@ -19,6 +19,8 @@
   "COM_APPLY": "Apply",
   "COM_DOWNLOAD": "Download",
   "COM_REGENERATE": "Regenerate",
+  "COM_RESTART": "Restart",
+  "COM_START": "Start",
   "COM_DELETE": "Delete",
   "COM_DOWNLOAD_MODEL": "Downloading model",
   "COM_DOWNLOAD_SPEED": "Download speed",

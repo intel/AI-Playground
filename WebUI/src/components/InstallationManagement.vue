@@ -37,12 +37,20 @@
               <p v-else> - </p>
             </td>
             <td>
-              <button v-if="item.status['status'] === 'uninitialized'" @click="installBackend"
+              <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
+              <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
                       :disabled="!item.readTerms"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
-              <button v-else-if="item.status['status'] === 'failed'" @click="repairBackend" :disabled="!item.readTerms"
+              <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
+                      :disabled="!item.readTerms"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
+              </button>
+              <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
+                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
+              </button>
+              <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
+                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
               <p v-else> - </p>
             </td>
@@ -86,12 +94,20 @@
               <p v-else> - </p>
             </td>
             <td>
-              <button v-if="item.status['status'] === 'uninitialized'" @click="installBackend"
+              <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
+              <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
                       :disabled="!item.readTerms"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
-              <button v-else-if="item.status['status'] === 'failed'" @click="repairBackend" :disabled="!item.readTerms"
+              <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
+                      :disabled="!item.readTerms"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
+              </button>
+              <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
+                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
+              </button>
+              <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
+                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
               <p v-else> - </p>
             </td>
@@ -143,24 +159,103 @@ import {mapColorToStatus} from "@/lib/utils.ts";
 const globalSetup = useGlobalSetup();
 
 
-const apiServiceInformationPlusTerms = ref<ApiServiceInformation[] & { readTerms: boolean }>([])
+const apiServiceInformationPlusTerms = ref<ApiServiceInformation[] & { readTerms: boolean, isLoading: boolean }>([])
 const somethingChanged = ref(false)
 
 
 onBeforeMount(async () => {
-  apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) => ({readTerms: areTermsInitiallyRead(item), ...item}))
+  apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) => ({
+    readTerms: areTermsInitiallyRead(item),
+    isLoading: false, ...item
+  }))
 })
 
+window.electronAPI.onServiceSetUpProgress(async (data) => {
+  const name = data.serviceName
+  const step = data.step
+  const status = data.status
 
-function installBackend() {
-  somethingChanged.value = true;
+  console.log(`${name} in stage ${step} ${data.status}. Debugmessage: ${data.debugMessage}`)
+  if (status === 'success') {
+    const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
+    await restartBackend(item)
+  } else if (status === 'failed') {
+    toast.error("Setup failed")
+    await reloadServiceRegistry()
+    const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
+    item.isLoading = false
+  }
+})
+
+async function reloadServiceRegistry() {
+  apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) =>
+      ({
+        readTerms: getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).readTerms,
+        isLoading: getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading,
+        ...item
+      }))
 }
 
-function repairBackend() {
+function getComponent(data: object, key: string, item: object) {
+  return data.filter((entry) => entry[key] === item[key])[0]
+}
+
+async function installBackend(item: object) {
   somethingChanged.value = true;
+  // console.log(apiServiceInformationPlusTerms.value)
+  console.log(item)
+  // console.log(item.serviceName)
+  // console.log(apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === item.serviceName))
+  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
+  await window.electronAPI.sendSetUpSignal(item.serviceName)
+}
+
+async function repairBackend(item: object) {
+  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
+  const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
+  if (stopStatus.status !== 'stopped') {
+    toast.error("Service failed to stop")
+    return
+  }
+  await reloadServiceRegistry()
+  await installBackend(getComponent(apiServiceInformationPlusTerms.value, "serviceName", item));
+}
+
+async function restartBackend(item: object) {
+  // console.log(apiServiceInformationPlusTerms.value)
+  console.log(item)
+  // console.log(item.serviceName)
+  // console.log(apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === item.serviceName))
+  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
+  const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
+  if (stopStatus.status !== 'stopped') {
+    toast.error("Service failed to stop")
+    return
+  }
+
+  await reloadServiceRegistry()
+
+  const startStatus = await window.electronAPI.sendStartSignal(item.serviceName)
+  if (startStatus.status !== 'running') {
+    toast.error("Service failed to restart")
+    return
+  }
+
+  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = false
+  await reloadServiceRegistry()
 }
 
 function installAllSelected() {
+  const checkedServices = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && (item.status['status'] !== 'uninitialized' || item.status['status'] !== 'failed'));
+  checkedServices.forEach((item) => {
+    getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
+    if (item.status['status'] === 'failed') {
+      repairBackend(item);
+    } else {
+      installBackend(item);
+    }
+  }
+  )
 
 }
 
