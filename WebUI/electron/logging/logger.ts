@@ -24,11 +24,11 @@ class Logger {
         this.startupMessageCache = []
     }
 
-    info(message: string, source: string, alsoLogToFile: boolean = true) {
-        console.info(`[${source}]: ${message}`);
+    info(message: string, source: string, alsoLogToFile: boolean = false) {
         if (alsoLogToFile) {
-            this.logMessage(message, source)
+            this.logMessageToFile(message, source)
         }
+        console.info(`[${source}]: ${message}`);
         if (this.webContents) {
             try {
                 this.webContents.send('debugLog', {level: 'info', source, message})
@@ -40,11 +40,11 @@ class Logger {
         }
     }
 
-    warn(message: string, source: string, alsoLogToFile: boolean = true) {
-        console.warn(`[${source}]: ${message}`);
+    warn(message: string, source: string, alsoLogToFile: boolean = false) {
         if (alsoLogToFile) {
-            this.logMessage(message, source)
+            this.logMessageToFile(message, source)
         }
+        console.warn(`[${source}]: ${message}`);
         if (this.webContents) {
             try {
                 this.webContents.send('debugLog', {level: 'warn', source, message})
@@ -56,11 +56,13 @@ class Logger {
         }
     }
 
-    error(message: string, source: string, alsoLogToFile: boolean = true) {
-        console.error(`[${source}]: ${message}`);
+    error(message: string, source: string, alsoLogToFile: boolean = false) {
         if (alsoLogToFile) {
-            this.logMessage(message, source)
+            this.logMessageToFile(message, source)
         }
+
+        console.error(`[${source}]: ${message}`);
+
         if (this.webContents) {
             try {
                 this.webContents.send('debugLog', {level: 'error', source, message})
@@ -73,7 +75,7 @@ class Logger {
     }
 
 
-    logMessage(message: string, source: string) {
+    logMessageToFile(message: string, source: string) {
         const fileName = `${this.getDebugFileName()}.log`
         const currentDate = new Date();
         const hours = currentDate.getHours().toString().padStart(2, '0');

@@ -3,6 +3,7 @@ import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
 import getPort, {portNumbers} from "get-port";
+import * as filesystem from "fs-extra";
 
 
 class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -17,6 +18,10 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         "--reserve-vram",
         "4.0"
     ]
+
+    is_set_up(): boolean {
+        return filesystem.existsSync(this.serviceDir)
+    }
 
     set_up(): AsyncIterable<SetupProgress> {
         const extraModelsYaml = `aipg:

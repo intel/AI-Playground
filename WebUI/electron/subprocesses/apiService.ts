@@ -34,8 +34,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     readonly appLogger = appLoggerInstance
 
-
-
     encapsulatedProcess: ChildProcess | null = null
 
     readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
@@ -55,10 +53,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     }
 
 
-    is_set_up(): boolean {
-        //TODO setup with pip install etc
-        return true
-    }
+    abstract is_set_up(): boolean
 
     start(): Promise<BackendStatus> {
         if (this.desiredStatus.status === "stopped" && this.currentStatus.status !== "stopped") {
@@ -128,6 +123,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             this.appLogger.error(`backend process ${this.name} exited abruptly due to : ${message}`, this.name)
         })
     }
+
 
     async listenServerReady(didProcessExitEarlyTracker: Promise<boolean>): Promise<boolean> {
         const startTime = performance.now()

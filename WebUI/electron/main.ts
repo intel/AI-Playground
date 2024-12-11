@@ -656,6 +656,18 @@ function isAdmin(): boolean {
     }
 }
 
+async function setupPyenv() {
+    const iterable: AsyncIterable<SetupProgress> = serviceRegistry!.getService("ai-backend")!.set_up()
+    try {
+        for await (const value of iterable) {
+            appLogger.info(`reported progress: ${value.step}|${value.status}|${value.debugMessage}`, 'electron-backend');
+        }
+    } catch (e) {
+        appLogger.warn(`caught error: ${e}`, 'electron-backend');
+    }
+
+}
+
 app.whenReady().then(async () => {
     /*
     The current user does not have write permission for files in the program directory and is not an administrator.
@@ -687,6 +699,7 @@ app.whenReady().then(async () => {
         initEventHandle();
         await initServiceRegistry();
         await createWindow();
-        await bootUpAllSetUpServices();
+        await setupPyenv();
+        //await bootUpAllSetUpServices();
     }
 });

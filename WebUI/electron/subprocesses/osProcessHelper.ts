@@ -1,29 +1,55 @@
 import path from "node:path";
 import * as fs from 'fs-extra'
-import {spawnSync} from "node:child_process";
+import {spawn, spawnSync} from "node:child_process";
 
 
 export function existingFileOrError(filePath: string) {
     const resolvedFilePath = path.resolve(filePath)
-    if(fs.existsSync(resolvedFilePath)) {
+    if (fs.existsSync(resolvedFilePath)) {
         return resolvedFilePath
     }
     throw Error(`File at ${resolvedFilePath} does not exist`)
 }
 
-export function spawnProcessSync(command: string, args: string[] = [], options: { cwd?: string; env?: { [key: string]: string }[]; } = {}): string {
+export function spawnProcessSync(command: string, args: string[] = [],
+                                 logHandler: (data: string) => void = () => {},
+): string {
     try {
+        logHandler(`Spawning synchronous command ${command} ${args}`)
         const result = spawnSync(command, args, {
-            windowsHide : true,
-            cwd : options.cwd,
-            env: Object.assign(options.env || [])
+            windowsHide: true,
         });
+        const stdOut = result.stdout.toString('utf8').trim();
+        const stdErr = result.stderr.toString('utf8').trim();
+        logHandler(stdOut)
+        logHandler(stdErr)
         if (result.status !== 0) {
             throw Error(`Command failed with exit code ${result.status}: ${result.stderr}`);
         }
-        return result.stdout.toString('utf8').trim();
+        return stdOut
     } catch (error) {
-        console.error(`Failure during execution of process ${command}: ${error}`)
         throw error;
     }
+}
+
+export async function spawnProcessAsync(command: string, args: string[] = [],
+                                        logHandler: (data: string) => void = () => {},
+): Promise<void> {
+    logHandler(`Spawning command ${command} ${args}`)
+    const process = spawn(command, args, {
+        windowsHide: true,
+    });
+
+    process.stdout.on("data", (data) => { logHandler(data) });
+    process.stderr.on("data", (data) => { logHandler(data) });
+
+    return new Promise<void>((resolve, reject) => {
+        process.on("exit", (code) => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(new Error(`command ${command} ${args} failed ${code}`));
+            }
+        });
+    });
 }
