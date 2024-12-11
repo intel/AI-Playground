@@ -11,3 +11,6 @@ installer.nsh
 *.7z
 *.whl
 ComfyUI/
+*env_tmp/
+*service_tmp/
+*-env/

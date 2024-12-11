@@ -6,7 +6,6 @@ import getPort, {portNumbers} from "get-port";
 import * as filesystem from "fs-extra";
 import {AiBackendService} from "./aiBackendService.ts";
 import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
-import https from "https";
 
 
 class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -28,148 +27,119 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         return filesystem.existsSync(this.serviceDir) && filesystem.existsSync(this.lsLevelZeroExe)
     }
 
-    set_up(): AsyncIterable<SetupProgress> {
+    async *set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("setting up service", this.name)
         const self = this
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
 
-        const pipInstallStep = (pythonDir: string, skipOnMissingRequirementsTxt = false ) => {
-            return new Promise<void>(async(resolve, reject) => {
-                const requirementsTextPath = path.join(pythonDir, 'requirements.txt')
-                if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
-                    self.appLogger.info(`No requirements.txt for ${pythonDir} - skipping`, self.name)
-                    resolve()
-                } else {
-                    try {
-                        await spawnProcessAsync(self.pythonExe, ["-m", "pip", "install", "-r", requirementsTextPath], logToFileHandler)
-                        self.appLogger.info(`Successfully installed python dependencies for ${pythonDir}`, self.name, true)
-                        resolve()
-                    } catch (e) {
-                        self.appLogger.error(`Failure during installation of python dependencies for ${pythonDir}. Error: ${e}`, self.name, true)
-                        reject(new Error(`Failed to install python dependencies for ${pythonDir}. Error: ${e}`))
-                    }
-                }
-        })}
-
-        const cloneGitStep = (gitExePath: string, url: string, target: string) => {
-            return new Promise<void>((resolve, reject) => {
-                self.appLogger.info(`Cloning from ${url}`, self.name)
-                try {
-                    spawnProcessSync(gitExePath, ["clone", url, target], logToFileHandler)
-                    existingFileOrError(target)
-                    self.appLogger.info(`repo available at ${target}`, self.name)
-                    resolve()
-                } catch (e) {
-                    self.appLogger.error(`comfyUI cloning failed due to ${e}`, self.name)
-                    reject(new Error(`comfyUI cloning failed due to ${e}`))
-                }
-            })
+        const pipInstallStep = async (pythonDir: string, skipOnMissingRequirementsTxt = false ) => {
+            const requirementsTextPath = path.join(pythonDir, 'requirements.txt')
+            if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
+                self.appLogger.info(`No requirements.txt for ${pythonDir} - skipping`, self.name)
+                return
+            }
+            try {
+                self.appLogger.info(`Installing python dependencies for ${pythonDir}`, self.name, true)
+                await spawnProcessAsync(self.pythonExe, ["-m", "pip", "install", "-r", requirementsTextPath], logToFileHandler)
+                self.appLogger.info(`Successfully installed python dependencies for ${pythonDir}`, self.name, true)
+            } catch (e) {
+                self.appLogger.error(`Failure during installation of python dependencies for ${pythonDir}. Error: ${e}`, self.name, true)
+                throw new Error(`Failed to install python dependencies for ${pythonDir}. Error: ${e}`)
+            }
         }
 
-        async function* setUpWorkEnv(remainingSteps: (comfyUiContainmentDir :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+        const cloneGitStep = async (gitExePath: string, url: string, target: string) => {
+            self.appLogger.info(`Cloning from ${url}`, self.name)
+            try {
+                spawnProcessSync(gitExePath, ["clone", url, target], logToFileHandler)
+                existingFileOrError(target)
+                self.appLogger.info(`repo available at ${target}`, self.name)
+            } catch (e) {
+                self.appLogger.error(`comfyUI cloning failed due to ${e}`, self.name)
+                throw new Error(`comfyUI cloning failed due to ${e}`)
+            }
+        }
+
+        async function setUpWorkEnv(): Promise<string> {
             const comfyUiContaintmentDir = path.resolve(path.join(self.baseDir, `${self.name}-service_tmp`))
-            const setUpStep: Promise<string> = new Promise<string>((resolve, reject) => {
-                self.appLogger.info(`Preparing installation containment dir at ${comfyUiContaintmentDir}`, self.name, true)
-                try {
-                    if (filesystem.existsSync(comfyUiContaintmentDir)) {
-                        self.appLogger.info(`Cleaning up previously containment directory at ${comfyUiContaintmentDir}`, self.name, true)
-                        filesystem.removeSync(comfyUiContaintmentDir)
-                    }
-                    fs.mkdirSync(comfyUiContaintmentDir, { recursive: true });
-                    resolve(comfyUiContaintmentDir)
-                } catch (e) {
-                    self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failure during set up of workspace. Error: ${e}`))
+            self.appLogger.info(`Preparing installation containment dir at ${comfyUiContaintmentDir}`, self.name, true)
+            try {
+                if (filesystem.existsSync(comfyUiContaintmentDir)) {
+                    self.appLogger.info(`Cleaning up previously containment directory at ${comfyUiContaintmentDir}`, self.name, true)
+                    filesystem.removeSync(comfyUiContaintmentDir)
                 }
-            })
-
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Creating workdir ${comfyUiContaintmentDir}`};
-            const deviceId: string = await setUpStep
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Created workdir ${comfyUiContaintmentDir}`};
-            yield* remainingSteps(deviceId)
+                fs.mkdirSync(comfyUiContaintmentDir, { recursive: true });
+                return comfyUiContaintmentDir
+            } catch (e) {
+                self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
+                throw new Error(`Failure during set up of workspace. Error: ${e}`)
+            }
         }
 
 
-        async function* verifyPythonBackendExists(): AsyncIterable<SetupProgress> {
-            const setUpStep: Promise<void> = new Promise<void>((resolve, reject) => {
+        async function verifyPythonBackendExists(): Promise<void> {
                 self.appLogger.info(`verifying python env ${self.pythonEnvDir} exists`, self.name, true)
                 if (filesystem.existsSync(self.lsLevelZeroExe) && filesystem.existsSync(self.pythonExe)) {
-                    resolve()
+                    return
                 } else {
-                    reject(new Error(`Python env missing or not set up correctly`))
+                    throw new Error(`Python env missing or not set up correctly`)
                 }
-            })
-
-            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `verify python environment`};
-            await setUpStep
-            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `python environment set up`};
         }
 
 
 
-        async function* installPortableGit(comfyUiContainmentDir: string, remainingSteps: (gitExe :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+        async function installPortableGit(comfyUiContainmentDir: string): Promise<string> {
+            
             const zippedGitTargetPath = path.join(comfyUiContainmentDir, "git.zip")
             const executableGitTargetPath = path.join(comfyUiContainmentDir, "git")
 
-            const unzipGitStep: Promise<string> = new Promise<string>((resolve, reject) => {
-                self.appLogger.info("Unzipping portable git", self.name)
-                try {
-                    fs.mkdirSync(executableGitTargetPath, { recursive: true })
-                    spawnProcessSync("tar", ["-C", `'${executableGitTargetPath}'`, "-xf", `'${zippedGitTargetPath}'`], logToFileHandler)
-                    const gitExe = existingFileOrError(path.join(executableGitTargetPath, "cmd", "git.exe"))
-                    self.appLogger.info(`portable git callable at ${gitExe}`, self.name)
-                    resolve(gitExe)
-                } catch (e) {
-                    self.appLogger.error(`Failed to unzip portable git. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failed to unzip portable git. Error: ${e}`))
+            const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
+            self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
+            try {
+                const response = await fetch(portableGitUrl);
+                if (!response.ok) {
+                    throw new Error(`fetching git returned HTTP code ${response.status}`)
                 }
-            })
-
-            const downloadGitStep: Promise<string> = new Promise<string>(async (resolve, reject) => {
-                const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
-                self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
-                try {
-                    const response = await fetch(portableGitUrl);
-                    self.appLogger.info(`received response ${response}`, self.name, true)
-                    if (!response.ok) {
-                        reject(new Error(`fetching git returned HTTP cod ${response.status}`))
-                    }
-                    const zippedGitStream = response.body!.getReader();
-                    const fileStream = fs.createWriteStream(zippedGitTargetPath);
-                    let chunk = await zippedGitStream.read();
-                    while (!chunk.done) {
-                        fileStream.write(chunk.value);
-                        chunk = await zippedGitStream.read();
-                    }
-                    fileStream.end();
-                    self.appLogger.info(`Zip file downloaded and saved to ${zippedGitTargetPath}`, self.name, true)
-                    resolve("test")
-                } catch (error) {
-                    self.appLogger.error(`Downloading portable git failed due to ${error}`, self.name, true)
-                    reject(new Error(`Downloading portable git failed due to ${error}`))
+                if (!response.body) {
+                    throw new Error(`fetching git returned empty body with code ${response.status}`)
                 }
-            })
+                const zippedGitStream = response.body.getReader();
+                const fileStream = fs.createWriteStream(zippedGitTargetPath);
+                let chunk = await zippedGitStream.read();
+                while (!chunk.done) {
+                    fileStream.write(chunk.value);
+                    chunk = await zippedGitStream.read();
+                }
+                fileStream.end();
+                self.appLogger.info(`Zip file downloaded and saved to ${zippedGitTargetPath}`, self.name, true)
+            } catch (error) {
+                self.appLogger.error(`Downloading portable git failed due to ${error}`, self.name, true)
+                throw new Error(`Downloading portable git failed due to ${error}`)
+            }
 
-
-            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installing git`};
-            await downloadGitStep
-            const gitExe = await unzipGitStep
-            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of git complete`};
-            yield* remainingSteps(gitExe)
+            self.appLogger.info("Unzipping portable git", self.name)
+            try {
+                fs.mkdirSync(executableGitTargetPath, { recursive: true })
+                self.appLogger.info(`Unzipping with tar -C "${executableGitTargetPath}" -xf "${zippedGitTargetPath}"`, self.name)
+                await spawnProcessAsync("tar", ["-C", `${executableGitTargetPath}`, "-xf", `${zippedGitTargetPath}`], logToFileHandler)
+                const gitExe = existingFileOrError(path.join(executableGitTargetPath, "cmd", "git.exe"))
+                self.appLogger.info(`portable git callable at ${gitExe}`, self.name)
+                return gitExe
+            } catch (e) {
+                self.appLogger.error(`Failed to unzip portable git. Error: ${e}`, self.name, true)
+                throw new Error(`Failed to unzip portable git. Error: ${e}`)
+            }
         }
 
-        async function* setupComfyUiBaseService(containmentDir: string, gitExePath: string, remainingSteps: (comfyUiServiceDir :string ) => AsyncIterable<SetupProgress>): AsyncIterable<SetupProgress> {
+        async function setupComfyUiBaseService(containmentDir: string, gitExePath: string): Promise<string> {
             const comfyUICloneTarget = path.join(containmentDir, 'ComfyUI')
 
-            yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installing comfyUI base repo`};
             await cloneGitStep(gitExePath, "https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneTarget)
             await pipInstallStep(comfyUICloneTarget)
-            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
-            yield* remainingSteps(comfyUICloneTarget)
+            return comfyUICloneTarget;
         }
 
-        async function* configureComfyUI(gitExePath: string, comfyUiServiceDir: string): AsyncIterable<SetupProgress> {
-            const configureExtraModelsStep = new Promise<void>((resolve, reject) => {
+        async function configureComfyUI(comfyUiServiceDir: string): Promise<void> {
                 try {
                     self.appLogger.info("Configuring extra model paths for comfyUI", self.name)
                     const extraModelPathsYaml = path.join(comfyUiServiceDir, 'extra_model_paths.yaml')
@@ -180,22 +150,15 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
   vae: checkpoints
   unet: checkpoints
   loras: lora`
-
                     fs.promises.writeFile(extraModelPathsYaml, extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
                     self.appLogger.info(`Configured extra model paths for comfyUI at ${extraModelPathsYaml} as ${extraModelsYaml} `, self.name)
                 } catch (e) {
                     self.appLogger.error("Failed to configure extra model paths for comfyUI", self.name)
-                    reject()
+                    throw new Error("Failed to configure extra model paths for comfyUI")
                 }
-            })
-
-            yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configuring comfyUI base repo`};
-            await configureExtraModelsStep
-            yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configured comfyUI base repo`};
         }
 
-        async function* moveToFinalTarget(comfyUiTmpServiceDir: string): AsyncGenerator<SetupProgress> {
-            const setUpStep : Promise<void> = new Promise<void>((resolve, reject) => {
+        async function moveToFinalTarget(comfyUiTmpServiceDir: string): Promise<void> {
                 self.appLogger.info(`renaming containment directory ${comfyUiTmpServiceDir} to ${self.serviceDir}`, self.name, true)
                 try {
                     if (filesystem.existsSync(self.serviceDir)) {
@@ -204,37 +167,45 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
                     }
                     filesystem.move(comfyUiTmpServiceDir, self.serviceDir)
                     self.appLogger.info(`comfyUI service dir now available at ${self.serviceDir}`, self.name, true)
-                    resolve()
                 } catch (e) {
                     self.appLogger.error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`, self.name, true)
-                    reject(new Error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`))
+                    throw new Error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`)
                 }
-            });
+            }
+
+        try {
+            yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up comfyUI environment"};
+            
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Creating workdir`};
+            const comfyUiServiceContainmentDir = await setUpWorkEnv()
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Created workdir`};
+
+            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installing git`};
+            const gitExe = await installPortableGit(comfyUiServiceContainmentDir)
+            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of git complete`};
+
+            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `verify python environment`};
+            await verifyPythonBackendExists()
+            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `python environment set up`};
+
+            yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installing comfyUI base repo`};
+            const comfyUiTmpServiceDir = await setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe)
+            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
+
+            yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configuring comfyUI base repo`};
+            await configureComfyUI(comfyUiTmpServiceDir)
+            yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configured comfyUI base repo`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await setUpStep
+            await moveToFinalTarget(comfyUiTmpServiceDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+        
+            yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
+        } catch (e) {
+            self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
+            self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+            yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup comfyUI service due to ${e}`};
         }
-
-        return async function* () {
-            try {
-                yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up comfyUI environment"};
-                yield* setUpWorkEnv(async function* (comfyUiServiceContainmentDir: string) {
-                    yield* installPortableGit(comfyUiServiceContainmentDir, async function* (gitExe: string) {
-                        yield* verifyPythonBackendExists()
-                        yield* setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe, async function* (comfyUiTmpServiceDir: string) {
-                            yield* configureComfyUI(gitExe, comfyUiTmpServiceDir)
-                            yield* moveToFinalTarget(comfyUiTmpServiceDir)
-                        })
-                    })
-                    yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
-                });
-            } catch (e) {
-                self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
-                self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
-                yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup comfyUI service due to ${e}`};
-            }
-        }()
     }
 
     spawnAPIProcess(): {
