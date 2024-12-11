@@ -82,6 +82,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                     return resolve({status: "running"});
                 } else {
                     this.currentStatus = {status: "failed"}
+                    this.desiredStatus = {status: "failed"}
                     this.appLogger.error(`server ${this.name} failed to boot`, this.name)
                     this.encapsulatedProcess?.kill()
                     return resolve({status: "failed"});
@@ -89,6 +90,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             } catch (error) {
                 this.appLogger.error(` failed to start server due to ${error}`, this.name)
                 this.currentStatus = {status: "failed"}
+                this.desiredStatus = {status: "failed"}
                 this.encapsulatedProcess?.kill()
                 this.encapsulatedProcess = null
                 return reject(error)
