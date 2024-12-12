@@ -30,7 +30,7 @@
               <p v-show="getInfoURL(item.serviceName) == ''"> - </p>
             </td>
             <td>
-              <button v-if="item.status['status'] !== 'running'" class="v-checkbox-control flex-none w-5 h-5"
+              <button v-if="item.status['status'] !== 'running' && !item.isLoading" class="v-checkbox-control flex-none w-5 h-5"
                       :class="{ 'v-checkbox-checked': item.readTerms}" @click="item.readTerms = !item.readTerms"
                       :disabled="getInfoURL(item.serviceName) == ''">
               </button>
@@ -87,7 +87,7 @@
               <p v-show="getInfoURL(item.serviceName) == ''"> - </p>
             </td>
             <td>
-              <button v-if="item.status['status'] !== 'running'" class="v-checkbox-control flex-none w-5 h-5"
+              <button v-if="item.status['status'] !== 'running' && !item.isLoading" class="v-checkbox-control flex-none w-5 h-5"
                       :class="{ 'v-checkbox-checked': item.readTerms}" @click="item.readTerms = !item.readTerms"
                       :disabled="getInfoURL(item.serviceName) == ''">
               </button>
@@ -124,7 +124,7 @@
             languages.COM_CLOSE
           }}
         </button>
-        <button :style="{visibility: convertVisibility(!isEverythingRunning())}" :disabled="!areBoxesChecked()"
+        <button :style="{visibility: convertVisibility(!isEverythingRunning())}" :disabled="!areBoxesChecked() || (apiServiceInformationPlusTerms.some((item) => item.isLoading))"
                 @click="installAllSelected"
                 class="flex bg-color-active py-1 px-4 rounded">{{
             languages.COM_INSTALL_ALL
@@ -187,21 +187,26 @@ window.electronAPI.onServiceSetUpProgress(async (data) => {
     await reloadServiceRegistry()
     const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
     item.isLoading = false
+    // updateValue(item.serviceName, "isLoading", true)
   }
 })
 
-async function reloadServiceRegistryNew() { //ToDo Test implementation of this instead of reloadServiceRegistry + getComponent
-  // Update the serviceRegistry while maintaining constant references to its content
-  const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
-  for (const item of apiServiceInformationPlusTerms.value){
-    const updatedItem = updatedServiceRegistry.filter((entry) => entry.serviceName === item.serviceName)[0]
-    for (const prop in updatedItem) {
-      if (prop in item) {
-        item[prop as keyof ExtendedApiServiceInformation] = updatedItem[prop as keyof ApiServiceInformation]
-      }
-    }
-  }
-}
+// function updateValue(serviceName: string, key: string, value: string | number) {
+//   const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
+//   apiServiceInformationPlusTerms.value = updatedServiceRegistry
+//   apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === serviceName)[0][key] = value
+// }
+//
+// async function reloadServiceRegistryNew() { //ToDo Test implementation of this instead of reloadServiceRegistry + getComponent
+//   // Update the serviceRegistry while maintaining constant references to its content
+//   const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
+//   for (const item of apiServiceInformationPlusTerms.value){
+//     const updatedItem = updatedServiceRegistry.filter((entry) => entry.serviceName === item.serviceName)[0]
+//     for (const prop in updatedItem) {
+//       item[prop as keyof typeof item] = updatedItem[prop as keyof ApiServiceInformation]
+//     }
+//   }
+// }
 
 async function reloadServiceRegistry() {
   apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) =>
