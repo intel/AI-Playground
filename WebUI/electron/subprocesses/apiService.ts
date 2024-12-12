@@ -7,6 +7,7 @@ import {appLoggerInstance} from "../logging/logger.ts";
 export interface ApiService {
     readonly name: string
     readonly baseUrl: string
+    readonly port: number
     currentStatus: BackendStatus;
 
     set_up(): AsyncIterable<SetupProgress>;
@@ -18,7 +19,7 @@ export interface ApiService {
 export abstract class LongLivedPythonApiService implements ApiService {
     readonly name: string
     readonly baseUrl: string
-    readonly port: Number
+    readonly port: number
     abstract healthEndpointUrl: string
 
     encapsulatedProcess: ChildProcess | null = null
@@ -33,7 +34,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     readonly appLogger = appLoggerInstance
 
-    constructor(name: string, port: Number) {
+    constructor(name: string, port: number) {
         this.name = name
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
@@ -134,14 +135,14 @@ export abstract class LongLivedPythonApiService implements ApiService {
         const startTime = performance.now()
         const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
             const queryIntervalMs = 250
-            const startupPeriodMaxMs = 30000
+            const startupPeriodMaxMs = 60000
             while (performance.now() < startTime + startupPeriodMaxMs) {
                 try {
                     const serviceHealthResponse = await fetch(this.healthEndpointUrl);
-                    this.appLogger.info(`received response: ${serviceHealthResponse}`, "promise")
+                    this.appLogger.info(`received response: ${serviceHealthResponse.status}`, "promise")
                     if (serviceHealthResponse.status === 200) {
                         const endTime = performance.now()
-                        this.appLogger.info(`${this.name} server startup complete after ${endTime - startTime / 1000} seconds`, this.name)
+                        this.appLogger.info(`${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`, this.name)
                         resolve(true)
                         break
                     }

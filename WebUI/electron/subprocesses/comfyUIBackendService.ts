@@ -263,10 +263,8 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
 let instance:  ComfyUiBackendService | null = null
 
 export async function comfyUIBackendService() {
-    if (instance) {
-        return instance
-    } else {
+    if (!instance) {
         instance = new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}))
-        return instance
     }
+    return instance
 }

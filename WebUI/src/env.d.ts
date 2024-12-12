@@ -322,4 +322,4 @@ type CheckModelAlreadyLoadedResult = {
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
 
-type ApiServiceInformation = { serviceName: string, status: BackendStatus , baseUrl: string, isSetUp: boolean, isRequired: boolean }
+type ApiServiceInformation = { serviceName: string, status: BackendStatus , baseUrl: string, port: number, isSetUp: boolean, isRequired: boolean }

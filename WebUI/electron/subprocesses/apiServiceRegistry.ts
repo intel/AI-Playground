@@ -49,6 +49,7 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
                 serviceName: service.name,
                 status: service.currentStatus,
                 baseUrl: service.baseUrl,
+                port: service.port,
                 isSetUp: service.is_set_up(),
                 isRequired: service.name === "ai-backend"
             }

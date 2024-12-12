@@ -19,11 +19,18 @@ export const useComfyUi = defineStore("comfyUi", () => {
     const clientId = '12345';
     const loaderNodes = ref<string[]>([]);
 
-    updateComfyState()
+    setInterval(() => void updateComfyState(), 5000);
 
     async function updateComfyState() {
-        comfyUiState.value = await window.electronAPI.getComfyuiState()
-        console.log('comfyUiState from backend', comfyUiState.value);
+        const services = await window.electronAPI.getServiceRegistry();
+        const comfyUiService = services.find((service) => service.serviceName === 'comfyui-backend');
+        if (comfyUiService) {
+            const newState = { port: comfyUiService.port, up: comfyUiService.status.status === 'running', currentVersion: '' };
+            if (JSON.stringify(comfyUiState.value) !== JSON.stringify(newState)) {
+                comfyUiState.value = newState;
+                console.log('Received new ComfyUI state from backend', comfyUiState.value);
+            }
+        }
     }
 
     function connectToComfyUi() {
@@ -31,8 +38,9 @@ export const useComfyUi = defineStore("comfyUi", () => {
             console.warn('ComfyUI backend not running, cannot start websocket');
             return;
         }
-
-        websocket.value = new WebSocket(`ws://localhost:${comfyUiState.value.port}/ws?clientId=${clientId}`);
+        const comfyWsUrl = `ws://localhost:${comfyUiState.value.port}/ws?clientId=${clientId}`
+        console.info('Connecting to ComfyUI', { comfyWsUrl });
+        websocket.value = new WebSocket(comfyWsUrl);
         websocket.value.binaryType = 'arraybuffer'
         websocket.value.addEventListener('message', (event) => {
             try {
