@@ -3,9 +3,26 @@ import path from "node:path";
 import {app} from "electron";
 import {appLoggerInstance} from "../logging/logger.ts";
 import fs from "fs";
-import {copyFileWithDirs, existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
+import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
 import * as filesystem from "fs-extra";
+import { z } from "zod";
 
+export const aiBackendServiceDir = () => path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
+
+const LsLevelZeroDeviceSchema = z.object({id: z.number(), name: z.string(), device_id: z.number()});
+const LsLevelZeroOutSchema = z.array(LsLevelZeroDeviceSchema).min(1);
+type LsLevelZeroDevice = z.infer<typeof LsLevelZeroDeviceSchema>;
+
+export function getLsLevelZeroPath(basePythonEnvDir: string): string {
+    return path.resolve(path.join(basePythonEnvDir, "Library/bin/ls_level_zero.exe"));
+}
+export function getPythonPath(basePythonEnvDir: string): string {
+    return path.resolve(path.join(basePythonEnvDir, "python.exe"))
+}
+
+const ipexWheel = "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
+export const ipexIndex = 'https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/'
+export const ipexVersion = 'intel-extension-for-pytorch==2.3.110.post0+xpu'
 
 export interface ApiService {
     readonly name: string
@@ -29,7 +46,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
     readonly prototypicalPythonEnv = path.join(this.baseDir, "prototype-python-env")
-    readonly customIntelExtensionForPytorch = path.join(this.baseDir, "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl")
+    readonly customIntelExtensionForPytorch = path.join(this.baseDir, ipexWheel)
     abstract readonly serviceDir: string
     abstract readonly pythonExe: string
 
@@ -42,10 +59,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.name = name
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
-    }
-
-    static getPythonPath(basePythonEnvDir: string): string {
-        return path.resolve(path.join(basePythonEnvDir, "python.exe"))
     }
 
     abstract is_set_up(): boolean
@@ -139,7 +152,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         const startTime = performance.now()
         const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
             const queryIntervalMs = 250
-            const startupPeriodMaxMs = 60000
+            const startupPeriodMaxMs = 180000
             while (performance.now() < startTime + startupPeriodMaxMs) {
                 try {
                     const serviceHealthResponse = await fetch(this.healthEndpointUrl);
@@ -167,6 +180,40 @@ export abstract class LongLivedPythonApiService implements ApiService {
     }
 
     protected commonSetupSteps = {
+
+        detectDeviceArcMock: async (pythonEnvContainmentDir: string): Promise<string> => {
+            this.appLogger.info("Detecting intel deviceID", this.name)
+            this.appLogger.info("Copying ls_level_zero.exe", this.name)
+            const lsLevelZeroBinaryTargetPath = getLsLevelZeroPath(pythonEnvContainmentDir)
+            const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
+            copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
+
+            return 'cuda';
+        },
+
+        detectDevice: async (pythonEnvContainmentDir: string): Promise<LsLevelZeroDevice> => {
+            this.appLogger.info("Detecting intel deviceID", this.name)
+            try {
+                // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
+                this.appLogger.info("Copying ls_level_zero.exe", this.name)
+                const lsLevelZeroBinaryTargetPath = getLsLevelZeroPath(pythonEnvContainmentDir)
+                const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
+                copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
+
+                this.appLogger.info("Fetching requirements for ls_level_zero.exe", this.name)
+                const pythonExe = existingFileOrError(getPythonPath(pythonEnvContainmentDir))
+                const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "requirements-ls_level_zero.txt")));
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", lsLevelZeroRequirements], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], (data: string) => {this.appLogger.logMessageToFile(data, this.name)});
+                this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
+                const devices = LsLevelZeroOutSchema.parse(lsLevelZeroOut);
+                return devices[0];
+            } catch (e) {
+                this.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, this.name, true)
+                throw new Error(`Failure to identify intel hardware. Error: ${e}`)
+            }
+        },
+
         copyArchetypePythonEnv: async (targetDir: string) => {
             const archtypePythonEnv = existingFileOrError(this.prototypicalPythonEnv)
             this.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetDir}`, this.name, true)
@@ -186,7 +233,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         installUv: async (pythonEnvDir: string) => {
             this.appLogger.info(`installing uv into env ${pythonEnvDir}`, this.name, true)
             try {
-                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
+                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
                 const getPipScript = existingFileOrError(path.join(pythonEnvDir, 'get-pip.py'))
                 await spawnProcessAsync(pythonExe, [getPipScript], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "uv"], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
@@ -203,7 +250,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 return
             }
             try {
-                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
+                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
                 this.appLogger.info(`Installing python dependencies for ${pythonEnvDir}`, this.name, true)
                 await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath, "--index-strategy", "unsafe-best-match"], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 this.appLogger.info(`Successfully installed python dependencies for ${pythonEnvDir}`, this.name, true)
@@ -213,9 +260,22 @@ export abstract class LongLivedPythonApiService implements ApiService {
             }
         },
 
+        uvInstallDependencyStep: async (pythonEnvDir: string, dependency: string, extraIndex?: string) => {
+            try {
+                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
+                this.appLogger.info(`Installing dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
+                const extraIndexArgs = extraIndex ? ["--extra-index-url", extraIndex] : []
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", dependency, "--index-strategy", "unsafe-best-match", ...extraIndexArgs], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                this.appLogger.info(`Successfully installed of dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
+            } catch (e) {
+                this.appLogger.error(`Failure during installation of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`, this.name, true)
+                throw new Error(`Failed to install of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`)
+            }
+        },
+
         pipInstallDependencyStep: async (pythonEnvDir: string, dependency: string) => {
             try {
-                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
+                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
                 this.appLogger.info(`Installing dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
                 await spawnProcessAsync(pythonExe, ["-m","pip", "install", dependency], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 this.appLogger.info(`Successfully installed of dependency ${dependency} for ${pythonEnvDir}`, this.name, true)

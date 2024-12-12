@@ -34,7 +34,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
     }
 
     function connectToComfyUi() {
-        if (!comfyUiState.value) {
+        if (!comfyUiState.value?.up) {
             console.warn('ComfyUI backend not running, cannot start websocket');
             return;
         }

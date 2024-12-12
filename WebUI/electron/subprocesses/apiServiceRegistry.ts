@@ -4,7 +4,6 @@ import {aiBackendService} from "./aiBackendService.ts";
 
 export type backend = 'ai-backend' | 'comfyui-backend'
 
-
 export interface ApiServiceRegistry {
     register(apiService: ApiService): void
     getRegistered(): ApiService[]

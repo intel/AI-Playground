@@ -1,7 +1,6 @@
 import path from "node:path";
 import * as fs from 'fs-extra'
 import {spawn, spawnSync} from "node:child_process";
-import * as filesystem from "fs-extra";
 
 
 export function existingFileOrError(filePath: string) {

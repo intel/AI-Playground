@@ -1,27 +1,16 @@
-import {LongLivedPythonApiService} from "./apiService.ts";
-import {ChildProcess, spawn} from "node:child_process";
-import getPort, {portNumbers} from "get-port";
+import * as filesystem from 'fs-extra';
+import getPort, { portNumbers } from "get-port";
+import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
-import {app} from "electron";
-import * as filesystem from 'fs-extra'
-import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from './osProcessHelper.ts'
-import { z } from "zod";
-
-const LsLevelZeroDeviceSchema = z.object({id: z.number(), name: z.string(), device_id: z.number()});
-const LsLevelZeroOutSchema = z.array(LsLevelZeroDeviceSchema).min(1);
-type LsLevelZeroDevice = z.infer<typeof LsLevelZeroDeviceSchema>;
+import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService } from "./apiService.ts";
+import { existingFileOrError, spawnProcessSync } from './osProcessHelper.ts';
 
 export class AiBackendService extends LongLivedPythonApiService {
-    readonly serviceDir = path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
+    readonly serviceDir = aiBackendServiceDir();
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
-    readonly pythonExe = LongLivedPythonApiService.getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = AiBackendService.getLsLevelZeroPath(this.pythonEnvDir)
+    readonly pythonExe = getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
-
-
-    public static getLsLevelZeroPath(basePythonEnvDir: string): string {
-        return path.resolve(path.join(basePythonEnvDir, "Library/bin/ls_level_zero.exe"));
-    }
 
     is_set_up(): boolean {
         return filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe)
@@ -30,40 +19,6 @@ export class AiBackendService extends LongLivedPythonApiService {
     async *set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("setting up service", this.name)
         const self = this
-        const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
-
-        async function detectDeviceArcMock(pythonEnvContainmentDir: string): Promise<string> {
-            self.appLogger.info("Detecting intel deviceID", self.name)
-            self.appLogger.info("Copying ls_level_zero.exe", self.name)
-            const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
-            const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
-            copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
-
-            return 'arc';
-        }
-
-        async function detectDevice(pythonEnvContainmentDir: string): Promise<LsLevelZeroDevice> {
-            self.appLogger.info("Detecting intel deviceID", self.name)
-            try {
-                // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
-                self.appLogger.info("Copying ls_level_zero.exe", self.name)
-                const lsLevelZeroBinaryTargetPath = AiBackendService.getLsLevelZeroPath(pythonEnvContainmentDir)
-                const src = existingFileOrError(path.resolve(path.join(self.serviceDir, "tools/ls_level_zero.exe")));
-                copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
-
-                self.appLogger.info("Fetching requirements for ls_level_zero.exe", self.name)
-                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
-                const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(self.serviceDir, "requirements-ls_level_zero.txt")));
-                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", lsLevelZeroRequirements], logToFileHandler)
-                const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], logToFileHandler);
-                self.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
-                const devices = LsLevelZeroOutSchema.parse(lsLevelZeroOut);
-                return devices[0];
-            } catch (e) {
-                self.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, self.name, true)
-                throw new Error(`Failure to identify intel hardware. Error: ${e}`)
-            }
-        }
 
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
@@ -77,14 +32,19 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv complete`};
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceId = await detectDeviceArcMock(pythonEnvContainmentDir)
+            const deviceId = await self.commonSetupSteps.detectDeviceArcMock(pythonEnvContainmentDir)
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-            const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-            await self.commonSetupSteps.pipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            if (deviceId === "arc") {
+                const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
+                await self.commonSetupSteps.pipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            } else {
+                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, ipexVersion, ipexIndex)
+            }
+
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
@@ -135,7 +95,6 @@ export class AiBackendService extends LongLivedPythonApiService {
     }
 
     getOneApiSupportedDeviceEnvVariable(): { ONEAPI_DEVICE_SELECTOR: string; } {
-        // Filter out unsupported devices
         try {
             const lsLevelZeroOut = spawnProcessSync(this.lsLevelZeroExe, []);
             this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)

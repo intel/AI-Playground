@@ -14,3 +14,6 @@ bigdl-core-xe-23==2.6.0b2
 bigdl-core-xe-addons-23==2.6.0b2
 bigdl-core-xe-batch-23==2.6.0b2
 onednn-devel==2024.1.1
+
+# Intel dependencies depend on numpy 1
+numpy==1.26.4

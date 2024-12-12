@@ -1,18 +1,18 @@
-import {LongLivedPythonApiService} from "./apiService.ts";
+import {getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
 import getPort, {portNumbers} from "get-port";
 import * as filesystem from "fs-extra";
-import {AiBackendService} from "./aiBackendService.ts";
 import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
+import { aiBackendServiceDir } from "./apiService.ts";
 
 
 class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
-    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `ai-backend-env`)); // use ai-backend python env. THis serivce should receive its own, but we lack the time, to fix this
-    readonly pythonExe = LongLivedPythonApiService.getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = AiBackendService.getLsLevelZeroPath(this.pythonEnvDir) // in the recycled ai-backend, we may conveniently assume, that this is already all setup.
+    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`)); // use ai-backend python env. This service should receive its own, but we lack the time, to fix this
+    readonly pythonExe = getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir) // in the recycled ai-backend, we may conveniently assume, that this is already all setup.
     healthEndpointUrl = `${this.baseUrl}/queue`
 
     private readonly comfyUIStartupParameters = [
@@ -24,7 +24,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
     ]
 
     is_set_up(): boolean {
-        return filesystem.existsSync(this.serviceDir) && filesystem.existsSync(this.lsLevelZeroExe)
+        return filesystem.existsSync(this.pythonEnvDir) && filesystem.existsSync(this.serviceDir) && filesystem.existsSync(this.lsLevelZeroExe)
     }
 
     async *set_up(): AsyncIterable<SetupProgress> {
@@ -44,7 +44,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             }
         }
 
-        async function setUpWorkEnv(): Promise<string> {
+        async function setUpServiceWorkEnv(): Promise<string> {
             const comfyUiContaintmentDir = path.resolve(path.join(self.baseDir, `${self.name}-service_tmp`))
             self.appLogger.info(`Preparing installation containment dir at ${comfyUiContaintmentDir}`, self.name, true)
             try {
@@ -59,17 +59,6 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
                 throw new Error(`Failure during set up of workspace. Error: ${e}`)
             }
         }
-
-
-        async function verifyPythonBackendExists(): Promise<string> {
-                self.appLogger.info(`verifying python env ${self.pythonEnvDir} exists`, self.name, true)
-                if (filesystem.existsSync(self.pythonEnvDir) && filesystem.existsSync(self.pythonExe)) {
-                    return self.pythonEnvDir
-                } else {
-                    throw new Error(`Python env missing or not set up correctly`)
-                }
-        }
-
 
 
         async function installPortableGit(comfyUiContainmentDir: string): Promise<string> {
@@ -146,29 +135,52 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up comfyUI environment"};
             
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Creating workdir`};
-            const comfyUiServiceContainmentDir = await setUpWorkEnv()
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Created workdir`};
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
+            const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
+            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
+            
+            yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv`};
+            await self.commonSetupSteps.installUv(pythonEnvContainmentDir);
+            yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv complete`};
+
+            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
+            const deviceId = await self.commonSetupSteps.detectDeviceArcMock(pythonEnvContainmentDir)
+            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
+
+            yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
+            const deviceSpecificRequirements = existingFileOrError(path.join(aiBackendServiceDir(), `requirements-${deviceId}.txt`))
+            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
+            if (deviceId === "arc") {
+                const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
+                await self.commonSetupSteps.pipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            } else {
+                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, ipexVersion, ipexIndex)
+            }
+            yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
+
+            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
+            await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
+            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+
+            yield {serviceName: self.name, step: `preparing service work directory`, status: "executing", debugMessage: `Creating workdir`};
+            const comfyUiServiceContainmentDir = await setUpServiceWorkEnv()
+            yield {serviceName: self.name, step: `preparing service work directory`, status: "executing", debugMessage: `Created workdir`};
 
             yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installing git`};
             const gitExe = await installPortableGit(comfyUiServiceContainmentDir)
             yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of git complete`};
 
-            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `verify python environment`};
-            const pythonEnv = await verifyPythonBackendExists()
-            yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `python environment set up`};
-
             yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installing comfyUI base repo`};
-            const comfyUiTmpServiceDir = await setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe, pythonEnv)
+            const comfyUiTmpServiceDir = await setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe, self.pythonEnvDir)
             yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
 
             yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configuring comfyUI base repo`};
             await configureComfyUI(comfyUiTmpServiceDir)
             yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configured comfyUI base repo`};
 
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
+            yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moving service to target place at ${self.pythonEnvDir}`};
             await this.commonSetupSteps.moveToFinalTarget(comfyUiTmpServiceDir, self.serviceDir)
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+            yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
         
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {

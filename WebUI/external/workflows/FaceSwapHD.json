@@ -170,7 +170,7 @@
     },
     "19": {
       "inputs": {
-        "lora_name": "latent-consistency---lcm-lora-sdxl/pytorch_lora_weights.safetensors",
+        "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
         "strength_model": 1,
         "strength_clip": 1,
         "model": [
@@ -189,7 +189,7 @@
     },
     "22": {
       "inputs": {
-        "vae_name": "RunDiffusion---Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+        "vae_name": "RunDiffusion---Juggernaut-XL-v9\\vae\\diffusion_pytorch_model.fp16.safetensors"
       },
       "class_type": "VAELoader",
       "_meta": {
@@ -198,7 +198,7 @@
     },
     "23": {
       "inputs": {
-        "unet_name": "RunDiffusion---Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors",
+        "unet_name": "RunDiffusion---Juggernaut-XL-v9\\unet\\diffusion_pytorch_model.fp16.safetensors",
         "weight_dtype": "default"
       },
       "class_type": "UNETLoader",
@@ -208,8 +208,8 @@
     },
     "24": {
       "inputs": {
-        "clip_name1": "RunDiffusion---Juggernaut-XL-v9/text_encoder/model.fp16.safetensors",
-        "clip_name2": "RunDiffusion---Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors",
+        "clip_name1": "RunDiffusion---Juggernaut-XL-v9\\text_encoder\\model.fp16.safetensors",
+        "clip_name2": "RunDiffusion---Juggernaut-XL-v9\\text_encoder_2\\model.fp16.safetensors",
         "type": "sdxl"
       },
       "class_type": "DualCLIPLoader",
