@@ -121,7 +121,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             if (maxAttempts > 0 && attempts > maxAttempts) {
                 //TODO: proper escape
                 console.error("Not all services started after 10 seconds.")
-                loadingState.value = "loading"
+                if (loadingState.value !== 'manageInstallations') {
+                    loadingState.value = "loading"
+                }
                 break
             }
             const apiServiceInformation: ApiServiceInformation[] = await window.electronAPI.getServiceRegistry()
@@ -129,7 +131,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             const requiredServices = apiServiceInformation.filter(item => item.isRequired)
             if (requiredServices.every(serviceInfo => serviceInfo.status.status === "running")) {
                 console.info("all required backend services running.")
-                loadingState.value = "loading"
+                if (loadingState.value !== 'manageInstallations') {
+                    loadingState.value = "loading"
+                }
                 break
             }
             await new Promise<void>(resolve => setTimeout(resolve, 500));
@@ -196,10 +200,14 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             setTimeout(() => {
                 //requires proper feedback on server startup...
                 useComfyUi().updateComfyState()
-                loadingState.value = "running";
+                if (loadingState.value !== 'manageInstallations') {
+                    loadingState.value = "running";
+                }
             }, 10000);
         } else {
-            loadingState.value = "running";
+            if (loadingState.value !== 'manageInstallations') {
+                loadingState.value = "running";
+            }
         }
     }
 

@@ -39,17 +39,19 @@
             <td>
               <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
               <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
-                      :disabled="!item.readTerms"
+                      :disabled="!item.readTerms || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
               <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
-                      :disabled="!item.readTerms"
+                      :disabled="!item.readTerms || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
               </button>
               <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
+                      :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
               </button>
               <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
+                      :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
               <p v-else> - </p>
@@ -96,19 +98,19 @@
             <td>
               <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
               <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
-                      :disabled="!item.readTerms || isSomethingLoading()"
+                      :disabled="!item.readTerms || isSomethingLoading() || !areAllRequiredReady()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
               <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
-                      :disabled="!item.readTerms || isSomethingLoading()"
+                      :disabled="!item.readTerms || isSomethingLoading() || !areAllRequiredReady()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
               </button>
               <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
-                      :disabled="isSomethingLoading()"
+                      :disabled="isSomethingLoading() || !areAllRequiredReady()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
               </button>
               <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
-                      :disabled="isSomethingLoading()"
+                      :disabled="isSomethingLoading() || !areAllRequiredReady()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
               <p v-else> - </p>
@@ -165,6 +167,8 @@ const globalSetup = useGlobalSetup();
 
 
 const apiServiceInformationPlusTerms = ref<ExtendedApiServiceInformation[]>([])
+let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
+
 const somethingChanged = ref(false)
 
 
@@ -184,12 +188,13 @@ window.electronAPI.onServiceSetUpProgress(async (data) => {
   if (status === 'success') {
     const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
     await restartBackend(item)
+    await installServiceFromQueue()
   } else if (status === 'failed') {
     toast.error("Setup failed")
     await reloadServiceRegistry()
     const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
     item.isLoading = false
-    // updateValue(item.serviceName, "isLoading", true)
+    await installServiceFromQueue()
   }
 })
 
@@ -225,6 +230,10 @@ function getComponent(data: ExtendedApiServiceInformation[], key: string, item: 
 
 function isSomethingLoading(): boolean {
   return apiServiceInformationPlusTerms.value.some((item) => item.isLoading)
+}
+
+function areAllRequiredReady(){
+  return apiServiceInformationPlusTerms.value.every((item) => item.status['status'] === 'running' || !item.isRequired)
 }
 
 async function installBackend(item: ExtendedApiServiceInformation) {
@@ -264,17 +273,34 @@ async function restartBackend(item: ExtendedApiServiceInformation) {
   await reloadServiceRegistry()
 }
 
+async function installServiceFromQueue() {
+  // Ensure required services are setup first!
+  toBeInstalledQueue.forEach((item) => getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true)
+  await reloadServiceRegistry()
+
+  if (toBeInstalledQueue.length === 0) {
+    console.log("All installed!")
+    return
+  }
+
+  const toBeInstalledItem = toBeInstalledQueue[0]
+  toBeInstalledQueue = toBeInstalledQueue.slice(1)
+  if (!toBeInstalledItem.isRequired && !areAllRequiredReady()) {
+    console.log("Error: Need to install all required services first")
+    await installServiceFromQueue()
+    return
+  }
+
+  if (toBeInstalledItem.status['status'] === 'failed') {
+    await repairBackend(toBeInstalledItem);
+  } else {
+    await installBackend(toBeInstalledItem);
+  }
+}
+
 function installAllSelected() {
-  const checkedServices = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && !(item.status['status'] === 'uninitialized' || item.status['status'] === 'failed'));
-  checkedServices.forEach((item) => {
-        getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
-        if (item.status['status'] === 'failed') {
-          repairBackend(item);
-        } else {
-          installBackend(item);
-        }
-      }
-  )
+  toBeInstalledQueue = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && (item.status['status'] === 'uninitialized' || item.status['status'] === 'failed'));
+  installServiceFromQueue()
 }
 
 function closeInstallations() {
