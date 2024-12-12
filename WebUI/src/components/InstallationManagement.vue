@@ -187,6 +187,17 @@ window.electronAPI.onServiceSetUpProgress(async (data) => {
   }
 })
 
+async function reloadServiceRegistryNew() { //ToDo Test implementation of this instead of reloadServiceRegistry + getComponent
+  // Update the serviceRegistry while maintaining constant references to its content
+  const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
+  for (item of apiServiceInformationPlusTerms.value){
+    const updatedItem = updatedServiceRegistry.filter((entry) => entry.serviceName === item.serviceName)[0]
+    for (props in updatedItem) {
+      item[props] = updatedItem[props]
+    }
+  }
+}
+
 async function reloadServiceRegistry() {
   apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) =>
       ({
@@ -202,10 +213,6 @@ function getComponent(data: object, key: string, item: object) {
 
 async function installBackend(item: object) {
   somethingChanged.value = true;
-  // console.log(apiServiceInformationPlusTerms.value)
-  console.log(item)
-  // console.log(item.serviceName)
-  // console.log(apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === item.serviceName))
   getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
   await window.electronAPI.sendSetUpSignal(item.serviceName)
 }
@@ -222,10 +229,6 @@ async function repairBackend(item: object) {
 }
 
 async function restartBackend(item: object) {
-  // console.log(apiServiceInformationPlusTerms.value)
-  console.log(item)
-  // console.log(item.serviceName)
-  // console.log(apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === item.serviceName))
   getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
   const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
   if (stopStatus.status !== 'stopped') {
@@ -248,13 +251,13 @@ async function restartBackend(item: object) {
 function installAllSelected() {
   const checkedServices = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && (item.status['status'] !== 'uninitialized' || item.status['status'] !== 'failed'));
   checkedServices.forEach((item) => {
-    getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
-    if (item.status['status'] === 'failed') {
-      repairBackend(item);
-    } else {
-      installBackend(item);
-    }
-  }
+        getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
+        if (item.status['status'] === 'failed') {
+          repairBackend(item);
+        } else {
+          installBackend(item);
+        }
+      }
   )
 
 }
