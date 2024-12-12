@@ -154,12 +154,15 @@ import {useI18N} from '@/assets/js/store/i18n';
 import {useModels, userModels} from '@/assets/js/store/models';
 import {useGlobalSetup} from '@/assets/js/store/globalSetup';
 import {mapColorToStatus} from "@/lib/utils.ts";
+import {toast} from "@/assets/js/toast.ts";
+
+type ExtendedApiServiceInformation = ApiServiceInformation & { readTerms: boolean, isLoading: boolean }
 
 
 const globalSetup = useGlobalSetup();
 
 
-const apiServiceInformationPlusTerms = ref<ApiServiceInformation[] & { readTerms: boolean, isLoading: boolean }>([])
+const apiServiceInformationPlusTerms = ref<ExtendedApiServiceInformation[]>([])
 const somethingChanged = ref(false)
 
 
@@ -190,10 +193,12 @@ window.electronAPI.onServiceSetUpProgress(async (data) => {
 async function reloadServiceRegistryNew() { //ToDo Test implementation of this instead of reloadServiceRegistry + getComponent
   // Update the serviceRegistry while maintaining constant references to its content
   const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
-  for (item of apiServiceInformationPlusTerms.value){
+  for (const item of apiServiceInformationPlusTerms.value){
     const updatedItem = updatedServiceRegistry.filter((entry) => entry.serviceName === item.serviceName)[0]
-    for (props in updatedItem) {
-      item[props] = updatedItem[props]
+    for (const prop in updatedItem) {
+      if (prop in item) {
+        item[prop as keyof ExtendedApiServiceInformation] = updatedItem[prop as keyof ApiServiceInformation]
+      }
     }
   }
 }
@@ -207,17 +212,17 @@ async function reloadServiceRegistry() {
       }))
 }
 
-function getComponent(data: object, key: string, item: object) {
-  return data.filter((entry) => entry[key] === item[key])[0]
+function getComponent(data: ExtendedApiServiceInformation[], key: string, item: ApiServiceInformation | ExtendedApiServiceInformation): ExtendedApiServiceInformation {
+  return data.filter((entry) => entry[key as keyof typeof entry] === item[key as keyof typeof item])[0]
 }
 
-async function installBackend(item: object) {
+async function installBackend(item: ExtendedApiServiceInformation) {
   somethingChanged.value = true;
   getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
   await window.electronAPI.sendSetUpSignal(item.serviceName)
 }
 
-async function repairBackend(item: object) {
+async function repairBackend(item: ExtendedApiServiceInformation) {
   getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
   const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
   if (stopStatus.status !== 'stopped') {
@@ -228,7 +233,7 @@ async function repairBackend(item: object) {
   await installBackend(getComponent(apiServiceInformationPlusTerms.value, "serviceName", item));
 }
 
-async function restartBackend(item: object) {
+async function restartBackend(item: ExtendedApiServiceInformation) {
   getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
   const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
   if (stopStatus.status !== 'stopped') {
@@ -249,7 +254,7 @@ async function restartBackend(item: object) {
 }
 
 function installAllSelected() {
-  const checkedServices = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && (item.status['status'] !== 'uninitialized' || item.status['status'] !== 'failed'));
+  const checkedServices = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && !(item.status['status'] === 'uninitialized' || item.status['status'] === 'failed'));
   checkedServices.forEach((item) => {
         getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
         if (item.status['status'] === 'failed') {
@@ -259,7 +264,6 @@ function installAllSelected() {
         }
       }
   )
-
 }
 
 function closeInstallations() {
@@ -287,7 +291,7 @@ function areBoxesChecked() {
   return apiServiceInformationPlusTerms.value.some((i) => i.status['status'] !== 'running' && i.readTerms)
 }
 
-function areTermsInitiallyRead(item: object) {
+function areTermsInitiallyRead(item: ApiServiceInformation | ExtendedApiServiceInformation) {
   return getInfoURL(item.serviceName) === "" || item.status['status'] === 'running'
 }
 
