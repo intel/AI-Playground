@@ -65,7 +65,7 @@ function prepareTargetDir(targetDir) {
 
 
 function main() {
-    const targetDir = path.join(envDir, '..', '..', 'offline', platform, 'env');
+    const targetDir = path.join(envDir, '..', '..', 'offline', platform, 'prototype-python-env');
     prepareTargetDir(targetDir)
     copyToTargetDir(envDir, targetDir)
 

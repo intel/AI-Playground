@@ -32,20 +32,6 @@ export class AiBackendService extends LongLivedPythonApiService {
         const self = this
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
 
-        async function installUv(pythonEnvContainmentDir: string): Promise<void> {
-            self.appLogger.info(`installing uv into env ${pythonEnvContainmentDir}`, self.name, true)
-            try {
-                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
-                const getPipScript = existingFileOrError(path.join(pythonEnvContainmentDir, 'get-pip.py'))
-                await spawnProcessAsync(pythonExe, [getPipScript], logToFileHandler)
-                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "uv"], logToFileHandler)
-                self.appLogger.info(`Successfully installed uv into env ${pythonEnvContainmentDir}`, self.name, true)
-            } catch (e) {
-                self.appLogger.error(`Failed to install uv. Error: ${e}`, self.name, true)
-                throw new Error(`Failed to install uv. Error: ${e}`);
-            }
-        }
-
         async function detectDeviceArcMock(pythonEnvContainmentDir: string): Promise<string> {
             self.appLogger.info("Detecting intel deviceID", self.name)
             self.appLogger.info("Copying ls_level_zero.exe", self.name)
@@ -87,7 +73,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
             
             yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv`};
-            await installUv(pythonEnvContainmentDir);
+            await self.commonSetupSteps.installUv(pythonEnvContainmentDir);
             yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv complete`};
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
@@ -97,8 +83,10 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-            await self.commonSetupSteps.uvPipInstallStep(pythonEnvContainmentDir, deviceSpecificRequirements)
-            await self.commonSetupSteps.uvPipInstallStep(pythonEnvContainmentDir, commonRequirements)
+            const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
+            await self.commonSetupSteps.uvPipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
+            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};

@@ -4,11 +4,10 @@
 torch==2.3.1.post0+cxx11.abi
 torchvision==0.18.1.post0+cxx11.abi
 torchaudio==2.3.1.post0+cxx11.abi
-intel-extension-for-pytorch==2.3.110.post0+xpu
+# intel-extension-for-pytorch==2.3.110.post0+xpu # is installed by service.setUp()
 mkl-dpcpp==2024.2.1
 
 # IPEX-LLM
---pre
 ipex_llm==2.2.0b2
 bigdl-core-xe-23==2.6.0b2
 bigdl-core-xe-addons-23==2.6.0b2

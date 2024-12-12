@@ -42,8 +42,8 @@
       "to": "7zr.exe"
     },
     {
-      "from": "external/env.7z",
-      "to": "env.7z"
+      "from": "external/prototype-python-env.7z",
+      "to": "prototype-python-env.7z"
     },
     {
       "from": "external/model_config.json",

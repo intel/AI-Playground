@@ -28,7 +28,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
     encapsulatedProcess: ChildProcess | null = null
 
     readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
-    readonly archtypePythonEnv = path.join(this.baseDir, "env")
+    readonly prototypicalPythonEnv = path.join(this.baseDir, "prototype-python-env")
+    readonly customIntelExtensionForPytorch = path.join(this.prototypicalPythonEnv, "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl")
     abstract readonly serviceDir: string
     abstract readonly pythonExe: string
 
@@ -167,7 +168,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     protected commonSetupSteps = {
         copyArchetypePythonEnv: async (targetDir: string) => {
-            const archtypePythonEnv = existingFileOrError(this.archtypePythonEnv)
+            const archtypePythonEnv = existingFileOrError(this.prototypicalPythonEnv)
             this.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetDir}`, this.name, true)
             try {
                 if (filesystem.existsSync(targetDir)) {
@@ -196,7 +197,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             }
         },
 
-        uvPipInstallStep: async (pythonEnvDir: string, requirementsTextPath: string, skipOnMissingRequirementsTxt = false) => {
+        uvPipInstallRequirementsTxtStep: async (pythonEnvDir: string, requirementsTextPath: string, skipOnMissingRequirementsTxt = false) => {
             if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
                 this.appLogger.info(`No requirements.txt for ${requirementsTextPath} - skipping`, this.name, true)
                 return
@@ -204,7 +205,19 @@ export abstract class LongLivedPythonApiService implements ApiService {
             try {
                 const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
                 this.appLogger.info(`Installing python dependencies for ${pythonEnvDir}`, this.name, true)
-                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath, "--index-strategy", "unsafe-best-match"], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                this.appLogger.info(`Successfully installed python dependencies for ${pythonEnvDir}`, this.name, true)
+            } catch (e) {
+                this.appLogger.error(`Failure during installation of python dependencies for ${pythonEnvDir}. Error: ${e}`, this.name, true)
+                throw new Error(`Failed to install python dependencies for ${pythonEnvDir}. Error: ${e}`)
+            }
+        },
+
+        uvPipInstallDependencyStep: async (pythonEnvDir: string, dependency: string) => {
+            try {
+                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
+                this.appLogger.info(`Installing python dependencies for ${pythonEnvDir}`, this.name, true)
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", dependency], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 this.appLogger.info(`Successfully installed python dependencies for ${pythonEnvDir}`, this.name, true)
             } catch (e) {
                 this.appLogger.error(`Failure during installation of python dependencies for ${pythonEnvDir}. Error: ${e}`, this.name, true)

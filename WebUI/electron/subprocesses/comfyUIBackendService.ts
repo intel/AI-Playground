@@ -120,7 +120,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
 
             await cloneGitStep(gitExePath, "https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneTarget)
             const requirementsTextPath = path.join(comfyUICloneTarget, 'requirements.txt')
-            await self.commonSetupSteps.uvPipInstallStep(pythonEnvDir, requirementsTextPath)
+            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvDir, requirementsTextPath)
             return comfyUICloneTarget;
         }
 

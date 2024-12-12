@@ -735,7 +735,7 @@ app.whenReady().then(async () => {
         initEventHandle();
         await initServiceRegistry();
         await createWindow();
-        //await setupPyenv();
-        await bootUpAllSetUpServices();
+        await setupPyenv();
+        //await bootUpAllSetUpServices();
     }
 });

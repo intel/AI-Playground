@@ -74,8 +74,8 @@ function main() {
     const sevenZipExe = path.join(buildResourcesDir, '7zr.exe');
     const comfyUI = path.join(buildResourcesDir, 'ComfyUI');
 
-    clearPreviousZip(path.join(targetDir, `env.7z`));
-    zipPythonEnv(sevenZipExe, pythenEnvDir, path.join(targetDir, `env.7z`));
+    clearPreviousZip(path.join(targetDir, `prototype-python-env.7z`));
+    zipPythonEnv(sevenZipExe, pythenEnvDir, path.join(targetDir, `prototype-python-env.7z`));
 
     symlinkBackendDir(backendDir, path.join(targetDir, 'service'))
     copyFiles(targetDir,
