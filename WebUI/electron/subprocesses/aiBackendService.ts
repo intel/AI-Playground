@@ -46,39 +46,6 @@ export class AiBackendService extends LongLivedPythonApiService {
             }
         }
 
-        async function runUvPipInstallSetup(pythonEnvContainmentDir: string, deviceId: string): Promise<void> {
-            self.appLogger.info(`installing python dependencies`, self.name, true)
-            try {
-                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
-                const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
-                const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", deviceSpecificRequirements], logToFileHandler)
-                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", commonRequirements], logToFileHandler)
-                self.appLogger.info(`Successfully installed python dependencies`, self.name, true)
-            } catch (e) {
-                self.appLogger.error(`Failure during installation of python dependencies: ${e}`, self.name, true)
-                throw new Error(`Failed to install python dependencies. Error: ${e}`)
-            }
-        }
-
-        async function setUpWorkEnv(): Promise<string> {
-            const archtypePythonEnv = existingFileOrError(self.archtypePythonEnv)
-            const targetPythonEnvContainmentDir = path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`))
-
-            self.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetPythonEnvContainmentDir}`, self.name, true)
-            try {
-                if (filesystem.existsSync(targetPythonEnvContainmentDir)) {
-                    self.appLogger.info(`Cleaning up previously containment directory at ${targetPythonEnvContainmentDir}`, self.name, true)
-                    filesystem.removeSync(targetPythonEnvContainmentDir)
-                }
-                copyFileWithDirs(archtypePythonEnv, targetPythonEnvContainmentDir)
-                return targetPythonEnvContainmentDir;
-            } catch (e) {
-                self.appLogger.error(`Failure during set up of workspace. Error: ${e}`, self.name, true)
-                throw new Error(`Failure during set up of workspace. Error: ${e}`)
-            }
-        }
-
         async function detectDeviceArcMock(pythonEnvContainmentDir: string): Promise<string> {
             self.appLogger.info("Detecting intel deviceID", self.name)
             self.appLogger.info("Copying ls_level_zero.exe", self.name)
@@ -112,26 +79,11 @@ export class AiBackendService extends LongLivedPythonApiService {
             }
         }
 
-        async function moveToFinalTarget(pythonEnvContainmentDir: string): Promise<void> {
-            self.appLogger.info(`renaming containment directory ${pythonEnvContainmentDir} to ${self.pythonEnvDir}`, self.name, true)
-            try {
-                if (filesystem.existsSync(self.pythonEnvDir)) {
-                    self.appLogger.info(`Cleaning up previously python environment directory at ${self.pythonEnvDir}`, self.name, true)
-                    filesystem.removeSync(self.pythonEnvDir)
-                }
-                filesystem.move(pythonEnvContainmentDir, self.pythonEnvDir)
-                self.appLogger.info(`python environment now available at ${self.pythonEnvDir}`, self.name, true)
-            } catch (e) {
-                self.appLogger.error(`Failure to rename ${pythonEnvContainmentDir} to ${self.pythonEnvDir}. Error: ${e}`, self.name, true)
-                throw new Error(`Failure to rename ${pythonEnvContainmentDir} to ${self.pythonEnvDir}. Error: ${e}`)
-            }
-        }
-
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
 
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
-            const pythonEnvContainmentDir = await setUpWorkEnv()
+            const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
             
             yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv`};
@@ -143,11 +95,14 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
-            await runUvPipInstallSetup(pythonEnvContainmentDir, deviceId)
+            const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
+            const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+            await self.commonSetupSteps.uvPipInstallStep(pythonEnvContainmentDir, deviceSpecificRequirements)
+            await self.commonSetupSteps.uvPipInstallStep(pythonEnvContainmentDir, commonRequirements)
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await moveToFinalTarget(pythonEnvContainmentDir)
+            await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {

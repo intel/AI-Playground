@@ -2,6 +2,9 @@ import {ChildProcess} from "node:child_process";
 import path from "node:path";
 import {app} from "electron";
 import {appLoggerInstance} from "../logging/logger.ts";
+import fs from "fs";
+import {copyFileWithDirs, existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
+import * as filesystem from "fs-extra";
 
 
 export interface ApiService {
@@ -161,4 +164,67 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
         return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
     }
+
+    protected commonSetupSteps = {
+        copyArchetypePythonEnv: async (targetDir: string) => {
+            const archtypePythonEnv = existingFileOrError(this.archtypePythonEnv)
+            this.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetDir}`, this.name, true)
+            try {
+                if (filesystem.existsSync(targetDir)) {
+                    this.appLogger.info(`Cleaning up previously containment directory at ${targetDir}`, this.name, true)
+                    filesystem.removeSync(targetDir)
+                }
+                copyFileWithDirs(archtypePythonEnv, targetDir)
+                return targetDir;
+            } catch (e) {
+                this.appLogger.error(`Failure during set up of workspace. Error: ${e}`, this.name, true)
+                throw new Error(`Failure during set up of workspace. Error: ${e}`)
+            }
+        },
+
+        installUv: async (pythonEnvDir: string) => {
+            this.appLogger.info(`installing uv into env ${pythonEnvDir}`, this.name, true)
+            try {
+                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
+                const getPipScript = existingFileOrError(path.join(pythonEnvDir, 'get-pip.py'))
+                await spawnProcessAsync(pythonExe, [getPipScript], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "uv"], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                this.appLogger.info(`Successfully installed uv into env ${pythonEnvDir}`, this.name, true)
+            } catch (e) {
+                this.appLogger.error(`Failed to install uv for env ${pythonEnvDir}. Error: ${e}`, this.name, true)
+                throw new Error(`Failed to install uv. Error: ${e}`);
+            }
+        },
+
+        uvPipInstallStep: async (pythonEnvDir: string, requirementsTextPath: string, skipOnMissingRequirementsTxt = false) => {
+            if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
+                this.appLogger.info(`No requirements.txt for ${requirementsTextPath} - skipping`, this.name, true)
+                return
+            }
+            try {
+                const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvDir))
+                this.appLogger.info(`Installing python dependencies for ${pythonEnvDir}`, this.name, true)
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                this.appLogger.info(`Successfully installed python dependencies for ${pythonEnvDir}`, this.name, true)
+            } catch (e) {
+                this.appLogger.error(`Failure during installation of python dependencies for ${pythonEnvDir}. Error: ${e}`, this.name, true)
+                throw new Error(`Failed to install python dependencies for ${pythonEnvDir}. Error: ${e}`)
+            }
+        },
+        
+        moveToFinalTarget: async (src: string, target: string) => {
+            this.appLogger.info(`renaming directory ${src} to ${target}`, this.name, true)
+            try {
+                if (filesystem.existsSync(target)) {
+                    this.appLogger.info(`Cleaning up previously resource directory at ${target}`, this.name, true)
+                    filesystem.removeSync(target)
+                }
+                await filesystem.move(src, target)
+                this.appLogger.info(`resources now available at ${target}`, this.name, true)
+            } catch (e) {
+                this.appLogger.error(`Failure to rename ${src} to ${target}. Error: ${e}`, this.name, true)
+                throw new Error(`Failure to rename ${src} to ${target}. Error: ${e}`)
+            }
+        },
+    };
 }

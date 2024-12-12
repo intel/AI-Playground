@@ -32,30 +32,14 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         const self = this
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
 
-        const uvPipInstallStep = async (pythonDir: string, skipOnMissingRequirementsTxt = false ) => {
-            const requirementsTextPath = path.join(pythonDir, 'requirements.txt')
-            if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
-                self.appLogger.info(`No requirements.txt for ${pythonDir} - skipping`, self.name)
-                return
-            }
-            try {
-                self.appLogger.info(`Installing python dependencies for ${pythonDir}`, self.name, true)
-                await spawnProcessAsync(self.pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath], logToFileHandler)
-                self.appLogger.info(`Successfully installed python dependencies for ${pythonDir}`, self.name, true)
-            } catch (e) {
-                self.appLogger.error(`Failure during installation of python dependencies for ${pythonDir}. Error: ${e}`, self.name, true)
-                throw new Error(`Failed to install python dependencies for ${pythonDir}. Error: ${e}`)
-            }
-        }
-
         const cloneGitStep = async (gitExePath: string, url: string, target: string) => {
-            self.appLogger.info(`Cloning from ${url}`, self.name)
+            self.appLogger.info(`Cloning from ${url}`, self.name, true)
             try {
                 spawnProcessSync(gitExePath, ["clone", url, target], logToFileHandler)
                 existingFileOrError(target)
-                self.appLogger.info(`repo available at ${target}`, self.name)
+                self.appLogger.info(`repo available at ${target}`, self.name, true)
             } catch (e) {
-                self.appLogger.error(`comfyUI cloning failed due to ${e}`, self.name)
+                self.appLogger.error(`comfyUI cloning failed due to ${e}`, self.name, true)
                 throw new Error(`comfyUI cloning failed due to ${e}`)
             }
         }
@@ -77,10 +61,10 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         }
 
 
-        async function verifyPythonBackendExists(): Promise<void> {
+        async function verifyPythonBackendExists(): Promise<string> {
                 self.appLogger.info(`verifying python env ${self.pythonEnvDir} exists`, self.name, true)
-                if (filesystem.existsSync(self.lsLevelZeroExe) && filesystem.existsSync(self.pythonExe)) {
-                    return
+                if (filesystem.existsSync(self.pythonEnvDir) && filesystem.existsSync(self.pythonExe)) {
+                    return self.pythonEnvDir
                 } else {
                     throw new Error(`Python env missing or not set up correctly`)
                 }
@@ -131,11 +115,12 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             }
         }
 
-        async function setupComfyUiBaseService(containmentDir: string, gitExePath: string): Promise<string> {
+        async function setupComfyUiBaseService(containmentDir: string, gitExePath: string, pythonEnvDir: string): Promise<string> {
             const comfyUICloneTarget = path.join(containmentDir, 'ComfyUI')
 
             await cloneGitStep(gitExePath, "https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneTarget)
-            await uvPipInstallStep(comfyUICloneTarget)
+            const requirementsTextPath = path.join(comfyUICloneTarget, 'requirements.txt')
+            await self.commonSetupSteps.uvPipInstallStep(pythonEnvDir, requirementsTextPath)
             return comfyUICloneTarget;
         }
 
@@ -158,21 +143,6 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
                 }
         }
 
-        async function moveToFinalTarget(comfyUiTmpServiceDir: string): Promise<void> {
-                self.appLogger.info(`renaming containment directory ${comfyUiTmpServiceDir} to ${self.serviceDir}`, self.name, true)
-                try {
-                    if (filesystem.existsSync(self.serviceDir)) {
-                        self.appLogger.info(`Cleaning up previously python environment directory at ${self.serviceDir}`, self.name, true)
-                        filesystem.removeSync(self.serviceDir)
-                    }
-                    filesystem.move(comfyUiTmpServiceDir, self.serviceDir)
-                    self.appLogger.info(`comfyUI service dir now available at ${self.serviceDir}`, self.name, true)
-                } catch (e) {
-                    self.appLogger.error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`, self.name, true)
-                    throw new Error(`Failure to rename ${comfyUiTmpServiceDir} to ${self.serviceDir}. Error: ${e}`)
-                }
-            }
-
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up comfyUI environment"};
             
@@ -185,11 +155,11 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of git complete`};
 
             yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `verify python environment`};
-            await verifyPythonBackendExists()
+            const pythonEnv = await verifyPythonBackendExists()
             yield {serviceName: self.name, step: `verify python environment`, status: "executing", debugMessage: `python environment set up`};
 
             yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installing comfyUI base repo`};
-            const comfyUiTmpServiceDir = await setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe)
+            const comfyUiTmpServiceDir = await setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe, pythonEnv)
             yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
 
             yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configuring comfyUI base repo`};
@@ -197,7 +167,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configured comfyUI base repo`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await moveToFinalTarget(comfyUiTmpServiceDir)
+            await this.commonSetupSteps.moveToFinalTarget(comfyUiTmpServiceDir, self.serviceDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
         
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
