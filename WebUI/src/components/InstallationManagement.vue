@@ -96,17 +96,19 @@
             <td>
               <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
               <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
-                      :disabled="!item.readTerms"
+                      :disabled="!item.readTerms || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
               <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
-                      :disabled="!item.readTerms"
+                      :disabled="!item.readTerms || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
               </button>
               <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
+                      :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
               </button>
               <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
+                      :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
               <p v-else> - </p>
@@ -124,7 +126,7 @@
             languages.COM_CLOSE
           }}
         </button>
-        <button :style="{visibility: convertVisibility(!isEverythingRunning())}" :disabled="!areBoxesChecked() || (apiServiceInformationPlusTerms.some((item) => item.isLoading))"
+        <button :disabled="!areBoxesChecked() || isSomethingLoading() || isEverythingRunning()"
                 @click="installAllSelected"
                 class="flex bg-color-active py-1 px-4 rounded">{{
             languages.COM_INSTALL_ALL
@@ -219,6 +221,10 @@ async function reloadServiceRegistry() {
 
 function getComponent(data: ExtendedApiServiceInformation[], key: string, item: ApiServiceInformation | ExtendedApiServiceInformation): ExtendedApiServiceInformation {
   return data.filter((entry) => entry[key as keyof typeof entry] === item[key as keyof typeof item])[0]
+}
+
+function isSomethingLoading(): boolean {
+  return apiServiceInformationPlusTerms.value.some((item) => item.isLoading)
 }
 
 async function installBackend(item: ExtendedApiServiceInformation) {

@@ -191,7 +191,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             return 'cuda';
         },
 
-        detectDevice: async (pythonEnvContainmentDir: string): Promise<LsLevelZeroDevice> => {
+        detectDevice: async (pythonEnvContainmentDir: string): Promise<string> => {
             this.appLogger.info("Detecting intel deviceID", this.name)
             try {
                 // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
@@ -206,8 +206,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", lsLevelZeroRequirements], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], (data: string) => {this.appLogger.logMessageToFile(data, this.name)});
                 this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
-                const devices = LsLevelZeroOutSchema.parse(lsLevelZeroOut);
-                return devices[0];
+                const devices = LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
+                return devices[0].name.toLowerCase().includes("arc") ? "arc" : "ultra"
             } catch (e) {
                 this.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, this.name, true)
                 throw new Error(`Failure to identify intel hardware. Error: ${e}`)
