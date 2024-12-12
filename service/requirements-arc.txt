@@ -1,6 +1,6 @@
 # IPEX
---extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/
+--extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
 mkl-dpcpp==2024.2.1
 torch==2.3.1.post0+cxx11.abi
 torchvision==0.18.1.post0+cxx11.abi

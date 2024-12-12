@@ -84,7 +84,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
             const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-            await self.commonSetupSteps.uvPipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            await self.commonSetupSteps.pipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
@@ -138,7 +138,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         // Filter out unsupported devices
         try {
             const lsLevelZeroOut = spawnProcessSync(this.lsLevelZeroExe, []);
-            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
+            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
             const devices: { name: string, device_id: number, id: string }[] = JSON.parse(lsLevelZeroOut.toString());
             const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
             const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};

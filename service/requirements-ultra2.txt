@@ -1,6 +1,7 @@
 # IPEX
---extra-index-url https://pytorch-extension.intel.com/release-whl/stable/lnl/us/
 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/lnl/cn/
+--extra-index-url https://pytorch-extension.intel.com/release-whl/stable/lnl/us/
+
 torch==2.3.1.post0+cxx11.abi
 torchvision==0.18.1.post0+cxx11.abi
 torchaudio==2.3.1.post0+cxx11.abi

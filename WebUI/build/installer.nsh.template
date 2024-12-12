@@ -2,14 +2,13 @@
   ShowInstDetails show
 !macroend
 !macro customInstall
-    IfFileExists "$INSTDIR\resources\env.7z" extracting end
+    IfFileExists "$INSTDIR\resources\prototype-python-env.7z" extracting end
 
     extracting:
         SetDetailsPrint textonly
         DetailPrint "Extracting python environment..."
         nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\prototype-python-env.7z" -o"$INSTDIR\resources"'
-        Rename $INSTDIR\intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl $INSTDIR\prototype-python-env\intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl
-        Delete "$INSTDIR\resources\env.7z"
+        Delete "$INSTDIR\resources\prototype-python-env.7z"
         Delete "$INSTDIR\resources\7zr.exe"
     end:
         DetailPrint "Installation completed."
