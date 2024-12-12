@@ -32,27 +32,28 @@ export class AiBackendService extends LongLivedPythonApiService {
         const self = this
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
 
-        async function installPip(pythonEnvContainmentDir: string): Promise<void> {
-            self.appLogger.info(`installing pip into env ${pythonEnvContainmentDir}`, self.name, true)
+        async function installUv(pythonEnvContainmentDir: string): Promise<void> {
+            self.appLogger.info(`installing uv into env ${pythonEnvContainmentDir}`, self.name, true)
             try {
                 const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
                 const getPipScript = existingFileOrError(path.join(pythonEnvContainmentDir, 'get-pip.py'))
                 await spawnProcessAsync(pythonExe, [getPipScript], logToFileHandler)
-                self.appLogger.info(`Successfully installed pip into env ${pythonEnvContainmentDir}`, self.name, true)
+                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "uv"], logToFileHandler)
+                self.appLogger.info(`Successfully installed uv into env ${pythonEnvContainmentDir}`, self.name, true)
             } catch (e) {
-                self.appLogger.error(`Failed to install pip. Error: ${e}`, self.name, true)
-                throw new Error(`Failed to install pip. Error: ${e}`);
+                self.appLogger.error(`Failed to install uv. Error: ${e}`, self.name, true)
+                throw new Error(`Failed to install uv. Error: ${e}`);
             }
         }
 
-        async function runPipInstallSetup(pythonEnvContainmentDir: string, deviceId: string): Promise<void> {
+        async function runUvPipInstallSetup(pythonEnvContainmentDir: string, deviceId: string): Promise<void> {
             self.appLogger.info(`installing python dependencies`, self.name, true)
             try {
                 const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
                 const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
                 const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", deviceSpecificRequirements], logToFileHandler)
-                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", commonRequirements], logToFileHandler)
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", deviceSpecificRequirements], logToFileHandler)
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", commonRequirements], logToFileHandler)
                 self.appLogger.info(`Successfully installed python dependencies`, self.name, true)
             } catch (e) {
                 self.appLogger.error(`Failure during installation of python dependencies: ${e}`, self.name, true)
@@ -100,7 +101,7 @@ export class AiBackendService extends LongLivedPythonApiService {
                 self.appLogger.info("Fetching requirements for ls_level_zero.exe", self.name)
                 const pythonExe = existingFileOrError(LongLivedPythonApiService.getPythonPath(pythonEnvContainmentDir))
                 const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(self.serviceDir, "requirements-ls_level_zero.txt")));
-                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "-r", lsLevelZeroRequirements], logToFileHandler)
+                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", lsLevelZeroRequirements], logToFileHandler)
                 const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], logToFileHandler);
                 self.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, self.name)
                 const devices = LsLevelZeroOutSchema.parse(lsLevelZeroOut);
@@ -133,16 +134,16 @@ export class AiBackendService extends LongLivedPythonApiService {
             const pythonEnvContainmentDir = await setUpWorkEnv()
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
             
-            yield {serviceName: self.name, step: `install pip`, status: "executing", debugMessage: `installing pip`};
-            await installPip(pythonEnvContainmentDir);
-            yield {serviceName: self.name, step: `install pip`, status: "executing", debugMessage: `installing pip complete`};
+            yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv`};
+            await installUv(pythonEnvContainmentDir);
+            yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv complete`};
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
             const deviceId = await detectDeviceArcMock(pythonEnvContainmentDir)
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
-            await runPipInstallSetup(pythonEnvContainmentDir, deviceId)
+            await runUvPipInstallSetup(pythonEnvContainmentDir, deviceId)
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};

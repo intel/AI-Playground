@@ -32,7 +32,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         const self = this
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
 
-        const pipInstallStep = async (pythonDir: string, skipOnMissingRequirementsTxt = false ) => {
+        const uvPipInstallStep = async (pythonDir: string, skipOnMissingRequirementsTxt = false ) => {
             const requirementsTextPath = path.join(pythonDir, 'requirements.txt')
             if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
                 self.appLogger.info(`No requirements.txt for ${pythonDir} - skipping`, self.name)
@@ -40,7 +40,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             }
             try {
                 self.appLogger.info(`Installing python dependencies for ${pythonDir}`, self.name, true)
-                await spawnProcessAsync(self.pythonExe, ["-m", "pip", "install", "-r", requirementsTextPath], logToFileHandler)
+                await spawnProcessAsync(self.pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath], logToFileHandler)
                 self.appLogger.info(`Successfully installed python dependencies for ${pythonDir}`, self.name, true)
             } catch (e) {
                 self.appLogger.error(`Failure during installation of python dependencies for ${pythonDir}. Error: ${e}`, self.name, true)
@@ -135,7 +135,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             const comfyUICloneTarget = path.join(containmentDir, 'ComfyUI')
 
             await cloneGitStep(gitExePath, "https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneTarget)
-            await pipInstallStep(comfyUICloneTarget)
+            await uvPipInstallStep(comfyUICloneTarget)
             return comfyUICloneTarget;
         }
 

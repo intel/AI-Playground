@@ -19,5 +19,5 @@ faiss-cpu==1.8.0
 docx2txt==0.8
 pypdf==4.2.0
 unstructured==0.14.6
-setuptools==75.2.0
+setuptools>=75.2.0
 huggingface_hub==0.25.2
