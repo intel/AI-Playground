@@ -24,7 +24,7 @@
   <main v-if="globalSetup.loadingState === 'verifyBackend'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
-  <main v-else-if="globalSetup.loadingState === 'manageInstallations'" class="flex-auto flex items-center justify-center">
+  <main v-else-if="globalSetup.loadingState === 'manageInstallations'" class="flex-auto flex items-center justify-center" @close="setLoadingState">
     <installation-management></installation-management>
   </main>
   <main v-else-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
@@ -113,20 +113,19 @@
 <script setup lang="ts">
 import LoadingBar from "./components/LoadingBar.vue";
 import InstallationManagement from "./components/InstallationManagement.vue";
-import { useI18N } from "./assets/js/store/i18n.ts"
 import Create from "./views/Create.vue";
 import Enhance from "./views/Enhance.vue";
 import Answer from "./views/Answer.vue";
 import LearnMore from "./views/LearnMore.vue";
 import AppSettings from "./views/AppSettings.vue";
 import "./assets/css/index.css";
-import { useGlobalSetup } from "./assets/js/store/globalSetup";
+import {useGlobalSetup} from "./assets/js/store/globalSetup";
 import DownloadDialog from '@/components/DownloadDialog.vue';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { useTheme } from "./assets/js/store/theme.ts";
+import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
+import {useTheme} from "./assets/js/store/theme.ts";
 import AddLLMDialog from "@/components/AddLLMDialog.vue";
 import WarningDialog from "@/components/WarningDialog.vue";
-import { useBackendServices } from "./assets/js/store/backendServices.ts";
+import {useBackendServices} from "./assets/js/store/backendServices.ts";
 
 const backendServices = useBackendServices();
 const theme = useTheme();
@@ -170,8 +169,22 @@ onBeforeMount(async () => {
       e.preventDefault();
     }
   })
+  await setLoadingState()
 })
 
+async function setLoadingState() {
+  if(!backendServices.serviceInfoUpdateReceived) {
+    globalSetup.loadingState = "verifyBackend"
+    setTimeout(setLoadingState, 1000)
+    return
+  }
+  if (backendServices.allRequiredRunning) {
+    globalSetup.initSetup()
+    globalSetup.loadingState = "running"
+    return
+  }
+  globalSetup.loadingState = "manageInstallations"
+}
 
 function showAppSettings() {
   if (showSetting.value === false) {

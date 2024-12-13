@@ -13,12 +13,11 @@ import {
 } from "electron";
 import path from "node:path";
 import fs from "fs";
-import {ChildProcess, exec} from "node:child_process";
+import {exec} from "node:child_process";
 import {randomUUID} from "node:crypto";
 import koffi from 'koffi';
 import sudo from "sudo-prompt";
 import {PathsManager} from "./pathsManager";
-import getPort, {portNumbers} from "get-port";
 import {appLoggerInstance} from "./logging/logger.ts";
 import {aiplaygroundApiServiceRegistry, ApiServiceRegistryImpl} from "./subprocesses/apiServiceRegistry";
 
@@ -54,21 +53,12 @@ const appSize = {
 };
 
 export const settings: LocalSettings = {
-    apiHost: "http://127.0.0.1:9999",
     isAdminExec: false,
     debug: 0,
     envType: "ultra",
-    port: 59999,
     availableThemes: ["dark", "lnl"],
     currentTheme: "lnl"
 };
-
-export const comfyuiState = {
-    currentVersion: null,
-    port: 0,
-}
-
-
 
 async function loadSettings() {
     const settingPath = app.isPackaged
@@ -85,9 +75,6 @@ async function loadSettings() {
             }
         });
     }
-    settings.port = await getPort({port: portNumbers(59000, 59999)});
-    comfyuiState.port = await getPort({port: portNumbers(59000, 59999)});
-    settings.apiHost = `http://127.0.0.1:${settings.port}`;
 }
 
 async function createWindow() {
@@ -186,7 +173,7 @@ app.on("quit", async () => {
 // explicitly with Cmd + Q.
 app.on("window-all-closed", async () => {
     try {
-        await closeApiService();
+        await serviceRegistry?.stopAllServices()
     } catch {
 
     }
@@ -245,7 +232,6 @@ function initEventHandle() {
 
     ipcMain.handle("getLocalSettings", async () => {
         return {
-            apiHost: settings.apiHost,
             showIndex: settings.showIndex,
             showBenchmark: settings.showBenchmark,
             isAdminExec: isAdmin(),
@@ -373,8 +359,6 @@ function initEventHandle() {
         return fs.existsSync(path);
     });
 
-    ipcMain.handle("getPythonBackendStatus", () => apiService.status)
-
     let pathsManager = new PathsManager(path.join(externalRes, app.isPackaged ? "model_config.json" : "model_config.dev.json"));
 
     ipcMain.handle("getInitSetting", (event) => {
@@ -383,7 +367,6 @@ function initEventHandle() {
             return;
         }
         return {
-            apiHost: settings.apiHost,
             modelLists: pathsManager.sacanAll(),
             modelPaths: pathsManager.modelPaths,
             envType: settings.envType,
@@ -440,10 +423,6 @@ function initEventHandle() {
 
     ipcMain.on("openDevTools", () => {
         win?.webContents.openDevTools({mode: "detach", activate: true});
-    });
-
-    ipcMain.handle("getComfyuiState", () => {
-        return comfyuiState;
     });
 
     ipcMain.handle("getServices", () => {
@@ -505,19 +484,10 @@ function initEventHandle() {
     });
 
 
-    ipcMain.handle("updateComfyui", () => {
-        return;
-    });
-
     ipcMain.handle("reloadImageWorkflows", () => {
         const files = fs.readdirSync(path.join(externalRes, "workflows"));
         const workflows = files.map((file) => fs.readFileSync(path.join(externalRes, "workflows", file), {encoding: "utf-8"}));
         return workflows;
-    });
-
-    ipcMain.handle("startComfyui", () => {
-        console.log('startComfyui')
-        return;
     });
 
     const getImagePathFromUrl = (url: string) => {
@@ -526,7 +496,8 @@ function initEventHandle() {
             console.error('Could not find image for URL', {url})
             return;
         }
-        const backend = url.includes(settings.apiHost) ? 'service' : 'ComfyUI';
+        const aiBackendUrl = serviceRegistry?.getService('ai-backend')?.baseUrl
+        const backend = (aiBackendUrl && url.includes(aiBackendUrl)) ? 'service' : 'ComfyUI';
 
         let imagePath: string;
         if (backend === 'service') {
@@ -560,36 +531,6 @@ function initEventHandle() {
 
 }
 
-const apiService: {
-    webProcess: ChildProcess | null,
-    normalExit: boolean,
-    status: BackendStatus,
-    desiredState: 'running' | 'stopped'
-} = {
-    webProcess: null,
-    normalExit: true,
-    status: "starting",
-    desiredState: 'running'
-}
-
-function isProcessRunning(pid: number) {
-    try {
-        return process.kill(pid, 0);
-    } catch (error) {
-        return false;
-    }
-}
-
-
-function closeApiService() {
-    apiService.normalExit = true;
-    apiService.desiredState = 'stopped';
-    if (apiService.webProcess != null && apiService.webProcess.pid && isProcessRunning(apiService.webProcess.pid)) {
-        apiService.webProcess.kill();
-        apiService.webProcess = null;
-    }
-    return fetch(`${settings.apiHost}/api/applicationExit`);
-}
 
 ipcMain.on("openImageWin", (_: IpcMainEvent, url: string, title: string, width: number, height: number) => {
     const display = screen.getPrimaryDisplay();
@@ -703,5 +644,6 @@ app.whenReady().then(async () => {
         initEventHandle();
         const window = await createWindow();
         await initServiceRegistry(window);
+        serviceRegistry
     }
 });

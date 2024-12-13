@@ -5,8 +5,12 @@
         {{ languages.BACKEND_MANAGE }}</h1>
       <!-- required components -->
       <div class="">
-        <p class="text-lg text-left pt-3 pb-3"> {{ "Before you can use the Intel AI Playground, we need to download some additional components. Please make sure you have a stable and unmetered internet connection." }} </p>
-        <p class="text-lg text-left pt-3 pb-7"> {{ "Optional components are not required for AI-Playground to work, but provide alternative functions. If you want to use them please click the info buttons to familiarize yourself with their terms and conditions before activating them." }} </p>
+        <p class="text-lg text-left pt-3 pb-3"> {{
+            "Before you can use the Intel AI Playground, we need to download some additional components. Please make sure you have a stable and unmetered internet connection."
+          }} </p>
+        <p class="text-lg text-left pt-3 pb-7"> {{
+            "Optional components are not required for AI-Playground to work, but provide alternative functions. If you want to use them please click the info buttons to familiarize yourself with their terms and conditions before activating them."
+          }} </p>
         <table class="text-center w-full" style="table-layout: fixed;">
           <thead>
           <tr class="font-bold">
@@ -30,7 +34,8 @@
               <p v-show="getInfoURL(component.serviceName) == ''"> - </p>
             </td>
             <td>
-              <button v-if="component.status !== 'running' && !component.isLoading" class="v-checkbox-control flex-none w-5 h-5"
+              <button v-if="component.status !== 'running' && !component.isLoading"
+                      class="v-checkbox-control flex-none w-5 h-5"
                       :class="{ 'v-checkbox-checked': component.enabled}"
                       @click="() => {
                         if (component.enabled && !component.isSetUp) {
@@ -45,7 +50,8 @@
             <td :style="{ color: mapColorToStatus(component.status) }">{{ mapToDisplayStatus(component) }}</td>
             <td>
               <span v-if="component.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
-              <button v-else-if="component.status === 'uninitialized' && !component.isSetUp" @click="() => installBackend(component.serviceName)"
+              <button v-else-if="component.status === 'uninitialized' && !component.isSetUp"
+                      @click="() => installBackend(component.serviceName)"
                       :disabled="!component.enabled || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
@@ -103,7 +109,11 @@
 import {useGlobalSetup} from '@/assets/js/store/globalSetup';
 import {mapColorToStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
-import { useBackendServices } from '@/assets/js/store/backendServices';
+import {useBackendServices} from '@/assets/js/store/backendServices';
+const emits = defineEmits<{
+  (e: "close"): void
+}>();
+
 
 type ExtendedApiServiceInformation = ApiServiceInformation & { enabled: boolean, isLoading: boolean }
 
@@ -117,46 +127,38 @@ const somethingChanged = ref(false)
 const enabledComponents = ref(new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
 const loadingComponents = ref(new Set<string>())
 
-const components = computed(()=>backendServices.info.map((item) => ({
-    enabled: enabledComponents.value.has(item.serviceName),
-    isLoading: loadingComponents.value.has(item.serviceName),
-    ...item
-  })))
+const components = computed(() => backendServices.info.map((item) => ({
+  enabled: enabledComponents.value.has(item.serviceName),
+  isLoading: loadingComponents.value.has(item.serviceName),
+  ...item
+})))
 
-window.electronAPI.onServiceSetUpProgress(async (data) => {
-  const name = data.serviceName
-  const step = data.step
-  const status = data.status
-
-  console.log(`${name} in stage ${step} ${data.status}. Debugmessage: ${data.debugMessage}`)
-  const item = components.value.filter((entry) => entry.serviceName === data.serviceName)[0]
-  if (status === 'success') {
-    await restartBackend(item.serviceName)
-    await installServiceFromQueue()
-  } else if (status === 'failed') {
-    toast.error("Setup failed")
-    loadingComponents.value.delete(item.serviceName)
-    await installServiceFromQueue()
-  }
-})
 
 function isSomethingLoading(): boolean {
   return components.value.some((item) => item.isLoading)
 }
 
-function areAllRequiredReady(){
+function areAllRequiredReady() {
   return components.value.every((item) => item.status === 'running' || !item.isRequired)
 }
 
 async function installBackend(name: string) {
   somethingChanged.value = true;
   loadingComponents.value.add(name)
-  await window.electronAPI.sendSetUpSignal(name)
+  const setupProgress = await backendServices.setUpService(name)
+  if (setupProgress.success) {
+    await restartBackend(name)
+    await installServiceFromQueue()
+  } else {
+    toast.error("Setup failed")
+    loadingComponents.value.delete(name)
+    await installServiceFromQueue()
+  }
 }
 
 async function repairBackend(name: string) {
   loadingComponents.value.add(name)
-  const stopStatus = await window.electronAPI.sendStopSignal(name)
+  const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
     return
@@ -166,13 +168,13 @@ async function repairBackend(name: string) {
 
 async function restartBackend(name: string) {
   loadingComponents.value.add(name)
-  const stopStatus = await window.electronAPI.sendStopSignal(name)
+  const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
     return
   }
 
-  const startStatus = await window.electronAPI.sendStartSignal(name)
+  const startStatus = await backendServices.startService(name)
   if (startStatus !== 'running') {
     toast.error("Service failed to restart")
     return
@@ -210,7 +212,7 @@ function installAllSelected() {
 }
 
 function closeInstallations() {
-  globalSetup.loadingState = "running"
+  emits("close");
 }
 
 function getInfoURL(serviceName: string) {
@@ -255,7 +257,7 @@ function mapToDisplayStatus(component: ApiServiceInformation) {
     case "failed":
       return "Failed"
     default:
-      return status
+      return component.status
   }
 }
 

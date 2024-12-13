@@ -1,8 +1,9 @@
 import {ApiService} from "./apiService.ts";
-import {comfyUIBackendService} from "./comfyUIBackendService.ts";
-import {aiBackendService} from "./aiBackendService.ts";
+import {ComfyUiBackendService, comfyUIBackendService} from "./comfyUIBackendService.ts";
+import {AiBackendService, aiBackendService} from "./aiBackendService.ts";
 import { BrowserWindow } from "electron";
 import { appLoggerInstance } from "../logging/logger.ts";
+import getPort, {portNumbers} from "get-port";
 
 export type backend = 'ai-backend' | 'comfyui-backend'
 
@@ -47,6 +48,20 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
         })))
     }
 
+    async stopAllServices(): Promise<{ serviceName: string, state: BackendStatus }[]> {
+        appLoggerInstance.info(`stopping all running services`, 'apiServiceRegistry')
+        const runningServices = this.registeredServices.filter(item => item.currentStatus === "running")
+        return Promise.all(runningServices.map(service => service.stop().then(
+            state => {
+                appLoggerInstance.info(`service ${service.name} now in state ${state}`, 'apiServiceRegistry')
+                return  {serviceName: service.name, state}
+            }
+        ).catch((e) => {
+            appLoggerInstance.error(`Failed to stop service ${service.name} due to ${e}`, 'apiServiceRegistry', true)
+            return {serviceName: service.name, state: "failed" as BackendStatus}
+        })))
+    }
+
     getServiceInformation(): ApiServiceInformation[] {
         return this.getRegistered().map(service => service.get_info())
     }
@@ -57,8 +72,8 @@ let instance:  ApiServiceRegistryImpl | null = null
 export async function aiplaygroundApiServiceRegistry(win: BrowserWindow): Promise<ApiServiceRegistryImpl> {
     if (!instance) {
         instance = new ApiServiceRegistryImpl()
-        instance.register(await aiBackendService(win))
-        instance.register(await comfyUIBackendService(win))
+        instance.register(new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}), win))
+        instance.register(new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}), win))
     }
     return instance
 }

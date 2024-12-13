@@ -12,16 +12,7 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-type ComfyUiState = {
-    currentVersion: string | null;
-    port: number | null;
-    up: boolean
-}
-
 type electronAPI = {
-    getComfyuiState(): Promise<ComfyUiState>
-    updateComfyui(): Promise<ComfyUiState>
-    startComfyui(): Promise<ComfyUiState>
     reloadImageWorkflows(): Promise<string[]>
     openDevTools(): void
     openUrl(url: string): void
@@ -51,7 +42,6 @@ type electronAPI = {
     webServiceExit(callback: (serviceName: string, normalExit: string) => void): void;
     existsPath(path: string): Promise<boolean>;
     getInitSetting(): Promise<SetupData>
-    getPythonBackendStatus(): Promise<BackendStatus>
     updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>,
     restorePathsSettings():Promise<void>,
     refreshSDModles(): Promise<string[]>,
@@ -67,7 +57,6 @@ type electronAPI = {
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void,
-    onReportError(callback: (errorMessage: string) => void): void,
     onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
     wakeupComfyUIService(): void,
     getServices(): Promise<ApiServiceInformation[]>,

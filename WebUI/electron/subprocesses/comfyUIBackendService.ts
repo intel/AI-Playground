@@ -9,7 +9,7 @@ import { aiBackendServiceDir } from "./apiService.ts";
 import { BrowserWindow } from "electron";
 
 
-class ComfyUiBackendService extends LongLivedPythonApiService {
+export class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly isRequired = false
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`)); // use ai-backend python env. This service should receive its own, but we lack the time, to fix this
@@ -250,13 +250,4 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             return {ONEAPI_DEVICE_SELECTOR: "level_zero:*"};
         }
     }
-}
-
-let instance:  ComfyUiBackendService | null = null
-
-export async function comfyUIBackendService(win: BrowserWindow) {
-    if (!instance) {
-        instance = new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}), win)
-    }
-    return instance
 }

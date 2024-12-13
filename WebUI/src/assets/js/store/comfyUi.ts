@@ -4,41 +4,39 @@ import { ComfyUIApiWorkflow, Setting, useImageGeneration } from "./imageGenerati
 import { useI18N } from "./i18n";
 import { toast } from "../toast";
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
+import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 
 const WEBSOCKET_OPEN = 1;
 
 export const useComfyUi = defineStore("comfyUi", () => {
 
-    const comfyUiState = ref<ComfyUiState | null>(null);
+    const comfyUiState = ref<ApiServiceInformation>({ serviceName: "comfyui-backend", status: "uninitialized" , baseUrl: "???", port: -1, isSetUp: false, isRequired: false });
     const imageGeneration = useImageGeneration();
     const i18nState = useI18N().state;
-    const comfyHostAndPort = computed(() => {
-        return `localhost:${comfyUiState.value?.port}`;
-    });
+    const comfyPort = computed(() => {return comfyUiState.value.port})
+    const comfyBaseUrl = computed(() => {return comfyUiState.value.baseUrl})
+    const isComfyRunning= computed(() => {return comfyUiState.value.status === "running"})
+
     const websocket = ref<WebSocket | null>(null);
     const clientId = '12345';
     const loaderNodes = ref<string[]>([]);
 
-    setInterval(() => void updateComfyState(), 5000);
-
-    async function updateComfyState() {
-        const services = await window.electronAPI.getServices();
-        const comfyUiService = services.find((service) => service.serviceName === 'comfyui-backend');
-        if (comfyUiService) {
-            const newState = { port: comfyUiService.port, up: comfyUiService.status.status === 'running', currentVersion: '' };
-            if (JSON.stringify(comfyUiState.value) !== JSON.stringify(newState)) {
-                comfyUiState.value = newState;
-                console.log('Received new ComfyUI state from backend', comfyUiState.value);
-            }
-        }
-    }
+    const backendServices = useBackendServices();
+    watch(
+        backendServices.info,
+        (newValue: ApiServiceInformation[]) => {
+            const newComfyState: ApiServiceInformation | undefined = newValue.find(x => x.serviceName === "comfyui-backend")
+            newComfyState && (comfyUiState.value = newComfyState)
+        },
+        { deep: true }
+    );
 
     function connectToComfyUi() {
-        if (!comfyUiState.value?.up) {
+        if (comfyUiState.value.status !== "running") {
             console.warn('ComfyUI backend not running, cannot start websocket');
             return;
         }
-        const comfyWsUrl = `ws://localhost:${comfyUiState.value.port}/ws?clientId=${clientId}`
+        const comfyWsUrl = `ws://localhost:${comfyPort}/ws?clientId=${clientId}`
         console.info('Connecting to ComfyUI', { comfyWsUrl });
         websocket.value = new WebSocket(comfyWsUrl);
         websocket.value.binaryType = 'arraybuffer'
@@ -100,7 +98,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
                         case 'executed':
                             const images: { filename: string, type: string, subfolder: string }[] = msg.data?.output?.images?.filter((i: { type: string }) => i.type === 'output');
                             images.forEach((image) => {
-                                imageGeneration.updateDestImage(imageGeneration.generateIdx, `http://${comfyHostAndPort.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`);
+                                imageGeneration.updateDestImage(imageGeneration.generateIdx, `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`);
                                 imageGeneration.generateIdx++;
                             });
                             console.log('executed', { detail: msg.data })
@@ -169,7 +167,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
                 }
                 const data = new FormData();
                 data.append('image', dataURItoBlob(input.current.value), uploadImageName);
-                await fetch(`http://${comfyHostAndPort.value}/upload/image`, {
+                await fetch(`${comfyBaseUrl.value}/upload/image`, {
                     method: 'POST',
                     body: data
                 });
@@ -212,7 +210,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
             for (let i = 0; i < imageGeneration.batchSize; i++) {
                 modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`);
                 
-                const result = await fetch(`http://${comfyHostAndPort.value}/prompt`, {
+                const result = await fetch(`${comfyBaseUrl.value}/prompt`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -236,14 +234,14 @@ export const useComfyUi = defineStore("comfyUi", () => {
     }
 
     async function stop() {
-        await fetch(`http://${comfyHostAndPort.value}/queue`, {
+        await fetch(`${comfyBaseUrl.value}/queue`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ clear: true })
         })
-        await fetch(`http://${comfyHostAndPort.value}/interrupt`, {
+        await fetch(`${comfyBaseUrl.value}/interrupt`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -252,11 +250,11 @@ export const useComfyUi = defineStore("comfyUi", () => {
     }
 
     async function free() {
-        if (!comfyUiState.value) {
+        if (!isComfyRunning) {
             console.debug('ComfyUI backend not running, nothing to free');
             return;
         }
-        await fetch(`http://${comfyHostAndPort.value}/free`, {
+        await fetch(`${comfyBaseUrl.value}/free`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -270,7 +268,6 @@ export const useComfyUi = defineStore("comfyUi", () => {
     }
 
     return {
-        updateComfyState,
         generate,
         stop,
         free

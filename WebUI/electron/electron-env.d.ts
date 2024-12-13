@@ -33,10 +33,8 @@ type KVObject = {
 type Theme = 'dark' | 'lnl' | 'bmg';
 
 type LocalSettings = {
-  apiHost: string;
   debug: number;
   envType: string;
-  port:number;
 } & KVObject;
 
 type ThemeSettings = {
@@ -64,7 +62,6 @@ type ModelLists = {
 } & { [key: string]: Array<string> }
 
 type SetupData = {
-  apiHost:string,
   modelPaths: ModelPaths,
   modelLists: ModelLists,
   envType: string,

@@ -113,14 +113,3 @@ export class AiBackendService extends LongLivedPythonApiService {
         }
     }
 }
-
-let instance:  AiBackendService | null = null
-
-export async function aiBackendService(win: BrowserWindow) {
-    if (instance) {
-        return instance
-    } else {
-        instance = new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}), win)
-        return instance
-    }
-}

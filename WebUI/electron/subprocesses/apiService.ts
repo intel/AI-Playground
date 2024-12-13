@@ -5,7 +5,7 @@ import {appLoggerInstance} from "../logging/logger.ts";
 import fs from "fs";
 import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
 import * as filesystem from "fs-extra";
-import { z } from "zod";
+import {z} from "zod";
 
 export const aiBackendServiceDir = () => path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
 
