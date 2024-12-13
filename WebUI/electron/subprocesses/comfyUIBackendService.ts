@@ -68,7 +68,8 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         async function installPortableGit(comfyUiContainmentDir: string): Promise<string> {
             
             const zippedGitTargetPath = path.join(comfyUiContainmentDir, "git.zip")
-            const executableGitTargetPath = path.join(comfyUiContainmentDir, "git")
+            const executableGitTempPath = path.join(comfyUiContainmentDir, "git")
+            const executableGitTargetPath = path.join(self.baseDir, "portable-git")
 
             const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
             self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
@@ -94,18 +95,20 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
                 throw new Error(`Downloading portable git failed due to ${error}`)
             }
 
-            self.appLogger.info("Unzipping portable git", self.name)
+            self.appLogger.info("Unzipping portable git", self.name, true)
             try {
-                fs.mkdirSync(executableGitTargetPath, { recursive: true })
-                self.appLogger.info(`Unzipping with tar -C "${executableGitTargetPath}" -xf "${zippedGitTargetPath}"`, self.name)
-                await spawnProcessAsync("tar", ["-C", `${executableGitTargetPath}`, "-xf", `${zippedGitTargetPath}`], logToFileHandler)
-                const gitExe = existingFileOrError(path.join(executableGitTargetPath, "cmd", "git.exe"))
+                fs.mkdirSync(executableGitTempPath, { recursive: true })
+                self.appLogger.info(`Unzipping with tar -C "${executableGitTempPath}" -xf "${zippedGitTargetPath}"`, self.name)
+                await spawnProcessAsync("tar", ["-C", `${executableGitTempPath}`, "-xf", `${zippedGitTargetPath}`], logToFileHandler)
+                const gitExe = existingFileOrError(path.join(executableGitTempPath, "cmd", "git.exe"))
                 self.appLogger.info(`portable git callable at ${gitExe}`, self.name)
-                return gitExe
             } catch (e) {
                 self.appLogger.error(`Failed to unzip portable git. Error: ${e}`, self.name, true)
                 throw new Error(`Failed to unzip portable git. Error: ${e}`)
             }
+
+            self.commonSetupSteps.moveToFinalTarget(executableGitTempPath, executableGitTargetPath)
+            return path.join(executableGitTargetPath, "cmd", "git.exe");
         }
 
         async function setupComfyUiBaseService(containmentDir: string, gitExePath: string, pythonEnvDir: string): Promise<string> {
@@ -176,7 +179,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
 
             yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installing comfyUI base repo`};
             const comfyUiTmpServiceDir = await setupComfyUiBaseService(comfyUiServiceContainmentDir, gitExe, self.pythonEnvDir)
-            yield {serviceName: self.name, step: `install git`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
+            yield {serviceName: self.name, step: `install comfyUI`, status: "executing", debugMessage: `installation of comfyUI base repo complete`};
 
             yield {serviceName: self.name, step: `configure comfyUI`, status: "executing", debugMessage: `configuring comfyUI base repo`};
             await configureComfyUI(comfyUiTmpServiceDir)
@@ -191,7 +194,7 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         } catch (e) {
             self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
             self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
-            
+
             this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup comfyUI service due to ${e}`};
         }
