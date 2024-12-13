@@ -9,6 +9,12 @@ export const useBackendServices = defineStore("backendServices", () => {
     window.electronAPI.getServices().then(services => {
         currentServiceInfo.value = services;
     });
+    setTimeout(() => {
+        window.electronAPI.getServices().then(services => {
+            console.log('getServices', services)
+            currentServiceInfo.value = services;
+        });
+    }, 5000)
     window.electronAPI.onServiceInfoUpdate(updatedInfo => {
         currentServiceInfo.value = currentServiceInfo.value.map(oldInfo => oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo);
     });

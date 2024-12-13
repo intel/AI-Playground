@@ -314,7 +314,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             try {
                 if (filesystem.existsSync(target)) {
                     this.appLogger.info(`Cleaning up previously resource directory at ${target}`, this.name, true)
-                    fs.promises.rm(target, {recursive: true, force: true})
+                    await fs.promises.rm(target, {recursive: true, force: true})
                 }
                 await filesystem.move(src, target)
                 this.appLogger.info(`resources now available at ${target}`, this.name, true)

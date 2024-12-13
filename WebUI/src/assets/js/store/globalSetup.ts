@@ -12,7 +12,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         version: "0.0.0.1"
     });
 
-    const isComfyUiInstalled =  ref(false)
     const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
     const backendServices = useBackendServices();
 
@@ -312,7 +311,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         initSetup,
         applyPathsSettings,
         applyModelSettings,
-        isComfyUiInstalled,
         refreshLLMModles,
         refreshSDModles,
         refreshInpaintModles,

@@ -2,22 +2,20 @@ import {getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPyth
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
-import getPort, {portNumbers} from "get-port";
 import * as filesystem from "fs-extra";
 import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
-import { BrowserWindow } from "electron";
 
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly isRequired = false
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
-    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`)); // use ai-backend python env. This service should receive its own, but we lack the time, to fix this
+    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir) // in the recycled ai-backend, we may conveniently assume, that this is already all setup.
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
     healthEndpointUrl = `${this.baseUrl}/queue`
 
-    private readonly comfyUIStartupParameters = [
+    private readonly comfyUIStartupParameters = this.settings.comfyUiParameters ? this.settings.comfyUiParameters : [
         "--lowvram",
         "--disable-ipex-optimize",
         "--bf16-unet",
@@ -107,7 +105,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
                 throw new Error(`Failed to unzip portable git. Error: ${e}`)
             }
 
-            self.commonSetupSteps.moveToFinalTarget(executableGitTempPath, executableGitTargetPath)
+            await self.commonSetupSteps.moveToFinalTarget(executableGitTempPath, executableGitTargetPath)
             return path.join(executableGitTargetPath, "cmd", "git.exe");
         }
 
@@ -189,6 +187,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             await this.commonSetupSteps.moveToFinalTarget(comfyUiTmpServiceDir, self.serviceDir)
             yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
         
+
+
             this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {

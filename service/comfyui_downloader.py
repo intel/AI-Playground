@@ -90,7 +90,7 @@ def _install_git_repo(git_repo_url: str, target_dir: str):
 def _install_pip_requirements(requirements_txt_path: str):
     logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
     if os.path.exists(requirements_txt_path):
-        python_exe_callable_path = "'" + str(sys.executable) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
+        python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
         aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
         logging.info("python requirements installation completed.")
     else:

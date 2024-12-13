@@ -96,11 +96,11 @@
 import { useImageGeneration } from "@/assets/js/store/imageGeneration";
 import DropSelector from "../components/DropSelector.vue";
 import RadioBlock from "../components/RadioBlock.vue";
-import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
+import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 import ComfyUIDownloadDialog from "@/components/ComfyUIDownloadDialog.vue";
 
 const imageGeneration = useImageGeneration();
-const globalSetup = useGlobalSetup();
+const backendServices = useBackendServices();
 
 const hdConfirmationDialog = ref<HTMLDialogElement>();
 const hdWarningOverride = ref(false);
@@ -137,17 +137,14 @@ const classicModel = computed({
       })
 
 function onSwitchToComfyUI() {
-  if (globalSetup.isComfyUiInstalled){
+  if (backendServices.info.find(s => s.serviceName === 'comfyui-backend')?.isSetUp) {
     imageGeneration.backend = 'comfyui'
   } else {
    showComfyUIDownloadDialog.value = true
   }
 }
 
-function onComfyUIDialogClose(isInstallationSuccessful: boolean) {
-  if (isInstallationSuccessful) {
-    imageGeneration.backend = 'comfyui'
-  }
+function onComfyUIDialogClose() {
   showComfyUIDownloadDialog.value = false
 }
 

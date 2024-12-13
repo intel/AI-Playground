@@ -24,8 +24,8 @@
   <main v-if="globalSetup.loadingState === 'verifyBackend'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
-  <main v-else-if="globalSetup.loadingState === 'manageInstallations'" class="flex-auto flex items-center justify-center" @close="setLoadingState">
-    <installation-management></installation-management>
+  <main v-else-if="globalSetup.loadingState === 'manageInstallations'" class="flex-auto flex items-center justify-center">
+    <installation-management @close="setLoadingState"></installation-management>
   </main>
   <main v-else-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>

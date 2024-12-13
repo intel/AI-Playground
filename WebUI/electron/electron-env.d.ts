@@ -35,6 +35,7 @@ type Theme = 'dark' | 'lnl' | 'bmg';
 type LocalSettings = {
   debug: number;
   envType: string;
+  comfyUiParameters?:string[];
 } & KVObject;
 
 type ThemeSettings = {

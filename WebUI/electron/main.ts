@@ -75,6 +75,8 @@ async function loadSettings() {
             }
         });
     }
+
+    return settings;
 }
 
 async function createWindow() {
@@ -200,8 +202,8 @@ app.on('second-instance', (event, commandLine, workingDirectory) => {
     }
 });
 
-async function initServiceRegistry(win: BrowserWindow) {
-    serviceRegistry = await aiplaygroundApiServiceRegistry(win)
+async function initServiceRegistry(win: BrowserWindow, settings: LocalSettings) {
+    serviceRegistry = await aiplaygroundApiServiceRegistry(win, settings)
 }
 
 function initEventHandle() {
@@ -640,10 +642,10 @@ app.whenReady().then(async () => {
         });
         app.exit();
     } else {
-        await loadSettings();
+        const settings = await loadSettings();
         initEventHandle();
         const window = await createWindow();
-        await initServiceRegistry(window);
+        await initServiceRegistry(window, settings);
         serviceRegistry
     }
 });

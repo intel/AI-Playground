@@ -1,6 +1,6 @@
 import {ApiService} from "./apiService.ts";
-import {ComfyUiBackendService, comfyUIBackendService} from "./comfyUIBackendService.ts";
-import {AiBackendService, aiBackendService} from "./aiBackendService.ts";
+import {ComfyUiBackendService} from "./comfyUIBackendService.ts";
+import {AiBackendService} from "./aiBackendService.ts";
 import { BrowserWindow } from "electron";
 import { appLoggerInstance } from "../logging/logger.ts";
 import getPort, {portNumbers} from "get-port";
@@ -69,11 +69,11 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
 
 let instance:  ApiServiceRegistryImpl | null = null
 
-export async function aiplaygroundApiServiceRegistry(win: BrowserWindow): Promise<ApiServiceRegistryImpl> {
+export async function aiplaygroundApiServiceRegistry(win: BrowserWindow, settings: LocalSettings): Promise<ApiServiceRegistryImpl> {
     if (!instance) {
         instance = new ApiServiceRegistryImpl()
-        instance.register(new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}), win))
-        instance.register(new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}), win))
+        instance.register(new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}), win, settings))
+        instance.register(new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}), win, settings))
     }
     return instance
 }

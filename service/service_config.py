@@ -13,9 +13,11 @@ service_model_paths = {
 
 comfy_ui_root_path = "../ComfyUI"
 git = {
-    "rootDirPath": "../git",
-    "exePath": "../git/cmd/git.exe",
+    "rootDirPath": "../portable-git",
+    "exePath": "../portable-git/cmd/git.exe",
 }
+
+comfyui_python_exe = "../comfyui-backend-env/python.exe"
 
 comfy_ui_model_paths = {
     "unet": f"{comfy_ui_root_path}/models/unet",
