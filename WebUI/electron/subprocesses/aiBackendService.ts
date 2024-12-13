@@ -29,10 +29,6 @@ export class AiBackendService extends LongLivedPythonApiService {
             const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
 
-            yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv`};
-            await self.commonSetupSteps.installUv(pythonEnvContainmentDir);
-            yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv complete`};
-
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
             const deviceId = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
@@ -42,7 +38,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
             if (deviceId === "arc") {
                 const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-                await self.commonSetupSteps.pipInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
             } else {
                 await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, ipexVersion, ipexIndex)
             }

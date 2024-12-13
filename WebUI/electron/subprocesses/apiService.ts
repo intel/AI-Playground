@@ -295,18 +295,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
             }
         },
 
-        pipInstallDependencyStep: async (pythonEnvDir: string, dependency: string) => {
-            try {
-                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
-                this.appLogger.info(`Installing dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
-                await spawnProcessAsync(pythonExe, ["-m","pip", "install", dependency], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                this.appLogger.info(`Successfully installed of dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
-            } catch (e) {
-                this.appLogger.error(`Failure during installation of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`, this.name, true)
-                throw new Error(`Failed to install of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`)
-            }
-        },
-
         moveToFinalTarget: async (src: string, target: string) => {
             this.appLogger.info(`renaming directory ${src} to ${target}`, this.name, true)
             try {

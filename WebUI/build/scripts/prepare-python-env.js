@@ -83,6 +83,18 @@ import site
     const getPipDest = path.join(targetDir, 'get-pip.py');
     fs.copyFileSync(getPipFile, getPipDest);
     console.log('Copied get-pip.py to:', getPipDest);
+
+    console.log('Installing pip');
+    const pythonExe = path.join(targetDir, 'python.exe');
+    const pipInstallCmd = `${pythonExe} ${getPipDest}`;
+    childProcess.execSync(pipInstallCmd);
+    console.log('Installed pip');
+
+    console.log('Installing uv');
+    const pipInstallUvCmd = `${pythonExe} -m pip install uv`;
+    childProcess.execSync(pipInstallUvCmd);
+    console.log('Installed uv');
+
     return targetDir;
 }
 
