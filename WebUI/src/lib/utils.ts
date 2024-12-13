@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function mapColorToStatus(status: string) {
-  switch (status) {
+export function mapStatusToColor(componentState: BackendStatus) {
+  switch (componentState) {
     case "starting":
     case "installing":
     case "running":
@@ -21,5 +21,22 @@ export function mapColorToStatus(status: string) {
       return 'orange'
     default:
       return 'blue'
+  }
+}
+
+export function mapToDisplayStatus(componentState: BackendStatus) {
+  switch (componentState) {
+    case "running":
+      return "Running"
+    case "stopped":
+    case "notYetStarted":
+      return "Not Running"
+    case "installationFailed":
+    case "failed":
+      return "Failed"
+    case "notInstalled":
+      return "Not Installed"
+    default:
+      return componentState
   }
 }

@@ -47,7 +47,7 @@
               </button>
               <p v-else> - </p>
             </td>
-            <td :style="{ color: mapColorToStatus(component.status) }">{{ mapToDisplayStatus(component) }}</td>
+            <td :style="{ color: mapStatusToColor(component.status) }">{{ mapToDisplayStatus(component.status) }}</td>
             <td>
               <span v-if="component.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
               <button v-else-if="component.status === 'notInstalled' && !component.isSetUp"
@@ -110,7 +110,7 @@
 
 <script setup lang="ts">
 import {useGlobalSetup} from '@/assets/js/store/globalSetup';
-import {mapColorToStatus} from "@/lib/utils.ts";
+import {mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
 
@@ -227,21 +227,6 @@ function mapServiceNameToDisplayName(serviceName: string) {
       return "AI Playground"
     default:
       return serviceName
-  }
-}
-
-function mapToDisplayStatus(component: ApiServiceInformation) {
-  switch (component.status) {
-    case "running":
-      return "Running"
-    case "stopped":
-    case "notYetStarted":
-      return "Not Running"
-    case "installationFailed":
-    case "failed":
-      return "Failed"
-    default:
-      return component.status
   }
 }
 

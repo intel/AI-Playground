@@ -21,7 +21,7 @@
         <tbody>
         <tr v-for="item in apiServiceInformation.filter((i) => i.isRequired)">
           <td style="text-align: left">{{ item.serviceName }}</td>
-          <td :style="{ color: mapColorToStatus(item.status) }">{{ item.status }}</td>
+          <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
         </tr>
         </tbody>
       </table>
@@ -30,7 +30,7 @@
         <tbody>
         <tr v-for="item in apiServiceInformation.filter((i) => !i.isRequired)">
           <td style="text-align: left">{{ item.serviceName }}</td>
-          <td :style="{ color: mapColorToStatus(item.status) }">{{ item.status }}</td>
+          <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
         </tr>
         </tbody>
       </table>
@@ -307,7 +307,7 @@ import {Input} from '@/components/ui/input'
 import {toast} from "@/assets/js/toast";
 import {Const} from "@/assets/js/const";
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
-import {mapColorToStatus} from "@/lib/utils.ts";
+import {mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 
 
 const i18n = useI18N();

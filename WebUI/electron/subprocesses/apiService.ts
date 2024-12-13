@@ -56,8 +56,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly pythonExe: string
     abstract isSetUp: boolean;
 
-    desiredStatus: BackendStatus = "unitializedStatus"
-    currentStatus: BackendStatus = "unitializedStatus"
+    desiredStatus: BackendStatus = "uninitializedStatus"
+    currentStatus: BackendStatus = "uninitializedStatus"
 
     readonly appLogger = appLoggerInstance
 
@@ -73,13 +73,13 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     updateStatus() {
         this.isSetUp = this.serviceIsSetUp();
-        if(this.currentStatus === "unitializedStatus") {
-            this.currentStatus = this.isSetUp ? "notYetStarted" : "notInstalled"
-        }
         this.win.webContents.send("serviceInfoUpdate", this.get_info());
     }
 
     get_info(): ApiServiceInformation {
+        if(this.currentStatus === "uninitializedStatus") {
+            this.currentStatus = this.isSetUp ? "notYetStarted" : "notInstalled"
+        }
         return {
             serviceName: this.name,
             status: this.currentStatus,

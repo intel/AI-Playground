@@ -9,8 +9,9 @@ export const useBackendServices = defineStore("backendServices", () => {
 
 
     window.electronAPI.getServices().catch(async (reason: any) => {
-        await new Promise(resolve => {
-            setTimeout(async () => {}, 1000)
+        console.warn("initial service call failed - retrying")
+        await new Promise<void>(resolve => {
+            setTimeout(async () => {resolve()}, 1000)
         })
         return window.electronAPI.getServices()
     }).then(services => {
