@@ -72,6 +72,7 @@ python311.zip
 .
 ../service
 ../ComfyUI
+../LlamaCPP
 
 # Uncomment to run site.main() automatically
 import site

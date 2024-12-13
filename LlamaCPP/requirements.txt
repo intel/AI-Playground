@@ -1,3 +1,6 @@
 Flask==3.0.3
 apiflask==2.3.0
-./llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl
+dpcpp-cpp-rt==2025.0
+mkl-dpcpp==2025.0
+intel-sycl-rt==2025.0.0
+onednn-devel==2025.0.0

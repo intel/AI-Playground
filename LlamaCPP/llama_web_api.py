@@ -1,12 +1,12 @@
+import os
+os.environ['PATH'] = os.path.abspath('../llama-cpp-env/Library/bin') + os.pathsep + os.environ['PATH']
+
 from apiflask import APIFlask
 from flask import jsonify, request, Response, stream_with_context
 from llama_adapter import LLM_SSE_Adapter
 from llama_cpp_backend import LlamaCpp
 from llama_params import LLMParams
-import os
 
-
-os.add_dll_directory(r'C:\Users\intel\Documents\AI-Playground\llama-cpp-env\Library\bin')
 app = APIFlask(__name__)
 llm_backend = LlamaCpp()
 

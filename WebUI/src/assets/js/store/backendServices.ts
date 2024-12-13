@@ -2,9 +2,10 @@ import {defineStore} from "pinia";
 
 export const useBackendServices = defineStore("backendServices", () => {
     const currentServiceInfo = ref<ApiServiceInformation[]>([]);
-    const serviceListeners: { [serviceName: string]: BackendServiceSetupProgressListener } = {
+    const serviceListeners = {
         "ai-backend": new BackendServiceSetupProgressListener("ai-backend"),
-        "comfyui-backend": new BackendServiceSetupProgressListener("comfyui-backend")
+        "comfyui-backend": new BackendServiceSetupProgressListener("comfyui-backend"),
+        "llamacpp-backend": new BackendServiceSetupProgressListener("llamacpp-backend")
     };
 
     window.electronAPI.getServices().catch(async (reason: any) => {

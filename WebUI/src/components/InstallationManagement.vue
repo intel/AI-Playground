@@ -202,6 +202,8 @@ function getInfoURL(serviceName: string) {
   switch (serviceName) {
     case "comfyui-backend":
       return "https://github.com/comfyanonymous/ComfyUI"
+    case "llamacpp-backend":
+      return "https://github.com/abetlen/llama-cpp-python"
     default:
       return ""
   }
@@ -225,6 +227,8 @@ function mapServiceNameToDisplayName(serviceName: string) {
       return "ComfyUI"
     case "ai-backend":
       return "AI Playground"
+    case "llamacpp-backend":
+      return "llama.cpp"
     default:
       return serviceName
   }
