@@ -4,21 +4,23 @@ import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
 import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService } from "./apiService.ts";
 import { existingFileOrError, spawnProcessSync } from './osProcessHelper.ts';
+import { app, BrowserWindow } from 'electron';
+
 
 export class AiBackendService extends LongLivedPythonApiService {
+    readonly isRequired = true
     readonly serviceDir = aiBackendServiceDir();
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
     readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
-
-    is_set_up(): boolean {
-        return filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe)
-    }
+    serviceIsSetUp = () => filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe);
+    isSetUp = this.serviceIsSetUp();
 
     async *set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("setting up service", this.name)
         const self = this
+        
 
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
@@ -52,10 +54,12 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
             await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+            this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
             self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
             self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+            this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup python environment due to ${e}`};
         }
     }
@@ -112,11 +116,11 @@ export class AiBackendService extends LongLivedPythonApiService {
 
 let instance:  AiBackendService | null = null
 
-export async function aiBackendService() {
+export async function aiBackendService(win: BrowserWindow) {
     if (instance) {
         return instance
     } else {
-        instance = new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}))
+        instance = new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}), win)
         return instance
     }
 }

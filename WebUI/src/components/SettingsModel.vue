@@ -21,7 +21,7 @@
         <tbody>
         <tr v-for="item in apiServiceInformation.filter((i) => i.isRequired)">
           <td style="text-align: left">{{ item.serviceName }}</td>
-          <td :style="{ color: mapColorToStatus(item.status['status']) }">{{ item.status["status"] }}</td>
+          <td :style="{ color: mapColorToStatus(item.status) }">{{ item.status }}</td>
         </tr>
         </tbody>
       </table>
@@ -30,7 +30,7 @@
         <tbody>
         <tr v-for="item in apiServiceInformation.filter((i) => !i.isRequired)">
           <td style="text-align: left">{{ item.serviceName }}</td>
-          <td :style="{ color: mapColorToStatus(item.status['status']) }">{{ item.status["status"] }}</td>
+          <td :style="{ color: mapColorToStatus(item.status) }">{{ item.status }}</td>
         </tr>
         </tbody>
       </table>
@@ -332,7 +332,7 @@ onMounted(() => {
 
 //TODO: Change to continuous update
 onBeforeMount(async () => {
-  apiServiceInformation.value = await window.electronAPI.getServiceRegistry()
+  apiServiceInformation.value = await window.electronAPI.getServices()
 })
 
 async function customPathsSettings(key: string, path: string) {

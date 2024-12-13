@@ -1,116 +1,64 @@
 <template>
-  <div class="dialog-container z-10 text-white rounded-xl" style="background-color: rgba(0.3,0.3,0.3, 0.5)">
-    <div class="dialog-container z-10 px-20 py-5">
-      <h1 class="text-center py-1 px-4 rounded" style="font-size: 40px">
+  <div class="z-10 text-white rounded-xl bg-black/70">
+    <div class="px-20 py-5 max-w-5xl">
+      <h1 class="text-center py-1 px-4 rounded text-4xl">
         {{ languages.BACKEND_MANAGE }}</h1>
       <!-- required components -->
-      <div class="dialog-container z-10">
-        <h1 class="text-left pt-10 rounded" style="font-size: 26px">
-          {{ languages.BACKEND_REQUIRED_COMPONENTS }}</h1>
-        <p class=" text-left pt-3 pb-7"> {{ languages.BACKEND_REQUIRED_COMPONENTS_MESSAGE }} </p>
+      <div class="">
+        <p class="text-lg text-left pt-3 pb-3"> {{ "Before you can use the Intel AI Playground, we need to download some additional components. Please make sure you have a stable and unmetered internet connection." }} </p>
+        <p class="text-lg text-left pt-3 pb-7"> {{ "Optional components are not required for AI-Playground to work, but provide alternative functions. If you want to use them please click the info buttons to familiarize yourself with their terms and conditions before activating them." }} </p>
         <table class="text-center w-full" style="table-layout: fixed;">
           <thead>
           <tr class="font-bold">
             <td style="text-align: left">{{ languages.BACKEND_SINGLE_COMPONENT }}</td>
-            <td>{{ languages.BACKEND_STATUS }}</td>
+            <td>{{ languages.BACKEND_TYPE }}</td>
             <td>{{ languages.BACKEND_INFORMATION }}</td>
-            <td>{{ languages.BACKEND_TERMS }}</td>
+            <td>{{ languages.BACKEND_ENABLE }}</td>
+            <td>{{ languages.BACKEND_STATUS }}</td>
             <td>{{ languages.BACKEND_ACTION }}</td>
           </tr>
           </thead>
           <tbody>
-          <tr v-for="item in apiServiceInformationPlusTerms.filter((i) => i.isRequired)">
-            <td style="text-align: left">{{ item.serviceName }}</td>
-            <td :style="{ color: mapColorToStatus(item.status['status']) }">{{ item.status["status"] }}</td>
+          <tr v-for="component in components">
+            <td class="text-left">{{ mapServiceNameToDisplayName(component.serviceName) }}</td>
+            <td class="text-center">{{ component.isRequired ? "Required" : "Optional" }}</td>
             <td>
-              <a :href="getInfoURL(item.serviceName)" target="_blank">
-              <span v-show="getInfoURL(item.serviceName) != ''" style="vertical-align: middle;"
+              <a :href="getInfoURL(component.serviceName)" target="_blank">
+              <span v-show="getInfoURL(component.serviceName) != ''" style="vertical-align: middle;"
                     class="svg-icon i-info w-7 h-7 px-6"></span>
               </a>
-              <p v-show="getInfoURL(item.serviceName) == ''"> - </p>
+              <p v-show="getInfoURL(component.serviceName) == ''"> - </p>
             </td>
             <td>
-              <button v-if="item.status['status'] !== 'running' && !item.isLoading" class="v-checkbox-control flex-none w-5 h-5"
-                      :class="{ 'v-checkbox-checked': item.readTerms}" @click="item.readTerms = !item.readTerms"
-                      :disabled="getInfoURL(item.serviceName) == ''">
+              <button v-if="component.status !== 'running' && !component.isLoading" class="v-checkbox-control flex-none w-5 h-5"
+                      :class="{ 'v-checkbox-checked': component.enabled}"
+                      @click="() => {
+                        if (component.enabled && !component.isSetUp) {
+                          enabledComponents.delete(component.serviceName)
+                        } else {
+                          enabledComponents.add(component.serviceName)
+                        }}"
+                      :disabled="getInfoURL(component.serviceName) == ''">
               </button>
               <p v-else> - </p>
             </td>
+            <td :style="{ color: mapColorToStatus(component.status) }">{{ mapToDisplayStatus(component) }}</td>
             <td>
-              <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
-              <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
-                      :disabled="!item.readTerms || isSomethingLoading()"
+              <span v-if="component.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
+              <button v-else-if="component.status === 'uninitialized' && !component.isSetUp" @click="() => installBackend(component.serviceName)"
+                      :disabled="!component.enabled || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
-              <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
-                      :disabled="!item.readTerms || isSomethingLoading()"
+              <button v-else-if="component.status === 'failed'" @click="() => repairBackend(component.serviceName)"
+                      :disabled="!component.enabled || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
               </button>
-              <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
+              <button v-else-if="component.status === 'running'" @click="() => restartBackend(component.serviceName)"
                       :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
               </button>
-              <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
+              <button v-else-if="component.status === 'stopped'" @click="() => restartBackend(component.serviceName)"
                       :disabled="isSomethingLoading()"
-                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
-              </button>
-              <p v-else> - </p>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- optional components -->
-      <div class="dialog-container z-10">
-        <h1 class="text-left pt-10 rounded" style="font-size: 26px">{{
-            languages.BACKEND_OPTIONAL_COMPONENTS
-          }}</h1>
-        <p class=" text-left pt-3 pb-7"> {{ languages.BACKEND_OPTIONAL_COMPONENTS_MESSAGE }} </p>
-        <table class="text-center w-full" style="table-layout: fixed;">
-          <thead>
-          <tr class="font-bold">
-            <td style="text-align: left">{{ languages.BACKEND_SINGLE_COMPONENT }}</td>
-            <td>{{ languages.BACKEND_STATUS }}</td>
-            <td>{{ languages.BACKEND_INFORMATION }}</td>
-            <td>{{ languages.BACKEND_TERMS }}</td>
-            <td>{{ languages.BACKEND_ACTION }}</td>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="item in apiServiceInformationPlusTerms.filter((i) => !i.isRequired)">
-            <td style="text-align: left">{{ item.serviceName }}</td>
-            <td :style="{ color: mapColorToStatus(item.status['status']) }">{{ item.status["status"] }}</td>
-            <td>
-              <a :href="getInfoURL(item.serviceName)" target="_blank">
-              <span v-show="getInfoURL(item.serviceName) != ''" style="vertical-align: middle;"
-                    class="svg-icon i-info w-7 h-7 px-6"></span>
-              </a>
-              <p v-show="getInfoURL(item.serviceName) == ''"> - </p>
-            </td>
-            <td>
-              <button v-if="item.status['status'] !== 'running' && !item.isLoading" class="v-checkbox-control flex-none w-5 h-5"
-                      :class="{ 'v-checkbox-checked': item.readTerms}" @click="item.readTerms = !item.readTerms"
-                      :disabled="getInfoURL(item.serviceName) == ''">
-              </button>
-              <p v-else> - </p>
-            </td>
-            <td>
-              <span v-if="item.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
-              <button v-else-if="item.status['status'] === 'uninitialized'" @click="() => installBackend(item)"
-                      :disabled="!item.readTerms || isSomethingLoading() || !areAllRequiredReady()"
-                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
-              </button>
-              <button v-else-if="item.status['status'] === 'failed'" @click="() => repairBackend(item)"
-                      :disabled="!item.readTerms || isSomethingLoading() || !areAllRequiredReady()"
-                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
-              </button>
-              <button v-else-if="item.status['status'] === 'running'" @click="() => restartBackend(item)"
-                      :disabled="isSomethingLoading() || !areAllRequiredReady()"
-                      class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
-              </button>
-              <button v-else-if="item.status['status'] === 'stopped'" @click="() => restartBackend(item)"
-                      :disabled="isSomethingLoading() || !areAllRequiredReady()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
               <p v-else> - </p>
@@ -152,32 +100,28 @@
 </template>
 
 <script setup lang="ts">
-import {Input} from '@/components/ui/input'
-
-import {useI18N} from '@/assets/js/store/i18n';
-import {useModels, userModels} from '@/assets/js/store/models';
 import {useGlobalSetup} from '@/assets/js/store/globalSetup';
 import {mapColorToStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
+import { useBackendServices } from '@/assets/js/store/backendServices';
 
-type ExtendedApiServiceInformation = ApiServiceInformation & { readTerms: boolean, isLoading: boolean }
-
+type ExtendedApiServiceInformation = ApiServiceInformation & { enabled: boolean, isLoading: boolean }
 
 const globalSetup = useGlobalSetup();
+const backendServices = useBackendServices();
 
-
-const apiServiceInformationPlusTerms = ref<ExtendedApiServiceInformation[]>([])
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
 const somethingChanged = ref(false)
 
+const enabledComponents = ref(new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
+const loadingComponents = ref(new Set<string>())
 
-onBeforeMount(async () => {
-  apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) => ({
-    readTerms: areTermsInitiallyRead(item),
-    isLoading: false, ...item
-  }))
-})
+const components = computed(()=>backendServices.info.map((item) => ({
+    enabled: enabledComponents.value.has(item.serviceName),
+    isLoading: loadingComponents.value.has(item.serviceName),
+    ...item
+  })))
 
 window.electronAPI.onServiceSetUpProgress(async (data) => {
   const name = data.serviceName
@@ -185,103 +129,65 @@ window.electronAPI.onServiceSetUpProgress(async (data) => {
   const status = data.status
 
   console.log(`${name} in stage ${step} ${data.status}. Debugmessage: ${data.debugMessage}`)
+  const item = components.value.filter((entry) => entry.serviceName === data.serviceName)[0]
   if (status === 'success') {
-    const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
-    await restartBackend(item)
+    await restartBackend(item.serviceName)
     await installServiceFromQueue()
   } else if (status === 'failed') {
     toast.error("Setup failed")
-    await reloadServiceRegistry()
-    const item = apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === data.serviceName)[0]
-    item.isLoading = false
+    loadingComponents.value.delete(item.serviceName)
     await installServiceFromQueue()
   }
 })
 
-// function updateValue(serviceName: string, key: string, value: string | number) {
-//   const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
-//   apiServiceInformationPlusTerms.value = updatedServiceRegistry
-//   apiServiceInformationPlusTerms.value.filter((entry) => entry.serviceName === serviceName)[0][key] = value
-// }
-//
-// async function reloadServiceRegistryNew() { //ToDo Test implementation of this instead of reloadServiceRegistry + getComponent
-//   // Update the serviceRegistry while maintaining constant references to its content
-//   const updatedServiceRegistry = await window.electronAPI.getServiceRegistry()
-//   for (const item of apiServiceInformationPlusTerms.value){
-//     const updatedItem = updatedServiceRegistry.filter((entry) => entry.serviceName === item.serviceName)[0]
-//     for (const prop in updatedItem) {
-//       item[prop as keyof typeof item] = updatedItem[prop as keyof ApiServiceInformation]
-//     }
-//   }
-// }
-
-async function reloadServiceRegistry() {
-  apiServiceInformationPlusTerms.value = (await window.electronAPI.getServiceRegistry()).map((item) =>
-      ({
-        readTerms: getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).readTerms,
-        isLoading: getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading,
-        ...item
-      }))
-}
-
-function getComponent(data: ExtendedApiServiceInformation[], key: string, item: ApiServiceInformation | ExtendedApiServiceInformation): ExtendedApiServiceInformation {
-  return data.filter((entry) => entry[key as keyof typeof entry] === item[key as keyof typeof item])[0]
-}
-
 function isSomethingLoading(): boolean {
-  return apiServiceInformationPlusTerms.value.some((item) => item.isLoading)
+  return components.value.some((item) => item.isLoading)
 }
 
 function areAllRequiredReady(){
-  return apiServiceInformationPlusTerms.value.every((item) => item.status['status'] === 'running' || !item.isRequired)
+  return components.value.every((item) => item.status === 'running' || !item.isRequired)
 }
 
-async function installBackend(item: ExtendedApiServiceInformation) {
+async function installBackend(name: string) {
   somethingChanged.value = true;
-  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
-  await window.electronAPI.sendSetUpSignal(item.serviceName)
+  loadingComponents.value.add(name)
+  await window.electronAPI.sendSetUpSignal(name)
 }
 
-async function repairBackend(item: ExtendedApiServiceInformation) {
-  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
-  const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
-  if (stopStatus.status !== 'stopped') {
+async function repairBackend(name: string) {
+  loadingComponents.value.add(name)
+  const stopStatus = await window.electronAPI.sendStopSignal(name)
+  if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
     return
   }
-  await reloadServiceRegistry()
-  await installBackend(getComponent(apiServiceInformationPlusTerms.value, "serviceName", item));
+  await installBackend(name);
 }
 
-async function restartBackend(item: ExtendedApiServiceInformation) {
-  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true
-  const stopStatus = await window.electronAPI.sendStopSignal(item.serviceName)
-  if (stopStatus.status !== 'stopped') {
+async function restartBackend(name: string) {
+  loadingComponents.value.add(name)
+  const stopStatus = await window.electronAPI.sendStopSignal(name)
+  if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
     return
   }
 
-  await reloadServiceRegistry()
-
-  const startStatus = await window.electronAPI.sendStartSignal(item.serviceName)
-  if (startStatus.status !== 'running') {
+  const startStatus = await window.electronAPI.sendStartSignal(name)
+  if (startStatus !== 'running') {
     toast.error("Service failed to restart")
     return
   }
 
-  getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = false
-  await reloadServiceRegistry()
+  loadingComponents.value.delete(name)
 }
 
 async function installServiceFromQueue() {
   // Ensure required services are setup first!
-  toBeInstalledQueue.forEach((item) => getComponent(apiServiceInformationPlusTerms.value, "serviceName", item).isLoading = true)
-  await reloadServiceRegistry()
-
   if (toBeInstalledQueue.length === 0) {
     console.log("All installed!")
     return
   }
+  toBeInstalledQueue.forEach((item) => loadingComponents.value.add(item.serviceName))
 
   const toBeInstalledItem = toBeInstalledQueue[0]
   toBeInstalledQueue = toBeInstalledQueue.slice(1)
@@ -291,15 +197,15 @@ async function installServiceFromQueue() {
     return
   }
 
-  if (toBeInstalledItem.status['status'] === 'failed') {
-    await repairBackend(toBeInstalledItem);
+  if (toBeInstalledItem.status === 'failed') {
+    await repairBackend(toBeInstalledItem.serviceName);
   } else {
-    await installBackend(toBeInstalledItem);
+    await installBackend(toBeInstalledItem.serviceName);
   }
 }
 
 function installAllSelected() {
-  toBeInstalledQueue = apiServiceInformationPlusTerms.value.filter(item => item.readTerms && (item.status['status'] === 'uninitialized' || item.status['status'] === 'failed'));
+  toBeInstalledQueue = components.value.filter(item => item.enabled && (item.status === 'uninitialized' || item.status === 'failed'));
   installServiceFromQueue()
 }
 
@@ -310,26 +216,47 @@ function closeInstallations() {
 function getInfoURL(serviceName: string) {
   switch (serviceName) {
     case "comfyui-backend":
-      return "https://www.tngtech.com/"
+      return "https://github.com/comfyanonymous/ComfyUI"
     default:
       return ""
   }
 }
 
 function CanCloseInstallations() {
-  return apiServiceInformationPlusTerms.value.every((i) => i.status['status'] === 'running' || !i.isRequired)
+  return components.value.every((i) => i.status === 'running' || !i.isRequired)
 }
 
 function isEverythingRunning() {
-  return apiServiceInformationPlusTerms.value.every((i) => i.status['status'] === 'running')
+  return components.value.every((i) => i.status === 'running')
 }
 
 function areBoxesChecked() {
-  return apiServiceInformationPlusTerms.value.some((i) => i.status['status'] !== 'running' && i.readTerms)
+  return components.value.some((i) => i.status !== 'running' && i.enabled)
 }
 
-function areTermsInitiallyRead(item: ApiServiceInformation | ExtendedApiServiceInformation) {
-  return getInfoURL(item.serviceName) === "" || item.status['status'] === 'running'
+function mapServiceNameToDisplayName(serviceName: string) {
+  switch (serviceName) {
+    case "comfyui-backend":
+      return "ComfyUI"
+    case "ai-backend":
+      return "AI Playground"
+    default:
+      return serviceName
+  }
+}
+
+function mapToDisplayStatus(component: ApiServiceInformation) {
+  switch (component.status) {
+    case "running":
+      return "Running"
+    case "stopped":
+    case "uninitialized":
+      return component.isSetUp ? "Not Running" : "Not Installed"
+    case "failed":
+      return "Failed"
+    default:
+      return status
+  }
 }
 
 function convertVisibility(shouldBeVisible: boolean) {

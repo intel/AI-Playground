@@ -70,11 +70,12 @@ type electronAPI = {
     onReportError(callback: (errorMessage: string) => void): void,
     onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
     wakeupComfyUIService(): void,
-    getServiceRegistry(): Promise<ApiServiceInformation[]>,
+    getServices(): Promise<ApiServiceInformation[]>,
     sendStartSignal(serviceName: string): Promise<BackendStatus>,
     sendStopSignal(serviceName: string): Promise<BackendStatus>,
     sendSetUpSignal(serviceName: string): void
     onServiceSetUpProgress(callback: (data: SetupProgress) => void): void,
+    onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void,
 };
 
 type SetupProgress = {serviceName: string, step: string, status: "executing"|"failed"|"success", debugMessage: string}

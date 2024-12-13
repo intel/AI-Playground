@@ -25,7 +25,7 @@
     <loading-bar :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
   <main v-else-if="globalSetup.loadingState === 'manageInstallations'" class="flex-auto flex items-center justify-center">
-    <installation-management :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></installation-management>
+    <installation-management></installation-management>
   </main>
   <main v-else-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
@@ -126,43 +126,29 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useTheme } from "./assets/js/store/theme.ts";
 import AddLLMDialog from "@/components/AddLLMDialog.vue";
 import WarningDialog from "@/components/WarningDialog.vue";
+import { useBackendServices } from "./assets/js/store/backendServices.ts";
 
-
-const isOpen = ref(false);
-
+const backendServices = useBackendServices();
 const theme = useTheme();
-
-const activeTabIdx = ref(0);
-
-const showSetting = ref(false);
+const globalSetup = useGlobalSetup();
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>();
-
 const answer = ref<InstanceType<typeof Answer>>();
-
+const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>();
+const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>();
+const warningCompt = ref<InstanceType<typeof WarningDialog>>();
 const showSettingBtn = ref<HTMLButtonElement>();
 
+const isOpen = ref(false);
+const activeTabIdx = ref(0);
+const showSetting = ref(false);
 const showDowloadDlg = ref(false);
-
 const showModelRequestDialog = ref(false);
-
 const showWarningDialog = ref(false);
-
-const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>();
-
-const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>();
-
-const warningCompt = ref<InstanceType<typeof WarningDialog>>();
-
 const fullscreen = ref(false);
 
 const platformTitle = window.envVars.platformTitle;
-
 const productVersion = window.envVars.productVersion;
-
-const globalSetup = useGlobalSetup();
-
-const initialInstallationCompleted = ref(false)
 
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message}) => {
@@ -176,10 +162,6 @@ onBeforeMount(async () => {
       console.log(`[${source}] ${message}`);
     }
   })
-
-  await globalSetup.areBackendServicesStarted()
-
-  await globalSetup.initSetup();
 
   document.body.addEventListener("mousedown", autoHideAppSettings);
   document.body.addEventListener("keydown", (e) => {

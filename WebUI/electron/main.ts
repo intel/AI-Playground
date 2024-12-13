@@ -172,6 +172,7 @@ async function createWindow() {
         if (url.startsWith("https:")) shell.openExternal(url);
         return {action: "deny"};
     });
+    return win;
 }
 
 
@@ -212,25 +213,8 @@ app.on('second-instance', (event, commandLine, workingDirectory) => {
     }
 });
 
-async function initServiceRegistry() {
-    serviceRegistry = await aiplaygroundApiServiceRegistry()
-}
-
-async function bootUpAllSetUpServices() {
-    if (!serviceRegistry) {
-        appLogger.error("Tried to init services while service registry is not setup", 'electron-backend')
-        return
-    }
-    appLogger.info('Attempting to boot up all set up services', 'electron-backend')
-    const serviceBootUp = await serviceRegistry.bootUpAllSetUpServices()
-    serviceBootUp.forEach(result => {
-        if (result.state.status !== "running") {
-            appLogger.warn(`Failed to boot up ${result.serviceName}. It is in state ${result.state.status}`, 'electron-backend')
-        }
-        if (result.state.status === "running") {
-            appLogger.info(`${result.serviceName} boot up successful`, 'electron-backend')
-        }
-    })
+async function initServiceRegistry(win: BrowserWindow) {
+    serviceRegistry = await aiplaygroundApiServiceRegistry(win)
 }
 
 function initEventHandle() {
@@ -251,18 +235,12 @@ function initEventHandle() {
         }
     });
 
-
     ipcMain.handle("getThemeSettings", async () => {
         return {
             availableThemes: settings.availableThemes,
             currentTheme: settings.currentTheme
 
         };
-    });
-
-    ipcMain.on("wakeupComfyUIService", async () => {
-        console.log("starting comfyUI")
-        wakeupComfyUIService()
     });
 
     ipcMain.handle("getLocalSettings", async () => {
@@ -468,9 +446,9 @@ function initEventHandle() {
         return comfyuiState;
     });
 
-    ipcMain.handle("getServiceRegistry", () => {
+    ipcMain.handle("getServices", () => {
         if(!serviceRegistry) {
-            appLogger.warn('frontend tried to getServiceRegistry too early during aipg startup', 'electron-backend');
+            appLogger.warn('frontend tried to getServices too early during aipg startup', 'electron-backend');
             return;}
         return serviceRegistry.getServiceInformation()
     });
@@ -509,7 +487,7 @@ function initEventHandle() {
         if(serviceName == "comfyui-backend") {
             //side effect of relying on ai-backend python env
             appLogger.info(`Starting setup of ${serviceName}`, 'electron-backend')
-            if (!serviceRegistry.getService('ai-backend')?.is_set_up()) {
+            if (!serviceRegistry.getService('ai-backend')?.isSetUp) {
                 appLogger.warn("Called for setup of comfyUI, which so far depends on ai-backend", 'electron-backend')
                 appLogger.info("Aborting comfyUI setup request", 'electron-backend')
                 win.webContents.send('serviceSetUpProgress', {serviceName: "comfyui-backend", step: "intercepted", status: "failed", debugMessage: `Setup of comfyUI requires required backend already present`})
@@ -590,7 +568,7 @@ const apiService: {
 } = {
     webProcess: null,
     normalExit: true,
-    status: {status: "starting"},
+    status: "starting",
     desiredState: 'running'
 }
 
@@ -601,16 +579,6 @@ function isProcessRunning(pid: number) {
         return false;
     }
 }
-
-
-
-async function wakeupComfyUIService() {
-    /*const backend = await comfyUIBackendService()
-    const startupPromise = backend.start()
-    const severState = await startupPromise*/
-    appLogger.info(`server started from renderer -> intercepted`, 'electron-backend')
-}
-
 
 
 function closeApiService() {
@@ -733,9 +701,7 @@ app.whenReady().then(async () => {
     } else {
         await loadSettings();
         initEventHandle();
-        await initServiceRegistry();
-        await createWindow();
-        // await setupPyenv();
-        await bootUpAllSetUpServices();
+        const window = await createWindow();
+        await initServiceRegistry(window);
     }
 });

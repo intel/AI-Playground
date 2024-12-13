@@ -6,9 +6,11 @@ import getPort, {portNumbers} from "get-port";
 import * as filesystem from "fs-extra";
 import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
+import { BrowserWindow } from "electron";
 
 
 class ComfyUiBackendService extends LongLivedPythonApiService {
+    readonly isRequired = false
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`)); // use ai-backend python env. This service should receive its own, but we lack the time, to fix this
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
@@ -23,9 +25,11 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
         "4.0"
     ]
 
-    is_set_up(): boolean {
+    serviceIsSetUp(): boolean {
         return filesystem.existsSync(this.pythonEnvDir) && filesystem.existsSync(this.serviceDir) && filesystem.existsSync(this.lsLevelZeroExe)
     }
+
+    isSetUp = this.serviceIsSetUp();
 
     async *set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("setting up service", this.name)
@@ -182,10 +186,13 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
             await this.commonSetupSteps.moveToFinalTarget(comfyUiTmpServiceDir, self.serviceDir)
             yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
         
+            this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
             self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
             self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+            
+            this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup comfyUI service due to ${e}`};
         }
     }
@@ -244,9 +251,9 @@ class ComfyUiBackendService extends LongLivedPythonApiService {
 
 let instance:  ComfyUiBackendService | null = null
 
-export async function comfyUIBackendService() {
+export async function comfyUIBackendService(win: BrowserWindow) {
     if (!instance) {
-        instance = new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}))
+        instance = new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}), win)
     }
     return instance
 }

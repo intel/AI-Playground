@@ -99,7 +99,7 @@
   "SETTINGS_MODEL_MANAGE_BACKEND": "Manage Backend Components",
   "SETTINGS_MODEL_EXIST": "The model already exist. Repeating the download is unnecessary.",
   "SETTINGS_MODEL_DOWNLOAD": "Model Download",
-  "SETTINGS_MODEL_DOWNLOAD_DESC":"Below is a list of models which can perform various Al tasks in Al Playground. Review terms of each model before download and use. Alternatively choose to add in and select other model sources by changing the model paths and model defaults above.",
+  "SETTINGS_MODEL_DOWNLOAD_DESC":"Below is a list of models which can perform various AI tasks in AI Playground. Review terms of each model before download and use. Alternatively choose to add in and select other model sources by changing the model paths and model defaults above.",
   "TAB_CREATE": "Create",
   "TAB_ENHANCE": "Enhance",
   "TAB_ANSWER": "Answer",
@@ -193,15 +193,16 @@
   "ERROR_PYTHON_BACKEND_INIT_DETAILS": "Details",
   "ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log",
   "WARNING_MODEL_TYPE_WRONG": "The model type doesn't seem to fit the requirements. Are you sure, you want to continue?",
-  "BACKEND_MANAGE": "Manage Backend Components",
+  "BACKEND_MANAGE": "AI Playground Setup",
   "BACKEND_REQUIRED_COMPONENTS": "Required Components",
   "BACKEND_OPTIONAL_COMPONENTS": "Optional Components",
   "BACKEND_SINGLE_COMPONENT": "Component ",
+  "BACKEND_TYPE": "Type",
   "BACKEND_STATUS": "Status ",
   "BACKEND_INFORMATION": "Information",
-  "BACKEND_TERMS": "Terms*",
+  "BACKEND_ENABLE": "Enable *",
   "BACKEND_ACTION": "Action",
   "BACKEND_REQUIRED_COMPONENTS_MESSAGE": "In order for AI Playground to run, you need to install the following components:",
   "BACKEND_OPTIONAL_COMPONENTS_MESSAGE": "These optional backend components are external and only required for special features of AI Playground. Before installation, make sure you have read the terms and conditions, which can be found by clicking on the respective information buttons.",
-  "BACKEND_TERMS_AND_CONDITIONS": "*I have read and accepted the terms and conditions which apply while using this component."
+  "BACKEND_TERMS_AND_CONDITIONS": "* I have reviewed the optional component. I agree to all terms and conditions and would like to download and enable third-party software if applicable."
 }

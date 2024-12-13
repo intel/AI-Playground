@@ -22,7 +22,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
     setInterval(() => void updateComfyState(), 5000);
 
     async function updateComfyState() {
-        const services = await window.electronAPI.getServiceRegistry();
+        const services = await window.electronAPI.getServices();
         const comfyUiService = services.find((service) => service.serviceName === 'comfyui-backend');
         if (comfyUiService) {
             const newState = { port: comfyUiService.port, up: comfyUiService.status.status === 'running', currentVersion: '' };

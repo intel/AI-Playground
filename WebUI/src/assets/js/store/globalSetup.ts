@@ -2,6 +2,9 @@ import { defineStore } from "pinia";
 import { util } from "../util";
 import { useI18N } from "./i18n";
 import {useComfyUi} from "@/assets/js/store/comfyUi.ts";
+import { useBackendServices } from "./backendServices";
+
+type GlobalSetupState = "running" | "verifyBackend" | "manageInstallations" | "loading" | "failed"
 
 export const useGlobalSetup = defineStore("globalSetup", () => {
     const state = reactive<KVObject>({
@@ -11,8 +14,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     });
 
     const isComfyUiInstalled =  ref(false)
-
     const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
+    const backendServices = useBackendServices();
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -67,16 +70,18 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     let envType = "";
 
-    type globalSetupState = "running" | "verifyBackend" | "manageInstallations" | "loading" | "failed"
-
-    const loadingState: Ref<globalSetupState> = ref("verifyBackend");
-
+    const loadingState = ref<GlobalSetupState>("verifyBackend");
     const errorMessage = ref("");
-
     const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
 
     watchEffect(() => {
         localStorage.setItem("HdPersistentConfirmation", hdPersistentConfirmation.value.toString());
+    });
+
+    watch([backendServices.allRequiredRunning], (newVal) => {
+        if (newVal) {
+            initSetup();
+        }
     });
 
     window.electronAPI.onReportError((value) => {
@@ -90,7 +95,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         console.log(`${name} in stage ${step} ${data.status}. Debugmessage: ${data.debugMessage}`)
     })
 
-    async function areBackendServicesStarted(): Promise<boolean> {
+    async function waitUntilRequiredServicesAreStarted(): Promise<boolean> {
         console.info("debuging setup call")
         // return Promise.resolve(true)
         // await sendSetupSignal("ai-backend")
@@ -110,9 +115,9 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function areAllRequiredServicesSetup() {
-        const apiServiceInformation: ApiServiceInformation[] = await window.electronAPI.getServiceRegistry()
-        const requiredServices = apiServiceInformation.filter(item => item.isRequired)
-        return (requiredServices.every(service => service.isSetUp ))
+        const apiServiceInformation = await window.electronAPI.getServices()
+        const requiredServices = apiServiceInformation.filter(service => service.isRequired)
+        return requiredServices.every(service => service.isSetUp)
     }
 
     async function waitUntilRequiredServicesReady(maxAttempts = 0) {
@@ -126,10 +131,10 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 }
                 break
             }
-            const apiServiceInformation: ApiServiceInformation[] = await window.electronAPI.getServiceRegistry()
+            const apiServiceInformation = await window.electronAPI.getServices()
             console.info("services:", apiServiceInformation)
             const requiredServices = apiServiceInformation.filter(item => item.isRequired)
-            if (requiredServices.every(serviceInfo => serviceInfo.status.status === "running")) {
+            if (requiredServices.every(serviceInfo => serviceInfo.status === "running")) {
                 console.info("all required backend services running.")
                 if (loadingState.value !== 'manageInstallations') {
                     loadingState.value = "loading"
@@ -140,22 +145,10 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             attempts++;
         }
     }
-    
-    async function sendStartSignal(serviceName: string) {
-        window.electronAPI.sendStartSignal(serviceName)
-    }
-
-    async function sendStopSignal(serviceName: string) {
-        window.electronAPI.sendStopSignal(serviceName)
-    }
-
-    async function sendSetupSignal(serviceName: string) {
-        return window.electronAPI.sendSetUpSignal(serviceName)
-    }
 
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();
-        const apiServiceInformation: ApiServiceInformation[] = await window.electronAPI.getServiceRegistry()
+        const apiServiceInformation = await window.electronAPI.getServices()
         envType = setupData.envType;
         paths.value = setupData.modelPaths;
         models.value = setupData.modelLists;
@@ -174,7 +167,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 models.value.scheduler.unshift("None");
                 break;
             } catch (error) {
-                const backendStatus = (await window.electronAPI.getPythonBackendStatus()).status;
+                const backendStatus = await window.electronAPI.getPythonBackendStatus();
                 if (backendStatus === "stopped") {
                     loadingState.value = "failed";
                     return;
@@ -211,6 +204,20 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         }
     }
 
+    async function initWebSettings(postJson: string) {
+        const response = await fetch(`${defaultBackendBaseUrl.value}/api/init`, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+            method: "post",
+            body: postJson,
+        });
+        if (response.status !== 200) {
+            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
+        }
+        return await response.json() as string[];
+    }
+
     async function isComfyUIDownloaded(){
         const response = await fetch(`${defaultBackendBaseUrl.value}/api/comfyUi/isInstalled`);
         const data = await response.json()
@@ -243,20 +250,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     async function refreshLora() {
         models.value.lora = await window.electronAPI.refreshLora();
-    }
-
-    async function initWebSettings(postJson: string) {
-        const response = await fetch(`${defaultBackendBaseUrl.value}/api/init`, {
-            headers: {
-                "Content-Type": "application/json",
-            },
-            method: "post",
-            body: postJson,
-        });
-        if (response.status !== 200) {
-            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
-        }
-        return await response.json() as string[];
     }
 
     async function applyPathsSettings(newPaths: ModelPaths) {
@@ -424,9 +417,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         applyModelSettings,
         getManualModelSettings,
         isComfyUiInstalled,
-        sendSetupSignal,
-        sendStopSignal,
-        sendStartSignal,
         refreshLLMModles,
         refreshSDModles,
         refreshInpaintModles,
@@ -435,6 +425,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         checkIfHuggingFaceUrlExists,
         applyPresetModelSettings,
         restorePathsSettings,
-        areBackendServicesStarted,
+        waitUntilRequiredServicesAreStarted,
     };
 });

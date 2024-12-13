@@ -1,6 +1,6 @@
 import {ChildProcess} from "node:child_process";
 import path from "node:path";
-import {app} from "electron";
+import {app, BrowserWindow} from "electron";
 import {appLoggerInstance} from "../logging/logger.ts";
 import fs from "fs";
 import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
@@ -28,18 +28,22 @@ export interface ApiService {
     readonly name: string
     readonly baseUrl: string
     readonly port: number
+    readonly isRequired: boolean
     currentStatus: BackendStatus;
+    isSetUp: boolean;
 
     set_up(): AsyncIterable<SetupProgress>;
-    is_set_up(): boolean;
     start(): Promise<BackendStatus>;
     stop(): Promise<BackendStatus>;
+    get_info(): ApiServiceInformation;
 }
 
 export abstract class LongLivedPythonApiService implements ApiService {
     readonly name: string
     readonly baseUrl: string
     readonly port: number
+    readonly win: BrowserWindow
+    abstract readonly isRequired: boolean
     abstract healthEndpointUrl: string
 
     encapsulatedProcess: ChildProcess | null = null
@@ -49,19 +53,37 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly customIntelExtensionForPytorch = path.join(this.baseDir, ipexWheel)
     abstract readonly serviceDir: string
     abstract readonly pythonExe: string
+    abstract isSetUp: boolean;
 
-    desiredStatus: BackendStatus = {status: "uninitialized"}
-    currentStatus: BackendStatus = {status: "uninitialized"}
+    desiredStatus: BackendStatus = "uninitialized"
+    currentStatus: BackendStatus = "uninitialized"
 
     readonly appLogger = appLoggerInstance
 
-    constructor(name: string, port: number) {
+    constructor(name: string, port: number, win: BrowserWindow) {
+        this.win = win
         this.name = name
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
     }
 
-    abstract is_set_up(): boolean
+    abstract serviceIsSetUp(): boolean
+
+    updateStatus() {
+        this.isSetUp = this.serviceIsSetUp();
+        this.win.webContents.send("serviceInfoUpdate", this.get_info());
+    }
+
+    get_info(): ApiServiceInformation {
+        return {
+            serviceName: this.name,
+            status: this.currentStatus,
+            baseUrl: this.baseUrl,
+            port: this.port,
+            isSetUp: this.isSetUp,
+            isRequired: this.isRequired
+        }
+    }
 
     set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("called setup function", this.name)
@@ -76,54 +98,53 @@ export abstract class LongLivedPythonApiService implements ApiService {
         return generateSequence();
     }
 
-    start(): Promise<BackendStatus> {
-        if (this.desiredStatus.status === "stopped" && this.currentStatus.status !== "stopped") {
-            return Promise.reject('Server currently stopping. Cannot start it.')
+    async start(): Promise<BackendStatus> {
+        if (this.desiredStatus === "stopped" && this.currentStatus !== "stopped") {
+            throw new Error('Server currently stopping. Cannot start it.')
         }
-        if (this.currentStatus.status === "running") {
-            return Promise.resolve({status: "running"})
+        if (this.currentStatus === "running") {
+            return "running"
         }
-        if (this.desiredStatus.status === "running") {
-            return Promise.reject('Server startup already requested')
+        if (this.desiredStatus === "running") {
+            throw new Error('Server startup already requested')
         }
 
-        this.desiredStatus = {status: "running"}
-        return new Promise<BackendStatus>(async (resolve, reject) => {
-            try {
-                this.appLogger.info(` trying to start ${this.name} python API`, this.name)
-                const trackedProcess = this.spawnAPIProcess()
-                this.encapsulatedProcess = trackedProcess.process
-                this.pipeProcessLogs(trackedProcess.process)
-                if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
-                    this.currentStatus = {status: "running"}
-                    this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
-                    return resolve({status: "running"});
-                } else {
-                    this.currentStatus = {status: "failed"}
-                    this.desiredStatus = {status: "failed"}
-                    this.appLogger.error(`server ${this.name} failed to boot`, this.name)
-                    this.encapsulatedProcess?.kill()
-                    return resolve({status: "failed"});
-                }
-            } catch (error) {
-                this.appLogger.error(` failed to start server due to ${error}`, this.name)
-                this.currentStatus = {status: "failed"}
-                this.desiredStatus = {status: "failed"}
+        this.desiredStatus = "running"
+        try {
+            this.appLogger.info(` trying to start ${this.name} python API`, this.name)
+            const trackedProcess = this.spawnAPIProcess()
+            this.encapsulatedProcess = trackedProcess.process
+            this.pipeProcessLogs(trackedProcess.process)
+            if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
+                this.currentStatus = "running"
+                this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
+            } else {
+                this.currentStatus = "failed"
+                this.desiredStatus = "failed"
+                this.appLogger.error(`server ${this.name} failed to boot`, this.name)
                 this.encapsulatedProcess?.kill()
-                this.encapsulatedProcess = null
-                return reject(error)
             }
-        })
+        } catch (error) {
+            this.appLogger.error(` failed to start server due to ${error}`, this.name)
+            this.currentStatus = "failed"
+            this.desiredStatus = "failed"
+            this.encapsulatedProcess?.kill()
+            this.encapsulatedProcess = null
+            throw error;
+        } finally {
+            this.win.webContents.send("serviceInfoUpdate", this.get_info());
+        }
+        return this.currentStatus;
     }
 
 
-    stop(): Promise<BackendStatus> {
-        this.appLogger.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus.status}`, this.name)
-        this.desiredStatus = {status: "stopped"}
+    async stop(): Promise<BackendStatus> {
+        this.appLogger.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus}`, this.name)
+        this.desiredStatus = "stopped"
         this.encapsulatedProcess?.kill()
         this.encapsulatedProcess = null
-        this.currentStatus = {status: "stopped"}
-        return Promise.resolve({status: "stopped"})
+        this.currentStatus = "stopped"
+        return "stopped"
     }
 
     abstract spawnAPIProcess(): { process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean> }
@@ -152,7 +173,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         const startTime = performance.now()
         const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
             const queryIntervalMs = 250
-            const startupPeriodMaxMs = 180000
+            const startupPeriodMaxMs = 60000
             while (performance.now() < startTime + startupPeriodMaxMs) {
                 try {
                     const serviceHealthResponse = await fetch(this.healthEndpointUrl);
@@ -209,6 +230,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 const devices = LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
                 return devices[0].name.toLowerCase().includes("arc") ? "arc" : "ultra"
             } catch (e) {
+                return "cuda"
                 this.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, this.name, true)
                 throw new Error(`Failure to identify intel hardware. Error: ${e}`)
             }
