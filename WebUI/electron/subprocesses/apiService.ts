@@ -209,7 +209,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             this.appLogger.info("Copying ls_level_zero.exe", this.name)
             const lsLevelZeroBinaryTargetPath = getLsLevelZeroPath(pythonEnvContainmentDir)
             const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
-            copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
+            await copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
 
             return 'cuda';
         },
@@ -221,7 +221,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 this.appLogger.info("Copying ls_level_zero.exe", this.name)
                 const lsLevelZeroBinaryTargetPath = getLsLevelZeroPath(pythonEnvContainmentDir)
                 const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
-                copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
+                await copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
 
                 this.appLogger.info("Fetching requirements for ls_level_zero.exe", this.name)
                 const pythonExe = existingFileOrError(getPythonPath(pythonEnvContainmentDir))
@@ -246,7 +246,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                     this.appLogger.info(`Cleaning up previously containment directory at ${targetDir}`, this.name, true)
                     await fs.promises.rm(targetDir, {recursive: true, force: true})
                 }
-                copyFileWithDirs(archtypePythonEnv, targetDir)
+                await copyFileWithDirs(archtypePythonEnv, targetDir)
                 return targetDir;
             } catch (e) {
                 this.appLogger.error(`Failure during set up of workspace. Error: ${e}`, this.name, true)
@@ -314,7 +314,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             try {
                 if (filesystem.existsSync(target)) {
                     this.appLogger.info(`Cleaning up previously resource directory at ${target}`, this.name, true)
-                    filesystem.removeSync(target)
+                    fs.promises.rm(target, {recursive: true, force: true})
                 }
                 await filesystem.move(src, target)
                 this.appLogger.info(`resources now available at ${target}`, this.name, true)

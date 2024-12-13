@@ -54,8 +54,8 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
     });
 }
 
-export function copyFileWithDirs(src :string, dest: string) {
+export async function copyFileWithDirs(src :string, dest: string) {
     const destDir = path.dirname(dest);
-    fs.mkdirSync(destDir, { recursive: true });
-    fs.copySync(src, dest, {recursive: true});
+    await fs.promises.mkdir(destDir, { recursive: true });
+    await fs.promises.cp(src, dest, {recursive: true});
 }
