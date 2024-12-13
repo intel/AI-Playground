@@ -43,6 +43,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly baseUrl: string
     readonly port: number
     readonly win: BrowserWindow
+    readonly settings: LocalSettings
     abstract readonly isRequired: boolean
     abstract healthEndpointUrl: string
 
@@ -60,11 +61,12 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     readonly appLogger = appLoggerInstance
 
-    constructor(name: string, port: number, win: BrowserWindow) {
+    constructor(name: string, port: number, win: BrowserWindow, settings: LocalSettings) {
         this.win = win
         this.name = name
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
+        this.settings = settings
     }
 
     abstract serviceIsSetUp(): boolean
@@ -242,7 +244,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             try {
                 if (filesystem.existsSync(targetDir)) {
                     this.appLogger.info(`Cleaning up previously containment directory at ${targetDir}`, this.name, true)
-                    filesystem.removeSync(targetDir)
+                    await fs.promises.rm(targetDir, {recursive: true, force: true})
                 }
                 copyFileWithDirs(archtypePythonEnv, targetDir)
                 return targetDir;
