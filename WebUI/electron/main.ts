@@ -434,7 +434,7 @@ function initEventHandle() {
     ipcMain.handle("getServices", () => {
         if(!serviceRegistry) {
             appLogger.warn('frontend tried to getServices too early during aipg startup', 'electron-backend');
-            return;}
+            return [];}
         return serviceRegistry.getServiceInformation()
     });
 

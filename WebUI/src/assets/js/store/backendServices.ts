@@ -7,7 +7,6 @@ export const useBackendServices = defineStore("backendServices", () => {
         "comfyui-backend": new BackendServiceSetupProgressListener("comfyui-backend")
     };
 
-
     window.electronAPI.getServices().catch(async (reason: any) => {
         console.warn("initial service call failed - retrying")
         await new Promise<void>(resolve => {
@@ -39,7 +38,7 @@ export const useBackendServices = defineStore("backendServices", () => {
         associatedListener.addData(data)
     })
 
-    const serviceInfoUpdatePresent =  computed(() => currentServiceInfo && currentServiceInfo.value.length > 0)
+    const serviceInfoUpdatePresent =  computed(() => currentServiceInfo.value.length > 0)
     const initalStartupRequestComplete =  ref(false)
     const allRequiredSetUp = computed(() => currentServiceInfo.value.length > 0 && currentServiceInfo.value.filter(s => s.isRequired).every(s => s.isSetUp));
     const allRequiredRunning = computed(() => currentServiceInfo.value.length > 0 && currentServiceInfo.value.filter(s => s.isRequired).every(s => s.status === "running"));
