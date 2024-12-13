@@ -10,7 +10,7 @@ const WEBSOCKET_OPEN = 1;
 
 export const useComfyUi = defineStore("comfyUi", () => {
 
-    const comfyUiState = ref<ApiServiceInformation>({ serviceName: "comfyui-backend", status: "unitializedStatus" , baseUrl: "???", port: -1, isSetUp: false, isRequired: false });
+    const comfyUiState = ref<ApiServiceInformation>({ serviceName: "comfyui-backend", status: "uninitializedStatus" , baseUrl: "???", port: -1, isSetUp: false, isRequired: false });
     const imageGeneration = useImageGeneration();
     const globalSetup = useGlobalSetup();
     const i18nState = useI18N().state;

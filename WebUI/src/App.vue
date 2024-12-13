@@ -208,7 +208,9 @@ async function setInitalLoadingState() {
 }
 
 async function concludeLoadingStateAfterManagedInstallationDialog() {
-  if (backendServices.allRequiredSetUp) {
+  if (backendServices.allRequiredSetUp)
+  {
+    await globalSetup.initSetup()
     globalSetup.loadingState = "running"
   }
 }
