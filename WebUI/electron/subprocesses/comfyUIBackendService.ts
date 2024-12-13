@@ -211,7 +211,9 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             ...this.getOneApiSupportedDeviceEnvVariable(),
         };
 
-        const apiProcess = spawn(this.pythonExe, ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters], {
+        const parameters = ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters]
+        this.appLogger.info(`starting comfyui with ${JSON.stringify({parameters, additionalEnvVariables})}`, this.name, true)
+        const apiProcess = spawn(this.pythonExe, parameters, {
             cwd: this.serviceDir,
             windowsHide: true,
             env: Object.assign(process.env, additionalEnvVariables)

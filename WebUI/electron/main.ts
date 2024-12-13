@@ -57,7 +57,8 @@ export const settings: LocalSettings = {
     debug: 0,
     envType: "ultra",
     availableThemes: ["dark", "lnl"],
-    currentTheme: "lnl"
+    currentTheme: "lnl",
+    comfyUiParameters: [],
 };
 
 async function loadSettings() {
@@ -65,6 +66,7 @@ async function loadSettings() {
         ? path.join(process.resourcesPath, "settings.json")
         : path.join(__dirname, "../../external/settings-dev.json");
 
+    appLogger.info(`loading settings from ${settingPath}`, 'electron-backend');
     if (fs.existsSync(settingPath)) {
         const loadSettings = JSON.parse(
             fs.readFileSync(settingPath, {encoding: "utf8"})
@@ -75,6 +77,7 @@ async function loadSettings() {
             }
         });
     }
+    appLogger.info(`settings loaded: ${JSON.stringify({settings})}`, 'electron-backend');
 
     return settings;
 }

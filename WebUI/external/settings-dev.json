@@ -1,7 +1,6 @@
 {
     "envType": "arc",
     "debug":1,
-    "port":56789,
     "comfyUiParameters": [
         "--lowvram",
         "--disable-ipex-optimize",
