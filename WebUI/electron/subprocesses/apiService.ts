@@ -56,8 +56,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly pythonExe: string
     abstract isSetUp: boolean;
 
-    desiredStatus: BackendStatus = "uninitialized"
-    currentStatus: BackendStatus = "uninitialized"
+    desiredStatus: BackendStatus = "unitializedStatus"
+    currentStatus: BackendStatus = "unitializedStatus"
 
     readonly appLogger = appLoggerInstance
 
@@ -73,6 +73,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     updateStatus() {
         this.isSetUp = this.serviceIsSetUp();
+        if(this.currentStatus === "unitializedStatus") {
+            this.currentStatus = this.isSetUp ? "notYetStarted" : "notInstalled"
+        }
         this.win.webContents.send("serviceInfoUpdate", this.get_info());
     }
 
@@ -87,18 +90,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         }
     }
 
-    set_up(): AsyncIterable<SetupProgress> {
-        this.appLogger.info("called setup function", this.name)
-        const self = this
-
-        async function* generateSequence(): AsyncGenerator<SetupProgress> {
-            for (let i = 0; i <= 5; i++) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                yield {serviceName: self.name, step: `Step_${i}`, status: "executing", debugMessage: ""};
-            }
-        }
-        return generateSequence();
-    }
+    abstract set_up(): AsyncIterable<SetupProgress>
 
     async start(): Promise<BackendStatus> {
         if (this.desiredStatus === "stopped" && this.currentStatus !== "stopped") {
@@ -144,6 +136,12 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.appLogger.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus}`, this.name)
         this.desiredStatus = "stopped"
         this.encapsulatedProcess?.kill()
+        await new Promise(resolve => {
+            setTimeout(() => {
+                resolve("killedprocess (hopefully)")
+            }, 1000)
+        })
+
         this.encapsulatedProcess = null
         this.currentStatus = "stopped"
         return "stopped"
@@ -211,7 +209,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
             await copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
 
-            return 'cuda';
+            return 'arc';
         },
 
         detectDevice: async (pythonEnvContainmentDir: string): Promise<string> => {
@@ -232,7 +230,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 const devices = LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
                 return devices[0].name.toLowerCase().includes("arc") ? "arc" : "ultra"
             } catch (e) {
-                return "cuda"
+                return "arc"
                 this.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, this.name, true)
                 throw new Error(`Failure to identify intel hardware. Error: ${e}`)
             }
@@ -308,7 +306,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 throw new Error(`Failed to install of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`)
             }
         },
-        
+
         moveToFinalTarget: async (src: string, target: string) => {
             this.appLogger.info(`renaming directory ${src} to ${target}`, this.name, true)
             try {

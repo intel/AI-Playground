@@ -50,12 +50,13 @@
             <td :style="{ color: mapColorToStatus(component.status) }">{{ mapToDisplayStatus(component) }}</td>
             <td>
               <span v-if="component.isLoading" class="svg-icon i-loading flex-none w-5 h-5"></span>
-              <button v-else-if="component.status === 'uninitialized' && !component.isSetUp"
+              <button v-else-if="component.status === 'notInstalled' && !component.isSetUp"
                       @click="() => installBackend(component.serviceName)"
                       :disabled="!component.enabled || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_INSTALL }}
               </button>
-              <button v-else-if="component.status === 'failed'" @click="() => repairBackend(component.serviceName)"
+              <button v-else-if="component.status === 'failed' || component.status === 'installationFailed'"
+                      @click="() => repairBackend(component.serviceName)"
                       :disabled="!component.enabled || isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_REPAIR }}
               </button>
@@ -63,10 +64,12 @@
                       :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_RESTART }}
               </button>
-              <button v-else-if="component.status === 'stopped'" @click="() => restartBackend(component.serviceName)"
+              <button v-else-if="component.status === 'stopped' || component.status === 'notYetStarted'"
+                      @click="() => restartBackend(component.serviceName)"
                       :disabled="isSomethingLoading()"
                       class="bg-color-active py-1 px-4 rounded">{{ languages.COM_START }}
               </button>
+
               <p v-else> - </p>
             </td>
           </tr>
@@ -110,6 +113,7 @@ import {useGlobalSetup} from '@/assets/js/store/globalSetup';
 import {mapColorToStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
+
 const emits = defineEmits<{
   (e: "close"): void
 }>();
@@ -117,7 +121,6 @@ const emits = defineEmits<{
 
 type ExtendedApiServiceInformation = ApiServiceInformation & { enabled: boolean, isLoading: boolean }
 
-const globalSetup = useGlobalSetup();
 const backendServices = useBackendServices();
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
@@ -138,21 +141,15 @@ function isSomethingLoading(): boolean {
   return components.value.some((item) => item.isLoading)
 }
 
-function areAllRequiredReady() {
-  return components.value.every((item) => item.status === 'running' || !item.isRequired)
-}
-
 async function installBackend(name: string) {
   somethingChanged.value = true;
   loadingComponents.value.add(name)
   const setupProgress = await backendServices.setUpService(name)
   if (setupProgress.success) {
     await restartBackend(name)
-    await installServiceFromQueue()
   } else {
     toast.error("Setup failed")
     loadingComponents.value.delete(name)
-    await installServiceFromQueue()
   }
 }
 
@@ -171,44 +168,30 @@ async function restartBackend(name: string) {
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
+    loadingComponents.value.delete(name)
     return
   }
 
   const startStatus = await backendServices.startService(name)
   if (startStatus !== 'running') {
     toast.error("Service failed to restart")
+    loadingComponents.value.delete(name)
     return
   }
 
   loadingComponents.value.delete(name)
 }
 
-async function installServiceFromQueue() {
-  // Ensure required services are setup first!
-  if (toBeInstalledQueue.length === 0) {
-    console.log("All installed!")
-    return
-  }
+async function installAllSelected() {
+  toBeInstalledQueue = components.value.filter(item => item.enabled && (item.status === 'notInstalled' || item.status === 'failed' || item.status === 'installationFailed'));
   toBeInstalledQueue.forEach((item) => loadingComponents.value.add(item.serviceName))
-
-  const toBeInstalledItem = toBeInstalledQueue[0]
-  toBeInstalledQueue = toBeInstalledQueue.slice(1)
-  if (!toBeInstalledItem.isRequired && !areAllRequiredReady()) {
-    console.log("Error: Need to install all required services first")
-    await installServiceFromQueue()
-    return
+  for (const component of toBeInstalledQueue) {
+    if (component.status === 'failed' || component.status == "installationFailed") {
+      await repairBackend(component.serviceName);
+    } else {
+      await installBackend(component.serviceName);
+    }
   }
-
-  if (toBeInstalledItem.status === 'failed') {
-    await repairBackend(toBeInstalledItem.serviceName);
-  } else {
-    await installBackend(toBeInstalledItem.serviceName);
-  }
-}
-
-function installAllSelected() {
-  toBeInstalledQueue = components.value.filter(item => item.enabled && (item.status === 'uninitialized' || item.status === 'failed'));
-  installServiceFromQueue()
 }
 
 function closeInstallations() {
@@ -252,8 +235,9 @@ function mapToDisplayStatus(component: ApiServiceInformation) {
     case "running":
       return "Running"
     case "stopped":
-    case "uninitialized":
-      return component.isSetUp ? "Not Running" : "Not Installed"
+    case "notYetStarted":
+      return "Not Running"
+    case "installationFailed":
     case "failed":
       return "Failed"
     default:

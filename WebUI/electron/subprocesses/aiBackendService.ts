@@ -18,9 +18,9 @@ export class AiBackendService extends LongLivedPythonApiService {
     isSetUp = this.serviceIsSetUp();
 
     async *set_up(): AsyncIterable<SetupProgress> {
+        this.currentStatus = 'installing'
         this.appLogger.info("setting up service", this.name)
         const self = this
-        
 
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
@@ -28,13 +28,13 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
             const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
-            
+
             yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv`};
             await self.commonSetupSteps.installUv(pythonEnvContainmentDir);
             yield {serviceName: self.name, step: `install uv`, status: "executing", debugMessage: `installing uv complete`};
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceId = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
+            const deviceId = await self.commonSetupSteps.detectDeviceArcMock(pythonEnvContainmentDir)
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
@@ -54,11 +54,13 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
             await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+            self.currentStatus = 'notYetStarted'
             this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
             self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
             self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+            self.currentStatus = 'installationFailed'
             this.updateStatus()
             yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup python environment due to ${e}`};
         }

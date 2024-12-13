@@ -207,6 +207,7 @@ app.on('second-instance', (event, commandLine, workingDirectory) => {
 
 async function initServiceRegistry(win: BrowserWindow, settings: LocalSettings) {
     serviceRegistry = await aiplaygroundApiServiceRegistry(win, settings)
+    return serviceRegistry
 }
 
 function initEventHandle() {
@@ -468,16 +469,6 @@ function initEventHandle() {
             appLogger.warn(`Tried to set up service ${serviceName} which is not known`, 'electron-backend')
             return;
         }
-        if(serviceName == "comfyui-backend") {
-            //side effect of relying on ai-backend python env
-            appLogger.info(`Starting setup of ${serviceName}`, 'electron-backend')
-            if (!serviceRegistry.getService('ai-backend')?.isSetUp) {
-                appLogger.warn("Called for setup of comfyUI, which so far depends on ai-backend", 'electron-backend')
-                appLogger.info("Aborting comfyUI setup request", 'electron-backend')
-                win.webContents.send('serviceSetUpProgress', {serviceName: "comfyui-backend", step: "intercepted", status: "failed", debugMessage: `Setup of comfyUI requires required backend already present`})
-                return
-            }
-        }
 
         for await (const progressUpdate of service.set_up()) {
             win.webContents.send('serviceSetUpProgress', progressUpdate)
@@ -649,6 +640,5 @@ app.whenReady().then(async () => {
         initEventHandle();
         const window = await createWindow();
         await initServiceRegistry(window, settings);
-        serviceRegistry
     }
 });

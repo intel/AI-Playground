@@ -70,4 +70,4 @@ type SetupData = {
   version:string,
 }
 
-type BackendStatus = 'uninitialized' | 'starting' | 'running' | 'stopped' | 'failed'
+type BackendStatus = 'notYetStarted' | 'starting' | 'running' | 'stopped' | 'failed' | 'notInstalled' | 'installationFailed' | 'installing' | 'unitializedStatus'

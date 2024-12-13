@@ -6,7 +6,14 @@ export const useBackendServices = defineStore("backendServices", () => {
         "ai-backend": new BackendServiceSetupProgressListener("ai-backend"),
         "comfyui-backend": new BackendServiceSetupProgressListener("comfyui-backend")
     };
-    window.electronAPI.getServices().then(services => {
+
+
+    window.electronAPI.getServices().catch(async (reason: any) => {
+        await new Promise(resolve => {
+            setTimeout(async () => {}, 1000)
+        })
+        return window.electronAPI.getServices()
+    }).then(services => {
         currentServiceInfo.value = services;
     });
     setTimeout(() => {
@@ -16,30 +23,47 @@ export const useBackendServices = defineStore("backendServices", () => {
         });
     }, 5000)
     window.electronAPI.onServiceInfoUpdate(updatedInfo => {
+        console.info(`received service update: ${updatedInfo}`)
         currentServiceInfo.value = currentServiceInfo.value.map(oldInfo => oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo);
     });
 
     window.electronAPI.onServiceSetUpProgress(async (data) => {
+        console.log(`attemping to add data to listener ${data.serviceName}`)
         const associatedListener = serviceListeners[data.serviceName]
-        if (!associatedListener) {
-            console.warn(`received unexpected setup update for service ${data.serviceName}`)
-            return
-        }
+         if (!associatedListener) {
+             console.warn(`received unexpected setup update for service ${data.serviceName}`)
+             return
+         }
+         console.log(`adding data to listener ${associatedListener.associatedServiceName}`)
         associatedListener.addData(data)
     })
 
-    const serviceInfoUpdateReceived =  computed(() => currentServiceInfo.value.length > 0)
+    const serviceInfoUpdatePresent =  computed(() => currentServiceInfo && currentServiceInfo.value.length > 0)
+    const initalStartupRequestComplete =  ref(false)
     const allRequiredSetUp = computed(() => currentServiceInfo.value.length > 0 && currentServiceInfo.value.filter(s => s.isRequired).every(s => s.isSetUp));
     const allRequiredRunning = computed(() => currentServiceInfo.value.length > 0 && currentServiceInfo.value.filter(s => s.isRequired).every(s => s.status === "running"));
 
-    async function setUpService(serviceName: string): Promise<{success: boolean, logs: SetupProgress[]}> {
-        const listener: BackendServiceSetupProgressListener = serviceListeners[serviceName]
-        if (!listener) {
-            new Error(`service name ${serviceName} not found.`)
+
+    async function startAllSetUpServices(): Promise<{allServicesStarted: boolean}> {
+        const serverStartups = await Promise.all(currentServiceInfo.value.filter(s => s.isSetUp).map(s => window.electronAPI.sendStartSignal(s.serviceName)));
+        const serverStartupsCompleted = { allServicesStarted: serverStartups.every(serverStatus => serverStatus === "running")}
+        if (!serverStartupsCompleted.allServicesStarted) {
+            console.warn("Not all services started")
         }
+        return serverStartupsCompleted
+    }
+
+
+    async function setUpService(serviceName: string): Promise<{success: boolean, logs: SetupProgress[]}> {
+        console.log("starting setup")
+        const listener: BackendServiceSetupProgressListener = serviceListeners[serviceName]
+
+         if (!listener) {
+             new Error(`service name ${serviceName} not found.`)
+         }
         listener.isActive = true
         window.electronAPI.sendSetUpSignal(serviceName)
-        return await listener.awaitFinalizationAndResetData()
+        return listener.awaitFinalizationAndResetData()
     }
 
     async function startService(serviceName: string): Promise<BackendStatus> {
@@ -52,9 +76,11 @@ export const useBackendServices = defineStore("backendServices", () => {
 
     return {
         info: currentServiceInfo,
-        serviceInfoUpdateReceived,
+        serviceInfoUpdateReceived: serviceInfoUpdatePresent,
         allRequiredSetUp,
         allRequiredRunning,
+        initalStartupRequestComplete,
+        startAllSetUpServices,
         setUpService,
         startService,
         stopService,
@@ -92,14 +118,21 @@ class BackendServiceSetupProgressListener {
     }
 
     private async awaitFinalization(): Promise<SetupProgress[]> {
-        while(!this.terminalUpdateReceived) {
-            setTimeout(() => {}, 1000)
+        if(this.terminalUpdateReceived) {
+            return this.collectedSetupProgress
+        } else {
+            return await new Promise(resolve => {
+                setTimeout(() => {
+                    resolve(this.awaitFinalization())
+                }, 1000)
+            })
         }
         return this.collectedSetupProgress
     }
 
     async awaitFinalizationAndResetData(): Promise<{success: boolean, logs: SetupProgress[]}> {
         return this.awaitFinalization().then( collectedSetupProgress => {
+            console.log(`server startup complete for ${this.associatedServiceName}`)
             const clonedSetupProgress = collectedSetupProgress.slice()
             this.collectedSetupProgress = []
             return { success: this.installationSuccess, logs: clonedSetupProgress}
