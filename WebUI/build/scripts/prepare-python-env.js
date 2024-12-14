@@ -87,12 +87,12 @@ import site
 
     console.log('Installing pip');
     const pythonExe = path.join(targetDir, 'python.exe');
-    const pipInstallCmd = `${pythonExe} ${getPipDest}`;
+    const pipInstallCmd = `"${pythonExe}" "${getPipDest}"`;
     childProcess.execSync(pipInstallCmd);
     console.log('Installed pip');
 
     console.log('Installing uv');
-    const pipInstallUvCmd = `${pythonExe} -m pip install uv`;
+    const pipInstallUvCmd = `"${pythonExe}" -m pip install uv`;
     childProcess.execSync(pipInstallUvCmd);
     console.log('Installed uv');
 
