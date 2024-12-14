@@ -33,7 +33,6 @@ class LlamaCpp(LLMInterface):
         completion: Iterator[CreateChatCompletionStreamResponse] = self._model.create_chat_completion(
             messages=messages,
             stream=True,
-            max_tokens=20,
         )
         return completion
 
