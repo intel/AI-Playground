@@ -36,6 +36,10 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceArch}.txt`))
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+            if (deviceArch === "bmg") {
+                const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
+                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            }
 
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
@@ -57,14 +61,15 @@ export class AiBackendService extends LongLivedPythonApiService {
     }
 
 
-    spawnAPIProcess(): {process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean>} {
+    async spawnAPIProcess(): Promise<{ process: ChildProcess; didProcessExitEarlyTracker: Promise<boolean>; }> {
         const additionalEnvVariables = {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
+            ...await this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
         };
 
+        console.log("additionalEnvVariables", additionalEnvVariables);
         const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {
             cwd: this.serviceDir,
             windowsHide: true,

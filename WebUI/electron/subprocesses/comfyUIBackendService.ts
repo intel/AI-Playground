@@ -153,6 +153,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const deviceSpecificRequirements = existingFileOrError(path.join(aiBackendServiceDir(), `requirements-${deviceArch}.txt`))
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
+            if (deviceArch === "bmg") {
+                const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
+                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+            }
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
@@ -191,15 +195,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         }
     }
 
-    spawnAPIProcess(): {
-        process: ChildProcess,
-        didProcessExitEarlyTracker: Promise<boolean>
-    } {
+    async spawnAPIProcess(): Promise<{ process: ChildProcess; didProcessExitEarlyTracker: Promise<boolean>; }> {
         const additionalEnvVariables = {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
+            ...await this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
         };
 
         const parameters = ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters]

@@ -107,7 +107,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.desiredStatus = "running"
         try {
             this.appLogger.info(` trying to start ${this.name} python API`, this.name)
-            const trackedProcess = this.spawnAPIProcess()
+            const trackedProcess = await this.spawnAPIProcess()
             this.encapsulatedProcess = trackedProcess.process
             this.pipeProcessLogs(trackedProcess.process)
             if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
@@ -148,7 +148,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         return "stopped"
     }
 
-    abstract spawnAPIProcess(): { process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean> }
+    abstract spawnAPIProcess(): Promise<{ process: ChildProcess; didProcessExitEarlyTracker: Promise<boolean>; }>
 
     pipeProcessLogs(process: ChildProcess) {
         process.stdout!.on('data', (message) => {
@@ -319,7 +319,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
                 this.appLogger.info(`Installing dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
                 const extraIndexArgs = extraIndex ? ["--extra-index-url", extraIndex] : []
-                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", dependency, "--index-strategy", "unsafe-best-match", ...extraIndexArgs], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", dependency, ...extraIndexArgs], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 this.appLogger.info(`Successfully installed of dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
             } catch (e) {
                 this.appLogger.error(`Failure during installation of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`, this.name, true)
