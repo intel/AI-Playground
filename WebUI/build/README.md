@@ -1,32 +1,34 @@
-## Prepare a base python 3.11 environment
+# Installer Build
 
-1. Download embedded python for windows from https://github.com/adang1345/PythonWindows
-2. Download get-pip.py from https://bootstrap.pypa.io/get-pip.py
-3. Install miniforge: https://github.com/conda-forge/miniforge
-4. Create a reference conda environment with libuv installed
-5. Download 7zr executable from https://www.7-zip.org/a/7zr.exe, put it under `WebUI\package_res` folder.
+## Fetch remote dependencies for build
 
+1. run ```npm install```
+2. aquire windows libuv dlls, e.g. via miniforge:
+   - Install miniforge: https://github.com/conda-forge/miniforge
+   - Create a reference conda environment with libuv installed
+    ```
+    conda create -n cp311_libuv python=3.11 libuv -y
+    # copy the path to this conda env
+    conda env list | findstr cp311_libuv
+    ```
+    - copy the path of the Library directory of your conda env  
+3. run ```npm run fetch-build-resources --conda_env_library_dir=$PATH_TO_CONDA_ENV_LIBRARY_DIR```
+
+## decide for offline or online installer
+
+### online installer
+
+run 
 ```
-conda create -n cp311_libuv python=3.11 libuv -y
-
-# copy the path to this conda env
-conda env list | findstr cp311_libuv
+npm run prepare-build:${PLATFORM}
+npm run build:${PLATFORM}
 ```
 
-5. Run pack-python script with 3 additional arguments, this will generate `env.7z` under `WebUI\package_res` folder.
-
+### offline installer
+run
 ```
-cd WebUI
-npm run pack-python <python_embed_zip> <get_pip_py> <ref_conda_env>
+npm run prepare-build:${PLATFORM}-offline
+npm run build:${PLATFORM}-offline
 ```
 
-`package_res/env.7z` could be reused for all platforms.
-
-## Package
-
-```
-npm run prebuild
-npm run build:arc
-npm run build:ultra
-npm run build:ultra2
-```
+Fetching, installing and compressing the full python dependencies takes a considerable amount of time.

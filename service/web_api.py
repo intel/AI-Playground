@@ -1,5 +1,9 @@
 import sys
 
+import comfyui_downloader
+from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest
+
+
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
 # Related issues:
 # + https://github.com/XPixelGroup/BasicSR/issues/649
@@ -17,7 +21,9 @@ except ImportError:
 from datetime import datetime
 import os
 import threading
-from flask import Flask, jsonify, request, Response, stream_with_context
+from flask import jsonify, request, Response, stream_with_context
+from apiflask import APIFlask
+
 from llm_adapter import LLM_SSE_Adapter
 from sd_adapter import SD_SSE_Adapter
 import model_download_adpater
@@ -30,17 +36,26 @@ from paint_biz import (
 )
 import paint_biz
 import llm_biz
-import utils
+import aipg_utils as utils
 import rag
-import model_config
+import service_config
 from model_downloader import HFPlaygroundDownloader
 from psutil._common import bytes2human
 import traceback
 
-app = Flask(__name__)
+import logging
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
-@app.route("/api/llm/chat", methods=["POST"])
+app = APIFlask(__name__)
+
+
+@app.get("/healthy")
+def healthEndpoint():
+    return jsonify({"health": "OK"})
+
+
+@app.post("/api/llm/chat")
 def llm_chat():
     paint_biz.dispose_basic_model()
     params = request.get_json()
@@ -50,7 +65,20 @@ def llm_chat():
     return Response(stream_with_context(it), content_type="text/event-stream")
 
 
-@app.route("/api/llm/stopGenerate", methods=["GET"])
+@app.post("/api/triggerxpucacheclear")
+def trigger_xpu_cache_clear():
+    paint_biz.clear_xpu_cache()
+    return Response("{'message':'triggered xpu cache clearance'}", status=201, mimetype='application/json')
+
+
+@app.post("/api/free")
+def free():
+    paint_biz.dispose()
+    import llm_biz
+    llm_biz.dispose()
+    return jsonify({"code": 0, "message": "success"})
+
+@app.get("/api/llm/stopGenerate")
 def stop_llm_generate():
     import llm_biz
 
@@ -58,7 +86,7 @@ def stop_llm_generate():
     return jsonify({"code": 0, "message": "success"})
 
 
-@app.route("/api/sd/generate", methods=["POST"])
+@app.post("/api/sd/generate")
 def sd_generate():
     """
     {
@@ -118,7 +146,7 @@ def sd_generate():
     return Response(stream_with_context(it), content_type="text/event-stream")
 
 
-@app.route("/api/sd/stopGenerate", methods=["GET"])
+@app.get("/api/sd/stopGenerate")
 def stop_sd_generate():
     import paint_biz
 
@@ -126,25 +154,25 @@ def stop_sd_generate():
     return jsonify({"code": 0, "message": "success"})
 
 
-@app.route("/api/init", methods=["POST"])
+@app.post("/api/init")
 def get_init_settings():
     import schedulers_util
 
     post_config: dict = request.get_json()
     for k, v in post_config.items():
-        if model_config.config.__contains__(k):
-            model_config.config.__setitem__(k, v)
+        if service_config.service_model_paths.__contains__(k):
+            service_config.service_model_paths.__setitem__(k, v)
 
     return jsonify(schedulers_util.schedulers)
 
 
-@app.route("/api/getGraphics", methods=["POST"])
+@app.post("/api/getGraphics")
 def get_graphics():
     env = request.form.get("env", default="ultra", type=str)
     return jsonify(utils.get_support_graphics(env))
 
 
-@app.route("/api/applicationExit", methods=["GET"])
+@app.get("/api/applicationExit")
 def applicationExit():
     from signal import SIGINT
 
@@ -152,23 +180,49 @@ def applicationExit():
     os.kill(pid, SIGINT)
 
 
-@app.route("/api/checkModelExist", methods=["POST"])
-def check_model_exist():
-    list = request.get_json()
+@app.post("/api/checkModelAlreadyLoaded")
+@app.input(DownloadModelRequestBody.Schema, location='json', arg_name='download_request_data')
+def check_model_already_loaded(download_request_data: DownloadModelRequestBody):
     result_list = []
-    for item in list:
-        repo_id = item["repo_id"]
-        type = item["type"]
-        exist = utils.check_mmodel_exist(type, repo_id)
-        result_list.append({"repo_id": repo_id, "type": type, "exist": exist})
-    return jsonify({"code": 0, "message": "success", "exists": result_list})
+    for item in download_request_data.data:
+        repo_id = item.repo_id
+        type = item.type
+        backend = item.backend
+        already_loaded = utils.check_mmodel_exist(type, repo_id, backend)
+        result_list.append({"repo_id": repo_id, "type": type, "backend": backend, "already_loaded": already_loaded})
+    return jsonify({"code": 0, "message": "success", "data": result_list})
 
+
+@app.get("/api/checkHFRepoExists")
+def check_if_huggingface_repo_exists():
+    repo_id = request.args.get('repo_id')
+    downloader = HFPlaygroundDownloader()
+    exists = downloader.hf_url_exists(repo_id)
+    return jsonify(
+            {
+                "exists": exists
+            }
+        )
+
+@app.get("/api/isLLM")
+def is_llm():
+    repo_id = request.args.get('repo_id')
+    downloader = HFPlaygroundDownloader()
+    try:
+        model_type_hf = downloader.probe_type(repo_id)
+    except Exception:
+        model_type_hf = "undefined"
+    return jsonify(
+            {
+            "isllm": model_type_hf == "text-generation"
+            }
+        )
 
 size_cache = dict()
 lock = threading.Lock()
 
 
-@app.route("/api/isModelGated", methods=["POST"])
+@app.post("/api/isModelGated")
 def is_model_gated():
     list = request.get_json()
     downloader = HFPlaygroundDownloader()
@@ -182,8 +236,18 @@ def is_model_gated():
         }
     )
 
+@app.route("/api/isAccessGranted", methods=["POST"])
+def is_access_granted():
+    list, hf_token = request.get_json()
+    downloader = HFPlaygroundDownloader(hf_token)
+    accessGranted = { item["repo_id"] : downloader.is_access_granted(item["repo_id"], item["type"], item["backend"]) for item in list }
+    return jsonify(
+        {
+            "accessList": accessGranted
+        }
+    )
 
-@app.route("/api/getModelSize", methods=["POST"])
+@app.post("/api/getModelSize")
 def get_model_size():
     import concurrent.futures
 
@@ -231,7 +295,7 @@ def fill_size_execute(repo_id: str, type: int, result_dict: dict):
         result_dict.__setitem__(key, bytes2human(total_size, "%(value).2f%(symbol)s"))
 
 
-@app.route("/api/llm/enableRag", methods=["POST"])
+@app.post("/api/llm/enableRag")
 def enable_rag():
     if not rag.Is_Inited:
         repo_id = request.form.get("repo_id", default="", type=str)
@@ -240,7 +304,7 @@ def enable_rag():
     return jsonify({"code": 0, "message": "success"})
 
 
-@app.route("/api/llm/disableRag", methods=["GET"])
+@app.get("/api/llm/disableRag")
 def disable_rag():
     if rag.Is_Inited:
         rag.dispose()
@@ -254,9 +318,9 @@ def get_bearer_token(request):
     return None
 
 
-@app.route("/api/downloadModel", methods=["POST"])
-def download_model():
-    list = request.get_json()
+@app.post("/api/downloadModel")
+@app.input(DownloadModelRequestBody.Schema, location='json', arg_name='download_request_data')
+def download_model(download_request_data: DownloadModelRequestBody):
     if model_download_adpater._adapter is not None:
         model_download_adpater._adapter.stop_download()
     try:
@@ -265,7 +329,7 @@ def download_model():
                 hf_token=get_bearer_token(request)
             )
         )
-        iterator = model_download_adpater._adapter.download(list)
+        iterator = model_download_adpater._adapter.download(download_request_data.data)
         return Response(stream_with_context(iterator), content_type="text/event-stream")
     except Exception as e:
         traceback.print_exc()
@@ -275,14 +339,14 @@ def download_model():
         return Response(stream_with_context([ex_str]), content_type="text/event-stream")
 
 
-@app.route("/api/stopDownloadModel", methods=["GET"])
+@app.get("/api/stopDownloadModel")
 def stop_download_model():
     if model_download_adpater._adapter is not None:
         model_download_adpater._adapter.stop_download()
     return jsonify({"code": 0, "message": "success"})
 
 
-@app.route("/api/llm/getRagFiles", methods=["GET"])
+@app.get("/api/llm/getRagFiles")
 def get_rag_files():
     try:
         result_list = list()
@@ -299,7 +363,7 @@ def get_rag_files():
         return jsonify({"code": -1, "message": "failed"})
 
 
-@app.route("/api/llm/uploadRagFile", methods=["POST"])
+@app.post("/api/llm/uploadRagFile")
 def upload_rag_file():
     try:
         path = request.form.get("path")
@@ -310,7 +374,7 @@ def upload_rag_file():
         return jsonify({"code": -1, "message": "failed", path: path})
 
 
-@app.route("/api/llm/deleteRagIndex", methods=["POST"])
+@app.post("/api/llm/deleteRagIndex")
 def delete_rag_file():
     try:
         path = request.form.get("md5")
@@ -319,6 +383,38 @@ def delete_rag_file():
     except Exception:
         traceback.print_exc()
         return jsonify({"code": -1, "message": "failed"})
+
+
+@app.get("/api/comfyUi/isInstalled")
+def is_comfyUI_loaded():
+    return jsonify({"is_comfyUI_installed": comfyui_downloader.is_comfyUI_installed()})
+
+@app.post("/api/comfyUi/install")
+def install_comfyUI():
+    try:
+        installation_success = comfyui_downloader.install_comfyUI()
+        return jsonify({"success": installation_success, "error_message": ""})
+    except Exception as e:
+        return jsonify({'error_message': f'failed to install comfyUI due to {e}'}), 501
+
+
+@app.post("/api/comfyUi/areCustomNodesLoaded")
+@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
+def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
+    response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data}
+    return jsonify(response)
+
+
+@app.post("/api/comfyUi/loadCustomNodes")
+@app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
+def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
+    try:
+        for x in comfyNodeRequest.data:
+            comfyui_downloader.download_custom_node(x)
+        return jsonify({ f"{x.username}/{x.repoName}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data})
+    except Exception as e:
+        return jsonify({'error_message': f'failed to at least one custom node due to {e}'}), 501
+
 
 
 def cache_input_image():

@@ -130,7 +130,7 @@
 "DOWNLOADER_FOR_IMAGE_PREVIEW": "Bildvorschau Modell",
 "DOWNLOADER_FOR_IMAGE_UPSCALE": "Bild Upscale Modell",
 "DOWNLOADER_FOR_IMAGE_LORA": "Schnelles Bild Modell",
-"DOWNLOADER_DONWLOAD_TASK_PROGRESS": "Download Modell vollständig",
+"DOWNLOADER_DONWLOAD_TASK_PROGRESS": "Modell Downloads abgeschlossen",
 "RAG_FILE_TOTAL_FORMAT": "Datei total: {total}",
 "RAG_DRAG_UPLOAD": "Ziehen Sie Dateien zum Hochladen",
 "RAG_DRAG_UPLOAD_UNSUPPORTED": "Das aktuelle Programm wird mit Administratorrechten gestartet. Aufgrund von Windows-UAC-Einschränkungen kann der Drag-and-Drop-Upload nicht verwendet werden. Bitte verwenden Sie die Schaltfläche „Hinzufügen“ oben, um Dateien hochzuladen.",

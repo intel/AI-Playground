@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 
-type ModelType = "llm" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae";
+export type ModelType = "llm" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae" | "undefined";
 
 export type Model = {
     name: string;
@@ -17,11 +17,16 @@ const predefinedModels: Model[] = [
     // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
 ]    
 
+export const userModels: Model[] = [
+]
+
 export const useModels = defineStore("models", () => {
 
     const hfToken = ref<string | undefined>(undefined);
     const models = ref(predefinedModels);
     const llms = computed(() => models.value.filter(m => m.type === 'llm'));
+
+    const downloadList = ref<DownloadModelParam[]>([]);
 
     async function refreshModels() {
         const sdModels = await window.electronAPI.getDownloadedDiffusionModels();
@@ -37,13 +42,15 @@ export const useModels = defineStore("models", () => {
             ...inpaintModels.map<Model>(name => ({ name, type: 'inpaint', downloaded: true })),
             ...embeddingModels.map<Model>(name => ({ name, type: 'embedding', downloaded: true })),
         ];
+
         const notYetDownloaded = (model: Model) => !downloadedModels.map(m => m.name).includes(model.name);
 
-        models.value = [...downloadedModels, ...predefinedModels.filter(notYetDownloaded)];
-        console.log(models);
+        models.value = [...downloadedModels, ...userModels.filter(notYetDownloaded), ...predefinedModels.filter(notYetDownloaded)];
 
         }
 
+    async function download(models: DownloadModelParam[]) {
+    };
     refreshModels()
 
     return {
@@ -51,7 +58,9 @@ export const useModels = defineStore("models", () => {
         llms,
         hfToken,
         hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
+        downloadList,
         refreshModels,
+        download,
     }
 }, {
     persist: {

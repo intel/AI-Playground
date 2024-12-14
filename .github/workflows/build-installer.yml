@@ -1,0 +1,76 @@
+name: build installer
+
+run-name: installer-build-${{ inputs.platform }}-${{ github.sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: installer(s) to build
+        required: true
+        options:
+          - arc
+          - ultra
+          - ultra2
+          - all
+jobs:
+  build-installer:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: setup miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          conda-remove-defaults: "true"
+          python-version: "3.11"
+          activate-environment: 'cp311_libuv'
+
+      - name: Install libuv dependency
+        run: |
+          conda install -y libuv
+          conda env list | findstr libuv
+          echo "LIBUV_DLLS_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)\Library\bin"
+          echo "LIBUV_DLLS_PATH=$($(conda env list | findstr libuv) -split ' ' | Select-Object -Last 1)\Library\bin" >> $env:GITHUB_ENV
+
+      - name: copy libuv dlls to workspace
+        run: |
+          New-Item -ItemType Directory -Path "python_package_res\conda\Library\bin" -Force
+          copy "${{ env.LIBUV_DLLS_PATH }}\*.dll" "python_package_res\conda\Library\bin"
+
+      - name: Install Node.js and npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: setup npm project
+        working-directory: "WebUI"
+        run: npm install
+
+      - name: build installer
+        working-directory: "WebUI"
+        run: |
+          npm run fetch-build-resources
+          npm run pack-python
+          npm run prebuild
+          npm run build:${{ inputs.platform }}
+
+      - name: set release path
+        working-directory: "release"
+        run: |
+          echo "RELEASE_DIR=$((pwd).Path)"
+          echo "RELEASE_DIR=$((pwd).Path)" >> $env:GITHUB_ENV
+
+      - name: upload release
+        uses: actions/upload-artifact@v4
+        with:
+          name: "installers-${{ inputs.platform }}-${{ github.sha }}"
+          path: ${{ env.RELEASE_DIR }}\*.exe
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true

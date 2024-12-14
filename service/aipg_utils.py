@@ -1,11 +1,18 @@
 import base64
-import math
-from typing import IO
-from PIL import Image
-import io
-import os
 import hashlib
+import io
+import logging
+import math
+import os
+import shutil
+from typing import IO
+
 import torch
+from PIL import Image
+
+import service_config
+import subprocess
+import shlex
 
 
 def image_to_base64(image: Image.Image):
@@ -35,21 +42,44 @@ def get_image_shape_ceil(image: Image.Image):
     return get_shape_ceil(H, W)
 
 
-def check_mmodel_exist(type: int, repo_id: str):
-    import model_config
+def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
+    match(backend):
+        case "default":
+            return check_defaultbackend_mmodel_exist(type, repo_id)
+        case "comfyui":
+            return check_comfyui_model_exists(type, repo_id)
+        case _:
+            raise NameError("Unknown Backend")
 
-    folder_name = repo_id.replace("/", "---")
+def check_comfyui_model_exists(type, repo_id) -> bool:
+    model_dir = service_config.comfy_ui_model_paths.get(convert_model_type(type))
+    dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
+    return os.path.exists(dir_to_look_for)
+
+def trim_repo(repo_id):
+    return "/".join(repo_id.split("/")[:2])
+
+def extract_model_id_pathsegments(repo_id) -> str:
+    return "/".join(repo_id.split("/")[2:])
+
+def repo_local_root_dir_name(repo_id):
+    return "---".join(repo_id.split("/")[:2])
+
+def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
+    import service_config
+
+    folder_name = repo_local_root_dir_name(repo_id)
     if type == 0:
-        dir = model_config.config.get("llm")
-        return os.path.exists(os.path.join(dir, folder_name, "config.json"))
+        dir = service_config.service_model_paths.get("llm")
+        return os.path.exists(os.path.join(dir, folder_name))
     elif type == 1:
-        dir = model_config.config.get("stableDiffusion")
+        dir = service_config.service_model_paths.get("stableDiffusion")
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
             return os.path.exists(os.path.join(dir, folder_name, "model_index.json"))
     elif type == 2:
-        dir = model_config.config.get("lora")
+        dir = service_config.service_model_paths.get("lora")
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
@@ -59,20 +89,20 @@ def check_mmodel_exist(type: int, repo_id: str):
                 os.path.join(dir, folder_name, "pytorch_lora_weights.bin")
             )
     elif type == 3:
-        dir = model_config.config.get("vae")
+        dir = service_config.service_model_paths.get("vae")
         return os.path.exists(os.path.join(dir, folder_name))
     elif type == 4:
         import realesrgan
 
-        dir = model_config.config.get("ESRGAN")
+        dir = service_config.service_model_paths.get("ESRGAN")
         return os.path.exists(
             os.path.join(dir, realesrgan.ESRGAN_MODEL_URL.split("/")[-1])
         )
     elif type == 5:
-        dir = model_config.config.get("embedding")
+        dir = service_config.service_model_paths.get("embedding")
         return os.path.exists(os.path.join(dir, folder_name))
     elif type == 6:
-        dir = model_config.config.get("inpaint")
+        dir = service_config.service_model_paths.get("inpaint")
         if is_single_file(repo_id):
             return os.path.exists(os.path.join(dir, repo_id))
         else:
@@ -80,7 +110,7 @@ def check_mmodel_exist(type: int, repo_id: str):
                 os.path.join(dir, repo_id.replace("/", "---"), "model_index.json")
             )
     elif type == 7:
-        dir = model_config.config.get("preview")
+        dir = service_config.service_model_paths.get("preview")
         return (
             os.path.exists(os.path.join(dir, folder_name, "config.json"))
             or os.path.exists(os.path.join(dir, f"{repo_id}.safetensors"))
@@ -105,14 +135,32 @@ def convert_model_type(type: int):
         return "inpaint"
     elif type == 7:
         return "preview"
+
+    elif type == 100:
+        return "unet"
+    elif type == 101:
+        return "clip"
+    elif type == 102:
+        return "vae"
+    elif type == 103:
+        return "defaultCheckpoint"
+    elif type == 104:
+        return "defaultLora"
+    elif type == 105:
+        return "controlNet"
+    elif type == 106:
+        return "faceswap"
     else:
-        raise Exception(f"uwnkown model type value {type}")
+        raise Exception(f"unknown model type value {type}")
 
 
-def get_model_path(type: int):
-    import model_config
+def get_model_path(type: int, backend: str):
+    match backend:
+        case "default":
+            return service_config.service_model_paths.get(convert_model_type(type))
+        case "comfyui":
+            return service_config.comfy_ui_model_paths.get(convert_model_type(type))
 
-    return model_config.config.get(convert_model_type(type))
 
 
 def calculate_md5(file_path: str):
@@ -167,13 +215,29 @@ def get_ESRGAN_size():
 
 
 def get_support_graphics(env_type: str):
-    import model_config
-
     device_count = torch.xpu.device_count()
-    model_config.env_type = env_type
+    service_config.env_type = env_type
     graphics = list()
     for i in range(device_count):
         device_name = torch.xpu.get_device_name(i)
         # if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
         graphics.append({"index": i, "name": device_name})
     return graphics
+
+
+def call_subprocess(process_command: str) -> str:
+    args = shlex.split(process_command)
+    try:
+        logging.info(f"calling cmd process: {args}")
+        output = subprocess.check_output(args)
+        return output.decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to call subprocess {process_command} with error {e}")
+        raise e
+
+def remove_existing_filesystem_resource(path: str):
+    if os.path.exists(path):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)

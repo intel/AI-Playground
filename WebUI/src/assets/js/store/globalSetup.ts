@@ -1,6 +1,9 @@
-import { defineStore } from "pinia";
-import { util } from "../util";
-import { useI18N } from "./i18n";
+import {defineStore} from "pinia";
+import {util} from "../util";
+import {useI18N} from "./i18n";
+import {useBackendServices} from "./backendServices";
+
+type GlobalSetupState = "running" | "verifyBackend" | "manageInstallations" | "loading" | "failed"
 
 export const useGlobalSetup = defineStore("globalSetup", () => {
     const state = reactive<KVObject>({
@@ -9,7 +12,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         version: "0.0.0.1"
     });
 
-    const apiHost = ref("http://127.0.0.1:9999");
+    const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
+    const backendServices = useBackendServices();
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -64,30 +68,24 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     let envType = "";
 
-    const loadingState = ref("loading");
-
+    const loadingState = ref<GlobalSetupState>("verifyBackend");
     const errorMessage = ref("");
-
     const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
 
     watchEffect(() => {
         localStorage.setItem("HdPersistentConfirmation", hdPersistentConfirmation.value.toString());
     });
 
-    window.electronAPI.onReportError((value) => {
-        loadingState.value = "failed";
-        errorMessage.value = value;
-    })
-
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();
+        const apiServiceInformation = await window.electronAPI.getServices()
         envType = setupData.envType;
         paths.value = setupData.modelPaths;
         models.value = setupData.modelLists;
         models.value.inpaint.push(useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL);
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
-        apiHost.value = setupData.apiHost;
+        defaultBackendBaseUrl.value = apiServiceInformation.find(item => item.serviceName === "ai-backend")!.baseUrl;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;
@@ -98,16 +96,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 models.value.scheduler.unshift("None");
                 break;
             } catch (error) {
-                const backendStatus = (await window.electronAPI.getPythonBackendStatus()).status;
-                if (backendStatus === "stopped") {
-                    loadingState.value = "failed";
-                    return;
-                }
-                if (backendStatus === "running" && !(error instanceof TypeError)) {
-                    loadingState.value = "failed";
-                    errorMessage.value = (error as Error).message;
-                    return;
-                }
                 await util.delay(delay);
             }
         }
@@ -117,13 +105,26 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             window.electronAPI.exitApp();
         }
         await loadUserSettings();
-        loadingState.value = "running";
+    }
+
+    async function initWebSettings(postJson: string) {
+        const response = await fetch(`${defaultBackendBaseUrl.value}/api/init`, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+            method: "post",
+            body: postJson,
+        });
+        if (response.status !== 200) {
+            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
+        }
+        return await response.json() as string[];
     }
 
     async function reloadGraphics() {
         const formData = new FormData();
         formData.append("env", envType);
-        const response = await fetch(`${apiHost.value}/api/getGraphics`, {
+        const response = await fetch(`${defaultBackendBaseUrl.value}/api/getGraphics`, {
             body: formData,
             method: "POST"
         });
@@ -145,20 +146,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     async function refreshLora() {
         models.value.lora = await window.electronAPI.refreshLora();
-    }
-
-    async function initWebSettings(postJson: string) {
-        const response = await fetch(`${apiHost.value}/api/init`, {
-            headers: {
-                "Content-Type": "application/json",
-            },
-            method: "post",
-            body: postJson,
-        });
-        if (response.status !== 200) {
-            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
-        }
-        return await response.json() as string[];
     }
 
     async function applyPathsSettings(newPaths: ModelPaths) {
@@ -292,15 +279,21 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         }
     }
 
-    async function checkModelExists(params: CheckModelExistParam[]) {
-        const response = await fetch(`${apiHost.value}/api/checkModelExist`, {
+    async function checkModelAlreadyLoaded(params: CheckModelAlreadyLoadedParameters[]) {
+        const response = await fetch(`${defaultBackendBaseUrl.value}/api/checkModelAlreadyLoaded`, {
             method: "POST",
-            body: JSON.stringify(params),
+            body: JSON.stringify({ 'data': params}),
             headers: {
                 "Content-Type": "application/json"
             }
         });
-        const data = (await response.json()) as ApiResponse & { exists: CheckModelExistResult[] };
+        const parsedResponse = (await response.json()) as ApiResponse & { data: CheckModelAlreadyLoadedResult[] };
+        return parsedResponse.data;
+    }
+
+    async function checkIfHuggingFaceUrlExists(repo_id: string) {
+        const response = await fetch(`${defaultBackendBaseUrl.value}/api/checkHFRepoExists?repo_id=${repo_id}`)
+        const data = await response.json()
         return data.exists;
     }
 
@@ -310,7 +303,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         presetModel,
         models,
         paths,
-        apiHost,
+        apiHost: defaultBackendBaseUrl,
         graphicsList,
         loadingState,
         errorMessage,
@@ -318,12 +311,12 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         initSetup,
         applyPathsSettings,
         applyModelSettings,
-        getManualModelSettings,
         refreshLLMModles,
         refreshSDModles,
         refreshInpaintModles,
         refreshLora,
-        checkModelExists,
+        checkModelAlreadyLoaded: checkModelAlreadyLoaded,
+        checkIfHuggingFaceUrlExists,
         applyPresetModelSettings,
         restorePathsSettings,
     };

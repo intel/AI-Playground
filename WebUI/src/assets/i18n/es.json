@@ -130,7 +130,7 @@
 "DOWNLOADER_FOR_IMAGE_PREVIEW": "Modelo de vista previa de imagen",
 "DOWNLOADER_FOR_IMAGE_UPSCALE": "Modelo de imagen aumentada",
 "DOWNLOADER_FOR_IMAGE_LORA": "Modelo de imagen rápida",
-"DOWNLOADER_DONWLOAD_TASK_PROGRESS": "Descarga del modelo completada",
+"DOWNLOADER_DONWLOAD_TASK_PROGRESS": "Descargas del modelo completadas",
 "RAG_FILE_TOTAL_FORMAT": "Archivos totales: {total}",
 "RAG_DRAG_UPLOAD": "Arrastra los archivos para cargar",
 "RAG_DRAG_UPLOAD_UNSUPPORTED": "El programa actual se ejecuta con privilegios de administrador. Debido a las limitaciones de UAC de Windows, no es posible utilizar la carga mediante arrastre. Usa el botón de arriba \"Agregar\" para cargar los archivos.",

@@ -33,11 +33,9 @@ type KVObject = {
 type Theme = 'dark' | 'lnl' | 'bmg';
 
 type LocalSettings = {
-  apiHost: string;
-  settingPath: string;
   debug: number;
   envType: string;
-  port:number;
+  comfyUiParameters?:string[];
 } & KVObject;
 
 type ThemeSettings = {
@@ -65,7 +63,6 @@ type ModelLists = {
 } & { [key: string]: Array<string> }
 
 type SetupData = {
-  apiHost:string,
   modelPaths: ModelPaths,
   modelLists: ModelLists,
   envType: string,
@@ -73,6 +70,4 @@ type SetupData = {
   version:string,
 }
 
-type BackendStatus = {
-  status: 'starting' | 'running' | 'stopped',
-}
+type BackendStatus = 'notYetStarted' | 'starting' | 'running' | 'stopped' | 'failed' | 'notInstalled' | 'installationFailed' | 'installing' | 'uninitializedStatus'

@@ -12,6 +12,8 @@ dist/
 dist-ssr
 *.local
 release/
+ComfyUI/
+*.nsh
 
 # Editor directories and files
 .vscode/*

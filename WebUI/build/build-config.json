@@ -22,6 +22,14 @@
       ]
     },
     {
+      "from": "external/intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl",
+      "to": "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
+    },
+    {
+      "from": "external/workflows",
+      "to": "workflows"
+    },
+    {
       "from": "external/service/models/stable_diffusion/ESRGAN",
       "to": "service/models/stable_diffusion/ESRGAN"
     },
@@ -34,8 +42,8 @@
       "to": "7zr.exe"
     },
     {
-      "from": "external/env.7z",
-      "to": "env.7z"
+      "from": "external/prototype-python-env.7z",
+      "to": "prototype-python-env.7z"
     },
     {
       "from": "external/model_config.json",
@@ -58,19 +66,27 @@
   "directories": {
     "output": "../release"
   },
-  "files": ["dist", "dist-electron"],
+  "files": [
+    "dist",
+    "dist-electron"
+  ],
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       }
     ],
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",
     "artifactName": "${productName}-${version}-For-${env.PLATFORM}.${ext}",
-    "electronLanguages": ["en-US", "zh-CN"]
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ]
   },
   "nsis": {
     "license": "build/license.rtf",

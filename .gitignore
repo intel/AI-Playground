@@ -1,6 +1,8 @@
 .vscode/
 env/
 package_res/
+build_resources/
+build_envs/
 release/
 WebUI/external/service/
 
@@ -8,3 +10,8 @@ installer.nsh
 *.exe
 *.7z
 *.whl
+ComfyUI/
+*env_tmp/
+*service_tmp/
+*-env/
+portable-git/
