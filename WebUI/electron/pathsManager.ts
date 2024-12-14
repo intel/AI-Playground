@@ -95,52 +95,33 @@ export class PathsManager {
         }
         return models
     }
-    scanLLMModles(returnDefaults = true) {
-        const models = returnDefaults ? [
-            "microsoft/Phi-3-mini-4k-instruct",
-        ] : [];
+    scanLLMModles() {
         const dir = this.modelPaths.llm;
-        if (fs.existsSync(dir)) {
-            const modelsSet = new Set(models);
-            fs.readdirSync(dir).forEach(pathname => {
-                const fullPath = path.join(dir, pathname);
-                if (fs.statSync(fullPath).isDirectory() && fs.existsSync(
-                    path.join(fullPath)
-                )) {
-                    const modelName = pathname.replace("---", "/")
-                    if (!modelsSet.has(modelName)) {
-                        modelsSet.add(modelName)
-                        models.push(modelName)
-                    }
-                }
-            });
-        }
-        else {
+        if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        return models
+        const modelsSet = fs.readdirSync(dir)
+        .filter(subDir => {
+            const fullpath = path.join(dir, subDir);
+            return fs.statSync(fullpath).isDirectory() && fs.existsSync(path.join(fullpath))})
+        .map(subDir => subDir.replace("---", "/"))
+        .reduce((set, modelName) => set.add(modelName), new Set<string>());
+
+        return [...modelsSet]
     }
-    scanGGUFLLMModels(returnDefaults = true) {
-        const models = returnDefaults ? [
-            "lanok/Meta-Llama-3.1-8B-Instruct-Q5_K_M-GGUF",
-        ] : [];
+    scanGGUFLLMModels() {
         const dir = this.modelPaths.ggufLLM;
-        if (fs.existsSync(dir)) {
-            const modelsSet = new Set(models);
-            fs.readdirSync(dir).forEach(pathname => {
-                if (pathname.endsWith(".gguf")) {
-                    const modelName = pathname;
-                    if (!modelsSet.has(modelName)) {
-                        modelsSet.add(modelName)
-                        models.push(modelName)
-                    }
-                }
-            });
-        }
-        else {
+        if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        return models
+        console.log('getting models', dir);
+        const modelsSet = fs.readdirSync(dir, { encoding: 'utf-8', recursive: true})
+        .filter(pathName => pathName.endsWith(".gguf"))
+        .map(path => path.replace("---", "/"))
+        .map(path => path.replace("\\", "/"))
+        .reduce((acc, pathname) => acc.add(pathname), new Set<string>());
+
+        return [...modelsSet]
     }
     scanLora(returnDefaults = true) {
         const models = returnDefaults ? [
