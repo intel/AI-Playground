@@ -26,6 +26,10 @@
       "to": "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
     },
     {
+      "from": "external/llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl",
+      "to": "llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl"
+    },
+    {
       "from": "external/workflows",
       "to": "workflows"
     },
