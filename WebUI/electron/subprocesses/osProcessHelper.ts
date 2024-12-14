@@ -1,6 +1,6 @@
 import path from "node:path";
 import * as fs from 'fs-extra'
-import {spawn, spawnSync} from "node:child_process";
+import { spawn } from "node:child_process";
 
 
 export function existingFileOrError(filePath: string) {
@@ -10,46 +10,27 @@ export function existingFileOrError(filePath: string) {
     }
     throw Error(`File at ${resolvedFilePath} does not exist`)
 }
-
-export function spawnProcessSync(command: string, args: string[] = [], extraEnv?: {}, logHandler: (data: string) => void = () => { },
-): string {
-    try {
-        logHandler(`Spawning synchronous command ${command} ${args}`)
-        const result = spawnSync(command, args, {
-            windowsHide: true,
-            env: {
-                ...process.env,
-                ...extraEnv,
-            }
-        });
-        const stdOut = result.stdout.toString('utf8').trim();
-        const stdErr = result.stderr.toString('utf8').trim();
-        logHandler(stdOut)
-        logHandler(stdErr)
-        if (result.status !== 0) {
-            throw Error(`Command failed with exit code ${result.status}: ${result.stderr}`);
-        }
-        return stdOut
-    } catch (error) {
-        throw error;
-    }
-}
-
 export async function spawnProcessAsync(command: string, args: string[] = [],
-                                        logHandler: (data: string) => void = () => {},
-): Promise<void> {
+    logHandler: (data: string) => void = () => { }, extraEnv?: {}
+): Promise<string> {
     logHandler(`Spawning command ${command} ${args}`)
-    const process = spawn(command, args, {
+    const spawnedProcess = spawn(command, args, {
         windowsHide: true,
+        env: {
+            ...process.env,
+            ...extraEnv,
+        }
     });
 
-    process.stdout.on("data", (data) => { logHandler(data) });
-    process.stderr.on("data", (data) => { logHandler(data) });
+    const stdOut: string[] = [];
 
-    return new Promise<void>((resolve, reject) => {
-        process.on("exit", (code) => {
+    spawnedProcess.stdout.on("data", (data: string | Buffer) => { logHandler(data.toString('utf8')); stdOut.push(data.toString('utf8')); });
+    spawnedProcess.stderr.on("data", (data) => { logHandler(data) });
+
+    return new Promise<string>((resolve, reject) => {
+        spawnedProcess.on("exit", (code) => {
             if (code === 0) {
-                resolve();
+                resolve(stdOut.join('\n'));
             } else {
                 reject(new Error(`command ${command} ${args} failed ${code}`));
             }
@@ -57,7 +38,7 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
     });
 }
 
-export async function copyFileWithDirs(src :string, dest: string) {
+export async function copyFileWithDirs(src: string, dest: string) {
     const stats = await fs.promises.lstat(src);
     if (stats.isSymbolicLink()) {
         const linkTarget = await fs.promises.readlink(src);
@@ -65,5 +46,5 @@ export async function copyFileWithDirs(src :string, dest: string) {
     }
     const destDir = path.dirname(dest);
     await fs.promises.mkdir(destDir, { recursive: true });
-    await fs.promises.cp(src, dest, {recursive: true});
+    await fs.promises.cp(src, dest, { recursive: true });
 }

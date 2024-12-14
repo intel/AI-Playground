@@ -1,10 +1,8 @@
 import * as filesystem from 'fs-extra';
-import getPort, { portNumbers } from "get-port";
 import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
-import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService } from "./apiService.ts";
-import { existingFileOrError, spawnProcessSync } from './osProcessHelper.ts';
-import { app, BrowserWindow } from 'electron';
+import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService } from "./apiService.ts";
+import { existingFileOrError } from './osProcessHelper.ts';
 
 
 export class AiBackendService extends LongLivedPythonApiService {

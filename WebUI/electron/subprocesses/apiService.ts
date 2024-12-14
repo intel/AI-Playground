@@ -3,7 +3,7 @@ import path from "node:path";
 import {app, BrowserWindow} from "electron";
 import {appLoggerInstance} from "../logging/logger.ts";
 import fs from "fs";
-import {copyFileWithDirs, existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
+import {copyFileWithDirs, existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import * as filesystem from "fs-extra";
 import {z} from "zod";
 import { getArchPriority, getDeviceArch } from "./deviceArch.ts";
@@ -174,7 +174,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         const startTime = performance.now()
         const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
             const queryIntervalMs = 250
-            const startupPeriodMaxMs = 60000
+            const startupPeriodMaxMs = 120000
             while (performance.now() < startTime + startupPeriodMaxMs) {
                 try {
                     const serviceHealthResponse = await fetch(this.healthEndpointUrl);
@@ -230,9 +230,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
                     const pythonExe = existingFileOrError(getPythonPath(pythonEnvContainmentDir))
                     const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "requirements-ls_level_zero.txt")));
                     await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", lsLevelZeroRequirements], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                    const lsLevelZeroOut = spawnProcessSync(lsLevelZeroBinaryTargetPath, [], {
+                    const lsLevelZeroOut = await spawnProcessAsync(lsLevelZeroBinaryTargetPath, [], (data: string) => {this.appLogger.logMessageToFile(data, this.name)}, {
                         ONEAPI_DEVICE_SELECTOR: "level_zero:*" // reset selector env to guarantee full device list (and the ordering)
-                    }, (data: string) => {this.appLogger.logMessageToFile(data, this.name)});
+                    });
                     this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
                     this.allLevelZeroDevices = LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
 

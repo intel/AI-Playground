@@ -1,9 +1,9 @@
-import {getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService} from "./apiService.ts";
+import {getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
 import * as filesystem from "fs-extra";
-import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
+import {existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
 
 
@@ -39,7 +39,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         const cloneGitStep = async (gitExePath: string, url: string, target: string) => {
             self.appLogger.info(`Cloning from ${url}`, self.name, true)
             try {
-                spawnProcessSync(gitExePath, ["clone", url, target], {}, logToFileHandler)
+                await spawnProcessAsync(gitExePath, ["clone", url, target], logToFileHandler)
                 existingFileOrError(target)
                 self.appLogger.info(`repo available at ${target}`, self.name, true)
             } catch (e) {
