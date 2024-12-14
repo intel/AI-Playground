@@ -13,6 +13,7 @@ dist-ssr
 *.local
 release/
 ComfyUI/
+LlamaCPP/
 
 # Editor directories and files
 .vscode/*
