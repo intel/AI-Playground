@@ -11,8 +11,7 @@
     # copy the path to this conda env
     conda env list | findstr cp311_libuv
     ```
-    - copy the path of the Library directory of your conda env  
-3. run ```npm run fetch-build-resources --conda_env_library_dir=$PATH_TO_CONDA_ENV_LIBRARY_DIR```
+3. run ```npm run fetch-build-resources -- --conda_env_dir=$PATH_TO_CONDA_ENV```
 
 ## decide for offline or online installer
 

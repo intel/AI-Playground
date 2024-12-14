@@ -39,7 +39,7 @@ function verifyFilesExist() {
     // check whether libuv has been installed in the conda env
     const uvDll = path.join(condaBinDir, 'uv.dll');
     if (!fs.existsSync(uvDll)) {
-        console.error('libuv.dll not found in reference conda env:', uvDll);
+        console.error('uv.dll not found in reference conda env:', uvDll);
         process.exit(1);
     }
     console.log('all required files exist.')

@@ -1,4 +1,4 @@
-// Usage: node fetch-python-package-resources.js --target-dir=$DIR --conda-env-library-dir=$DIR
+// Usage: node fetch-python-package-resources.js --target-dir=$DIR --conda_env_dir=$DIR
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -7,16 +7,16 @@ const childProcess = require('child_process');
 
 const argv = require('minimist')(process.argv.slice(2));
 const targetDirArg = argv.target_dir
-const condaEnvLibraryDirArg = argv.conda_env_library_dir
+const condaEnvDirArg = argv.conda_env_dir
 
-if (!targetDirArg || !condaEnvLibraryDirArg) {
-    console.error('Usage: node fetch-python-package-resources.js --target_dir=$DIR --conda_env_library_dir=$DIR\n');
+if (!targetDirArg || !condaEnvDirArg) {
+    console.error('Usage: node fetch-python-package-resources.js --target_dir=$DIR --conda_env_dir=$DIR\n');
     process.exit(1);
 }
 
 const targetDir = path.resolve(targetDirArg);
 const condaTargetDir = path.join(targetDir, 'conda-env-lib')
-const condaEnvLibraryDir = path.resolve(condaEnvLibraryDirArg);
+const condaEnvLibraryDir = path.resolve(path.join(condaEnvDirArg, 'Library'));
 
 const embeddablePythonUrl = 'https://raw.githubusercontent.com/adang1345/PythonWindows/master/3.11.10/python-3.11.10-embed-amd64.zip';
 const getPipScriptUrl = 'https://bootstrap.pypa.io/get-pip.py'
@@ -61,7 +61,7 @@ function prepareTargetPath() {
 
 function copyLibuvDllsIfNotPresent() {
     if (fs.existsSync(path.join(condaTargetDir, 'Library', 'bin', 'uv.dll'))) {
-        console.log(`omitting fetching copying of libuvDLLs, as they already exist`)
+        console.log(`omitting fetching copying of libuv DLLs, as they already exist`)
     } else {
         if (!path.join(condaEnvLibraryDir, 'bin', 'uv.dll')) {
             console.log(`provided conda env at ${condaEnvLibraryDir} is missing uv.dll. Aborting`)
