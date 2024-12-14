@@ -10,7 +10,8 @@ export class AiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = aiBackendServiceDir();
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
+    readonly lsLevelZeroDir = this.pythonEnvDir
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
     serviceIsSetUp = () => filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe);
     isSetUp = this.serviceIsSetUp();
@@ -64,7 +65,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...await this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
+            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
         const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {
