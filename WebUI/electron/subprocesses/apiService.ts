@@ -260,10 +260,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
             }
         },
 
-        getDeviceSelectorEnv: (pythonEnvContainmentDir: string) => {
+        getDeviceSelectorEnv: async (pythonEnvContainmentDir: string) => {
             if (this.selectedDeviceId === -1) {
-                this.commonSetupSteps.detectDevice(pythonEnvContainmentDir);
+                await this.commonSetupSteps.detectDevice(pythonEnvContainmentDir);
             }
+            this.appLogger.info(`Setting device selector to level_zero:${this.selectedDeviceId}`, this.name)
             return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceId}` }
         },
 
