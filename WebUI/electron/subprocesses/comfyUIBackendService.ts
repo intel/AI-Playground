@@ -199,7 +199,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.commonSetupSteps.getDeviceSelectorEnv(),
+            ...this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
         };
 
         const parameters = ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters]
