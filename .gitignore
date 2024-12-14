@@ -6,7 +6,6 @@ build_envs/
 release/
 WebUI/external/service/
 
-installer.nsh
 *.exe
 *.7z
 *.whl

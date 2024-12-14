@@ -19,11 +19,14 @@
 
 run 
 ```
-npm run prepare-build:${PLATFORM}
+npm run prepare-build
 npm run build:${PLATFORM}
 ```
 
 ### offline installer
+
+**FIXME: offline scripts are missing**
+
 run
 ```
 npm run prepare-build:${PLATFORM}-offline
