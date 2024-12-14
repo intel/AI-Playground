@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "1.22.1-beta",
+  "version": "2.0.0-alpha",
   "scripts": {
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "preview": "vite preview",
@@ -14,6 +14,7 @@
 
     "prepare-build": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/prototype-python-env",
 
+    "build": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "build:arc": "cross-env-shell PLATFORM=\"arc\" VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "build:ultra": "cross-env-shell PLATFORM=\"ultra\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "build:ultra2": "cross-env-shell PLATFORM=\"ultra2\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\""

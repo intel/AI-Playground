@@ -50,7 +50,7 @@
       "to": "model_config.json"
     },
     {
-      "from": "build/${env.PLATFORM}-settings.json",
+      "from": "build/settings.json",
       "to": "settings.json"
     },
     {
@@ -82,7 +82,7 @@
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",
-    "artifactName": "${productName}-${version}-For-${env.PLATFORM}.${ext}",
+    "artifactName": "${productName}-${version}.${ext}",
     "electronLanguages": [
       "en-US",
       "zh-CN"

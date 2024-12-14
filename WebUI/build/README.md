@@ -20,7 +20,7 @@
 run 
 ```
 npm run prepare-build
-npm run build:${PLATFORM}
+npm run build
 ```
 
 ### offline installer
