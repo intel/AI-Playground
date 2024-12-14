@@ -1,4 +1,4 @@
-// Usage: node provide-build-resources.js --python_env_dir=$DIR ---backend_dir=$DIR --target_dir=$DIR
+// Usage: node provide-electron-build-resources.js --build_resources_dir=$DIR --python_env_dir=$DIR ---backend_dir=$DIR --target_dir=$DIR
 
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +12,7 @@ const targetDirectoryArg = argv.target_dir
 
 
 if (!buildResourcesDirArg || !pythonEnvDirArg || !backendDirArg || !targetDirectoryArg) {
-    console.error('Usage: node prebuild.js --build_resources_dir=$DIR --python_env_dir=$DIR ---backend_dir=$DIR --target_dir=$DIR\n');
+    console.error('Usage: node provide-electron-build-resources.js --build_resources_dir=$DIR --python_env_dir=$DIR ---backend_dir=$DIR --target_dir=$DIR\n');
     process.exit(1);
 }
 
@@ -72,7 +72,6 @@ function clearPreviousZip(zipFilePath) {
 
 function main() {
     const sevenZipExe = path.join(buildResourcesDir, '7zr.exe');
-    const comfyUI = path.join(buildResourcesDir, 'ComfyUI');
 
     clearPreviousZip(path.join(targetDir, `prototype-python-env.7z`));
     zipPythonEnv(sevenZipExe, pythenEnvDir, path.join(targetDir, `prototype-python-env.7z`));
@@ -80,10 +79,6 @@ function main() {
     symlinkBackendDir(backendDir, path.join(targetDir, 'service'))
     copyFiles(targetDir,
         sevenZipExe
-    )
-
-    copyDirectories(targetDir,
-        comfyUI
     )
 }
 
