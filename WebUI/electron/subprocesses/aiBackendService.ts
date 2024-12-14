@@ -30,18 +30,12 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceId = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
+            const deviceArch = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
+            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceArch}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
-            const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceId}.txt`))
+            const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceArch}.txt`))
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-            if (deviceId === "arc") {
-                const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
-            } else {
-                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, ipexVersion, ipexIndex)
-            }
 
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements)
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
@@ -68,7 +62,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.getOneApiSupportedDeviceEnvVariable(),
+            ...this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
         const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {
@@ -93,21 +87,6 @@ export class AiBackendService extends LongLivedPythonApiService {
         return {
             process: apiProcess,
             didProcessExitEarlyTracker: didProcessExitEarlyTracker,
-        }
-    }
-
-    getOneApiSupportedDeviceEnvVariable(): { ONEAPI_DEVICE_SELECTOR: string; } {
-        try {
-            const lsLevelZeroOut = spawnProcessSync(this.lsLevelZeroExe, []);
-            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
-            const devices: { name: string, device_id: number, id: string }[] = JSON.parse(lsLevelZeroOut.toString());
-            const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
-            const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};
-            this.appLogger.info(`Set ONEAPI_DEVICE_SELECTOR=${additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"]}`, this.name);
-            return additionalEnvVariables;
-        } catch (error) {
-            this.appLogger.error(`Failed to detect Level Zero devices: ${error}`, this.name);
-            return {ONEAPI_DEVICE_SELECTOR: "level_zero:*"};
         }
     }
 }

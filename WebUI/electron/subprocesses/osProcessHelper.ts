@@ -11,13 +11,16 @@ export function existingFileOrError(filePath: string) {
     throw Error(`File at ${resolvedFilePath} does not exist`)
 }
 
-export function spawnProcessSync(command: string, args: string[] = [],
-                                 logHandler: (data: string) => void = () => {},
+export function spawnProcessSync(command: string, args: string[] = [], extraEnv?: {}, logHandler: (data: string) => void = () => { },
 ): string {
     try {
         logHandler(`Spawning synchronous command ${command} ${args}`)
         const result = spawnSync(command, args, {
             windowsHide: true,
+            env: {
+                ...process.env,
+                ...extraEnv,
+            }
         });
         const stdOut = result.stdout.toString('utf8').trim();
         const stdErr = result.stderr.toString('utf8').trim();
