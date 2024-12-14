@@ -14,7 +14,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
     const backendServices = useBackendServices();
-    const llamaBackendUrl = ref("http://127.0.0.1:8888");
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -85,8 +84,11 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         models.value.inpaint.push(useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL);
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
-        defaultBackendBaseUrl.value = apiServiceInformation.find(item => item.serviceName === "ai-backend")!.baseUrl;
-        llamaBackendUrl.value = apiServiceInformation.find(item => item.serviceName === "llama-cpp-backend")!.baseUrl;
+        const aiBackendInfo = apiServiceInformation.find(item => item.serviceName === "ai-backend")
+        if (!aiBackendInfo) {
+            throw new Error("ai-backend service not found")
+        }
+        defaultBackendBaseUrl.value = aiBackendInfo.baseUrl;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;
@@ -302,7 +304,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         models,
         paths,
         apiHost: defaultBackendBaseUrl,
-        llamaHost: llamaBackendUrl,
         graphicsList,
         loadingState,
         errorMessage,

@@ -1,10 +1,8 @@
 import {getLsLevelZeroPath, LongLivedPythonApiService} from "./apiService.ts";
-import {ChildProcess, spawn, spawnSync} from "node:child_process";
-import getPort, {portNumbers} from "get-port";
+import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
-import {app} from "electron";
 import * as filesystem from 'fs-extra'
-import {spawnProcessSync, existingFileOrError, spawnProcessAsync, copyFileWithDirs} from './osProcessHelper.ts'
+import {spawnProcessSync, existingFileOrError} from './osProcessHelper.ts'
 
 export class LlamaCppBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "LlamaCPP"));

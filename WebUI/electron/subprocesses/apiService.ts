@@ -40,7 +40,7 @@ export interface ApiService {
 }
 
 export abstract class LongLivedPythonApiService implements ApiService {
-    readonly name: string
+    readonly name: Service
     readonly baseUrl: string
     readonly port: number
     readonly win: BrowserWindow
@@ -63,7 +63,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     readonly appLogger = appLoggerInstance
 
-    constructor(name: string, port: number, win: BrowserWindow, settings: LocalSettings) {
+    constructor(name: Service, port: number, win: BrowserWindow, settings: LocalSettings) {
         this.win = win
         this.name = name
         this.port = port

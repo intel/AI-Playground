@@ -55,7 +55,7 @@ def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
 
 def check_llama_cpp_model_exists(type, repo_id) -> bool:
     model_dir = service_config.llama_cpp_model_paths.get(convert_model_type(type))
-    dir_to_look_for = os.path.join(model_dir, repo_id)
+    dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
     return os.path.exists(dir_to_look_for)
 
 def check_comfyui_model_exists(type, repo_id) -> bool:

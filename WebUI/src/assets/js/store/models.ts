@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { acceptHMRUpdate, defineStore } from "pinia";
 
 export type ModelType = "llm" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae" | "undefined" | "ggufLLM";
 
@@ -16,7 +16,7 @@ const predefinedModels: Model[] = [
     // { name: 'google/gemma-7b', type: 'llm', downloaded: false },
     // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
     { name: 'meta-llama-3.1-8b-instruct.Q5_K_M.gguf', type: 'ggufLLM', downloaded: false },
-    { name: 'smollm2-1.7b-instruct-q4_k_m.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf', type: 'ggufLLM', downloaded: false },
 ]
 
 export const userModels: Model[] = [
@@ -72,3 +72,7 @@ export const useModels = defineStore("models", () => {
         pick: ['hfToken'],
     }
 });
+
+if (import.meta.hot) {
+    import.meta.hot.accept(acceptHMRUpdate(useModels, import.meta.hot))
+}

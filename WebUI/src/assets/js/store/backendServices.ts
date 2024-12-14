@@ -55,7 +55,7 @@ export const useBackendServices = defineStore("backendServices", () => {
     }
 
 
-    async function setUpService(serviceName: string): Promise<{success: boolean, logs: SetupProgress[]}> {
+    async function setUpService(serviceName: Service): Promise<{success: boolean, logs: SetupProgress[]}> {
         console.log("starting setup")
         const listener: BackendServiceSetupProgressListener = serviceListeners[serviceName]
 

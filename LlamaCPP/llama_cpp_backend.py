@@ -18,8 +18,8 @@ class LlamaCpp(LLMInterface):
             self.unload_model()
 
             model_base_path = model_config.llamaCppConfig.get("ggufLLM")
-            model_name = model_repo_id.replace("/", "---")
-            model_path = path.abspath(path.join(model_base_path, model_name))
+            namespace, repo, *model = model_repo_id.split("/")
+            model_path = path.abspath(path.join(model_base_path,"---".join([namespace, repo]), "---".join(model)))
             
             self._model = Llama(
                 model_path=model_path,

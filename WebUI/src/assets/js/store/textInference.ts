@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { useGlobalSetup } from "./globalSetup";
 import { z } from "zod";
+import { useBackendServices } from "./backendServices";
 
 export const backendTypes = ['IPEX-LLM', 'LLAMA.CPP'] as const;
 const backend = z.enum(backendTypes);
@@ -14,8 +15,19 @@ const backendModelKey = {
 export const useTextInference = defineStore("textInference", () => {
 
     const globalSetup = useGlobalSetup();
+    const backendServices = useBackendServices();
     const backend = ref<Backend>('IPEX-LLM');
     const activeModel = ref<string | null>(null);
+    const llamaBackendUrl = computed(() => {
+        const url = backendServices.info.find(item => item.serviceName === "llamacpp-backend")?.baseUrl;
+        console.log('url', url);
+        return url;
+    });
+
+    watch([llamaBackendUrl], () => {
+        console.log('llamaBackendUrl changed', llamaBackendUrl.value);
+    }
+    );
     
     watch([activeModel], () => {
         console.log('activeModel changed', activeModel.value);
@@ -25,6 +37,7 @@ export const useTextInference = defineStore("textInference", () => {
     return {
         backend,
         activeModel,
+        llamaBackendUrl,
     }
 }, {
     persist: {

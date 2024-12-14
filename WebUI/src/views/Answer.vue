@@ -256,7 +256,7 @@ const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
 const isHistoryVisible = ref(false);
-const currentBackendAPI = computed(() => textInference.backend === 'LLAMA.CPP' ? globalSetup.llamaHost : globalSetup.apiHost);
+const currentBackendAPI = computed(() => textInference.backend === 'LLAMA.CPP' ? textInference.llamaBackendUrl : globalSetup.apiHost);
 
 const increaseFontSize = () => {
   if (!isMaxSize.value) {
