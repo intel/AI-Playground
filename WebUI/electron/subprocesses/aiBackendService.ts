@@ -69,7 +69,6 @@ export class AiBackendService extends LongLivedPythonApiService {
             ...await this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
         };
 
-        console.log("additionalEnvVariables", additionalEnvVariables);
         const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {
             cwd: this.serviceDir,
             windowsHide: true,
