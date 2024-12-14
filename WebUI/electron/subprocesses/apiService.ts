@@ -260,9 +260,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
             }
         },
 
-        getDeviceSelectorEnv: () => {
+        getDeviceSelectorEnv: (pythonEnvContainmentDir: string) => {
             if (this.selectedDeviceId === -1) {
-                throw new Error(`Failed to select a supported device from ${this.allLevelZeroDevices}`);
+                this.commonSetupSteps.detectDevice(pythonEnvContainmentDir);
             }
             return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceId}` }
         },
