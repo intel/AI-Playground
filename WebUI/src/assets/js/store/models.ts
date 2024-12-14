@@ -15,7 +15,9 @@ const predefinedModels: Model[] = [
     { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'llm', downloaded: false },
     // { name: 'google/gemma-7b', type: 'llm', downloaded: false },
     // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
-    { name: 'meta-llama-3.1-8b-instruct.Q5_K_M.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q8_0.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q5_K_S.gguf', type: 'ggufLLM', downloaded: false },
     { name: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf', type: 'ggufLLM', downloaded: false },
 ]
 
