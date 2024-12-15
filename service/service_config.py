@@ -30,4 +30,3 @@ comfy_ui_model_paths = {
 }
 
 device = "xpu"
-env_type = "arc"

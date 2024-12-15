@@ -1,5 +1,4 @@
 {
-    "envType": "arc",
     "debug":1,
     "comfyUiParameters": [
         "--lowvram",

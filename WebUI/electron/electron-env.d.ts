@@ -34,7 +34,6 @@ type Theme = 'dark' | 'lnl' | 'bmg';
 
 type LocalSettings = {
   debug: number;
-  envType: string;
   comfyUiParameters?:string[];
 } & KVObject;
 
@@ -65,7 +64,6 @@ type ModelLists = {
 type SetupData = {
   modelPaths: ModelPaths,
   modelLists: ModelLists,
-  envType: string,
   isAdminExec:boolean,
   version:string,
 }

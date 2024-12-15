@@ -66,8 +66,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const graphicsList = ref(new Array<GraphicsItem>());
 
-    let envType = "";
-
     const loadingState = ref<GlobalSetupState>("verifyBackend");
     const errorMessage = ref("");
     const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
@@ -79,7 +77,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();
         const apiServiceInformation = await window.electronAPI.getServices()
-        envType = setupData.envType;
         paths.value = setupData.modelPaths;
         models.value = setupData.modelLists;
         models.value.inpaint.push(useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL);
@@ -104,7 +101,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             await window.electronAPI.showMessageBoxSync({ message: useI18N().state.ERROR_UNFOUND_GRAPHICS, title: "error", icon: "error" });
             window.electronAPI.exitApp();
         }
-        await loadUserSettings();
+        loadUserSettings();
     }
 
     async function initWebSettings(postJson: string) {
@@ -122,10 +119,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     }
 
     async function reloadGraphics() {
-        const formData = new FormData();
-        formData.append("env", envType);
         const response = await fetch(`${defaultBackendBaseUrl.value}/api/getGraphics`, {
-            body: formData,
             method: "POST"
         });
         const graphics = (await response.json()) as GraphicsItem[];

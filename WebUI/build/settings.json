@@ -1,5 +1,4 @@
 {
-    "envType": "arc",
     "availableThemes": ["dark","lnl","bmg"],
     "currentTheme": "bmg"
 }

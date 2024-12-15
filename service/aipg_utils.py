@@ -214,13 +214,11 @@ def get_ESRGAN_size():
         return int(response.headers.get("Content-Length"))
 
 
-def get_support_graphics(env_type: str):
+def get_support_graphics():
     device_count = torch.xpu.device_count()
-    service_config.env_type = env_type
     graphics = list()
     for i in range(device_count):
         device_name = torch.xpu.get_device_name(i)
-        # if device_name == "Intel(R) Arc(TM) Graphics" or re.search("Intel\(R\) Arc\(TM\)", device_name) is not None:
         graphics.append({"index": i, "name": device_name})
     return graphics
 

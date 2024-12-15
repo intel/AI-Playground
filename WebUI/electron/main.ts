@@ -55,7 +55,6 @@ const appSize = {
 export const settings: LocalSettings = {
     isAdminExec: false,
     debug: 0,
-    envType: "ultra",
     availableThemes: ["dark", "lnl"],
     currentTheme: "lnl",
     comfyUiParameters: [],
@@ -375,7 +374,6 @@ function initEventHandle() {
         return {
             modelLists: pathsManager.sacanAll(),
             modelPaths: pathsManager.modelPaths,
-            envType: settings.envType,
             isAdminExec: settings.isAdminExec,
             version: app.getVersion()
         };

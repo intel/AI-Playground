@@ -168,8 +168,7 @@ def get_init_settings():
 
 @app.post("/api/getGraphics")
 def get_graphics():
-    env = request.form.get("env", default="ultra", type=str)
-    return jsonify(utils.get_support_graphics(env))
+    return jsonify(utils.get_support_graphics())
 
 
 @app.get("/api/applicationExit")
