@@ -2,14 +2,15 @@ import {getLsLevelZeroPath, LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import * as filesystem from 'fs-extra'
-import {spawnProcessSync, existingFileOrError} from './osProcessHelper.ts'
+import {existingFileOrError} from './osProcessHelper.ts'
 
 export class LlamaCppBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "LlamaCPP"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`));
     readonly pythonExe = this.getPythonPath(this.pythonEnvDir)
     readonly isRequired = false;
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
+    readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, "ai-backend-env"));
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
 
     healthEndpointUrl = `${this.baseUrl}/health`
 
@@ -61,12 +62,12 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         }
     }
 
-    spawnAPIProcess(): {process: ChildProcess, didProcessExitEarlyTracker: Promise<boolean>} {
+    async spawnAPIProcess(): Promise<{ process: ChildProcess; didProcessExitEarlyTracker: Promise<boolean>; }> {
         const additionalEnvVariables = {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...this.getOneApiSupportedDeviceEnvVariable(),
+            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
         const apiProcess = spawn(this.pythonExe, ["llama_web_api.py", "--port", this.port.toString()], {
@@ -91,21 +92,6 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         return {
             process: apiProcess,
             didProcessExitEarlyTracker: didProcessExitEarlyTracker,
-        }
-    }
-
-    getOneApiSupportedDeviceEnvVariable(): { ONEAPI_DEVICE_SELECTOR: string; } {
-        try {
-            const lsLevelZeroOut = spawnProcessSync(this.lsLevelZeroExe, []);
-            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
-            const devices: { name: string, device_id: number, id: string }[] = JSON.parse(lsLevelZeroOut.toString());
-            const supportedIDs = devices.filter(device => device.name.toLowerCase().includes("arc") || device.device_id === 0xE20B).map(device => device.id);
-            const additionalEnvVariables = {ONEAPI_DEVICE_SELECTOR: "level_zero:" + supportedIDs.join(",")};
-            this.appLogger.info(`Set ONEAPI_DEVICE_SELECTOR=${additionalEnvVariables["ONEAPI_DEVICE_SELECTOR"]}`, this.name);
-            return additionalEnvVariables;
-        } catch (error) {
-            this.appLogger.error(`Failed to detect Level Zero devices: ${error}`, this.name);
-            return {ONEAPI_DEVICE_SELECTOR: "level_zero:*"};
         }
     }
 }
