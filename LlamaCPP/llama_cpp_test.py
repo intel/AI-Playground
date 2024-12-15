@@ -7,7 +7,6 @@ params = {
   "device": "",
   "enable_rag": False,
   "model_repo_id": "meta-llama-3.1-8b-instruct-q5_k_m.gguf",
-  "backend_type": "",
 }
 response = requests.post(url, json=params, stream=True)
 # Check if the response status code is 200 (OK)

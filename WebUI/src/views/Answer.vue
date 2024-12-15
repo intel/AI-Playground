@@ -344,7 +344,6 @@ async function updateTitle(conversation: ChatItem[]) {
     prompt: chatContext,
     enable_rag: false,
     model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
-    backend_type: textInference.backend,
     print_metrics: false
   };
   const response = await fetch(`${ currentBackendAPI.value }/api/llm/chat`, {
@@ -478,7 +477,6 @@ async function generate(chatContext: ChatItem[]) {
       prompt: chatContext,
       enable_rag: ragData.enable,
       model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
-      backend_type: textInference.backend
     };
     comfyUi.free();
     const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
