@@ -10,10 +10,7 @@
     "install-full-python-env": "cross-env node ./build/scripts/install-full-python-env.js --env_dir=../build-envs/online/prototype-python-env --comfy_ui_dir=../build_resources/ComfyUI",
     "provide-electron-build-resources": "cross-env node build/scripts/provide-electron-build-resources.js --build_resources_dir=../build_resources --backend_dir=../service --target_dir=./external",
     "prepare-build": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/prototype-python-env",
-    "build": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
-    "build:arc": "cross-env-shell PLATFORM=\"arc\" VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
-    "build:ultra": "cross-env-shell PLATFORM=\"ultra\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
-    "build:ultra2": "cross-env-shell PLATFORM=\"ultra2\" VITE_PLATFORM_TITLE=\"for Intel® Core™ Ultra Series 2\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\""
+    "build": "cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\""
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",
