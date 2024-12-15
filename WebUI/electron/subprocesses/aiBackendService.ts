@@ -1,10 +1,8 @@
 import * as filesystem from 'fs-extra';
-import getPort, { portNumbers } from "get-port";
 import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
-import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService } from "./apiService.ts";
-import { existingFileOrError, spawnProcessSync } from './osProcessHelper.ts';
-import { app, BrowserWindow } from 'electron';
+import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService } from "./apiService.ts";
+import { existingFileOrError } from './osProcessHelper.ts';
 
 
 export class AiBackendService extends LongLivedPythonApiService {
@@ -12,7 +10,8 @@ export class AiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = aiBackendServiceDir();
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
+    readonly lsLevelZeroDir = this.pythonEnvDir
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
     serviceIsSetUp = () => filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe);
     isSetUp = this.serviceIsSetUp();
@@ -66,7 +65,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...await this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
+            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
         const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {

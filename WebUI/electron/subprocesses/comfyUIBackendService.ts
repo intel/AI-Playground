@@ -1,9 +1,9 @@
-import {getLsLevelZeroPath, getPythonPath, ipexIndex, ipexVersion, LongLivedPythonApiService} from "./apiService.ts";
+import {getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
 import * as filesystem from "fs-extra";
-import {existingFileOrError, spawnProcessAsync, spawnProcessSync} from "./osProcessHelper.ts";
+import {existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
 
 
@@ -12,7 +12,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.pythonEnvDir)
+    readonly lsLevelZeroDir = this.pythonEnvDir
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/queue`
 
     private readonly comfyUIStartupParameters = this.settings.comfyUiParameters ? this.settings.comfyUiParameters : [
@@ -39,7 +40,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         const cloneGitStep = async (gitExePath: string, url: string, target: string) => {
             self.appLogger.info(`Cloning from ${url}`, self.name, true)
             try {
-                spawnProcessSync(gitExePath, ["clone", url, target], {}, logToFileHandler)
+                await spawnProcessAsync(gitExePath, ["clone", url, target], logToFileHandler)
                 existingFileOrError(target)
                 self.appLogger.info(`repo available at ${target}`, self.name, true)
             } catch (e) {
@@ -200,7 +201,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...await this.commonSetupSteps.getDeviceSelectorEnv(this.pythonEnvDir),
+            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
         const parameters = ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters]

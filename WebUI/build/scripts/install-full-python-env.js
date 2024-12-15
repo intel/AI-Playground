@@ -2,7 +2,6 @@
 //
 const fs = require('fs');
 const path = require('path');
-const AdmZip = require('adm-zip');
 const childProcess = require('child_process');
 
 const argv = require('minimist')(process.argv.slice(2));
