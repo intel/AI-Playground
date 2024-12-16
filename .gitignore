@@ -5,6 +5,9 @@ build_resources/
 build_envs/
 release/
 WebUI/external/service/
+WebUI/external/workflows_intel/
+WebUI/external/workflows_bak/
+
 
 *.exe
 *.7z

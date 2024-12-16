@@ -18,6 +18,9 @@ const workflowDirSpareGitRepoPath = Path.join(externalRes, "workflows_intel")
 const intelWorkflowDirPath = Path.join(workflowDirSpareGitRepoPath, "WebUI", "external", "workflows")
 const workflowDirBakTargetPath = Path.join(externalRes, "workflows_bak")
 
+const intelRepoUrl = "https://github.com/intel/AI-Playground"
+const gitRef = "dev"
+
 export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelResult> {
     try {
         await fetchNewIntelWorkflows()
@@ -41,7 +44,6 @@ export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelRe
 }
 
 async function fetchNewIntelWorkflows() {
-    const gitRef = "dev"
     const gitExe = existingFileOrError(gitExePath)
     const gitWorkDir = workflowDirSpareGitRepoPath
     await prepareSparseGitRepoDir(gitWorkDir)
@@ -83,7 +85,7 @@ async function prepareSparseGitCheckout(workDir: string, gitExe: string) {
     if (!filesystem.existsSync(spareCheckoutConfigFile)) {
         await spawnProcessAsync(gitExe, ["init"] , processLogHandler, {}, workDir)
         await spawnProcessAsync(gitExe, ["config", "core.sparseCheckout", "true"] , processLogHandler, {}, workDir)
-        await spawnProcessAsync(gitExe, ["remote",  "add", "-f",  "origin", "https://github.com/TNG/AI-Playground.git"] , processLogHandler, {}, workDir)
+        await spawnProcessAsync(gitExe, ["remote",  "add", "-f",  "origin", intelRepoUrl] , processLogHandler, {}, workDir)
         await fs.promises.writeFile(spareCheckoutConfigFile, "WebUI/external/workflows/*", {encoding: 'utf-8', flag: 'w'});
     }
     logger.info(`using existing sparse checkout config`, logSourceName, true)

@@ -539,8 +539,9 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 
 
     async function loadWorkflowsFromIntel() {
-        await window.electronAPI.updateWorkflowsFromIntelRepo();
+        const syncResponse = await window.electronAPI.updateWorkflowsFromIntelRepo();
         await loadWorkflowsFromJson()
+        return syncResponse
     }
 
     async function loadWorkflowsFromJson() {
