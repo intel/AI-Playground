@@ -3,4 +3,3 @@ llamaCppConfig = {
 }
 
 device = "xpu"
-env_type = "arc"
