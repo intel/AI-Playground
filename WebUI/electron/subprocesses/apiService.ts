@@ -216,8 +216,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     selectBestLevelZeroDevice(): void {
         let priority = -1;
+        let arch = "unknown";
         for (const device of this.allLevelZeroDevices) {
-            const arch = getDeviceArch(device.device_id);
+            arch = getDeviceArch(device.device_id);
             if (arch == "unknown") {
                 continue;
             }
@@ -227,6 +228,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
                 priority = newPriority;
             }
         }
+        const selectedDevice = this.allLevelZeroDevices[this.selectedDeviceId];
+        this.appLogger.info(`Selected device #${selectedDevice.id}: ${selectedDevice.name} with device_id: 0x${selectedDevice.device_id.toString(16)}, arch: ${arch}`, this.name)
     }
 
     protected commonSetupSteps = {
@@ -259,12 +262,10 @@ export abstract class LongLivedPythonApiService implements ApiService {
                     this.selectBestLevelZeroDevice();
                 }
                 const selectedDevice = this.allLevelZeroDevices[this.selectedDeviceId];
-                this.appLogger.info(`Selected device #${selectedDevice.id}: ${selectedDevice.name} with device_id: ${selectedDevice.device_id}`, this.name)
                 return getDeviceArch(selectedDevice.device_id);
             } catch (e) {
                 this.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, this.name, true);
                 throw new Error(`Failure to identify intel hardware. Error: ${e}`);
-                return "unknown";
             }
         },
 
