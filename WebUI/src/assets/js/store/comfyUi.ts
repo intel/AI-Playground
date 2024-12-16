@@ -36,16 +36,16 @@ export const useComfyUi = defineStore("comfyUi", () => {
     async function installCustomNodesForActiveWorkflow() {
         const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
         const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] =
-        [...uniqueCustomNodes].map((nodeName) => {
-          const [username, repoName, gitRef] = nodeName.replace(" ", "").split("/")
-          return {username: username, repoName: repoName, gitRef: gitRef}
-        })
+            [...uniqueCustomNodes].map((nodeName) => {
+                const [username, repoName, gitRef] = nodeName.replace(" ", "").split("/")
+                return {username: username, repoName: repoName, gitRef: gitRef}
+            })
         const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
-          method: 'POST',
-          body: JSON.stringify({data: requiredCustomNodes}),
-          headers: {
-            "Content-Type": "application/json"
-          }
+            method: 'POST',
+            body: JSON.stringify({data: requiredCustomNodes}),
+            headers: {
+                "Content-Type": "application/json"
+            }
         })
         if (response.status !== 200) {
             throw new Error("Request Failure to install required comfyUINode");
@@ -65,6 +65,26 @@ export const useComfyUi = defineStore("comfyUi", () => {
             console.info("restart complete")
         }
         return;
+    }
+
+
+    async function triggerInstallPythonPackagesForActiveWorkflow() {
+      const uniquePackages = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.pythonPackages))
+      const toBeInstalledPackages = [...uniquePackages]
+      console.info("Installing python packages", { toBeInstalledPackages })
+      const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/installPythonPackage`, {
+        method: 'POST',
+        body: JSON.stringify({data: toBeInstalledPackages}),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+      if (response.status === 200) {
+        console.info("python package installation completed")
+        return;
+      }
+      const data = await response.json();
+      throw new Error(data.error_message);
     }
 
     function connectToComfyUi() {
@@ -226,6 +246,8 @@ export const useComfyUi = defineStore("comfyUi", () => {
             return;
         }
         
+        await triggerInstallPythonPackagesForActiveWorkflow()
+
         try {
             await installCustomNodesForActiveWorkflow()
 
