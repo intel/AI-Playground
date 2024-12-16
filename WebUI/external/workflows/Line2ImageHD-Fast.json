@@ -1,9 +1,8 @@
 {
-  "name": "Line2Image-HD",
+  "name": "Line2Image-HD-Fast",
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [
-      "city96/ComfyUI-GGUF"
     ],
     "requiredModels": [
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors",
