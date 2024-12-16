@@ -452,8 +452,14 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             return activeWorkflow.value.backend;
         },
         set(newValue) {
-            activeWorkflowName.value = workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
+            activeWorkflowName.value = workflows.value
+            .filter(w => w.backend === newValue)
+            .find(w => w.name === lastWorkflowPerBackend.value[newValue])?.name ?? workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
         }
+    });
+    const lastWorkflowPerBackend = ref<Record<Workflow['backend'], string | null>>({
+        comfyui: null,
+        default: null
     });
 
     const comfyInputs = computed(() => activeWorkflow.value.backend === 'comfyui' ? activeWorkflow.value.inputs.map(input => ({ ...input, current: ref(input.defaultValue) })) : []);
@@ -463,6 +469,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const isModifiable = (settingName: ModifiableSettings) => activeWorkflow.value.modifiableSettings.includes(settingName);
 
     watch([activeWorkflowName, workflows], () => {
+        setTimeout(() => lastWorkflowPerBackend.value[activeWorkflow.value.backend] = activeWorkflowName.value)
         loadSettingsForActiveWorkflow();
     }, {});
 
@@ -671,6 +678,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         negativePrompt,
         settingsPerWorkflow,
         comfyInputs,
+        lastWorkflowPerBackend,
         resetActiveWorkflowSettings,
         loadWorkflowsFromJson,
         loadWorkflowsFromIntel,
@@ -683,7 +691,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 }, {
     persist: {
         debug: true,
-        pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow', 'hdWarningDismissed']
+        pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow', 'hdWarningDismissed', 'lastWorkflowPerBackend']
     }
 });
 
