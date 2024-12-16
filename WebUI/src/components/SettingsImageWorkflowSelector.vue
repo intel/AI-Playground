@@ -97,7 +97,7 @@
         </div>
         <div
             data-tooltip="Will fetch additional workflows from remote and back up existing workflows">
-          <button class="svg-icon i-refresh w-5 h-5 text-purple-500"
+          <button class="svg-icon i-download-cloud w-5 h-5 text-purple-500"
                   @click="loadWorkflowsFromIntel"></button>
         </div>
       </div>
