@@ -91,12 +91,12 @@
             </div>
           </template>
         </drop-selector>
-        <div data-tooltip="Will reload workflows from disk">
+        <div data-tooltip="Reload workflows from disk">
           <button class="svg-icon i-refresh w-5 h-5 text-purple-500"
                   @click="imageGeneration.loadWorkflowsFromJson"></button>
         </div>
         <div
-            data-tooltip="Will fetch additional workflows from remote and back up existing workflows">
+            data-tooltip="Download latest workflows and back up existing workflows">
           <button class="svg-icon i-download-cloud w-5 h-5 text-purple-500"
                   @click="loadWorkflowsFromIntel"></button>
         </div>
@@ -231,8 +231,9 @@ const stringToColour = (str: string) => {
   position: absolute;
   right: 10px;
   content: attr(data-tooltip);
-  border: 1px solid black;
-  background: rgba(90, 90, 90, 0.91);
-  padding: .25em;
+  border: 1px solid rgb(122, 122, 122);
+  background: rgba(41, 41, 41, 0.95);
+  border-radius: 0.5rem;
+  padding: .7em;
 }
 </style>

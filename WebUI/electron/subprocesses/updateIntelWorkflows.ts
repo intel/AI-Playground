@@ -81,12 +81,12 @@ async function prepareSparseGitRepoDir(dirPath: string) {
 
 
 async function prepareSparseGitCheckout(workDir: string, gitExe: string) {
-    const spareCheckoutConfigFile = path.join(workDir, ".git" ,"info", "sparse-checkout")
-    if (!filesystem.existsSync(spareCheckoutConfigFile)) {
+    const sparseCheckoutConfigFile = path.join(workDir, ".git" ,"info", "sparse-checkout")
+    if (!filesystem.existsSync(sparseCheckoutConfigFile)) {
         await spawnProcessAsync(gitExe, ["init"] , processLogHandler, {}, workDir)
         await spawnProcessAsync(gitExe, ["config", "core.sparseCheckout", "true"] , processLogHandler, {}, workDir)
         await spawnProcessAsync(gitExe, ["remote",  "add", "-f",  "origin", intelRepoUrl] , processLogHandler, {}, workDir)
-        await fs.promises.writeFile(spareCheckoutConfigFile, "WebUI/external/workflows/*", {encoding: 'utf-8', flag: 'w'});
+        await fs.promises.writeFile(sparseCheckoutConfigFile, "WebUI/external/workflows/*", {encoding: 'utf-8', flag: 'w'});
     }
     logger.info(`using existing sparse checkout config`, logSourceName, true)
 }
