@@ -2,6 +2,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 
 const argv = require('minimist')(process.argv.slice(2));
@@ -31,7 +32,9 @@ function fetchFileIfNotPresent(url) {
 }
 
 function fetchFile(url) {
-    https.get(url, (response) => {
+    const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
+    const options = proxy ? { agent: new HttpsProxyAgent(proxy) } : {};
+    https.get(url, options, (response) => {
         const filePath = path.join(targetDir, getBaseFileName(url))
         const file = fs.createWriteStream(filePath);
         response.pipe(file);
