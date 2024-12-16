@@ -31,6 +31,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         quality: 0,
         enableRag: false,
         llm_model: "microsoft/Phi-3-mini-4k-instruct",
+        ggufLLM_model: "meta-llama-3.1-8b-instruct.Q5_K_M.gguf",
         sd_model: "Lykon/dreamshaper-8",
         inpaint_model: "Lykon/dreamshaper-8-inpainting",
         negativePrompt: "bad hands, nsfw",
@@ -49,6 +50,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const paths = ref<ModelPaths>({
         llm: "",
+        ggufLLM: "",
         embedding: "",
         stableDiffusion: "",
         inpaint: "",
@@ -82,7 +84,11 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         models.value.inpaint.push(useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL);
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
-        defaultBackendBaseUrl.value = apiServiceInformation.find(item => item.serviceName === "ai-backend")!.baseUrl;
+        const aiBackendInfo = apiServiceInformation.find(item => item.serviceName === "ai-backend")
+        if (!aiBackendInfo) {
+            throw new Error("ai-backend service not found")
+        }
+        defaultBackendBaseUrl.value = aiBackendInfo.baseUrl;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;

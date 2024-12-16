@@ -4,6 +4,7 @@ import {AiBackendService} from "./aiBackendService.ts";
 import { BrowserWindow } from "electron";
 import { appLoggerInstance } from "../logging/logger.ts";
 import getPort, {portNumbers} from "get-port";
+import { LlamaCppBackendService} from "./llamaCppBackendService.ts";
 
 export type backend = 'ai-backend' | 'comfyui-backend'
 
@@ -74,6 +75,7 @@ export async function aiplaygroundApiServiceRegistry(win: BrowserWindow, setting
         instance = new ApiServiceRegistryImpl()
         instance.register(new AiBackendService('ai-backend', await getPort({port: portNumbers(59000, 59999)}), win, settings))
         instance.register(new ComfyUiBackendService('comfyui-backend', await getPort({port: portNumbers(49000, 49999)}), win, settings))
+        instance.register(new LlamaCppBackendService('llamacpp-backend', await getPort({port: portNumbers(39000, 39999)}), win, settings))
     }
     return instance
 }

@@ -11,13 +11,12 @@
         </div>
         <div class="container flex">
           <span @mouseover="showInfo = true" @mouseout="showInfo = false" style="vertical-align: middle;" class="svg-icon i-info w-7 h-7 px-6"></span>
-          <Input :placeholder="languages.COM_LLM_HF_PROMPT" v-model="modelRequest" @keyup.enter="addModel"></Input>
+          <Input :placeholder="examplePlaceholder" v-model="modelRequest" @keyup.enter="addModel"></Input>
         </div>
         <span v-if="showInfo" class="hover-box w-0.6">
            <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
           <ul>
-            <li>{{ i18nState.REQUEST_LLM_MODEL_EXAMPLE }}</li>
-<!--            <li v-html="i18nState.REQUEST_LLM_SINGLE_EXAMPLE"></li>-->
+            <li>{{ exampleModelName }}</li>
           </ul>
         </span>
         <p v-show="addModelError" style="color: #F44336;">{{ addModelErrorMessage }}</p>
@@ -35,10 +34,12 @@ import { Input } from '@/components/ui/input'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup';
 import { useI18N } from '@/assets/js/store/i18n';
 import { useModels, userModels } from '@/assets/js/store/models';
+import { useTextInference } from '@/assets/js/store/textInference';
 
 
 const i18nState = useI18N().state;
 const globalSetup = useGlobalSetup();
+const textInference = useTextInference();
 const models = useModels();
 const modelRequest = ref("");
 const addModelErrorMessage = ref("")
@@ -50,6 +51,17 @@ const emits = defineEmits<{
   (e: "callCheckModel"): void,
   (e: "showWarning", warning: string, func: () => void): void
 }>();
+
+const exampleModelName = computed(() => textInference.backend === 'IPEX-LLM' ? i18nState.REQUEST_LLM_MODEL_EXAMPLE : i18nState.REQUEST_LLM_SINGLE_EXAMPLE);
+const examplePlaceholder = computed(() => textInference.backend === 'IPEX-LLM' ? i18nState.COM_LLM_HF_PROMPT : i18nState.COM_LLM_HF_PROMPT_GGUF);
+
+const isValidModelName = (name: string) => {
+  if (textInference.backend === 'IPEX-LLM') {
+    return name.split("/").length === 2;
+  } else {
+    return name.split("/").length >= 3;
+  }
+}
 
 function onShow() {
   animate.value = true;
@@ -65,7 +77,7 @@ async function addModel() {
     addModelError.value = true;
   }
 
-  if(modelRequest.value.split("/").length !== 2) {
+  if(!isValidModelName(modelRequest.value)) {
     cancelAndShowWarning("Please provide a valid model reference.")
     return
   }
@@ -100,9 +112,13 @@ async function addModel() {
 }
 
 async function registerModel() {
-  userModels.push({ name: modelRequest.value, type: 'llm', downloaded: false })
+  userModels.push({ name: modelRequest.value, type: textInference.backend === 'IPEX-LLM' ? 'llm' : 'ggufLLM', downloaded: false })
   await models.refreshModels()
-  globalSetup.modelSettings.llm_model = modelRequest.value;
+  if (textInference.backend === 'IPEX-LLM') {
+    globalSetup.modelSettings.llm_model = modelRequest.value;
+  } else {
+    globalSetup.modelSettings.ggufLLM_model = modelRequest.value;
+  }
 }
 
 async function isLLM(repo_id: string) {

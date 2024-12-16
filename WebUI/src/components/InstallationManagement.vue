@@ -141,7 +141,7 @@ function isSomethingLoading(): boolean {
   return components.value.some((item) => item.isLoading)
 }
 
-async function installBackend(name: string) {
+async function installBackend(name: Service) {
   somethingChanged.value = true;
   loadingComponents.value.add(name)
   const setupProgress = await backendServices.setUpService(name)
@@ -153,7 +153,7 @@ async function installBackend(name: string) {
   }
 }
 
-async function repairBackend(name: string) {
+async function repairBackend(name: Service) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
@@ -163,7 +163,7 @@ async function repairBackend(name: string) {
   await installBackend(name);
 }
 
-async function restartBackend(name: string) {
+async function restartBackend(name: Service) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
@@ -202,6 +202,8 @@ function getInfoURL(serviceName: string) {
   switch (serviceName) {
     case "comfyui-backend":
       return "https://github.com/comfyanonymous/ComfyUI"
+    case "llamacpp-backend":
+      return "https://github.com/abetlen/llama-cpp-python"
     default:
       return ""
   }
@@ -225,6 +227,8 @@ function mapServiceNameToDisplayName(serviceName: string) {
       return "ComfyUI"
     case "ai-backend":
       return "AI Playground"
+    case "llamacpp-backend":
+      return "llama.cpp"
     default:
       return serviceName
   }

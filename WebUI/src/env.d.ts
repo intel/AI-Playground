@@ -53,6 +53,7 @@ type electronAPI = {
     getDownloadedInpaintModels(): Promise<string[]>,
     getDownloadedLoras(): Promise<string[]>,
     getDownloadedLLMs(): Promise<string[]>,
+    getDownloadedGGUFLLMs(): Promise<string[]>,
     getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
@@ -67,7 +68,7 @@ type electronAPI = {
     onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void,
 };
 
-type SetupProgress = {serviceName: string, step: string, status: "executing"|"failed"|"success", debugMessage: string}
+type SetupProgress = {serviceName: Service, step: string, status: "executing"|"failed"|"success", debugMessage: string}
 
 type Chrome = {
     webview: WebView;
@@ -294,7 +295,7 @@ type CheckModelAlreadyLoadedParameters = {
     backend: BackendType;
 }
 
-type BackendType = "comfyui" | "default"
+type BackendType = "comfyui" | "default" | "llama_cpp"
 
 type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: boolean } & CheckModelAlreadyLoadedParameters
 
@@ -312,4 +313,6 @@ type CheckModelAlreadyLoadedResult = {
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
 
-type ApiServiceInformation = { serviceName: string, status: BackendStatus , baseUrl: string, port: number, isSetUp: boolean, isRequired: boolean }
+type Service = "ai-backend" | "comfyui-backend" | "llamacpp-backend"
+
+type ApiServiceInformation = { serviceName: Service, status: BackendStatus , baseUrl: string, port: number, isSetUp: boolean, isRequired: boolean }

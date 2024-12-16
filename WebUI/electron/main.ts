@@ -418,7 +418,11 @@ function initEventHandle() {
     });
 
     ipcMain.handle("getDownloadedLLMs", (event) => {
-        return pathsManager.scanLLMModles(false);
+        return pathsManager.scanLLMModles();
+    });
+
+    ipcMain.handle("getDownloadedGGUFLLMs", (event) => {
+        return pathsManager.scanGGUFLLMModels();
     });
 
     ipcMain.handle("getDownloadedEmbeddingModels", (event) => {

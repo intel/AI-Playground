@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getDownloadedInpaintModels: () => ipcRenderer.invoke("getDownloadedInpaintModels"),
   getDownloadedLoras: () => ipcRenderer.invoke("getDownloadedLoras"),
   getDownloadedLLMs: () => ipcRenderer.invoke("getDownloadedLLMs"),
+  getDownloadedGGUFLLMs: () => ipcRenderer.invoke("getDownloadedGGUFLLMs"),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke("getDownloadedEmbeddingModels"),
   openImageWithSystem: (url: string) => ipcRenderer.send("openImageWithSystem", url),
   selecteImage: (url: string) => ipcRenderer.send("selecteImage", url),

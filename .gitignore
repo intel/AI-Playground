@@ -10,6 +10,8 @@ WebUI/external/service/
 *.7z
 *.whl
 ComfyUI/
+env
+llama-cpp-env/
 *env_tmp/
 *service_tmp/
 *-env/
