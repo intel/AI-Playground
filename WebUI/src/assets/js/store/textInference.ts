@@ -3,13 +3,13 @@ import { useGlobalSetup } from "./globalSetup";
 import { z } from "zod";
 import { useBackendServices } from "./backendServices";
 
-export const backendTypes = ['IPEX-LLM', 'Llama.cpp – GGUF'] as const;
+export const backendTypes = ['IPEX-LLM', 'LLAMA.CPP'] as const;
 const backend = z.enum(backendTypes);
 type Backend = z.infer<typeof backend>;
 
 const backendModelKey = {
     'IPEX-LLM': 'llm_model',
-    'Llama.cpp – GGUF': 'ggufLLM_model',
+    'LLAMA.CPP': 'ggufLLM_model',
 }
 
 export const useTextInference = defineStore("textInference", () => {

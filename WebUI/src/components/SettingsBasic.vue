@@ -52,13 +52,13 @@
           <template #selected>
             <div class="flex gap-2 items-center">
               <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ textInference.backend }}</span>
+              <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
             </div>
           </template>
           <template #list="slotItem">
             <div class="flex gap-2 items-center">
               <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ slotItem.item }}</span>
+              <span>{{ textInferenceBackendDisplayName[slotItem.item as typeof backendTypes[number]] }}</span>
             </div>
           </template>
         </drop-selector>
@@ -99,6 +99,11 @@ const globalSetup = useGlobalSetup();
 const textInference = useTextInference();
 const i18n = useI18N();
 const theme = useTheme();
+
+const textInferenceBackendDisplayName: Record<typeof backendTypes[number], string> = {
+  "IPEX-LLM": "IPEX-LLM",
+  "LLAMA.CPP": "Llama.cpp - GGUF"
+}
 
 
 onBeforeMount(async () => {

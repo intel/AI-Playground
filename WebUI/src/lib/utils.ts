@@ -56,7 +56,7 @@ export function mapServiceNameToDisplayName(serviceName: string) {
     case "ai-backend":
       return "AI Playground"
     case "llamacpp-backend":
-      return "llama.cpp"
+      return "Llama.cpp - GGUF"
     default:
       return serviceName
   }
