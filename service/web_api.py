@@ -1,7 +1,7 @@
 import sys
 
 import comfyui_downloader
-from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest
+from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest, ComfyUIPackageInstallRequest
 
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -414,6 +414,16 @@ def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     except Exception as e:
         return jsonify({'error_message': f'failed to at least one custom node due to {e}'}), 501
 
+
+@app.post("/api/comfyUi/installPythonPackage")
+@app.input(ComfyUIPackageInstallRequest.Schema, location='json', arg_name='comfyPackageInstallRequest')
+def install_python_packages_for_comfy(comfyPackageInstallRequest: ComfyUIPackageInstallRequest):
+    try:
+        for package in comfyPackageInstallRequest.data:
+            comfyui_downloader.install_pypi_package(package)
+        return jsonify({ f"{package}" : {"success": True, "errorMessage": ""} for x in comfyPackageInstallRequest.data})
+    except Exception as e:
+        return jsonify({'error_message': f'failed to at least one package due to {e}'}), 501
 
 
 def cache_input_image():

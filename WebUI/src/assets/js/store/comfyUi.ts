@@ -56,6 +56,25 @@ export const useComfyUi = defineStore("comfyUi", () => {
       throw new Error(data.error_message);
     }
 
+    async function triggerInstallPythonPackagesForActiveWorkflow() {
+      const uniquePackages = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.pythonPackages))
+      const toBeInstalledPackages = [...uniquePackages]
+      console.info("Installing python packages", { toBeInstalledPackages })
+      const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/installPythonPackage`, {
+        method: 'POST',
+        body: JSON.stringify({data: toBeInstalledPackages}),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+      if (response.status === 200) {
+        console.info("python package installation completed")
+        return;
+      }
+      const data = await response.json();
+      throw new Error(data.error_message);
+    }
+
     function connectToComfyUi() {
         if (comfyUiState.value.status !== "running") {
             console.warn('ComfyUI backend not running, cannot start websocket');
@@ -215,6 +234,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
             return;
         }
         
+        await triggerInstallPythonPackagesForActiveWorkflow()
         await triggerInstallCustomNodesForActiveWorkflow()
 
         try {

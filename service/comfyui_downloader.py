@@ -91,10 +91,36 @@ def _install_pip_requirements(requirements_txt_path: str):
     logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
     if os.path.exists(requirements_txt_path):
         python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
+        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m uv pip install -r '{requirements_txt_path}'")
         logging.info("python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
+
+
+def install_pypi_package(packageSpecifier: str):
+    if packageSpecifier.endswith(".whl"):
+
+        pip_specifier = os.path.abspath(os.path.join(service_config.comfyui_python_env, packageSpecifier.split("/")[-1]))
+        try:
+            response = requests.get(packageSpecifier, stream=True, timeout=30)
+            if response.status_code == 200:
+                with open(pip_specifier, "wb") as file:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        file.write(chunk)
+            else:
+                logging.error(f"Failed fetching resources from {packageSpecifier}")
+                raise Exception(f"fetching {packageSpecifier} failed with response: {response}")
+        except Exception as e:
+            logging.error(f"Failed to fetch dependency from {packageSpecifier} with error {e}")
+            raise e
+    else:
+        pip_specifier = packageSpecifier
+
+    logging.info(f"installing python package {packageSpecifier} using {sys.executable}")
+    python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
+    aipg_utils.call_subprocess(f"{python_exe_callable_path} -m uv pip install '{pip_specifier}'")
+    aipg_utils.remove_existing_filesystem_resource('./dep.whl')
+    logging.info("python package installation completed.")
 
 
 def install_comfyUI() -> bool:

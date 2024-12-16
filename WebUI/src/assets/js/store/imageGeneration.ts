@@ -120,6 +120,7 @@ const ComfyUiWorkflowSchema = z.object({
     name: z.string(),
     backend: z.literal('comfyui'),
     comfyUIRequirements: z.object({
+        pythonPackages: z.array(z.string()).optional(),
         customNodes: z.array(z.string()),
         requiredModels: z.array(z.string()),
     }),
