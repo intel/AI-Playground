@@ -109,8 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import {useGlobalSetup} from '@/assets/js/store/globalSetup';
-import {mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
+import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
 
@@ -130,11 +129,11 @@ const somethingChanged = ref(false)
 const enabledComponents = ref(new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
 const loadingComponents = ref(new Set<string>())
 
-const components = computed(() => backendServices.info.map((item) => ({
+const components = computed(() => {return backendServices.info.map((item) => ({
   enabled: enabledComponents.value.has(item.serviceName),
   isLoading: loadingComponents.value.has(item.serviceName),
   ...item
-})))
+}))})
 
 
 function isSomethingLoading(): boolean {
@@ -200,6 +199,8 @@ function closeInstallations() {
 
 function getInfoURL(serviceName: string) {
   switch (serviceName) {
+    case "ai-backend":
+      return "https://github.com/intel/ai-playground"
     case "comfyui-backend":
       return "https://github.com/comfyanonymous/ComfyUI"
     case "llamacpp-backend":
@@ -219,19 +220,6 @@ function isEverythingRunning() {
 
 function areBoxesChecked() {
   return components.value.some((i) => i.status !== 'running' && i.enabled)
-}
-
-function mapServiceNameToDisplayName(serviceName: string) {
-  switch (serviceName) {
-    case "comfyui-backend":
-      return "ComfyUI"
-    case "ai-backend":
-      return "AI Playground"
-    case "llamacpp-backend":
-      return "llama.cpp"
-    default:
-      return serviceName
-  }
 }
 
 function convertVisibility(shouldBeVisible: boolean) {
