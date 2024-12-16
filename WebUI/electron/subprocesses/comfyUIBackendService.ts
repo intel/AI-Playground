@@ -5,6 +5,7 @@ import fs from "fs";
 import * as filesystem from "fs-extra";
 import {existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
+import {updateIntelWorkflows} from "./updateIntelWorkflows.ts";
 
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -183,6 +184,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moving service to target place at ${self.pythonEnvDir}`};
             await this.commonSetupSteps.moveToFinalTarget(comfyUiTmpServiceDir, self.serviceDir)
             yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
+            await updateIntelWorkflows()
 
             this.currentStatus = "notYetStarted"
             this.updateStatus()

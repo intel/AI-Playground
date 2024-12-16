@@ -11,11 +11,12 @@ export function existingFileOrError(filePath: string) {
     throw Error(`File at ${resolvedFilePath} does not exist`)
 }
 export async function spawnProcessAsync(command: string, args: string[] = [],
-    logHandler: (data: string) => void = () => { }, extraEnv?: {}
+    logHandler: (data: string) => void = () => { }, extraEnv?: {}, workDir?: string
 ): Promise<string> {
     logHandler(`Spawning command ${command} ${args}`)
     const spawnedProcess = spawn(command, args, {
         windowsHide: true,
+        cwd: workDir ?? process.cwd(),
         env: {
             ...process.env,
             ...extraEnv,
@@ -46,5 +47,5 @@ export async function copyFileWithDirs(src: string, dest: string) {
     }
     const destDir = path.dirname(dest);
     await fs.promises.mkdir(destDir, { recursive: true });
-    await fs.promises.cp(src, dest, { recursive: true });
+    await fs.promises.cp(src, dest, { recursive: true, force: true });
 }

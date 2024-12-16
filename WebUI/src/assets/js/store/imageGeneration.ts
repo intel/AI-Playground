@@ -537,6 +537,12 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         }
     }
 
+
+    async function loadWorkflowsFromIntel() {
+        await window.electronAPI.updateWorkflowsFromIntelRepo();
+        await loadWorkflowsFromJson()
+    }
+
     async function loadWorkflowsFromJson() {
         const workflowsFromFiles = await window.electronAPI.reloadImageWorkflows();
         const parsedWorkflows = workflowsFromFiles.map((workflow) => {
@@ -666,6 +672,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         comfyInputs,
         resetActiveWorkflowSettings,
         loadWorkflowsFromJson,
+        loadWorkflowsFromIntel,
         getMissingModels,
         updateDestImage,
         generate,

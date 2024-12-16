@@ -88,6 +88,8 @@
                 </drop-selector>
                 <button class="svg-icon i-refresh w-5 h-5 text-purple-500"
                     @click="imageGeneration.loadWorkflowsFromJson"></button>
+              <button class="svg-icon i-refresh w-5 h-5 text-purple-500"
+                    @click="imageGeneration.loadWorkflowsFromIntel"></button>
             </div>
         </div>
     </div>
