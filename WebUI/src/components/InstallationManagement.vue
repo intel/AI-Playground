@@ -141,7 +141,7 @@ function isSomethingLoading(): boolean {
   return components.value.some((item) => item.isLoading)
 }
 
-async function installBackend(name: Service) {
+async function installBackend(name: BackendServiceName) {
   somethingChanged.value = true;
   loadingComponents.value.add(name)
   const setupProgress = await backendServices.setUpService(name)
@@ -153,7 +153,7 @@ async function installBackend(name: Service) {
   }
 }
 
-async function repairBackend(name: Service) {
+async function repairBackend(name: BackendServiceName) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
@@ -163,7 +163,7 @@ async function repairBackend(name: Service) {
   await installBackend(name);
 }
 
-async function restartBackend(name: Service) {
+async function restartBackend(name: BackendServiceName) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {

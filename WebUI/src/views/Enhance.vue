@@ -398,7 +398,12 @@ async function generate() {
     }
     if (processing.value) { return; }
     await checkModel();
-    try {
+    const inferenceBackendService: BackendServiceName =  "ai-backend"
+    await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
+    globalSetup.updateLastUsedBackend(inferenceBackendService)
+
+
+  try {
         processing.value = true;
         const extParams = getParams();
         const model_repo_id =
