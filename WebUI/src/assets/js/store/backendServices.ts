@@ -25,18 +25,15 @@ export const useBackendServices = defineStore("backendServices", () => {
         });
     }, 5000)
     window.electronAPI.onServiceInfoUpdate(updatedInfo => {
-        console.info(`received service update: ${updatedInfo}`)
         currentServiceInfo.value = currentServiceInfo.value.map(oldInfo => oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo);
     });
 
     window.electronAPI.onServiceSetUpProgress(async (data) => {
-        console.log(`attemping to add data to listener ${data.serviceName}`)
         const associatedListener = serviceListeners.get(data.serviceName)
-         if (!associatedListener) {
-             console.warn(`received unexpected setup update for service ${data.serviceName}`)
-             return
-         }
-        console.log(`adding data to listener ${associatedListener!.associatedServiceName}`)
+        if (!associatedListener) {
+            console.warn(`received unexpected setup update for service ${data.serviceName}`)
+            return
+        }
         associatedListener.addData(data)
     })
 
@@ -59,9 +56,9 @@ export const useBackendServices = defineStore("backendServices", () => {
     async function setUpService(serviceName: BackendServiceName): Promise<{success: boolean, logs: SetupProgress[]}> {
         console.log("starting setup")
         const listener = serviceListeners.get(serviceName)
-         if (!listener) {
-             new Error(`service name ${serviceName} not found.`)
-         }
+        if (!listener) {
+            new Error(`service name ${serviceName} not found.`)
+        }
         listener!.isActive = true
         window.electronAPI.sendSetUpSignal(serviceName)
         return listener!.awaitFinalizationAndResetData()

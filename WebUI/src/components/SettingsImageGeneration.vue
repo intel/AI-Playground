@@ -7,7 +7,7 @@
             </div>
             <div class="flex items-center gap-5">
                 <p>{{ languages.SETTINGS_MODEL_IMAGE_PREVIEW }}</p>
-                <button v-show=true class="v-checkbox-control flex-none w-5 h-5"
+                <button class="v-checkbox-control flex-none w-5 h-5"
                     :class="{ 'v-checkbox-checked': imageGeneration.imagePreview }"
                     @click="() => imageGeneration.imagePreview = !imageGeneration.imagePreview">
                 </button>
@@ -123,7 +123,9 @@
             </div>
         </div>
         <ComfyDynamic></ComfyDynamic>
-        <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings"><div class="svg-icon i-refresh">Reset</div>Load workflow defaults</button>
+        <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
+            <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings"><div class="svg-icon i-refresh">Reset</div>Load workflow defaults</button>
+        </div>
     </div>
 </template>
 
