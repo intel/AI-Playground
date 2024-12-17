@@ -40,7 +40,7 @@ export interface ApiService {
 }
 
 export abstract class LongLivedPythonApiService implements ApiService {
-    readonly name: Service
+    readonly name: BackendServiceName
     readonly baseUrl: string
     readonly port: number
     readonly win: BrowserWindow
@@ -63,7 +63,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     readonly appLogger = appLoggerInstance
 
-    constructor(name: Service, port: number, win: BrowserWindow, settings: LocalSettings) {
+    constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
         this.win = win
         this.name = name
         this.port = port
@@ -72,6 +72,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
     }
 
     abstract serviceIsSetUp(): boolean
+
+    setStatus(status: BackendStatus) {
+        this.currentStatus = status
+        this.updateStatus()
+    }
 
     updateStatus() {
         this.isSetUp = this.serviceIsSetUp();
@@ -106,6 +111,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         }
 
         this.desiredStatus = "running"
+        this.setStatus('starting')
         try {
             this.appLogger.info(` trying to start ${this.name} python API`, this.name)
             const trackedProcess = await this.spawnAPIProcess()
@@ -137,6 +143,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     async stop(): Promise<BackendStatus> {
         this.appLogger.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus}`, this.name)
         this.desiredStatus = "stopped"
+        this.setStatus('stopping')
         this.encapsulatedProcess?.kill()
         await new Promise(resolve => {
             setTimeout(() => {
@@ -179,7 +186,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             while (performance.now() < startTime + startupPeriodMaxMs) {
                 try {
                     const serviceHealthResponse = await fetch(this.healthEndpointUrl);
-                    this.appLogger.info(`received response: ${serviceHealthResponse.status}`, "promise")
+                    this.appLogger.info(`received response: ${serviceHealthResponse.status}`, this.name)
                     if (serviceHealthResponse.status === 200) {
                         const endTime = performance.now()
                         this.appLogger.info(`${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`, this.name)

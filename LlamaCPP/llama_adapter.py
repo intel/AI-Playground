@@ -111,11 +111,7 @@ class LLM_SSE_Adapter:
         params: LLMParams,
     ):
         try:
-            print("sdnmsd", self.llm_interface)
-            if (not self.llm_interface._model):
-                self.load_model_callback('start')
-                self.llm_interface.load_model(params)
-                self.load_model_callback('finish')
+            self.llm_interface.load_model(params, callback=self.load_model_callback)
             
             prompt = params.prompt
             if params.enable_rag:

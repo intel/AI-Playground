@@ -14,34 +14,6 @@
     </div>
   </div>
   <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
-    <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_BACKEND }}</h2>
-    <div class="flex flex-col gap-3">
-      <p>{{ languages.BACKEND_REQUIRED_COMPONENTS }}</p>
-      <table class="text-center w-full" style="table-layout: fixed;">
-        <tbody>
-        <tr v-for="item in apiServiceInformation.filter((i) => i.isRequired)">
-          <td style="text-align: left">{{ item.serviceName }}</td>
-          <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
-        </tr>
-        </tbody>
-      </table>
-      <p>{{ languages.BACKEND_OPTIONAL_COMPONENTS }}</p>
-      <table class="text-center w-full" style="table-layout: fixed;">
-        <tbody>
-        <tr v-for="item in apiServiceInformation.filter((i) => !i.isRequired)">
-          <td style="text-align: left">{{ item.serviceName }}</td>
-          <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
-        </tr>
-        </tbody>
-      </table>
-      <div class="flex flex-col pt-5">
-        <button @click="globalSetup.loadingState = 'manageInstallations'"
-                class="confirm-btn">{{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
-        </button>
-      </div>
-    </div>
-  </div>
-  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
     <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_SD_PRESET_MODEL }}</h2>
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_SD_STANDARD_MODEL }}</p>
@@ -320,19 +292,12 @@ const presetModelChange = ref(false);
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)));
 const pathsChange = ref(false);
 
-const apiServiceInformation = ref<ApiServiceInformation[]>([])
-
 const emits = defineEmits<{
   (e: "showDownloadModelConfirm", downloadList: DownloadModelParam[], success?: () => void, fail?: () => void): void
 }>();
 
 onMounted(() => {
   cancelPathsSettings();
-})
-
-//TODO: Change to continuous update
-onBeforeMount(async () => {
-  apiServiceInformation.value = await window.electronAPI.getServices()
 })
 
 async function customPathsSettings(key: string, path: string) {

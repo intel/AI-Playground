@@ -461,6 +461,10 @@ async function generate(chatContext: ChatItem[]) {
   if (processing.value || chatContext.length == 0) { return; }
 
   try {
+    const inferenceBackendService: BackendServiceName = textInference.backend === 'IPEX-LLM' ? "ai-backend" : "llamacpp-backend"
+    await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
+    globalSetup.updateLastUsedBackend(inferenceBackendService)
+
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question);
     textOut.value = "";
     receiveOut = "";
@@ -478,7 +482,6 @@ async function generate(chatContext: ChatItem[]) {
       enable_rag: ragData.enable,
       model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
     };
-    comfyUi.free();
     const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
       method: "POST", headers: {
         "Content-Type": "application/json"

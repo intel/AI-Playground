@@ -68,9 +68,10 @@ type SetupData = {
   version:string,
 }
 
-type BackendStatus = 'notYetStarted' | 'starting' | 'running' | 'stopped' | 'failed' | 'notInstalled' | 'installationFailed' | 'installing' | 'uninitializedStatus'
-
 type UpdateWorkflowsFromIntelResult = {
   success: boolean
   backupDir: string
 }
+
+type BackendStatus = 'notYetStarted' | 'starting' | 'running' | 'stopped' | 'stopping' | 'failed' | 'notInstalled' | 'installationFailed' | 'installing' | 'uninitializedStatus'
+

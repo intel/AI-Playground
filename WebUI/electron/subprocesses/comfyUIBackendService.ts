@@ -33,7 +33,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
     async *set_up(): AsyncIterable<SetupProgress> {
         this.appLogger.info("setting up service", this.name)
-        this.currentStatus = "installing"
+        this.setStatus('installing')
         const self = this
 
         const logToFileHandler = (data: string) => self.appLogger.logMessageToFile(data, self.name)
@@ -186,14 +186,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `move service to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
             await updateIntelWorkflows()
 
-            this.currentStatus = "notYetStarted"
-            this.updateStatus()
+            this.setStatus('notYetStarted')
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
             self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
             self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
-            this.currentStatus = "installationFailed"
-            this.updateStatus()
+            this.setStatus('installationFailed')
             yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup comfyUI service due to ${e}`};
         }
     }

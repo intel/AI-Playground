@@ -1,12 +1,13 @@
 import {defineStore} from "pinia";
 
+
 export const useBackendServices = defineStore("backendServices", () => {
     const currentServiceInfo = ref<ApiServiceInformation[]>([]);
-    const serviceListeners = {
-        "ai-backend": new BackendServiceSetupProgressListener("ai-backend"),
-        "comfyui-backend": new BackendServiceSetupProgressListener("comfyui-backend"),
-        "llamacpp-backend": new BackendServiceSetupProgressListener("llamacpp-backend")
-    };
+    const serviceListeners: Map<BackendServiceName, BackendServiceSetupProgressListener> = new Map([
+        ["ai-backend", new BackendServiceSetupProgressListener("ai-backend")],
+        ["comfyui-backend", new BackendServiceSetupProgressListener("comfyui-backend")],
+        ["llamacpp-backend", new BackendServiceSetupProgressListener("llamacpp-backend")],
+    ]);
 
     window.electronAPI.getServices().catch(async (reason: any) => {
         console.warn("initial service call failed - retrying")
@@ -30,12 +31,12 @@ export const useBackendServices = defineStore("backendServices", () => {
 
     window.electronAPI.onServiceSetUpProgress(async (data) => {
         console.log(`attemping to add data to listener ${data.serviceName}`)
-        const associatedListener = serviceListeners[data.serviceName]
+        const associatedListener = serviceListeners.get(data.serviceName)
          if (!associatedListener) {
              console.warn(`received unexpected setup update for service ${data.serviceName}`)
              return
          }
-         console.log(`adding data to listener ${associatedListener.associatedServiceName}`)
+        console.log(`adding data to listener ${associatedListener!.associatedServiceName}`)
         associatedListener.addData(data)
     })
 
@@ -55,23 +56,22 @@ export const useBackendServices = defineStore("backendServices", () => {
     }
 
 
-    async function setUpService(serviceName: Service): Promise<{success: boolean, logs: SetupProgress[]}> {
+    async function setUpService(serviceName: BackendServiceName): Promise<{success: boolean, logs: SetupProgress[]}> {
         console.log("starting setup")
-        const listener: BackendServiceSetupProgressListener = serviceListeners[serviceName]
-
+        const listener = serviceListeners.get(serviceName)
          if (!listener) {
              new Error(`service name ${serviceName} not found.`)
          }
-        listener.isActive = true
+        listener!.isActive = true
         window.electronAPI.sendSetUpSignal(serviceName)
-        return listener.awaitFinalizationAndResetData()
+        return listener!.awaitFinalizationAndResetData()
     }
 
-    async function startService(serviceName: string): Promise<BackendStatus> {
+    async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
         return window.electronAPI.sendStartSignal(serviceName)
     }
 
-    async function stopService(serviceName: string): Promise<BackendStatus> {
+    async function stopService(serviceName: BackendServiceName): Promise<BackendStatus> {
         return window.electronAPI.sendStopSignal(serviceName)
     }
 
