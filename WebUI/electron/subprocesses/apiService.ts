@@ -179,7 +179,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             while (performance.now() < startTime + startupPeriodMaxMs) {
                 try {
                     const serviceHealthResponse = await fetch(this.healthEndpointUrl);
-                    this.appLogger.info(`received response: ${serviceHealthResponse.status}`, "promise")
+                    this.appLogger.info(`received response: ${serviceHealthResponse.status}`, this.name)
                     if (serviceHealthResponse.status === 200) {
                         const endTime = performance.now()
                         this.appLogger.info(`${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`, this.name)

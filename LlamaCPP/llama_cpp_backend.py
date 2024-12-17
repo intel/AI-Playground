@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Callable
 from os import path
 from llama_interface import LLMInterface
 from llama_cpp import CreateChatCompletionStreamResponse, Iterator, Llama
@@ -12,9 +12,11 @@ class LlamaCpp(LLMInterface):
         self.stop_generate = False
         self._last_repo_id = None
 
-    def load_model(self, params: LLMParams, n_gpu_layers: int = -1, context_length: int = 16000):
+    def load_model(self, params: LLMParams, n_gpu_layers: int = -1, context_length: int = 16000, callback: Callable[[str], None] = None):
         model_repo_id = params.model_repo_id
         if self._model is None or self._last_repo_id != model_repo_id:
+            if callback is not None:
+                callback("start")
             self.unload_model()
 
             model_base_path = model_config.llamaCppConfig.get("ggufLLM")
@@ -25,9 +27,12 @@ class LlamaCpp(LLMInterface):
                 model_path=model_path,
                 n_gpu_layers=n_gpu_layers,
                 n_ctx=context_length,
+                verbose=False,
             )
 
             self._last_repo_id = model_repo_id
+            if callback is not None:
+                callback("finish")
 
     def create_chat_completion(self, messages: List[Dict[str, str]]):
         completion: Iterator[CreateChatCompletionStreamResponse] = self._model.create_chat_completion(
