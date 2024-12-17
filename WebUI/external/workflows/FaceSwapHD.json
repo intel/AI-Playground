@@ -15,7 +15,8 @@
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors",
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors",
       "defaultLora:latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors",
-      "faceswap:Aitrepreneur/insightface/inswapper_128.onnx"
+      "faceswap:Aitrepreneur/insightface/inswapper_128.onnx",
+      "facerestore:gmk123/GFPGAN/GFPGANv1.4.pth"
     ]
   },
   "tags": [
