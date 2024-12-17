@@ -116,6 +116,13 @@ const ComfyBooleanInputSchema = z.object({
 });
 export type ComfyBooleanInput = z.infer<typeof ComfyBooleanInputSchema>;
 
+const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
+    ComfyNumberInputSchema,
+    ComfyImageInputSchema,
+    ComfyStringInputSchema,
+    ComfyBooleanInputSchema,
+]);
+type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>;
 const ComfyUiWorkflowSchema = z.object({
     name: z.string(),
     backend: z.literal('comfyui'),
@@ -126,12 +133,7 @@ const ComfyUiWorkflowSchema = z.object({
     tags: z.array(z.string()),
     requiredModels: z.array(z.string()).optional(),
     requirements: z.array(WorkflowRequirementSchema),
-    inputs: z.array(z.discriminatedUnion('type',[
-        ComfyNumberInputSchema,
-        ComfyImageInputSchema,
-        ComfyStringInputSchema,
-        ComfyBooleanInputSchema
-    ])),
+    inputs: z.array(ComfyDynamicInputSchema),
     outputs: z.array(z.object({
         name: z.string(),
         type: z.literal('image')
@@ -426,6 +428,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         imagePreview.value = generalDefaultSettings.imagePreview;
         safeCheck.value = generalDefaultSettings.safeCheck;
         settingsPerWorkflow.value[activeWorkflowName.value ?? ''] = undefined;
+        comfyInputsPerWorkflow.value[activeWorkflowName.value ?? ''] = undefined;
         loadSettingsForActiveWorkflow();
     }
     // model specific settings
@@ -464,9 +467,45 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         default: null
     });
 
-    const comfyInputs = computed(() => activeWorkflow.value.backend === 'comfyui' ? activeWorkflow.value.inputs.map(input => ({ ...input, current: ref(input.defaultValue) })) : []);
+    const comfyInputs = computed(() => {
+        if (activeWorkflow.value.backend !== 'comfyui') return []
+        const inputRef = (input: ComfyDynamicInput): NodeInputReference => `${input.nodeTitle}.${input.nodeInput}`;
+        const savePerWorkflow = (input: ComfyDynamicInput, newValue: ComfyDynamicInput['defaultValue']) => {
+            if (!activeWorkflowName.value) return;
+            comfyInputsPerWorkflow.value[activeWorkflowName.value] = {
+                ...comfyInputsPerWorkflow.value[activeWorkflowName.value],
+                [inputRef(input)]: newValue
+            }
+            console.log('saving', { nodeTitle: input.nodeTitle, nodeInput: input.nodeInput, newValue });
+        }
+        const getSavedOrDefault = (input: ComfyDynamicInput) => {
+            if (!activeWorkflowName.value) return input.defaultValue;
+            const saved = comfyInputsPerWorkflow.value[activeWorkflowName.value]?.[inputRef(input)];
+            if (saved) console.log('got saved dynamic input', { nodeTitle: input.nodeTitle, nodeInput: input.nodeInput, saved });
+            return saved ?? input.defaultValue;
+        };
 
-    const settingsPerWorkflow = ref<Record<string, Workflow['defaultSettings']>>({});
+        return activeWorkflow.value.inputs.map(input => {
+            const _current = ref(getSavedOrDefault(input))
+    
+            const current = computed({
+                get() {
+                    return _current.value;
+                },
+                set(newValue) {
+                    _current.value = newValue;
+                    savePerWorkflow(input, newValue)
+                }
+            })
+
+            return { ...input, current }
+        }) 
+    });
+
+    type WorkflowName = string;
+    type NodeInputReference = string; // nodeTitle.nodeInput
+    const comfyInputsPerWorkflow = ref<Record<WorkflowName, Record<NodeInputReference, ComfyDynamicInput['defaultValue']> | undefined>>({});
+    const settingsPerWorkflow = ref<Record<WorkflowName, Workflow['defaultSettings']>>({});
 
     const isModifiable = (settingName: ModifiableSettings) => activeWorkflow.value.modifiableSettings.includes(settingName);
 
@@ -681,6 +720,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         batchSize,
         negativePrompt,
         settingsPerWorkflow,
+        comfyInputsPerWorkflow,
         comfyInputs,
         lastWorkflowPerBackend,
         resetActiveWorkflowSettings,
@@ -695,7 +735,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 }, {
     persist: {
         debug: true,
-        pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow', 'hdWarningDismissed', 'lastWorkflowPerBackend']
+        pick: ['backend', 'activeWorkflowName', 'settingsPerWorkflow', 'comfyInputsPerWorkflow', 'hdWarningDismissed', 'lastWorkflowPerBackend']
     }
 });
 
