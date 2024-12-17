@@ -52,13 +52,22 @@
           <template #selected>
             <div class="flex gap-2 items-center">
               <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
+            <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
+            <!--       Flag LlamaCpp as experimental       -->
+            <span v-if="textInference.backend=='LLAMA.CPP'"
+                class="rounded-lg h-4 px-1 text-xs"
+                :style="{ 'background-color': '#cc00ff88' }">
+                                Experimental</span>
             </div>
           </template>
           <template #list="slotItem">
             <div class="flex gap-2 items-center">
               <span class="rounded-full bg-green-500 w-2 h-2"></span>
               <span>{{ textInferenceBackendDisplayName[slotItem.item as typeof backendTypes[number]] }}</span>
+              <span v-if="slotItem.item=='LLAMA.CPP'"
+                    class="rounded-lg h-4 px-1 text-xs"
+                    :style="{ 'background-color': '#cc00ff88' }">
+                                Experimental</span>
             </div>
           </template>
         </drop-selector>
