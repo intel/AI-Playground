@@ -3,7 +3,7 @@
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [
-      "Gourieff/comfyui-reactor-node"
+      "Gourieff/comfyui-reactor-node/be1c60bd62d1fb35511153533032c5a6811c8fab"
     ],
     "requiredModels": [
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors",

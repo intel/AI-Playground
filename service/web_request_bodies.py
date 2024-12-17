@@ -20,6 +20,7 @@ class DownloadModelRequestBody:
 class ComfyUICustomNodesGithubRepoId:
     username: str
     repoName: str
+    gitRef: str
 
 @marshmallow_dataclass.dataclass
 class ComfyUICustomNodesDownloadRequest:

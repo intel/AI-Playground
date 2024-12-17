@@ -50,6 +50,17 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             }
         }
 
+        const checkoutGitRefStep = async (gitExePath: string, repoDir: string, gitRef: string) => {
+            self.appLogger.info(`checking out ${gitRef} in ${repoDir}`, self.name, true)
+            try {
+                await spawnProcessAsync(gitExePath, ["checkout", gitRef], logToFileHandler, {}, repoDir)
+                self.appLogger.info(`repo ${repoDir} now at gitRef ${gitRef}`, self.name, true)
+            } catch (e) {
+                self.appLogger.warn(`failed to checkout specific ref ${gitRef}, due to ${e}`, self.name, true)
+                self.appLogger.warn(`using default branch for ${repoDir} instead`, self.name, true)
+            }
+        }
+
         async function setUpServiceWorkEnv(): Promise<string> {
             const comfyUiContaintmentDir = path.resolve(path.join(self.baseDir, `${self.name}-service_tmp`))
             self.appLogger.info(`Preparing installation containment dir at ${comfyUiContaintmentDir}`, self.name, true)
@@ -116,7 +127,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         async function setupComfyUiBaseService(containmentDir: string, gitExePath: string, pythonEnvDir: string): Promise<string> {
             const comfyUICloneTarget = path.join(containmentDir, 'ComfyUI')
 
-            await cloneGitStep(gitExePath, "https://github.com/comfyanonymous/ComfyUI.git", comfyUICloneTarget)
+            const comfyUiRepoUrl = "https://github.com/comfyanonymous/ComfyUI.git";
+            const comfyUiGitRef = "61b5072"
+            await cloneGitStep(gitExePath, comfyUiRepoUrl, comfyUICloneTarget)
+            await checkoutGitRefStep(gitExePath, comfyUICloneTarget, comfyUiGitRef)
             const requirementsTextPath = path.join(comfyUICloneTarget, 'requirements.txt')
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvDir, requirementsTextPath)
             return comfyUICloneTarget;

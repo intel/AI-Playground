@@ -37,8 +37,8 @@ export const useComfyUi = defineStore("comfyUi", () => {
         const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
         const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] =
         [...uniqueCustomNodes].map((nodeName) => {
-          const [username, repoName] = nodeName.replace(" ", "").split("/")
-          return {username, repoName}
+          const [username, repoName, gitRef] = nodeName.replace(" ", "").split("/")
+          return {username: username, repoName: repoName, gitRef: gitRef}
         })
         const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
           method: 'POST',
@@ -51,7 +51,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
             throw new Error("Request Failure to install required comfyUINode");
         }
         const data = await response.json() as { node: string, success: boolean }[];
-        const notInstalledNodes = data.filter(item => {!item.success})
+        const notInstalledNodes = data.filter(item => !item.success)
         if (notInstalledNodes.length > 0) {
             throw new Error(`Failed to install required comfyUI custom nodes: ${notInstalledNodes}`)
         }

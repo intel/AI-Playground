@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from typing import Optional
 
 import requests
 
@@ -53,7 +54,7 @@ def _fetch_portable_git(seven_zipped_portable_git_target):
             logging.error(f"Failed fetching resources from {git_download_url}")
             raise Exception(f"fetching {git_download_url} failed with response: {response}")
     except Exception as e:
-        logging.error(f"Failed to fetch portable git from ${git_download_url} with error {e}")
+        logging.error(f"Failed to fetch portable git from {git_download_url} with error {e}")
         aipg_utils.remove_existing_filesystem_resource(seven_zipped_portable_git_target)
         raise e
 
@@ -87,6 +88,24 @@ def _install_git_repo(git_repo_url: str, target_dir: str):
         aipg_utils.remove_existing_filesystem_resource(target_dir)
         raise e
 
+def _checkout_git_ref(repo_dir: str, git_ref: str):
+    try:
+        aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} checkout {git_ref}", cwd=repo_dir)
+        logging.info(f"checked out {git_ref} in {repo_dir}")
+    except Exception as e:
+        logging.warning(f"git checkout of {git_ref} failed for rep {repo_dir} due to {e}.")
+        logging.warning(f"will use repo ref {get_git_ref(repo_dir)} in {repo_dir}.")
+
+
+def get_git_ref(repo_dir: str) -> Optional[str]:
+    try:
+        git_ref = aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} rev-parse HEAD", cwd=repo_dir)
+        return git_ref
+    except Exception as e:
+        logging.warning(f"Resolving git ref in {repo_dir} failed due to {e}")
+        return
+
+
 def _install_pip_requirements(requirements_txt_path: str):
     logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
     if os.path.exists(requirements_txt_path):
@@ -95,7 +114,6 @@ def _install_pip_requirements(requirements_txt_path: str):
         logging.info("python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
-
 
 def install_comfyUI() -> bool:
     if is_comfyUI_installed():
@@ -113,12 +131,15 @@ def install_comfyUI() -> bool:
         raise e
 
 
-def is_custom_node_installed(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> bool:
+def is_custom_node_installed_with_git_ref(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> bool:
     expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_ref.repoName)
-    return os.path.exists(expected_custom_node_path)
+    custom_node_dir_exists= os.path.exists(expected_custom_node_path)
+    return custom_node_dir_exists and (get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef)
+
 
 def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool:
-    if is_custom_node_installed(node_repo_data):
+    if is_custom_node_installed_with_git_ref(node_repo_data):
+        logging.info(f"node repo {node_repo_data} already exists. Omitting")
         return True
     else:
         try:
@@ -126,9 +147,10 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool
             expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_data.repoName)
             potential_node_requirements = os.path.join(expected_custom_node_path, "requirements.txt")
 
+            aipg_utils.remove_existing_filesystem_resource(expected_custom_node_path)
             _install_git_repo(expected_git_url, expected_custom_node_path)
+            _checkout_git_ref(expected_custom_node_path, node_repo_data.gitRef)
             _install_pip_requirements(potential_node_requirements)
-            logging.info("installed on a mock basis")
             return True
         except Exception as e:
             logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.repoName} due to {e}")

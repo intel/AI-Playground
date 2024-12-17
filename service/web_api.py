@@ -387,7 +387,7 @@ def install_comfyUI():
 @app.post("/api/comfyUi/areCustomNodesLoaded")
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
-    response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data}
+    response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed_with_git_ref(x) for x in comfyNodeRequest.data}
     return jsonify(response)
 
 
@@ -395,7 +395,7 @@ def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadReque
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     try:
-        nodes_to_be_installed = [x for x in comfyNodeRequest.data if not comfyui_downloader.is_custom_node_installed(x)]
+        nodes_to_be_installed = [x for x in comfyNodeRequest.data if not comfyui_downloader.is_custom_node_installed_with_git_ref(x)]
         installation_result = [ {"node": f"{x.username}/{x.repoName}", "success": comfyui_downloader.download_custom_node(x)} for x in nodes_to_be_installed ]
         logging.info(f"custom node installation request result: {installation_result}")
         return jsonify(installation_result)

@@ -7,7 +7,7 @@
     "backend": "comfyui",
     "comfyUIRequirements": {
         "customNodes": [
-            "city96/ComfyUI-GGUF"
+            "city96/ComfyUI-GGUF/65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"
         ],
         "requiredModels": [
             "unet:city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf",

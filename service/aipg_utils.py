@@ -5,7 +5,7 @@ import logging
 import math
 import os
 import shutil
-from typing import IO
+from typing import IO, Optional
 
 import torch
 from PIL import Image
@@ -234,12 +234,12 @@ def get_support_graphics():
     return graphics
 
 
-def call_subprocess(process_command: str) -> str:
+def call_subprocess(process_command: str, cwd: Optional[str] = None) -> str:
     args = shlex.split(process_command)
     try:
         logging.info(f"calling cmd process: {args}")
-        output = subprocess.check_output(args)
-        return output.decode("utf-8")
+        output = subprocess.check_output(args, cwd=cwd)
+        return output.decode("utf-8").strip()
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to call subprocess {process_command} with error {e}")
         raise e
