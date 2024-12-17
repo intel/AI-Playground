@@ -153,6 +153,7 @@ export type Workflow = z.infer<typeof WorkflowSchema>;
 
 
 const globalDefaultSettings = {
+    seed: -1,
     width: 512,
     height: 512,
     inferenceSteps: 20,
@@ -445,8 +446,8 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             [width.value, height.value] = newValue.split('x').map(Number);
         }
     })
-
-    const settings = { inferenceSteps, width, height, resolution, batchSize, negativePrompt, lora, scheduler, guidanceScale, imageModel, inpaintModel };
+    
+    const settings = { seed, inferenceSteps, width, height, resolution, batchSize, negativePrompt, lora, scheduler, guidanceScale, imageModel, inpaintModel };
     type ModifiableSettings = keyof typeof settings;
     const backend = computed({
         get() {
@@ -492,6 +493,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                 console.log('saving', { settingName, value: settings[settingName].value });
             }
         }
+        saveToSettingsPerWorkflow('seed');
         saveToSettingsPerWorkflow('inferenceSteps');
         saveToSettingsPerWorkflow('width');
         saveToSettingsPerWorkflow('height');
@@ -524,6 +526,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             settings[settingName].value = saved ?? activeWorkflow.value?.defaultSettings?.[settingName] ?? globalDefaultSettings[settingName];
         };
 
+        getSavedOrDefault('seed');
         getSavedOrDefault('inferenceSteps');
         getSavedOrDefault('width');
         getSavedOrDefault('height');
