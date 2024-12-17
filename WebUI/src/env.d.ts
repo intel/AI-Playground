@@ -68,7 +68,7 @@ type electronAPI = {
     onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void,
 };
 
-type SetupProgress = {serviceName: Service, step: string, status: "executing"|"failed"|"success", debugMessage: string}
+type SetupProgress = {serviceName: BackendServiceName, step: string, status: "executing"|"failed"|"success", debugMessage: string}
 
 type Chrome = {
     webview: WebView;
@@ -313,6 +313,6 @@ type CheckModelAlreadyLoadedResult = {
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
 
-type Service = "ai-backend" | "comfyui-backend" | "llamacpp-backend"
+type BackendServiceName = "ai-backend" | "comfyui-backend" | "llamacpp-backend"
 
-type ApiServiceInformation = { serviceName: Service, status: BackendStatus , baseUrl: string, port: number, isSetUp: boolean, isRequired: boolean }
+type ApiServiceInformation = { serviceName: BackendServiceName, status: BackendStatus , baseUrl: string, port: number, isSetUp: boolean, isRequired: boolean }

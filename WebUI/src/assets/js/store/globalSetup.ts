@@ -2,8 +2,10 @@ import {defineStore} from "pinia";
 import {util} from "../util";
 import {useI18N} from "./i18n";
 import {useBackendServices} from "./backendServices";
+import {toast} from "@/assets/js/toast.ts";
 
 type GlobalSetupState = "running" | "verifyBackend" | "manageInstallations" | "loading" | "failed"
+type LastUsedBackend = BackendServiceName | "None"
 
 export const useGlobalSetup = defineStore("globalSetup", () => {
     const state = reactive<KVObject>({
@@ -13,7 +15,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     });
 
     const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
-    const backendServices = useBackendServices();
+    const lastUsedBackend = ref<LastUsedBackend>("None")
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -71,6 +73,8 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
     const loadingState = ref<GlobalSetupState>("verifyBackend");
     const errorMessage = ref("");
     const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
+
+    const backendServices = useBackendServices()
 
     watchEffect(() => {
         localStorage.setItem("HdPersistentConfirmation", hdPersistentConfirmation.value.toString());
@@ -211,7 +215,25 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             });
         }
         assertSelectExist();
+    }
 
+    function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
+        lastUsedBackend.value = currentInferenceBackend
+    }
+
+    async function resetLastUsedInferenceBackend(currentInferenceBackend: BackendServiceName) {
+        const lastUsedBackendSnapshot = lastUsedBackend.value
+        if (lastUsedBackendSnapshot === "None" || lastUsedBackendSnapshot === currentInferenceBackend) {
+            return
+        }
+        try {
+            const stopStatus = await backendServices.stopService(lastUsedBackendSnapshot)
+            console.info(`unused service ${lastUsedBackendSnapshot} now in state ${stopStatus}`)
+            const startStatus = await backendServices.startService(lastUsedBackendSnapshot)
+            console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
+        } catch (e) {
+            console.warn(`Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`)
+        }
     }
 
     function getManualModelSettings() {
@@ -306,8 +328,11 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         apiHost: defaultBackendBaseUrl,
         graphicsList,
         loadingState,
+        lastUsedBackend,
         errorMessage,
         hdPersistentConfirmation,
+        updateLastUsedBackend,
+        resetLastUsedInferenceBackend,
         initSetup,
         applyPathsSettings,
         applyModelSettings,
