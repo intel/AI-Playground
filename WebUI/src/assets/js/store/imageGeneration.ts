@@ -575,6 +575,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                     case "clip" : return Const.MODEL_TYPE_COMFY_CLIP
                     case "vae" : return Const.MODEL_TYPE_COMFY_VAE
                     case "faceswap" : return Const.MODEL_TYPE_FACESWAP
+                    case "facerestore" : return Const.MODEL_TYPE_FACERESTORE
                     case "defaultCheckpoint" : return Const.MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT
                     case "defaultLora" : return Const.MODEL_TYPE_COMFY_DEFAULT_LORA
                     case "controlNet" : return Const.MODEL_TYPE_COMFY_CONTROL_NET
