@@ -118,7 +118,6 @@ def _install_pip_requirements(requirements_txt_path: str):
 
 def install_pypi_package(packageSpecifier: str):
     if packageSpecifier.endswith(".whl"):
-
         pip_specifier = os.path.abspath(os.path.join(service_config.comfyui_python_env, packageSpecifier.split("/")[-1]))
         try:
             response = requests.get(packageSpecifier, stream=True, timeout=30)

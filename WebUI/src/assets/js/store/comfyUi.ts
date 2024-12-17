@@ -33,29 +33,10 @@ export const useComfyUi = defineStore("comfyUi", () => {
         { immediate: true }
     );
 
-    async function installCustomNodesForActiveWorkflow() {
-        const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
-        const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] =
-            [...uniqueCustomNodes].map((nodeName) => {
-                const [username, repoName, gitRef] = nodeName.replace(" ", "").split("/")
-                return {username: username, repoName: repoName, gitRef: gitRef}
-            })
-        const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
-            method: 'POST',
-            body: JSON.stringify({data: requiredCustomNodes}),
-            headers: {
-                "Content-Type": "application/json"
-            }
-        })
-        if (response.status !== 200) {
-            throw new Error("Request Failure to install required comfyUINode");
-        }
-        const data = await response.json() as { node: string, success: boolean }[];
-        const notInstalledNodes = data.filter(item => !item.success)
-        if (notInstalledNodes.length > 0) {
-            throw new Error(`Failed to install required comfyUI custom nodes: ${notInstalledNodes}`)
-        }
-        if (data.length > 0) {
+    async function installCustomNodesForActiveWorkflowFully() {
+        const requiresServerReboot = await installCustomNodesForActiveWorkflow()
+        await triggerInstallPythonPackagesForActiveWorkflow()
+        if (requiresServerReboot) {
             console.info("restarting comfyUI to finalize installation of required custom nodes")
             await backendServices.stopService('comfyui-backend')
             const startingResult = await backendServices.startService('comfyui-backend')
@@ -64,7 +45,32 @@ export const useComfyUi = defineStore("comfyUi", () => {
             }
             console.info("restart complete")
         }
-        return;
+    }
+
+    async function installCustomNodesForActiveWorkflow(): Promise<boolean> {
+        const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
+        const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] =
+        [...uniqueCustomNodes].map((nodeName) => {
+            const [username, repoName, gitRef] = nodeName.replace(" ", "").split("/")
+            return {username: username, repoName: repoName, gitRef: gitRef}
+        })
+        const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
+          method: 'POST',
+          body: JSON.stringify({data: requiredCustomNodes}),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        if (response.status !== 200) {
+            throw new Error("Request Failure to install required comfyUINode");
+        }
+        const data = await response.json() as { node: string, success: boolean }[];
+        const notInstalledNodes = data.filter(item => {!item.success})
+        if (notInstalledNodes.length > 0) {
+            throw new Error(`Failed to install required comfyUI custom nodes: ${notInstalledNodes}`)
+        }
+        const areNewNodesInstalled = data.length > 0
+        return areNewNodesInstalled;
     }
 
 
@@ -246,10 +252,8 @@ export const useComfyUi = defineStore("comfyUi", () => {
             return;
         }
         
-        await triggerInstallPythonPackagesForActiveWorkflow()
-
         try {
-            await installCustomNodesForActiveWorkflow()
+            await installCustomNodesForActiveWorkflowFully()
 
             const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow))
             const seed = imageGeneration.seed === -1 ? (Math.random() * 1000000) : imageGeneration.seed;
