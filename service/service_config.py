@@ -25,6 +25,7 @@ comfy_ui_model_paths = {
     "clip": f"{comfy_ui_root_path}/models/clip",
     "vae": f"{comfy_ui_root_path}/models/vae",
     "faceswap": f"{comfy_ui_root_path}/models/insightface",
+    "facerestore": f"{comfy_ui_root_path}/models/facerestore_models",
     "controlNet": f"{comfy_ui_root_path}/models/controlnet",
     "defaultCheckpoint": "./models/stable_diffusion/checkpoints",
     "defaultLora": "./models/stable_diffusion/lora",

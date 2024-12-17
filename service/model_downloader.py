@@ -271,8 +271,13 @@ class HFPlaygroundDownloader:
 
     def move_to_desired_position(self, retriable: bool = True):
         desired_repo_root_dir_name = os.path.join(self.save_path, utils.repo_local_root_dir_name(self.repo_id))
+        move_to_flat_structure = False
+        # face restore and insightface model need to be in a flat structure to work with reactor node
+        if "facerestore" in self.save_path or "insightface" in self.save_path:
+            move_to_flat_structure = True
+            desired_repo_root_dir_name = path.abspath(path.join(self.save_path, self.repo_id.replace("/", "---")))
         try:
-            if os.path.exists(desired_repo_root_dir_name):
+            if os.path.exists(desired_repo_root_dir_name) or move_to_flat_structure:
                 for item in os.listdir(self.save_path_tmp):
                     shutil.move(os.path.join(self.save_path_tmp, item), desired_repo_root_dir_name)
                 shutil.rmtree(self.save_path_tmp)

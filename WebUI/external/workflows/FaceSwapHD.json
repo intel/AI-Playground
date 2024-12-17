@@ -228,7 +228,7 @@
         "enabled": true,
         "swap_model": "Aitrepreneur---insightface---inswapper_128.onnx",
         "facedetection": "retinaface_resnet50",
-        "face_restore_model": "GFPGANv1.4.pth",
+        "face_restore_model": "gmk123---GFPGAN---GFPGANv1.4.pth",
         "face_restore_visibility": 1,
         "codeformer_weight": 0.5,
         "detect_gender_input": "no",
