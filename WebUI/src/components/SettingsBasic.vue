@@ -82,6 +82,9 @@
       </div>
     </div>
   </div>
+  <div class="text-right my-7">
+    <button @click="openDebug" class="v-radio-block">Open Developer Logs</button>
+  </div>
 </template>
 <script setup lang="ts">
 
@@ -128,6 +131,10 @@ const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.mod
 const graphicsName = computed(() => {
   return globalSetup.graphicsList.find(item => modelSettings.graphics as number == item.index)?.name || "";
 })
+
+function openDebug() {
+  window.electronAPI.openDevTools()
+}
 
 function changeGraphics(value: any, index: number) {
   globalSetup.applyModelSettings({graphics: (value as GraphicsItem).index});
