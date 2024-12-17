@@ -288,28 +288,9 @@ export const useComfyUi = defineStore("comfyUi", () => {
         })
     }
 
-    async function free() {
-        if (!isComfyRunning) {
-            console.debug('ComfyUI backend not running, nothing to free');
-            return;
-        }
-        await fetch(`${comfyBaseUrl.value}/free`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ free_memory: true,
-                unload_models: true })
-        })
-        await fetch(`${useGlobalSetup().apiHost}/api/triggerxpucacheclear`, {
-            method: "POST"
-        })
-    }
-
     return {
         generate,
         stop,
-        free,
     }
 }, {
     persist: {

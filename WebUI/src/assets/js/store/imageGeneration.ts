@@ -618,10 +618,8 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         previewIdx.value = 0;
         stepText.value = i18nState.COM_GENERATING;
         if (activeWorkflow.value.backend === 'default') {
-            comfyUi.free();
             stableDiffusion.generate();
         } else {
-            stableDiffusion.free();
             comfyUi.generate();
         }
     }
