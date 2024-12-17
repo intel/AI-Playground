@@ -73,6 +73,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     abstract serviceIsSetUp(): boolean
 
+    setStatus(status: BackendStatus) {
+        this.currentStatus = status
+        this.updateStatus()
+    }
+
     updateStatus() {
         this.isSetUp = this.serviceIsSetUp();
         this.win.webContents.send("serviceInfoUpdate", this.get_info());
@@ -106,6 +111,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         }
 
         this.desiredStatus = "running"
+        this.setStatus('starting')
         try {
             this.appLogger.info(` trying to start ${this.name} python API`, this.name)
             const trackedProcess = await this.spawnAPIProcess()
@@ -137,6 +143,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     async stop(): Promise<BackendStatus> {
         this.appLogger.info(`Stopping backend ${this.name}. It was in state ${this.currentStatus}`, this.name)
         this.desiredStatus = "stopped"
+        this.setStatus('stopping')
         this.encapsulatedProcess?.kill()
         await new Promise(resolve => {
             setTimeout(() => {

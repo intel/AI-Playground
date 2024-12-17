@@ -17,7 +17,7 @@ export class AiBackendService extends LongLivedPythonApiService {
     isSetUp = this.serviceIsSetUp();
 
     async *set_up(): AsyncIterable<SetupProgress> {
-        this.currentStatus = 'installing'
+        this.setStatus('installing')
         this.appLogger.info("setting up service", this.name)
         const self = this
 
@@ -47,14 +47,12 @@ export class AiBackendService extends LongLivedPythonApiService {
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
             await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
             yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
-            self.currentStatus = 'notYetStarted'
-            this.updateStatus()
+            this.setStatus('notYetStarted')
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
             self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
             self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
-            self.currentStatus = 'installationFailed'
-            this.updateStatus()
+            this.setStatus('installationFailed')
             yield {serviceName: self.name, step: "end", status: "failed", debugMessage: `Failed to setup python environment due to ${e}`};
         }
     }
