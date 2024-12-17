@@ -33,27 +33,38 @@ export const useComfyUi = defineStore("comfyUi", () => {
         { immediate: true }
     );
 
-    async function triggerInstallCustomNodesForActiveWorkflow() {
-      const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
-      const toBeInstalledCustomNodes: ComfyUICustomNodesRequestParameters[] = 
-      [...uniqueCustomNodes].map((nodeName) => {
-        const [username, repoName] = nodeName.replace(" ", "").split("/")
-        return {username, repoName}
-      })
-      console.info("Installing custom nodes", { toBeInstalledCustomNodes })
-      const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
-        method: 'POST',
-        body: JSON.stringify({data: toBeInstalledCustomNodes}),
-        headers: {
-          "Content-Type": "application/json"
+    async function installCustomNodesForActiveWorkflow() {
+        const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
+        const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] =
+        [...uniqueCustomNodes].map((nodeName) => {
+          const [username, repoName] = nodeName.replace(" ", "").split("/")
+          return {username, repoName}
+        })
+        const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
+          method: 'POST',
+          body: JSON.stringify({data: requiredCustomNodes}),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        if (response.status !== 200) {
+            throw new Error("Request Failure to install required comfyUINode");
         }
-      })
-      if (response.status === 200) {
-        console.info("custom node installation completed")
+        const data = await response.json() as { node: string, success: boolean }[];
+        const notInstalledNodes = data.filter(item => {!item.success})
+        if (notInstalledNodes.length > 0) {
+            throw new Error(`Failed to install required comfyUI custom nodes: ${notInstalledNodes}`)
+        }
+        if (data.length > 0) {
+            console.info("restarting comfyUI to finalize installation of required custom nodes")
+            await backendServices.stopService('comfyui-backend')
+            const startingResult = await backendServices.startService('comfyui-backend')
+            if (startingResult !== "running") {
+                throw new Error("Failed to restart comfyUI. Required Nodes are not active.")
+            }
+            console.info("restart complete")
+        }
         return;
-      }
-      const data = await response.json();
-      throw new Error(data.error_message);
     }
 
     function connectToComfyUi() {
@@ -215,9 +226,9 @@ export const useComfyUi = defineStore("comfyUi", () => {
             return;
         }
         
-        await triggerInstallCustomNodesForActiveWorkflow()
-
         try {
+            await installCustomNodesForActiveWorkflow()
+
             const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow))
             const seed = imageGeneration.seed === -1 ? (Math.random() * 1000000) : imageGeneration.seed;
 
@@ -298,7 +309,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
     return {
         generate,
         stop,
-        free
+        free,
     }
 }, {
     persist: {

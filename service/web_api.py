@@ -408,11 +408,12 @@ def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadReque
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     try:
-        for x in comfyNodeRequest.data:
-            comfyui_downloader.download_custom_node(x)
-        return jsonify({ f"{x.username}/{x.repoName}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data})
+        nodes_to_be_installed = [x for x in comfyNodeRequest.data if not comfyui_downloader.is_custom_node_installed(x)]
+        installation_result = [ {"node": f"{x.username}/{x.repoName}", "success": comfyui_downloader.download_custom_node(x)} for x in nodes_to_be_installed ]
+        logging.info(f"custom node installation request result: {installation_result}")
+        return jsonify(installation_result)
     except Exception as e:
-        return jsonify({'error_message': f'failed to at least one custom node due to {e}'}), 501
+        return jsonify({'error_message': f'failed to install at least one custom node due to {e}'}), 501
 
 
 

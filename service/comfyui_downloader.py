@@ -117,9 +117,9 @@ def is_custom_node_installed(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> b
     expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_ref.repoName)
     return os.path.exists(expected_custom_node_path)
 
-def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
+def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool:
     if is_custom_node_installed(node_repo_data):
-        return
+        return True
     else:
         try:
             expected_git_url = f"https://github.com/{node_repo_data.username}/{node_repo_data.repoName}"
@@ -128,7 +128,8 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId):
 
             _install_git_repo(expected_git_url, expected_custom_node_path)
             _install_pip_requirements(potential_node_requirements)
-            return
+            logging.info("installed on a mock basis")
+            return True
         except Exception as e:
             logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.repoName} due to {e}")
-            raise e
+            return False

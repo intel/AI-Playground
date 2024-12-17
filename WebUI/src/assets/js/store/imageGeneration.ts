@@ -626,7 +626,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         }
     }
 
-    function stop() {
+    function stopGeneration() {
         stableDiffusion.stop();
         comfyUi.stop();
     }
@@ -677,7 +677,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         getMissingModels,
         updateDestImage,
         generate,
-        stop,
+        stopGeneration,
         reset
     }
 }, {
