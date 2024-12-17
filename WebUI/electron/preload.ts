@@ -7,9 +7,10 @@ contextBridge.exposeInMainWorld("envVars", {
 });
 contextBridge.exposeInMainWorld("electronAPI", {
   getServices: () => ipcRenderer.invoke("getServices"),
-      sendStartSignal: (serviceName: string) => ipcRenderer.invoke("sendStartSignal", serviceName),
+  sendStartSignal: (serviceName: string) => ipcRenderer.invoke("sendStartSignal", serviceName),
   sendStopSignal: (serviceName: string) => ipcRenderer.invoke("sendStopSignal", serviceName),
   sendSetUpSignal: (serviceName: string) => ipcRenderer.invoke("sendSetUpSignal", serviceName),
+  updateWorkflowsFromIntelRepo: () => ipcRenderer.invoke("updateWorkflowsFromIntelRepo"),
   reloadImageWorkflows: () => ipcRenderer.invoke("reloadImageWorkflows"),
   openDevTools: () => ipcRenderer.send("openDevTools"),
   openUrl: (url: string) => ipcRenderer.send("openUrl", url),

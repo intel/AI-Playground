@@ -6,7 +6,7 @@ import fs from "fs";
 import {copyFileWithDirs, existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import * as filesystem from "fs-extra";
 import {z} from "zod";
-import { getArchPriority, getDeviceArch } from "./deviceArch.ts";
+import {getArchPriority, getDeviceArch} from "./deviceArch.ts";
 
 export const aiBackendServiceDir = () => path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
 

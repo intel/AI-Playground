@@ -20,6 +20,7 @@ import sudo from "sudo-prompt";
 import {PathsManager} from "./pathsManager";
 import {appLoggerInstance} from "./logging/logger.ts";
 import {aiplaygroundApiServiceRegistry, ApiServiceRegistryImpl} from "./subprocesses/apiServiceRegistry";
+import {updateIntelWorkflows} from "./subprocesses/updateIntelWorkflows.ts";
 
 
 // }
@@ -35,7 +36,9 @@ import {aiplaygroundApiServiceRegistry, ApiServiceRegistryImpl} from "./subproce
 process.env.DIST = path.join(__dirname, "../");
 process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? "../.." : "../../../public");
 
-export const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
+
+const resourcesBaseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
+const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
 const singleInstanceLock = app.requestSingleInstanceLock();
 
 const appLogger = appLoggerInstance
@@ -486,6 +489,10 @@ function initEventHandle() {
         const files = fs.readdirSync(path.join(externalRes, "workflows"));
         const workflows = files.map((file) => fs.readFileSync(path.join(externalRes, "workflows", file), {encoding: "utf-8"}));
         return workflows;
+    });
+
+    ipcMain.handle("updateWorkflowsFromIntelRepo", () => {
+        return updateIntelWorkflows()
     });
 
     const getImagePathFromUrl = (url: string) => {
