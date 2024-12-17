@@ -21,7 +21,8 @@
   },
   "tags": [
     "SDXL",
-    "Fast-LCM"
+    "Fast-LCM",
+    "non-com"
   ],
   "requirements": [
     "high-vram"
