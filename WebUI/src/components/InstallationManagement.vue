@@ -5,12 +5,8 @@
         {{ languages.BACKEND_MANAGE }}</h1>
       <!-- required components -->
       <div class="">
-        <p class="text-lg text-left pt-3 pb-3"> {{
-            "Before you can use the Intel AI Playground, we need to download some additional components. Please make sure you have a stable and unmetered internet connection."
-          }} </p>
-        <p class="text-lg text-left pt-3 pb-7"> {{
-            "Optional components are not required for AI-Playground to work, but provide alternative functions. If you want to use them please click the info buttons to familiarize yourself with their terms and conditions before activating them."
-          }} </p>
+        <p class="text-lg text-left pt-3 pb-3"> {{ languages.BACKEND_REQUIRED_COMPONENTS_MESSAGE }} </p>
+        <p class="text-lg text-left pt-3 pb-7"> {{ languages.BACKEND_OPTIONAL_COMPONENTS_MESSAGE }} </p>
         <table class="text-center w-full" style="table-layout: fixed;">
           <thead>
           <tr class="font-bold">

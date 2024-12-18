@@ -205,7 +205,7 @@
   "BACKEND_INFORMATION": "Information",
   "BACKEND_ENABLE": "Enable *",
   "BACKEND_ACTION": "Action",
-  "BACKEND_REQUIRED_COMPONENTS_MESSAGE": "In order for AI Playground to run, you need to install the following components:",
-  "BACKEND_OPTIONAL_COMPONENTS_MESSAGE": "These optional backend components are external and only required for special features of AI Playground. Before installation, make sure you have read the terms and conditions, which can be found by clicking on the respective information buttons.",
+  "BACKEND_REQUIRED_COMPONENTS_MESSAGE": "Before you can use the Intel AI Playground, we need to download some additional components. Please make sure you have a stable and unmetered internet connection.",
+  "BACKEND_OPTIONAL_COMPONENTS_MESSAGE": "Optional components are not required for AI-Playground to work, but provide alternative functions. If you want to use them please click the info buttons to familiarize yourself with their terms and conditions before activating them.",
   "BACKEND_TERMS_AND_CONDITIONS": "* I have reviewed the optional component. I agree to all terms and conditions and would like to download and enable third-party software if applicable."
 }
