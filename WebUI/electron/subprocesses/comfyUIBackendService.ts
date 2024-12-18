@@ -6,6 +6,7 @@ import * as filesystem from "fs-extra";
 import {existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
 import {updateIntelWorkflows} from "./updateIntelWorkflows.ts";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -87,21 +88,24 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
             self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
             try {
-                const response = await fetch(portableGitUrl);
+                const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy
+                const options = proxy ? { agent: new HttpsProxyAgent(proxy) } : {};
+                const fetch = (await import('node-fetch')).default;
+                const response = await fetch(portableGitUrl, options);
                 if (!response.ok) {
                     throw new Error(`fetching git returned HTTP code ${response.status}`)
                 }
                 if (!response.body) {
                     throw new Error(`fetching git returned empty body with code ${response.status}`)
                 }
-                const zippedGitStream = response.body.getReader();
+                const zippedGitStream = response.body;
                 const fileStream = fs.createWriteStream(zippedGitTargetPath);
-                let chunk = await zippedGitStream.read();
-                while (!chunk.done) {
-                    fileStream.write(chunk.value);
-                    chunk = await zippedGitStream.read();
-                }
-                fileStream.end();
+                zippedGitStream.pipe(fileStream);
+                await new Promise((resolve, reject) => {
+                    fileStream.on('finish', resolve);
+                    fileStream.on('error', reject);
+                });
+
                 self.appLogger.info(`Zip file downloaded and saved to ${zippedGitTargetPath}`, self.name, true)
             } catch (error) {
                 self.appLogger.error(`Downloading portable git failed due to ${error}`, self.name, true)

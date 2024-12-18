@@ -24,6 +24,7 @@
     "koffi": "^2.9.2",
     "marked": "^14.1.4",
     "marked-highlight": "^2.2.1",
+    "node-fetch": "^3.3.2",
     "partysocket": "^1.0.3",
     "pinia": "^2.3.0",
     "pinia-plugin-persistedstate": "^4.1.3",
