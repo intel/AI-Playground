@@ -436,6 +436,29 @@
     display: flex;
     justify-content: center;
     align-items: center;
+
+
+    &::after {
+      content: " ";
+      width: 14px;
+      height: 14px;
+      background: url("@/assets/svg/right.svg") 0px 0px no-repeat;
+      background-size: contain;
+
+    }
+  }
+}
+
+.v-checkbox-control-table {
+  border: 1px solid var(--compontents-main);
+  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+
+  &.v-checkbox-checked-table {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     margin: 0 auto;
 
 

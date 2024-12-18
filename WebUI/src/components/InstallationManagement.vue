@@ -35,8 +35,8 @@
             </td>
             <td>
               <button v-if="component.status !== 'running' && !component.isLoading"
-                      class="v-checkbox-control flex-none w-5 h-5"
-                      :class="{ 'v-checkbox-checked': component.enabled}"
+                      class="v-checkbox-control-table flex-none w-5 h-5"
+                      :class="{ 'v-checkbox-checked-table': component.enabled}"
                       @click="() => {
                         if (component.enabled && !component.isSetUp) {
                           enabledComponents.delete(component.serviceName)
