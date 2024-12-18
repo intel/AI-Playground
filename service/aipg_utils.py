@@ -126,11 +126,11 @@ def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
     elif type == 7:
         dir = service_config.service_model_paths.get("preview")
         return (
-            os.path.exists(os.path.join(dir, folder_name, "config.json"))
-            or os.path.exists(os.path.join(dir, f"{repo_id}.safetensors"))
-            or os.path.exists(os.path.join(dir, f"{repo_id}.bin"))
+                os.path.exists(os.path.join(dir, folder_name, "config.json"))
+                or os.path.exists(os.path.join(dir, f"{repo_id}.safetensors"))
+                or os.path.exists(os.path.join(dir, f"{repo_id}.bin"))
         )
-        
+
 
 
 def convert_model_type(type: int):

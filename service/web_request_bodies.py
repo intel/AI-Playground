@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import marshmallow_dataclass
 from marshmallow import EXCLUDE
@@ -20,7 +20,7 @@ class DownloadModelRequestBody:
 class ComfyUICustomNodesGithubRepoId:
     username: str
     repoName: str
-    gitRef: str
+    gitRef: Optional[str]
 
 @marshmallow_dataclass.dataclass
 class ComfyUICustomNodesDownloadRequest:
