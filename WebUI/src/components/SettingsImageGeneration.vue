@@ -7,7 +7,7 @@
             </div>
             <div class="flex items-center gap-5">
                 <p>{{ languages.SETTINGS_MODEL_IMAGE_PREVIEW }}</p>
-                <button v-show=true class="v-checkbox-control flex-none w-5 h-5"
+                <button class="v-checkbox-control flex-none w-5 h-5"
                     :class="{ 'v-checkbox-checked': imageGeneration.imagePreview }"
                     @click="() => imageGeneration.imagePreview = !imageGeneration.imagePreview">
                 </button>

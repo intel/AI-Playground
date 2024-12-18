@@ -5,7 +5,7 @@ import logging
 import math
 import os
 import shutil
-from typing import IO
+from typing import IO, Optional
 
 import torch
 from PIL import Image
@@ -59,8 +59,12 @@ def check_llama_cpp_model_exists(type, repo_id) -> bool:
     return os.path.exists(dir_to_look_for)
 
 def check_comfyui_model_exists(type, repo_id) -> bool:
-    model_dir = service_config.comfy_ui_model_paths.get(convert_model_type(type))
-    dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
+    model_type = convert_model_type(type)
+    model_dir = service_config.comfy_ui_model_paths.get(model_type)
+    if model_type == 'faceswap' or model_type == 'facerestore':
+        dir_to_look_for = os.path.join(model_dir, flat_repo_local_dir_name(repo_id))
+    else:
+        dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
     return os.path.exists(dir_to_look_for)
 
 def trim_repo(repo_id):
@@ -71,6 +75,9 @@ def extract_model_id_pathsegments(repo_id) -> str:
 
 def repo_local_root_dir_name(repo_id):
     return "---".join(repo_id.split("/")[:2])
+
+def flat_repo_local_dir_name(repo_id):
+    return "---".join(repo_id.split("/"))
 
 def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
     import service_config
@@ -159,6 +166,8 @@ def convert_model_type(type: int):
         return "controlNet"
     elif type == 106:
         return "faceswap"
+    elif type == 107:
+        return "facerestore"
     else:
         raise Exception(f"unknown model type value {type}")
 
@@ -234,12 +243,12 @@ def get_support_graphics():
     return graphics
 
 
-def call_subprocess(process_command: str) -> str:
+def call_subprocess(process_command: str, cwd: Optional[str] = None) -> str:
     args = shlex.split(process_command)
     try:
         logging.info(f"calling cmd process: {args}")
-        output = subprocess.check_output(args)
-        return output.decode("utf-8")
+        output = subprocess.check_output(args, cwd=cwd)
+        return output.decode("utf-8").strip()
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to call subprocess {process_command} with error {e}")
         raise e

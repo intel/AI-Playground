@@ -127,6 +127,7 @@ const ComfyUiWorkflowSchema = z.object({
     name: z.string(),
     backend: z.literal('comfyui'),
     comfyUIRequirements: z.object({
+        pythonPackages: z.array(z.string()).optional(),
         customNodes: z.array(z.string()),
         requiredModels: z.array(z.string()),
     }),
@@ -624,6 +625,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                     case "clip" : return Const.MODEL_TYPE_COMFY_CLIP
                     case "vae" : return Const.MODEL_TYPE_COMFY_VAE
                     case "faceswap" : return Const.MODEL_TYPE_FACESWAP
+                    case "facerestore" : return Const.MODEL_TYPE_FACERESTORE
                     case "defaultCheckpoint" : return Const.MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT
                     case "defaultLora" : return Const.MODEL_TYPE_COMFY_DEFAULT_LORA
                     case "controlNet" : return Const.MODEL_TYPE_COMFY_CONTROL_NET
@@ -668,15 +670,13 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         previewIdx.value = 0;
         stepText.value = i18nState.COM_GENERATING;
         if (activeWorkflow.value.backend === 'default') {
-            comfyUi.free();
             stableDiffusion.generate();
         } else {
-            stableDiffusion.free();
             comfyUi.generate();
         }
     }
 
-    function stop() {
+    function stopGeneration() {
         stableDiffusion.stop();
         comfyUi.stop();
     }
@@ -729,7 +729,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         getMissingModels,
         updateDestImage,
         generate,
-        stop,
+        stopGeneration,
         reset
     }
 }, {

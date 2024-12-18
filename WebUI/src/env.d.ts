@@ -112,6 +112,7 @@ type ApiResponse = {
     message: string;
 };
 
+
 type KVObject = {
     [key: string]: any;
 };
@@ -305,6 +306,7 @@ type DownloadModelParam = CheckModelAlreadyLoadedParameters
 type ComfyUICustomNodesRequestParameters = {
     username: string,
     repoName: string
+    gitRef: string
 }
 
 

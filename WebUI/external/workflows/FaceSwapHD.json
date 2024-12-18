@@ -2,20 +2,27 @@
   "name": "FaceSwap-HD",
   "backend": "comfyui",
   "comfyUIRequirements": {
+    "pythonPackages": [
+      "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl",
+      "onnxruntime"
+    ],
     "customNodes": [
-      "Gourieff/comfyui-reactor-node"
+      "Gourieff/comfyui-reactor-node/be1c60bd62d1fb35511153533032c5a6811c8fab"
     ],
     "requiredModels": [
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors",
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors",
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors",
       "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors",
-      "defaultLora:latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
+      "defaultLora:latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors",
+      "faceswap:Aitrepreneur/insightface/inswapper_128.onnx",
+      "facerestore:gmk123/GFPGAN/GFPGANv1.4.pth"
     ]
   },
   "tags": [
     "SDXL",
-    "Fast-LCM"
+    "Fast-LCM",
+    "non-com"
   ],
   "requirements": [
     "high-vram"
@@ -222,7 +229,7 @@
         "enabled": true,
         "swap_model": "Aitrepreneur---insightface---inswapper_128.onnx",
         "facedetection": "retinaface_resnet50",
-        "face_restore_model": "GFPGANv1.4.pth",
+        "face_restore_model": "gmk123---GFPGAN---GFPGANv1.4.pth",
         "face_restore_visibility": 1,
         "codeformer_weight": 0.5,
         "detect_gender_input": "no",

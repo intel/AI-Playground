@@ -1,7 +1,7 @@
 import sys
 
 import comfyui_downloader
-from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest
+from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest, ComfyUIPackageInstallRequest
 
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -64,19 +64,6 @@ def llm_chat():
     it = sse_invoker.text_conversation(llm_params)
     return Response(stream_with_context(it), content_type="text/event-stream")
 
-
-@app.post("/api/triggerxpucacheclear")
-def trigger_xpu_cache_clear():
-    paint_biz.clear_xpu_cache()
-    return Response("{'message':'triggered xpu cache clearance'}", status=201, mimetype='application/json')
-
-
-@app.post("/api/free")
-def free():
-    paint_biz.dispose()
-    import llm_biz
-    llm_biz.dispose()
-    return jsonify({"code": 0, "message": "success"})
 
 @app.get("/api/llm/stopGenerate")
 def stop_llm_generate():
@@ -400,7 +387,7 @@ def install_comfyUI():
 @app.post("/api/comfyUi/areCustomNodesLoaded")
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
-    response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed(x) for x in comfyNodeRequest.data}
+    response = { f"{x.username}/{x.repoName}" : comfyui_downloader.is_custom_node_installed_with_git_ref(x) for x in comfyNodeRequest.data}
     return jsonify(response)
 
 
@@ -408,12 +395,23 @@ def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadReque
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def install_custom_nodes(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
     try:
-        for x in comfyNodeRequest.data:
-            comfyui_downloader.download_custom_node(x)
-        return jsonify({ f"{x.username}/{x.repoName}" : {"success": True, "errorMessage": ""} for x in comfyNodeRequest.data})
+        nodes_to_be_installed = [x for x in comfyNodeRequest.data if not comfyui_downloader.is_custom_node_installed_with_git_ref(x)]
+        installation_result = [ {"node": f"{x.username}/{x.repoName}", "success": comfyui_downloader.download_custom_node(x)} for x in nodes_to_be_installed ]
+        logging.info(f"custom node installation request result: {installation_result}")
+        return jsonify(installation_result)
     except Exception as e:
-        return jsonify({'error_message': f'failed to at least one custom node due to {e}'}), 501
+        return jsonify({'error_message': f'failed to install at least one custom node due to {e}'}), 501
 
+
+@app.post("/api/comfyUi/installPythonPackage")
+@app.input(ComfyUIPackageInstallRequest.Schema, location='json', arg_name='comfyPackageInstallRequest')
+def install_python_packages_for_comfy(comfyPackageInstallRequest: ComfyUIPackageInstallRequest):
+    try:
+        for package in comfyPackageInstallRequest.data:
+            comfyui_downloader.install_pypi_package(package)
+        return jsonify({ f"{package}" : {"success": True, "errorMessage": ""} for x in comfyPackageInstallRequest.data})
+    except Exception as e:
+        return jsonify({'error_message': f'failed to at least one package due to {e}'}), 501
 
 
 def cache_input_image():

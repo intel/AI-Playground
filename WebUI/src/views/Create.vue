@@ -69,7 +69,7 @@
                 <span>{{ languages.COM_GENERATE }}</span>
             </button>
             <button class="gernate-btn self-stretch flex flex-col w-32 flex-none" v-show="imageGeneration.processing"
-                @click="imageGeneration.stop">
+                @click="imageGeneration.stopGeneration">
                 <span class="svg-icon w-7 h-7" :class="{ 'i-stop': !imageGeneration.stopping, 'i-loading': imageGeneration.stopping }"></span>
                 <span>{{ languages.COM_STOP }}</span>
             </button>
