@@ -120,10 +120,11 @@ const backendServices = useBackendServices();
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
+const loadingComponents = ref(new Set<string>());
+
 const somethingChanged = ref(false)
 
 const enabledComponents = ref(new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
-const loadingComponents = ref(new Set<string>())
 
 const components = computed(() => {return backendServices.info.map((item) => ({
   enabled: enabledComponents.value.has(item.serviceName),

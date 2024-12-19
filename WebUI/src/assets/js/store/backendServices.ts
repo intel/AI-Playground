@@ -82,6 +82,7 @@ export const useBackendServices = defineStore("backendServices", () => {
         setUpService,
         startService,
         stopService,
+
     }
 }, {
     persist: {

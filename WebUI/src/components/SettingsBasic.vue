@@ -80,7 +80,7 @@
       <!--   Required   -->
       <table class="text-center w-full mx-2 table-fixed">
         <tbody>
-        <tr v-for="item in apiServiceInformation">
+        <tr v-for="item in displayComponents">
           <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
           <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
         </tr>
@@ -109,8 +109,6 @@ import {useTextInference, backendTypes, Backend} from "@/assets/js/store/textInf
 import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 
-
-const apiServiceInformation = ref<ApiServiceInformation[]>([])
 const globalSetup = useGlobalSetup();
 const textInference = useTextInference();
 const backendServices = useBackendServices();
@@ -121,11 +119,6 @@ const textInferenceBackendDisplayName: Record<typeof backendTypes[number], strin
   "IPEX-LLM": "IPEX-LLM",
   "LLAMA.CPP": "Llama.cpp - GGUF"
 }
-
-
-onBeforeMount(async () => {
-  apiServiceInformation.value = await window.electronAPI.getServices()
-})
 
 const themeToDisplayName = (theme: Theme) => {
   switch (theme) {
@@ -139,6 +132,11 @@ const themeToDisplayName = (theme: Theme) => {
       return theme;
   }
 }
+
+const displayComponents = computed(() => {return backendServices.info.map((item) => ({
+  serviceName: item.serviceName,
+  status: item.status
+}))})
 
 const modelSettings = reactive<KVObject>(Object.assign({}, toRaw(globalSetup.modelSettings)));
 
