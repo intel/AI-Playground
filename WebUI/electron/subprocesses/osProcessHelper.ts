@@ -14,6 +14,9 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
     logHandler: (data: string) => void = () => { }, extraEnv?: {}, workDir?: string
 ): Promise<string> {
     logHandler(`Spawning command ${command} ${args.join(' ')}`);
+    if (extraEnv) {
+        logHandler(`Extra env: ${JSON.stringify(extraEnv)}`);
+    }
     const spawnedProcess = spawn(command, args, {
         windowsHide: true,
         cwd: workDir ?? process.cwd(),
