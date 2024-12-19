@@ -120,13 +120,15 @@ const backendServices = useBackendServices();
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
+const loadingComponents = ref(new Set<string>());
+
 const somethingChanged = ref(false)
 
 const enabledComponents = ref(new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
 
 const components = computed(() => {return backendServices.info.map((item) => ({
   enabled: enabledComponents.value.has(item.serviceName),
-  isLoading: backendServices.loadingComponents.has(item.serviceName),
+  isLoading: loadingComponents.value.has(item.serviceName),
   ...item
 }))})
 
@@ -137,18 +139,18 @@ function isSomethingLoading(): boolean {
 
 async function installBackend(name: BackendServiceName) {
   somethingChanged.value = true;
-  backendServices.loadingComponents.add(name)
+  loadingComponents.value.add(name)
   const setupProgress = await backendServices.setUpService(name)
   if (setupProgress.success) {
     await restartBackend(name)
   } else {
     toast.error("Setup failed")
-    backendServices.loadingComponents.delete(name)
+    loadingComponents.value.delete(name)
   }
 }
 
 async function repairBackend(name: BackendServiceName) {
-  backendServices.loadingComponents.add(name)
+  loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
@@ -158,27 +160,27 @@ async function repairBackend(name: BackendServiceName) {
 }
 
 async function restartBackend(name: BackendServiceName) {
-  backendServices.loadingComponents.add(name)
+  loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
     toast.error("Service failed to stop")
-    backendServices.loadingComponents.delete(name)
+    loadingComponents.value.delete(name)
     return
   }
 
   const startStatus = await backendServices.startService(name)
   if (startStatus !== 'running') {
     toast.error("Service failed to restart")
-    backendServices.loadingComponents.delete(name)
+    loadingComponents.value.delete(name)
     return
   }
 
-  backendServices.loadingComponents.delete(name)
+  loadingComponents.value.delete(name)
 }
 
 async function installAllSelected() {
   toBeInstalledQueue = components.value.filter(item => item.enabled && (item.status === 'notInstalled' || item.status === 'failed' || item.status === 'installationFailed'));
-  toBeInstalledQueue.forEach((item) => backendServices.loadingComponents.add(item.serviceName))
+  toBeInstalledQueue.forEach((item) => loadingComponents.value.add(item.serviceName))
   for (const component of toBeInstalledQueue) {
     if (component.status === 'failed' || component.status == "installationFailed") {
       await repairBackend(component.serviceName);

@@ -41,7 +41,7 @@ export const useBackendServices = defineStore("backendServices", () => {
     const initalStartupRequestComplete =  ref(false)
     const allRequiredSetUp = computed(() => currentServiceInfo.value.length > 0 && currentServiceInfo.value.filter(s => s.isRequired).every(s => s.isSetUp));
     const allRequiredRunning = computed(() => currentServiceInfo.value.length > 0 && currentServiceInfo.value.filter(s => s.isRequired).every(s => s.status === "running"));
-    const loadingComponents = ref(new Set<string>());
+
 
     async function startAllSetUpServices(): Promise<{allServicesStarted: boolean}> {
         const serverStartups = await Promise.all(currentServiceInfo.value.filter(s => s.isSetUp).map(s => window.electronAPI.sendStartSignal(s.serviceName)));
@@ -78,7 +78,6 @@ export const useBackendServices = defineStore("backendServices", () => {
         allRequiredSetUp,
         allRequiredRunning,
         initalStartupRequestComplete,
-        loadingComponents,
         startAllSetUpServices,
         setUpService,
         startService,

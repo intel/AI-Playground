@@ -21,17 +21,17 @@
       <button :title="languages.COM_CLOSE" @click="closeWindow" class="svg-icon i-close w-6 h-6"></button>
     </div>
   </header>
-  <main v-if="globalSetup.loadingState === 'verifyBackend'" class="flex-auto flex items-center justify-center">
+  <main v-show="globalSetup.loadingState === 'verifyBackend'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
-  <main v-else-if="globalSetup.loadingState === 'manageInstallations'"
+  <main v-show="globalSetup.loadingState === 'manageInstallations'"
         class="flex-auto flex items-center justify-center">
     <installation-management @close="concludeLoadingStateAfterManagedInstallationDialog"></installation-management>
   </main>
-  <main v-else-if="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
+  <main v-show="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
     <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
-  <main v-else-if="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
+  <main v-show="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
     <div
         class="dialog-container z-10 text-white w-[60vw] align-top bg-black bg-opacity-50 p-4 rounded-lg border border-gray-400">
       <Collapsible v-model:open="isOpen" class=" space-y-2">
@@ -59,7 +59,7 @@
       </Collapsible>
     </div>
   </main>
-  <main v-else class="flex-auto flex flex-col relative">
+  <main v-show="globalSetup.loadingState === 'running'" class="flex-auto flex flex-col relative">
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
       <button class="tab" :class="{ 'active': activeTabIdx == 0 }" @click="switchTab(0)">{{
           languages.TAB_CREATE
