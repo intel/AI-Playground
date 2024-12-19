@@ -68,6 +68,7 @@ export type ComfyUIApiWorkflow = z.infer<typeof ComfyUIApiWorkflowSchema>;
 
 const DefaultWorkflowSchema = z.object({
     name: z.string(),
+    displayPriority: z.number().optional(),
     backend: z.literal('default'),
     tags: z.array(z.string()),
     requiredModels: z.array(RequiredModelSchema).optional(),
@@ -468,9 +469,10 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             return activeWorkflow.value.backend;
         },
         set(newValue) {
-            activeWorkflowName.value = workflows.value
+            const sortedWorkflowsForBackend = workflows.value
                 .filter(w => w.backend === newValue)
-                .find(w => w.name === lastWorkflowPerBackend.value[newValue])?.name ?? workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
+                .sort((a, b) => (b.displayPriority ?? 0) - (a.displayPriority ?? 0))
+                activeWorkflowName.value = sortedWorkflowsForBackend.find(w => w.name === lastWorkflowPerBackend.value[newValue])?.name ?? sortedWorkflowsForBackend[0]?.name ?? activeWorkflowName.value;
         }
     });
     const lastWorkflowPerBackend = ref<Record<Workflow['backend'], string | null>>({
