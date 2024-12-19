@@ -138,7 +138,7 @@
               <span>{{ languages.DECREASE_FONT_SIZE }}</span>
             </button>
           </div>
-          <div class="flex justify-center items-center gap-2">
+          <div v-show="textInference.backend !== 'LLAMA.CPP'" class="flex justify-center items-center gap-2">
             <div class="v-checkbox flex-none" type="button" :disabled="processing">
               <button v-show="!ragData.processEnable" class="v-checkbox-control flex-none"
                       :class="{ 'v-checkbox-checked': ragData.enable }" @click="toggleRag(!ragData.enable)">
