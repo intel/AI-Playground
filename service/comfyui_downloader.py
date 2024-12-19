@@ -88,13 +88,17 @@ def _install_git_repo(git_repo_url: str, target_dir: str):
         aipg_utils.remove_existing_filesystem_resource(target_dir)
         raise e
 
-def _checkout_git_ref(repo_dir: str, git_ref: str):
+def _checkout_git_ref(repo_dir: str, git_ref: Optional[str]):
+    if git_ref is None or not git_ref.strip():
+        logging.info(f"No valid git ref provided for {repo_dir}")
+        logging.warning(f"Repo {repo_dir} remains in ref {get_git_ref(repo_dir)}.")
+        return
     try:
         aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} checkout {git_ref}", cwd=repo_dir)
         logging.info(f"checked out {git_ref} in {repo_dir}")
     except Exception as e:
         logging.warning(f"git checkout of {git_ref} failed for rep {repo_dir} due to {e}.")
-        logging.warning(f"will use repo ref {get_git_ref(repo_dir)} in {repo_dir}.")
+        logging.warning(f"Repo {repo_dir} remains in ref {get_git_ref(repo_dir)}.")
 
 
 def get_git_ref(repo_dir: str) -> Optional[str]:
@@ -159,8 +163,11 @@ def install_comfyUI() -> bool:
 
 def is_custom_node_installed_with_git_ref(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> bool:
     expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_ref.repoName)
-    custom_node_dir_exists= os.path.exists(expected_custom_node_path)
-    return custom_node_dir_exists and (get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef)
+    custom_node_dir_exists = os.path.exists(expected_custom_node_path)
+
+    git_ref_provided = node_repo_ref.gitRef is not None and not node_repo_ref.gitRef.strip() == ""
+    git_ref_matches = not git_ref_provided and (get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef)
+    return custom_node_dir_exists and git_ref_matches
 
 
 def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool:

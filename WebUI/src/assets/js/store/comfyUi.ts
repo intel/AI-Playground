@@ -40,13 +40,30 @@ export const useComfyUi = defineStore("comfyUi", () => {
         }
     }
 
+    function extractCustomNodeInfo(workflowNodeInfoString: string): ComfyUICustomNodesRequestParameters {
+        const repoInfoWithPotentialGitRefSplitted = workflowNodeInfoString.replace(" ", "").split("@")
+        if (repoInfoWithPotentialGitRefSplitted.length > 2 || repoInfoWithPotentialGitRefSplitted.length < 1) {
+            console.error(`Could not extract comfyUI node description from ${workflowNodeInfoString}`)
+            throw new Error("Could not extract comfyUI node description from ${workflowNodeInfoString}")
+        }
+        const [repoInfoString, gitRef] = repoInfoWithPotentialGitRefSplitted
+        if (!gitRef) {
+            console.warn(`No gitRef provided in ${workflowNodeInfoString}.`)
+        }
+        const repoInfoSplitted = repoInfoString.replace(" ", "").split("/")
+        if (repoInfoSplitted.length !== 2) {
+            console.error(`Could not extract comfyUI node description from ${workflowNodeInfoString}`)
+            throw new Error("Could not extract comfyUI node description from ${workflowNodeInfoString}")
+        }
+        const [username, repoName] = repoInfoSplitted
+        console.info(JSON.stringify({username: username, repoName: repoName, gitRef: gitRef}))
+        return {username: username, repoName: repoName, gitRef: gitRef}
+    }
+
     async function installCustomNodesForActiveWorkflow(): Promise<boolean> {
         const uniqueCustomNodes = new Set(imageGeneration.workflows.filter(w => w.name === imageGeneration.activeWorkflowName).filter(w => w.backend === 'comfyui').flatMap((item) => item.comfyUIRequirements.customNodes))
         const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] =
-            [...uniqueCustomNodes].map((nodeName) => {
-                const [username, repoName, gitRef] = nodeName.replace(" ", "").split("/")
-                return {username: username, repoName: repoName, gitRef: gitRef}
-            })
+            [...uniqueCustomNodes].map((nodeName) => extractCustomNodeInfo(nodeName))
         const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
             method: 'POST',
             body: JSON.stringify({data: requiredCustomNodes}),

@@ -306,7 +306,7 @@ type DownloadModelParam = CheckModelAlreadyLoadedParameters
 type ComfyUICustomNodesRequestParameters = {
     username: string,
     repoName: string
-    gitRef: string
+    gitRef?: string
 }
 
 

@@ -371,19 +371,6 @@ def delete_rag_file():
         return jsonify({"code": -1, "message": "failed"})
 
 
-@app.get("/api/comfyUi/isInstalled")
-def is_comfyUI_loaded():
-    return jsonify({"is_comfyUI_installed": comfyui_downloader.is_comfyUI_installed()})
-
-@app.post("/api/comfyUi/install")
-def install_comfyUI():
-    try:
-        installation_success = comfyui_downloader.install_comfyUI()
-        return jsonify({"success": installation_success, "error_message": ""})
-    except Exception as e:
-        return jsonify({'error_message': f'failed to install comfyUI due to {e}'}), 501
-
-
 @app.post("/api/comfyUi/areCustomNodesLoaded")
 @app.input(ComfyUICustomNodesDownloadRequest.Schema, location='json', arg_name='comfyNodeRequest')
 def are_custom_nodes_installed(comfyNodeRequest: ComfyUICustomNodesDownloadRequest):
