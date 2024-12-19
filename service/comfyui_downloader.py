@@ -166,7 +166,7 @@ def is_custom_node_installed_with_git_ref(node_repo_ref: ComfyUICustomNodesGithu
     custom_node_dir_exists = os.path.exists(expected_custom_node_path)
 
     git_ref_provided = node_repo_ref.gitRef is not None and not node_repo_ref.gitRef.strip() == ""
-    git_ref_matches = not git_ref_provided and (get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef)
+    git_ref_matches = not git_ref_provided and get_git_ref(expected_custom_node_path) is not None and get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef
     return custom_node_dir_exists and git_ref_matches
 
 

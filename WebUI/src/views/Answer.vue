@@ -597,17 +597,25 @@ async function enableRag() {
   const formData = new FormData();
   formData.append("repo_id", globalSetup.modelSettings.embedding);
   formData.append("device", globalSetup.modelSettings.graphics);
-  await fetch(`${globalSetup.apiHost}/api/llm/enableRag`,
-      {
-        method: "POST",
-        body: formData,
-      }
-  );
-  ragData.enable = true;
+  try {
+    await fetch(`${globalSetup.apiHost}/api/llm/enableRag`,
+        {
+          method: "POST",
+          body: formData,
+        }
+    );
+    ragData.enable = true;
+  } catch (e) {
+    console.error(`Enabling rag failed due to ${e}`)
+  }
 }
 
 async function disableRag() {
-  await fetch(`${globalSetup.apiHost}/api/llm/disableRag`);
+  try {
+    await fetch(`${globalSetup.apiHost}/api/llm/disableRag`);
+  } catch (e) {
+    console.error(`Disabling rag failed due to ${e}`)
+  }
 }
 
 async function restoreRagState() {
