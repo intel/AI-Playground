@@ -39,6 +39,12 @@
                                         {{ i18nState.DOWNLOADER_TERMS }}
                                     </a>
                                 </td>
+                               <td>
+                                  <a :href="item.additionalLicenseLink" target="_blank"
+                                     class="text-blue-500 text-sm">
+                                    {{ i18nState.DOWNLOADER_TERMS }}
+                                  </a>
+                                </td>
                                 <td class="text-sm text-green-400">
                                     {{ getFunctionTip(item.type) }}
                                 </td>
@@ -280,14 +286,19 @@ function getFunctionTip(type: number) {
 function download() {
     downloding = true;
     const accessableDownloadList = downloadList.value.filter(item => item.accessGranted === true)
-    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${accessableDownloadList.length}`;
+    // some workflows may fetch models from different places (e.g. from within the logic of the node itself)
+    // these models may still be bound to explicit approval by customer, which we prompt by the download dialog
+    // Ideally, we would need to merge the downloading dialog of the models with the downloading of the custom node
+    // But we do not have the time.
+    const aipAccessableDownloadList = accessableDownloadList.filter(item => item.downloadedFromAIPBackend == true)
+    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${aipAccessableDownloadList.length}`;
     percent.value = 0;
     completeCount.value = 0;
     abortController = new AbortController();
     curDownloadTip.value = "";
     fetch(`${globalSetup.apiHost}/api/downloadModel`, {
         method: "POST",
-        body: JSON.stringify(toRaw({ 'data': accessableDownloadList})),
+        body: JSON.stringify(toRaw({ 'data': aipAccessableDownloadList})),
         headers: {
             "Content-Type": "application/json",
             ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {})

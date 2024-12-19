@@ -295,13 +295,15 @@ type CheckModelAlreadyLoadedParameters = {
     repo_id: string;
     type: number;
     backend: BackendType;
+    additionalLicenseLink?: string;
+    downloadedFromAIPBackend: boolean
 }
 
 type BackendType = "comfyui" | "default" | "llama_cpp"
 
-type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: boolean } & CheckModelAlreadyLoadedParameters
-
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
+
+type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: boolean } & DownloadModelParam
 
 type ComfyUICustomNodesRequestParameters = {
     username: string,
