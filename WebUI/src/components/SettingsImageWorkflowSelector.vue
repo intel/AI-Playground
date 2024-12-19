@@ -65,7 +65,7 @@
     <div v-if="imageGeneration.backend === 'comfyui'" class="flex flex-col gap-2">
       <p>Workflow</p>
       <div class="flex gap-2 items-center">
-        <drop-selector :array="imageGeneration.workflows.filter(w => w.backend === 'comfyui')"
+        <drop-selector :array="imageGeneration.workflows.filter(w => w.backend === 'comfyui').sort(highToLowPrio)"
                        @change="(workflow) => imageGeneration.activeWorkflowName = workflow.name">
           <template #selected>
             <div class="flex gap-2 items-center">
@@ -105,7 +105,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import {useImageGeneration} from "@/assets/js/store/imageGeneration";
+import {ComfyUiWorkflow, useImageGeneration} from "@/assets/js/store/imageGeneration";
 import DropSelector from "../components/DropSelector.vue";
 import RadioBlock from "../components/RadioBlock.vue";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
@@ -201,6 +201,8 @@ const classicQuality = computed({
     ;
   }
 })
+
+const highToLowPrio = (a: ComfyUiWorkflow, b: ComfyUiWorkflow) => b.displayPriority - a.displayPriority
 
 const stringToColour = (str: string) => {
   const colors = [

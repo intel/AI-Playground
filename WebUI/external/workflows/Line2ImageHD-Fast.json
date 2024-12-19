@@ -1,5 +1,6 @@
 {
   "name": "Line2Image-HD-Fast",
+  "displayPriority": 200,
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [

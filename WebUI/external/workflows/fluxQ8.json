@@ -1,6 +1,6 @@
 {
     "name": "Flux.1-Schnell High Quality",
-
+    "displayPriority": 450,
     "backend": "comfyui",
     "comfyUIRequirements": {
         "customNodes": [
