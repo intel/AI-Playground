@@ -42,7 +42,11 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         const cloneGitStep = async (gitExePath: string, url: string, target: string) => {
             self.appLogger.info(`Cloning from ${url}`, self.name, true)
             try {
-                await spawnProcessAsync(gitExePath, ["clone", url, target], logToFileHandler)
+                // Explicitly specify the cert file bundled with portable git,
+                // to avoid being affected by the system git configuration.
+                const CABundleCrt = path.resolve(path.join(gitExePath, "../../mingw64/etc/ssl/certs/ca-bundle.crt"));
+                const extraEnv = { GIT_SSL_CAINFO: CABundleCrt };
+                await spawnProcessAsync(gitExePath, ["clone", url, target], logToFileHandler, extraEnv);
                 existingFileOrError(target)
                 self.appLogger.info(`repo available at ${target}`, self.name, true)
             } catch (e) {
