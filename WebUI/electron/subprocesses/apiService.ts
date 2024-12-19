@@ -315,15 +315,16 @@ export abstract class LongLivedPythonApiService implements ApiService {
             }
         },
 
-        uvPipInstallRequirementsTxtStep: async (pythonEnvDir: string, requirementsTextPath: string, skipOnMissingRequirementsTxt = false) => {
+        uvPipInstallRequirementsTxtStep: async (pythonEnvDir: string, requirementsTextPath: string, {skipOnMissingRequirementsTxt = false, disableUv = false} = {}) => {
             if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
                 this.appLogger.info(`No requirements.txt for ${requirementsTextPath} - skipping`, this.name, true)
                 return
             }
             try {
+                const commands = disableUv ? ["-m", "pip", "install", "-r", requirementsTextPath] : ["-m", "uv", "pip", "install", "-r", requirementsTextPath, "--index-strategy", "unsafe-best-match"];
                 const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
                 this.appLogger.info(`Installing python dependencies for ${pythonEnvDir}`, this.name, true)
-                await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", requirementsTextPath, "--index-strategy", "unsafe-best-match"], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
+                await spawnProcessAsync(pythonExe, commands, (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
                 this.appLogger.info(`Successfully installed python dependencies for ${pythonEnvDir}`, this.name, true)
             } catch (e) {
                 this.appLogger.error(`Failure during installation of python dependencies for ${pythonEnvDir}. Error: ${e}`, this.name, true)

@@ -13,7 +13,7 @@ export function existingFileOrError(filePath: string) {
 export async function spawnProcessAsync(command: string, args: string[] = [],
     logHandler: (data: string) => void = () => { }, extraEnv?: {}, workDir?: string
 ): Promise<string> {
-    logHandler(`Spawning command ${command} ${args}`)
+    logHandler(`Spawning command ${command} ${args.join(' ')}`);
     const spawnedProcess = spawn(command, args, {
         windowsHide: true,
         cwd: workDir ?? process.cwd(),
