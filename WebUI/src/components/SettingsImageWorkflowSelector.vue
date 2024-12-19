@@ -152,7 +152,7 @@ const classicModel = computed({
 })
 
 function onSwitchToComfyUI() {
-  if (backendServices.info.find(s => s.serviceName === 'comfyui-backend')?.isSetUp) {
+  if (backendServices.info.find(s => s.serviceName === 'comfyui-backend')?.status === "running") {
     imageGeneration.backend = 'comfyui'
   } else {
     showComfyUIDownloadDialog.value = true
