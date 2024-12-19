@@ -165,18 +165,24 @@ def applicationExit():
     pid = os.getpid()
     os.kill(pid, SIGINT)
 
-
 @app.post("/api/checkModelAlreadyLoaded")
 @app.input(DownloadModelRequestBody.Schema, location='json', arg_name='download_request_data')
 def check_model_already_loaded(download_request_data: DownloadModelRequestBody):
     result_list = []
     for item in download_request_data.data:
-        repo_id = item.repo_id
-        type = item.type
-        backend = item.backend
-        already_loaded = utils.check_mmodel_exist(type, repo_id, backend)
-        result_list.append({"repo_id": repo_id, "type": type, "backend": backend, "already_loaded": already_loaded})
+        base_response = {
+            "repo_id": item.repo_id,
+            "type": item.type,
+            "backend": item.backend,
+            "already_loaded": utils.check_mmodel_exist(item.type, item.repo_id, item.backend),
+        }
+
+        if (item.additionalLicenseLink is not None):
+            base_response['additionalLicenseLink'] = item.additionalLicenseLink
+
+        result_list.append(base_response)
     return jsonify({"code": 0, "message": "success", "data": result_list})
+
 
 
 @app.get("/api/checkHFRepoExists")
@@ -185,10 +191,10 @@ def check_if_huggingface_repo_exists():
     downloader = HFPlaygroundDownloader()
     exists = downloader.hf_url_exists(repo_id)
     return jsonify(
-            {
-                "exists": exists
-            }
-        )
+        {
+            "exists": exists
+        }
+    )
 
 @app.get("/api/isLLM")
 def is_llm():
@@ -199,10 +205,10 @@ def is_llm():
     except Exception:
         model_type_hf = "undefined"
     return jsonify(
-            {
+        {
             "isllm": model_type_hf == "text-generation"
-            }
-        )
+        }
+    )
 
 size_cache = dict()
 lock = threading.Lock()

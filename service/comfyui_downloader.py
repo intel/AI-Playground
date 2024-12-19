@@ -114,7 +114,7 @@ def _install_pip_requirements(requirements_txt_path: str):
     logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
     if os.path.exists(requirements_txt_path):
         python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m uv pip install -r '{requirements_txt_path}'")
+        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
         logging.info("python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
@@ -140,7 +140,7 @@ def install_pypi_package(packageSpecifier: str):
 
     logging.info(f"installing python package {packageSpecifier} using {sys.executable}")
     python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-    aipg_utils.call_subprocess(f"{python_exe_callable_path} -m uv pip install '{pip_specifier}'")
+    aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install '{pip_specifier}'")
     aipg_utils.remove_existing_filesystem_resource('./dep.whl')
     logging.info("python package installation completed.")
 
@@ -166,7 +166,7 @@ def is_custom_node_installed_with_git_ref(node_repo_ref: ComfyUICustomNodesGithu
     custom_node_dir_exists = os.path.exists(expected_custom_node_path)
 
     git_ref_provided = node_repo_ref.gitRef is not None and not node_repo_ref.gitRef.strip() == ""
-    git_ref_matches = not git_ref_provided and (get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef)
+    git_ref_matches = not git_ref_provided and get_git_ref(expected_custom_node_path) is not None and get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef
     return custom_node_dir_exists and git_ref_matches
 
 

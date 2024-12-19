@@ -14,8 +14,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroDir = this.pythonEnvDir
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/queue`
 
     private readonly comfyUIStartupParameters = this.settings.comfyUiParameters ? this.settings.comfyUiParameters : [
@@ -27,7 +25,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     ]
 
     serviceIsSetUp(): boolean {
-        return filesystem.existsSync(this.pythonEnvDir) && filesystem.existsSync(this.serviceDir) && filesystem.existsSync(this.lsLevelZeroExe)
+        return filesystem.existsSync(this.pythonEnvDir) && filesystem.existsSync(this.serviceDir)
     }
 
     isSetUp = this.serviceIsSetUp();

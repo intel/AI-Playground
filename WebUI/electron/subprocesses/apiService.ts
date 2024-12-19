@@ -53,8 +53,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
     readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
     readonly prototypicalPythonEnv = path.join(this.baseDir, "prototype-python-env")
     readonly customIntelExtensionForPytorch = path.join(app.isPackaged ? this.baseDir : path.join(__dirname, "../../external/"), ipexWheel)
+    abstract readonly pythonEnvDir: string
     abstract readonly serviceDir: string
-    abstract readonly lsLevelZeroDir: string
     abstract readonly pythonExe: string
     abstract isSetUp: boolean;
 
@@ -278,7 +278,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
         getDeviceSelectorEnv: async () => {
             if (this.selectedDeviceId === -1) {
-                this.allLevelZeroDevices = await this.getAllLevelZeroDevices(this.lsLevelZeroDir);
+                this.allLevelZeroDevices = await this.getAllLevelZeroDevices(this.pythonEnvDir);
                 this.selectBestLevelZeroDevice();
             }
             this.appLogger.info(`Setting device selector to level_zero:${this.selectedDeviceId}`, this.name)

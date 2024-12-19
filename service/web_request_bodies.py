@@ -11,6 +11,7 @@ class DownloadModelData:
     type : int
     repo_id : str
     backend : str
+    additionalLicenseLink: Optional[str]
 
 @marshmallow_dataclass.dataclass
 class DownloadModelRequestBody:

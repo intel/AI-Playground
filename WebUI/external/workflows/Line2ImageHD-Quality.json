@@ -6,11 +6,26 @@
     "customNodes": [
     ],
     "requiredModels": [
-      "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors",
-      "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors",
-      "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors",
-      "defaultCheckpoint:RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors",
-      "controlNet:stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+      {
+        "type": "defaultCheckpoint",
+        "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
+      },
+      {
+        "type": "defaultCheckpoint",
+        "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
+      },
+      {
+        "type": "defaultCheckpoint",
+        "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
+      },
+      {
+        "type": "defaultCheckpoint",
+        "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+      },
+      {
+        "type": "controlNet",
+        "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+      }
     ]
   },
   "tags": [
