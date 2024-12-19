@@ -10,6 +10,8 @@ export class AiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = aiBackendServiceDir();
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
     readonly pythonExe = getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroDir = this.pythonEnvDir
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
     serviceIsSetUp = () => filesystem.existsSync(this.pythonExe);
     isSetUp = this.serviceIsSetUp();

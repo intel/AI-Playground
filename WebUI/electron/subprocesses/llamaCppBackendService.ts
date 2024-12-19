@@ -8,6 +8,8 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "LlamaCPP"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`));
     readonly pythonExe = this.getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, "ai-backend-env"));
+    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     readonly isRequired = false;
 
     healthEndpointUrl = `${this.baseUrl}/health`
