@@ -479,7 +479,7 @@ async function generate(chatContext: ChatItem[]) {
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: ragData.enable,
+      enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
       model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
     };
     const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
