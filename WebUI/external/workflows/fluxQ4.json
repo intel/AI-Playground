@@ -11,10 +11,22 @@
             "city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"
         ],
         "requiredModels": [
-            "unet:city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf",
-            "clip:city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf",
-            "clip:comfyanonymous/flux_text_encoders/clip_l.safetensors",
-            "vae:black-forest-labs/FLUX.1-schnell/ae.safetensors"
+            {
+                "type": "unet",
+                "model": "city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf"
+            },
+            {
+                "type": "clip",
+                "model": "city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf"
+            },
+            {
+                "type": "clip",
+                "model": "comfyanonymous/flux_text_encoders/clip_l.safetensors"
+            },
+            {
+                "type": "vae",
+                "model": "black-forest-labs/FLUX.1-schnell/ae.safetensors"
+            }
         ]
     },
 

@@ -157,12 +157,12 @@ const ComfyUiWorkflowSchema = z.object({
     comfyUiApiWorkflow: ComfyUIApiWorkflowSchema
 });
 export type ComfyUiWorkflow = z.infer<typeof ComfyUiWorkflowSchema>;
-const WorkflowSchema = 
-z.discriminatedUnion('backend', [
-    DefaultWorkflowSchema,
-    ComfyUiWorkflowSchema
-]
-)
+const WorkflowSchema =
+    z.discriminatedUnion('backend', [
+            DefaultWorkflowSchema,
+            ComfyUiWorkflowSchema
+        ]
+    )
 export type Workflow = z.infer<typeof WorkflowSchema>;
 
 
@@ -433,7 +433,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const imagePreview = ref<boolean>(generalDefaultSettings.imagePreview);
     const safeCheck = ref<boolean>(generalDefaultSettings.safeCheck);
     const batchSize = ref<number>(globalDefaultSettings.batchSize); // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
-    
+
     const resetActiveWorkflowSettings = () => {
         prompt.value = generalDefaultSettings.prompt;
         seed.value = generalDefaultSettings.seed;
@@ -461,7 +461,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             [width.value, height.value] = newValue.split('x').map(Number);
         }
     })
-    
+
     const settings = { seed, inferenceSteps, width, height, resolution, batchSize, negativePrompt, lora, scheduler, guidanceScale, imageModel, inpaintModel };
     type ModifiableSettings = keyof typeof settings;
     const backend = computed({
@@ -470,8 +470,8 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         },
         set(newValue) {
             activeWorkflowName.value = workflows.value
-            .filter(w => w.backend === newValue)
-            .find(w => w.name === lastWorkflowPerBackend.value[newValue])?.name ?? workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
+                .filter(w => w.backend === newValue)
+                .find(w => w.name === lastWorkflowPerBackend.value[newValue])?.name ?? workflows.value.find(w => w.backend === newValue)?.name ?? activeWorkflowName.value;
         }
     });
     const lastWorkflowPerBackend = ref<Record<Workflow['backend'], string | null>>({
@@ -499,7 +499,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
 
         return activeWorkflow.value.inputs.map(input => {
             const _current = ref(getSavedOrDefault(input))
-    
+
             const current = computed({
                 get() {
                     return _current.value;
@@ -511,7 +511,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             })
 
             return { ...input, current }
-        }) 
+        })
     });
 
     type WorkflowName = string;
@@ -650,7 +650,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
         const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
         const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
         for (const item of modelsToBeLoaded) {
-            if(!await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
+            if(item.downloadedFromAIPBackend && !await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
                 toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
                 return []
             }
@@ -659,20 +659,18 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingDefaultBackendModels(): Promise<DownloadModelParam[]> {
-        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" }];
+        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" , downloadedFromAIPBackend: true}];
         if (lora.value !== "None") {
-            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: "default" })
+            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: "default" , downloadedFromAIPBackend: true})
         }
         if (imagePreview.value) {
-            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
-            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
+            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: "default", downloadedFromAIPBackend: true})
+            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: "default", downloadedFromAIPBackend: true})
         }
 
         const result = await globalSetup.checkModelAlreadyLoaded(checkList);
         return result
             .filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
-            .map(item => ({ repo_id: item.repo_id, type: item.type, backend: item.backend }))
-
     }
 
     async function generate() {
@@ -700,7 +698,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     loadWorkflowsFromJson();
-    
+
 
     return {
         hdWarningDismissed,
