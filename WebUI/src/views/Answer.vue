@@ -184,7 +184,7 @@
           <span>{{ languages.COM_GENERATE }}</span>
         </button>
       </div>
-      <rag v-if="ragData.showUploader" ref="ragPanel" @close="ragData.showUploader = false"></rag>
+      <rag v-if="ragData.showUploader && textInference.backend !== 'LLAMA.CPP'" ref="ragPanel" @close="ragData.showUploader = false"></rag>
     </div>
   </div>
 
