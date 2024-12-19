@@ -23,7 +23,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         "--disable-ipex-optimize",
         "--bf16-unet",
         "--reserve-vram",
-        "4.0"
+        "5.0"
     ]
 
     serviceIsSetUp(): boolean {
