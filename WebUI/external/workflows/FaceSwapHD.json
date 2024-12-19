@@ -38,12 +38,6 @@
       {
         "type": "facerestore",
         "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
-      },
-      {
-        "type": "faceswap",
-        "model": "Gourieff/ReActor/buffalo_l.zip",
-        "additionalLicense": "https://huggingface.co/datasets/Gourieff/ReActor",
-        "downloadedFromAIPBackend": false
       }
     ]
   },

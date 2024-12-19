@@ -12,7 +12,6 @@ class DownloadModelData:
     repo_id : str
     backend : str
     additionalLicenseLink: Optional[str]
-    downloadedFromAIPBackend: bool = True
 
 @marshmallow_dataclass.dataclass
 class DownloadModelRequestBody:

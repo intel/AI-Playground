@@ -54,7 +54,6 @@ const RequiredModelSchema = z.object({
     type: z.string(),
     model: z.string(),
     additionalLicenceLink: z.string().optional(),
-    downloadedFromAIPBackend: z.boolean().default(true),
 })
 
 export type RequiredModel = z.infer<typeof RequiredModelSchema>;
@@ -644,13 +643,13 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
                         return -1
                 }
             }
-            return {type: modelTypeToId(requiredModel.type), repo_id: requiredModel.model, backend: "comfyui" , additionalLicenseLink : requiredModel.additionalLicenceLink, downloadedFromAIPBackend : requiredModel.downloadedFromAIPBackend}
+            return {type: modelTypeToId(requiredModel.type), repo_id: requiredModel.model, backend: "comfyui" , additionalLicenseLink : requiredModel.additionalLicenceLink}
         }
         const checkList: CheckModelAlreadyLoadedParameters[] = workflow.comfyUIRequirements.requiredModels.map( extractDownloadModelParamsFromString )
         const checkedModels: CheckModelAlreadyLoadedResult[]  = await globalSetup.checkModelAlreadyLoaded(checkList);
         const modelsToBeLoaded = checkedModels.filter(checkModelExistsResult => !checkModelExistsResult.already_loaded)
         for (const item of modelsToBeLoaded) {
-            if(item.downloadedFromAIPBackend && !await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
+            if(!await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id)) {
                 toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
                 return []
             }
@@ -659,13 +658,13 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     }
 
     async function getMissingDefaultBackendModels(): Promise<DownloadModelParam[]> {
-        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" , downloadedFromAIPBackend: true}];
+        const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" }];
         if (lora.value !== "None") {
-            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: "default" , downloadedFromAIPBackend: true})
+            checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: "default" })
         }
         if (imagePreview.value) {
-            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: "default", downloadedFromAIPBackend: true})
-            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: "default", downloadedFromAIPBackend: true})
+            checkList.push({ repo_id: "madebyollin/taesd", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
+            checkList.push({ repo_id: "madebyollin/taesdxl", type: Const.MODEL_TYPE_PREVIEW , backend: "default"})
         }
 
         const result = await globalSetup.checkModelAlreadyLoaded(checkList);

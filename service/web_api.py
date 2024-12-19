@@ -175,7 +175,6 @@ def check_model_already_loaded(download_request_data: DownloadModelRequestBody):
             "type": item.type,
             "backend": item.backend,
             "already_loaded": utils.check_mmodel_exist(item.type, item.repo_id, item.backend),
-            "downloadedFromAIPBackend": item.downloadedFromAIPBackend
         }
 
         if (item.additionalLicenseLink is not None):

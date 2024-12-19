@@ -296,7 +296,6 @@ type CheckModelAlreadyLoadedParameters = {
     type: number;
     backend: BackendType;
     additionalLicenseLink?: string;
-    downloadedFromAIPBackend: boolean
 }
 
 type BackendType = "comfyui" | "default" | "llama_cpp"
