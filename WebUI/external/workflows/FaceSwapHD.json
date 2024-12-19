@@ -33,7 +33,7 @@
       {
         "type": "faceswap",
         "model": "Aitrepreneur/insightface/inswapper_128.onnx",
-        "additionalLicense": "https://huggingface.co/datasets/Gourieff/ReActor"
+        "additionalLicenceLink": "https://huggingface.co/datasets/Gourieff/ReActor"
       },
       {
         "type": "facerestore",

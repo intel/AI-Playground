@@ -7,22 +7,26 @@
                     <p>{{ i18nState.DOWNLOADER_CONFRIM_TIP }}</p>
                     <table class="text-left w-full">
                         <thead>
-                            <tr class=" text-gray-300 font-bold">
-                                <td>{{ languages.DOWNLOADER_MODEL }}</td>
+                            <tr class="text-center text-gray-300 font-bold">
+                                <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
                                 <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
                                 <td>{{ languages.DOWNLOADER_GATED }}</td>
                                 <td>{{ languages.DOWNLOADER_INFO }}</td>
+                                <td>{{ languages.DOWNLOADER_LICENSE }}</td>
                                 <td>{{ languages.DOWNLOADER_REASON }}</td>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="item in downloadList" class="">
+                            <tr v-for="item in downloadList">
                                 <td>{{ item.repo_id }}</td>
                                 <td>
+                                  <div class="flex flex-col items-center">
                                     <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
                                     <span v-else>{{ item.size }}</span>
+                                  </div>
                                 </td>
                                 <td>
+                                  <div class="flex flex-col items-center">
                                     <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
                                     <div v-else>
                                       <svg v-if="item.gated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
@@ -32,20 +36,28 @@
                                           <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                       </svg>
                                     </div>
+                                  </div>
                                 </td>
                                 <td>
+                                  <div class="flex flex-col items-center">
                                     <a :href="getInfoUrl(item.repo_id, item.type)" target="_blank"
                                         class="text-blue-500 text-sm">
                                         {{ i18nState.DOWNLOADER_TERMS }}
                                     </a>
+                                  </div>
                                 </td>
                                <td>
+                                 <div class="flex flex-col items-center" v-if="item.additionalLicenseLink !== undefined">
                                   <a :href="item.additionalLicenseLink" target="_blank"
                                      class="text-blue-500 text-sm">
                                     {{ i18nState.DOWNLOADER_TERMS }}
                                   </a>
+                                 </div>
+                                 <div class ="flex flex-col items-center" v-else>
+                                   -
+                                 </div>
                                 </td>
-                                <td class="text-sm text-green-400">
+                                <td class="flex flex-col items-center text-sm text-green-400">
                                     {{ getFunctionTip(item.type) }}
                                 </td>
                             </tr>
@@ -240,9 +252,9 @@ async function showConfirmDialog(downList: DownloadModelParam[], success?: () =>
 
 function getInfoUrl(repoId: string, type: number) {
     if (type == 4){
-        return "https://github.com/xinntao/Real-ESRGAN" 
+        return "https://github.com/xinntao/Real-ESRGAN"
     }
-    
+
     switch(repoId){
         case "Lykon/dreamshaper-8":
             return "https://huggingface.co/spaces/CompVis/stable-diffusion-license"
@@ -264,7 +276,7 @@ function getInfoUrl(repoId: string, type: number) {
     return `https://huggingface.co/${repoId.split('/').slice(0,2).join('/')}`;
 }
 
-function getFunctionTip(type: number) {
+function getFunctionTip(type: number): string {
     switch (type) {
         case Const.MODEL_TYPE_LLM:
             return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE;
@@ -280,6 +292,8 @@ function getFunctionTip(type: number) {
             return i18nState.DOWNLOADER_FOR_IMAGE_PREVIEW;
         case Const.MODEL_TYPE_ESRGAN:
             return i18nState.DOWNLOADER_FOR_IMAGE_UPSCALE;
+        default:
+            return "Undefined"
     }
 }
 
