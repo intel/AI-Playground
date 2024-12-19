@@ -125,7 +125,7 @@ const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
 type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>;
 const ComfyUiWorkflowSchema = z.object({
     name: z.string(),
-    displayPriority: z.number().optional(),
+    displayPriority: z.number().default(0),
     backend: z.literal('comfyui'),
     comfyUIRequirements: z.object({
         pythonPackages: z.array(z.string()).optional(),

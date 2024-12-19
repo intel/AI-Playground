@@ -202,7 +202,7 @@ const classicQuality = computed({
   }
 })
 
-const highToLowPrio = (a: ComfyUiWorkflow, b: ComfyUiWorkflow) => (b.displayPriority ?? 0) - (a.displayPriority ?? 0)
+const highToLowPrio = (a: ComfyUiWorkflow, b: ComfyUiWorkflow) => b.displayPriority - a.displayPriority
 
 const stringToColour = (str: string) => {
   const colors = [
