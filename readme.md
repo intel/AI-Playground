@@ -54,7 +54,7 @@ cd AI-Playground
 
 ### Install Node.js Dependencies
 
-1. Install the Node.js development environment from (Node.js)[https://nodejs.org/en/download].
+1. Install the Node.js development environment from [Node.js](https://nodejs.org/en/download).
 
 2. Navigate to the `WebUI` directory and install all Node.js dependencies:
 
