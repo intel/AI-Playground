@@ -33,11 +33,8 @@ type KVObject = {
 type Theme = 'dark' | 'lnl' | 'bmg';
 
 type LocalSettings = {
-  apiHost: string;
-  settingPath: string;
   debug: number;
-  envType: string;
-  port:number;
+  comfyUiParameters?:string[];
 } & KVObject;
 
 type ThemeSettings = {
@@ -65,14 +62,16 @@ type ModelLists = {
 } & { [key: string]: Array<string> }
 
 type SetupData = {
-  apiHost:string,
   modelPaths: ModelPaths,
   modelLists: ModelLists,
-  envType: string,
   isAdminExec:boolean,
   version:string,
 }
 
-type BackendStatus = {
-  status: 'starting' | 'running' | 'stopped',
+type UpdateWorkflowsFromIntelResult = {
+  success: boolean
+  backupDir: string
 }
+
+type BackendStatus = 'notYetStarted' | 'starting' | 'running' | 'stopped' | 'stopping' | 'failed' | 'notInstalled' | 'installationFailed' | 'installing' | 'uninitializedStatus'
+

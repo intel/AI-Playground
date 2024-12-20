@@ -148,5 +148,21 @@
 "ERROR_GENERATE_UNKONW_EXCEPTION": "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ ไม่สามารถสร้างจากแบบจำลองได้",
 "ERROR_FOLDER_NOT_EXISTS": "ไม่พบไดเร็กทอรีที่ระบุ",
 "ERROR_ENHANCE_IMAGE_NOT_SET": "กรุณาตั้งค่าภาพอินพุตที่จะสร้างขึ้น",
-"ERROR_UNFOUND_GRAPHICS": "หากไม่พบฮาร์ดแวร์ที่จำเป็นสำหรับการทำงานของโปรแกรมบนอุปกรณ์คอมพิวเตอร์ โปรแกรมจะหยุดทำงานเมื่อคลิกตกลง."
+"ERROR_UNFOUND_GRAPHICS": "หากไม่พบฮาร์ดแวร์ที่จำเป็นสำหรับการทำงานของโปรแกรมบนอุปกรณ์คอมพิวเตอร์ โปรแกรมจะหยุดทำงานเมื่อคลิกตกลง.",
+"COM_DO_NOT_SHOW_AGAIN": "อย่าแสดงข้อความนี้อีก",
+"SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM": "โหมด HD อาจส่งผลให้ประสิทธิภาพการทำงานช้าลงกว่าปกติบนระบบที่มี VRAM น้อยกว่า 12 GB หรือหน่วยความจำระบบ 24GB สำหรับพีซี Intel Core Ultra",
+"SETTINGS_MODEL_IMAGE_SIZE": "ขนาดภาพ",
+"SETTINGS_MODEL_HUGGINGFACE": "Hugging Face",
+"SETTINGS_MODEL_HUGGINGFACE_API_TOKEN": "API Token",
+"SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT": "โปรดป้อนโทเค็นที่ถูกต้อง (hf_***)",
+"INCREASE_FONT_SIZE": "ขยายข้อความ",
+"DECREASE_FONT_SIZE": "ย่อข้อความ",
+"DOWNLOADER_GATED": "Gated",
+"DOWNLOADER_GATED_INFO": "Some of the models you are trying to download are gated.",
+"DOWNLOADER_GATED_TOKEN": "โปรดเพิ่มโทเค็น API ของ Huggingface.co ในการตั้งค่า",
+"DOWNLOADER_GATED_ACCEPT": "โปรดอย่าลืมไปที่หน้าข้อมูลโมเดลและขอสิทธิ์เข้าถึง หากคุณไม่ได้รับอนุญาตให้เข้าถึงโมเดลที่มีGated การดาวน์โหลดจะล้มเหลว",
+"ERROR_PYTHON_BACKEND_INIT": "การเริ่มต้นแบ็กเอนด์ล้มเหลว",
+"ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "แบ็กเอนด์การอนุมาน AI ไม่สามารถเริ่มต้นได้ โปรดลองรีสตาร์ทแอปพลิเคชัน หากปัญหายังคงมีอยู่ คุณสามารถตรวจสอบรายละเอียดเพื่อดูข้อมูลเพิ่มเติมเกี่ยวกับข้อผิดพลาดได้",
+"ERROR_PYTHON_BACKEND_INIT_DETAILS": "รายละเอียด",
+"ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log"
 }

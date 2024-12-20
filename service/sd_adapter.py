@@ -9,7 +9,7 @@ from model_downloader import NotEnoughDiskSpaceException, DownloadException
 from psutil._common import bytes2human
 from PIL import Image
 import os
-import utils
+import aipg_utils as utils
 
 
 class SD_SSE_Adapter:

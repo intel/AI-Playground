@@ -52,6 +52,10 @@
   --svg: url("@/assets/svg/refresh.svg");
 }
 
+.i-download-cloud {
+  --svg: url("@/assets/svg/download-cloud.svg");
+}
+
 .i-delete {
   --svg: url("@/assets/svg/delete.svg");
 }
