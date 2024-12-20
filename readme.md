@@ -5,7 +5,8 @@
        src="https://scan.coverity.com/projects/30694/badge.svg"/>
 </a>
 
-![image](https://github.com/user-attachments/assets/66086f2c-216e-4a79-8ff9-01e04db7e71d)
+![image](https://github.com/user-attachments/assets/ee1efc30-4dd1-4934-9233-53fba00c71bd)
+
 
 This example is based on the xpu implementation of Intel Arc A-Series dGPU and Ultra iGPU
 
@@ -15,10 +16,10 @@ Welcome to AI Playground beta open source project and AI PC starter app for doin
 - English (readme.md)
 
 ## Min Specs
-AI Playground beta is currently available as a packaged installer, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
+AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
-*	Intel Core Ultra-H Processor, Intel Core Ultra 200V series processor OR Intel Arc GPU (discrete) with 8GB of vRAM
+*	Intel Core Ultra-H Processor, Intel Core Ultra 200V series processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
 AI Playground has multiple packaged installers, each specific to the hardware. These packages make it easier for an end user to install AI Playground and get it running on their PC. Please note while this does make the process much easier, this is open source beta software, where components and version can have conflicts. Check the Troubleshooting section for known issues.
@@ -28,11 +29,10 @@ This second phase of installation **will take several minutes** and require a st
 3. On first run, the load screen will take up to a minute
 4. Download the Users Guide for application information
 
-*	AI Playground 1.22b for Intel Core Ultra 200V (LNL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core-ultra2_LNL.exe)
+*	AI Playground 2.0 alpha preview (all skus) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.0.0a-prev) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.0.0a-prev/AI.Playground-v2.0.0-alpha-prev.exe)
 
-*	AI Playground 1.22b for Intel Core Ultra-H (MTL) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-v1.22b-core_ultra1_MTL-H.exe) 
-
-*	AI Playground 1.22b for Desktop-dGPU (ACM) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v1.22beta/AI.Playground-1.22.1beta-Arc-dGPU_ACM.exe) 
+*	AI Playground 1.22b - [Release Notes and Download Installers](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) 
+<br>Select the appropriate installer for your hardware
 
 *	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
