@@ -3,7 +3,6 @@
     <div class="px-20 py-5 max-w-5xl">
       <h1 class="text-center py-1 px-4 rounded text-4xl">
         {{ languages.BACKEND_MANAGE }}</h1>
-      <!-- required components -->
       <div class="">
         <p class="text-lg text-left pt-3 pb-3"> {{ languages.BACKEND_REQUIRED_COMPONENTS_MESSAGE }} </p>
         <p class="text-lg text-left pt-3 pb-7"> {{ languages.BACKEND_OPTIONAL_COMPONENTS_MESSAGE }} </p>
@@ -24,10 +23,10 @@
             <td class="text-center">{{ component.isRequired ? "Required" : "Optional" }}</td>
             <td>
               <a :href="getInfoURL(component.serviceName)" target="_blank">
-              <span v-show="getInfoURL(component.serviceName) != ''" style="vertical-align: middle;"
+              <span v-show="!!getInfoURL(component.serviceName)" style="vertical-align: middle;"
                     class="svg-icon i-info w-7 h-7 px-6"></span>
               </a>
-              <p v-show="getInfoURL(component.serviceName) == ''"> - </p>
+              <p v-show="!getInfoURL(component.serviceName)"> - </p>
             </td>
             <td>
               <button v-if="component.status !== 'running' && !component.isLoading"
@@ -35,11 +34,11 @@
                       :class="{ 'v-checkbox-checked-table': component.enabled}"
                       @click="() => {
                         if (component.enabled && !component.isSetUp) {
-                          enabledComponents.delete(component.serviceName)
+                          toBeInstalledComponents.delete(component.serviceName)
                         } else {
-                          enabledComponents.add(component.serviceName)
+                          toBeInstalledComponents.add(component.serviceName)
                         }}"
-                      :disabled="getInfoURL(component.serviceName) == ''">
+                      :disabled="component.isRequired">
               </button>
               <p v-else> - </p>
             </td>
@@ -120,13 +119,15 @@ const backendServices = useBackendServices();
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
+const loadingComponents = ref(new Set<string>());
+
 const somethingChanged = ref(false)
 
-const enabledComponents = ref(new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
-const loadingComponents = ref(new Set<string>())
+const alreadyInstalledOrRequiredComponents = computed(() => new Set(backendServices.info.filter((item) => item.isSetUp || item.isRequired).map((item) => item.serviceName)))
+const toBeInstalledComponents = ref(new Set<BackendServiceName>())
 
 const components = computed(() => {return backendServices.info.map((item) => ({
-  enabled: enabledComponents.value.has(item.serviceName),
+  enabled: alreadyInstalledOrRequiredComponents.value.has(item.serviceName) || toBeInstalledComponents.value.has(item.serviceName),
   isLoading: loadingComponents.value.has(item.serviceName),
   ...item
 }))})
@@ -202,7 +203,7 @@ function getInfoURL(serviceName: string) {
     case "llamacpp-backend":
       return "https://github.com/abetlen/llama-cpp-python"
     default:
-      return ""
+      return undefined
   }
 }
 

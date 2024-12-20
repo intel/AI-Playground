@@ -88,13 +88,17 @@ def _install_git_repo(git_repo_url: str, target_dir: str):
         aipg_utils.remove_existing_filesystem_resource(target_dir)
         raise e
 
-def _checkout_git_ref(repo_dir: str, git_ref: str):
+def _checkout_git_ref(repo_dir: str, git_ref: Optional[str]):
+    if git_ref is None or not git_ref.strip():
+        logging.info(f"No valid git ref provided for {repo_dir}")
+        logging.warning(f"Repo {repo_dir} remains in ref {get_git_ref(repo_dir)}.")
+        return
     try:
         aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} checkout {git_ref}", cwd=repo_dir)
         logging.info(f"checked out {git_ref} in {repo_dir}")
     except Exception as e:
         logging.warning(f"git checkout of {git_ref} failed for rep {repo_dir} due to {e}.")
-        logging.warning(f"will use repo ref {get_git_ref(repo_dir)} in {repo_dir}.")
+        logging.warning(f"Repo {repo_dir} remains in ref {get_git_ref(repo_dir)}.")
 
 
 def get_git_ref(repo_dir: str) -> Optional[str]:
@@ -110,7 +114,7 @@ def _install_pip_requirements(requirements_txt_path: str):
     logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
     if os.path.exists(requirements_txt_path):
         python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m uv pip install -r '{requirements_txt_path}'")
+        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
         logging.info("python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
@@ -136,7 +140,7 @@ def install_pypi_package(packageSpecifier: str):
 
     logging.info(f"installing python package {packageSpecifier} using {sys.executable}")
     python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-    aipg_utils.call_subprocess(f"{python_exe_callable_path} -m uv pip install '{pip_specifier}'")
+    aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install '{pip_specifier}'")
     aipg_utils.remove_existing_filesystem_resource('./dep.whl')
     logging.info("python package installation completed.")
 
@@ -159,8 +163,9 @@ def install_comfyUI() -> bool:
 
 def is_custom_node_installed_with_git_ref(node_repo_ref: ComfyUICustomNodesGithubRepoId) -> bool:
     expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_ref.repoName)
-    custom_node_dir_exists= os.path.exists(expected_custom_node_path)
-    return custom_node_dir_exists and (get_git_ref(expected_custom_node_path) == node_repo_ref.gitRef)
+    custom_node_dir_exists = os.path.exists(expected_custom_node_path)
+
+    return custom_node_dir_exists
 
 
 def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool:

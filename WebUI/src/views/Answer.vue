@@ -138,7 +138,7 @@
               <span>{{ languages.DECREASE_FONT_SIZE }}</span>
             </button>
           </div>
-          <div class="flex justify-center items-center gap-2">
+          <div v-show="textInference.backend !== 'LLAMA.CPP'" class="flex justify-center items-center gap-2">
             <div class="v-checkbox flex-none" type="button" :disabled="processing">
               <button v-show="!ragData.processEnable" class="v-checkbox-control flex-none"
                       :class="{ 'v-checkbox-checked': ragData.enable }" @click="toggleRag(!ragData.enable)">
@@ -184,7 +184,7 @@
           <span>{{ languages.COM_GENERATE }}</span>
         </button>
       </div>
-      <rag v-if="ragData.showUploader" ref="ragPanel" @close="ragData.showUploader = false"></rag>
+      <rag v-if="ragData.showUploader && textInference.backend !== 'LLAMA.CPP'" ref="ragPanel" @close="ragData.showUploader = false"></rag>
     </div>
   </div>
 
@@ -479,7 +479,7 @@ async function generate(chatContext: ChatItem[]) {
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: ragData.enable,
+      enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
       model_repo_id: textInference.backend === 'IPEX-LLM' ? globalSetup.modelSettings.llm_model : globalSetup.modelSettings.ggufLLM_model,
     };
     const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
@@ -597,17 +597,25 @@ async function enableRag() {
   const formData = new FormData();
   formData.append("repo_id", globalSetup.modelSettings.embedding);
   formData.append("device", globalSetup.modelSettings.graphics);
-  await fetch(`${globalSetup.apiHost}/api/llm/enableRag`,
-      {
-        method: "POST",
-        body: formData,
-      }
-  );
-  ragData.enable = true;
+  try {
+    await fetch(`${globalSetup.apiHost}/api/llm/enableRag`,
+        {
+          method: "POST",
+          body: formData,
+        }
+    );
+    ragData.enable = true;
+  } catch (e) {
+    console.error(`Enabling rag failed due to ${e}`)
+  }
 }
 
 async function disableRag() {
-  await fetch(`${globalSetup.apiHost}/api/llm/disableRag`);
+  try {
+    await fetch(`${globalSetup.apiHost}/api/llm/disableRag`);
+  } catch (e) {
+    console.error(`Disabling rag failed due to ${e}`)
+  }
 }
 
 async function restoreRagState() {

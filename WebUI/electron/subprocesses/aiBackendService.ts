@@ -13,7 +13,7 @@ export class AiBackendService extends LongLivedPythonApiService {
     readonly lsLevelZeroDir = this.pythonEnvDir
     readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
-    serviceIsSetUp = () => filesystem.existsSync(this.pythonExe) && filesystem.existsSync(this.lsLevelZeroExe);
+    serviceIsSetUp = () => filesystem.existsSync(this.pythonExe);
     isSetUp = this.serviceIsSetUp();
 
     async *set_up(): AsyncIterable<SetupProgress> {

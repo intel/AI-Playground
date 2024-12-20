@@ -82,6 +82,7 @@ export const useBackendServices = defineStore("backendServices", () => {
         setUpService,
         startService,
         stopService,
+
     }
 }, {
     persist: {
@@ -125,7 +126,6 @@ class BackendServiceSetupProgressListener {
                 }, 1000)
             })
         }
-        return this.collectedSetupProgress
     }
 
     async awaitFinalizationAndResetData(): Promise<{success: boolean, logs: SetupProgress[]}> {
@@ -133,6 +133,7 @@ class BackendServiceSetupProgressListener {
             console.log(`server startup complete for ${this.associatedServiceName}`)
             const clonedSetupProgress = collectedSetupProgress.slice()
             this.collectedSetupProgress = []
+            this.terminalUpdateReceived = false
             return { success: this.installationSuccess, logs: clonedSetupProgress}
         })
     }
