@@ -148,21 +148,5 @@
 "ERROR_GENERATE_UNKONW_EXCEPTION": "Wystąpił nieznany błąd. Nie udało się wygenerować z modelu",
 "ERROR_FOLDER_NOT_EXISTS": "Określony katalog nie istnieje",
 "ERROR_ENHANCE_IMAGE_NOT_SET": "Skonfiguruj obraz wejściowy do wygenerowania",
-"ERROR_UNFOUND_GRAPHICS": "Jeśli na urządzeniu komputerowym nie zostanie wykryty sprzęt niezbędny do wykonania programu, program zakończy działanie po kliknięciu przycisku OK.",
-"COM_DO_NOT_SHOW_AGAIN": "Nie pokazuj ponownie",
-"SETTINGS_MODEL_IMAGE_RESOLUTION_HD_CONFIRM": "Tryb HD może powodować wolniejsze działanie na systemach z pojemnością mniejszą niż 12 GB VRAM lub 24 GB pamięci systemowej na komputerach z procesorem Intel Core Ultra.",
-"SETTINGS_MODEL_IMAGE_SIZE": "Rozmiar obrazu",
-"SETTINGS_MODEL_HUGGINGFACE": "Hugging Face",
-"SETTINGS_MODEL_HUGGINGFACE_API_TOKEN": "API Token",
-"SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT": "Wprowadź prawidłowy token (hf_***).",
-"INCREASE_FONT_SIZE": "Powiększ tekst",
-"DECREASE_FONT_SIZE": "Pomniejsz tekst",
-"DOWNLOADER_GATED": "bramka (do pobierania)",
-"DOWNLOADER_GATED_INFO": "Niektóre z modeli, które próbujesz pobrać, są zablokowane.",
-"DOWNLOADER_GATED_TOKEN": "Dodaj swój token API huggingface.co w ustawieniach.",
-"DOWNLOADER_GATED_ACCEPT": "Upewnij się, że odwiedziłeś stronę z informacjami o modelu i poprosiłeś o dostęp. Jeśli nie otrzymałeś dostępu do modelu z bramką, pobieranie nie powiedzie się.",
-"ERROR_PYTHON_BACKEND_INIT": "Inicjalizacja backendu nie powiodła się",
-"ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "Nie udało się zainicjować AI inference backend. Spróbuj ponownie uruchomić aplikację. Jeśli problem nadal występuje, możesz sprawdzić Szczegóły, aby uzyskać dodatkowe informacje o błędzie.",
-"ERROR_PYTHON_BACKEND_INIT_DETAILS": "Szczegóły",
-"ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Otwórz dziennik"
+"ERROR_UNFOUND_GRAPHICS": "Jeśli na urządzeniu komputerowym nie zostanie wykryty sprzęt niezbędny do wykonania programu, program zakończy działanie po kliknięciu przycisku OK."
 }

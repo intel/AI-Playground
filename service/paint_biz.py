@@ -4,8 +4,8 @@ import queue
 import random
 import time
 from typing import Any, Callable, Dict, List
-import aipg_utils as utils
-import service_config
+import utils
+import model_config
 import inpaint_utils
 from diffusers import (
     DiffusionPipeline,
@@ -34,7 +34,6 @@ from xpu_hijacks import ipex_hijacks
 
 ipex_hijacks()
 print("workarounds applied")
-
 
 # region class define
 
@@ -94,12 +93,12 @@ class NoWatermark:
 
 _basic_model_pipe: StableDiffusionPipeline | StableDiffusionXLPipeline = None
 _ext_model_pipe: (
-        StableDiffusionPipeline
-        | StableDiffusionXLPipeline
-        | StableDiffusionImg2ImgPipeline
-        | StableDiffusionXLImg2ImgPipeline
-        | StableDiffusionInpaintPipeline
-        | StableDiffusionXLInpaintPipeline
+    StableDiffusionPipeline
+    | StableDiffusionXLPipeline
+    | StableDiffusionImg2ImgPipeline
+    | StableDiffusionXLImg2ImgPipeline
+    | StableDiffusionInpaintPipeline
+    | StableDiffusionXLInpaintPipeline
 ) = None
 _realESRGANer: RealESRGANer = None
 _last_mode: int = None
@@ -122,7 +121,6 @@ _generating = False
 _stop_event = Event()
 _preview_queue = queue.Queue()
 _safety_checker: StableDiffusionSafetyChecker = None
-
 
 # endregion
 
@@ -148,7 +146,7 @@ def get_basic_model(input_model_name: str) -> DiffusionPipeline | Any:
     mode_name_array = input_model_name.split(":")
     config_key = mode_name_array[0]
     model_name = mode_name_array[1]
-    model_base_path = service_config.service_model_paths.get(config_key)
+    model_base_path = model_config.config.get(config_key)
 
     start = time.time()
     if load_model_callback is not None:
@@ -186,9 +184,8 @@ def get_basic_model(input_model_name: str) -> DiffusionPipeline | Any:
     else:
         _safety_checker = None
     # perf optimization
-    _basic_model_pipe.enable_model_cpu_offload()
     _basic_model_pipe.enable_vae_tiling()
-    _basic_model_pipe.to(service_config.device)
+    _basic_model_pipe.to(model_config.device)
 
     print(
         "load model {} finish. cost {}s".format(
@@ -208,29 +205,29 @@ def process_preview_taesd():
     global _taesd_vae_type, _taesd_vae
 
     if isinstance(
-            _basic_model_pipe,
-            StableDiffusionXLPipeline
-            | StableDiffusionXLImg2ImgPipeline
-            | StableDiffusionXLInpaintPipeline,
+        _basic_model_pipe,
+        StableDiffusionXLPipeline
+        | StableDiffusionXLImg2ImgPipeline
+        | StableDiffusionXLInpaintPipeline,
     ) and (_taesd_vae_type != "sdxl" or _taesd_vae is None):
         _taesd_vae = AutoencoderTiny.from_pretrained(
-            os.path.join(service_config.service_model_paths.get("preview"), "madebyollin---taesdxl"),
+            os.path.join(model_config.config.get("preview"), "madebyollin---taesdxl"),
             torch_dtype=torch.bfloat16,
         )
         _taesd_vae_type = "sdxl"
     elif isinstance(
-            _basic_model_pipe,
-            StableDiffusionPipeline
-            | StableDiffusionImg2ImgPipeline
-            | StableDiffusionInpaintPipeline,
+        _basic_model_pipe,
+        StableDiffusionPipeline
+        | StableDiffusionImg2ImgPipeline
+        | StableDiffusionInpaintPipeline,
     ) and (_taesd_vae_type != "sd1.5" or _taesd_vae is None):
         _taesd_vae = AutoencoderTiny.from_pretrained(
-            os.path.join(service_config.service_model_paths.get("preview"), "madebyollin---taesd"),
+            os.path.join(model_config.config.get("preview"), "madebyollin---taesd"),
             torch_dtype=torch.bfloat16,
         )
         _taesd_vae_type = "sd1.5"
 
-    _taesd_vae.to(service_config.device)
+    _taesd_vae.to(model_config.device)
 
 
 def get_ext_pipe(params: TextImageParams, pipe_classes: List, init_class: any):
@@ -246,7 +243,7 @@ def get_ext_pipe(params: TextImageParams, pipe_classes: List, init_class: any):
 
     basic_model_pipe = get_basic_model(params.model_name)
     _ext_model_pipe = init_class.from_pipe(basic_model_pipe)
-    _ext_model_pipe.to(service_config.device)
+    _ext_model_pipe.to(model_config.device)
 
     assert_stop_generate()
 
@@ -280,7 +277,7 @@ def load_model_from_single_file(model_signle_file: str):
 
 def load_model_from_pretrained(model_dir: str):
     if os.path.exists(
-            os.path.join(model_dir, "unet/diffusion_pytorch_model.fp32.safetensors")
+        os.path.join(model_dir, "unet/diffusion_pytorch_model.fp32.safetensors")
     ) or os.path.exists(
         os.path.join(model_dir, "unet/diffusion_pytorch_model.fp32.bin")
     ):
@@ -288,10 +285,10 @@ def load_model_from_pretrained(model_dir: str):
             model_dir,
             torch_dtype=torch.float32,
             variant="fp32",
-            device=service_config.device,
+            device=model_config.device,
         )
     elif os.path.exists(
-            os.path.join(model_dir, "unet/diffusion_pytorch_model.fp16.safetensors")
+        os.path.join(model_dir, "unet/diffusion_pytorch_model.fp16.safetensors")
     ) or os.path.exists(
         os.path.join(model_dir, "unet/diffusion_pytorch_model.fp16.bin")
     ):
@@ -312,7 +309,7 @@ def set_lora(pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, lora: st
     if lora == _last_lora:
         return
     if lora != "None":
-        base_path = service_config.service_model_paths.get("lora")
+        base_path = model_config.config.get("lora")
 
         if utils.is_single_file(lora):
             lora_path = os.path.join(base_path, lora)
@@ -333,7 +330,7 @@ def set_lora(pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, lora: st
 
 
 def set_scheduler(
-        pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, scheduler_name: str
+    pipe: StableDiffusionPipeline | StableDiffusionXLPipeline, scheduler_name: str
 ):
     global _last_scheduler
     schedulers_util.set_scheduler(pipe, scheduler_name)
@@ -341,13 +338,13 @@ def set_scheduler(
 
 
 def set_components(
-        pipe: (
-                StableDiffusionPipeline
-                | StableDiffusionXLPipeline
-                | StableDiffusionInpaintPipeline
-                | StableDiffusionXLInpaintPipeline
-        ),
-        params: TextImageParams,
+    pipe: (
+        StableDiffusionPipeline
+        | StableDiffusionXLPipeline
+        | StableDiffusionInpaintPipeline
+        | StableDiffusionXLInpaintPipeline
+    ),
+    params: TextImageParams,
 ):
     global \
         _last_scheduler, \
@@ -363,7 +360,7 @@ def set_components(
         process_preview_taesd()
 
     if params.safe_check and isinstance(
-            pipe, StableDiffusionPipeline | StableDiffusionInpaintPipeline
+        pipe, StableDiffusionPipeline | StableDiffusionInpaintPipeline
     ):
         pipe.safety_checker = _safety_checker
     else:
@@ -385,7 +382,7 @@ def get_ESRGANer():
     global _realESRGANer
     if _realESRGANer is None:
         _realESRGANer = RealESRGANer()
-    _realESRGANer.to(service_config.device)
+    _realESRGANer.to(model_config.device)
     return _realESRGANer
 
 
@@ -404,15 +401,15 @@ def convert_prompt_to_compel_format(prompt):
 
 
 def __callback_on_step_end__(
-        model: (
-                StableDiffusionPipeline
-                | StableDiffusionXLPipeline
-                | StableDiffusionInpaintPipeline
-                | StableDiffusionXLInpaintPipeline
-        ),
-        step: int,
-        timesteps: int,
-        callback_kwargs: Dict,
+    model: (
+        StableDiffusionPipeline
+        | StableDiffusionXLPipeline
+        | StableDiffusionInpaintPipeline
+        | StableDiffusionXLInpaintPipeline
+    ),
+    step: int,
+    timesteps: int,
+    callback_kwargs: Dict,
 ):
     global \
         step_end_callback, \
@@ -462,7 +459,7 @@ def __callback_on_step_end__(
 
 
 def convet_compel_prompt(
-        prompt: str, pipe: StableDiffusionPipeline | StableDiffusionXLPipeline
+    prompt: str, pipe: StableDiffusionPipeline | StableDiffusionXLPipeline
 ):
     custom_inputs = {}
 
@@ -497,12 +494,12 @@ def convet_compel_prompt(
 
 
 def text_to_image(
-        params: TextImageParams,
+    params: TextImageParams,
 ):
     global _generate_idx, image_out_callback
     pipe = get_basic_model(params.model_name)
     set_components(pipe, params)
-    pipe.to(service_config.device)
+    pipe.to(model_config.device)
 
     custom_inputs = convet_compel_prompt(params.prompt, pipe)
     seed = params.seed
@@ -542,7 +539,7 @@ def image_to_image(params: ImageToImageParams):
     )
 
     set_components(pipe, params)
-    pipe.to(service_config.device)
+    pipe.to(model_config.device)
     input_image = Image.open(params.image)
     input_image = (
         input_image.convert("RGB") if input_image.mode != "RGB" else input_image
@@ -605,7 +602,7 @@ def upscale(params: UpscaleImageParams):
             AutoPipelineForImage2Image,
         )
         set_components(pipe, params)
-        pipe.to(service_config.device)
+        pipe.to(model_config.device)
 
         custom_inputs = convet_compel_prompt(params.prompt, pipe)
         seed = params.seed
@@ -650,7 +647,7 @@ def inpaint(params: InpaintParams):
     )
 
     set_components(pipe, params)
-    pipe.to(service_config.device)
+    pipe.to(model_config.device)
 
     input_image = Image.open(params.image)
     mask_image = Image.open(params.mask_image)
@@ -734,7 +731,7 @@ def outpaint(params: OutpaintParams):
     )
     set_components(pipe, params)
 
-    pipe.to(service_config.device)
+    pipe.to(model_config.device)
     if isinstance(pipe, StableDiffusionXLInpaintPipeline):
         max_size = 1536
     else:
@@ -807,9 +804,9 @@ def is_image_completely_black(image: Image):
 
 
 def output_image(
-        pipe: StableDiffusionPipeline | StableDiffusionXLPipeline,
-        image: Image.Image,
-        params: TextImageParams,
+    pipe: StableDiffusionPipeline | StableDiffusionXLPipeline,
+    image: Image.Image,
+    params: TextImageParams,
 ):
     global image_out_callback, _safety_checker, _generate_idx
     passed_safety_check = not is_image_completely_black(image)
@@ -831,7 +828,7 @@ def generate(params: TextImageParams):
     try:
         stop_generate()
         torch.xpu.set_device(params.device)
-        # service_config.device = f"xpu:{params.device}"
+        # model_config.device = f"xpu:{params.device}"
         if _last_model_name != params.model_name:
             # hange model dispose basic model
             if _basic_model_pipe is not None:
@@ -928,7 +925,3 @@ def assert_stop_generate():
     if _stop_generate:
         _stop_event.set()
         raise StopGenerateException()
-
-
-def clear_xpu_cache():
-    torch.xpu.empty_cache()

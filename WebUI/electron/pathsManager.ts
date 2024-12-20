@@ -4,7 +4,6 @@ import path from "node:path";
 export class PathsManager {
     modelPaths: ModelPaths = {
         llm: "",
-        ggufLLM: "",
         embedding: "",
         stableDiffusion: "",
         inpaint: "",
@@ -95,33 +94,30 @@ export class PathsManager {
         }
         return models
     }
-    scanLLMModles() {
+    scanLLMModles(returnDefaults = true) {
+        const models = returnDefaults ? [
+            "microsoft/Phi-3-mini-4k-instruct",
+        ] : [];
         const dir = this.modelPaths.llm;
-        if (!fs.existsSync(dir)) {
+        if (fs.existsSync(dir)) {
+            const modelsSet = new Set(models);
+            fs.readdirSync(dir).forEach(pathname => {
+                const fullPath = path.join(dir, pathname);
+                if (fs.statSync(fullPath).isDirectory() && fs.existsSync(
+                    path.join(fullPath, "config.json")
+                )) {
+                    const modelName = pathname.replace("---", "/")
+                    if (!modelsSet.has(modelName)) {
+                        modelsSet.add(modelName)
+                        models.push(modelName)
+                    }
+                }
+            });
+        }
+        else {
             fs.mkdirSync(dir, { recursive: true });
         }
-        const modelsSet = fs.readdirSync(dir)
-        .filter(subDir => {
-            const fullpath = path.join(dir, subDir);
-            return fs.statSync(fullpath).isDirectory() && fs.existsSync(path.join(fullpath))})
-        .map(subDir => subDir.replace("---", "/"))
-        .reduce((set, modelName) => set.add(modelName), new Set<string>());
-
-        return [...modelsSet]
-    }
-    scanGGUFLLMModels() {
-        const dir = this.modelPaths.ggufLLM;
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        console.log('getting models', dir);
-        const modelsSet = fs.readdirSync(dir, { encoding: 'utf-8', recursive: true})
-        .filter(pathName => pathName.endsWith(".gguf"))
-        .map(path => path.replace("---", "/"))
-        .map(path => path.replace("\\", "/"))
-        .reduce((acc, pathname) => acc.add(pathname), new Set<string>());
-
-        return [...modelsSet]
+        return models
     }
     scanLora(returnDefaults = true) {
         const models = returnDefaults ? [

@@ -34,8 +34,8 @@
       "to": "7zr.exe"
     },
     {
-      "from": "external/env.7z",
-      "to": "env.7z"
+      "from": "external/env-offline-${env.PLATFORM}.7z",
+      "to": "env-offline.7z"
     },
     {
       "from": "external/model_config.json",
@@ -69,7 +69,7 @@
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",
-    "artifactName": "${productName}-${version}-For-${env.PLATFORM}.${ext}",
+    "artifactName": "${productName}-${version}-For-${env.PLATFORM}-offline.${ext}",
     "electronLanguages": ["en-US", "zh-CN"]
   },
   "nsis": {
@@ -78,6 +78,7 @@
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
     "deleteAppDataOnUninstall": true,
-    "allowElevation": true
+    "allowElevation": true,
+    "include": "build/installer-offline.nsh"
   }
 }

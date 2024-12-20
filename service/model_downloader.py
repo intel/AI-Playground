@@ -1,24 +1,20 @@
-import concurrent.futures
-import os
-import queue
-import shutil
-import time
-import traceback
-from os import path, makedirs, rename
-from threading import Thread, Lock
-from time import sleep
-from typing import Any, Callable, Dict, List
-
-import psutil
-import requests
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
+from typing import Any, Callable, Dict, List
+from os import path, makedirs, rename
+import requests
+import queue
+from threading import Thread, Lock
+import time
+import psutil
 from psutil._common import bytes2human
-
-import aipg_utils as utils
 from exceptions import DownloadException
+import traceback
+import concurrent.futures
+import utils
 
 model_list_cache = dict()
 model_lock = Lock()
+
 
 class HFFileItem:
     relpath: str
@@ -61,7 +57,6 @@ class NotEnoughDiskSpaceException(Exception):
         super().__init__(message)
 
 
-
 class HFPlaygroundDownloader:
     fs: HfFileSystem
     file_queue: queue.Queue[HFDonloadItem]
@@ -88,22 +83,15 @@ class HFPlaygroundDownloader:
         self.thread_lock = Lock()
         self.hf_token = hf_token
 
-    def hf_url_exists(self, repo_id: str):
-        return self.fs.exists(repo_id)
-
-    def probe_type(self, repo_id : str):
-        return model_info(utils.trim_repo(repo_id)).pipeline_tag
-
     def is_gated(self, repo_id: str):
         try:
-            info = model_info(utils.trim_repo(repo_id))
+            info = model_info(repo_id)
             return info.gated
         except Exception as ex:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
             return False
 
-    def download(self, repo_id: str, model_type: int, backend: str, thread_count: int = 4):
-        print(f"at download {backend}")
+    def download(self, repo_id: str, model_type: int, thread_count: int = 4):
         self.repo_id = repo_id
         self.total_size = 0
         self.download_size = 0
@@ -111,7 +99,7 @@ class HFPlaygroundDownloader:
         self.download_stop = False
         self.completed = False
         self.error = None
-        self.save_path = path.join(utils.get_model_path(model_type, backend))
+        self.save_path = path.join(utils.get_model_path(model_type))
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
         )
@@ -122,7 +110,9 @@ class HFPlaygroundDownloader:
         if cache_item is None:
             file_list = list()
             self.enum_file_list(file_list, repo_id, model_type)
-            model_list_cache.__setitem__(key, {"size": self.total_size, "queue": self.file_queue})
+            model_list_cache.__setitem__(
+                {"size": self.total_size, "queue": self.file_queue}
+            )
         else:
             self.total_size = cache_item["size"]
             file_list: list = cache_item["queue"]
@@ -178,7 +168,6 @@ class HFPlaygroundDownloader:
     def enum_file_list(
         self, file_list: List, enum_path: str, model_type: int, is_root=True
     ):
-        # repo = "/".join(enum_path.split("/")[:2])
         list = self.fs.ls(enum_path, detail=True)
         if model_type == 1 and enum_path == self.repo_id + "/unet":
             list = self.enum_sd_unet(list)
@@ -216,14 +205,13 @@ class HFPlaygroundDownloader:
                     continue
 
                 self.total_size += size
-                relative_path = path.relpath(name, utils.trim_repo(self.repo_id))
+                relative_path = path.relpath(name, self.repo_id)
                 subfolder = path.dirname(relative_path).replace("\\", "/")
                 filename = path.basename(relative_path)
                 url = hf_hub_url(
-                    repo_id=utils.trim_repo(self.repo_id), subfolder=subfolder, filename=filename
+                    repo_id=self.repo_id, subfolder=subfolder, filename=filename
                 )
                 file_list.append(HFFileItem(relative_path, size, url))
-
 
     def enum_sd_unet(self, file_list: List[str | Dict[str, Any]]):
         cur_level = 0
@@ -264,34 +252,12 @@ class HFPlaygroundDownloader:
         if self.on_download_completed is not None:
             self.on_download_completed(self.repo_id, self.error)
         if not self.download_stop and self.error is None:
-            self.move_to_desired_position()
-        else:
-            # Download aborted
-            shutil.rmtree(self.save_path_tmp)
-
-    def move_to_desired_position(self, retriable: bool = True):
-        desired_repo_root_dir_name = os.path.join(self.save_path, utils.repo_local_root_dir_name(self.repo_id))
-        move_to_flat_structure = False
-        # face restore and insightface model need to be in a flat structure to work with reactor node
-        if "facerestore" in self.save_path or "insightface" in self.save_path:
-            move_to_flat_structure = True
-            desired_repo_root_dir_name = path.abspath(path.join(self.save_path, self.repo_id.replace("/", "---")))
-        try:
-            if os.path.exists(desired_repo_root_dir_name) or move_to_flat_structure:
-                for item in os.listdir(self.save_path_tmp):
-                    shutil.move(os.path.join(self.save_path_tmp, item), desired_repo_root_dir_name)
-                shutil.rmtree(self.save_path_tmp)
-            else:
-                rename(
-                    self.save_path_tmp,
-                    path.abspath(desired_repo_root_dir_name)
-                )
-        except Exception as e:
-            if (retriable):
-                sleep(5)
-                self.move_to_desired_position(retriable=False)
-            else:
-                raise e
+            rename(
+                self.save_path_tmp,
+                path.abspath(
+                    path.join(self.save_path, self.repo_id.replace("/", "---"))
+                ),
+            )
 
     def start_report_download_progress(self):
         thread = Thread(target=self.report_download_progress)
@@ -334,30 +300,6 @@ class HFPlaygroundDownloader:
             fw = open(file.save_filename, "wb")
 
         return response, fw
-
-    def is_access_granted(self, repo_id: str, model_type, backend : str):
-
-        repo_id = utils.trim_repo(repo_id)
-        headers={}
-        if (self.hf_token is not None):
-            headers["Authorization"] = f"Bearer {self.hf_token}"
-
-        self.file_queue = queue.Queue()
-        self.repo_id = repo_id
-        self.save_path = path.join(utils.get_model_path(model_type,backend))
-        self.save_path_tmp = path.abspath(
-            path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
-        )
-
-        file_list = list()
-        self.enum_file_list(file_list, repo_id, model_type)
-        self.build_queue(file_list)
-        file = self.file_queue.get_nowait()
-
-        response = requests.head(file.url, verify=False, headers=headers, allow_redirects=True)
-
-        return response.status_code == 200
-
 
     def download_model_file(self):
         try:

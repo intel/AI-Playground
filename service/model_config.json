@@ -1,6 +1,5 @@
 {
   "llm": "./models/llm/checkpoints",
-  "ggufLLM": "./models/llm/gguf",
   "stableDiffusion": "./models/stable_diffusion/checkpoints",
   "lora": "./models/stable_diffusion/lora",
   "vae": "./models/stable_diffusion/vae",

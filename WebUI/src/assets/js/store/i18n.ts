@@ -18,7 +18,6 @@ export const useI18N = defineStore("i18n", () => {
     { value: 'ko', name: "영어" },
     { value: 'pl', name: "język polski" },
     { value: 'th', name: "ภาษาไทย" },
-    { value: 'tr', name: "Türkçe" },
     { value: 'vi', name: "Tiếng Việt" },
     { value: 'zh-CN', name: "简体中文" },
     { value: 'zh-TW', name: "繁體中文" },
@@ -60,13 +59,8 @@ export const useI18N = defineStore("i18n", () => {
   }
 
   async function switchLanguage(lang: string) {
-    const [languageRecords, fallbackRecords] = await Promise.all([
-      import(`../../i18n/${lang}.json`).catch(() => ({})),
-      import(`../../i18n/en-US.json`)
-    ]);
-
-    const mergedRecords = { ...fallbackRecords, ...languageRecords };
-    updateLanguageRecord(mergedRecords);
+    const languageRecords = await import(`../../i18n/${lang}.json`);
+    updateLanguageRecord(languageRecords);
     langName.value = lang;
     currentLanguageName.value = languageOptions.value.find((item) => item.value === lang)?.name || "Unknown";
 

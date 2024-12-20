@@ -1,11 +1,6 @@
-import {defineStore} from "pinia";
-import {util} from "../util";
-import {useI18N} from "./i18n";
-import {useBackendServices} from "./backendServices";
-import {toast} from "@/assets/js/toast.ts";
-
-type GlobalSetupState = "running" | "verifyBackend" | "manageInstallations" | "loading" | "failed"
-type LastUsedBackend = BackendServiceName | "None"
+import { defineStore } from "pinia";
+import { util } from "../util";
+import { useI18N } from "./i18n";
 
 export const useGlobalSetup = defineStore("globalSetup", () => {
     const state = reactive<KVObject>({
@@ -14,8 +9,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         version: "0.0.0.1"
     });
 
-    const defaultBackendBaseUrl = ref("http://127.0.0.1:9999");
-    const lastUsedBackend = ref<LastUsedBackend>("None")
+    const apiHost = ref("http://127.0.0.1:9999");
 
     const models = ref<ModelLists>({
         llm: new Array<string>(),
@@ -33,7 +27,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         quality: 0,
         enableRag: false,
         llm_model: "microsoft/Phi-3-mini-4k-instruct",
-        ggufLLM_model: "meta-llama-3.1-8b-instruct.Q5_K_M.gguf",
         sd_model: "Lykon/dreamshaper-8",
         inpaint_model: "Lykon/dreamshaper-8-inpainting",
         negativePrompt: "bad hands, nsfw",
@@ -52,7 +45,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const paths = ref<ModelPaths>({
         llm: "",
-        ggufLLM: "",
         embedding: "",
         stableDiffusion: "",
         inpaint: "",
@@ -70,29 +62,32 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     const graphicsList = ref(new Array<GraphicsItem>());
 
-    const loadingState = ref<GlobalSetupState>("verifyBackend");
-    const errorMessage = ref("");
-    const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
+    let envType = "";
 
-    const backendServices = useBackendServices()
+    const loadingState = ref("loading");
+
+    const errorMessage = ref("");
+
+    const hdPersistentConfirmation = ref(localStorage.getItem("HdPersistentConfirmation") === "true");
 
     watchEffect(() => {
         localStorage.setItem("HdPersistentConfirmation", hdPersistentConfirmation.value.toString());
     });
 
+    window.electronAPI.onReportError((value) => {
+        loadingState.value = "failed";
+        errorMessage.value = value;
+    })
+
     async function initSetup() {
         const setupData = await window.electronAPI.getInitSetting();
-        const apiServiceInformation = await window.electronAPI.getServices()
+        envType = setupData.envType;
         paths.value = setupData.modelPaths;
         models.value = setupData.modelLists;
         models.value.inpaint.push(useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL);
         state.isAdminExec = setupData.isAdminExec;
         state.version = setupData.version;
-        const aiBackendInfo = apiServiceInformation.find(item => item.serviceName === "ai-backend")
-        if (!aiBackendInfo) {
-            throw new Error("ai-backend service not found")
-        }
-        defaultBackendBaseUrl.value = aiBackendInfo.baseUrl;
+        apiHost.value = setupData.apiHost;
         loadPresetModelSettings();
         const postJson = JSON.stringify(toRaw(paths.value));
         const delay = 2000;
@@ -103,6 +98,16 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 models.value.scheduler.unshift("None");
                 break;
             } catch (error) {
+                const backendStatus = (await window.electronAPI.getPythonBackendStatus()).status;
+                if (backendStatus === "stopped") {
+                    loadingState.value = "failed";
+                    return;
+                }
+                if (backendStatus === "running" && !(error instanceof TypeError)) {
+                    loadingState.value = "failed";
+                    errorMessage.value = (error as Error).message;
+                    return;
+                }
                 await util.delay(delay);
             }
         }
@@ -111,25 +116,15 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             await window.electronAPI.showMessageBoxSync({ message: useI18N().state.ERROR_UNFOUND_GRAPHICS, title: "error", icon: "error" });
             window.electronAPI.exitApp();
         }
-        loadUserSettings();
-    }
-
-    async function initWebSettings(postJson: string) {
-        const response = await fetch(`${defaultBackendBaseUrl.value}/api/init`, {
-            headers: {
-                "Content-Type": "application/json",
-            },
-            method: "post",
-            body: postJson,
-        });
-        if (response.status !== 200) {
-            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
-        }
-        return await response.json() as string[];
+        await loadUserSettings();
+        loadingState.value = "running";
     }
 
     async function reloadGraphics() {
-        const response = await fetch(`${defaultBackendBaseUrl.value}/api/getGraphics`, {
+        const formData = new FormData();
+        formData.append("env", envType);
+        const response = await fetch(`${apiHost.value}/api/getGraphics`, {
+            body: formData,
             method: "POST"
         });
         const graphics = (await response.json()) as GraphicsItem[];
@@ -150,6 +145,20 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
 
     async function refreshLora() {
         models.value.lora = await window.electronAPI.refreshLora();
+    }
+
+    async function initWebSettings(postJson: string) {
+        const response = await fetch(`${apiHost.value}/api/init`, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+            method: "post",
+            body: postJson,
+        });
+        if (response.status !== 200) {
+            throw new Error(`Received error response from AI inference backend:\n\n ${await response.status}:${await response.text()}`)
+        }
+        return await response.json() as string[];
     }
 
     async function applyPathsSettings(newPaths: ModelPaths) {
@@ -215,25 +224,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             });
         }
         assertSelectExist();
-    }
 
-    function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
-        lastUsedBackend.value = currentInferenceBackend
-    }
-
-    async function resetLastUsedInferenceBackend(currentInferenceBackend: BackendServiceName) {
-        const lastUsedBackendSnapshot = lastUsedBackend.value
-        if (lastUsedBackendSnapshot === "None" || lastUsedBackendSnapshot === currentInferenceBackend) {
-            return
-        }
-        try {
-            const stopStatus = await backendServices.stopService(lastUsedBackendSnapshot)
-            console.info(`unused service ${lastUsedBackendSnapshot} now in state ${stopStatus}`)
-            const startStatus = await backendServices.startService(lastUsedBackendSnapshot)
-            console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
-        } catch (e) {
-            console.warn(`Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`)
-        }
     }
 
     function getManualModelSettings() {
@@ -301,21 +292,15 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         }
     }
 
-    async function checkModelAlreadyLoaded(params: CheckModelAlreadyLoadedParameters[]) {
-        const response = await fetch(`${defaultBackendBaseUrl.value}/api/checkModelAlreadyLoaded`, {
+    async function checkModelExists(params: CheckModelExistParam[]) {
+        const response = await fetch(`${apiHost.value}/api/checkModelExist`, {
             method: "POST",
-            body: JSON.stringify({ 'data': params}),
+            body: JSON.stringify(params),
             headers: {
                 "Content-Type": "application/json"
             }
         });
-        const parsedResponse = (await response.json()) as ApiResponse & { data: CheckModelAlreadyLoadedResult[] };
-        return parsedResponse.data;
-    }
-
-    async function checkIfHuggingFaceUrlExists(repo_id: string) {
-        const response = await fetch(`${defaultBackendBaseUrl.value}/api/checkHFRepoExists?repo_id=${repo_id}`)
-        const data = await response.json()
+        const data = (await response.json()) as ApiResponse & { exists: CheckModelExistResult[] };
         return data.exists;
     }
 
@@ -325,23 +310,20 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
         presetModel,
         models,
         paths,
-        apiHost: defaultBackendBaseUrl,
+        apiHost,
         graphicsList,
         loadingState,
-        lastUsedBackend,
         errorMessage,
         hdPersistentConfirmation,
-        updateLastUsedBackend,
-        resetLastUsedInferenceBackend,
         initSetup,
         applyPathsSettings,
         applyModelSettings,
+        getManualModelSettings,
         refreshLLMModles,
         refreshSDModles,
         refreshInpaintModles,
         refreshLora,
-        checkModelAlreadyLoaded: checkModelAlreadyLoaded,
-        checkIfHuggingFaceUrlExists,
+        checkModelExists,
         applyPresetModelSettings,
         restorePathsSettings,
     };

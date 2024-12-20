@@ -126,7 +126,7 @@ export module util {
         console.log(`[${util.dateFormat(new Date(), "hh:mm:ss:fff")}] ${message}`);
     }
 
-    export function convertToFormData(data: any) {
+    export function convertToFromData(data: any) {
         const formData = new FormData();
         for (const key in data) {
             const val = data[key];
