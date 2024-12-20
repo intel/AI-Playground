@@ -88,6 +88,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             const zippedGitTargetPath = path.join(comfyUiContainmentDir, "git.zip")
             const executableGitTempPath = path.join(comfyUiContainmentDir, "git")
             const executableGitTargetPath = path.join(self.baseDir, "portable-git")
+            const finalGitExe = path.join(executableGitTargetPath, "cmd", "git.exe")
+
+            if (filesystem.existsSync(finalGitExe)) {
+                self.appLogger.info(`Portable git already installed at ${finalGitExe}`, self.name, true);
+                return finalGitExe;
+            }
 
             const portableGitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
             self.appLogger.info(`fetching portable git from ${portableGitUrl}`, self.name, true)
@@ -129,7 +135,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             }
 
             await self.commonSetupSteps.moveToFinalTarget(executableGitTempPath, executableGitTargetPath)
-            return path.join(executableGitTargetPath, "cmd", "git.exe");
+            return finalGitExe;
         }
 
         async function setupComfyUiBaseService(containmentDir: string, gitExePath: string, pythonEnvDir: string): Promise<string> {
