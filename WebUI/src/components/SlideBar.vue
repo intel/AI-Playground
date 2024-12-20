@@ -102,13 +102,16 @@ function dragMove(e: PointerEvent) {
     if (props.disabled) {
         return;
     }
+    if (e.buttons === 0){
+        dragEnd(e);
+        return;
+    }
     upadteX(e.clientX);
 };
 
 function dragEnd(e: PointerEvent) {
     position.value!.onpointermove = null;
     position.value!.onpointerup = null;
-    upadteX(e.clientX);
 };
 
 function inputChange(e: Event) {
@@ -145,6 +148,6 @@ function changeLimit(e: Event) {
                 <span>{{languages.COM_HIGH}}</span>
             </div>
         </div>
-        <input class="v-slide-val" :value="props.current" type="text" @input="inputChange" @change="changeLimit" />
+        <input :disabled="props.disabled" class="v-slide-val" :value="props.current" type="text" @input="inputChange" @change="changeLimit" />
     </div>
 </template>

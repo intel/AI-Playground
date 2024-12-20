@@ -1,0 +1,2 @@
+mkl-dpcpp==2024.2.1
+dpcpp-cpp-rt==2024.2.1

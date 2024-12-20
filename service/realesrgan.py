@@ -10,7 +10,7 @@ import threading
 import torch
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from torch.nn import functional as F
-import model_config
+import service_config
 import xpu_hijacks
 
 xpu_hijacks.ipex_hijacks()
@@ -50,7 +50,7 @@ class RealESRGANer:
         self.deivce = torch.device(DEVICE)
         model_path: str = os.path.abspath(
             os.path.join(
-                model_config.config.get("ESRGAN"), ESRGAN_MODEL_URL.split("/")[-1]
+                service_config.service_model_paths.get("ESRGAN"), ESRGAN_MODEL_URL.split("/")[-1]
             )
         )
         if model_path.endswith("RealESRGAN_x2plus.pth"):
@@ -86,8 +86,8 @@ class RealESRGANer:
             self.model = self.model.half()
 
     def to(
-        self,
-        device: str,
+            self,
+            device: str,
     ):
         self.model.to(device.replace("xpu", "cuda"))
 
@@ -171,11 +171,11 @@ class RealESRGANer:
                 input_tile_height = input_end_y - input_start_y
                 tile_idx = y * tiles_x + x + 1
                 input_tile = self.img[
-                    :,
-                    :,
-                    input_start_y_pad:input_end_y_pad,
-                    input_start_x_pad:input_end_x_pad,
-                ]
+                             :,
+                             :,
+                             input_start_y_pad:input_end_y_pad,
+                             input_start_x_pad:input_end_x_pad,
+                             ]
 
                 # upscale tile
                 try:
@@ -199,41 +199,41 @@ class RealESRGANer:
 
                 # put tile into output image
                 self.output[
-                    :, :, output_start_y:output_end_y, output_start_x:output_end_x
+                :, :, output_start_y:output_end_y, output_start_x:output_end_x
                 ] = output_tile[
                     :,
                     :,
                     output_start_y_tile:output_end_y_tile,
                     output_start_x_tile:output_end_x_tile,
-                ]
+                    ]
 
     def post_process(self):
         # remove extra pad
         if self.mod_scale is not None:
             _, _, h, w = self.output.size()
             self.output = self.output[
-                :,
-                :,
-                0 : h - self.mod_pad_h * self.scale,
-                0 : w - self.mod_pad_w * self.scale,
-            ]
+                          :,
+                          :,
+                          0 : h - self.mod_pad_h * self.scale,
+                          0 : w - self.mod_pad_w * self.scale,
+                          ]
         # remove prepad
         if self.pre_pad != 0:
             _, _, h, w = self.output.size()
             self.output = self.output[
-                :,
-                :,
-                0 : h - self.pre_pad * self.scale,
-                0 : w - self.pre_pad * self.scale,
-            ]
+                          :,
+                          :,
+                          0 : h - self.pre_pad * self.scale,
+                          0 : w - self.pre_pad * self.scale,
+                          ]
         return self.output
 
     @torch.no_grad()
     def enhance(
-        self,
-        img: np.ndarray | PIL.Image.Image,
-        outscale: int = None,
-        alpha_upsampler="realesrgan",
+            self,
+            img: np.ndarray | PIL.Image.Image,
+            outscale: int = None,
+            alpha_upsampler="realesrgan",
     ):
         if isinstance(img, PIL.Image.Image):
             img = np.array(img)

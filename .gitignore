@@ -1,10 +1,21 @@
 .vscode/
 env/
 package_res/
+build_resources/
+build_envs/
 release/
 WebUI/external/service/
+WebUI/external/workflows_intel/
+WebUI/external/workflows_bak/
 
-installer.nsh
+
 *.exe
 *.7z
 *.whl
+ComfyUI/
+env
+llama-cpp-env/
+*env_tmp/
+*service_tmp/
+*-env/
+portable-git/

@@ -13,6 +13,8 @@ interface ImportMeta {
 }
 
 type electronAPI = {
+    reloadImageWorkflows(): Promise<string[]>
+    updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>,
     openDevTools(): void
     openUrl(url: string): void
     changeWindowMessageFilter(): void;
@@ -41,7 +43,6 @@ type electronAPI = {
     webServiceExit(callback: (serviceName: string, normalExit: string) => void): void;
     existsPath(path: string): Promise<boolean>;
     getInitSetting(): Promise<SetupData>
-    getPythonBackendStatus(): Promise<BackendStatus>
     updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>,
     restorePathsSettings():Promise<void>,
     refreshSDModles(): Promise<string[]>,
@@ -53,17 +54,22 @@ type electronAPI = {
     getDownloadedInpaintModels(): Promise<string[]>,
     getDownloadedLoras(): Promise<string[]>,
     getDownloadedLLMs(): Promise<string[]>,
+    getDownloadedGGUFLLMs(): Promise<string[]>,
     getDownloadedEmbeddingModels(): Promise<string[]>,
     openImageWithSystem(url: string): void,
     selecteImage(url: string): void,
     setFullScreen(enable: boolean): void,
-    onReportError(callback: (errorMessage: string) => void): void,
-    onDebugLog(callback: (data: { level: 'error' | 'info', source: 'ai-backend', message: string}) => void): void,
+    onDebugLog(callback: (data: { level: 'error' | 'warn' | 'info', source: 'ai-backend', message: string}) => void): void,
+    wakeupComfyUIService(): void,
+    getServices(): Promise<ApiServiceInformation[]>,
+    sendStartSignal(serviceName: string): Promise<BackendStatus>,
+    sendStopSignal(serviceName: string): Promise<BackendStatus>,
+    sendSetUpSignal(serviceName: string): void
+    onServiceSetUpProgress(callback: (data: SetupProgress) => void): void,
+    onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void,
 };
 
-type PythonBackendStatus = {
-    status: "running" | "stopped"
-}
+type SetupProgress = {serviceName: BackendServiceName, step: string, status: "executing"|"failed"|"success", debugMessage: string}
 
 type Chrome = {
     webview: WebView;
@@ -105,6 +111,7 @@ type ApiResponse = {
     code: number;
     message: string;
 };
+
 
 type KVObject = {
     [key: string]: any;
@@ -284,21 +291,32 @@ type NumberRange = {
 
 type DownloadFailedParams = { type: "error" | "cancelConfrim" | "cancelDownload" | "conflict", error?: any }
 
-type CheckModelExistParam = {
+type CheckModelAlreadyLoadedParameters = {
     repo_id: string;
-    type: number
+    type: number;
+    backend: BackendType;
+    additionalLicenseLink?: string;
 }
 
-type DownloadModelParam = CheckModelExistParam
+type BackendType = "comfyui" | "default" | "llama_cpp"
 
-type DownloadModelRender = { size: string, gated?: boolean } & CheckModelExistParam
+type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
-type CheckModelExistResult = {
-    exist: boolean
-} & CheckModelExistParam
+type DownloadModelRender = { size: string, gated?: boolean, accessGranted?: boolean } & DownloadModelParam
 
-type CheckModelSizeResult = {
-    size: string
-} & CheckModelExistParam
+type ComfyUICustomNodesRequestParameters = {
+    username: string,
+    repoName: string
+    gitRef?: string
+}
+
+
+type CheckModelAlreadyLoadedResult = {
+    already_loaded: boolean
+} & CheckModelAlreadyLoadedParameters
 
 type SDGenerateState = "no_start" | "input_image" | "load_model" | "load_model_components" | "generating" | "image_out" | "error"
+
+type BackendServiceName = "ai-backend" | "comfyui-backend" | "llamacpp-backend"
+
+type ApiServiceInformation = { serviceName: BackendServiceName, status: BackendStatus , baseUrl: string, port: number, isSetUp: boolean, isRequired: boolean }

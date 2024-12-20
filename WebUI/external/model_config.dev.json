@@ -1,5 +1,6 @@
 {
     "llm": "../service/models/llm/checkpoints",
+    "ggufLLM": "../service/models/llm/ggufLLM",
     "embedding": "../service/models/llm/embedding",
     "stableDiffusion": "../service/models/stable_diffusion/checkpoints",
     "inpaint": "../service/models/stable_diffusion/inpaint",

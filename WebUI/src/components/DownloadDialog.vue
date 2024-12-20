@@ -7,48 +7,77 @@
                     <p>{{ i18nState.DOWNLOADER_CONFRIM_TIP }}</p>
                     <table class="text-left w-full">
                         <thead>
-                            <tr class=" text-gray-300 font-bold">
-                                <td>{{ languages.DOWNLOADER_MODEL }}</td>
+                            <tr class="text-center text-gray-300 font-bold">
+                                <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
                                 <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
                                 <td>{{ languages.DOWNLOADER_GATED }}</td>
                                 <td>{{ languages.DOWNLOADER_INFO }}</td>
+                                <td>{{ languages.DOWNLOADER_LICENSE }}</td>
                                 <td>{{ languages.DOWNLOADER_REASON }}</td>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="item in downloadList" class="">
+                            <tr v-for="item in downloadList">
                                 <td>{{ item.repo_id }}</td>
                                 <td>
+                                  <div class="flex flex-col items-center">
                                     <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
                                     <span v-else>{{ item.size }}</span>
+                                  </div>
                                 </td>
                                 <td>
+                                  <div class="flex flex-col items-center">
                                     <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
-                                    <svg v-if="item.gated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                    </svg>
-                                    <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                    </svg>
+                                    <div v-else>
+                                      <svg v-if="item.gated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                      </svg>
+                                      <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-6 ml-2">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                      </svg>
+                                    </div>
+                                  </div>
                                 </td>
                                 <td>
+                                  <div class="flex flex-col items-center">
                                     <a :href="getInfoUrl(item.repo_id, item.type)" target="_blank"
                                         class="text-blue-500 text-sm">
                                         {{ i18nState.DOWNLOADER_TERMS }}
                                     </a>
+                                  </div>
                                 </td>
-                                <td class="text-sm text-green-400">
+                               <td>
+                                 <div class="flex flex-col items-center" v-if="item.additionalLicenseLink !== undefined">
+                                  <a :href="item.additionalLicenseLink" target="_blank"
+                                     class="text-blue-500 text-sm">
+                                    {{ i18nState.DOWNLOADER_TERMS }}
+                                  </a>
+                                 </div>
+                                 <div class ="flex flex-col items-center" v-else>
+                                   -
+                                 </div>
+                                </td>
+                                <td class="flex flex-col items-center text-sm text-green-400">
                                     {{ getFunctionTip(item.type) }}
                                 </td>
                             </tr>
                         </tbody>
                     </table>
-                    <div v-if="downloadList.some((i) => i.gated)" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
-                        <span class="font-bold mx-4">{{ languages.DOWNLOADER_GATED_INFO }}</span>
-                        <ul>
-                            <li v-if="!models.hfTokenIsValid" class="text-left">{{ languages.DOWNLOADER_GATED_TOKEN }}</li>
-                            <li class="text-left">{{ languages.DOWNLOADER_GATED_ACCEPT }}</li>
-                        </ul>
+                    <div v-if="downloadList.some((i) => i.gated && !i.accessGranted) && downloadList.length === 1" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
+                        <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO_SINGLE }}</span>
+                        <span class="text-left">
+                          {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : "" }}
+                          {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE : "" }}
+                          {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT_SINGLE : "" }}
+                        </span>
+                    </div>
+                    <div v-if="downloadList.some((i) => i.gated && !i.accessGranted) && downloadList.length > 1" class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg">
+                      <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO }}</span>
+                      <span class="text-left">
+                        {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : "" }}
+                        {{ downloadList.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : "" }}
+                        {{ downloadList.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT : "" }}
+                      </span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button class="v-checkbox-control flex-none w-5 h-5"
@@ -60,13 +89,13 @@
                         <button @click="cancelConfirm" class="bg-color-control-bg  py-1 px-4 rounded">{{
                             i18nState.COM_CANCEL
                         }}</button>
-                        <button @click="confirmDownload" :disabled="sizeRequesting || !readTerms"
+                        <button @click="confirmDownload" :disabled="sizeRequesting || !readTerms || downloadList.every((i) => !i.accessGranted)"
                             class="bg-color-active py-1 px-4 rounded">{{
                                 i18nState.COM_CONFIRM
                             }}</button>
                     </div>
                 </div>
-                <div v-else="hashError" class="flex flex-col items-center justify-center gap-4">
+                <div v-else-if="hashError" class="flex flex-col items-center justify-center gap-4">
                     <p>{{ errorText }}</p>
                     <button @click="close" class="bg-red-500 py-1 px-4">{{ i18nState.COM_CLOSE }}</button>
                 </div>
@@ -111,10 +140,6 @@ const readTerms = ref(false);
 const downloadList = ref<DownloadModelRender[]>([]);
 
 
-onDeactivated(() => {
-    animate.value = false;
-})
-
 function dataProcess(line: string) {
     console.log(line);
     const dataJson = line.slice(5);
@@ -144,13 +169,16 @@ function dataProcess(line: string) {
             break;
         case "error":
             hashError.value = true;
+            abortController?.abort();
+            fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
+            downloadReject && downloadReject({ type: "error", error: errorText.value });
+
             switch (data.err_type) {
                 case "not_enough_disk_space":
                     errorText.value = i18nState.ERR_NOT_ENOUGH_DISK_SPACE.replace("{requires_space}", data.requires_space).replace("{free_space}", data.free_space);
                     break;
                 case "download_exception":
                     errorText.value = i18nState.ERR_DOWNLOAD_FAILED;
-                    toast.error(i18nState.ERR_DOWNLOAD_FAILED);
                     break;
                 case "runtime_error":
                     errorText.value = i18nState.ERROR_RUNTIME_ERROR;
@@ -166,19 +194,21 @@ function dataProcess(line: string) {
 let downloadResolve: undefined | (() => void);
 let downloadReject: ((args: DownloadFailedParams) => void) | undefined
 
-async function showConfirm(downList: DownloadModelParam[], success?: () => void, fail?: (args: DownloadFailedParams) => void) {
+async function showConfirmDialog(downList: DownloadModelParam[], success?: () => void, fail?: (args: DownloadFailedParams) => void) {
     if (downloding) {
         toast.error(i18nState.DOWNLOADER_CONFLICT);
         fail && fail({ type: "conflict" })
         return;
     }
+    sizeRequesting.value = true;
     animate.value = true;
     curDownloadTip.value = i18nState.DOWNLOADER_CONFRIM_TIP;
     showComfirm.value = true;
     hashError.value = false;
     percent.value = 0;
+    taskPercent.value = 0;
     downloadList.value = downList.map((item) => {
-        return { repo_id: item.repo_id, type: item.type, size: "???" }
+        return {  size: "???" , ...item }
     });
     readTerms.value = false;
     downloadResolve = success;
@@ -198,24 +228,33 @@ async function showConfirm(downList: DownloadModelParam[], success?: () => void,
                 "Content-Type": "application/json"
             }
         });
+        const accessResponse = await fetch(`${globalSetup.apiHost}/api/isAccessGranted`, {
+          method: "POST",
+          body: JSON.stringify([downList,models.hfToken]),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
         const sizeData = (await sizeResponse.json()) as ApiResponse & { sizeList: StringKV };
         const gatedData = (await gatedResponse.json()) as ApiResponse & { gatedList: Record<string, boolean> };
+        const accessData = (await accessResponse.json()) as ApiResponse & { accessList: Record<string, boolean> };
         for (const item of downloadList.value) {
             item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || "";
             item.gated = gatedData.gatedList[item.repo_id] || false;
+            item.accessGranted = accessData.accessList[item.repo_id] || false;
         }
-        downloadList.value = downloadList.value;
         sizeRequesting.value = false;
     } catch (ex) {
         fail && fail({ type: "error", error: ex });
+        sizeRequesting.value = false;
     }
 }
 
 function getInfoUrl(repoId: string, type: number) {
     if (type == 4){
-        return "https://github.com/xinntao/Real-ESRGAN" 
+        return "https://github.com/xinntao/Real-ESRGAN"
     }
-    
+
     switch(repoId){
         case "Lykon/dreamshaper-8":
             return "https://huggingface.co/spaces/CompVis/stable-diffusion-license"
@@ -233,11 +272,11 @@ function getInfoUrl(repoId: string, type: number) {
             return "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md"
 
     }
-    
-    return `https://huggingface.co/${repoId}`;
+
+    return `https://huggingface.co/${repoId.split('/').slice(0,2).join('/')}`;
 }
 
-function getFunctionTip(type: number) {
+function getFunctionTip(type: number): string {
     switch (type) {
         case Const.MODEL_TYPE_LLM:
             return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE;
@@ -253,19 +292,22 @@ function getFunctionTip(type: number) {
             return i18nState.DOWNLOADER_FOR_IMAGE_PREVIEW;
         case Const.MODEL_TYPE_ESRGAN:
             return i18nState.DOWNLOADER_FOR_IMAGE_UPSCALE;
+        default:
+            return "Undefined"
     }
 }
 
 function download() {
     downloding = true;
-    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${downloadList.value.length}`;
+    const accessableDownloadList = downloadList.value.filter(item => item.accessGranted === true)
+    allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${accessableDownloadList.length}`;
     percent.value = 0;
     completeCount.value = 0;
     abortController = new AbortController();
     curDownloadTip.value = "";
     fetch(`${globalSetup.apiHost}/api/downloadModel`, {
         method: "POST",
-        body: JSON.stringify(toRaw(downloadList.value)),
+        body: JSON.stringify(toRaw({ 'data': accessableDownloadList})),
         headers: {
             "Content-Type": "application/json",
             ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {})
@@ -294,16 +336,16 @@ function confirmDownload() {
 function cancelDownload() {
     abortController?.abort();
     fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-    emits("close");
     downloadReject && downloadReject({ type: "cancelDownload" });
+    emits("close");
 }
 
 function close() {
-    downloadReject && downloadReject({ type: "error", error: errorText.value });
+    emits("close");
 }
 
 
-defineExpose({ showConfirm, download });
+defineExpose({ showConfirmDialog, download });
 </script>
 <style scoped>
 table {
