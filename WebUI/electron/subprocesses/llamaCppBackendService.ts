@@ -1,3 +1,4 @@
+import {app} from "electron";
 import {getLsLevelZeroPath, LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
@@ -42,7 +43,8 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-            const intelSpecificExtension = existingFileOrError(path.join(this.baseDir, 'llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl'))
+            const intelSpecificExtensionDir = app.isPackaged ? this.baseDir : path.join(__dirname, '../../external');
+            const intelSpecificExtension = existingFileOrError(path.join(intelSpecificExtensionDir, 'llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl'))
             await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
             await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
