@@ -25,7 +25,7 @@ AI Playground alpha and beta installers are currently available downloadable exe
 Starting from v2.0, there is a single packaged installer that works for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground and get it running on their PC. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-*	:new: :boom: AI Playground 2.0 Alpha Preview (all SKUs) - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.0.0a-prev) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.0.0a-prev/AI.Playground-v2.0.0-alpha-prev.exe)
+*	:new: **AI Playground 2.0 Alpha Preview (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.0.0a-prev) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.0.0a-prev/AI.Playground-v2.0.0-alpha-prev.exe) :new:
 
 *	AI Playground 1.22b - [Release Notes and Download Installers](https://github.com/intel/AI-Playground/releases/tag/v1.22beta) 
 <br>Select the appropriate installer for your hardware
@@ -33,14 +33,12 @@ Starting from v2.0, there is a single packaged installer that works for all supp
 ### Installation Process for v2.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
 2. On the first run, you need to install additional backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
-3. Download the Users Guide for application information
-
-*	[AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
+3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
 ### Troubleshooting Installation
 1. **Verify Intel Arc GPU**: Ensure your system has an Intel Arc GPU. Go to your Windows Start Menu, type "Device Manager," and under Display Adapters, check the name of your GPU device. It should describe an Intel Arc GPU. If it says "Intel(R) Graphics," your system does not have a built-in Intel Arc GPU and does not meet the minimum specifications.
 2. **Interrupted Installation**: The online installation for backend components can be interrupted or blocked by an IT network, firewall, or sleep settings. Ensure you are on an open network, with the firewall off, and set sleep settings to stay awake when powered on.
-3. Missing Libraries: Some Windows systems may be missing needed libraries. This can be fixed by installing the 64-bit VC++ redistribution from Microsoft [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170).
+3. **Missing Libraries**: Some Windows systems may be missing needed libraries. This can be fixed by installing the 64-bit VC++ redistribution from Microsoft [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170).
 
 ## Project Development
 ### Checkout Source Code
