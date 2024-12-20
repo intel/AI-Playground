@@ -40,15 +40,15 @@ TBD
 ![](AI-PG_ComponentView.svg)
 
 For the Application with its GUI, an electron App is used. This decomposes into the electron main process and the
-window, displayed to the user. All user interaction is being done via this window The window is running technically from
+window, displayed to the user. All user interaction is being done via this window. The window is running technically from
 within a browser and the GUI is handled using Vue.js. As it runs from within a browser, this component has further
-restrictions, that limit overall, what it can do on its own. Most notable restrictions are: no direct interaction with
+restrictions, that limit overall what it can do on its own. Most notable restrictions are: no direct interaction with
 the filesystem or spawning of subprocesses. Such responsibilities are then mostly solved from within the main process.
-The window and main process component of the electron app thus need the inter process communication of electron.
+The window and main process component of the electron app thus need the inter-process communication of electron.
 
-For Model inference, we use or support popular python libraries such as pytorch or comfyUI. These python environments
-may need to be set up carefully and my need to patched for the intel specific hardware. Where this is required, a intel
-maintained "serviceDirectory" containing the python project, is maintained from within this source code. Other inference
+For AI model inference, we use or support popular Python libraries such as PyTorch or ComfyUI. These Python environments
+may need to be set up carefully and may need to patched for specific Intel hardware. Where this is required, an Intel
+maintained "serviceDirectory" containing the Python project is maintained from within this source code. Other inference
 libraries may be fully loaded from external sources such as GitHub and PyPI.
 
 To transmit the data - both user input prompts from the window as well as model inference responses - inference
@@ -71,7 +71,7 @@ interface of an "apiService", which especially specifies the set up steps needed
     <td>Default AI Playground backend is required for other inference backends</td>
     <td>
         The default inference backend historically has been the only backend and has been used to perform both: model 
-        inference as well huggingface repository interactions. When different inference backends had been introduced and
+        inference as well as huggingface repository interactions. When additional inference backends had been introduced and
         generalized, this was not corrected.<br>
         As other inference backends also rely on the downloading of models, the other services depend on the default backend.
     </td>
@@ -91,7 +91,7 @@ interface of an "apiService", which especially specifies the set up steps needed
         model terms URL.
     </td>
     <td>
-        Publishing of workflows post release is heavily restricted. For comfyUI flows, a broader range of workflows may
+        Publishing of workflows post release is heavily restricted. For ComfyUI flows, a broader range of workflows may
         be published without further assumptions. For default workflows, one may only rely on models already known to AI
         Playground.
     </td>
@@ -105,7 +105,7 @@ interface of an "apiService", which especially specifies the set up steps needed
         rely on ifs and string identifiers to select the backend themselves and at different places
     </td>
     <td>
-        Code is more convoluted as needed, seemingly simple changes are not safe of side effects or suddenly expensive to
+        Code is more convoluted than needed, seemingly simple changes are not safe from side effects or suddenly expensive to
         implement. This was increasingly notable during en- and disabling of certain inference features in order to safe
         computational resources.
     </td>
