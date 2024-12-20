@@ -45,74 +45,67 @@ TROUBLESHOOTING INSTALLATION:
 ## Project Development
 ### Checkout Source Code
 
+To get started, clone the repository and navigate to the project directory:
+
 ```cmd
 git clone -b dev https://github.com/intel/AI-Playground.git
 cd AI-Playground
 ```
 
-### Dev Environment Setup (backend, python)
+### Install Node.js Dependencies
 
-1. Create and switch the conda environment and go to the service directory.
+1. Install the Node.js development environment from (Node.js)[https://nodejs.org/en/download].
 
-```cmd
-conda create -n aipg_xpu python=3.11 -y
-conda activate aipg_xpu
-conda install libuv -y
-
-cd service
-
-@REM for Desktop-dGPU (e.g. A770)
-pip install -r requirements-arc.txt
-
-@REM for Intel Core Ultra-H (MTL)
-pip install -r requirements-ultra.txt
-```
-
-2. Check whether the XPU environment is correct
+2. Navigate to the `WebUI` directory and install all Node.js dependencies:
 
 ```cmd
-python -c "import torch; import intel_extension_for_pytorch as ipex; print(torch.__version__); print(ipex.__version__); [print(f'[{i}]: {torch.xpu.get_device_properties(i)}') for i in range(torch.xpu.device_count())];"
-```
-
-Example output:
-
-```txt
-2.1.0.post3+cxx11.abi
-2.1.40+xpu
-[0]: _DeviceProperties(name='Intel(R) Arc(TM) Graphics', platform_name='Intel(R) Level-Zero', dev_type='gpu', driver_version='1.3.29283', has_fp64=1, total_memory=14765MB, max_compute_units=112, gpu_eu_count=112)
-```
-
-
-### Linking Dev Environment to Project Environment
-
-1. Switch to the root directory of the project. (AI-Playground)
-
-2. Run the following command to view the path of the conda virtual environment
-
-on windows
-```
-conda env list|findstr aipg_xpu
-```
-
-3. Based on the obtained environment path, run the following command to create an env file link
-on windows
-```
-mklink /J "./env" "{aipg_xpu_env_path}"
-```
-
-### WebUI (nodejs + electron)
-
-1. Install Nodejs development environment, you can get it from https://nodejs.org/en/download.
-
-2. Switch to the WebUI directory and install all Nodejs dependencies. 
-```
+cd WebUI
 npm install
 ```
 
-3. In the WebUI directory, run the below command to get started with development
+### Prepare Python Environment
+
+1. Install Miniforge to manage your Conda environment: https://github.com/conda-forge/miniforge
+
+2. Create a Conda environment with Python 3.11 and libuv:
+```
+conda create -n cp311_libuv python=3.11 libuv -y
+```
+
+3. Locate the path to your newly created Conda environment:
+```
+conda env list | findstr cp311_libuv
+```
+
+4. In the `WebUI` directory, execute the `fetch-build-resources` script, replacing `<path_to_cp311_libuv_conda_env>` with the actual path you copied in the previous step:
+```
+npm run fetch-build-resrouces -- --conda_env_dir=<path_to_cp311_libuv_conda_env>
+```
+
+5. Run the `prepare-build` script:
+```
+npm run prepare-build
+```
+
+You should now have a basic Python environment located at `build-envs\online\prototype-python-env`.
+
+### Launch the application
+
+To start the application in development mode, run:
+
 ```
 npm run dev
 ```
+
+### (Optional) Build the installer
+
+To build the installer, run:
+
+```
+npm run build
+```
+
+The installer executable will be located in the `release` folder.
 
 ## Model Support
 AI Playground supports PyTorch LLM, SD1.5, and SDXL models. AI Playground does not ship with any models but does make  models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
