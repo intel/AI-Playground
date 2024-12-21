@@ -214,12 +214,17 @@ export abstract class LongLivedPythonApiService implements ApiService {
     private selectedDeviceId: number = -1
 
     async getAllLevelZeroDevices(envDir: string): Promise<LsLevelZeroDevice[]> {
-        console.log('ls level zero executed in', envDir)
-        const lsLevelZeroOut = await spawnProcessAsync(getLsLevelZeroPath(envDir), [], (data: string) => {this.appLogger.logMessageToFile(data, this.name)}, {
-            ONEAPI_DEVICE_SELECTOR: "level_zero:*" // reset selector env to guarantee full device list (and the ordering)
-        });
-        this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
-        return LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
+        try {
+            console.log('ls level zero executed in', envDir)
+            const lsLevelZeroOut = await spawnProcessAsync(getLsLevelZeroPath(envDir), [], (data: string) => {this.appLogger.logMessageToFile(data, this.name)}, {
+                ONEAPI_DEVICE_SELECTOR: "level_zero:*" // reset selector env to guarantee full device list (and the ordering)
+            });
+            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
+            return LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
+        } catch (e) {
+            this.appLogger.error(`Failure to list level zero devices. Error: ${e}`, this.name, true);
+            throw new Error(`Failure to list level zero devices. Error: ${e}`);
+        }
     }
 
     selectBestLevelZeroDevice(): void {

@@ -29,7 +29,7 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
     const stdOut: string[] = [];
 
     spawnedProcess.stdout.on("data", (data: string | Buffer) => { logHandler(data.toString('utf8')); stdOut.push(data.toString('utf8')); });
-    spawnedProcess.stderr.on("data", (data) => { logHandler(data) });
+    spawnedProcess.stderr.on("data", (data) => { logHandler(data.toString('utf8')) });
 
     return new Promise<string>((resolve, reject) => {
         spawnedProcess.on("exit", (code) => {
@@ -38,6 +38,9 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
             } else {
                 reject(new Error(`command ${command} ${args} failed ${code}`));
             }
+        });
+        spawnedProcess.on("error", (err) => {
+            reject(err);
         });
     });
 }

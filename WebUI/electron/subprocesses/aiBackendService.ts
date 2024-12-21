@@ -3,6 +3,7 @@ import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
 import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService } from "./apiService.ts";
 import { existingFileOrError } from './osProcessHelper.ts';
+import { PipService, UvPipService, LsLevelZeroService } from './service.ts';
 
 
 export class AiBackendService extends LongLivedPythonApiService {
@@ -16,37 +17,36 @@ export class AiBackendService extends LongLivedPythonApiService {
     serviceIsSetUp = () => filesystem.existsSync(this.pythonExe);
     isSetUp = this.serviceIsSetUp();
 
+    readonly lsLevelZero = new LsLevelZeroService(this.pythonEnvDir);
+    readonly pip = new PipService(this.pythonEnvDir);
+    readonly uvPip = new UvPipService(this.pythonEnvDir);
+
     async *set_up(): AsyncIterable<SetupProgress> {
         this.setStatus('installing')
         this.appLogger.info("setting up service", this.name)
         const self = this
 
         try {
-            yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
+            yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up environment"};
+            await this.pip.ensureInstalled();
+            await this.uvPip.ensureInstalled();
+            await this.lsLevelZero.ensureInstalled();
 
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
-            const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
-
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceArch = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
+            const deviceArch = await self.lsLevelZero.detectDevice();
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceArch}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const deviceSpecificRequirements = existingFileOrError(path.join(self.serviceDir, `requirements-${deviceArch}.txt`))
-            const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+            await this.pip.run(["install", "-r", deviceSpecificRequirements]);
             if (deviceArch === "bmg") {
                 const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+                await this.pip.run(["install", intelSpecificExtension]);
             }
 
-            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements, {disableUv: true})
-            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
+            const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+            await this.uvPip.run(["install", "-r", commonRequirements]);
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
             this.setStatus('notYetStarted')
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
