@@ -278,12 +278,17 @@ export abstract class LongLivedPythonApiService implements ApiService {
         },
 
         getDeviceSelectorEnv: async () => {
-            if (this.selectedDeviceId === -1) {
-                this.allLevelZeroDevices = await this.getAllLevelZeroDevices(this.lsLevelZeroDir);
-                this.selectBestLevelZeroDevice();
+            try {
+                if (this.selectedDeviceId === -1) {
+                    this.allLevelZeroDevices = await this.getAllLevelZeroDevices(this.lsLevelZeroDir);
+                    this.selectBestLevelZeroDevice();
+                }
+                this.appLogger.info(`Setting device selector to level_zero:${this.selectedDeviceId}`, this.name)
+                return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceId}` }
+            } catch (e) {
+                this.appLogger.error(`Failure to set device selector. Error: ${e}`, this.name, true)
+                return { ONEAPI_DEVICE_SELECTOR: "level_zero:*" }
             }
-            this.appLogger.info(`Setting device selector to level_zero:${this.selectedDeviceId}`, this.name)
-            return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceId}` }
         },
 
         copyArchetypePythonEnv: async (targetDir: string) => {
