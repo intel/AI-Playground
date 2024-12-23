@@ -4,23 +4,23 @@ import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import * as filesystem from 'fs-extra'
 import {existingFileOrError} from './osProcessHelper.ts'
+import { LsLevelZeroService, UvPipService } from "./service.ts";
 
 export class LlamaCppBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "LlamaCPP"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`));
-    readonly pythonExe = this.getPythonPath(this.pythonEnvDir)
+    // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
     readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, "ai-backend-env"));
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     readonly isRequired = false;
 
     healthEndpointUrl = `${this.baseUrl}/health`
 
-    private getPythonPath(basePythonEnvDir: string): string {
-        return path.resolve(path.join(basePythonEnvDir, "python.exe"))
-    }
+    readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir);
+    readonly uvPip = new UvPipService(this.pythonEnvDir);
+    readonly python = this.uvPip.python;
 
     serviceIsSetUp(): boolean {
-        return filesystem.existsSync(this.pythonExe)
+        return filesystem.existsSync(this.python.getExePath());
     }
 
     isSetUp = this.serviceIsSetUp();
@@ -32,26 +32,20 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up python environment"};
+            await this.lsLevelZero.ensureInstalled();
+            await this.uvPip.ensureInstalled();
 
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
-            const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
-
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceId = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
-            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceId}`};
+            const deviceArch = await self.lsLevelZero.detectDevice();
+            yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceArch}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
             const intelSpecificExtensionDir = app.isPackaged ? this.baseDir : path.join(__dirname, '../../external');
             const intelSpecificExtension = existingFileOrError(path.join(intelSpecificExtensionDir, 'llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl'))
-            await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
-            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, commonRequirements)
+            await this.uvPip.pip.run(["install", intelSpecificExtension]);
+            await this.uvPip.run(["install", "-r", commonRequirements]);
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
 
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
             this.setStatus('notYetStarted')
             yield {serviceName: self.name, step: "end", status: "success", debugMessage: `service set up completely`};
         } catch (e) {
@@ -70,7 +64,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
             ...await this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
-        const apiProcess = spawn(this.pythonExe, ["llama_web_api.py", "--port", this.port.toString()], {
+        const apiProcess = spawn(this.python.getExePath(), ["llama_web_api.py", "--port", this.port.toString()], {
             cwd: this.serviceDir,
             windowsHide: true,
             env: Object.assign(process.env, additionalEnvVariables)
