@@ -57,7 +57,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly lsLevelZeroDir: string
     abstract readonly serviceDir: string
     abstract readonly pythonExe: string
-    isSetUp: boolean;
+    abstract isSetUp: boolean;
 
     desiredStatus: BackendStatus = "uninitializedStatus"
     currentStatus: BackendStatus = "uninitializedStatus"
@@ -70,7 +70,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
         this.settings = settings
-        this.isSetUp = this.serviceIsSetUp()
     }
 
     abstract serviceIsSetUp(): boolean
