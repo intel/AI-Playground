@@ -3,16 +3,11 @@ import path from "node:path";
 import {app, BrowserWindow} from "electron";
 import {appLoggerInstance} from "../logging/logger.ts";
 import fs from "fs";
-import {copyFileWithDirs, existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import * as filesystem from "fs-extra";
-import {z} from "zod";
-import {getArchPriority, getDeviceArch} from "./deviceArch.ts";
 
 export const aiBackendServiceDir = () => path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
 
 const ipexWheel = "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
-export const ipexIndex = 'https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/'
-export const ipexVersion = 'intel-extension-for-pytorch==2.3.110.post0+xpu'
 
 export interface ApiService {
     readonly name: string
