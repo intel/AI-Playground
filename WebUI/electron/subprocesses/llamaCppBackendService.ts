@@ -1,5 +1,5 @@
 import {app} from "electron";
-import {getLsLevelZeroPath, LongLivedPythonApiService} from "./apiService.ts";
+import {LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import * as filesystem from 'fs-extra'
@@ -61,7 +61,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
+            ...await this.lsLevelZero.getDeviceSelectorEnv(),
         };
 
         const apiProcess = spawn(this.python.getExePath(), ["llama_web_api.py", "--port", this.port.toString()], {

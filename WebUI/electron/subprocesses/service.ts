@@ -10,7 +10,7 @@ class ServiceCheckError extends Error {
     readonly component: string
     readonly stage: string
 
-    constructor(component: string, stage: string = "main") {
+    constructor(component: string, stage: string = "all") {
         super(`Service ${component} check failed at stage ${stage}`);
         this.name = "ServiceCheckError";
         this.component = component
@@ -184,14 +184,11 @@ export class PipService extends ExecutableService {
         }
 
         switch (checkError.stage) {
-        case "main":
+        default:
             await this.getPip()
             // fallthrough
-        case "pkg_resources":
+        case "setuptools":
             await this.run(["install", "setuptools"])
-            break
-        default:
-            throw new Error(`unknown stage ${checkError.stage}`)
         }
     }
 
@@ -285,7 +282,7 @@ export class LsLevelZeroService extends ExecutableService {
                 throw e
             if (e instanceof Error && e.message.includes("requirements check failed"))
                 throw new ServiceCheckError(this.name, "requirements")
-            throw new ServiceCheckError(this.name)
+            throw new ServiceCheckError(this.name, "main")
         }
     }
 
@@ -303,14 +300,12 @@ export class LsLevelZeroService extends ExecutableService {
         }
 
         switch (checkError.stage) {
+        default:
         case "requirements":
             await this.installRequirements()
             // fallthrough
         case "main":
             await this.cloneLsLevelZero()
-            break
-        default:
-            throw new Error(`unknown stage ${checkError.stage}`)
         }
     }
 
@@ -350,7 +345,7 @@ export class LsLevelZeroService extends ExecutableService {
         }
     }
 
-    selectBestDevice(): number {
+    private selectBestDevice(): number {
         let priority = -1;
         for (let i = 0; i < this.allLevelZeroDevices.length; i++) {
             const device = this.allLevelZeroDevices[i];

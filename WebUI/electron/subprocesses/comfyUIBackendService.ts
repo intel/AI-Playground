@@ -1,4 +1,4 @@
-import {getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService} from "./apiService.ts";
+import {LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
@@ -7,6 +7,7 @@ import {existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
 import { aiBackendServiceDir } from "./apiService.ts";
 import {updateIntelWorkflows} from "./updateIntelWorkflows.ts";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import { LsLevelZeroService } from "./service.ts";
 
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -14,8 +15,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "ComfyUI"));
     readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`));
     readonly lsLevelZeroDir = this.pythonEnvDir
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
-    readonly pythonExe = getPythonPath(this.pythonEnvDir)
+    readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir);
+    readonly uvPip = this.lsLevelZero.uvPip;
     healthEndpointUrl = `${this.baseUrl}/queue`
 
     private readonly comfyUIStartupParameters = this.settings.comfyUiParameters ? this.settings.comfyUiParameters : [
@@ -146,7 +147,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             await cloneGitStep(gitExePath, comfyUiRepoUrl, comfyUICloneTarget)
             await checkoutGitRefStep(gitExePath, comfyUICloneTarget, comfyUiGitRef)
             const requirementsTextPath = path.join(comfyUICloneTarget, 'requirements.txt')
-            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvDir, requirementsTextPath)
+            await self.uvPip.run(["install", "-r", requirementsTextPath])
             return comfyUICloneTarget;
         }
 
@@ -172,26 +173,20 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up comfyUI environment"};
             
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning archetype python env`};
-            const pythonEnvContainmentDir = await self.commonSetupSteps.copyArchetypePythonEnv(path.resolve(path.join(self.baseDir, `${self.name}-env_tmp`)))
-            yield {serviceName: self.name, step: `preparing work directory`, status: "executing", debugMessage: `Cloning complete`};
+            await self.lsLevelZero.ensureInstalled();
 
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `Trying to identify intel hardware`};
-            const deviceArch = await self.commonSetupSteps.detectDevice(pythonEnvContainmentDir)
+            const deviceArch = await self.lsLevelZero.detectDevice();
             yield {serviceName: self.name, step: `Detecting intel device`, status: "executing", debugMessage: `detected intel hardware ${deviceArch}`};
 
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `installing dependencies`};
             const deviceSpecificRequirements = existingFileOrError(path.join(aiBackendServiceDir(), `requirements-${deviceArch}.txt`))
-            await self.commonSetupSteps.uvPipInstallRequirementsTxtStep(pythonEnvContainmentDir, deviceSpecificRequirements, {disableUv: true})
+            await self.uvPip.pip.run(["install", "-r", deviceSpecificRequirements]);
             if (deviceArch === "bmg") {
                 const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-                await self.commonSetupSteps.uvInstallDependencyStep(pythonEnvContainmentDir, intelSpecificExtension)
+                await self.uvPip.pip.run(["install", intelSpecificExtension]);
             }
             yield {serviceName: self.name, step: `install dependencies`, status: "executing", debugMessage: `dependencies installed`};
-
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moving python environment to target place at ${self.pythonEnvDir}`};
-            await self.commonSetupSteps.moveToFinalTarget(pythonEnvContainmentDir, self.pythonEnvDir)
-            yield {serviceName: self.name, step: `move python environment to target`, status: "executing", debugMessage: `Moved to ${self.pythonEnvDir}`};
 
             yield {serviceName: self.name, step: `preparing service work directory`, status: "executing", debugMessage: `Creating workdir`};
             const comfyUiServiceContainmentDir = await setUpServiceWorkEnv()
@@ -229,12 +224,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
+            ...await this.lsLevelZero.getDeviceSelectorEnv(),
         };
 
         const parameters = ["main.py", "--port", this.port.toString(), "--preview-method", "auto", "--output-directory", "../service/static/sd_out", ...this.comfyUIStartupParameters]
         this.appLogger.info(`starting comfyui with ${JSON.stringify({parameters, additionalEnvVariables})}`, this.name, true)
-        const apiProcess = spawn(this.pythonExe, parameters, {
+        const apiProcess = spawn(this.uvPip.python.getExePath(), parameters, {
             cwd: this.serviceDir,
             windowsHide: true,
             env: Object.assign(process.env, additionalEnvVariables)

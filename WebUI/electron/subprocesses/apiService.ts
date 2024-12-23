@@ -10,17 +10,6 @@ import {getArchPriority, getDeviceArch} from "./deviceArch.ts";
 
 export const aiBackendServiceDir = () => path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
 
-const LsLevelZeroDeviceSchema = z.object({id: z.number(), name: z.string(), device_id: z.number()});
-const LsLevelZeroOutSchema = z.array(LsLevelZeroDeviceSchema).min(1);
-type LsLevelZeroDevice = z.infer<typeof LsLevelZeroDeviceSchema>;
-
-export function getLsLevelZeroPath(basePythonEnvDir: string): string {
-    return path.resolve(path.join(basePythonEnvDir, "Library/bin/ls_level_zero.exe"));
-}
-export function getPythonPath(basePythonEnvDir: string): string {
-    return path.resolve(path.join(basePythonEnvDir, "python.exe"))
-}
-
 const ipexWheel = "intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl"
 export const ipexIndex = 'https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/'
 export const ipexVersion = 'intel-extension-for-pytorch==2.3.110.post0+xpu'
@@ -133,7 +122,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
             this.isSetUp = false
             this.encapsulatedProcess?.kill()
             this.encapsulatedProcess = null
-            throw error;
         } finally {
             this.win.webContents.send("serviceInfoUpdate", this.get_info());
         }
@@ -210,152 +198,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
     }
 
-    private allLevelZeroDevices: {id: number, name: string, device_id: number}[] = []
-    private selectedDeviceId: number = -1
-
-    async getAllLevelZeroDevices(envDir: string): Promise<LsLevelZeroDevice[]> {
-        try {
-            console.log('ls level zero executed in', envDir)
-            const lsLevelZeroOut = await spawnProcessAsync(getLsLevelZeroPath(envDir), [], (data: string) => {this.appLogger.logMessageToFile(data, this.name)}, {
-                ONEAPI_DEVICE_SELECTOR: "level_zero:*" // reset selector env to guarantee full device list (and the ordering)
-            });
-            this.appLogger.info(`ls_level_zero.exe output: ${lsLevelZeroOut}`, this.name)
-            return LsLevelZeroOutSchema.parse(JSON.parse(lsLevelZeroOut));
-        } catch (e) {
-            this.appLogger.error(`Failure to list level zero devices. Error: ${e}`, this.name, true);
-            throw new Error(`Failure to list level zero devices. Error: ${e}`);
-        }
-    }
-
-    selectBestLevelZeroDevice(): void {
-        let priority = -1;
-        let arch = "unknown";
-        for (const device of this.allLevelZeroDevices) {
-            arch = getDeviceArch(device.device_id);
-            if (arch == "unknown") {
-                continue;
-            }
-            const newPriority = getArchPriority(arch);
-            if (newPriority > priority) {
-                this.selectedDeviceId = device.id;
-                priority = newPriority;
-            }
-        }
-        const selectedDevice = this.allLevelZeroDevices[this.selectedDeviceId];
-        this.appLogger.info(`Selected device #${selectedDevice.id}: ${selectedDevice.name} with device_id: 0x${selectedDevice.device_id.toString(16)}, arch: ${arch}`, this.name)
-    }
-
     protected commonSetupSteps = {
-
-        detectDeviceArcMock: async (pythonEnvContainmentDir: string): Promise<string> => {
-            this.appLogger.info("Detecting intel deviceID", this.name)
-            this.appLogger.info("Copying ls_level_zero.exe", this.name)
-            const lsLevelZeroBinaryTargetPath = getLsLevelZeroPath(pythonEnvContainmentDir)
-            const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
-            await copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
-
-            return 'arc';
-        },
-
-        detectDevice: async (pythonEnvContainmentDir: string): Promise<string> => {
-            try {
-                if (this.selectedDeviceId === -1) {
-                    this.appLogger.info("Detecting intel deviceID", this.name)
-                    // copy ls_level_zero.exe from service/tools to env/Library/bin for SYCL environment
-                    this.appLogger.info("Copying ls_level_zero.exe", this.name)
-                    const lsLevelZeroBinaryTargetPath = getLsLevelZeroPath(pythonEnvContainmentDir)
-                    const src = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "tools/ls_level_zero.exe")));
-                    await copyFileWithDirs(src, lsLevelZeroBinaryTargetPath);
-
-                    this.appLogger.info("Fetching requirements for ls_level_zero.exe", this.name)
-                    const pythonExe = existingFileOrError(getPythonPath(pythonEnvContainmentDir))
-                    const lsLevelZeroRequirements = existingFileOrError(path.resolve(path.join(aiBackendServiceDir(), "requirements-ls_level_zero.txt")));
-                    await spawnProcessAsync(pythonExe, ["-m", "uv", "pip", "install", "-r", lsLevelZeroRequirements], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                    this.allLevelZeroDevices = await this.getAllLevelZeroDevices(pythonEnvContainmentDir);
-                    this.selectBestLevelZeroDevice();
-                }
-                const selectedDevice = this.allLevelZeroDevices[this.selectedDeviceId];
-                return getDeviceArch(selectedDevice.device_id);
-            } catch (e) {
-                this.appLogger.error(`Failure to identify intel hardware. Error: ${e}`, this.name, true);
-                throw new Error(`Failure to identify intel hardware. Error: ${e}`);
-            }
-        },
-
-        getDeviceSelectorEnv: async () => {
-            try {
-                if (this.selectedDeviceId === -1) {
-                    this.allLevelZeroDevices = await this.getAllLevelZeroDevices(this.lsLevelZeroDir);
-                    this.selectBestLevelZeroDevice();
-                }
-                this.appLogger.info(`Setting device selector to level_zero:${this.selectedDeviceId}`, this.name)
-                return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceId}` }
-            } catch (e) {
-                this.appLogger.error(`Failure to set device selector. Error: ${e}`, this.name, true)
-                return { ONEAPI_DEVICE_SELECTOR: "level_zero:*" }
-            }
-        },
-
-        copyArchetypePythonEnv: async (targetDir: string) => {
-            const archtypePythonEnv = existingFileOrError(this.prototypicalPythonEnv)
-            this.appLogger.info(`Cloning archetype python env ${archtypePythonEnv} into ${targetDir}`, this.name, true)
-            try {
-                if (filesystem.existsSync(targetDir)) {
-                    this.appLogger.info(`Cleaning up previously containment directory at ${targetDir}`, this.name, true)
-                    await fs.promises.rm(targetDir, {recursive: true, force: true})
-                }
-                await copyFileWithDirs(archtypePythonEnv, targetDir)
-                return targetDir;
-            } catch (e) {
-                this.appLogger.error(`Failure during set up of workspace. Error: ${e}`, this.name, true)
-                throw new Error(`Failure during set up of workspace. Error: ${e}`)
-            }
-        },
-
-        installUv: async (pythonEnvDir: string) => {
-            this.appLogger.info(`installing uv into env ${pythonEnvDir}`, this.name, true)
-            try {
-                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
-                const getPipScript = existingFileOrError(path.join(pythonEnvDir, 'get-pip.py'))
-                await spawnProcessAsync(pythonExe, [getPipScript], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", "uv"], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                this.appLogger.info(`Successfully installed uv into env ${pythonEnvDir}`, this.name, true)
-            } catch (e) {
-                this.appLogger.error(`Failed to install uv for env ${pythonEnvDir}. Error: ${e}`, this.name, true)
-                throw new Error(`Failed to install uv. Error: ${e}`);
-            }
-        },
-
-        uvPipInstallRequirementsTxtStep: async (pythonEnvDir: string, requirementsTextPath: string, {skipOnMissingRequirementsTxt = false, disableUv = false} = {}) => {
-            if (skipOnMissingRequirementsTxt && !fs.existsSync(requirementsTextPath)) {
-                this.appLogger.info(`No requirements.txt for ${requirementsTextPath} - skipping`, this.name, true)
-                return
-            }
-            try {
-                const commands = disableUv ? ["-m", "pip", "install", "-r", requirementsTextPath] : ["-m", "uv", "pip", "install", "-r", requirementsTextPath, "--index-strategy", "unsafe-best-match"];
-                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
-                this.appLogger.info(`Installing python dependencies for ${pythonEnvDir}`, this.name, true)
-                await spawnProcessAsync(pythonExe, commands, (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                this.appLogger.info(`Successfully installed python dependencies for ${pythonEnvDir}`, this.name, true)
-            } catch (e) {
-                this.appLogger.error(`Failure during installation of python dependencies for ${pythonEnvDir}. Error: ${e}`, this.name, true)
-                throw new Error(`Failed to install python dependencies for ${pythonEnvDir}. Error: ${e}`)
-            }
-        },
-
-        uvInstallDependencyStep: async (pythonEnvDir: string, dependency: string, extraIndex?: string) => {
-            try {
-                const pythonExe = existingFileOrError(getPythonPath(pythonEnvDir))
-                this.appLogger.info(`Installing dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
-                const extraIndexArgs = extraIndex ? ["--extra-index-url", extraIndex] : []
-                await spawnProcessAsync(pythonExe, ["-m", "pip", "install", dependency, ...extraIndexArgs], (data: string) => {this.appLogger.logMessageToFile(data, this.name)})
-                this.appLogger.info(`Successfully installed of dependency ${dependency} for ${pythonEnvDir}`, this.name, true)
-            } catch (e) {
-                this.appLogger.error(`Failure during installation of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`, this.name, true)
-                throw new Error(`Failed to install of dependency ${dependency} for ${pythonEnvDir}. Error: ${e}`)
-            }
-        },
-
         moveToFinalTarget: async (src: string, target: string) => {
             this.appLogger.info(`renaming directory ${src} to ${target}`, this.name, true)
             try {

@@ -40,7 +40,7 @@ export async function spawnProcessAsync(command: string, args: string[] = [],
             }
         });
         spawnedProcess.on("error", (err) => {
-            reject(err);
+            reject(new Error(`command ${command} ${args} failed with error ${err}`));
         });
     });
 }

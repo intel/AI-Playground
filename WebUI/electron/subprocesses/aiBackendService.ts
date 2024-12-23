@@ -1,7 +1,7 @@
 import * as filesystem from 'fs-extra';
 import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
-import { aiBackendServiceDir, getLsLevelZeroPath, getPythonPath, LongLivedPythonApiService } from "./apiService.ts";
+import { aiBackendServiceDir, LongLivedPythonApiService } from "./apiService.ts";
 import { existingFileOrError } from './osProcessHelper.ts';
 import { PipService, UvPipService, LsLevelZeroService } from './service.ts';
 
@@ -61,7 +61,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             "SYCL_ENABLE_DEFAULT_CONTEXTS": "1",
             "SYCL_CACHE_PERSISTENT": "1",
             "PYTHONIOENCODING": "utf-8",
-            ...await this.commonSetupSteps.getDeviceSelectorEnv(),
+            ...await this.lsLevelZero.getDeviceSelectorEnv(),
         };
 
         const apiProcess = spawn(this.python.getExePath(), ["web_api.py", "--port", this.port.toString()], {
