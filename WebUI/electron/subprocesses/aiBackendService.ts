@@ -7,19 +7,18 @@ import { PipService, UvPipService, LsLevelZeroService } from './service.ts';
 
 
 export class AiBackendService extends LongLivedPythonApiService {
+    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
+    readonly lsLevelZero = new LsLevelZeroService(this.pythonEnvDir);
+    readonly lsLevelZeroDir: string = this.lsLevelZero.dir;
+    readonly uvPip = this.lsLevelZero.uvPip;
+    readonly pip = this.uvPip.pip;
+    readonly python = this.pip.python;
+
     readonly isRequired = true
     readonly serviceDir = aiBackendServiceDir();
-    readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`));
-    readonly pythonExe = getPythonPath(this.pythonEnvDir)
-    readonly lsLevelZeroDir = this.pythonEnvDir
-    readonly lsLevelZeroExe = getLsLevelZeroPath(this.lsLevelZeroDir)
     healthEndpointUrl = `${this.baseUrl}/healthy`
-    serviceIsSetUp = () => filesystem.existsSync(this.pythonExe);
+    serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath());
     isSetUp = this.serviceIsSetUp();
-
-    readonly lsLevelZero = new LsLevelZeroService(this.pythonEnvDir);
-    readonly pip = new PipService(this.pythonEnvDir);
-    readonly uvPip = new UvPipService(this.pythonEnvDir);
 
     async *set_up(): AsyncIterable<SetupProgress> {
         this.setStatus('installing')
@@ -28,8 +27,7 @@ export class AiBackendService extends LongLivedPythonApiService {
 
         try {
             yield {serviceName: self.name, step: "start", status: "executing", debugMessage: "starting to set up environment"};
-            await this.pip.ensureInstalled();
-            await this.uvPip.ensureInstalled();
+            // lsLevelZero will ensure uv and pip are installed
             await this.lsLevelZero.ensureInstalled();
 
             const deviceArch = await self.lsLevelZero.detectDevice();
@@ -66,7 +64,7 @@ export class AiBackendService extends LongLivedPythonApiService {
             ...await this.commonSetupSteps.getDeviceSelectorEnv(),
         };
 
-        const apiProcess = spawn(this.pythonExe, ["web_api.py", "--port", this.port.toString()], {
+        const apiProcess = spawn(this.python.getExePath(), ["web_api.py", "--port", this.port.toString()], {
             cwd: this.serviceDir,
             windowsHide: true,
             env: Object.assign(process.env, additionalEnvVariables)

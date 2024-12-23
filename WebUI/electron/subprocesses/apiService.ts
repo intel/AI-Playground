@@ -56,7 +56,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly pythonEnvDir: string
     abstract readonly lsLevelZeroDir: string
     abstract readonly serviceDir: string
-    abstract readonly pythonExe: string
     abstract isSetUp: boolean;
 
     desiredStatus: BackendStatus = "uninitializedStatus"
