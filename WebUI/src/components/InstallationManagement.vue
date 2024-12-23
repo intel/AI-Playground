@@ -98,8 +98,26 @@
       <div class="dialog-container z-10 pt-10" style="display: flex">
         <p>{{ languages.BACKEND_TERMS_AND_CONDITIONS }}</p>
       </div>
+      <!-- Change Language Settings -->
+      <div class="place-content-end flex gap-2">
+        <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage" class="max-w-40">
+          <template #selected>
+            <div class="flex gap-2 items-center">
+              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span>{{ i18n.currentLanguageName }}</span>
+            </div>
+          </template>
+          <template #list="slotItem">
+            <div class="flex gap-2 items-center">
+              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span>{{ slotItem.item.name }}</span>
+            </div>
+          </template>
+        </drop-selector>
+      </div>
     </div>
   </div>
+
 
 </template>
 
@@ -107,6 +125,8 @@
 import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
+import DropSelector from "@/components/DropSelector.vue";
+import {useI18N} from '@/assets/js/store/i18n';
 
 const emits = defineEmits<{
   (e: "close"): void
@@ -116,6 +136,7 @@ const emits = defineEmits<{
 type ExtendedApiServiceInformation = ApiServiceInformation & { enabled: boolean, isLoading: boolean }
 
 const backendServices = useBackendServices();
+const i18n = useI18N();
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
