@@ -57,7 +57,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     abstract readonly lsLevelZeroDir: string
     abstract readonly serviceDir: string
     abstract readonly pythonExe: string
-    abstract isSetUp: boolean;
+    isSetUp: boolean;
 
     desiredStatus: BackendStatus = "uninitializedStatus"
     currentStatus: BackendStatus = "uninitializedStatus"
@@ -70,6 +70,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.port = port
         this.baseUrl = `http://127.0.0.1:${port}`
         this.settings = settings
+        this.isSetUp = this.serviceIsSetUp()
     }
 
     abstract serviceIsSetUp(): boolean
@@ -80,7 +81,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
     }
 
     updateStatus() {
-        this.isSetUp = this.serviceIsSetUp();
         this.win.webContents.send("serviceInfoUpdate", this.get_info());
     }
 
@@ -124,6 +124,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             } else {
                 this.currentStatus = "failed"
                 this.desiredStatus = "failed"
+                this.isSetUp = false
                 this.appLogger.error(`server ${this.name} failed to boot`, this.name)
                 this.encapsulatedProcess?.kill()
             }
@@ -131,6 +132,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             this.appLogger.error(` failed to start server due to ${error}`, this.name)
             this.currentStatus = "failed"
             this.desiredStatus = "failed"
+            this.isSetUp = false
             this.encapsulatedProcess?.kill()
             this.encapsulatedProcess = null
             throw error;
