@@ -1,4 +1,4 @@
-import {ApiService} from "./apiService.ts";
+import {ApiService} from "./service.ts";
 import {ComfyUiBackendService} from "./comfyUIBackendService.ts";
 import {AiBackendService} from "./aiBackendService.ts";
 import { BrowserWindow } from "electron";

@@ -1,10 +1,9 @@
 import {app} from "electron";
-import {LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import * as filesystem from 'fs-extra'
 import {existingFileOrError} from './osProcessHelper.ts'
-import { LsLevelZeroService, UvPipService } from "./service.ts";
+import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from "./service.ts";
 
 export class LlamaCppBackendService extends LongLivedPythonApiService {
     readonly serviceDir = path.resolve(path.join(this.baseDir, "LlamaCPP"));

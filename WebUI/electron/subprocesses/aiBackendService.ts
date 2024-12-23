@@ -1,9 +1,8 @@
 import * as filesystem from 'fs-extra';
 import { ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
-import { aiBackendServiceDir, LongLivedPythonApiService } from "./apiService.ts";
 import { existingFileOrError } from './osProcessHelper.ts';
-import { PipService, UvPipService, LsLevelZeroService } from './service.ts';
+import { aiBackendServiceDir, LongLivedPythonApiService, LsLevelZeroService } from './service.ts';
 
 
 export class AiBackendService extends LongLivedPythonApiService {

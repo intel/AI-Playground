@@ -1,13 +1,11 @@
-import {LongLivedPythonApiService} from "./apiService.ts";
 import {ChildProcess, spawn} from "node:child_process";
 import path from "node:path";
 import fs from "fs";
 import * as filesystem from "fs-extra";
 import {existingFileOrError, spawnProcessAsync} from "./osProcessHelper.ts";
-import { aiBackendServiceDir } from "./apiService.ts";
 import {updateIntelWorkflows} from "./updateIntelWorkflows.ts";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import { LsLevelZeroService } from "./service.ts";
+import { LsLevelZeroService, LongLivedPythonApiService, aiBackendServiceDir } from "./service.ts";
 
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
