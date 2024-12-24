@@ -1,6 +1,8 @@
+AI Playground is licensed under the MIT (https://github.com/intel/AI-Playground/blob/main/LICENSE). The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third Party Notices file accompanying the software (https://github.com/intel/AI-Playground/blob/main/3rdpartynoticeslicenses.txt).
+
 
 ## Important AI Playground Notices and Disclaimers
-
+ 
 Intel technologies may require enabled hardware, software or service activation. No product or component can be absolutely secure. Your costs and results may vary. Intel does not control or audit third-party data.  You should consult other sources to evaluate accuracy. Intel is committed to respecting human rights and avoiding causing or contributing to adverse impacts on human rights. See Intel’s Global Human Rights Principles (https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Intel’s products and software are intended only to be used in applications that do not cause or contribute to adverse impacts on human rights. The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third-Party Notices file accompanying the software. 
 
 ### Data Privacy. 
@@ -68,8 +70,6 @@ The table below contains links to the licenses for certain third-party models an
 | Latent Consistency Model (LCM) LoRA: SD1.5 | [https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [https://huggingface.co/latent-consistency/lcm-lora-sdv1-5](https://huggingface.co/latent-consistency/lcm-lora-sdv1-5) |
 | Latent Consistency Model (LCM) LoRA:SDXL   | [https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [https://huggingface.co/latent-consistency/lcm-lora-sdxl](https://huggingface.co/latent-consistency/lcm-lora-sdxl)     |
 
-
-© Intel Corporation.  Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries.  Other names and brands may be claimed as the property of others.
 
 
 
