@@ -1,5 +1,5 @@
 import {ChildProcess} from "node:child_process";
-import {app, BrowserWindow} from "electron";
+import {app, BrowserWindow, net} from "electron";
 import fs from "fs";
 import * as filesystem from 'fs-extra';
 import path from "node:path";
@@ -7,6 +7,7 @@ import { appLoggerInstance } from "../logging/logger.ts";
 import { existingFileOrError, spawnProcessAsync } from "./osProcessHelper";
 import { assert } from 'node:console';
 import { getArchPriority, getDeviceArch } from './deviceArch';
+import { createHash } from 'crypto';
 
 class ServiceCheckError extends Error {
     readonly component: string
@@ -84,7 +85,7 @@ export abstract class GenericServiceImpl implements GenericService {
 }
 
 abstract class ExecutableService extends GenericServiceImpl {
-    readonly dir: string
+    dir: string
 
     constructor(name: string, dir: string) {
         super(name)
@@ -374,6 +375,96 @@ export class LsLevelZeroService extends ExecutableService {
     }
 }
 
+export class GitService extends ExecutableService {
+    constructor() {
+        super("git", "")
+        this.dir = path.resolve(path.join(this.baseDir, "portable-git"))
+    }
+
+    getExePath(): string {
+        return path.resolve(path.join(this.dir, "cmd/git.exe"))
+    }
+
+    async run(args: string[] = [], extraEnv?: {}, workDir?: string): Promise<string> {
+        // Explicitly specify the cert file bundled with portable git,
+        // to avoid being affected by the system git configuration.
+        const env = {
+            ...extraEnv,
+            GIT_SSL_CAINFO: path.resolve(path.join(this.dir, "mingw64/etc/ssl/certs/ca-bundle.crt"))
+        }
+        return super.run(args, env, workDir)
+    }
+
+    async check(): Promise<void> {
+        this.log("checking")
+        try {
+            await this.run(["--version"])
+        } catch (e) {
+            this.logError(`failed to check due to ${e}`)
+            throw new ServiceCheckError(this.name)
+        }
+    }
+
+    async install(): Promise<void> {
+        this.log("start installing")
+        await this.downloadGitZip()
+        await this.unzipGit()
+
+        // cleanup
+        if (filesystem.existsSync(this.zipPath)) {
+            filesystem.removeSync(this.zipPath)
+        }
+    }
+
+    async repair(checkError: ServiceCheckError): Promise<void> {
+        assert(checkError.component === this.name)
+        await this.install()
+    }
+
+    // https://github.com/git-for-windows/git/releases/tag/v2.47.1.windows.1
+    readonly remoteUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip"
+    readonly sha256 = "50b04b55425b5c465d076cdb184f63a0cd0f86f6ec8bb4d5860114a713d2c29a"
+    readonly zipPath = path.resolve(path.join(this.baseDir, "portable-git.zip"))
+
+    private async checkGitZip(): Promise<boolean> {
+        if (!filesystem.existsSync(this.zipPath)) {
+            return false;
+        }
+        const sha256sum = await filesystem.readFile(this.zipPath).then((data) => createHash("sha256").update(data).digest("hex"));
+        return sha256sum === this.sha256;
+    }
+
+    private async downloadGitZip(): Promise<void> {
+        this.log("downloading git archive");
+        if (await this.checkGitZip()) {
+            this.log("Using existing git archive");
+            return;
+        }
+
+        // Reuse existing zip if checksum matches
+        if (filesystem.existsSync(this.zipPath)) {
+            this.logError("Removing broken git archive");
+            filesystem.removeSync(this.zipPath);
+        }
+
+        // Using electron net for better proxy support
+        const response = await net.fetch(this.remoteUrl);
+        if (!response.ok || response.status !== 200 || !response.body) {
+            throw new Error(`Failed to download git: ${response.statusText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        await filesystem.writeFile(this.zipPath, Buffer.from(buffer));
+        if (!await this.checkGitZip()) {
+            throw new Error(`Checksum mismatch: ${this.zipPath}`);
+        }
+    }
+
+    private async unzipGit(): Promise<void> {
+        const extract = require("extract-zip");
+        await extract(this.zipPath, {dir: this.dir});
+    }
+}
+
 
 export const aiBackendServiceDir = () => path.resolve(app.isPackaged ? path.join(process.resourcesPath, "service") : path.join(__dirname, "../../../service"));
 
@@ -562,21 +653,4 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
         return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
     }
-
-    protected commonSetupSteps = {
-        moveToFinalTarget: async (src: string, target: string) => {
-            this.appLogger.info(`renaming directory ${src} to ${target}`, this.name, true)
-            try {
-                if (filesystem.existsSync(target)) {
-                    this.appLogger.info(`Cleaning up previously resource directory at ${target}`, this.name, true)
-                    await fs.promises.rm(target, {recursive: true, force: true})
-                }
-                await filesystem.move(src, target)
-                this.appLogger.info(`resources now available at ${target}`, this.name, true)
-            } catch (e) {
-                this.appLogger.error(`Failure to rename ${src} to ${target}. Error: ${e}`, this.name, true)
-                throw new Error(`Failure to rename ${src} to ${target}. Error: ${e}`)
-            }
-        },
-    };
 }
