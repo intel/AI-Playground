@@ -77,7 +77,7 @@ conda env list | findstr cp311_libuv
 
 4. In the `WebUI` directory, execute the `fetch-build-resources` script, replacing `<path_to_cp311_libuv_conda_env>` with the actual path you copied in the previous step:
 ```
-npm run fetch-build-resrouces -- --conda_env_dir=<path_to_cp311_libuv_conda_env>
+npm run fetch-build-resources -- --conda_env_dir=<path_to_cp311_libuv_conda_env>
 ```
 
 5. Run the `prepare-build` script:
