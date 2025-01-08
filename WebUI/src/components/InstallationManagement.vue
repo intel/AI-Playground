@@ -114,6 +114,7 @@
             </div>
           </template>
         </drop-selector>
+        <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
       </div>
     </div>
   </div>
@@ -226,6 +227,10 @@ function getInfoURL(serviceName: string) {
     default:
       return undefined
   }
+}
+
+function openDebug() {
+  window.electronAPI.openDevTools()
 }
 
 function CanCloseInstallations() {

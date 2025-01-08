@@ -1,5 +1,6 @@
 <template>
   <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_GENERAL }}</h2>
     <div class="flex flex-col gap-2">
       <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
       <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage">
@@ -26,7 +27,8 @@
       </div>
     </div>
   </div>
-  <div class="flex flex-col gap-2">
+  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_DEVICES }}</h2>
     <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
     <div class="flex items-center gap-2 flex-wrap">
       <drop-selector :array="globalSetup.graphicsList" @change="changeGraphics">
@@ -46,7 +48,7 @@
     </div>
   </div>
   <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
-    <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_BACKEND }}</h2>
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_BACKEND }}</h2>
     <div class="flex flex-col gap-2">
       <p>{{ languages.SETTINGS_LLM_BACKEND }}</p>
       <div class="flex items-center gap-2">
@@ -94,7 +96,7 @@
     </div>
   </div>
   <div class="text-right my-5">
-    <button @click="openDebug" class="v-radio-block">Open Developer Logs</button>
+    <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
   </div>
 </template>
 <script setup lang="ts">
