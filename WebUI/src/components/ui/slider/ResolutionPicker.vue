@@ -112,7 +112,7 @@ const sliderModel = computed({
 </script>
 
 <template>
-  <div class="flex flex-row justify-between">
+  <div class="flex flex-row justify-between pt-3">
     <span>{{ languages.SETTINGS_MODEL_IMAGE_SIZE }}</span>
     <div class="flex gap-2 items-baseline">
       <select id="megapixels" v-model="megaPixelsIndex"

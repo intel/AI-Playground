@@ -63,7 +63,10 @@
       </div>
     </div>
     <div v-if="imageGeneration.backend === 'comfyui'" class="flex flex-col gap-2">
-      <p>Workflow</p>
+      <div class="flex justify-between items-center pt-3">
+        <p>Workflow</p>
+        <p v-show="imageGeneration.activeWorkflow.requirements?.includes('high-vram')" data-tooltip="This model requires a lot of VRAM. Reduce the resolution and/or restart the ComfyUI backend when in case you experience a poor performance."> ⚠️ high VRAM ⚠️</p>
+      </div>
       <div class="flex gap-2 items-center">
         <drop-selector :array="imageGeneration.workflows.filter(w => w.backend === 'comfyui').sort(highToLowPrio)"
                        @change="(workflow) => imageGeneration.activeWorkflowName = workflow.name">
@@ -111,13 +114,16 @@ import RadioBlock from "../components/RadioBlock.vue";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 import ComfyUIDownloadDialog from "@/components/ComfyUIDownloadDialog.vue";
 import {toast} from '@/assets/js/toast';
+import {Input} from "@/components/ui/input";
+import {useI18N} from "@/assets/js/store/i18n.ts";
 
-
+const i18nState = useI18N().state;
 const imageGeneration = useImageGeneration();
 const backendServices = useBackendServices();
 
 const hdConfirmationDialog = ref<HTMLDialogElement>();
 const hdWarningOverride = ref(false);
+const showVramInfo = ref(false);
 
 const showComfyUIDownloadDialog = ref(false);
 
@@ -237,5 +243,7 @@ const stringToColour = (str: string) => {
   background: rgba(41, 41, 41, 0.95);
   border-radius: 0.5rem;
   padding: .7em;
+  z-index: 10;
+
 }
 </style>
