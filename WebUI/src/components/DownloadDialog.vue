@@ -57,7 +57,7 @@
                                    -
                                  </div>
                                 </td>
-                                <td class="flex flex-col items-center text-sm text-green-400">
+                                <td class="items-center text-sm text-green-400">
                                     {{ getFunctionTip(item.type) }}
                                 </td>
                             </tr>

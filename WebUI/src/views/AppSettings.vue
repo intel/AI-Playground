@@ -32,7 +32,7 @@
         <!--ModelSettingsTab-->
         <div v-show="tabIndex == 2" class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto">
             <div class="px-3 flex-none flex flex-col gap-3">
-                <SettingsModel></SettingsModel>
+                <SettingsModel @show-download-model-confirm="showDownloadModelConfirm"></SettingsModel>
             </div>
         </div>
     </div>
@@ -47,7 +47,12 @@ import SettingsModel from "@/components/SettingsModel.vue";
 const tabIndex = ref(0);
 
 const emits = defineEmits<{
+  (e: "showDownloadModelConfirm", downloadList: DownloadModelParam[], success?: () => void, fail?: () => void): void,
   (e: "close"): void
 }>();
+
+function showDownloadModelConfirm(downList: DownloadModelParam[], success?: () => void, fail?: () => void)  {
+  emits("showDownloadModelConfirm", downList);
+}
 
 </script>
