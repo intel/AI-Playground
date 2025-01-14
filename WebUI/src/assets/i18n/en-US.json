@@ -208,5 +208,11 @@
   "BACKEND_ACTION": "Action",
   "BACKEND_REQUIRED_COMPONENTS_MESSAGE": "Before you can use the Intel AI Playground, we need to download some additional components. Please make sure you have a stable and unmetered internet connection.",
   "BACKEND_OPTIONAL_COMPONENTS_MESSAGE": "Optional components are not required for AI-Playground to work, but provide alternative functions. If you want to use them please click the info buttons to familiarize yourself with their terms and conditions before activating them.",
-  "BACKEND_TERMS_AND_CONDITIONS": "* I have reviewed the optional component. I agree to all terms and conditions and would like to download and enable third-party software if applicable."
+  "BACKEND_TERMS_AND_CONDITIONS": "* I have reviewed the optional component. I agree to all terms and conditions and would like to download and enable third-party software if applicable.",
+  "SETTINGS_IMAGE_MODE": "Mode",
+  "SETTINGS_IMAGE_WORKFLOW": "Workflow",
+  "WORKFLOW_RELOAD_INFO": "Reload workflows from disk.",
+  "WORKFLOW_DOWNLOAD_INFO": "Download latest workflows and back up existing workflows.",
+  "WORKFLOW_HIGH_VRAM_INFO": "This model requires a lot of VRAM. Reduce the resolution and/or restart the ComfyUI backend when in case you experience a poor performance.",
+  "WORKFLOW_HIGH_VRAM_WARNING": "high VRAM required"
 }

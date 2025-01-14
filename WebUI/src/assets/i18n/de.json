@@ -164,5 +164,11 @@
 "ERROR_PYTHON_BACKEND_INIT": "Backend Initialisierung fehlgeschlagen",
 "ERROR_PYTHON_BACKEND_INIT_DETAILS_TEXT": "Das AI-Inferenz-Backend konnte nicht initialisiert werden. Versuchen Sie bitte die Anwendung neu zu starten. Wenn das Problem weiterhin besteht, können Sie in den Details nach weiteren Informationen zum Fehler suchen.",
 "ERROR_PYTHON_BACKEND_INIT_DETAILS": "Details",
-"ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log"
+"ERROR_PYTHON_BACKEND_INIT_OPEN_LOG": "Open Log",
+"SETTINGS_IMAGE_MODE": "Modus",
+"SETTINGS_IMAGE_WORKFLOW": "Workflow",
+"WORKFLOW_RELOAD_INFO": "Workflows von der Festplatte neu laden.",
+"WORKFLOW_DOWNLOAD_INFO": "Die neuesten Workflows herunterladen und vorhandene Workflows sichern.",
+"WORKFLOW_HIGH_VRAM_INFO": "Dieses Modell benötigt viel VRAM. Reduzieren Sie die Auflösung und/oder starten Sie das ComfyUI-Backend-Server neu, wenn Sie eine schlechte Leistung erleben.",
+"WORKFLOW_HIGH_VRAM_WARNING": "Viel VRAM erforderlich"
 }

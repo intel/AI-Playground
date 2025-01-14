@@ -26,7 +26,7 @@
                              @close="onComfyUIDialogClose"></comfy-u-i-download-dialog>
   <div class="items-center flex-wrap grid grid-cols-1 gap-2">
     <div class="flex flex-col gap-2">
-      <p>{{ "Mode" }}</p>
+      <p>{{ languages.SETTINGS_IMAGE_MODE }}</p>
       <div class="grid grid-cols-2 items-center gap-2 flex-wrap">
         <radio-block :checked="imageGeneration.backend === 'default'"
                      :text="'Default'"
@@ -64,8 +64,9 @@
     </div>
     <div v-if="imageGeneration.backend === 'comfyui'" class="flex flex-col gap-2">
       <div class="flex justify-between items-center pt-3">
-        <p>Workflow</p>
-        <p v-show="imageGeneration.activeWorkflow.requirements?.includes('high-vram')" data-tooltip="This model requires a lot of VRAM. Reduce the resolution and/or restart the ComfyUI backend when in case you experience a poor performance."> ⚠️ high VRAM ⚠️</p>
+        <p>{{languages.SETTINGS_IMAGE_WORKFLOW}}</p>
+        <p v-show="imageGeneration.activeWorkflow.requirements?.includes('high-vram')" :data-tooltip="highVRAMWorkflowINFO">
+          ⚠️  {{ languages.WORKFLOW_HIGH_VRAM_WARNING }}️</p>
       </div>
       <div class="flex gap-2 items-center">
         <drop-selector :array="imageGeneration.workflows.filter(w => w.backend === 'comfyui').sort(highToLowPrio)"
@@ -94,12 +95,12 @@
             </div>
           </template>
         </drop-selector>
-        <div data-tooltip="Reload workflows from disk">
+        <div :data-tooltip="reloadWorkflowINFO">
           <button class="svg-icon i-refresh w-5 h-5 text-purple-500"
                   @click="imageGeneration.loadWorkflowsFromJson"></button>
         </div>
         <div
-            data-tooltip="Download latest workflows and back up existing workflows">
+            :data-tooltip="downloadWorkflowINFO">
           <button class="svg-icon i-download-cloud w-5 h-5 text-purple-500"
                   @click="loadWorkflowsFromIntel"></button>
         </div>
@@ -107,23 +108,29 @@
     </div>
   </div>
 </template>
+
 <script setup lang="ts">
+
+
 import {ComfyUiWorkflow, useImageGeneration} from "@/assets/js/store/imageGeneration";
 import DropSelector from "../components/DropSelector.vue";
 import RadioBlock from "../components/RadioBlock.vue";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 import ComfyUIDownloadDialog from "@/components/ComfyUIDownloadDialog.vue";
 import {toast} from '@/assets/js/toast';
-import {Input} from "@/components/ui/input";
 import {useI18N} from "@/assets/js/store/i18n.ts";
-
 const i18nState = useI18N().state;
+
 const imageGeneration = useImageGeneration();
 const backendServices = useBackendServices();
 
 const hdConfirmationDialog = ref<HTMLDialogElement>();
 const hdWarningOverride = ref(false);
-const showVramInfo = ref(false);
+
+const reloadWorkflowINFO = computed(() => i18nState.WORKFLOW_RELOAD_INFO)
+const downloadWorkflowINFO = computed(() => i18nState.WORKFLOW_DOWNLOAD_INFO)
+const highVRAMWorkflowINFO = computed(() => i18nState.WORKFLOW_HIGH_VRAM_INFO)
+
 
 const showComfyUIDownloadDialog = ref(false);
 
@@ -244,6 +251,5 @@ const stringToColour = (str: string) => {
   border-radius: 0.5rem;
   padding: .7em;
   z-index: 10;
-
 }
 </style>
