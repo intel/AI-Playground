@@ -2,7 +2,7 @@
     <button ref="root" class="v-drop-select" :class="class" :disabled="props.disabled" @click="showList">
         <p class="v-drop-select-result">
             <span class="v-drop-select-text">
-                <slot name="selected">{{ props.value == null ? i18NSate.COM_NO_SELECTED : props.value }}</slot>
+                <slot name="selected">{{ props.value == null ? languages.COM_NO_SELECTED : props.value }}</slot>
             </span>
             <span class="v-drop-toggle"></span>
         </p>
@@ -17,9 +17,7 @@
     </Teleport>
 </template>
 <script setup lang="ts">
-import { useI18N } from '@/assets/js/store/i18n.ts';
 
-const i18NSate = useI18N().state;
 const props = defineProps<{
     array: Array<any>,
     value?: any,

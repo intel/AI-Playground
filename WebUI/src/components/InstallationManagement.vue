@@ -20,7 +20,7 @@
           <tbody>
           <tr v-for="component in components">
             <td class="text-left">{{ mapServiceNameToDisplayName(component.serviceName) }}</td>
-            <td class="text-center">{{ component.isRequired ? "Required" : "Optional" }}</td>
+            <td class="text-center">{{ component.isRequired ? languages.BACKEND_REQUIRED : languages.BACKEND_OPTIONAL }}</td>
             <td>
               <a :href="getInfoURL(component.serviceName)" target="_blank">
               <span v-show="!!getInfoURL(component.serviceName)" style="vertical-align: middle;"
@@ -93,51 +93,32 @@
           }}
         </button>
       </div>
-
       <!-- terms and conditions -->
       <div class="dialog-container z-10 pt-10" style="display: flex">
         <p>{{ languages.BACKEND_TERMS_AND_CONDITIONS }}</p>
       </div>
       <!-- Change Language Settings -->
       <div class="place-content-end flex gap-2">
-        <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage" class="max-w-40">
-          <template #selected>
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ i18n.currentLanguageName }}</span>
-            </div>
-          </template>
-          <template #list="slotItem">
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ slotItem.item.name }}</span>
-            </div>
-          </template>
-        </drop-selector>
+        <LanguageSelector class="max-w-40"></LanguageSelector>
         <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
       </div>
     </div>
   </div>
-
-
 </template>
 
 <script setup lang="ts">
 import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
-import DropSelector from "@/components/DropSelector.vue";
-import {useI18N} from '@/assets/js/store/i18n';
+import LanguageSelector from "@/components/LanguageSelector.vue";
 
 const emits = defineEmits<{
   (e: "close"): void
 }>();
 
-
 type ExtendedApiServiceInformation = ApiServiceInformation & { enabled: boolean, isLoading: boolean }
 
 const backendServices = useBackendServices();
-const i18n = useI18N();
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
