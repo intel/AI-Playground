@@ -5,10 +5,10 @@ export const useConversations = defineStore("conversations", () => {
     const activeKey = ref('');
     const activeConversation = computed(() => conversationList.value[activeKey.value]);
 
-    const addToActiveConversation = (item: ChatItem) => {
-        const list = conversationList.value[activeKey.value];
+    const addToActiveConversation = (key: string, item: ChatItem) => {
+        const list = conversationList.value[key];
         list.push(item);
-        addNewConversationIfLatestIsNotEmpty(conversationList.value);
+        addNewConversationIfLatestIsNotEmpty(conversationList.value, activeKey.value);
     }
 
     function deleteConversation(conversationKey: string) {
@@ -49,8 +49,22 @@ export const useConversations = defineStore("conversations", () => {
     }
 });
 
-function addNewConversationIfLatestIsNotEmpty(list: Record<string, ChatItem[]>) {
-    if (Object.values(list).at(-1)?.length !== 0) {
-        list[new Date().getTime().toString()] = [];
+function addNewConversationIfLatestIsNotEmpty(
+    list: Record<string, ChatItem[]>,
+    conversationKey?: string
+  ) {
+    if (conversationKey && list[conversationKey].length !== 0) {
+      // If the last conversation is already empty, do nothing
+      const lastKey = Object.keys(list).at(-1);
+      if (lastKey && list[lastKey].length === 0) return;
+  
+      // Otherwise, create a fresh conversation
+      list[new Date().getTime().toString()] = [];
+      return;
     }
-}
+  
+    // Fallback old logic
+    if (Object.values(list).at(-1)?.length !== 0) {
+      list[new Date().getTime().toString()] = [];
+    }
+  }
