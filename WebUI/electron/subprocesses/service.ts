@@ -564,6 +564,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
             if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
                 this.currentStatus = "running"
                 this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
+                this.isSetUp = true
             } else {
                 this.currentStatus = "failed"
                 this.desiredStatus = "failed"
