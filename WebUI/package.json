@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "2.0.0-alpha-preview",
+  "version": "2.0.2-alpha-preview",
   "scripts": {
     "dev": "cross-env VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "preview": "vite preview",
@@ -19,6 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",
+    "extract-zip": "^2.0.1",
     "get-port": "^7.1.0",
     "highlight.js": "^11.11.0",
     "koffi": "^2.9.2",
