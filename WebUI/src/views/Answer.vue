@@ -365,7 +365,7 @@ function dataProcess(line: string) {
 
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement;
-  const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 10;
+  const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 50;
   showScrollButton.value = !atBottom;
 }
 
