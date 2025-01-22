@@ -8,10 +8,10 @@ torchaudio==2.3.1.post0+cxx11.abi
 intel-extension-for-pytorch==2.3.110.post0+xpu
 
 # IPEX-LLM
-ipex_llm==2.2.0b2
-bigdl-core-xe-23==2.6.0b2
-bigdl-core-xe-addons-23==2.6.0b2
-bigdl-core-xe-batch-23==2.6.0b2
+ipex_llm==2.2.0b20241225
+bigdl-core-xe-23==2.6.0b20241225
+bigdl-core-xe-addons-23==2.6.0b20241225
+bigdl-core-xe-batch-23==2.6.0b20241225
 onednn-devel==2024.1.1
 
 # Intel dependencies depend on numpy 1

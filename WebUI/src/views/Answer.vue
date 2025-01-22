@@ -15,7 +15,9 @@
                @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title ?? 'New Conversation'"
                class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
                :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
-            <svg v-if="conversations.isNewConversation(conversationKey)" class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span v-if="conversationKey === currentlyGeneratingKey && processing"
+              class="svg-icon i-loading w-8 h-8 animate-spin text-white flex items-center justify-center m-auto"></span>
+            <svg v-else-if="conversations.isNewConversation(conversationKey)" class="m-auto h-8 w-8 text-gray-300"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
             <svg v-else class="m-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,7 +57,9 @@
                 </button>
                 <button class="flex items-end" :title="languages.COM_REGENERATE"
                         @click="() => regenerateLastResponse(conversations.activeKey)"
-                        v-if="i + 1 == conversations.activeConversation.length">
+                        v-if="i + 1 == conversations.activeConversation.length"
+                        :disabled="processing"
+                        :class="{ 'opacity-50 cursor-not-allowed': processing }">
                   <span class="svg-icon i-refresh w-4 h-4"></span>
                   <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
                 </button>
@@ -67,14 +71,14 @@
             </div>
           </div>
         </template>
-        <div class="flex items-start gap-3" v-show="processing">
+        <div class="flex items-start gap-3" v-show="processing && conversations.activeKey === currentlyGeneratingKey">
           <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
             <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
             <p v-html="textIn"></p>
           </div>
         </div>
-        <div class="flex items-start gap-3" v-show="processing">
+        <div class="flex items-start gap-3" v-show="processing && conversations.activeKey === currentlyGeneratingKey">
           <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
           <div class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4  text-wrap break-words">
             <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
@@ -258,6 +262,11 @@ const isMinSize = computed(() => fontSizeIndex.value <= 0);
 const isHistoryVisible = ref(false);
 const currentBackendAPI = computed(() => textInference.backend === 'LLAMA.CPP' ? textInference.llamaBackendUrl : globalSetup.apiHost);
 
+// Keep track of which conversation is receiving the in-progress text
+const currentlyGeneratingKey = ref<string | null>(null);
+
+
+
 const increaseFontSize = () => {
   if (!isMaxSize.value) {
     fontSizeIndex.value++;
@@ -329,8 +338,10 @@ function dataProcess(line: string) {
 }
 
 function scrollToBottom(smooth = true) {
-  if (chatPanel.scrollHeight - chatPanel.scrollTop > chatPanel.clientHeight) {
-    chatPanel.scroll({ top: chatPanel.scrollHeight - chatPanel.clientHeight, behavior: smooth ? "smooth" : "auto" });
+  if (currentlyGeneratingKey.value == conversations.activeKey) {
+    if (chatPanel.scrollHeight - chatPanel.scrollTop > chatPanel.clientHeight) {
+      chatPanel.scroll({ top: chatPanel.scrollHeight - chatPanel.clientHeight, behavior: smooth ? "smooth" : "auto" });
+    }
   }
 }
 
@@ -380,13 +391,18 @@ async function simulatedInput() {
     await util.delay(20);
     await simulatedInput();
   } else {
-    conversations.addToActiveConversation({
-      question: textIn.value,
-      answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
-    });
-    if (conversations.activeConversation.length <= 3) {
-      console.log('Conversations is less than 4 items long, generating new title');
-      updateTitle(conversations.activeConversation);
+
+    const key = currentlyGeneratingKey.value;
+    
+    if (key !== null) {
+      conversations.addToActiveConversation(key, {
+        question: textIn.value,
+        answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
+      });
+      if (conversations.conversationList[key].length <= 3) {
+        console.log('Conversations is less than 4 items long, generating new title');
+        updateTitle(conversations.conversationList[key]);
+      }
     }
     processing.value = false;
     textIn.value = "";
@@ -424,6 +440,10 @@ async function newPromptGenerate() {
   }
   try {
     await checkModel();
+
+    // Mark which conversation is about to generate
+    currentlyGeneratingKey.value = conversations.activeKey;
+
     const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation));
     chatContext.push({ question: newPrompt, answer: "" });
     generate(chatContext);
@@ -545,6 +565,7 @@ function regenerateLastResponse(conversationKey: string) {
   const prompt = item.question;
   const chatContext = [...toRaw(conversations.conversationList[conversationKey])];
   chatContext.push({ question: prompt, answer: "" });
+  currentlyGeneratingKey.value = conversationKey;
   generate(chatContext);
 }
 
