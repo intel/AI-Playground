@@ -22,16 +22,17 @@ const aspectRatios = [
   { label: '5/12', value: 5 / 12 },
 ]
 
-const megaPixelsOptions = computed(() => 
-imageGeneration.activeWorkflow.tags.includes('sd1.5') ? [
-  { label: '0.25', totalPixels: 512 * 512 }
-] :
-[
-  { label: '0.25', totalPixels: 512 * 512 },
-  { label: '0.5', totalPixels: 704 * 704 },
-  { label: '0.8', totalPixels: 896 * 896 },
-  { label: '1.0', totalPixels: 1024 * 1024 },
-])
+const megaPixelsOptions = computed(() =>
+    imageGeneration.activeWorkflow.tags.includes('sd1.5') ? [
+          {label: '0.25', totalPixels: 512 * 512},
+          {label: '0.5', totalPixels: 704 * 704}
+        ] :
+        [
+          {label: '0.25', totalPixels: 512 * 512},
+          {label: '0.5', totalPixels: 704 * 704},
+          {label: '0.8', totalPixels: 896 * 896},
+          {label: '1.0', totalPixels: 1024 * 1024},
+        ])
 
 function findBestResolution(totalPixels: number, aspectRatio: number) {
   const MIN_SIZE = 256
