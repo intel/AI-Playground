@@ -114,7 +114,7 @@ export class PythonService extends ExecutableService {
         try {
             await this.run(["--version"])
         } catch (e) {
-            this.logError(`failed to check due to ${e}`)
+            this.log(`warning: ${e}`)
             throw new ServiceCheckError(this.name)
         }
     }
@@ -164,7 +164,7 @@ export class PipService extends ExecutableService {
             await this.run(["show", "setuptools"])
             return
         } catch (e) {
-            this.logError(`failed to check due to ${e}`)
+            this.log(`warning: ${e}`)
             if (e instanceof ServiceCheckError)
                 throw e
             if (e instanceof Error && e.message.includes("setuptools"))
@@ -230,7 +230,7 @@ export class UvPipService extends PipService {
             await this.pip.check()
             await this.run(["--version"])
         } catch (e) {
-            this.logError(`failed to check due to ${e}`)
+            this.log(`warning: ${e}`)
             if (e instanceof ServiceCheckError)
                 throw e
             throw new ServiceCheckError(this.name)
@@ -280,7 +280,7 @@ export class LsLevelZeroService extends ExecutableService {
             await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
             await this.run()
         } catch (e) {
-            this.logError(`failed to check due to ${e}`)
+            this.log(`warning: ${e}`)
             if (e instanceof ServiceCheckError)
                 throw e
             if (e instanceof Error && e.message.includes("requirements check failed"))
@@ -400,7 +400,7 @@ export class GitService extends ExecutableService {
         try {
             await this.run(["--version"])
         } catch (e) {
-            this.logError(`failed to check due to ${e}`)
+            this.log(`warning: ${e}`)
             throw new ServiceCheckError(this.name)
         }
     }
