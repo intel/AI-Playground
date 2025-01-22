@@ -7,7 +7,7 @@
       "onnxruntime"
     ],
     "customNodes": [
-      "Gourieff/comfyui-reactor-node@be1c60bd62d1fb35511153533032c5a6811c8fab"
+      "Gourieff/comfyui-reactor@ee13ff754f35d2af284f0cf9d81ccce4defe1e5e"
     ],
     "requiredModels": [
       {
