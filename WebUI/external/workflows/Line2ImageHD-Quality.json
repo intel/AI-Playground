@@ -47,6 +47,16 @@
       "max": 1
     },
     {
+     "nodeTitle": "Canny",
+     "nodeInput": "high_threshold",
+     "type": "number",
+     "label": "Canny - High Threshold",
+     "defaultValue": 0.6,
+     "step": 0.1,
+     "min": 0,
+     "max": 1
+   },
+    {
       "nodeTitle": "Apply ControlNet (OLD)",
       "nodeInput": "strength",
       "type": "number",
