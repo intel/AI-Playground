@@ -65,7 +65,7 @@
     <div v-if="imageGeneration.backend === 'comfyui'" class="flex flex-col gap-2">
       <div class="flex justify-between items-center pt-3">
         <p>{{languages.SETTINGS_IMAGE_WORKFLOW}}</p>
-        <p v-show="imageGeneration.activeWorkflow.requirements?.includes('high-vram')" :data-tooltip="highVRAMWorkflowINFO">
+        <p v-show="imageGeneration.activeWorkflow.requirements?.includes('high-vram')" :data-tooltip="i18nState.WORKFLOW_HIGH_VRAM_INFO">
           ⚠️  {{ languages.WORKFLOW_HIGH_VRAM_WARNING }}️</p>
       </div>
       <div class="flex gap-2 items-center">
@@ -95,12 +95,12 @@
             </div>
           </template>
         </drop-selector>
-        <div :data-tooltip="reloadWorkflowINFO">
+        <div :data-tooltip="i18nState.WORKFLOW_RELOAD_INFO">
           <button class="svg-icon i-refresh w-5 h-5 text-purple-500"
                   @click="imageGeneration.loadWorkflowsFromJson"></button>
         </div>
         <div
-            :data-tooltip="downloadWorkflowINFO">
+            :data-tooltip="i18nState.WORKFLOW_DOWNLOAD_INFO">
           <button class="svg-icon i-download-cloud w-5 h-5 text-purple-500"
                   @click="loadWorkflowsFromIntel"></button>
         </div>
@@ -126,11 +126,6 @@ const backendServices = useBackendServices();
 
 const hdConfirmationDialog = ref<HTMLDialogElement>();
 const hdWarningOverride = ref(false);
-
-const reloadWorkflowINFO = computed(() => i18nState.WORKFLOW_RELOAD_INFO)
-const downloadWorkflowINFO = computed(() => i18nState.WORKFLOW_DOWNLOAD_INFO)
-const highVRAMWorkflowINFO = computed(() => i18nState.WORKFLOW_HIGH_VRAM_INFO)
-
 
 const showComfyUIDownloadDialog = ref(false);
 
