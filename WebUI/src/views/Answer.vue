@@ -5,14 +5,16 @@
            class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all">
         <div class="flex flex-col-reverse">
           <div v-if="isHistoryVisible" v-for="(conversation, conversationKey) in conversations.conversationList" :key="conversationKey"
-               @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title ?? 'New Conversation'"
+                @click="onConversationClick(conversationKey)"
+               :title="conversation?.[0]?.title ?? 'New Conversation'"
                class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
                :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
             <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{ conversation?.[0]?.title ?? 'New Conversation' }}</span>
             <span v-if="!conversations.isNewConversation(conversationKey)" @click="() => conversations.deleteConversation(conversationKey)" class="svg-icon i-delete w-5 h-5"></span>
           </div>
           <div v-else v-for="(conversation, conversationKey) in conversations.conversationList" :inVisibleKey="conversationKey"
-               @click="() => conversations.activeKey = conversationKey" :title="conversation?.[0]?.title ?? 'New Conversation'"
+                @click="onConversationClick(conversationKey)"
+               :title="conversation?.[0]?.title ?? 'New Conversation'"
                class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
                :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''">
             <span v-if="conversationKey === currentlyGeneratingKey && processing"
@@ -34,7 +36,9 @@
         </div>
       </div>
       <div id="chatPanel" class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
-           :class="fontSizeClass">
+           :class="fontSizeClass"
+           @scroll="handleScroll"
+           >
         <template v-for="(chat, i) in conversations.activeConversation">
           <div class="flex items-start gap-3">
             <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
@@ -95,6 +99,27 @@
         </div>
       </div>
     </div>
+    <!-- Button to scroll to bottom -->
+    <button
+      v-if="showScrollButton"
+      class="absolute bottom-56 left-1/2 -translate-x-1/2
+            bg-white text-black p-2 rounded-full shadow-lg z-50"
+      @click="() => scrollToBottom()"
+    >
+      <svg
+        class="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M19 14l-7 7m0 0l-7-7m7 7V3"
+        />
+      </svg>
+    </button>
     <div class="pl-4 h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4">
       <div class="flex flex-col gap-2 flex-auto h-full">
         <div class="flex items-center justify-between gap-5 text-white px-2">
@@ -211,6 +236,7 @@ import { Const } from "@/assets/js/const";
 import { useConversations } from "@/assets/js/store/conversations";
 import { useComfyUi } from "@/assets/js/store/comfyUi";
 import { useTextInference } from "@/assets/js/store/textInference";
+import { nextTick } from 'vue';
 
 const conversations = useConversations();
 const comfyUi = useComfyUi();
@@ -264,7 +290,7 @@ const currentBackendAPI = computed(() => textInference.backend === 'LLAMA.CPP' ?
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null);
-
+const showScrollButton = ref(false);
 
 
 const increaseFontSize = () => {
@@ -337,12 +363,25 @@ function dataProcess(line: string) {
   }
 }
 
+function handleScroll(e: Event) {
+  const target = e.target as HTMLElement;
+  const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 50;
+  showScrollButton.value = !atBottom;
+}
+
 function scrollToBottom(smooth = true) {
-  if (currentlyGeneratingKey.value == conversations.activeKey) {
-    if (chatPanel.scrollHeight - chatPanel.scrollTop > chatPanel.clientHeight) {
-      chatPanel.scroll({ top: chatPanel.scrollHeight - chatPanel.clientHeight, behavior: smooth ? "smooth" : "auto" });
-    }
-  }
+  chatPanel.scrollTo({
+    top: chatPanel.scrollHeight,
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+}
+
+ function onConversationClick(conversationKey: string) {
+   console.log('Switching to conversationKey:', conversationKey);
+   conversations.activeKey = conversationKey;
+   nextTick(() => {
+     scrollToBottom(false);
+   });
 }
 
 async function updateTitle(conversation: ChatItem[]) {
