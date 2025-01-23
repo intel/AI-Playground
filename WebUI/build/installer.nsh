@@ -5,6 +5,14 @@
 
 
 !macro customInstall
+
+    ReadRegDWORD $0 HKLM "SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" "Installed"
+    ${If} $0 != "1"
+      DetailPrint "Installing Microsoft Visual C++ Redistributable..."
+      inetc::get /CAPTION " " /BANNER "Downloading Microsoft Visual C++ Redistributable..." "https://aka.ms/vs/17/release/vc_redist.x64.exe" "$TEMP\vc_redist.x64.exe"
+      ExecWait "$TEMP\vc_redist.x64.exe /install /norestart"
+    ${EndIf}
+
     SetDetailsPrint both
     IfFileExists "$INSTDIR\resources\prototype-python-env.7z" extracting 0
     Abort "Broken installer!"
