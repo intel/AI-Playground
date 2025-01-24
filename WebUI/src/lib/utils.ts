@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import {useI18N} from "@/assets/js/store/i18n.ts";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -27,23 +28,24 @@ export function mapStatusToColor(componentState: BackendStatus) {
 }
 
 export function mapToDisplayStatus(componentState: BackendStatus) {
+  const i18nState = useI18N().state;
   switch (componentState) {
     case "running":
-      return "Running"
+      return i18nState.BACKEND_STATUS_RUNNING
     case "stopping":
-      return "Stopping"
+      return i18nState.BACKEND_STATUS_STOPPING
     case "starting":
-        return "Starting"
+        return i18nState.BACKEND_STATUS_STARTING
     case "stopped":
     case "notYetStarted":
-      return "Installed"
+      return i18nState.BACKEND_STATUS_INSTALLED
     case "installationFailed":
     case "failed":
-      return "Failed"
+      return i18nState.BACKEND_STATUS_FAILED
     case "notInstalled":
-      return "Not Installed"
+      return i18nState.BACKEND_STATUS_NOT_INSTALLED
     case "installing":
-      return "Installing"
+      return i18nState.BACKEND_STATUS_INSTALLING
     default:
       return componentState
   }

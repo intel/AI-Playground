@@ -1,21 +1,9 @@
 <template>
   <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_GENERAL }}</h2>
     <div class="flex flex-col gap-2">
       <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
-      <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage">
-        <template #selected>
-          <div class="flex gap-2 items-center">
-            <span class="rounded-full bg-green-500 w-2 h-2"></span>
-            <span>{{ i18n.currentLanguageName }}</span>
-          </div>
-        </template>
-        <template #list="slotItem">
-          <div class="flex gap-2 items-center">
-            <span class="rounded-full bg-green-500 w-2 h-2"></span>
-            <span>{{ slotItem.item.name }}</span>
-          </div>
-        </template>
-      </drop-selector>
+      <LanguageSelector></LanguageSelector>
     </div>
     <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
       <p>Theme</p>
@@ -26,7 +14,8 @@
       </div>
     </div>
   </div>
-  <div class="flex flex-col gap-2">
+  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_DEVICES }}</h2>
     <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
     <div class="flex items-center gap-2 flex-wrap">
       <drop-selector :array="globalSetup.graphicsList" @change="changeGraphics">
@@ -46,7 +35,7 @@
     </div>
   </div>
   <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
-    <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_BACKEND }}</h2>
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_BACKEND }}</h2>
     <div class="flex flex-col gap-2">
       <p>{{ languages.SETTINGS_LLM_BACKEND }}</p>
       <div class="flex items-center gap-2">
@@ -77,7 +66,6 @@
     </div>
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
-      <!--   Required   -->
       <table class="text-center w-full mx-2 table-fixed">
         <tbody>
         <tr v-for="item in displayComponents">
@@ -94,7 +82,7 @@
     </div>
   </div>
   <div class="text-right my-5">
-    <button @click="openDebug" class="v-radio-block">Open Developer Logs</button>
+    <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
   </div>
 </template>
 <script setup lang="ts">
@@ -103,16 +91,16 @@ import DropSelector from "../components/DropSelector.vue";
 import RadioBlock from "../components/RadioBlock.vue";
 
 import {useGlobalSetup} from "@/assets/js/store/globalSetup";
-import {useI18N} from '@/assets/js/store/i18n';
+
 import {useTheme} from '@/assets/js/store/theme';
 import {useTextInference, backendTypes, Backend} from "@/assets/js/store/textInference";
 import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
+import LanguageSelector from "@/components/LanguageSelector.vue";
 
 const globalSetup = useGlobalSetup();
 const textInference = useTextInference();
 const backendServices = useBackendServices();
-const i18n = useI18N();
 const theme = useTheme();
 
 const textInferenceBackendDisplayName: Record<typeof backendTypes[number], string> = {

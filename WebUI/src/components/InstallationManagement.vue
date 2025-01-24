@@ -20,7 +20,7 @@
           <tbody>
           <tr v-for="component in components">
             <td class="text-left">{{ mapServiceNameToDisplayName(component.serviceName) }}</td>
-            <td class="text-center">{{ component.isRequired ? "Required" : "Optional" }}</td>
+            <td class="text-center">{{ component.isRequired ? languages.BACKEND_REQUIRED : languages.BACKEND_OPTIONAL }}</td>
             <td>
               <a :href="getInfoURL(component.serviceName)" target="_blank">
               <span v-show="!!getInfoURL(component.serviceName)" style="vertical-align: middle;"
@@ -93,25 +93,28 @@
           }}
         </button>
       </div>
-
       <!-- terms and conditions -->
       <div class="dialog-container z-10 pt-10" style="display: flex">
         <p>{{ languages.BACKEND_TERMS_AND_CONDITIONS }}</p>
       </div>
+      <!-- Change Language Settings -->
+      <div class="place-content-end flex gap-2">
+        <LanguageSelector class="max-w-40"></LanguageSelector>
+        <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
+      </div>
     </div>
   </div>
-
 </template>
 
 <script setup lang="ts">
 import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 import {toast} from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
+import LanguageSelector from "@/components/LanguageSelector.vue";
 
 const emits = defineEmits<{
   (e: "close"): void
 }>();
-
 
 type ExtendedApiServiceInformation = ApiServiceInformation & { enabled: boolean, isLoading: boolean }
 
@@ -205,6 +208,10 @@ function getInfoURL(serviceName: string) {
     default:
       return undefined
   }
+}
+
+function openDebug() {
+  window.electronAPI.openDevTools()
 }
 
 function CanCloseInstallations() {
