@@ -6,7 +6,7 @@ import path from "node:path";
 import { appLoggerInstance } from "../logging/logger.ts";
 import { existingFileOrError, spawnProcessAsync } from "./osProcessHelper";
 import { assert } from 'node:console';
-import { getArchPriority, getDeviceArch } from './deviceArch';
+import { Arch, getArchPriority, getDeviceArch } from './deviceArch';
 import { createHash } from 'crypto';
 
 class ServiceCheckError extends Error {
@@ -254,6 +254,11 @@ export class UvPipService extends PipService {
 
 export class LsLevelZeroService extends ExecutableService {
     readonly uvPip: UvPipService = new UvPipService(this.dir)
+    readonly requirementsTxtPath = path.resolve(path.join(this.baseDir, "service/requirements-ls_level_zero.txt"));
+    readonly srcExePath = path.resolve(path.join(this.baseDir, "service/tools/ls_level_zero.exe"));
+
+    private allLevelZeroDevices: {name: string, device_id: number, arch: Arch}[] = [];
+    private selectedDeviceIdx: number = -1;
 
     constructor(readonly pythonEnvDir: string) {
         super("lslevelzero", pythonEnvDir)
@@ -272,7 +277,6 @@ export class LsLevelZeroService extends ExecutableService {
         return super.run(args, env, workDir)
     }
 
-    readonly requirementsTxtPath = path.resolve(path.join(this.baseDir, "service/requirements-ls_level_zero.txt"));
     async check(): Promise<void> {
         this.log("checking")
         try {
@@ -315,8 +319,6 @@ export class LsLevelZeroService extends ExecutableService {
     async installRequirements(): Promise<void> {
         await this.uvPip.installRequirementsTxt(this.requirementsTxtPath)
     }
-
-    readonly srcExePath = path.resolve(path.join(this.baseDir, "service/tools/ls_level_zero.exe"));
     private async cloneLsLevelZero(): Promise<void> {
         existingFileOrError(this.srcExePath)
         if (filesystem.existsSync(this.getExePath())) {
@@ -326,12 +328,10 @@ export class LsLevelZeroService extends ExecutableService {
         await filesystem.copy(this.srcExePath, this.getExePath())
     }
 
-    private allLevelZeroDevices: {name: string, device_id: number, arch: string}[] = [];
-    private selectedDeviceIdx: number = -1;
 
-    async detectDevice(): Promise<string> {
+    async detectDevice(): Promise<Arch> {
         if (this.selectedDeviceIdx >= 0 && this.selectedDeviceIdx < this.allLevelZeroDevices.length) {
-            return this.allLevelZeroDevices[this.selectedDeviceIdx].arch;
+            return this.allLevelZeroDevices[this.selectedDeviceIdx]?.arch ?? 'unknown';
         }
 
         this.log("Detecting device");
@@ -341,10 +341,10 @@ export class LsLevelZeroService extends ExecutableService {
                 return {name: d.name, device_id: d.device_id, arch: getDeviceArch(d.device_id)};
             });
             this.selectBestDevice();
-            return this.allLevelZeroDevices[this.selectedDeviceIdx].arch;
+            return this.allLevelZeroDevices[this.selectedDeviceIdx]?.arch ?? 'unknown';
         } catch (e) {
             this.logError(`Failed to detect device due to ${e}`);
-            throw e;
+            return 'unknown';
         }
     }
 
@@ -352,7 +352,7 @@ export class LsLevelZeroService extends ExecutableService {
         let priority = -1;
         for (let i = 0; i < this.allLevelZeroDevices.length; i++) {
             const device = this.allLevelZeroDevices[i];
-            const deviceArchPriority = getArchPriority(device.arch);
+            const deviceArchPriority = getArchPriority(device?.arch ?? 'unknown');
             if (deviceArchPriority > priority) {
                 this.selectedDeviceIdx = i;
                 priority = deviceArchPriority;

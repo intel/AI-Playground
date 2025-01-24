@@ -1,5 +1,5 @@
 // https://github.com/intel/compute-runtime/blob/master/shared/source/dll/devices/devices_base.inl
-const ID2ARCH: { [key: number]: string } = {
+const ID2ARCH: { [key: number]: Arch } = {
     // bmg
     0xE202: "bmg",
     0xE20B: "bmg",
@@ -64,11 +64,11 @@ const ID2ARCH: { [key: number]: string } = {
     // 0x7D41: "arl",
 };
 
-export function getDeviceArch(deviceId: number): string {
+export function getDeviceArch(deviceId: number): Arch {
     return ID2ARCH[deviceId] || "unknown";
 }
 
-export function getArchPriority(arch: string): number {
+export function getArchPriority(arch: Arch): number {
     switch (arch) {
         case "bmg": return 4;
         case "acm": return 3;
@@ -77,3 +77,5 @@ export function getArchPriority(arch: string): number {
         default: return 0;
     }
 }
+
+export type Arch = "bmg" | "acm" | "lnl" | "mtl" | "unknown"
