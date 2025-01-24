@@ -170,9 +170,9 @@ const globalDefaultSettings = {
     seed: -1,
     width: 512,
     height: 512,
-    inferenceSteps: 20,
-    resolution: '512x512',
-    batchSize: 1,
+    inferenceSteps: 6,
+    resolution: '704x384',
+    batchSize: 4,
     negativePrompt: 'nsfw',
     imageModel: 'Lykon/dreamshaper-8',
     inpaintModel: 'Lykon/dreamshaper-8-inpainting',
@@ -264,9 +264,10 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
             defaultSettings: {
                 imageModel: 'Lykon/dreamshaper-8',
                 inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-                resolution: '512x512',
+                resolution: '704x384',
                 guidanceScale: 1,
                 inferenceSteps: 6,
+                batchSize: 4,
                 scheduler: "LCM",
                 lora: "latent-consistency/lcm-lora-sdv1-5"
             },
@@ -418,7 +419,7 @@ export const useImageGeneration = defineStore("imageGeneration", () => {
     const hdWarningDismissed = ref(false);
 
     const workflows = ref<Workflow[]>(predefinedWorkflows);
-    const activeWorkflowName = ref<string | null>('Standard');
+    const activeWorkflowName = ref<string | null>('Standard - Fast');
     const activeWorkflow = computed(() => {
         console.log('### activeWorkflowName', activeWorkflowName.value)
         return workflows.value.find(w => w.name === activeWorkflowName.value) ?? predefinedWorkflows[0]
