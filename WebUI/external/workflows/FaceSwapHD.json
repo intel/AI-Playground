@@ -6,9 +6,7 @@
       "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl",
       "onnxruntime"
     ],
-    "customNodes": [
-      "Gourieff/comfyui-reactor@ee13ff754f35d2af284f0cf9d81ccce4defe1e5e"
-    ],
+    "customNodes": ["Gourieff/comfyui-reactor@ee13ff754f35d2af284f0cf9d81ccce4defe1e5e"],
     "requiredModels": [
       {
         "type": "defaultCheckpoint",
@@ -41,14 +39,8 @@
       }
     ]
   },
-  "tags": [
-    "SDXL",
-    "Fast-LCM",
-    "non-com"
-  ],
-  "requirements": [
-    "high-vram"
-  ],
+  "tags": ["SDXL", "Fast-LCM", "non-com"],
+  "requirements": ["high-vram"],
   "inputs": [
     {
       "nodeTitle": "ReActor 🌌 Fast Face Swap",
@@ -83,13 +75,7 @@
     "inferenceSteps": 4
   },
   "displayedSettings": [],
-  "modifiableSettings": [
-    "inferenceSteps",
-    "seed",
-    "batchSize",
-    "imagePreview",
-    "resolution"
-  ],
+  "modifiableSettings": ["inferenceSteps", "seed", "batchSize", "imagePreview", "resolution"],
   "comfyUiApiWorkflow": {
     "3": {
       "inputs": {
@@ -99,22 +85,10 @@
         "sampler_name": "lcm",
         "scheduler": "simple",
         "denoise": 1,
-        "model": [
-          "19",
-          0
-        ],
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["19", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -135,10 +109,7 @@
     "6": {
       "inputs": {
         "text": "a photograph of a dudde",
-        "clip": [
-          "19",
-          1
-        ]
+        "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -148,10 +119,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "19",
-          1
-        ]
+        "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -160,14 +128,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "22",
-          0
-        ]
+        "samples": ["3", 0],
+        "vae": ["22", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -177,10 +139,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "ComfyUI",
-        "images": [
-          "25",
-          0
-        ]
+        "images": ["25", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -202,14 +161,8 @@
         "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
         "strength_model": 1,
         "strength_clip": 1,
-        "model": [
-          "23",
-          0
-        ],
-        "clip": [
-          "24",
-          0
-        ]
+        "model": ["23", 0],
+        "clip": ["24", 0]
       },
       "class_type": "LoraLoader",
       "_meta": {
@@ -259,14 +212,8 @@
         "input_faces_index": "0",
         "source_faces_index": "0",
         "console_log_level": 1,
-        "input_image": [
-          "8",
-          0
-        ],
-        "source_image": [
-          "15",
-          0
-        ]
+        "input_image": ["8", 0],
+        "source_image": ["15", 0]
       },
       "class_type": "ReActorFaceSwap",
       "_meta": {

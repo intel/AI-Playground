@@ -27,18 +27,18 @@ export default defineConfigWithVueTs(
       'vue/require-v-for-key': 'warn',
       'vue/no-use-v-if-with-v-for': 'warn',
       '@typescript-eslint/no-this-alias': 'warn',
-      "@typescript-eslint/no-unused-vars": [
-        "error",
+      '@typescript-eslint/no-unused-vars': [
+        'error',
         {
-          "args": "all",
-          "argsIgnorePattern": "^_",
-          "caughtErrors": "all",
-          "caughtErrorsIgnorePattern": "^_",
-          "destructuredArrayIgnorePattern": "^_",
-          "varsIgnorePattern": "(^_|Schema$)",
-          "ignoreRestSiblings": true
-        }
-      ]
+          args: 'all',
+          argsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          varsIgnorePattern: '(^_|Schema$)',
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
   {

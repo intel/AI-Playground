@@ -1,28 +1,46 @@
 <template>
   <div class="dialog-container z-10">
-    <div class="dialog-mask absolute left-0 top-0 w-full h-full bg-black/55 flex justify-center items-center">
+    <div
+      class="dialog-mask absolute left-0 top-0 w-full h-full bg-black/55 flex justify-center items-center"
+    >
       <div
         class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-6 text-white"
-        :class="{ 'animate-scale-in': animate }">
+        :class="{ 'animate-scale-in': animate }"
+      >
         <b v-html="i18nState.REQUEST_LLM_MODEL_NAME"></b>
-        <div class="flex flex-col items-center gap-2 p-4 border border-yellow-600 bg-yellow-600/10 rounded-lg">
+        <div
+          class="flex flex-col items-center gap-2 p-4 border border-yellow-600 bg-yellow-600/10 rounded-lg"
+        >
           <p>{{ i18nState.REQUEST_LLM_MODEL_DISCLAIMER_1 }}</p>
           <p>{{ i18nState.REQUEST_LLM_MODEL_DISCLAIMER_2 }}</p>
         </div>
         <div class="container flex">
-          <span @mouseover="showInfo = true" @mouseout="showInfo = false" style="vertical-align: middle;" class="svg-icon i-info w-7 h-7 px-6"></span>
-          <Input :placeholder="examplePlaceholder" v-model="modelRequest" @keyup.enter="addModel"></Input>
+          <span
+            @mouseover="showInfo = true"
+            @mouseout="showInfo = false"
+            style="vertical-align: middle"
+            class="svg-icon i-info w-7 h-7 px-6"
+          ></span>
+          <Input
+            :placeholder="examplePlaceholder"
+            v-model="modelRequest"
+            @keyup.enter="addModel"
+          ></Input>
         </div>
         <span v-if="showInfo" class="hover-box w-0.6">
-           <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
+          <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
           <ul>
             <li>{{ exampleModelName }}</li>
           </ul>
         </span>
-        <p v-show="addModelError" style="color: #F44336;">{{ addModelErrorMessage }}</p>
+        <p v-show="addModelError" style="color: #f44336">{{ addModelErrorMessage }}</p>
         <div class="flex justify-center items-center gap-9">
-          <button @click="closeAdd" class="bg-color-control-bg  py-1 px-4 rounded">{{ i18nState.COM_CLOSE }}</button>
-          <button @click="addModel" class="bg-color-control-bg  py-1 px-4 rounded">{{ i18nState.COM_ADD }}</button>
+          <button @click="closeAdd" class="bg-color-control-bg py-1 px-4 rounded">
+            {{ i18nState.COM_CLOSE }}
+          </button>
+          <button @click="addModel" class="bg-color-control-bg py-1 px-4 rounded">
+            {{ i18nState.COM_ADD }}
+          </button>
         </div>
       </div>
     </div>
@@ -31,93 +49,103 @@
 
 <script setup lang="ts">
 import { Input } from '@/components/ui/input'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup';
-import { useI18N } from '@/assets/js/store/i18n';
-import { useModels, userModels } from '@/assets/js/store/models';
-import { useTextInference } from '@/assets/js/store/textInference';
+import { useGlobalSetup } from '@/assets/js/store/globalSetup'
+import { useI18N } from '@/assets/js/store/i18n'
+import { useModels, userModels } from '@/assets/js/store/models'
+import { useTextInference } from '@/assets/js/store/textInference'
 
-
-const i18nState = useI18N().state;
-const globalSetup = useGlobalSetup();
-const textInference = useTextInference();
-const models = useModels();
-const modelRequest = ref("");
-const addModelErrorMessage = ref("")
-const showInfo = ref(false);
-const addModelError = ref(false);
-const animate = ref(false);
+const i18nState = useI18N().state
+const globalSetup = useGlobalSetup()
+const textInference = useTextInference()
+const models = useModels()
+const modelRequest = ref('')
+const addModelErrorMessage = ref('')
+const showInfo = ref(false)
+const addModelError = ref(false)
+const animate = ref(false)
 const emits = defineEmits<{
-  (e: "close"): void,
-  (e: "callCheckModel"): void,
-  (e: "showWarning", warning: string, func: () => void): void
-}>();
+  (e: 'close'): void
+  (e: 'callCheckModel'): void
+  (e: 'showWarning', warning: string, func: () => void): void
+}>()
 
-const exampleModelName = computed(() => textInference.backend === 'IPEX-LLM' ? i18nState.REQUEST_LLM_MODEL_EXAMPLE : i18nState.REQUEST_LLM_SINGLE_EXAMPLE);
-const examplePlaceholder = computed(() => textInference.backend === 'IPEX-LLM' ? i18nState.COM_LLM_HF_PROMPT : i18nState.COM_LLM_HF_PROMPT_GGUF);
+const exampleModelName = computed(() =>
+  textInference.backend === 'IPEX-LLM'
+    ? i18nState.REQUEST_LLM_MODEL_EXAMPLE
+    : i18nState.REQUEST_LLM_SINGLE_EXAMPLE,
+)
+const examplePlaceholder = computed(() =>
+  textInference.backend === 'IPEX-LLM'
+    ? i18nState.COM_LLM_HF_PROMPT
+    : i18nState.COM_LLM_HF_PROMPT_GGUF,
+)
 
 const isValidModelName = (name: string) => {
   if (textInference.backend === 'IPEX-LLM') {
-    return name.split("/").length === 2;
+    return name.split('/').length === 2
   } else {
-    return name.split("/").length >= 3;
+    return name.split('/').length >= 3
   }
 }
 
 function onShow() {
-  animate.value = true;
+  animate.value = true
 }
 
 async function addModel() {
-
   const previousModel = globalSetup.modelSettings.llm_model
 
   const cancelAndShowWarning = (text: string) => {
-    globalSetup.modelSettings.llm_model = previousModel;
-    addModelErrorMessage.value = text;
-    addModelError.value = true;
+    globalSetup.modelSettings.llm_model = previousModel
+    addModelErrorMessage.value = text
+    addModelError.value = true
   }
 
-  if(!isValidModelName(modelRequest.value)) {
-    cancelAndShowWarning("Please provide a valid model reference.")
+  if (!isValidModelName(modelRequest.value)) {
+    cancelAndShowWarning('Please provide a valid model reference.')
     return
   }
 
   const isInModels = models.models.some((model) => model.name === modelRequest.value)
 
   if (isInModels) {
-    cancelAndShowWarning(i18nState.ERROR_ALREADY_IN_MODELS);
-    return;
+    cancelAndShowWarning(i18nState.ERROR_ALREADY_IN_MODELS)
+    return
   }
 
-  const urlExists = await globalSetup.checkIfHuggingFaceUrlExists(modelRequest.value);
+  const urlExists = await globalSetup.checkIfHuggingFaceUrlExists(modelRequest.value)
   if (!urlExists) {
-    cancelAndShowWarning(i18nState.ERROR_REPO_NOT_EXISTS);
-    return;
+    cancelAndShowWarning(i18nState.ERROR_REPO_NOT_EXISTS)
+    return
   }
 
-  addModelError.value = false;
+  addModelError.value = false
 
-  const isLlm = await isLLM(modelRequest.value);
+  const isLlm = await isLLM(modelRequest.value)
   const downloadNewModel = async () => {
-    await registerModel();
-    emits("callCheckModel");
-    closeAdd();
-  };
+    await registerModel()
+    emits('callCheckModel')
+    closeAdd()
+  }
 
   if (!isLlm) {
-    emits("showWarning", i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel);
+    emits('showWarning', i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
   } else {
-    downloadNewModel();
+    downloadNewModel()
   }
 }
 
 async function registerModel() {
-  userModels.push({ name: modelRequest.value, type: textInference.backend === 'IPEX-LLM' ? 'llm' : 'ggufLLM', downloaded: false })
+  userModels.push({
+    name: modelRequest.value,
+    type: textInference.backend === 'IPEX-LLM' ? 'llm' : 'ggufLLM',
+    downloaded: false,
+  })
   await models.refreshModels()
   if (textInference.backend === 'IPEX-LLM') {
-    globalSetup.modelSettings.llm_model = modelRequest.value;
+    globalSetup.modelSettings.llm_model = modelRequest.value
   } else {
-    globalSetup.modelSettings.ggufLLM_model = modelRequest.value;
+    globalSetup.modelSettings.ggufLLM_model = modelRequest.value
   }
 }
 
@@ -128,16 +156,13 @@ async function isLLM(repo_id: string) {
 }
 
 function closeAdd() {
-  addModelErrorMessage.value = "";
-  addModelError.value = false;
-  modelRequest.value = "";
-  emits("close");
+  addModelErrorMessage.value = ''
+  addModelError.value = false
+  modelRequest.value = ''
+  emits('close')
 }
 
-
-
-defineExpose({ onShow });
-
+defineExpose({ onShow })
 </script>
 
 <style>
