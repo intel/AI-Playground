@@ -13,7 +13,9 @@
     "build": "node ./build/scripts/patch-nsis-template.js && cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "lint:eslint": "eslint . --fix",
     "lint": "run-s lint:*",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "lint:ci": "eslint .",
+    "format:ci": "prettier --check ."
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",
