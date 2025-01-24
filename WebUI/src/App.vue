@@ -288,6 +288,7 @@ function postImageToEnhance(imageUrl: string) {
 
 function showDownloadModelConfirm(downList: DownloadModelParam[], success?: () => void, fail?: () => void) {
   showDowloadDlg.value = true;
+  showSetting.value = false;
   nextTick(() => {
     downloadDigCompt.value!.showConfirmDialog(downList, success, fail);
   });
