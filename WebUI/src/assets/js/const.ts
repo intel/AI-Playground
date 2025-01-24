@@ -1,4 +1,3 @@
-export module Const {
     export const MODEL_TYPE_LLM = 0;
     export const MODEL_TYPE_STABLE_DIFFUSION = 1;
     export const MODEL_TYPE_LORA = 2;
@@ -16,4 +15,3 @@ export module Const {
     export const MODEL_TYPE_COMFY_CONTROL_NET = 105;
     export const MODEL_TYPE_FACESWAP = 106;
     export const MODEL_TYPE_FACERESTORE = 107;
-}

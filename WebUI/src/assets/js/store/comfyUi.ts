@@ -2,7 +2,7 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { WebSocket } from "partysocket";
 import { ComfyUIApiWorkflow, Setting, useImageGeneration } from "./imageGeneration";
 import { useI18N } from "./i18n";
-import { toast } from "../toast";
+import * as toast from "../toast";
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 
@@ -225,6 +225,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
                 if (input.type === 'string' ) console.log('probably modifying string', input.label, input.current.value);
                 if (mutableWorkflow[keys[0]].inputs !== undefined) {
                     if (input.type === 'string') console.log('actually modifying string', input.label, input.current.value);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value;
                 }
             }
@@ -235,6 +236,7 @@ export const useComfyUi = defineStore("comfyUi", () => {
                 const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`;
                 console.log('uploadImageName', uploadImageName);
                 if (mutableWorkflow[keys[0]].inputs !== undefined) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadImageName;
                 }
                 const data = new FormData();
@@ -347,12 +349,15 @@ const settingToComfyInputsName = {
 } satisfies Partial<Record<Setting, string[]>>;
 type ComfySetting = keyof typeof settingToComfyInputsName;
 const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Object.entries(workflow).filter(([_key, value]) => (value as any)?.['_meta']?.title === title).map(([key, _value]) => key);
 const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Object.entries(workflow).filter(([_key, value]) => (value as any)?.['class_type'] === classType).map(([key, _value]) => key);
 const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
     for (const inputName of settingToComfyInputsName[setting]) {
         if (inputName === 'text') continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const keys = Object.entries(workflow).filter(([_key, value]) => (value as any)?.['inputs']?.[inputName ?? ''] !== undefined).map(([key, _value]) => key)
         if (keys.length > 0) return keys;
     }
@@ -364,7 +369,8 @@ const getInputNameBySettingAndKey = (workflow: ComfyUIApiWorkflow, key: string, 
     }
     return '';
 }
-function modifySettingInWorkflow(workflow: ComfyUIApiWorkflow, setting: ComfySetting, value: any) {
+
+function modifySettingInWorkflow(workflow: ComfyUIApiWorkflow, setting: ComfySetting, value: unknown) {
     const keys = findKeysByTitle(workflow, setting).length > 0 ? findKeysByTitle(workflow, setting) : findKeysByInputsName(workflow, setting);
     if (keys.length === 0) {
         console.error(`No key found for setting ${setting}. Stopping generation`);

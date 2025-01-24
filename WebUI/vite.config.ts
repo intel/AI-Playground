@@ -7,27 +7,6 @@ import pkg from "./package.json";
 import tailwind from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
-const assetParrentArray = [
-  { parttern: /.(jpe?g|a?png)$/, folder: "image" },
-  { parttern: /.css$/, folder: "css" },
-  { parttern: /.svg$/, folder: "icons" },
-  { parttern: /.js$/, folder: "js" },
-  { parttern: /.(mp4|mov|ts|flv|avi|mkv|rmvb)$/, folder: "video" },
-  { parttern: /.(mp3|aac|wav|flac)$/, folder: "audio" },
-  { parttern: /.(ttf|woff|woff2|otf|eot)$/, folder: "font" },
-];
-
-function findAssetFolder(ext: string) {
-  for (let i = 0; i < assetParrentArray.length; i++) {
-    const item = assetParrentArray[i];
-    if (item.parttern.test(ext)) {
-      return item.folder;
-    }
-  }
-  return ext.replace(".", "");
-}
-
-
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
   const isServe = command === "serve";

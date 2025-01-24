@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-use-v-if-with-v-for -->
 <template>
   <div id="answerPanel" class="h-full flex flex-col pr-4 pb-4 relative bg-origin-padding ">
     <div class="flex flex-row flex-auto overflow-y-auto">
@@ -225,21 +226,18 @@ import LoadingBar from "../components/LoadingBar.vue";
 import DropSelector from "@/components/DropSelector.vue";
 import ModelDropDownItem from "@/components/ModelDropDownItem.vue";
 import { useI18N } from '@/assets/js/store/i18n';
-import { toast } from '@/assets/js/toast';
-import { util } from '@/assets/js/util';
+import * as toast from '@/assets/js/toast';
+import * as util from '@/assets/js/util';
 import { SSEProcessor } from "@/assets/js/sseProcessor";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
-import { Model, useModels } from "@/assets/js/store/models";
+import { useModels } from "@/assets/js/store/models";
 import { MarkdownParser } from "@/assets/js/markdownParser";
 import "highlight.js/styles/github-dark.min.css";
-import { Const } from "@/assets/js/const";
+import * as Const from "@/assets/js/const";
 import { useConversations } from "@/assets/js/store/conversations";
-import { useComfyUi } from "@/assets/js/store/comfyUi";
 import { useTextInference } from "@/assets/js/store/textInference";
-import { nextTick } from 'vue';
 
 const conversations = useConversations();
-const comfyUi = useComfyUi();
 const models = useModels();
 const globalSetup = useGlobalSetup();
 const textInference = useTextInference();
@@ -509,7 +507,7 @@ async function checkModel() {
           reject
       );
     } else {
-      resolve && resolve();
+      resolve();
     }
   });
 }
@@ -571,7 +569,6 @@ async function stopGenerate() {
 function copyText(e: Event) {
   const target = e.target as HTMLElement;
   if (target) {
-    target
     util.copyText((target.parentElement!.parentElement!.previousElementSibling! as HTMLElement).innerText);
   }
 }
@@ -579,10 +576,6 @@ function copyText(e: Event) {
 function removeRonate360(ev: AnimationEvent) {
   const target = ev.target as HTMLElement;
   target.classList.remove("animate-ronate360");
-}
-
-function changeLLMModel(model: Model, _: number) {
-  globalSetup.applyModelSettings({ llm_model: model.name });
 }
 
 async function addLLMModel() {
@@ -623,7 +616,7 @@ function copyCode(e: MouseEvent) {
   }
 }
 
-function changeEmbeddingModel(item: any, _: number) {
+function changeEmbeddingModel(item: unknown, _: number) {
   globalSetup.applyModelSettings({ embedding: item as string });
 }
 
@@ -634,7 +627,7 @@ async function toggleRag(value: boolean) {
   ragData.processEnable = true;
   try {
     if (value) {
-      var checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: globalSetup.modelSettings.embedding, type: Const.MODEL_TYPE_EMBEDDING, backend: "default" }];
+      const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: globalSetup.modelSettings.embedding, type: Const.MODEL_TYPE_EMBEDDING, backend: "default" }];
       if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
         emits("showDownloadModelConfirm",
             checkList,

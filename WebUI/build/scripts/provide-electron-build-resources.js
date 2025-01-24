@@ -57,17 +57,10 @@ function copyFiles(targetDir, ...files) {
     }
 }
 
-function copyDirectories(targetDir, ...dirs) {
-    for (const dir of dirs) {
-        fs.cpSync(dir, path.join(targetDir, path.basename(dir)), { recursive: true });
-        console.log('Copied:', dir, 'to:', path.join(targetDir, path.basename(dir)));
-    }
-}
-
 function clearPreviousZip(zipFilePath) {
     if
     (fs.existsSync(zipFilePath)) {
-        console.log('Removing previous zip file:', zipFilePath)<
+        console.log('Removing previous zip file:', zipFilePath)
         fs.rmSync(zipFilePath, { recursive: true });
     }
 }

@@ -32,7 +32,7 @@ class Logger {
         if (this.webContents) {
             try {
                 this.webContents.send('debugLog', {level: 'info', source, message})
-            } catch (error) {
+            } catch (_error) {
                 console.error('Could not send debug log to renderer process');
             }
         } else {
@@ -48,7 +48,7 @@ class Logger {
         if (this.webContents) {
             try {
                 this.webContents.send('debugLog', {level: 'warn', source, message})
-            } catch (error) {
+            } catch (_error) {
                 console.error('Could not send debug log to renderer process');
             }
         } else {
@@ -66,7 +66,7 @@ class Logger {
         if (this.webContents) {
             try {
                 this.webContents.send('debugLog', {level: 'error', source, message})
-            } catch (error) {
+            } catch (_error) {
                 console.error('Could not send debug log to renderer process');
             }
         } else {

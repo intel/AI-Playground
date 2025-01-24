@@ -106,7 +106,7 @@
                             <span class="svg-icon i-delete w-5 h-5" @click="removeImage"></span>
                         </button>
                     </div>
-                    <img v-for=" image, i in destImg " :src="image" v-show="previewIdx == i"
+                    <img v-for=" image, i in destImg" :src="image" v-show="previewIdx == i"
                         class="p-1 max-w-768px max-h-400px" />
                     <div v-show="processing && generateIdx == previewIdx"
                         class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center">
@@ -185,15 +185,15 @@ import UpscaleOptions from "../components/UpscaleOptions.vue";
 import OutpaintOptions from "../components/OutpaintOptions.vue";
 import InpaintOptions from "../components/InpaintOptions.vue";
 import ImagePromptOptions from "../components/ImagePromptOptions.vue";
-import { util } from "@/assets/js/util";
-import { toast } from "@/assets/js/toast";
+import * as util from "@/assets/js/util";
+import * as toast from "@/assets/js/toast";
 import { SSEProcessor } from "@/assets/js/sseProcessor";
 import LoadingBar from "../components/LoadingBar.vue";
 import VerticalSlideBar from "@/components/VerticalSlideBar.vue";
 import PaintInfo from "@/components/PaintInfo.vue";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup";
 import InpaintMask from "../components/InpaintMask.vue";
-import { Const } from "@/assets/js/const";
+import * as Const from "@/assets/js/const";
 import { useImageGeneration } from "@/assets/js/store/imageGeneration";
 
 const i18nState = useI18N().state;
@@ -430,8 +430,8 @@ async function generate() {
         }, extParams);
 
         await sendGenerate();
-    } catch (ex: any) {
-        toast.error(ex.toString());
+    } catch (error: unknown) {
+        toast.error((error as Error).toString());
     } finally {
         processing.value = false;
     }
@@ -471,7 +471,7 @@ async function checkModel() {
                 reject
             );
         } else {
-            resolve && resolve();
+            resolve();
         }
     });
 }

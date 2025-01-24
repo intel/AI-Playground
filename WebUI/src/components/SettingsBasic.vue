@@ -8,7 +8,7 @@
     <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
       <p>Theme</p>
       <div class="grid gap-2" :class="{[`grid-cols-${theme.availableThemes.length}`]: true}">
-        <radio-block v-for="themeName in theme.availableThemes" :checked="theme.active === themeName"
+        <radio-block v-for="themeName in theme.availableThemes" :key="themeName" :checked="theme.active === themeName"
                      :text="themeToDisplayName(themeName)"
                      @click="() => theme.selected = themeName"></radio-block>
       </div>
@@ -68,7 +68,7 @@
       <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
       <table class="text-center w-full mx-2 table-fixed">
         <tbody>
-        <tr v-for="item in displayComponents">
+        <tr v-for="item in displayComponents" :key="item.serviceName">
           <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
           <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
         </tr>
@@ -136,8 +136,8 @@ function openDebug() {
   window.electronAPI.openDevTools()
 }
 
-function changeGraphics(value: any, index: number) {
-  globalSetup.applyModelSettings({graphics: (value as GraphicsItem).index});
+function changeGraphics(value: GraphicsItem, _index: number) {
+  globalSetup.applyModelSettings({graphics: value.index});
 }
 
 function mapBackendNames(name : Backend) : BackendServiceName | undefined {

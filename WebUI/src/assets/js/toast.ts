@@ -23,7 +23,6 @@ function mergeOptions(initialObj: KVObject, customObj: KVObject) {
     });
   }
   
-  export module toast {
     const TOAST_ANIMATION_SPEED = 400;
   
     const DEFAULT_TRANSITIONS: ToastTransitions = {
@@ -182,6 +181,7 @@ function mergeOptions(initialObj: KVObject, customObj: KVObject) {
       parentEL.appendChild(_toastStage);
   
       // This is a hack to get animations started. Apparently without explicitly redrawing, it'll just attach the class and no animations would be done.
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       _toastStage.offsetHeight;
   
       stylize(_toastStage, transitions.show);
@@ -219,7 +219,6 @@ function mergeOptions(initialObj: KVObject, customObj: KVObject) {
       const textNode = document.createTextNode(text);
       content.appendChild(textNode);
       toastStage.appendChild(content);
-      toastStage.style.pointerEvents;
       if (style) {
         if (style.content) {
           stylize(content, style.content);
@@ -238,4 +237,3 @@ function mergeOptions(initialObj: KVObject, customObj: KVObject) {
     function destroyToast() {
       _toastStage.remove();
     }
-  }

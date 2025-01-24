@@ -8,7 +8,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { util } from '@/assets/js/util';
+import * as util from '@/assets/js/util';
 
 const porps = defineProps<{
     text: string

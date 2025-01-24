@@ -11,7 +11,7 @@ export function existingFileOrError(filePath: string) {
     throw Error(`File at ${resolvedFilePath} does not exist`)
 }
 export async function spawnProcessAsync(command: string, args: string[] = [],
-    logHandler: (data: string) => void = () => { }, extraEnv?: {}, workDir?: string
+    logHandler: (data: string) => void = () => { }, extraEnv?: object, workDir?: string
 ): Promise<string> {
     logHandler(`Spawning command ${command} ${args.join(' ')}`);
     if (extraEnv) {

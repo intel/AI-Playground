@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue'
+import { computed } from 'vue'
 import { type SliderRootProps } from 'radix-vue'
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'radix-vue'
 import { cn } from '@/lib/utils'
@@ -47,8 +47,8 @@ function findBestResolution(totalPixels: number, aspectRatio: number) {
 
     if (w < MIN_SIZE || w > MAX_SIZE) continue
 
-    let actualPixels = w * h
-    let diff = Math.abs(actualPixels - totalPixels)
+    const actualPixels = w * h
+    const diff = Math.abs(actualPixels - totalPixels)
 
     if (diff < minDiff) {
       minDiff = diff

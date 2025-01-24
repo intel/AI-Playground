@@ -34,10 +34,10 @@
     </div>
 </template>
 <script setup lang="ts">
-import { toast } from '@/assets/js/toast';
+import * as toast from '@/assets/js/toast';
 import { useI18N } from '@/assets/js/store/i18n';
 import { useGlobalSetup } from '@/assets/js/store/globalSetup';
-import { clientAPI } from '@/assets/js/clientAPI';
+import * as clientAPI from '@/assets/js/clientAPI';
 
 const globalSetup = useGlobalSetup();
 const i18nState = useI18N().state;

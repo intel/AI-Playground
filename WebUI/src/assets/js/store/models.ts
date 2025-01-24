@@ -55,7 +55,7 @@ export const useModels = defineStore("models", () => {
 
     }
 
-    async function download(models: DownloadModelParam[]) {
+    async function download(_models: DownloadModelParam[]) {
     };
     refreshModels()
 

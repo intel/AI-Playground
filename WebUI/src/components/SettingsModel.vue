@@ -276,10 +276,9 @@ import {useModels} from "@/assets/js/store/models";
 import DropSelector from "../components/DropSelector.vue";
 import FolderSelector from "../components/FolderSelector.vue";
 import {Input} from '@/components/ui/input'
-import {toast} from "@/assets/js/toast";
-import {Const} from "@/assets/js/const";
+import * as toast from "@/assets/js/toast";
+import * as Const from "@/assets/js/const";
 import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
-import {mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
 
 
 const i18n = useI18N();
@@ -334,8 +333,8 @@ async function refreshInpaintModles(e: Event) {
   await globalSetup.refreshInpaintModles();
 }
 
-function customPresetModel(key: string, value: any) {
-  presetModel[key] = value as string;
+function customPresetModel(key: string, value: string) {
+  presetModel[key] = value;
   presetModelChange.value = true;
 }
 

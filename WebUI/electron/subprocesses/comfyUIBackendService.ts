@@ -46,7 +46,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             // Check if it's a valid git repo
             try {
                 await self.git.run(["-C", self.serviceDir, "status"])
-            } catch (e) {
+            } catch (_e) {
                 try {
                     filesystem.removeSync(self.serviceDir)
                 } finally {
@@ -69,7 +69,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             const requirementsTextPath = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
             try {
                 await self.uvPip.checkRequirementsTxt(requirementsTextPath)
-            } catch (e) {
+            } catch (_e) {
                 await self.uvPip.run(["install", "-r", requirementsTextPath])
             }
         }
@@ -87,7 +87,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   loras: lora`
                 fs.promises.writeFile(extraModelPathsYaml, extraModelsYaml, {encoding: 'utf-8', flag: 'w'});
                 self.appLogger.info(`Configured extra model paths for comfyUI at ${extraModelPathsYaml} as ${extraModelsYaml} `, self.name)
-            } catch (e) {
+            } catch (_e) {
                 self.appLogger.error("Failed to configure extra model paths for comfyUI", self.name)
                 throw new Error("Failed to configure extra model paths for comfyUI")
             }
@@ -149,7 +149,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
         //must be at the same tick as the spawn function call
         //otherwise we cannot really track errors given the nature of spawn() with a longlived process
-        const didProcessExitEarlyTracker = new Promise<boolean>((resolve, reject) => {
+        const didProcessExitEarlyTracker = new Promise<boolean>((resolve, _reject) => {
             apiProcess.on('exit', () => {
                 this.appLogger.error(`encountered unexpected exit in ${this.name}.`, this.name)
                 resolve(true);

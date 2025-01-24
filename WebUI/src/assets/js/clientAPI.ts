@@ -1,7 +1,3 @@
-import { toast } from "./toast";
-
-export module clientAPI {
-
   export const isClient = window.chrome.webview &&
     window.chrome.webview.hostObjects &&
     window.chrome.webview.hostObjects.clientAPI;
@@ -32,4 +28,3 @@ export module clientAPI {
   export function saveImage(url: string) {
     return window.electronAPI.saveImage(url)
   }
-}

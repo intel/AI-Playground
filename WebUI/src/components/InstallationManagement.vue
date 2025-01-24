@@ -18,7 +18,7 @@
           </tr>
           </thead>
           <tbody>
-          <tr v-for="component in components">
+          <tr v-for="component in components" :key="component.serviceName">
             <td class="text-left">{{ mapServiceNameToDisplayName(component.serviceName) }}</td>
             <td class="text-center">{{ component.isRequired ? languages.BACKEND_REQUIRED : languages.BACKEND_OPTIONAL }}</td>
             <td>
@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import {mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus} from "@/lib/utils.ts";
-import {toast} from "@/assets/js/toast.ts";
+import * as toast from "@/assets/js/toast.ts";
 import {useBackendServices} from '@/assets/js/store/backendServices';
 import LanguageSelector from "@/components/LanguageSelector.vue";
 

@@ -1,7 +1,7 @@
 import { Marked, Renderer } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
-import { util } from "./util";
+import * as util from "./util";
 
 export class MarkdownParser {
     pattern = /```([^\n]*)(.*?)(?:(?:```)|$)/gs;
@@ -12,7 +12,7 @@ export class MarkdownParser {
         this.marked = new Marked(
             markedHighlight({
                 langPrefix: 'hljs language-',
-                highlight(code, lang, info) {
+                highlight(code, lang, _info) {
                     const language = hljs.getLanguage(lang) ? lang : 'plaintext';
                     const html = hljs.highlight(code, { language }).value;
                     return html;

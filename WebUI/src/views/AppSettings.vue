@@ -51,7 +51,7 @@ const emits = defineEmits<{
   (e: "close"): void
 }>();
 
-function showDownloadModelConfirm(downList: DownloadModelParam[], success?: () => void, fail?: () => void)  {
+function showDownloadModelConfirm(downList: DownloadModelParam[], _success?: () => void, _fail?: () => void)  {
   emits("showDownloadModelConfirm", downList);
 }
 

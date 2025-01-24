@@ -28,9 +28,7 @@
 </template>
 <script setup lang="ts">
 import SlideBar from './SlideBar.vue';
-import { useGlobalSetup } from '@/assets/js/store/globalSetup';
 
-const globalSetup = useGlobalSetup();
 const direction = ref<string>('right');
 const denoise = ref(0.99);
 const emits = defineEmits<{

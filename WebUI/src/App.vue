@@ -256,7 +256,7 @@ function switchTab(index: number) {
   }
 }
 
-watch(textInference, (newSetting, oldSetting) => {
+watch(textInference, (newSetting, _oldSetting) => {
   if (newSetting.backend === 'LLAMA.CPP') {
     answer.value!.disableRag();
   } else {

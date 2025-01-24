@@ -17,7 +17,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="item in downloadList">
+                            <tr v-for="item in downloadList" :key="item.repo_id">
                                 <td>{{ item.repo_id }}</td>
                                 <td>
                                   <div class="flex flex-col items-center">
@@ -113,9 +113,9 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup';
 import ProgressBar from './ProgressBar.vue';
 import { useI18N } from '@/assets/js/store/i18n';
 import { SSEProcessor } from '@/assets/js/sseProcessor';
-import { util } from '@/assets/js/util';
-import { Const } from '@/assets/js/const';
-import { toast } from '@/assets/js/toast';
+import * as util from '@/assets/js/util';
+import * as Const from '@/assets/js/const';
+import * as toast from '@/assets/js/toast';
 import { useModels } from '@/assets/js/store/models';
 
 const i18nState = useI18N().state;
@@ -155,7 +155,7 @@ function dataProcess(line: string) {
             if (completeCount.value == allTaskCount) {
                 downloding = false;
                 emits("close");
-                downloadResolve && downloadResolve();
+                downloadResolve?.();
             } else {
                 taskPercent.value = util.toFixed(completeCount.value / allTaskCount * 100, 1);
                 percent.value = 100;
@@ -171,7 +171,7 @@ function dataProcess(line: string) {
             hashError.value = true;
             abortController?.abort();
             fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-            downloadReject && downloadReject({ type: "error", error: errorText.value });
+            downloadReject?.({ type: "error", error: errorText.value });
 
             switch (data.err_type) {
                 case "not_enough_disk_space":
@@ -197,7 +197,7 @@ let downloadReject: ((args: DownloadFailedParams) => void) | undefined
 async function showConfirmDialog(downList: DownloadModelParam[], success?: () => void, fail?: (args: DownloadFailedParams) => void) {
     if (downloding) {
         toast.error(i18nState.DOWNLOADER_CONFLICT);
-        fail && fail({ type: "conflict" })
+        fail?.({ type: "conflict" })
         return;
     }
     sizeRequesting.value = true;
@@ -245,7 +245,7 @@ async function showConfirmDialog(downList: DownloadModelParam[], success?: () =>
         }
         sizeRequesting.value = false;
     } catch (ex) {
-        fail && fail({ type: "error", error: ex });
+        fail?.({ type: "error", error: ex });
         sizeRequesting.value = false;
     }
 }
@@ -317,13 +317,13 @@ function download() {
         const reader = response.body!.getReader();
         return new SSEProcessor(reader, dataProcess, undefined).start();
     }).catch(ex => {
-        downloadReject && downloadReject({ type: "error", error: ex });
+        downloadReject?.({ type: "error", error: ex });
         downloding = false;
     })
 }
 
 function cancelConfirm() {
-    downloadReject && downloadReject({ type: "cancelConfrim" });
+    downloadReject?.({ type: "cancelConfrim" });
     emits("close");
 }
 
@@ -336,7 +336,7 @@ function confirmDownload() {
 function cancelDownload() {
     abortController?.abort();
     fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-    downloadReject && downloadReject({ type: "cancelDownload" });
+    downloadReject?.({ type: "cancelDownload" });
     emits("close");
 }
 

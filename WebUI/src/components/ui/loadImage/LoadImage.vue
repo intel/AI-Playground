@@ -57,7 +57,7 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
 <template>
   <div ref="imgDropZone" class="flex justify-center relative">
     <div v-show="isOverDropZone" class="bg-black/70 absolute inset-0 flex items-center justify-center text-white text-lg">Load Image</div>
-    <img :src="(imageUrlRef.value as string)" alt="Image" class="w-64 py-4 object-scale-down"></img>
+    <img :src="(imageUrlRef.value as string)" alt="Image" class="w-64 py-4 object-scale-down" />
   </div>
   <div class="flex justify-center">
     <input :id="id" :accept="acceptedImageTypes.join(',')" type="file" class="hidden"

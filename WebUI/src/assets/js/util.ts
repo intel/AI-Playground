@@ -1,7 +1,4 @@
-
-
-export module util {
-    export async function copyImage(url: string) {
+   export async function copyImage(url: string) {
         const response = await fetch(url);
         const blob = await response.blob();
         navigator.clipboard.write([
@@ -41,7 +38,7 @@ export module util {
         return new Promise<void>((resolve) => {
             const t = setTimeout(() => {
                 clearTimeout(t);
-                resolve && resolve();
+                resolve();
             }, ms);
         });
     }
@@ -123,9 +120,10 @@ export module util {
     }
 
     export function log(message: string) {
-        console.log(`[${util.dateFormat(new Date(), "hh:mm:ss:fff")}] ${message}`);
+        console.log(`[${dateFormat(new Date(), "hh:mm:ss:fff")}] ${message}`);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     export function convertToFormData(data: any) {
         const formData = new FormData();
         for (const key in data) {
@@ -149,7 +147,6 @@ export module util {
         let enumElement: HTMLElement | null = target;
         while (enumElement && enumElement != document.body) {
             offset.left += enumElement.offsetLeft;
-            offset.top == enumElement.offsetTop;
             enumElement = enumElement.parentElement;
         }
         return offset;
@@ -158,5 +155,3 @@ export module util {
     export function toFixed(num: number, fractionDigits: number) {
         return parseFloat(num.toFixed(fractionDigits));
     }
-
-}

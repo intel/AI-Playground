@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, dialog } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import pkg from "../package.json";
 
 contextBridge.exposeInMainWorld("envVars", {

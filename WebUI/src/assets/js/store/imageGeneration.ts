@@ -3,9 +3,9 @@ import z from "zod";
 import { useComfyUi } from "./comfyUi";
 import { useStableDiffusion } from "./stableDiffusion";
 import { useI18N } from "./i18n";
-import { Const } from "../const";
+import * as Const from "../const";
 import { useGlobalSetup } from "./globalSetup";
-import {toast} from "@/assets/js/toast.ts";
+import * as toast from "@/assets/js/toast.ts";
 
 export type StableDiffusionSettings = {
     resolution: 'standard' | 'hd' | 'manual', // ~ modelSettings.resolution 0, 1, 3

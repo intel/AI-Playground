@@ -48,7 +48,7 @@ export const useI18N = defineStore("i18n", () => {
     await switchLanguage(langName.value);
   }
 
-  function changeLanguage(value: any, index: number) { 
+  function changeLanguage(value: { value: string }, _index: number) { 
     switchLanguage(value.value)
   } 
 

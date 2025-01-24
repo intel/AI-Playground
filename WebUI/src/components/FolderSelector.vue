@@ -7,7 +7,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { clientAPI } from "@/assets/js/clientAPI";
+import * as clientAPI from "@/assets/js/clientAPI";
 
 const props = defineProps<{
     folder: string

@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
-let draging = false;
 const props = withDefaults(defineProps<{
     current: number,
     step: number,
@@ -79,7 +78,6 @@ function dragStart(e: PointerEvent) {
     div.onpointermove = dragMove;
     div.onpointerup = dragEnd;
     div.setPointerCapture(e.pointerId);
-    draging = true;
 };
 
 function upadteX(curX: number) {
@@ -109,7 +107,7 @@ function dragMove(e: PointerEvent) {
     upadteX(e.clientX);
 };
 
-function dragEnd(e: PointerEvent) {
+function dragEnd(_e: PointerEvent) {
     position.value!.onpointermove = null;
     position.value!.onpointerup = null;
 };

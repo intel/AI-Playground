@@ -78,8 +78,8 @@
 </template>
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n';
-import { toast } from '@/assets/js/toast';
-import { util } from '@/assets/js/util';
+import * as toast from '@/assets/js/toast';
+import * as util from '@/assets/js/util';
 import LoadingBar from "../components/LoadingBar.vue";
 import PaintInfo from '@/components/PaintInfo.vue';
 import { useImageGeneration } from '@/assets/js/store/imageGeneration';
@@ -126,7 +126,7 @@ async function ensureModelsAreAvailable() {
           reject
       );
     } else {
-      resolve && resolve();
+      resolve();
     }
   });
 }

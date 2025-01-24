@@ -78,7 +78,7 @@
               <span
                   class="rounded-lg h-4 px-1 text-xs"
                   :style="{ 'background-color': `${stringToColour(tag)}88` }"
-                  v-for="tag in imageGeneration.activeWorkflow.tags">
+                  v-for="tag in imageGeneration.activeWorkflow.tags" :key="tag">
                                 {{ tag }}</span>
             </div>
           </template>
@@ -89,7 +89,7 @@
               <span
                   class="rounded-lg h-4 px-1 text-xs"
                   :style="{ 'background-color': `${stringToColour(tag)}88` }"
-                  v-for="tag in slotItem.item.tags"
+                  v-for="tag in slotItem.item.tags" :key="tag"
               >
                                 {{ tag }}</span>
             </div>
@@ -117,7 +117,7 @@ import DropSelector from "../components/DropSelector.vue";
 import RadioBlock from "../components/RadioBlock.vue";
 import {useBackendServices} from "@/assets/js/store/backendServices.ts";
 import ComfyUIDownloadDialog from "@/components/ComfyUIDownloadDialog.vue";
-import {toast} from '@/assets/js/toast';
+import * as toast from '@/assets/js/toast';
 import {useI18N} from "@/assets/js/store/i18n.ts";
 const i18nState = useI18N().state;
 

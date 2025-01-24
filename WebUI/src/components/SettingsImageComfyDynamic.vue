@@ -1,5 +1,5 @@
 <template>
-    <div v-for="input, i in imageGeneration.comfyInputs" class="flex flex-col gap-2 py-2">
+    <div v-for="input in imageGeneration.comfyInputs" :key="`${input.nodeTitle}${input.nodeInput}`" class="flex flex-col gap-2 py-2">
         <p>{{ input.label }}</p>
 
         <!--    Number    -->

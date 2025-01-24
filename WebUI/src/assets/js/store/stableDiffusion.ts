@@ -1,12 +1,12 @@
 import { defineStore } from "pinia";
 import { useImageGeneration } from "./imageGeneration";
 import { useGlobalSetup } from "./globalSetup";
-import { Const } from "../const";
+import * as Const from "../const";
 import { useModels } from "./models";
-import { util } from "../util";
+import * as util from "../util";
 import { SSEProcessor } from "../sseProcessor";
 import { useI18N } from "./i18n";
-import { toast } from "../toast";
+import * as toast from "../toast";
 
 type BackendParams = {
     mode: number,
@@ -60,14 +60,14 @@ export const useStableDiffusion = defineStore("stableDiffusion", () => {
             };
 
             await sendGenerate(defaultBackendParams);
-        } catch (ex) {
+        } catch (_error: unknown) {
         } finally {
             imageGeneration.processing = false;
         }
     }
 
     async function checkModel() {
-        return new Promise<void>(async (resolve, reject) => {
+        return new Promise<void>(async (resolve, _reject) => {
             const checkList: CheckModelAlreadyLoadedParameters[] = [{ repo_id: globalSetup.modelSettings.sd_model, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: "default" }];
             if (globalSetup.modelSettings.lora != "None") {
                 checkList.push({ repo_id: globalSetup.modelSettings.lora, type: Const.MODEL_TYPE_LORA , backend: "default"})

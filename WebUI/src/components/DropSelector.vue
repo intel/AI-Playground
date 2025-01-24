@@ -1,5 +1,6 @@
+
 <template>
-    <button ref="root" class="v-drop-select" :class="class" :disabled="props.disabled" @click="showList">
+    <button ref="root" class="v-drop-select" :class="props.class" :disabled="props.disabled" @click="showList">
         <p class="v-drop-select-result">
             <span class="v-drop-select-text">
                 <slot name="selected">{{ props.value == null ? languages.COM_NO_SELECTED : props.value }}</slot>
@@ -17,13 +18,16 @@
     </Teleport>
 </template>
 <script setup lang="ts">
+import { HTMLAttributes } from 'vue';
 
 const props = defineProps<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     array: Array<any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value?: any,
     emptyText?: string,
     disabled?: boolean
-    class?: any
+    class?: HTMLAttributes['class']
 }>();
 const root = ref<HTMLElement>();
 const list = ref<HTMLElement>();
@@ -33,7 +37,7 @@ const listRect = reactive({
     y: 0,
     width: 0
 });
-let timerId = 0;
+const timerId = 0;
 function updateTranslate() {
     const dropList = list.value!;
     if (dropList) {
@@ -101,9 +105,11 @@ function addClickHide(e: MouseEvent) {
 }
 
 const emits = defineEmits<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (e: "change", value: any, index: number): void
 }>();
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function changeSelectedItem(item: any, index: number) {
     emits("change", item, index);
     show.value = false;

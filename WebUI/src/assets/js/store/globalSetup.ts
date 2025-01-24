@@ -1,8 +1,7 @@
 import {defineStore} from "pinia";
-import {util} from "../util";
+import * as util from "../util";
 import {useI18N} from "./i18n";
 import {useBackendServices} from "./backendServices";
-import {toast} from "@/assets/js/toast.ts";
 
 type GlobalSetupState = "running" | "verifyBackend" | "manageInstallations" | "loading" | "failed"
 type LastUsedBackend = BackendServiceName | "None"
@@ -102,7 +101,7 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
                 models.value.scheduler.push(...await initWebSettings(postJson));
                 models.value.scheduler.unshift("None");
                 break;
-            } catch (error) {
+            } catch (_error: unknown) {
                 await util.delay(delay);
             }
         }
@@ -233,29 +232,6 @@ export const useGlobalSetup = defineStore("globalSetup", () => {
             console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
         } catch (e) {
             console.warn(`Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`)
-        }
-    }
-
-    function getManualModelSettings() {
-        const dataStr = localStorage.getItem("ManualModelSettings");
-        if (dataStr) {
-            return JSON.parse(dataStr) as KVObject;
-        } else {
-            return {
-                llm_model: "microsoft/Phi-3-mini-4k-instruct",
-                enableRag: false,
-                sd_model: "Lykon/dreamshaper-8",
-                negativePrompt: "bad hands, nsfw",
-                generateNumber: 1,
-                width: 512,
-                height: 512,
-                guidanceScale: 7.5,
-                inferenceSteps: 40,
-                seed: -1,
-                lora: "None",
-                scheduler: "None",
-                embedding: "BAAI/bge-large-en-v1.5"
-            }
         }
     }
 

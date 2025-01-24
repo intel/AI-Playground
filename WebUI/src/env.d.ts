@@ -77,9 +77,11 @@ type Chrome = {
 
 type WebView = {
     hostObjects: HostProxyObjects;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addEventListener: (event: "message", callback: (args: any) => void) => void;
     removeEventListener: (
         event: "message",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         callback: (args: any) => void
     ) => void;
 };
@@ -114,6 +116,7 @@ type ApiResponse = {
 
 
 type KVObject = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 };
 
@@ -289,6 +292,7 @@ type NumberRange = {
     max: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DownloadFailedParams = { type: "error" | "cancelConfrim" | "cancelDownload" | "conflict", error?: any }
 
 type CheckModelAlreadyLoadedParameters = {

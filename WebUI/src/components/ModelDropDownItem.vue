@@ -12,6 +12,7 @@ function toDisplayName(name: string) {
     return name.includes('.gguf') ? name.split('/').pop() : name;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = withDefaults(defineProps<{
     model?: Model
 }>(), {

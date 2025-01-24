@@ -36,8 +36,6 @@ import {updateIntelWorkflows} from "./subprocesses/updateIntelWorkflows.ts";
 process.env.DIST = path.join(__dirname, "../");
 process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? "../.." : "../../../public");
 
-
-const resourcesBaseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../../");
 const externalRes = path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, "../../external/"));
 const singleInstanceLock = app.requestSingleInstanceLock();
 
@@ -198,7 +196,7 @@ app.on("activate", () => {
     }
 });
 
-app.on('second-instance', (event, commandLine, workingDirectory) => {
+app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
     if (win && !win.isDestroyed()) {
         if (win.isMinimized()) {
             win.restore();
@@ -214,7 +212,7 @@ async function initServiceRegistry(win: BrowserWindow, settings: LocalSettings) 
 
 function initEventHandle() {
 
-    screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+    screen.on("display-metrics-changed", (_event, display, _changedMetrics) => {
         if (win) {
             win.setBounds({
                 x: 0,
@@ -251,7 +249,7 @@ function initEventHandle() {
         return appSize;
     });
 
-    ipcMain.on("openUrl", (event, url: string) => {
+    ipcMain.on("openUrl", (_event, url: string) => {
         return shell.openExternal(url);
     });
 
@@ -269,7 +267,7 @@ function initEventHandle() {
 
     ipcMain.handle(
         "restorePathsSettings",
-        (event: IpcMainInvokeEvent) => {
+        (_event: IpcMainInvokeEvent) => {
             const paths = app.isPackaged ? {
                 "llm": "./resources/service/models/llm/checkpoints",
                 "embedding": "./resources/service/models/llm/embedding",
@@ -296,7 +294,7 @@ function initEventHandle() {
         }
     });
 
-    ipcMain.on("setFullScreen", (event: IpcMainEvent, enable: boolean) => {
+    ipcMain.on("setFullScreen", (_event: IpcMainEvent, enable: boolean) => {
         if (win) {
             win.setFullScreen(enable);
         }
@@ -367,7 +365,7 @@ function initEventHandle() {
         return fs.existsSync(path);
     });
 
-    let pathsManager = new PathsManager(path.join(externalRes, app.isPackaged ? "model_config.json" : "model_config.dev.json"));
+    const pathsManager = new PathsManager(path.join(externalRes, app.isPackaged ? "model_config.json" : "model_config.dev.json"));
 
     ipcMain.handle("getInitSetting", (event) => {
         const win = BrowserWindow.fromWebContents(event.sender);
@@ -383,52 +381,52 @@ function initEventHandle() {
 
     });
 
-    ipcMain.handle("updateModelPaths", (event, modelPaths: ModelPaths) => {
+    ipcMain.handle("updateModelPaths", (_event, modelPaths: ModelPaths) => {
         pathsManager.updateModelPahts(modelPaths);
         return pathsManager.sacanAll();
     });
 
-    ipcMain.handle("refreshSDModles", (event) => {
+    ipcMain.handle("refreshSDModles", (_event) => {
         return pathsManager.scanSDModleLists();
     });
 
-    ipcMain.handle("refreshInpaintModles", (event) => {
+    ipcMain.handle("refreshInpaintModles", (_event) => {
         return pathsManager.scanInpaint();
     });
 
-    ipcMain.handle("refreshLora", (event) => {
+    ipcMain.handle("refreshLora", (_event) => {
         return pathsManager.scanLora();
     });
 
-    ipcMain.handle("refreshLLMModles", (event) => {
+    ipcMain.handle("refreshLLMModles", (_event) => {
         return pathsManager.scanLLMModles();
     });
 
-    ipcMain.handle("refreshEmbeddingModels", (event) => {
+    ipcMain.handle("refreshEmbeddingModels", (_event) => {
         return pathsManager.scanEmbedding();
     });
 
-    ipcMain.handle("getDownloadedDiffusionModels", (event) => {
+    ipcMain.handle("getDownloadedDiffusionModels", (_event) => {
         return pathsManager.scanSDModleLists(false);
     });
 
-    ipcMain.handle("getDownloadedInpaintModels", (event) => {
+    ipcMain.handle("getDownloadedInpaintModels", (_event) => {
         return pathsManager.scanInpaint(false);
     });
 
-    ipcMain.handle("getDownloadedLoras", (event) => {
+    ipcMain.handle("getDownloadedLoras", (_event) => {
         return pathsManager.scanLora(false);
     });
 
-    ipcMain.handle("getDownloadedLLMs", (event) => {
+    ipcMain.handle("getDownloadedLLMs", (_event) => {
         return pathsManager.scanLLMModles();
     });
 
-    ipcMain.handle("getDownloadedGGUFLLMs", (event) => {
+    ipcMain.handle("getDownloadedGGUFLLMs", (_event) => {
         return pathsManager.scanGGUFLLMModels();
     });
 
-    ipcMain.handle("getDownloadedEmbeddingModels", (event) => {
+    ipcMain.handle("getDownloadedEmbeddingModels", (_event) => {
         return pathsManager.scanEmbedding(false);
     });
 
@@ -443,7 +441,7 @@ function initEventHandle() {
         return serviceRegistry.getServiceInformation()
     });
 
-    ipcMain.handle("sendStartSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
+    ipcMain.handle("sendStartSignal", (_event: IpcMainInvokeEvent, serviceName: string) => {
         if(!serviceRegistry) {
             appLogger.warn('received start signal too early during aipg startup', 'electron-backend');
             return;}
@@ -454,7 +452,7 @@ function initEventHandle() {
         }
         return service.start()
     });
-    ipcMain.handle("sendStopSignal", (event: IpcMainInvokeEvent, serviceName: string) => {
+    ipcMain.handle("sendStopSignal", (_event: IpcMainInvokeEvent, serviceName: string) => {
         if(!serviceRegistry) {
             appLogger.warn('received stop signal too early during aipg startup', 'electron-backend');
             return;}
@@ -465,7 +463,7 @@ function initEventHandle() {
         }
         return service.stop()
     });
-    ipcMain.handle("sendSetUpSignal", async (event: IpcMainInvokeEvent, serviceName: string) => {
+    ipcMain.handle("sendSetUpSignal", async (_event: IpcMainInvokeEvent, serviceName: string) => {
         if(!serviceRegistry || !win) {
             appLogger.warn('received setup signal too early during aipg startup', 'electron-backend');
             return;}
@@ -515,13 +513,13 @@ function initEventHandle() {
         return path.join(externalRes, 'service', imagePath);
     }
 
-    ipcMain.on("openImageWithSystem", (event, url: string) => {
+    ipcMain.on("openImageWithSystem", (_event, url: string) => {
         const imagePath = getImagePathFromUrl(url);
         if (!imagePath) return;
         shell.openPath(imagePath)
     });
 
-    ipcMain.on("selecteImage", (event, url: string) => {
+    ipcMain.on("selecteImage", (_event, url: string) => {
         const imagePath = getImagePathFromUrl(url);
         if (!imagePath) return;
 
@@ -568,7 +566,7 @@ ipcMain.on("openImageWin", (_: IpcMainEvent, url: string, title: string, width: 
     });
 });
 
-ipcMain.handle('showSaveDialog', async (event, options: Electron.SaveDialogOptions) => {
+ipcMain.handle('showSaveDialog', async (_event, options: Electron.SaveDialogOptions) => {
     dialog.showSaveDialog(options).then(result => {
         return result;
     }).catch(error => {
@@ -583,14 +581,14 @@ function needAdminPermission() {
             if (err) {
                 if (err && err.code == 'EPERM') {
                     if (path.parse(externalRes).root == path.parse(process.env.windir!).root) {
-                        resolve && resolve(!isAdmin());
+                        resolve(!isAdmin());
                     }
                 } else {
-                    resolve && resolve(false);
+                    resolve(false);
                 }
             } else {
                 fs.rmSync(filename);
-                resolve && resolve(false);
+                resolve(false);
             }
         });
     })
@@ -606,18 +604,6 @@ function isAdmin(): boolean {
     }
 }
 
-async function setupPyenv() {
-    const iterable: AsyncIterable<SetupProgress> = serviceRegistry!.getService("ai-backend")!.set_up()
-    try {
-        for await (const value of iterable) {
-            appLogger.info(`reported progress: ${value.step}|${value.status}|${value.debugMessage}`, 'electron-backend');
-        }
-    } catch (e) {
-        appLogger.warn(`caught error: ${e}`, 'electron-backend');
-    }
-
-}
-
 app.whenReady().then(async () => {
     /*
     The current user does not have write permission for files in the program directory and is not an administrator.
@@ -629,7 +615,7 @@ app.whenReady().then(async () => {
         }
         //It is possible that the program is installed in a directory that requires administrator privileges
         const message = `start "" "${process.argv.join(' ').trim()}`;
-        sudo.exec(message, (err, stdout, stderr) => {
+        sudo.exec(message, (_err, _stdout, _stderr) => {
             app.exit(0);
         });
         return;

@@ -9,7 +9,7 @@ export const useBackendServices = defineStore("backendServices", () => {
         ["llamacpp-backend", new BackendServiceSetupProgressListener("llamacpp-backend")],
     ]);
 
-    window.electronAPI.getServices().catch(async (reason: any) => {
+    window.electronAPI.getServices().catch(async (_reason: unknown) => {
         console.warn("initial service call failed - retrying")
         await new Promise<void>(resolve => {
             setTimeout(async () => {resolve()}, 1000)
@@ -92,7 +92,7 @@ export const useBackendServices = defineStore("backendServices", () => {
 
 
 class BackendServiceSetupProgressListener {
-    isActive: Boolean = false
+    isActive: boolean = false
     readonly associatedServiceName : string
     private collectedSetupProgress: SetupProgress[] = []
     private terminalUpdateReceived = false

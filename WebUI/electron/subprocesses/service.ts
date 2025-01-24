@@ -1,6 +1,5 @@
 import {ChildProcess} from "node:child_process";
 import {app, BrowserWindow, net} from "electron";
-import fs from "fs";
 import * as filesystem from 'fs-extra';
 import path from "node:path";
 import { appLoggerInstance } from "../logging/logger.ts";
@@ -8,6 +7,7 @@ import { existingFileOrError, spawnProcessAsync } from "./osProcessHelper";
 import { assert } from 'node:console';
 import { Arch, getArchPriority, getDeviceArch } from './deviceArch';
 import { createHash } from 'crypto';
+import extract from 'extract-zip';
 
 class ServiceCheckError extends Error {
     readonly component: string
@@ -94,7 +94,7 @@ abstract class ExecutableService extends GenericServiceImpl {
 
     abstract getExePath(): string
 
-    async run(args: string[] = [], extraEnv?: {}, workDir?: string): Promise<string> {
+    async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
         const exePath = existingFileOrError(this.getExePath())
         return spawnProcessAsync(exePath, args, (data) => this.log(data), extraEnv, workDir)
     }
@@ -152,7 +152,7 @@ export class PipService extends ExecutableService {
         return this.python.getExePath()
     }
 
-    async run(args: string[] = [], extraEnv?: {}, workDir?: string): Promise<string> {
+    async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
         return this.python.run(["-m", "pip", ...args], extraEnv, workDir)
     }
 
@@ -205,8 +205,8 @@ export class PipService extends ExecutableService {
     }
 
     async checkRequirementsTxt(requirementsTxtPath: string): Promise<void> {
-        await this.python.run(["-c", `import pkg_resources; pkg_resources.require([s for s in open(r'${requirementsTxtPath}') if s and s[0].isalpha()])`]).catch((e) => {
-            throw new Error(`requirements check failed`)
+        await this.python.run(["-c", `import pkg_resources; pkg_resources.require([s for s in open(r'${requirementsTxtPath}') if s and s[0].isalpha()])`]).catch((e: unknown) => {
+            throw new Error(`requirements check failed: ${e}`,)
         })
     }
 }
@@ -220,7 +220,7 @@ export class UvPipService extends PipService {
         this.name = "uvpip"
     }
 
-    async run(args: string[] = [], extraEnv?: {}, workDir?: string): Promise<string> {
+    async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
         return this.python.run(["-m", "uv", "pip", ...args], extraEnv, workDir)
     }
 
@@ -268,7 +268,7 @@ export class LsLevelZeroService extends ExecutableService {
         return path.resolve(path.join(this.dir, "Library/bin/ls_level_zero.exe"))
     }
 
-    async run(args: string[] = [], extraEnv?: {}, workDir?: string): Promise<string> {
+    async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
         // reset ONEAPI_DEVICE_SELECTOR to ensure full device discovery
         const env = {
             ...extraEnv,
@@ -385,7 +385,7 @@ export class GitService extends ExecutableService {
         return path.resolve(path.join(this.dir, "cmd/git.exe"))
     }
 
-    async run(args: string[] = [], extraEnv?: {}, workDir?: string): Promise<string> {
+    async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
         // Explicitly specify the cert file bundled with portable git,
         // to avoid being affected by the system git configuration.
         const env = {
@@ -460,7 +460,6 @@ export class GitService extends ExecutableService {
     }
 
     private async unzipGit(): Promise<void> {
-        const extract = require("extract-zip");
         await extract(this.zipPath, {dir: this.dir});
     }
 }
@@ -639,7 +638,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
                         resolve(true)
                         break
                     }
-                } catch (e) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                } catch (e: unknown) {
+                    
                     //fetch will simply fail while server not up
                 }
                 await new Promise<void>(resolve => setTimeout(resolve, queryIntervalMs));

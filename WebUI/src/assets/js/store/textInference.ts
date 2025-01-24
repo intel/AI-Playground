@@ -4,8 +4,8 @@ import { z } from "zod";
 import { useBackendServices } from "./backendServices";
 
 export const backendTypes = ['IPEX-LLM', 'LLAMA.CPP'] as const;
-const backend = z.enum(backendTypes);
-export type Backend = z.infer<typeof backend>;
+const BackendSchema = z.enum(backendTypes);
+export type Backend = z.infer<typeof BackendSchema>;
 
 const backendModelKey = {
     'IPEX-LLM': 'llm_model',

@@ -71,7 +71,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
         //must be at the same tick as the spawn function call
         //otherwise we cannot really track errors given the nature of spawn() with a longlived process
-        const didProcessExitEarlyTracker = new Promise<boolean>((resolve, reject) => {
+        const didProcessExitEarlyTracker = new Promise<boolean>((resolve, _reject) => {
             apiProcess.on('error', (error) => {
                 this.appLogger.error(`encountered error of process in ${this.name} : ${error}`, this.name)
                 resolve(true);

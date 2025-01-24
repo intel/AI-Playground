@@ -14,5 +14,5 @@
 <script setup lang="ts">
 import { useI18N } from "@/assets/js/store/i18n.ts";
 
-const i18n = useI18N();
+useI18N();
 </script>

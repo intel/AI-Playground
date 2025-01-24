@@ -14,6 +14,6 @@ type ToastOptions = {
   };
   
   type ToastTransitions = {
-    show: Object;
-    hide: Object;
+    show: object;
+    hide: object;
   };
