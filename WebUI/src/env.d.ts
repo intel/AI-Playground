@@ -369,7 +369,7 @@ type SDGenerateState =
   | 'image_out'
   | 'error'
 
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend'
+type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
 
 type ApiServiceInformation = {
   serviceName: BackendServiceName

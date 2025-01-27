@@ -1,0 +1,14 @@
+.vscode/
+__pycache__/
+models/llm/
+temp/
+test/
+dist/
+build/
+cache/
+test/
+env/
+
+!tools/*.exe
+llm_cache/
+TinyLlama-*

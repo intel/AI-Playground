@@ -1,0 +1,4 @@
+Flask==3.0.3
+apiflask==2.3.0
+optimum-intel[openvino]
+openvino-genai

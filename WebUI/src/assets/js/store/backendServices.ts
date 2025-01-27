@@ -8,6 +8,7 @@ export const useBackendServices = defineStore(
       ['ai-backend', new BackendServiceSetupProgressListener('ai-backend')],
       ['comfyui-backend', new BackendServiceSetupProgressListener('comfyui-backend')],
       ['llamacpp-backend', new BackendServiceSetupProgressListener('llamacpp-backend')],
+      ['openvino-backend', new BackendServiceSetupProgressListener('openvino-backend')],
     ])
 
     window.electronAPI

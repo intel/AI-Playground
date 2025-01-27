@@ -261,6 +261,15 @@
                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
               </template>
             </drop-selector>
+            <drop-selector v-if="textInference.backend === 'OpenVINO'" :array="models.ggufLLMs" @change="(i) => textInference.activeModel = i.name" class="w-96">
+              <template #selected>
+                <model-drop-down-item
+                  :model="models.ggufLLMs.find((m) => m.name === globalSetup.modelSettings.openvino_model)"></model-drop-down-item>
+              </template>
+              <template #list="slotItem">
+                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
+            </template>
+          </drop-selector>
             <button
               class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
               @click="addLLMModel"
@@ -419,13 +428,37 @@ const emits = defineEmits<{
   (e: 'showModelRequest', success?: () => void, fail?: () => void): void
 }>()
 
-let abortContooler: AbortController | null
-const stopping = ref(false)
+let abortContooler: AbortController | null;
+const stopping = ref(false);
+const fontSizeIndex = ref(1); // sets default to text-sm
 
-const isHistoryVisible = ref(false)
-const currentBackendAPI = computed(() =>
-  textInference.backend === 'LLAMA.CPP' ? textInference.llamaBackendUrl : globalSetup.apiHost,
-)
+const fontSizes = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];
+const iconSizes = ['size-[40px]', 'size-[42px]', 'size-[44px]', 'size-[46px]', 'size-[48px]', 'size-[50px]', 'size-[52px]', 'size-[54px]', 'size-[56px]', 'size-[58px]', 'size-[60px]', 'size-[62px]', 'size-[64px]'];
+const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value]);
+const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)]);
+const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
+const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
+const isMinSize = computed(() => fontSizeIndex.value <= 0);
+const isHistoryVisible = ref(false);
+const backendMapping = {
+    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost },
+    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl },
+    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl }
+  };
+const currentBackendAPI = computed(() => {
+  const backendKey = textInference.backend;
+
+  switch (backendKey) {
+    case 'IPEX-LLM':
+      return globalSetup.apiHost;
+    case 'LLAMA.CPP':
+      return textInference.llamaBackendUrl;
+    case 'OpenVINO':
+      return textInference.openVINOBackendUrl;
+    default:
+      throw new Error(`Unknown backend: ${backendKey}`);
+  }
+});
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
@@ -686,8 +719,7 @@ async function generate(chatContext: ChatItem[]) {
   }
 
   try {
-    const inferenceBackendService: BackendServiceName =
-      textInference.backend === 'IPEX-LLM' ? 'ai-backend' : 'llamacpp-backend'
+    const inferenceBackendService: BackendServiceName = backendMapping[textInference.backend].service as BackendServiceName;
     await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
     globalSetup.updateLastUsedBackend(inferenceBackendService)
 

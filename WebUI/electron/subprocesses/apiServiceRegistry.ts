@@ -5,6 +5,7 @@ import { BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
 import getPort, { portNumbers } from 'get-port'
 import { LlamaCppBackendService } from './llamaCppBackendService.ts'
+import { OpenVINOBackendService } from "./openVINOBackendService.ts";
 
 export type backend = 'ai-backend' | 'comfyui-backend'
 
@@ -125,6 +126,7 @@ export async function aiplaygroundApiServiceRegistry(
         settings,
       ),
     )
+        instance.register(new OpenVINOBackendService('openvino-backend', await getPort({port: portNumbers(29000, 29999)}), win, settings))
   }
   return instance
 }

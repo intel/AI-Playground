@@ -3,13 +3,14 @@ import { useGlobalSetup } from './globalSetup'
 import { z } from 'zod'
 import { useBackendServices } from './backendServices'
 
-export const backendTypes = ['IPEX-LLM', 'LLAMA.CPP'] as const
+export const backendTypes = ['IPEX-LLM', 'LLAMA.CPP', 'OpenVINO'] as const
 const BackendSchema = z.enum(backendTypes)
 export type Backend = z.infer<typeof BackendSchema>
 
 const backendModelKey = {
   'IPEX-LLM': 'llm_model',
   'LLAMA.CPP': 'ggufLLM_model',
+  'OpenVINO': 'openvino_model',
 }
 export const useTextInference = defineStore(
   'textInference',
@@ -21,17 +22,29 @@ export const useTextInference = defineStore(
     const metricsEnabled = ref(false)
 
     const llamaBackendUrl = computed(() => {
-      const url = backendServices.info.find(
-        (item) => item.serviceName === 'llamacpp-backend',
-      )?.baseUrl
-      console.log('url', url)
-      return url
-    })
+        const url = backendServices.info.find(item => item.serviceName === "llamacpp-backend")?.baseUrl;
+        console.log('llama url', url);
+        return url;
+    });
+
+    const openVINOBackendUrl = computed(() => {
+        const url = backendServices.info.find(item => item.serviceName === "openvino-backend")?.baseUrl;
+        console.log('openvino url', backendServices.info.find(item => item.serviceName === "openvino-backend")?.baseUrl);
+        return url;
+    });
+
 
     watch([llamaBackendUrl], () => {
-      console.log('llamaBackendUrl changed', llamaBackendUrl.value)
-    })
+        console.log('llamaBackendUrl changed', llamaBackendUrl.value);
+    }
+    );
 
+    watch([openVINOBackendUrl], () => {
+        console.log('openVINOBackendUrl changed', openVINOBackendUrl.value);
+    },
+    { immediate: true }
+    );
+    
     watch([activeModel], () => {
       console.log('activeModel changed', activeModel.value)
       globalSetup.applyModelSettings({ [backendModelKey[backend.value]]: activeModel.value })
@@ -94,6 +107,7 @@ export const useTextInference = defineStore(
       backend,
       activeModel,
       llamaBackendUrl,
+      openVINOBackendUrl,
       metricsEnabled,
       toggleMetrics,
       fontSizeClass,
