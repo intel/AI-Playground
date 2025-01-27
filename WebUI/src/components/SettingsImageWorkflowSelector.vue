@@ -29,10 +29,10 @@
       <p>{{ languages.SETTINGS_IMAGE_MODE }}</p>
       <div class="grid grid-cols-2 items-center gap-2 flex-wrap">
         <radio-block :checked="imageGeneration.backend === 'default'"
-                     :text="'Default'"
+                     :text="languages.SETTINGS_IMAGE_DEFAULT"
                      @click="() => { imageGeneration.backend = 'default' }"></radio-block>
         <radio-block :checked="imageGeneration.backend === 'comfyui'"
-                     :text="'Workflow'"
+                     :text="languages.SETTINGS_IMAGE_WORKFLOW"
                      @click="() => { onSwitchToComfyUI() }"></radio-block>
       </div>
     </div>
@@ -40,7 +40,7 @@
       <p>{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION }}</p>
       <div class="grid grid-cols-3 items-center gap-2 flex-wrap">
         <radio-block :checked="classicModel === 'sd1.5'"
-                     :text="languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STRANDARD"
+                     :text="languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD"
                      @click="() => { classicModel = 'sd1.5' }"></radio-block>
         <radio-block :checked="classicModel === 'sdxl'"
                      :text="languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD"

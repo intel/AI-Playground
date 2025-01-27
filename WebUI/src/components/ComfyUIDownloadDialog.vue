@@ -9,7 +9,7 @@
       </button>
       <div class="flex-end space-x-4">
         <button @click="() => {onConfirm()}" type="submit" class="bg-color-active py-1 px-4 rounded">
-          {{ "Go to Setup" }}
+          {{ languages.COM_GO_TO_SETUP }}
         </button>
       </div>
     </div>

@@ -22,14 +22,14 @@
     </div>
   </header>
   <main v-show="globalSetup.loadingState === 'verifyBackend'" class="flex-auto flex items-center justify-center">
-    <loading-bar :text="'Verifying backends'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
+    <loading-bar :text="languages.LOADING_VERIFYING_BACKENDS" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
   <main v-show="globalSetup.loadingState === 'manageInstallations'"
         class="flex-auto flex items-center justify-center">
     <installation-management @close="concludeLoadingStateAfterManagedInstallationDialog"></installation-management>
   </main>
   <main v-show="globalSetup.loadingState === 'loading'" class="flex-auto flex items-center justify-center">
-    <loading-bar :text="'AI Playground Loading'" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
+    <loading-bar :text="languages.LOADING_AI_PLAYGROUND_LOADING" class="w-3/5" style="word-spacing: 8px;"></loading-bar>
   </main>
   <main v-show="globalSetup.loadingState === 'failed'" class="flex-auto flex items-start mt-[10vh] justify-center">
     <div

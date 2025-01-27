@@ -1,3 +1,21 @@
+<template>
+  <div class="v-horizontal-slide" :class="{ 'disabled': disabled }">
+    <div class="v-slide-container relative">
+      <div class="v-slide-position" ref='position' @pointerdown="dragStart">
+        <div class="v-slide-bg">
+          <i class="v-slide-bg-mask" :style="{ 'width': per }"></i>
+        </div>
+        <div class="v-slide-bar" :style="{ 'left': slibarLeft }"></div>
+      </div>
+      <div v-if="showTip" class="text-white absolute top-full left-0 w-full self-stretch flex justify-between text-xs">
+        <span>{{languages.COM_LOW}}</span>
+        <span>{{languages.COM_HIGH}}</span>
+      </div>
+    </div>
+    <input :disabled="props.disabled" class="v-slide-val" :value="props.current" type="text" @input="inputChange" @change="changeLimit" />
+  </div>
+</template>
+
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
 const props = withDefaults(defineProps<{
@@ -132,20 +150,3 @@ function changeLimit(e: Event) {
 }
 
 </script>
-<template>
-    <div class="v-horizontal-slide" :class="{ 'disabled': disabled }">
-        <div class="v-slide-container relative">
-            <div class="v-slide-position" ref='position' @pointerdown="dragStart">
-                <div class="v-slide-bg">
-                    <i class="v-slide-bg-mask" :style="{ 'width': per }"></i>
-                </div>
-                <div class="v-slide-bar" :style="{ 'left': slibarLeft }"></div>
-            </div>
-            <div v-if="showTip" class="text-white absolute top-full left-0 w-full self-stretch flex justify-between text-xs">
-                <span>{{languages.COM_LOW}}</span>
-                <span>{{languages.COM_HIGH}}</span>
-            </div>
-        </div>
-        <input :disabled="props.disabled" class="v-slide-val" :value="props.current" type="text" @input="inputChange" @change="changeLimit" />
-    </div>
-</template>
