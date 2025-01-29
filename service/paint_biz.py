@@ -525,6 +525,7 @@ def text_to_image(
                 generator=generator,
                 num_inference_steps=params.inference_steps,
                 guidance_scale=params.guidance_scale,
+                negative_prompt=params.negative_prompt,
                 callback_on_step_end=__callback_on_step_end__,
                 **custom_inputs,
             ).images[0]
