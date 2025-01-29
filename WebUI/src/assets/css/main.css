@@ -1,5 +1,5 @@
 * {
-  font-family: IntelOne, "Microsoft YaHei", Arial, Helvetica, sans-serif;
+  font-family: IntelOne, 'Microsoft YaHei', Arial, Helvetica, sans-serif;
 }
 
 button,
@@ -62,10 +62,10 @@ textarea {
 
     &.active {
       color: #fff;
-      background: url("@/assets/svg/tab-active.svg") 0px 0px no-repeat;
+      background: url('@/assets/svg/tab-active.svg') 0px 0px no-repeat;
       z-index: 10;
       &:first-of-type {
-        background: url("@/assets/svg/tab-active-first.svg") 0px 0px no-repeat;
+        background: url('@/assets/svg/tab-active-first.svg') 0px 0px no-repeat;
 
         > * {
           margin-left: -15px;
@@ -115,7 +115,7 @@ textarea {
       right: -25px;
       top: 0px;
       height: 100%;
-      content: "";
+      content: '';
       border-right: 1px solid var(--color-spilter);
     }
   }
@@ -204,7 +204,7 @@ textarea {
   .outpaint-control-bg {
     width: 142px;
     height: 92px;
-    background: url("@/assets/svg/outpaint-bg.svg") 0px 0px no-repeat;
+    background: url('@/assets/svg/outpaint-bg.svg') 0px 0px no-repeat;
     position: relative;
   }
 
@@ -221,7 +221,7 @@ textarea {
 
     &::after {
       position: absolute;
-      content: "";
+      content: '';
       width: 18px;
       height: 18px;
       left: calc(50% - 9px);
@@ -231,8 +231,8 @@ textarea {
       mask-repeat: no-repeat;
       -webkit-mask-size: 100% 100%;
       mask-size: 100% 100%;
-      -webkit-mask-image: url("@/assets/svg/outpaint-dir.svg");
-      mask-image: url("@/assets/svg/outpaint-dir.svg");
+      -webkit-mask-image: url('@/assets/svg/outpaint-dir.svg');
+      mask-image: url('@/assets/svg/outpaint-dir.svg');
     }
     &.top {
       left: calc(50% - 14px);
@@ -260,7 +260,7 @@ textarea {
 }
 
 .cursor-block::after {
-  content: "_";
+  content: '_';
   animation: cursorBlink 0.5s ease-in-out infinite alternate;
 }
 
@@ -310,11 +310,15 @@ textarea {
   opacity: 0.6;
 
   &.pen {
-    cursor: url("@/assets/svg/pen.svg") 4 16, auto;
+    cursor:
+      url('@/assets/svg/pen.svg') 4 16,
+      auto;
   }
 
   &.easer {
-    cursor: url("@/assets/svg/easer.svg") 4 16, auto;
+    cursor:
+      url('@/assets/svg/easer.svg') 4 16,
+      auto;
   }
 }
 
@@ -342,7 +346,7 @@ textarea {
       position: relative;
 
       &::after {
-        content: " ";
+        content: ' ';
         position: absolute;
         width: 100%;
         left: 0px;
@@ -409,7 +413,7 @@ footer {
   color: #666;
 }
 
-#chatPanel .chat-content{
+#chatPanel .chat-content {
   word-break: break-word;
   word-spacing: 2px;
   overflow-wrap: anywhere;

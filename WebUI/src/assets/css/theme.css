@@ -8,38 +8,35 @@
   --color-gray-244: #e0e0e0;
   --color-image-tool-button: #585561;
   --color-active: #aa05ff;
-  --color-control-bg: #38383D;
+  --color-control-bg: #38383d;
   --main-gradient: linear-gradient(75deg, #2da9ff, #aa05ff);
   --textbox-bg: #38383d;
   --compontents-main: #fff;
   --color-image-bg: #110f1779;
-  --textbox-gradient-border: linear-gradient(
-      var(--textbox-bg),
-      var(--textbox-bg)
-    ),
+  --textbox-gradient-border: linear-gradient(var(--textbox-bg), var(--textbox-bg)),
     var(--main-gradient);
   --textbox-clip: padding-box, border-box;
 }
 
 @font-face {
   font-family: IntelOne;
-  src: url("@/assets/fonts/intelone-display-regular.woff2") format("woff2");
+  src: url('@/assets/fonts/intelone-display-regular.woff2') format('woff2');
   font-weight: 400;
 }
 @font-face {
   font-family: IntelOne;
-  src: url("@/assets/fonts/intelone-display-medium.woff2") format("woff2");
+  src: url('@/assets/fonts/intelone-display-medium.woff2') format('woff2');
   font-weight: 500;
 }
 @font-face {
   font-family: IntelOne;
-  src: url("@/assets/fonts/intelone-display-bold.woff2") format("woff2");
+  src: url('@/assets/fonts/intelone-display-bold.woff2') format('woff2');
   font-weight: 700;
 }
 
 @font-face {
   font-family: IntelOne;
-  src: url("@/assets/fonts/intelone-display-light.woff2") format("woff2");
+  src: url('@/assets/fonts/intelone-display-light.woff2') format('woff2');
   font-weight: 300;
 }
 
@@ -53,7 +50,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(113, 109, 134, 1);;
+  background: rgba(113, 109, 134, 1);
   border-radius: 8px;
   cursor: default;
 }
@@ -69,7 +66,7 @@
 button:hover {
   opacity: 0.9;
 }
-input[type="text"],
+input[type='text'],
 textarea {
   background-color: var(--textbox-bg);
   border: 1px solid var(--color-gray-666);
@@ -122,7 +119,7 @@ textarea {
 
 @keyframes scaleIn {
   from {
-    transform: scale(0.5)
+    transform: scale(0.5);
   }
   to {
     transform: scale(1);
@@ -136,32 +133,39 @@ textarea {
 }
 
 .lnl-bottom-grid {
-  transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-25%) rotateX(78deg) skewX(-5deg);
+  transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-25%)
+    rotateX(78deg) skewX(-5deg);
 }
 
 .lnl-top-grid {
-  transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-75%) rotateX(102deg) skewX(-5deg);
+  transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-75%)
+    rotateX(102deg) skewX(-5deg);
 }
 
 .pos-0 {
---position-index: 0
+  --position-index: 0;
 }
 
 .pos-1 {
---position-index: 1
+  --position-index: 1;
 }
 
 .pos-2 {
---position-index: 2
+  --position-index: 2;
 }
 
 .pos-3 {
---position-index: 3
+  --position-index: 3;
 }
 
 .lnl-gradient {
   position: absolute;
-  background: linear-gradient( rgba(0, 25, 138, 0.2) 0%, rgb(0, 25, 138) 35%,  rgb(0, 25, 138) 65%, rgba(0, 25, 138, 0.2) 100%);
+  background: linear-gradient(
+    rgba(0, 25, 138, 0.2) 0%,
+    rgb(0, 25, 138) 35%,
+    rgb(0, 25, 138) 65%,
+    rgba(0, 25, 138, 0.2) 100%
+  );
   width: 100%;
   height: 100%;
   z-index: -5;
@@ -181,11 +185,11 @@ textarea {
 }
 
 .main-tab-glider {
-transform: translateX(calc(calc(168px + 0.25rem) * var(--position-index)));
-transition: all 0.3s ease-in-out;
-background: url("@/assets/svg/tab-active.svg") 0px 0px no-repeat;
-z-index: -5;
-position: absolute;
+  transform: translateX(calc(calc(168px + 0.25rem) * var(--position-index)));
+  transition: all 0.3s ease-in-out;
+  background: url('@/assets/svg/tab-active.svg') 0px 0px no-repeat;
+  z-index: -5;
+  position: absolute;
 }
 
 .lnl-grid::before {
