@@ -3,8 +3,8 @@
     id="app-settings-panel"
     class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4"
   >
-    <div class="flex justify-between items-center px-3">
-      <div class="flex items-center gap-2">
+    <div class="flex justify-between px-3">
+      <div class="flex items-stretch gap-2">
         <button class="panel-tab" :class="{ active: tabIndex == 0 }" @click="tabIndex = 0">
           {{ languages.SETTINGS_TAB_IMAGE }}
         </button>
