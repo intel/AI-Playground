@@ -24,7 +24,7 @@
           props.class,
         )
       "
-      >Load Image</label
+      >{{ languages.COM_LOAD_IMAGE }}</label
     >
   </div>
 </template>
@@ -89,34 +89,3 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
   }
 }
 </script>
-
-<template>
-  <div ref="imgDropZone" class="flex justify-center relative">
-    <div
-      v-show="isOverDropZone"
-      class="bg-black/70 absolute inset-0 flex items-center justify-center text-white text-lg"
-    >
-      Load Image
-    </div>
-    <img :src="imageUrlRef.value as string" alt="Image" class="w-64 py-4 object-scale-down" />
-  </div>
-  <div class="flex justify-center">
-    <input
-      :id="id"
-      :accept="acceptedImageTypes.join(',')"
-      type="file"
-      class="hidden"
-      v-on:change="(e: Event) => handleFilesEvent(imageUrlRef as Ref<string, string>)(e)"
-    />
-    <label
-      :for="id"
-      :class="
-        cn(
-          'text-base bg-color-active py-1 px-6 rounded hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
-          props.class,
-        )
-      "
-      >Load Image</label
-    >
-  </div>
-</template>

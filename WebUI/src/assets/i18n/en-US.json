@@ -145,6 +145,7 @@
   "ERROR_UNSUPPORTED_IMAGE_TYPE": "Only supports PNG, JPG, GIF, and BMP image formats",
   "ANSWER_USER_NAME": "You",
   "ANSWER_AI_NAME": "Playground",
+  "ANSWER_NEW_CONVERSATION": "New Conversation",
   "ANSWER_ERROR_NOT_PROMPT": "Please input prompt",
   "ANSWER_ERROR_CLEAR_SESSION": "Clear Chat History",
   "INCREASE_FONT_SIZE": "Enlarge Text",
