@@ -307,9 +307,9 @@ type NumberRange = {
   max: number
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DownloadFailedParams = {
   type: 'error' | 'cancelConfrim' | 'cancelDownload' | 'conflict'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error?: any
 }
 

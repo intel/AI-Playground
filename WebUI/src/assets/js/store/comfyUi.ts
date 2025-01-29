@@ -256,7 +256,7 @@ export const useComfyUi = defineStore(
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
             if (input.type === 'string')
               console.log('actually modifying string', input.label, input.current.value)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
           }
         }
@@ -397,20 +397,20 @@ const settingToComfyInputsName = {
 } satisfies Partial<Record<Setting, string[]>>
 type ComfySetting = keyof typeof settingToComfyInputsName
 const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Object.entries(workflow)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
     .map(([key, _value]) => key)
 const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Object.entries(workflow)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter(([_key, value]) => (value as any)?.['class_type'] === classType)
     .map(([key, _value]) => key)
 const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
   for (const inputName of settingToComfyInputsName[setting]) {
     if (inputName === 'text') continue
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const keys = Object.entries(workflow)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter(([_key, value]) => (value as any)?.['inputs']?.[inputName ?? ''] !== undefined)
       .map(([key, _value]) => key)
     if (keys.length > 0) return keys
