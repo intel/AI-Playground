@@ -311,7 +311,6 @@ export const useImageGeneration = defineStore(
           'negativePrompt',
           'batchSize',
           'imagePreview',
-          'safetyCheck',
         ],
       },
       {
@@ -338,7 +337,6 @@ export const useImageGeneration = defineStore(
           'negativePrompt',
           'batchSize',
           'imagePreview',
-          'safetyCheck',
         ],
       },
       {
@@ -364,7 +362,6 @@ export const useImageGeneration = defineStore(
           'inferenceSteps',
           'batchSize',
           'imagePreview',
-          'safetyCheck',
         ],
       },
       {
