@@ -32,7 +32,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       // lsLevelZero will ensure uv and pip are installed
       await this.lsLevelZero.ensureInstalled()
 
-      const deviceArch = await self.lsLevelZero.detectDevice()
+      const deviceArch = await this.lsLevelZero.detectDevice()
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
