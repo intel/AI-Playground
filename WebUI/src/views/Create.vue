@@ -7,6 +7,7 @@
           class="image-preview-item flex items-center justify-center"
           :class="{ active: imageGeneration.previewIdx == i }"
           @click="swithPreview(i)"
+          :key="i"
         >
           <div class="image-preview-item-bg">
             <img :src="image" class="image-thumb" />
@@ -22,6 +23,7 @@
             :src="image"
             class="p-1 max-w-768px max-h-512px"
             v-show="imageGeneration.previewIdx == i"
+            :key="i"
           />
           <div
             v-show="

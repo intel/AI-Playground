@@ -18,6 +18,7 @@
           class="image-preview-item flex items-center justify-center flex-none"
           :class="{ active: previewIdx == i }"
           @click="swithPreview((previewIdx = i))"
+          :key="i"
         >
           <div class="image-preview-item-bg">
             <img :src="image" class="image-thumb" />
@@ -180,6 +181,7 @@
             :src="image"
             v-show="previewIdx == i"
             class="p-1 max-w-768px max-h-400px"
+            :key="i"
           />
           <div
             v-show="processing && generateIdx == previewIdx"

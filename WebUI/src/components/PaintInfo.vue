@@ -9,6 +9,7 @@
         <li
           v-for="(v, k) in props.params"
           class="last:border-none border-b border-color-spilter flex items-start"
+          :key="k"
         >
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{ k }}</span>
           <span class="px-4 flex-auto break-word">{{ getModeText(k as string, v) }}</span>

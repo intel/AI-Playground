@@ -21,11 +21,10 @@ export class AiBackendService extends LongLivedPythonApiService {
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
-    const self = this
 
     try {
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: 'start',
         status: 'executing',
         debugMessage: 'starting to set up environment',
@@ -35,31 +34,31 @@ export class AiBackendService extends LongLivedPythonApiService {
 
       const deviceArch = await self.lsLevelZero.detectDevice()
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `Detecting intel device`,
         status: 'executing',
         debugMessage: `detected intel hardware ${deviceArch}`,
       }
 
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `install dependencies`,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
       const deviceSpecificRequirements = existingFileOrError(
-        path.join(self.serviceDir, `requirements-${deviceArch}.txt`),
+        path.join(this.serviceDir, `requirements-${deviceArch}.txt`),
       )
       await this.pip.run(['install', '-r', deviceSpecificRequirements])
       if (deviceArch === 'bmg') {
-        const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
+        const intelSpecificExtension = existingFileOrError(this.customIntelExtensionForPytorch)
         await this.pip.run(['install', intelSpecificExtension])
       }
 
-      const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
       await this.uvPip.run(['install', '-r', commonRequirements])
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `install dependencies`,
         status: 'executing',
         debugMessage: `dependencies installed`,
@@ -67,17 +66,17 @@ export class AiBackendService extends LongLivedPythonApiService {
 
       this.setStatus('notYetStarted')
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: 'end',
         status: 'success',
         debugMessage: `service set up completely`,
       }
     } catch (e) {
-      self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
-      self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+      this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
+      this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: 'end',
         status: 'failed',
         debugMessage: `Failed to setup python environment due to ${e}`,

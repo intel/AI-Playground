@@ -22,7 +22,7 @@
       class="v-drop-select-list absolute left-0 top-0"
       :style="{ translate: translate, width: `${listRect.width}px` }"
     >
-      <li v-for="(item, i) in array" @click="changeSelectedItem(item, i)">
+      <li v-for="(item, i) in array" @click="changeSelectedItem(item, i)" :key="i">
         <slot name="list" v-bind="{ item: item, index: i }">{{ item }}</slot>
       </li>
     </ul>
