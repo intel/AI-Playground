@@ -13,12 +13,12 @@
             v-for="(conversation, conversationKey) in conversations.conversationList"
             :key="conversationKey"
             @click="onConversationClick(conversationKey)"
-            :title="conversation?.[0]?.title ?? 'New Conversation'"
+            :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
             class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
             :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
           >
             <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{
-              conversation?.[0]?.title ?? 'New Conversation'
+              conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION
             }}</span>
             <span
               v-if="!conversations.isNewConversation(conversationKey)"
@@ -31,7 +31,7 @@
             v-for="(conversation, conversationKey) in conversations.conversationList"
             :inVisibleKey="conversationKey"
             @click="onConversationClick(conversationKey)"
-            :title="conversation?.[0]?.title ?? 'New Conversation'"
+            :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
             class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
             :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
           >

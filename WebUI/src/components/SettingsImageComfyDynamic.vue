@@ -4,7 +4,7 @@
     :key="`${input.nodeTitle}${input.nodeInput}`"
     class="flex flex-col gap-2 py-2"
   >
-    <p>{{ input.label }}</p>
+    <p>{{ languages[getTranslationLabel(input.label)] ??= input.label }}</p>
 
     <!--    Number    -->
     <slide-bar
@@ -46,4 +46,11 @@ import { LoadImage } from '../components/ui/loadImage'
 import SlideBar from '../components/SlideBar.vue'
 
 const imageGeneration = useImageGeneration()
+
+function getTranslationLabel(label: string) {
+  return (
+    'SETTINGS_IMAGE_COMFY_' +
+    label.replace(/ - /g, '_').replace(/-/g, '_').replace(/ /g, '_').toUpperCase()
+  )
+}
 </script>

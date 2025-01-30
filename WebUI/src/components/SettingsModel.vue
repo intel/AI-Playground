@@ -213,7 +213,7 @@
 
       <div class="flex justify-between items-center gap-6">
         <span class="text-gray-300 flex-auto"
-          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STRANDARD }}: dreamshaper-8</span
+          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: dreamshaper-8</span
         >
         <span class="flex-none text-right">6.46 GB</span>
         <button
@@ -240,7 +240,7 @@
       <p>{{ languages.DOWNLOADER_FOR_INAPINT_GENERATE }}</p>
       <div class="flex justify-between items-center gap-6">
         <span class="text-gray-300 flex-auto"
-          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STRANDARD }}: dreamshaper-8-inpainting</span
+          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: dreamshaper-8-inpainting</span
         >
         <span class="flex-none text-right">4.45 GB</span>
         <button
@@ -255,7 +255,7 @@
       <p>{{ languages.DOWNLOADER_FOR_IMAGE_LORA }}</p>
       <div class="flex items-center gap-4">
         <span class="text-gray-300 flex-auto"
-          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STRANDARD }}: lcm-lora-sdv1-5</span
+          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: lcm-lora-sdv1-5</span
         >
         <span class="flex-none text-right">128 MB</span>
         <button
@@ -295,7 +295,7 @@
       <p>{{ languages.DOWNLOADER_FOR_RAG_QUERY }}</p>
       <div class="flex items-center gap-4">
         <span class="text-gray-300 flex-auto"
-          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STRANDARD }}: bge-large-en-v1.5</span
+          >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: bge-large-en-v1.5</span
         >
         <span class="flex-none text-right">1.25 GB</span>
         <button

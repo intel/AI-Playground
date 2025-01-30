@@ -6,7 +6,7 @@
       <LanguageSelector></LanguageSelector>
     </div>
     <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
-      <p>Theme</p>
+      <p>{{ languages.SETTINGS_THEME }}</p>
       <div class="grid gap-2" :class="{ [`grid-cols-${theme.availableThemes.length}`]: true }">
         <radio-block
           v-for="themeName in theme.availableThemes"
