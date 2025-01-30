@@ -140,7 +140,8 @@
           v-show="imageGeneration.activeWorkflow.requirements?.includes('high-vram')"
           :data-tooltip="i18nState.WORKFLOW_HIGH_VRAM_INFO"
         >
-          ⚠️ {{ languages.WORKFLOW_HIGH_VRAM_WARNING }}️
+          <span class="svg-icon text-white align-bottom i-warning-triangle w-5 h-5 px-3"></span>
+          {{ languages.WORKFLOW_HIGH_VRAM_WARNING }}️
         </p>
       </div>
       <div class="flex gap-2 items-center">
