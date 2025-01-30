@@ -208,7 +208,7 @@
     <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
       <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings">
         <div class="svg-icon i-refresh">Reset</div>
-        Load workflow defaults
+        {{ languages.COM_LOAD_WORKFLOW_DEFAULTS }}
       </button>
     </div>
   </div>
