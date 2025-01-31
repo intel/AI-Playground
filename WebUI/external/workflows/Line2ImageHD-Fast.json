@@ -3,8 +3,7 @@
   "displayPriority": 200,
   "backend": "comfyui",
   "comfyUIRequirements": {
-    "customNodes": [
-    ],
+    "customNodes": [],
     "requiredModels": [
       {
         "type": "defaultCheckpoint",
@@ -32,13 +31,8 @@
       }
     ]
   },
-  "tags": [
-    "SDXL",
-    "Fast-LCM"
-  ],
-  "requirements": [
-    "high-vram"
-  ],
+  "tags": ["SDXL", "Fast-LCM"],
+  "requirements": ["high-vram"],
   "inputs": [
     {
       "nodeTitle": "Canny",
@@ -51,15 +45,15 @@
       "max": 1
     },
     {
-     "nodeTitle": "Canny",
-     "nodeInput": "high_threshold",
-     "type": "number",
-     "label": "Canny - High Threshold",
-     "defaultValue": 0.6,
-     "step": 0.1,
-     "min": 0,
-     "max": 1
-   },
+      "nodeTitle": "Canny",
+      "nodeInput": "high_threshold",
+      "type": "number",
+      "label": "Canny - High Threshold",
+      "defaultValue": 0.6,
+      "step": 0.1,
+      "min": 0,
+      "max": 1
+    },
     {
       "nodeTitle": "Apply ControlNet (OLD)",
       "nodeInput": "strength",
@@ -89,13 +83,7 @@
     "inferenceSteps": 4
   },
   "displayedSettings": [],
-  "modifiableSettings": [
-    "inferenceSteps",
-    "seed",
-    "batchSize",
-    "imagePreview",
-    "resolution"
-  ],
+  "modifiableSettings": ["inferenceSteps", "seed", "batchSize", "imagePreview", "resolution"],
   "comfyUiApiWorkflow": {
     "3": {
       "inputs": {
@@ -105,22 +93,10 @@
         "sampler_name": "lcm",
         "scheduler": "simple",
         "denoise": 1,
-        "model": [
-          "19",
-          0
-        ],
-        "positive": [
-          "18",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["19", 0],
+        "positive": ["18", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -141,10 +117,7 @@
     "6": {
       "inputs": {
         "text": "modern apartment building, beach town, sunset, lawn, tropical",
-        "clip": [
-          "19",
-          1
-        ]
+        "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -154,10 +127,7 @@
     "7": {
       "inputs": {
         "text": "cartoon, painting, illustration, nsfw, text, watermark",
-        "clip": [
-          "19",
-          1
-        ]
+        "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -166,14 +136,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "22",
-          0
-        ]
+        "samples": ["3", 0],
+        "vae": ["22", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -183,10 +147,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "ComfyUI",
-        "images": [
-          "8",
-          0
-        ]
+        "images": ["8", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -205,10 +166,7 @@
     },
     "16": {
       "inputs": {
-        "images": [
-          "20",
-          0
-        ]
+        "images": ["20", 0]
       },
       "class_type": "PreviewImage",
       "_meta": {
@@ -227,18 +185,9 @@
     "18": {
       "inputs": {
         "strength": 0.5,
-        "conditioning": [
-          "6",
-          0
-        ],
-        "control_net": [
-          "17",
-          0
-        ],
-        "image": [
-          "20",
-          0
-        ]
+        "conditioning": ["6", 0],
+        "control_net": ["17", 0],
+        "image": ["20", 0]
       },
       "class_type": "ControlNetApply",
       "_meta": {
@@ -250,14 +199,8 @@
         "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
         "strength_model": 1,
         "strength_clip": 1,
-        "model": [
-          "23",
-          0
-        ],
-        "clip": [
-          "24",
-          0
-        ]
+        "model": ["23", 0],
+        "clip": ["24", 0]
       },
       "class_type": "LoraLoader",
       "_meta": {
@@ -268,10 +211,7 @@
       "inputs": {
         "low_threshold": 0.2,
         "high_threshold": 0.8,
-        "image": [
-          "15",
-          0
-        ]
+        "image": ["15", 0]
       },
       "class_type": "Canny",
       "_meta": {

@@ -16,9 +16,7 @@
 </template>
 
 <script setup lang="ts">
-
-import DropSelector from "../components/DropSelector.vue";
-import {useI18N} from '@/assets/js/store/i18n';
-const i18n = useI18N();
-
+import DropSelector from '../components/DropSelector.vue'
+import { useI18N } from '@/assets/js/store/i18n'
+const i18n = useI18N()
 </script>
