@@ -9,7 +9,7 @@
       <p>Theme</p>
       <div class="grid gap-2" :class="{[`grid-cols-${theme.availableThemes.length}`]: true}">
         <radio-block v-for="themeName in theme.availableThemes" :checked="theme.active === themeName"
-                     :text="themeToDisplayName(themeName)"
+          :text="themeToDisplayName(themeName)"
                      @click="() => theme.selected = themeName"></radio-block>
       </div>
     </div>
@@ -46,7 +46,7 @@
               <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
               <!--       Flag LlamaCpp as experimental       -->
               <span v-if="textInference.backend=='LLAMA.CPP'"
-                    class="rounded-lg h-4 px-1 text-xs"
+                class="rounded-lg h-4 px-1 text-xs"
                     :style="{ 'background-color': '#cc00ff88' }">
                                 Experimental</span>
             </div>
@@ -56,7 +56,7 @@
               <span class="rounded-full w-2 h-2" :class="{ 'bg-green-500': isRunning(slotItem.item), 'bg-gray-500': !isRunning(slotItem.item) }"></span>
               <span>{{ textInferenceBackendDisplayName[slotItem.item as typeof backendTypes[number]] }}</span>
               <span v-if="slotItem.item=='LLAMA.CPP'"
-                    class="rounded-lg h-4 px-1 text-xs"
+                class="rounded-lg h-4 px-1 text-xs"
                     :style="{ 'background-color': '#cc00ff88' }">
                                 Experimental</span>
             </div>
@@ -64,21 +64,36 @@
         </drop-selector>
       </div>
     </div>
-    <div class="flex flex-col gap-3">
-      <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
-      <table class="text-center w-full mx-2 table-fixed">
-        <tbody>
+  </div>
+  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+    <h2 class="text-center font-bold">Answer Metrics</h2>
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-5">
+          <p>Performance Metrics</p>
+          <button
+            class="v-checkbox-control flex-none w-5 h-5"
+            :class="{ 'v-checkbox-checked': textInference.metricsEnabled }"
+            @click="textInference.toggleMetrics()"
+          ></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flex flex-col gap-3">
+    <h2 class="text-center font-bold">{{ languages.SETTINGS_BACKEND_STATUS }}</h2>
+    <table class="text-center w-full mx-2 table-fixed">
+      <tbody>
         <tr v-for="item in displayComponents">
           <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
           <td :style="{ color: mapStatusToColor(item.status) }">{{ mapToDisplayStatus(item.status) }}</td>
         </tr>
-        </tbody>
-      </table>
-      <div class="flex flex-col pt-5">
+      </tbody>
+    </table>
+    <div class="flex flex-col pt-5">
         <button @click="globalSetup.loadingState = 'manageInstallations'"
                 class="confirm-btn">{{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
-        </button>
-      </div>
+      </button>
     </div>
   </div>
   <div class="text-right my-5">

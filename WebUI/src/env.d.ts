@@ -153,10 +153,20 @@ type DropListItem = {
     value: string | number;
 }
 
+type MetricsData = {
+    num_tokens: number;
+    total_time: number;
+    first_token_latency: number;
+    overall_tokens_per_second: number;
+    second_plus_tokens_per_second: number;
+  };
+
 type ChatItem = {
-    question: string,
-    answer: string,
-    title?: string,
+    metrics: MetricsData;
+    question: string;
+    answer: string;
+    title?: string;
+    model?: string;
 }
 
 type ChatRequestParams = {
@@ -172,7 +182,7 @@ type RagFileItem = {
 }
 
 
-type LLMOutCallback = LoadModelCallback | LoadModelAllComplete | LLMOutTextCallback | DownloadModelProgressCallback | DownloadModelCompleted | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback;
+type LLMOutCallback = LoadModelCallback | LoadModelAllComplete | LLMOutTextCallback | DownloadModelProgressCallback | DownloadModelCompleted | ErrorOutCallback | NotEnoughDiskSpaceExceptionCallback | GatherMetrics;
 
 type LLMOutTextCallback = {
     type: "text_out",
@@ -185,6 +195,15 @@ type SDOutCallback = LoadModelCallback | LoadModelcomponentsCallback | SDOutImag
 type LoadModelAllComplete = {
     type: "allComplete"
 }
+
+type GatherMetrics = {
+    type: "metrics";
+    num_tokens: number;
+    total_time: number;
+    overall_tokens_per_second: number;
+    second_plus_tokens_per_second: number;
+    first_token_latency: number;
+};
 
 type LoadModelCallback = {
     type: "load_model",

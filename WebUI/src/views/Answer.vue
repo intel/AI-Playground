@@ -51,7 +51,14 @@
             <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
             <div
                 class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
-              <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+                <div class="flex items-center gap-2">
+                <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+                  <div v-if="chat.model">
+                    <span class="current-model-info text-xs font-sans bg-gray-400 text-black rounded-md px-1 py-1">
+                      {{ chat.model }}
+                    </span>
+                  </div>
+                </div>
               <div class="ai-answer chat-content" v-html="markdownParser.parseMarkdown(chat.answer)">
               </div>
               <div class="answer-tools flex gap-3 items-center text-gray-300">
@@ -71,6 +78,13 @@
                   <span class="svg-icon i-delete w-4 h-4"></span>
                   <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
                 </button>
+              </div>
+              <div v-if="textInference.metricsEnabled && chat.metrics" class="metrics-info text-xs text-gray-400">
+                <span class="mr-2">{{ chat.metrics.num_tokens }} Tokens</span>
+                <span class="mr-2">⋅</span>
+                <span class="mr-2">{{ chat.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span>
+                <span class="mr-2">⋅</span>
+                <span class="mr-2">1st Token Time: {{ chat.metrics.first_token_latency.toFixed(2) }}s</span>
               </div>
             </div>
           </div>
@@ -268,6 +282,8 @@ const ragData = reactive({
   showUploader: false,
 });
 
+let sseMetrics: MetricsData | null = null;
+
 const source = ref("");
 const emits = defineEmits<{
   (e: "showDownloadModelConfirm", downloadList: DownloadModelParam[], success?: () => void, fail?: () => void): void,
@@ -342,6 +358,17 @@ function dataProcess(line: string) {
       break;
     case "load_model":
       loadingModel.value = data.event == "start";
+      break;
+
+    case "metrics":
+      sseMetrics = {
+        num_tokens: data.num_tokens ?? 0,
+        total_time: data.total_time ?? 0,
+        first_token_latency: data.first_token_latency ?? 0,
+        overall_tokens_per_second: data.overall_tokens_per_second ?? 0,
+        second_plus_tokens_per_second: data.second_plus_tokens_per_second ?? 0,
+      };
+
       break;
     case "error":
       processing.value = false;
@@ -432,17 +459,31 @@ async function simulatedInput() {
   } else {
 
     const key = currentlyGeneratingKey.value;
+
+    const finalMetrics: MetricsData = sseMetrics ?? {
+      num_tokens: 0,
+      total_time: 0,
+      first_token_latency: 0,
+      overall_tokens_per_second: 0,
+      second_plus_tokens_per_second: 0
+    };
     
     if (key !== null) {
       conversations.addToActiveConversation(key, {
         question: textIn.value,
         answer: ragData.enable && source.value != "" ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}` : receiveOut,
+        metrics: finalMetrics,
+        model: textInference.backend === 'IPEX-LLM'
+        ? globalSetup.modelSettings.llm_model
+        : globalSetup.modelSettings.ggufLLM_model
       });
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title');
         updateTitle(conversations.conversationList[key]);
       }
     }
+
+    sseMetrics = null;
     processing.value = false;
     textIn.value = "";
     textOut.value = "";
@@ -603,7 +644,20 @@ function regenerateLastResponse(conversationKey: string) {
   if (!item) return;
   const prompt = item.question;
   const chatContext = [...toRaw(conversations.conversationList[conversationKey])];
-  chatContext.push({ question: prompt, answer: "" });
+
+  const finalMetrics: MetricsData = sseMetrics ?? {
+      num_tokens: 0,
+      total_time: 0,
+      first_token_latency: 0,
+      overall_tokens_per_second: 0,
+      second_plus_tokens_per_second: 0
+    };
+
+
+  chatContext.push({
+    question: prompt, answer: "",
+    metrics: finalMetrics
+  });
   currentlyGeneratingKey.value = conversationKey;
   generate(chatContext);
 }

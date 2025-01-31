@@ -17,6 +17,8 @@ export const useTextInference = defineStore("textInference", () => {
     const backendServices = useBackendServices();
     const backend = ref<Backend>('IPEX-LLM');
     const activeModel = ref<string | null>(null);
+    const metricsEnabled = ref(false);
+
     const llamaBackendUrl = computed(() => {
         const url = backendServices.info.find(item => item.serviceName === "llamacpp-backend")?.baseUrl;
         console.log('url', url);
@@ -33,10 +35,16 @@ export const useTextInference = defineStore("textInference", () => {
         globalSetup.applyModelSettings({ [backendModelKey[backend.value]]: activeModel.value });
     });
 
+    function toggleMetrics() {
+        metricsEnabled.value = !metricsEnabled.value;
+    }
+
     return {
         backend,
         activeModel,
         llamaBackendUrl,
+        metricsEnabled,    
+        toggleMetrics,     
     }
 }, {
     persist: {
