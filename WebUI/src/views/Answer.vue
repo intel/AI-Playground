@@ -261,10 +261,10 @@
                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
               </template>
             </drop-selector>
-            <drop-selector v-if="textInference.backend === 'OpenVINO'" :array="models.ggufLLMs" @change="(i) => textInference.activeModel = i.name" class="w-96">
+            <drop-selector v-if="textInference.backend === 'OpenVINO'" :array="models.openVINOModels" @change="(i) => textInference.activeModel = i.name" class="w-96">
               <template #selected>
                 <model-drop-down-item
-                  :model="models.ggufLLMs.find((m) => m.name === globalSetup.modelSettings.openvino_model)"></model-drop-down-item>
+                  :model="models.openVINOModels.find((m) => m.name === globalSetup.modelSettings.openvino_model)"></model-drop-down-item>
               </template>
               <template #list="slotItem">
                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
@@ -440,11 +440,7 @@ const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
 const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
 const isMinSize = computed(() => fontSizeIndex.value <= 0);
 const isHistoryVisible = ref(false);
-const backendMapping = {
-    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost },
-    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl },
-    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl }
-  };
+
 const currentBackendAPI = computed(() => {
   const backendKey = textInference.backend;
 
@@ -557,6 +553,11 @@ function onConversationClick(conversationKey: string) {
 }
 
 async function updateTitle(conversation: ChatItem[]) {
+  const backendMapping = {
+    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost, model: globalSetup.modelSettings.llm_model },
+    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
+    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
+  };
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 20 characters. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
   console.log('prompt', prompt)
@@ -565,14 +566,11 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
-    model_repo_id:
-      textInference.backend === 'IPEX-LLM'
-        ? globalSetup.modelSettings.llm_model
-        : globalSetup.modelSettings.ggufLLM_model,
-    print_metrics: false,
-  }
-  const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
-    method: 'POST',
+    model_repo_id: backendMapping[textInference.backend].model,
+    print_metrics: false
+  };
+  const response = await fetch(`${ currentBackendAPI.value }/api/llm/chat`, {
+    method: "POST",
     headers: {
       'Content-Type': 'application/json',
     },
@@ -696,6 +694,8 @@ async function checkModel() {
           backend: 'llama_cpp',
         },
       ]
+    } else if (textInference.backend === "OpenVINO") {
+      checkList = [{ repo_id: globalSetup.modelSettings.openvino_model, type: Const.MODEL_TYPE_OPENVINO, backend: "openvino" }];
     } else {
       checkList = [
         {
@@ -714,6 +714,11 @@ async function checkModel() {
 }
 
 async function generate(chatContext: ChatItem[]) {
+  const backendMapping = {
+    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost, model: globalSetup.modelSettings.llm_model },
+    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
+    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
+  };
   if (processing.value || chatContext.length == 0) {
     return
   }
@@ -738,11 +743,8 @@ async function generate(chatContext: ChatItem[]) {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
-      model_repo_id:
-        textInference.backend === 'IPEX-LLM'
-          ? globalSetup.modelSettings.llm_model
-          : globalSetup.modelSettings.ggufLLM_model,
-    }
+      model_repo_id: backendMapping[textInference.backend].model,
+    };
     const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
       method: 'POST',
       headers: {

@@ -4,7 +4,7 @@ from openvino_interface import LLMInterface
 import sys
 import openvino_genai
 from openvino_params import LLMParams
-import model_config
+import openvino_model_config as model_config
 import gc
 
 class OpenVino(LLMInterface):
@@ -19,17 +19,16 @@ class OpenVino(LLMInterface):
             if callback is not None:
                 callback("start")
             self.unload_model()
+            callback(params.model_repo_id)
 
-            #model_base_path = model_config.openVINOConfig.get("openvino")
-            #namespace, repo, *model = model_repo_id.split("/")
-            #model_path = path.abspath(path.join(model_base_path,"---".join([namespace, repo]), "---".join(model)))
-            model_path = r".\TinyLlama-1.1B-Chat-v1.0"
+            model_base_path = model_config.openVINOConfig.get("openvino")
+            model_name = model_repo_id.replace("/", "---")
+            model_path = path.abspath(path.join(model_base_path, model_name))
+            callback("Model Path " + model_path)
 
-            print(params.model_repo_id)
             enable_compile_cache = dict()
             enable_compile_cache["CACHE_DIR"] = "llm_cache"
             self._model = openvino_genai.LLMPipeline(model_path, "GPU", **enable_compile_cache)
-
             self._tokenizer = self._model.get_tokenizer()
 
             self._last_repo_id = model_repo_id
@@ -37,13 +36,12 @@ class OpenVino(LLMInterface):
                 callback("finish")
 
             self.config = openvino_genai.GenerationConfig()
-            self.config.max_new_tokens = 100
-            print("Model loaded")
+            self.config.max_new_tokens = 1024
+            callback("Model loaded")
 
     def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None]):
-        tokenized_input = self._tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-        print(tokenized_input)
-        return self._model.generate(tokenized_input, self.config, streamer)
+        full_prompt = self._tokenizer.apply_chat_template(messages, add_generation_prompt=True)
+        return self._model.generate(full_prompt, self.config, streamer)
        
 
     def unload_model(self):

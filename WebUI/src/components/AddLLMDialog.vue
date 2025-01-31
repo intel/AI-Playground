@@ -51,7 +51,7 @@
 import { Input } from '@/components/ui/input'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useI18N } from '@/assets/js/store/i18n'
-import { useModels, userModels } from '@/assets/js/store/models'
+import { useModels, userModels, ModelType } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
 
 const i18nState = useI18N().state
@@ -136,18 +136,37 @@ async function addModel() {
 }
 
 async function registerModel() {
-  userModels.push({
-    name: modelRequest.value,
-    type: textInference.backend === 'IPEX-LLM' ? 'llm' : 'ggufLLM',
-    downloaded: false,
-  })
-  await models.refreshModels()
-  if (textInference.backend === 'IPEX-LLM') {
-    globalSetup.modelSettings.llm_model = modelRequest.value
-  } else {
-    globalSetup.modelSettings.ggufLLM_model = modelRequest.value
+  let modelType: ModelType;
+  switch (textInference.backend) {
+    case 'IPEX-LLM':
+      modelType = 'llm';
+      break;
+    case 'LLAMA.CPP':
+      modelType = 'ggufLLM';
+      break;
+    case 'OpenVINO':
+      modelType = 'openvino';
+      break;
+    default:
+      modelType = 'llm';
+  }
+
+  userModels.push({ name: modelRequest.value, type: modelType, downloaded: false });
+  await models.refreshModels();
+
+  switch (textInference.backend) {
+    case 'IPEX-LLM':
+      globalSetup.modelSettings.llm_model = modelRequest.value;
+      break;
+    case 'LLAMA.CPP':
+      globalSetup.modelSettings.ggufLLM_model = modelRequest.value;
+      break;
+    case 'OpenVINO':
+      globalSetup.modelSettings.openvino_model = modelRequest.value;
+      break;
   }
 }
+
 
 async function isLLM(repo_id: string) {
   const response = await fetch(`${globalSetup.apiHost}/api/isLLM?repo_id=${repo_id}`)

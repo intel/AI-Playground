@@ -55,6 +55,7 @@ type electronAPI = {
   getDownloadedLoras(): Promise<string[]>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
+  getDownloadedOpenVINOModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<string[]>
   openImageWithSystem(url: string): void
   selecteImage(url: string): void
@@ -340,7 +341,7 @@ type CheckModelAlreadyLoadedParameters = {
   additionalLicenseLink?: string
 }
 
-type BackendType = 'comfyui' | 'default' | 'llama_cpp'
+type BackendType = 'comfyui' | 'default' | 'llama_cpp' | "openvino"
 
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
 

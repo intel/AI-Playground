@@ -9,6 +9,7 @@ export type ModelType =
   | 'vae'
   | 'undefined'
   | 'ggufLLM'
+  | 'openvino'
 
 export type Model = {
   name: string
@@ -17,31 +18,21 @@ export type Model = {
 }
 
 const predefinedModels: Model[] = [
-  { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'llm', downloaded: false },
-  { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'llm', downloaded: false },
-  { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'llm', downloaded: false },
-  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', type: 'llm', downloaded: false },
-  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B', type: 'llm', downloaded: false },
-  {
-    name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
-  },
-  {
-    name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q8_0.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
-  },
-  {
-    name: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q5_K_S.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
-  },
-  {
-    name: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
-  },
+    { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'llm', downloaded: false },
+    { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'llm', downloaded: false },
+    // { name: 'meta-llama/Meta-Llama-3.1-8B-Instruct', type: 'llm', downloaded: false },
+    { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'llm', downloaded: false },
+    // { name: 'google/gemma-7b', type: 'llm', downloaded: false },
+    // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
+    { name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q8_0.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q5_K_S.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf', type: 'ggufLLM', downloaded: false },
+    { name: 'OpenVINO/Phi-3-medium-4k-instruct-int4-ov', type: 'openvino', downloaded: false },
+    { name: 'OpenVINO/mixtral-8x7b-instruct-v0.1-int4-ov', type: 'openvino', downloaded: false },
+    { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-fp16-ov', type: 'openvino', downloaded: false },
+    { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openvino', downloaded: false },
+    { name: 'OpenVINO/Phi-3.5-mini-instruct-fp16-ov', type: 'openvino', downloaded: false },
 ]
 
 export const userModels: Model[] = []
@@ -56,10 +47,13 @@ export const useModels = defineStore(
     const downloadList = ref<DownloadModelParam[]>([])
     const ggufLLMs = computed(() => models.value.filter((m) => m.type === 'ggufLLM'))
 
+    const openVINOModels = computed(() => models.value.filter((m) => m.type === 'openvino'));
+
     async function refreshModels() {
       const sdModels = await window.electronAPI.getDownloadedDiffusionModels()
       const llmModels = await window.electronAPI.getDownloadedLLMs()
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
+      const openVINOModels = await window.electronAPI.getDownloadedOpenVINOModels()
       const loraModels = await window.electronAPI.getDownloadedLoras()
       const inpaintModels = await window.electronAPI.getDownloadedInpaintModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
@@ -68,6 +62,7 @@ export const useModels = defineStore(
         ...sdModels.map<Model>((name) => ({ name, type: 'stableDiffusion', downloaded: true })),
         ...llmModels.map<Model>((name) => ({ name, type: 'llm', downloaded: true })),
         ...ggufModels.map<Model>((name) => ({ name, type: 'ggufLLM', downloaded: true })),
+        ...openVINOModels.map<Model>((name) => ({ name, type: 'openvino', downloaded: true })),
         ...loraModels.map<Model>((name) => ({ name, type: 'lora', downloaded: true })),
         ...inpaintModels.map<Model>((name) => ({ name, type: 'inpaint', downloaded: true })),
         ...embeddingModels.map<Model>((name) => ({ name, type: 'embedding', downloaded: true })),
@@ -90,6 +85,7 @@ export const useModels = defineStore(
       models,
       llms,
       ggufLLMs,
+      openVINOModels,
       hfToken,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       downloadList,

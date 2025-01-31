@@ -92,14 +92,16 @@ class LLM_SSE_Adapter:
         return self.generator()
     
 
-    def stream_function(self, stream):
-        for output in stream:
-            if self.llm_interface.stop_generate:
-                self.llm_interface.stop_generate = False
-                break
-            
-            self.text_out_callback(output)
-        self.put_msg({"type": "finish"})
+    def stream_function(self, output):
+        self.text_out_callback(output)
+    
+        if self.llm_interface.stop_generate:
+            self.put_msg("Stopping generation.")
+            self.llm_interface.stop_generate = False
+            return True  # Stop generation
+        
+        return False  
+    
 
     def text_conversation_run(
         self,
@@ -110,7 +112,7 @@ class LLM_SSE_Adapter:
             
             prompt = params.prompt
             full_prompt = convert_prompt(prompt)
-            self.llm_interface.create_chat_completion(full_prompt, self.text_out_callback)
+            self.llm_interface.create_chat_completion(full_prompt, self.stream_function)
             
         except Exception as ex:
             traceback.print_exc()

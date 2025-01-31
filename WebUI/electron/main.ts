@@ -416,6 +416,10 @@ function initEventHandle() {
     return pathsManager.scanGGUFLLMModels()
   })
 
+  ipcMain.handle("getDownloadedOpenVINOModels", (event) => {
+    return pathsManager.scanOpenVINOModels();
+  });
+
   ipcMain.handle('getDownloadedEmbeddingModels', (_event) => {
     return pathsManager.scanEmbedding(false)
   })
