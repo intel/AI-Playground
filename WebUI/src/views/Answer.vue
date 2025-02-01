@@ -76,7 +76,12 @@
               src="@/assets/svg/expand.svg"
               class="w-8 h-8"
             />
-            <img v-else :class="textInference.iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
+            <img
+              v-else
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/collapse.svg"
+              class="w-8 h-8"
+            />
           </button>
         </div>
       </div>
@@ -90,24 +95,36 @@
           <div class="flex items-start gap-3">
             <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
             <div class="flex flex-col gap-3 max-w-3/4">
-              <p class="text-gray-300" :class="textInference.nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
+              <p class="text-gray-300" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_USER_NAME }}
+              </p>
               <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
             <div
-                class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words">
-                <div class="flex items-center gap-2">
-                <p class="text-gray-300" :class="textInference.nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
-                  <div v-if="chat.model">
-                    <span 
-                      :class="['bg-gray-400', 'text-black', 'rounded-md', 'px-1', 'py-1', textInference.nameSizeClass]"
-                    >                    
-                      {{ chat.model }}
-                    </span>
-                  </div>
+              class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+            >
+              <div class="flex items-center gap-2">
+                <p class="text-gray-300" :class="textInference.nameSizeClass">
+                  {{ languages.ANSWER_AI_NAME }}
+                </p>
+                <div v-if="chat.model">
+                  <span
+                    :class="[
+                      'bg-gray-400',
+                      'text-black',
+                      'rounded-md',
+                      'px-1',
+                      'py-1',
+                      textInference.nameSizeClass,
+                    ]"
+                  >
+                    {{ chat.model }}
+                  </span>
                 </div>
+              </div>
               <div
                 class="ai-answer chat-content"
                 v-html="markdownParser.parseMarkdown(chat.answer)"
@@ -139,12 +156,19 @@
                   <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
                 </button>
               </div>
-              <div v-if="textInference.metricsEnabled && chat.metrics" class="metrics-info text-xs text-gray-400">
+              <div
+                v-if="textInference.metricsEnabled && chat.metrics"
+                class="metrics-info text-xs text-gray-400"
+              >
                 <span class="mr-2">{{ chat.metrics.num_tokens }} Tokens</span>
                 <span class="mr-2">⋅</span>
-                <span class="mr-2">{{ chat.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span>
+                <span class="mr-2"
+                  >{{ chat.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                >
                 <span class="mr-2">⋅</span>
-                <span class="mr-2">1st Token Time: {{ chat.metrics.first_token_latency.toFixed(2) }}s</span>
+                <span class="mr-2"
+                  >1st Token Time: {{ chat.metrics.first_token_latency.toFixed(2) }}s</span
+                >
               </div>
             </div>
           </div>
@@ -155,7 +179,9 @@
         >
           <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
-            <p class="text-gray-300" :class="textInference.nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
+            <p class="text-gray-300" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_USER_NAME }}
+            </p>
             <p v-html="textIn"></p>
           </div>
         </div>
@@ -167,7 +193,9 @@
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
-            <p class="text-gray-300" :class="textInference.nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+            <p class="text-gray-300" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_AI_NAME }}
+            </p>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
               class="ai-answer cursor-block break-all"
@@ -254,7 +282,6 @@
                 <span class="svg-icon i-clear w-4 h-4"></span>
                 <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
             </button> -->
-
           </div>
           <div
             v-show="textInference.backend !== 'LLAMA.CPP'"
@@ -385,9 +412,9 @@ const ragData = reactive({
   showUploader: false,
 })
 
-let sseMetrics: MetricsData | null = null;
+let sseMetrics: MetricsData | null = null
 
-const source = ref("");
+const source = ref('')
 const emits = defineEmits<{
   (
     e: 'showDownloadModelConfirm',
@@ -435,29 +462,29 @@ function dataProcess(line: string) {
       } else {
         source.value = data.value
       }
-      break;
-    case "download_model_progress":
-      downloadModel.downloading = true;
-      downloadModel.text = `${i18nState.COM_DOWNLOAD_MODEL} ${data.repo_id}\r\n${data.download_size}/${data.total_size} ${data.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${data.speed}`;
-      downloadModel.percent = data.percent;
-      break;
-    case "download_model_completed":
-      downloadModel.downloading = false;
-      break;
-    case "load_model":
-      loadingModel.value = data.event == "start";
-      break;
-    case "metrics":
+      break
+    case 'download_model_progress':
+      downloadModel.downloading = true
+      downloadModel.text = `${i18nState.COM_DOWNLOAD_MODEL} ${data.repo_id}\r\n${data.download_size}/${data.total_size} ${data.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${data.speed}`
+      downloadModel.percent = data.percent
+      break
+    case 'download_model_completed':
+      downloadModel.downloading = false
+      break
+    case 'load_model':
+      loadingModel.value = data.event == 'start'
+      break
+    case 'metrics':
       sseMetrics = {
         num_tokens: data.num_tokens ?? 0,
         total_time: data.total_time ?? 0,
         first_token_latency: data.first_token_latency ?? 0,
         overall_tokens_per_second: data.overall_tokens_per_second ?? 0,
         second_plus_tokens_per_second: data.second_plus_tokens_per_second ?? 0,
-      };
-      break;
-    case "error":
-      processing.value = false;
+      }
+      break
+    case 'error':
+      processing.value = false
       switch (data.err_type) {
         case 'not_enough_disk_space':
           toast.error(
@@ -562,9 +589,9 @@ async function simulatedInput() {
       total_time: 0,
       first_token_latency: 0,
       overall_tokens_per_second: 0,
-      second_plus_tokens_per_second: 0
-    };
-    
+      second_plus_tokens_per_second: 0,
+    }
+
     if (key !== null) {
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -573,20 +600,21 @@ async function simulatedInput() {
             ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
             : receiveOut,
         metrics: finalMetrics,
-        model: textInference.backend === 'IPEX-LLM'
-        ? globalSetup.modelSettings.llm_model
-        : globalSetup.modelSettings.ggufLLM_model
-      });
+        model:
+          textInference.backend === 'IPEX-LLM'
+            ? globalSetup.modelSettings.llm_model
+            : globalSetup.modelSettings.ggufLLM_model,
+      })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
         updateTitle(conversations.conversationList[key])
       }
     }
 
-    sseMetrics = null;
-    processing.value = false;
-    textIn.value = "";
-    textOut.value = "";
+    sseMetrics = null
+    processing.value = false
+    textIn.value = ''
+    textOut.value = ''
     nextTick(() => {
       chatPanel.querySelectorAll('copy-code').forEach((item) => {
         const el = item as HTMLElement
@@ -744,26 +772,26 @@ async function refreshLLMModles(e: Event) {
 }
 
 function regenerateLastResponse(conversationKey: string) {
-  const item = conversations.conversationList[conversationKey].pop();
-  if (!item) return;
-  const prompt = item.question;
-  const chatContext = [...toRaw(conversations.conversationList[conversationKey])];
+  const item = conversations.conversationList[conversationKey].pop()
+  if (!item) return
+  const prompt = item.question
+  const chatContext = [...toRaw(conversations.conversationList[conversationKey])]
 
   const finalMetrics: MetricsData = sseMetrics ?? {
-      num_tokens: 0,
-      total_time: 0,
-      first_token_latency: 0,
-      overall_tokens_per_second: 0,
-      second_plus_tokens_per_second: 0
-    };
-
+    num_tokens: 0,
+    total_time: 0,
+    first_token_latency: 0,
+    overall_tokens_per_second: 0,
+    second_plus_tokens_per_second: 0,
+  }
 
   chatContext.push({
-    question: prompt, answer: '',
-    metrics: finalMetrics
-  });
-  currentlyGeneratingKey.value = conversationKey;
-  generate(chatContext);
+    question: prompt,
+    answer: '',
+    metrics: finalMetrics,
+  })
+  currentlyGeneratingKey.value = conversationKey
+  generate(chatContext)
 }
 
 function copyCode(e: MouseEvent) {

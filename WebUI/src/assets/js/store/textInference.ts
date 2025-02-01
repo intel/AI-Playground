@@ -14,11 +14,11 @@ const backendModelKey = {
 export const useTextInference = defineStore(
   'textInference',
   () => {
-    const globalSetup = useGlobalSetup();
-    const backendServices = useBackendServices();
-    const backend = ref<Backend>('IPEX-LLM');
-    const activeModel = ref<string | null>(null);
-    const metricsEnabled = ref(false);
+    const globalSetup = useGlobalSetup()
+    const backendServices = useBackendServices()
+    const backend = ref<Backend>('IPEX-LLM')
+    const activeModel = ref<string | null>(null)
+    const metricsEnabled = ref(false)
 
     const llamaBackendUrl = computed(() => {
       const url = backendServices.info.find(
@@ -38,7 +38,7 @@ export const useTextInference = defineStore(
     })
 
     function toggleMetrics() {
-        metricsEnabled.value = !metricsEnabled.value;
+      metricsEnabled.value = !metricsEnabled.value
     }
 
     const fontSizeIndex = ref<number>(1)
@@ -74,9 +74,7 @@ export const useTextInference = defineStore(
     ]
 
     const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value])
-    const nameSizeClass = computed(() =>
-      fontSizes[Math.max(fontSizeIndex.value - 2, 0)],
-    )
+    const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)])
     const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value])
     const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1)
     const isMinSize = computed(() => fontSizeIndex.value <= 0)
@@ -93,18 +91,18 @@ export const useTextInference = defineStore(
     }
 
     return {
-        backend,
-        activeModel,
-        llamaBackendUrl,
-        metricsEnabled,    
-        toggleMetrics,  
-        fontSizeClass,
-        nameSizeClass,
-        iconSizeClass,
-        isMaxSize,
-        isMinSize,
-        increaseFontSize,
-        decreaseFontSize   
+      backend,
+      activeModel,
+      llamaBackendUrl,
+      metricsEnabled,
+      toggleMetrics,
+      fontSizeClass,
+      nameSizeClass,
+      iconSizeClass,
+      isMaxSize,
+      isMinSize,
+      increaseFontSize,
+      decreaseFontSize,
     }
   },
   {

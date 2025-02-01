@@ -159,19 +159,19 @@ type DropListItem = {
 }
 
 type MetricsData = {
-    num_tokens: number;
-    total_time: number;
-    first_token_latency: number;
-    overall_tokens_per_second: number;
-    second_plus_tokens_per_second: number;
-  };
+  num_tokens: number
+  total_time: number
+  first_token_latency: number
+  overall_tokens_per_second: number
+  second_plus_tokens_per_second: number
+}
 
 type ChatItem = {
-    metrics: MetricsData;
-    question: string;
-    answer: string;
-    title?: string;
-    model?: string;
+  metrics: MetricsData
+  question: string
+  answer: string
+  title?: string
+  model?: string
 }
 
 type ChatRequestParams = {
@@ -216,13 +216,13 @@ type LoadModelAllComplete = {
 }
 
 type GatherMetrics = {
-    type: "metrics";
-    num_tokens: number;
-    total_time: number;
-    overall_tokens_per_second: number;
-    second_plus_tokens_per_second: number;
-    first_token_latency: number;
-};
+  type: 'metrics'
+  num_tokens: number
+  total_time: number
+  overall_tokens_per_second: number
+  second_plus_tokens_per_second: number
+  first_token_latency: number
+}
 
 type LoadModelCallback = {
   type: 'load_model'

@@ -106,7 +106,7 @@
         </div>
       </div>
     </div>
-     <div class="flex items-center justify-center gap-3">
+    <div class="flex items-center justify-center gap-3">
       <p>Adjust Font Size</p>
       <button
         class="flex items-center justify-center gap-2 border border-white rounded-md text-sm px-4 py-1"
@@ -130,23 +130,23 @@
     </div>
   </div>
   <div class="flex flex-col gap-3">
-      <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
-      <table class="text-center w-full mx-2 table-fixed">
-        <tbody>
-          <tr v-for="item in displayComponents" :key="item.serviceName">
-            <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
-            <td :style="{ color: mapStatusToColor(item.status) }">
-              {{ mapToDisplayStatus(item.status) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="flex flex-col pt-5">
-        <button @click="globalSetup.loadingState = 'manageInstallations'" class="confirm-btn">
-          {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
-        </button>
-      </div>
+    <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
+    <table class="text-center w-full mx-2 table-fixed">
+      <tbody>
+        <tr v-for="item in displayComponents" :key="item.serviceName">
+          <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
+          <td :style="{ color: mapStatusToColor(item.status) }">
+            {{ mapToDisplayStatus(item.status) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="flex flex-col pt-5">
+      <button @click="globalSetup.loadingState = 'manageInstallations'" class="confirm-btn">
+        {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
+      </button>
     </div>
+  </div>
   <div class="text-right my-5">
     <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
   </div>
