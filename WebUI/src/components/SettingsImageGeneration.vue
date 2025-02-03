@@ -8,7 +8,7 @@
           :disabled="!modifiable('resolution')"
         />
       </div>
-      <div class="flex items-center gap-5">
+      <div v-if="modifiableOrDisplayed('imagePreview')" class="flex items-center gap-5">
         <p>{{ languages.SETTINGS_MODEL_IMAGE_PREVIEW }}</p>
         <button
           class="v-checkbox-control flex-none w-5 h-5"

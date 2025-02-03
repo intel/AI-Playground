@@ -6,7 +6,7 @@
       "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl",
       "onnxruntime"
     ],
-    "customNodes": ["Gourieff/comfyui-reactor@ee13ff754f35d2af284f0cf9d81ccce4defe1e5e"],
+    "customNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
     "requiredModels": [
       {
         "type": "defaultCheckpoint",
@@ -36,6 +36,18 @@
       {
         "type": "facerestore",
         "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
+      },
+      {
+        "type": "nsfwdetector",
+        "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+      },
+      {
+        "type": "nsfwdetector",
+        "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+      },
+      {
+        "type": "nsfwdetector",
+        "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
       }
     ]
   },
