@@ -170,3 +170,7 @@
 .i-fullscreen-exit {
   --svg: url('@/assets/svg/fullscreen-exit.svg');
 }
+
+.i-warning-triangle {
+  --svg: url('@/assets/svg/warning-triangle.svg');
+}
