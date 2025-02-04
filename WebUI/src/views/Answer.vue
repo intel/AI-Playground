@@ -7,6 +7,22 @@
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
         class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
+        <div class="flex justify-end">
+          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+            <img
+              v-if="!isHistoryVisible"
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/expand.svg"
+              class="w-8 h-8"
+            />
+            <img
+              v-else
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/collapse.svg"
+              class="w-8 h-8"
+            />
+          </button>
+        </div>
         <div class="flex flex-col-reverse">
           <div
             v-if="isHistoryVisible"
@@ -68,22 +84,6 @@
             </svg>
           </div>
         </div>
-        <div class="flex justify-end">
-          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
-            <img
-              v-if="!isHistoryVisible"
-              :class="textInference.iconSizeClass"
-              src="@/assets/svg/expand.svg"
-              class="w-8 h-8"
-            />
-            <img
-              v-else
-              :class="textInference.iconSizeClass"
-              src="@/assets/svg/collapse.svg"
-              class="w-8 h-8"
-            />
-          </button>
-        </div>
       </div>
       <div
         id="chatPanel"
@@ -107,19 +107,13 @@
               class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
             >
               <div class="flex items-center gap-2">
-                <p class="text-gray-300" :class="textInference.nameSizeClass">
+                <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
                   {{ languages.ANSWER_AI_NAME }}
                 </p>
                 <div v-if="chat.model">
                   <span
-                    :class="[
-                      'bg-gray-400',
-                      'text-black',
-                      'rounded-md',
-                      'px-1',
-                      'py-1',
-                      textInference.nameSizeClass,
-                    ]"
+                    class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                    :class="textInference.nameSizeClass"
                   >
                     {{ chat.model }}
                   </span>
