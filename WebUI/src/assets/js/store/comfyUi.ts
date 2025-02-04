@@ -20,6 +20,7 @@ export const useComfyUi = defineStore(
     const websocket = ref<WebSocket | null>(null)
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
+    const generateIdx = ref<number>(0)
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
@@ -163,8 +164,7 @@ export const useComfyUi = defineStore(
                 const imageUrl = URL.createObjectURL(imageBlob)
                 console.log('image url', imageUrl)
                 if (imageBlob) {
-                  imageGeneration.previewIdx = imageGeneration.generateIdx
-                  imageGeneration.updateDestImage(imageGeneration.generateIdx, imageUrl)
+                  imageGeneration.updateImage(generateIdx.value, imageUrl, true)
                 }
                 break
               default:
@@ -194,11 +194,12 @@ export const useComfyUi = defineStore(
                 const images: { filename: string; type: string; subfolder: string }[] =
                   msg.data?.output?.images?.filter((i: { type: string }) => i.type === 'output')
                 images.forEach((image) => {
-                  imageGeneration.updateDestImage(
-                    imageGeneration.generateIdx,
+                  imageGeneration.updateImage(
+                    generateIdx.value,
                     `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
+                    false,
                   )
-                  imageGeneration.generateIdx++
+                  generateIdx.value++
                 })
                 console.log('executed', { detail: msg.data })
                 break
@@ -328,6 +329,7 @@ export const useComfyUi = defineStore(
           ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
         ]
 
+        generateIdx.value = 0
         for (let i = 0; i < imageGeneration.batchSize; i++) {
           modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`)
 

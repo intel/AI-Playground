@@ -1,17 +1,17 @@
 <template>
   <div id="createPanel" class="h-full flex flex-col p-4">
     <div class="image-panel flex-auto flex p-4">
-      <div v-if="imageGeneration.imageUrls.length > 0" class="image-preview-panel flex-none">
+      <div v-if="imageGeneration.generatedImages.length > 0" class="image-preview-panel flex-none">
         <!-- eslint-disable vue/require-v-for-key -->
         <div
-          v-for="(image, i) in imageGeneration.imageUrls"
+          v-for="image in imageGeneration.generatedImages"
           class="image-preview-item flex items-center justify-center"
-          :class="{ active: imageGeneration.previewIdx == i }"
-          @click="swithPreview(i)"
+          :class="{ active: imageGeneration.previewIdx === image.id }"
+          @click="switchPreview(image.id)"
         >
           <!-- eslint-enable -->
           <div class="image-preview-item-bg">
-            <img :src="image" class="image-thumb" />
+            <img :src="image.imageUrl" class="image-thumb" />
           </div>
         </div>
       </div>
@@ -21,17 +21,14 @@
         >
           <!-- eslint-disable vue/require-v-for-key -->
           <img
-            v-for="(image, i) in imageGeneration.imageUrls"
-            :src="image"
+            v-for="image in imageGeneration.generatedImages"
+            :src="image.imageUrl"
             class="p-1 max-w-768px max-h-512px"
-            v-show="imageGeneration.previewIdx == i"
+            v-show="imageGeneration.previewIdx === image.id"
           />
           <!-- eslint-enable -->
           <div
-            v-show="
-              imageGeneration.generateIdx == imageGeneration.previewIdx &&
-              imageGeneration.processing
-            "
+            v-show="imageGeneration.processing && (!currentImage || currentImage?.isLoading)"
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
           >
             <loading-bar
@@ -52,10 +49,7 @@
             </div>
           </div>
           <div
-            v-show="
-              imageGeneration.previewIdx != -1 &&
-              imageGeneration.generateIdx > imageGeneration.previewIdx
-            "
+            v-show="currentImage && !currentImage.isLoading"
             class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
           >
             <button
@@ -66,7 +60,9 @@
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
             <button
-              v-if="imageGeneration.activeWorkflow.backend === 'default'"
+              v-if="
+                imageGeneration.activeWorkflow.backend === 'default' //change after comfyui integration
+              "
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -94,10 +90,8 @@
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
-            <!-- <button @click="regenerate" :title="languages.COM_REGENERATE"
-                            class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center">
-                            <span class="svg-icon text-white i-refresh w-4 h-4"></span>
-                        </button> -->
+
+            <!--            change reset button in delete image-->
             <button
               v-show="!imageGeneration.processing"
               @click="reset"
@@ -150,7 +144,7 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import PaintInfo from '@/components/PaintInfo.vue'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { generatedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useStableDiffusion } from '@/assets/js/store/stableDiffusion'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
@@ -165,7 +159,9 @@ const downloadModel = reactive({
 })
 const showParams = ref(false)
 const infoParams = ref<KVObject>({})
-
+const currentImage: ComputedRef<generatedImage | undefined> = computed(() => {
+  return imageGeneration.generatedImages.find((image) => image.id === imageGeneration.previewIdx)
+})
 const emits = defineEmits<{
   (
     e: 'showDownloadModelConfirm',
@@ -199,20 +195,19 @@ async function ensureModelsAreAvailable() {
 }
 
 function postImageToEnhance() {
-  emits('postImageToEnhance', imageGeneration.imageUrls[imageGeneration.previewIdx])
+  emits('postImageToEnhance', currentImage.value?.imageUrl ?? '')
 }
 
 function openImage() {
-  const path = imageGeneration.imageUrls[imageGeneration.previewIdx]
-  window.electronAPI.openImageWithSystem(path)
+  window.electronAPI.openImageWithSystem(currentImage.value?.imageUrl ?? '')
 }
 
 function selectedImage() {
-  window.electronAPI.selecteImage(imageGeneration.imageUrls[imageGeneration.previewIdx])
+  window.electronAPI.selecteImage(currentImage.value?.imageUrl ?? '')
 }
 
 function copyImage() {
-  util.copyImage(imageGeneration.imageUrls[imageGeneration.previewIdx])
+  util.copyImage(currentImage.value?.imageUrl ?? '')
   toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
@@ -221,7 +216,7 @@ function reset() {
   imageGeneration.reset()
 }
 
-function swithPreview(i: number) {
+function switchPreview(i: number) {
   imageGeneration.previewIdx = i
   if (i > -1) {
     infoParams.value = stableDiffusion.generateParams[i]

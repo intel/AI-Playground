@@ -61,7 +61,6 @@ export const useStableDiffusion = defineStore(
           image_preview: imageGeneration.imagePreview,
           safe_check: imageGeneration.safeCheck,
         }
-
         await sendGenerate(defaultBackendParams)
       } catch (_error: unknown) {
       } finally {
@@ -123,25 +122,13 @@ export const useStableDiffusion = defineStore(
           if (!data.safe_check_pass) {
             data.image = '/src/assets/image/nsfw_result_detected.png'
           }
-          //old
-          await imageGeneration.updateDestImage(data.index, data.image)
-          generateParams.value.push(data.params)
-          imageGeneration.generateIdx++ //necessary?
-          //new
-          await imageGeneration.updateImage(data.index, data.image, data.params)
+          await imageGeneration.updateImage(data.index, data.image, false)
           break
         case 'step_end':
           imageGeneration.currentState = 'generating'
           imageGeneration.stepText = `${i18nState.COM_GENERATING} ${data.step}/${data.total_step}`
           if (data.image) {
-            //old
-            await imageGeneration.updateDestImage(data.index, data.image)
-            //new
-            await imageGeneration.updateImage(data.index, data.image)
-          }
-          if (data.step == 0) {
-            //necessary?
-            imageGeneration.previewIdx = data.index
+            await imageGeneration.updateImage(data.index, data.image, true)
           }
           break
         case 'load_model':

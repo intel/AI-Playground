@@ -29,6 +29,7 @@ export type StableDiffusionSettings = {
 export type generatedImage = {
   id: number
   imageUrl: string
+  isLoading: boolean
   infoParams: KVObject | undefined
 }
 
@@ -586,7 +587,6 @@ export const useImageGeneration = defineStore(
     const currentState = ref<SDGenerateState>('no_start')
     const stepText = ref('')
     const previewIdx = ref(0)
-    const generateIdx = ref(-999)
 
     function loadSettingsForActiveWorkflow() {
       console.log('loading settings for', activeWorkflowName.value)
@@ -617,25 +617,27 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    async function updateDestImage(index: number, image: string) {
-      if (index + 1 > imageUrls.value.length) {
-        imageUrls.value.push(image)
-      } else {
-        imageUrls.value.splice(index, 1, image)
-      }
-    }
-
     async function updateImage(
       index: number,
       image: string,
+      loading: boolean,
       infoParams: KVObject | undefined = undefined,
     ) {
-      const newImage: generatedImage = { id: index, imageUrl: image, infoParams: infoParams }
+      const newImage: generatedImage = {
+        id: index,
+        imageUrl: image,
+        isLoading: loading,
+        infoParams: infoParams,
+      }
       const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
       if (existingImageIndex !== -1) {
         generatedImages.value.splice(existingImageIndex, 1, newImage)
       } else {
         generatedImages.value.push(newImage)
+        previewIdx.value = newImage.id
+        console.log('#################')
+        console.log(previewIdx)
+        console.log('#################')
       }
     }
 
@@ -749,12 +751,10 @@ export const useImageGeneration = defineStore(
     }
 
     async function generate() {
-      generateIdx.value = 0
       previewIdx.value = 0
       stepText.value = i18nState.COM_GENERATING
       if (activeWorkflow.value.backend === 'default') {
         await stableDiffusion.generate()
-        console.log(generatedImages.value)
       } else {
         await comfyUi.generate()
       }
@@ -769,7 +769,7 @@ export const useImageGeneration = defineStore(
       currentState.value = 'no_start'
       stableDiffusion.generateParams.length = 0
       imageUrls.value.length = 0
-      generateIdx.value = -999
+      generatedImages.value.length = 0 //new
       previewIdx.value = -1
     }
 
@@ -789,7 +789,6 @@ export const useImageGeneration = defineStore(
       stepText,
       stopping,
       previewIdx,
-      generateIdx,
       imageModel,
       inpaintModel,
       lora,
@@ -811,7 +810,6 @@ export const useImageGeneration = defineStore(
       loadWorkflowsFromJson,
       loadWorkflowsFromIntel,
       getMissingModels,
-      updateDestImage,
       updateImage,
       generate,
       stopGeneration,
