@@ -665,6 +665,8 @@ export const useImageGeneration = defineStore(
               return Const.MODEL_TYPE_FACESWAP
             case 'facerestore':
               return Const.MODEL_TYPE_FACERESTORE
+            case 'nsfwdetector':
+              return Const.MODEL_TYPE_NSFW_DETECTOR
             case 'defaultCheckpoint':
               return Const.MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT
             case 'defaultLora':

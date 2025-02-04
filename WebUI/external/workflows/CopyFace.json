@@ -6,28 +6,8 @@
       "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl",
       "onnxruntime"
     ],
-    "customNodes": ["Gourieff/comfyui-reactor@ee13ff754f35d2af284f0cf9d81ccce4defe1e5e"],
+    "customNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
     "requiredModels": [
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
-      },
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
-      },
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
-      },
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
-      },
-      {
-        "type": "defaultLora",
-        "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
-      },
       {
         "type": "faceswap",
         "model": "Aitrepreneur/insightface/inswapper_128.onnx",
@@ -36,11 +16,23 @@
       {
         "type": "facerestore",
         "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
+      },
+      {
+        "type": "nsfwdetector",
+        "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+      },
+      {
+        "type": "nsfwdetector",
+        "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+      },
+      {
+        "type": "nsfwdetector",
+        "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
       }
     ]
   },
-  "tags": ["SDXL", "Fast-LCM", "non-com"],
-  "requirements": ["high-vram"],
+  "tags": ["non-com"],
+  "requirements": [],
   "inputs": [
     {
       "nodeTitle": "ReActor 🌌 Fast Face Swap",
@@ -79,11 +71,10 @@
     }
   ],
   "defaultSettings": {
-    "resolution": "896x896",
-    "inferenceSteps": 4
+    "batchSize": 1
   },
   "displayedSettings": [],
-  "modifiableSettings": ["inferenceSteps", "seed", "batchSize", "imagePreview", "resolution"],
+  "modifiableSettings": [],
   "comfyUiApiWorkflow": {
     "9": {
       "inputs": {
