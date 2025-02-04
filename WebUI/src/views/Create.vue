@@ -88,7 +88,7 @@
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
             <button
-              @click="selecteImage"
+              @click="selectedImage"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -207,7 +207,7 @@ function openImage() {
   window.electronAPI.openImageWithSystem(path)
 }
 
-function selecteImage() {
+function selectedImage() {
   window.electronAPI.selecteImage(imageGeneration.imageUrls[imageGeneration.previewIdx])
 }
 

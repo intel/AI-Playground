@@ -26,6 +26,12 @@ export type StableDiffusionSettings = {
   safetyCheck: boolean
 }
 
+export type generatedImage = {
+  id: number
+  imageUrl: string
+  infoParams: KVObject | undefined
+}
+
 const SettingsSchema = z.object({
   imageModel: z.string(),
   inpaintModel: z.string(),
@@ -407,7 +413,7 @@ export const useImageGeneration = defineStore(
     const seed = ref<number>(generalDefaultSettings.seed)
     const imagePreview = ref<boolean>(generalDefaultSettings.imagePreview)
     const safeCheck = ref<boolean>(generalDefaultSettings.safeCheck)
-    const batchSize = ref<number>(globalDefaultSettings.batchSize) // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
+    const batchSize = ref<number>(globalDefaultSettings.batchSize)
 
     const resetActiveWorkflowSettings = () => {
       prompt.value = generalDefaultSettings.prompt
@@ -575,6 +581,7 @@ export const useImageGeneration = defineStore(
       saveToSettingsPerWorkflow('inpaintModel')
     })
 
+    const generatedImages = ref<generatedImage[]>([])
     const imageUrls = ref<string[]>([])
     const currentState = ref<SDGenerateState>('no_start')
     const stepText = ref('')
@@ -615,6 +622,20 @@ export const useImageGeneration = defineStore(
         imageUrls.value.push(image)
       } else {
         imageUrls.value.splice(index, 1, image)
+      }
+    }
+
+    async function updateImage(
+      index: number,
+      image: string,
+      infoParams: KVObject | undefined = undefined,
+    ) {
+      const newImage: generatedImage = { id: index, imageUrl: image, infoParams: infoParams }
+      const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
+      if (existingImageIndex !== -1) {
+        generatedImages.value.splice(existingImageIndex, 1, newImage)
+      } else {
+        generatedImages.value.push(newImage)
       }
     }
 
@@ -732,9 +753,10 @@ export const useImageGeneration = defineStore(
       previewIdx.value = 0
       stepText.value = i18nState.COM_GENERATING
       if (activeWorkflow.value.backend === 'default') {
-        stableDiffusion.generate()
+        await stableDiffusion.generate()
+        console.log(generatedImages.value)
       } else {
-        comfyUi.generate()
+        await comfyUi.generate()
       }
     }
 
@@ -761,6 +783,7 @@ export const useImageGeneration = defineStore(
       activeWorkflow,
       processing,
       prompt,
+      generatedImages,
       imageUrls,
       currentState,
       stepText,
@@ -789,6 +812,7 @@ export const useImageGeneration = defineStore(
       loadWorkflowsFromIntel,
       getMissingModels,
       updateDestImage,
+      updateImage,
       generate,
       stopGeneration,
       reset,

@@ -259,7 +259,7 @@ type NotEnoughDiskSpaceExceptionCallback = {
 
 type ErrorOutCallback = {
   type: 'error'
-  err_type: 'runtime_error' | 'download_exception' | 'unknow_exception'
+  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception'
 }
 
 type DownloadModelProgressCallback = {
