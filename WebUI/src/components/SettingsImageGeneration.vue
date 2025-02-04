@@ -62,6 +62,14 @@
           v-model="imageGeneration.negativePrompt"
         ></textarea>
       </div>
+      <div v-if="modifiableOrDisplayed('safetyCheck')" class="flex items-center gap-5">
+        <p>{{ languages.SETTINGS_MODEL_SAFE_CHECK }}</p>
+        <button
+          class="v-checkbox-control flex-none w-5 h-5"
+          :class="{ 'v-checkbox-checked': imageGeneration.safeCheck }"
+          @click="() => (imageGeneration.safeCheck = !imageGeneration.safeCheck)"
+        ></button>
+      </div>
       <h2
         v-if="
           anyModifiableOrDisplayed([
