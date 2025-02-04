@@ -32,7 +32,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     quality: 0,
     enableRag: false,
     llm_model: 'microsoft/Phi-3-mini-4k-instruct',
-    ggufLLM_model: 'meta-llama-3.1-8b-instruct.Q5_K_M.gguf',
+    ggufLLM_model: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
     sd_model: 'Lykon/dreamshaper-8',
     inpaint_model: 'Lykon/dreamshaper-8-inpainting',
     negativePrompt: 'bad hands, nsfw',
