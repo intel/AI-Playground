@@ -210,7 +210,7 @@
         <paint-info
           :params="infoParams"
           v-show="showParams"
-          @close="showParams = false"
+          @close="showInfoParams = false"
         ></paint-info>
       </div>
     </div>
@@ -697,7 +697,7 @@ function copyImage() {
 
 async function selecteImage() {
   const url = destImg.value[previewIdx.value]
-  window.electronAPI.selecteImage(url)
+  window.electronAPI.selectedImage(url)
 }
 
 function removeImage() {

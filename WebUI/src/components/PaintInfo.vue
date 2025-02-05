@@ -23,7 +23,7 @@
 import { useI18N } from '@/assets/js/store/i18n'
 
 const props = defineProps<{
-  params: KVObject
+  params: KVObject | undefined
 }>()
 
 const i18n = useI18N().state
@@ -48,7 +48,7 @@ function getModeText(key: string, value: number | string) {
     case 4:
       return i18n.ENHANCE_OUTPAINT
     default:
-      return 'unkonw'
+      return 'unknown'
   }
 }
 </script>

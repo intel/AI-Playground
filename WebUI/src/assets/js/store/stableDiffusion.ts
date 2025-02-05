@@ -35,7 +35,6 @@ export const useStableDiffusion = defineStore(
     const models = useModels()
 
     let abortController: AbortController | null
-    const generateParams = ref(new Array<KVObject>())
 
     async function generate() {
       if (imageGeneration.processing) {
@@ -196,7 +195,6 @@ export const useStableDiffusion = defineStore(
     }
 
     return {
-      generateParams,
       generate,
       stop,
     }

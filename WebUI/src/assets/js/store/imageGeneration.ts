@@ -6,6 +6,7 @@ import { useI18N } from './i18n'
 import * as Const from '../const'
 import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast.ts'
+import { preview } from 'vite'
 
 export type StableDiffusionSettings = {
   resolution: 'standard' | 'hd' | 'manual' // ~ modelSettings.resolution 0, 1, 3
@@ -117,6 +118,7 @@ const ComfyNumberInputSchema = z.object({
   step: z.number(),
 })
 export type ComfyNumberInput = z.infer<typeof ComfyNumberInputSchema>
+
 const ComfyImageInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
@@ -583,7 +585,6 @@ export const useImageGeneration = defineStore(
     })
 
     const generatedImages = ref<generatedImage[]>([])
-    const imageUrls = ref<string[]>([])
     const currentState = ref<SDGenerateState>('no_start')
     const stepText = ref('')
     const previewIdx = ref(0)
@@ -762,12 +763,22 @@ export const useImageGeneration = defineStore(
       comfyUi.stop()
     }
 
+    function deleteImage(id: number | undefined) {
+      if (id !== undefined) {
+        let index = generatedImages.value.findIndex((item) => item.id === id)
+        generatedImages.value.splice(index, 1)
+        if (index === generatedImages.value.length && index !== 0) {
+          index--
+        }
+        previewIdx.value = generatedImages.value[index].id
+      }
+    }
+
     function reset() {
+      generatedImages.value.length = 0
       currentState.value = 'no_start'
-      stableDiffusion.generateParams.length = 0
-      imageUrls.value.length = 0
-      generatedImages.value.length = 0 //new
-      previewIdx.value = -1
+      stepText.value = ''
+      previewIdx.value = 0
     }
 
     loadWorkflowsFromJson()
@@ -781,7 +792,6 @@ export const useImageGeneration = defineStore(
       processing,
       prompt,
       generatedImages,
-      imageUrls,
       currentState,
       stepText,
       stopping,
@@ -810,6 +820,7 @@ export const useImageGeneration = defineStore(
       updateImage,
       generate,
       stopGeneration,
+      deleteImage,
       reset,
     }
   },

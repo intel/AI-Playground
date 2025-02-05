@@ -242,5 +242,7 @@
   "WORKFLOW_HIGH_VRAM_INFO": "This model requires a lot of VRAM. Reduce the resolution and/or restart the ComfyUI backend when in case you experience a poor performance.",
   "WORKFLOW_HIGH_VRAM_WARNING": "high VRAM required",
   "LOADING_VERIFYING_BACKENDS": "Verifying backends",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Loading"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Loading",
+
+  "COM_RESET": "Reset"
 }

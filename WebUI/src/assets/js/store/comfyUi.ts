@@ -201,7 +201,6 @@ export const useComfyUi = defineStore(
                   )
                   generateIdx.value++
                 })
-                console.log('!!!!!!!!!!!!!!!', { detail: msg })
                 console.log('executed', { detail: msg.data })
                 break
               case 'execution_start':

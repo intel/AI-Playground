@@ -57,7 +57,7 @@ type electronAPI = {
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<string[]>
   openImageWithSystem(url: string): void
-  selecteImage(url: string): void
+  selectedImage(url: string): void
   setFullScreen(enable: boolean): void
   onDebugLog(
     callback: (data: {

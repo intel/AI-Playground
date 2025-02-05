@@ -7,7 +7,7 @@
           v-for="image in imageGeneration.generatedImages"
           class="image-preview-item flex items-center justify-center"
           :class="{ active: imageGeneration.previewIdx === image.id }"
-          @click="switchPreview(image.id)"
+          @click="imageGeneration.previewIdx = image.id"
         >
           <!-- eslint-enable -->
           <div class="image-preview-item-bg">
@@ -84,28 +84,33 @@
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
             <button
-              @click="selectedImage"
+              @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
-
-            <!--            change reset button in delete image-->
             <button
-              v-show="!imageGeneration.processing"
-              @click="reset"
+              @click="deleteImage"
               :title="languages.COM_DELETE"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-delete w-4 h-4"></span>
             </button>
+            <button
+              v-show="!imageGeneration.processing"
+              @click="reset"
+              :title="languages.COM_RESET"
+              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+            >
+              <span class="svg-icon text-white i-reset w-4 h-4"></span>
+            </button>
           </div>
         </div>
         <paint-info
-          :params="infoParams"
-          v-show="showParams"
-          @close="showParams = false"
+          v-show="showInfoParams"
+          :params="currentImage?.infoParams"
+          @close="showInfoParams = false"
         ></paint-info>
       </div>
     </div>
@@ -145,11 +150,9 @@ import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import PaintInfo from '@/components/PaintInfo.vue'
 import { generatedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
-import { useStableDiffusion } from '@/assets/js/store/stableDiffusion'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
 const imageGeneration = useImageGeneration()
-const stableDiffusion = useStableDiffusion()
 const globalSetup = useGlobalSetup()
 const i18nState = useI18N().state
 const downloadModel = reactive({
@@ -157,8 +160,7 @@ const downloadModel = reactive({
   text: '',
   percent: 0,
 })
-const showParams = ref(false)
-const infoParams = ref<KVObject>({})
+const showInfoParams = ref(false)
 const currentImage: ComputedRef<generatedImage | undefined> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === imageGeneration.previewIdx)
 })
@@ -198,12 +200,13 @@ function postImageToEnhance() {
   emits('postImageToEnhance', currentImage.value?.imageUrl ?? '')
 }
 
-function openImage() {
-  window.electronAPI.openImageWithSystem(currentImage.value?.imageUrl ?? '')
+function showParamsDialog() {
+  showInfoParams.value = true
+  console.log(currentImage.value?.infoParams)
 }
 
-function selectedImage() {
-  window.electronAPI.selecteImage(currentImage.value?.imageUrl ?? '')
+function openImage() {
+  window.electronAPI.openImageWithSystem(currentImage.value?.imageUrl ?? '')
 }
 
 function copyImage() {
@@ -211,22 +214,17 @@ function copyImage() {
   toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
+function openImageInFolder() {
+  window.electronAPI.selectedImage(currentImage.value?.imageUrl ?? '')
+}
+
+function deleteImage() {
+  imageGeneration.deleteImage(currentImage.value?.id)
+}
+
 function reset() {
   downloadModel.downloading = false
+  showInfoParams.value = false
   imageGeneration.reset()
-}
-
-function switchPreview(i: number) {
-  imageGeneration.previewIdx = i
-  if (i > -1) {
-    infoParams.value = stableDiffusion.generateParams[i]
-  } else {
-    showParams.value = false
-  }
-}
-
-function showParamsDialog() {
-  showParams.value = true
-  infoParams.value = stableDiffusion.generateParams[imageGeneration.previewIdx]
 }
 </script>
