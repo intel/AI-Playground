@@ -98,7 +98,7 @@
               <p class="text-gray-300" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_USER_NAME }}
               </p>
-              <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+              <pre class="chat-content">{{ chat.question }}</pre>
             </div>
           </div>
           <div class="flex items-start gap-3">
