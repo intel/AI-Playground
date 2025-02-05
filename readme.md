@@ -10,7 +10,9 @@
 
 This example is based on the xpu implementation of Intel® Arc™ GPU.
 
-Welcome to AI Playground beta open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU. AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.
+Welcome to AI Playground open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU. AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
+- Image Diffusion: Stable Diffusion 1.5, SDXL, Flux.1-Schnell
+- LLM: Safetensor PyTorch LLMs - DeepSeek R1 models, Phi3, Qwen2, Mistral and more, GGUF LLMs: Llama 3.1, Llama 3.2 and more   
 
 ## README.md
 - English (readme.md)
