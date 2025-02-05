@@ -165,6 +165,7 @@ def chat(
         params: LLMParams,
         load_model_callback: Callable[[str], None] = None,
         text_out_callback: Callable[[str, int], None] = None,
+        metrics_callback: Callable[[dict], None] = None,
         error_callback: Callable[[Exception], None] = None,
 ):
     global _model, _last_repo_id, _generating, _tokenizer, _stop_generate
@@ -256,15 +257,30 @@ def chat(
 
         last_token_time = time.time()
         torch.xpu.empty_cache()
+
+        metrics_data = {
+            "type": "metrics",
+            "num_tokens": num_tokens,
+            "total_time": last_token_time - start_time,
+            "overall_tokens_per_second": num_tokens / (last_token_time - start_time),
+            "second_plus_tokens_per_second": (num_tokens - 1) / (last_token_time - first_token_time),
+            "first_token_latency": first_token_time - start_time,
+            "after_token_latency": (last_token_time - first_token_time) / (num_tokens - 1) if num_tokens > 1 else None
+        }
+
+        metrics_callback(metrics_data)
+
         if params.print_metrics:
             logging.info(f"""
-                ----------inference finish----------
-                num_tokens : {num_tokens}
-                total_time : {last_token_time - start_time:.4f} s
-                overall tokens/s : {num_tokens / (last_token_time - start_time):.4f}
-                2nd+ token/s : {(num_tokens - 1) / (last_token_time - first_token_time):.4f}
-                first_token_latency : {first_token_time - start_time:.4f} s
-                after_token_latency : {(last_token_time - first_token_time)/(num_tokens - 1):.4f} s""")
+                    ----------inference finish----------
+                    num_tokens : {metrics_data['num_tokens']}
+                    total_time : {metrics_data['total_time']:.4f} s
+                    overall tokens/s : {metrics_data['overall_tokens_per_second']:.4f}
+                    2nd+ token/s : {metrics_data['second_plus_tokens_per_second']:.4f}
+                    first_token_latency : {metrics_data['first_token_latency']:.4f} s
+                    after_token_latency : {metrics_data['after_token_latency']:.4f} s
+                    """)
+
     finally:
         _generating = False
 

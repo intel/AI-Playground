@@ -91,23 +91,60 @@
         </drop-selector>
       </div>
     </div>
-    <div class="flex flex-col gap-3">
-      <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
-      <table class="text-center w-full mx-2 table-fixed">
-        <tbody>
-          <tr v-for="item in displayComponents" :key="item.serviceName">
-            <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
-            <td :style="{ color: mapStatusToColor(item.status) }">
-              {{ mapToDisplayStatus(item.status) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="flex flex-col pt-5">
-        <button @click="globalSetup.loadingState = 'manageInstallations'" class="confirm-btn">
-          {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
-        </button>
+  </div>
+  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+    <h2 class="text-center font-bold">Answer</h2>
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-5">
+          <p>Performance Metrics</p>
+          <button
+            class="v-checkbox-control flex-none w-5 h-5"
+            :class="{ 'v-checkbox-checked': textInference.metricsEnabled }"
+            @click="textInference.toggleMetrics()"
+          ></button>
+        </div>
       </div>
+    </div>
+    <div class="flex items-center justify-center gap-3">
+      <p>Adjust Font Size</p>
+      <button
+        class="flex items-center justify-center gap-2 border border-white rounded-md text-sm px-4 py-1"
+        @click="textInference.increaseFontSize"
+        :disabled="textInference.isMaxSize"
+        :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
+      >
+        <span class="svg-icon i-zoom-in w-4 h-4"></span>
+        <span>{{ languages.INCREASE_FONT_SIZE }}</span>
+      </button>
+
+      <button
+        class="flex items-center justify-center gap-2 border border-white rounded-md text-sm px-4 py-1"
+        @click="textInference.decreaseFontSize"
+        :disabled="textInference.isMinSize"
+        :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
+      >
+        <span class="svg-icon i-zoom-out w-4 h-4"></span>
+        <span>{{ languages.DECREASE_FONT_SIZE }}</span>
+      </button>
+    </div>
+  </div>
+  <div class="flex flex-col gap-3">
+    <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
+    <table class="text-center w-full mx-2 table-fixed">
+      <tbody>
+        <tr v-for="item in displayComponents" :key="item.serviceName">
+          <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
+          <td :style="{ color: mapStatusToColor(item.status) }">
+            {{ mapToDisplayStatus(item.status) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="flex flex-col pt-5">
+      <button @click="globalSetup.loadingState = 'manageInstallations'" class="confirm-btn">
+        {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
+      </button>
     </div>
   </div>
   <div class="text-right my-5">

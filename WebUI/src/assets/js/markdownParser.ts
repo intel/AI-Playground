@@ -4,7 +4,7 @@ import hljs from 'highlight.js'
 import * as util from './util'
 
 export class MarkdownParser {
-  pattern = /```([^\n]*)(.*?)(?:(?:```)|$)/gs
+  pattern = /```([^\n]*)([\s\S]*?)(?:(?:```)|$)/gs
   copyText = ''
   marked: Marked
   constructor(copyText: string) {
@@ -28,21 +28,45 @@ export class MarkdownParser {
   }
 
   parseMarkdown(content: string) {
+    const codeBlocks: string[] = []
+    let codeMatch
+    const allCodeRegex = new RegExp(this.pattern, 'gs')
+
+    let tempContent = content
+
+    // Seperate each block of code deoted by (```lang\ncode...```)
+    while ((codeMatch = allCodeRegex.exec(content))) {
+      codeBlocks.push(codeMatch[0])
+    }
+
+    // Replace each code block with a placeholder
+    codeBlocks.forEach((block, i) => {
+      tempContent = tempContent.replace(block, `__CODEBLOCK_${i}__`)
+    })
+
+    // Remove unsafe tags
+    tempContent = tempContent.replace(/<[^>]+>/g, '')
+
+    // Replace the code where placeholder was
+    codeBlocks.forEach((originalBlock, i) => {
+      tempContent = tempContent.replace(`__CODEBLOCK_${i}__`, originalBlock)
+    })
+
     let lastIndex = 0
     let html = ''
     let matches
-    //删除所有Html标签
-    content = content.replace(/<[^>]+>/g, '')
-    while ((matches = this.pattern.exec(content))) {
+
+    while ((matches = this.pattern.exec(tempContent))) {
       const index = matches.index
       if (index > lastIndex) {
-        html += util.processHTMLTag(content.substring(lastIndex, index))
+        html += util.processHTMLTag(tempContent.substring(lastIndex, index))
       }
+
       html += `<div class="bg-black rounded-md my-4 code-section">
                     <div class="flex justify-between items-center relative text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
                         <span>${matches[1] || ''}</span>
                         <button class="flex items-center justify-end copy-code">
-                            <span class="svg-icon i-copy mx-1"></span>
+                            <span class="svg-icon i-copy w-4 h-4"></span>
                             <span class="text-sm">${this.copyText}</span>
                         </button>
                     </div>
@@ -50,11 +74,11 @@ export class MarkdownParser {
                 </div>`
       lastIndex = index + matches[0].length
     }
-    if (lastIndex == 0) {
-      html = util.processHTMLTag(content)
-    } else if (lastIndex != content.length - 1) {
-      html += util.processHTMLTag(content.substring(lastIndex))
+
+    if (lastIndex < tempContent.length) {
+      html += util.processHTMLTag(tempContent.substring(lastIndex, tempContent.length))
     }
+
     return html
   }
 }
