@@ -6,26 +6,6 @@ import { useI18N } from './i18n'
 import * as Const from '../const'
 import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast.ts'
-import { preview } from 'vite'
-
-export type StableDiffusionSettings = {
-  resolution: 'standard' | 'hd' | 'manual' // ~ modelSettings.resolution 0, 1, 3
-  quality: 'standard' | 'high' | 'fast' // ~ modelSettings.quality 0, 1, 2
-  imageModel: string
-  inpaintModel: string
-  negativePrompt: string
-  batchSize: number // ~ modelSettings.generateNumber
-  pickerResolution?: string
-  width: number
-  height: number
-  guidanceScale: number
-  inferenceSteps: number
-  seed: number
-  lora: string | null
-  scheduler: string | null
-  imagePreview: boolean
-  safetyCheck: boolean
-}
 
 export type generatedImage = {
   id: number
@@ -587,7 +567,7 @@ export const useImageGeneration = defineStore(
     const generatedImages = ref<generatedImage[]>([])
     const currentState = ref<SDGenerateState>('no_start')
     const stepText = ref('')
-    const previewIdx = ref(0)
+    const previewIdx = ref<string | number>(0)
 
     function loadSettingsForActiveWorkflow() {
       console.log('loading settings for', activeWorkflowName.value)
@@ -779,6 +759,7 @@ export const useImageGeneration = defineStore(
       currentState.value = 'no_start'
       stepText.value = ''
       previewIdx.value = 0
+      comfyUi.reset()
     }
 
     loadWorkflowsFromJson()

@@ -63,3 +63,21 @@ export function mapServiceNameToDisplayName(serviceName: string) {
       return serviceName
   }
 }
+
+export function mapModeToText(value: number) {
+  const i18nState = useI18N().state
+  switch (value) {
+    case 0:
+      return i18nState.TAB_CREATE
+    case 1:
+      return i18nState.ENHANCE_UPSCALE
+    case 2:
+      return i18nState.ENHANCE_IMAGE_PROMPT
+    case 3:
+      return i18nState.ENHANCE_INPAINT
+    case 4:
+      return i18nState.ENHANCE_OUTPAINT
+    default:
+      return 'unknown'
+  }
+}

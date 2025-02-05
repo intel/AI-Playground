@@ -7,6 +7,7 @@ import * as util from '../util'
 import { SSEProcessor } from '../sseProcessor'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
+import { mapModeToText } from '@/lib/utils.ts'
 
 type BackendParams = {
   mode: number
@@ -121,7 +122,12 @@ export const useStableDiffusion = defineStore(
           if (!data.safe_check_pass) {
             data.image = '/src/assets/image/nsfw_result_detected.png'
           }
-          await imageGeneration.updateImage(data.index, data.image, false, data.params)
+          await imageGeneration.updateImage(
+            data.index,
+            data.image,
+            false,
+            createInfoParamTable(data.params),
+          )
           break
         case 'step_end':
           imageGeneration.currentState = 'generating'
@@ -192,6 +198,25 @@ export const useStableDiffusion = defineStore(
         imageGeneration.processing = false
         imageGeneration.stopping = false
       }
+    }
+
+    function createInfoParamTable(infoParams: KVObject) {
+      const infoParamsTable: KVObject = {
+        resolution: infoParams.width + 'x' + infoParams.height,
+        size: infoParams.size,
+        Device: infoParams.device,
+        prompt: infoParams.prompt,
+        model_name: infoParams.model_name,
+        mode: mapModeToText(infoParams.mode),
+        negative_prompt: infoParams.negative_prompt,
+        inference_steps: infoParams.inference_steps,
+        guidance_scale: infoParams.guidance_scale,
+        seed: infoParams.seed,
+        scheduler: infoParams.scheduler,
+        lora: infoParams.lora,
+        safe_check: infoParams.safe_check.toBoolean(),
+      }
+      return infoParamsTable
     }
 
     return {

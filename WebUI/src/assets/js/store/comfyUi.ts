@@ -20,6 +20,7 @@ export const useComfyUi = defineStore(
     const websocket = ref<WebSocket | null>(null)
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
+    const pendingPrompts = ref<ComfyUiPrompt[]>([])
     const generateIdx = ref<number>(0)
 
     const backendServices = useBackendServices()
@@ -191,16 +192,19 @@ export const useComfyUi = defineStore(
                 }
                 break
               case 'executed':
-                const images: { filename: string; type: string; subfolder: string }[] =
-                  msg.data?.output?.images?.filter((i: { type: string }) => i.type === 'output')
-                images.forEach((image) => {
-                  imageGeneration.updateImage(
-                    generateIdx.value,
-                    `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
-                    false,
-                  )
-                  generateIdx.value++
-                })
+                const newImage: { filename: string; type: string; subfolder: string } =
+                  msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
+                const promptIndex: number = pendingPrompts.value.findIndex(
+                  (item: ComfyUiPrompt) => item.promptId === msg.data?.prompt_id,
+                )
+                imageGeneration.updateImage(
+                  generateIdx.value,
+                  `${comfyBaseUrl.value}/view?filename=${newImage.filename}&type=${newImage.type}&subfolder=${newImage.subfolder ?? ''}`,
+                  false,
+                  pendingPrompts.value[promptIndex].prompt,
+                )
+                pendingPrompts.value.splice(promptIndex, 1)
+                generateIdx.value++
                 console.log('executed', { detail: msg.data })
                 break
               case 'execution_start':
@@ -329,7 +333,6 @@ export const useComfyUi = defineStore(
           ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
         ]
 
-        generateIdx.value = 0
         for (let i = 0; i < imageGeneration.batchSize; i++) {
           modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`)
 
@@ -348,7 +351,15 @@ export const useComfyUi = defineStore(
               `ComfyUI Backend responded with ${result.status}: ${await result.text()}`,
             )
           }
+          const response = await result.json()
+          pendingPrompts.value.push({
+            promptId: response.prompt_id,
+            prompt: mutableWorkflow,
+          })
         }
+        console.log('################')
+        console.log(pendingPrompts.value)
+        console.log('################')
       } catch (ex) {
         console.error('Error generating image', ex)
         toast.error('Backend could not generate image.')
@@ -374,9 +385,16 @@ export const useComfyUi = defineStore(
       })
     }
 
+    function reset() {
+      loaderNodes.value.length = 0
+      pendingPrompts.value.length = 0
+      generateIdx.value = 0
+    }
+
     return {
       generate,
       stop,
+      reset,
     }
   },
   {
@@ -397,17 +415,25 @@ const settingToComfyInputsName = {
   scheduler: ['scheduler'],
   batchSize: ['batch_size'],
 } satisfies Partial<Record<Setting, string[]>>
+
 type ComfySetting = keyof typeof settingToComfyInputsName
+type ComfyUiPrompt = {
+  promptId: string
+  prompt: ComfyUIApiWorkflow
+}
+
 const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
   Object.entries(workflow)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
     .map(([key, _value]) => key)
+
 const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
   Object.entries(workflow)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter(([_key, value]) => (value as any)?.['class_type'] === classType)
     .map(([key, _value]) => key)
+
 const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
   for (const inputName of settingToComfyInputsName[setting]) {
     if (inputName === 'text') continue
@@ -419,6 +445,7 @@ const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySettin
   }
   return []
 }
+
 const getInputNameBySettingAndKey = (
   workflow: ComfyUIApiWorkflow,
   key: string,

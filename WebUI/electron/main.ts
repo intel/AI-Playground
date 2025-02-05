@@ -523,7 +523,7 @@ function initEventHandle() {
     shell.openPath(imagePath)
   })
 
-  ipcMain.on('selecteImage', (_event, url: string) => {
+  ipcMain.on('selectedImage', (_event, url: string) => {
     const imagePath = getImagePathFromUrl(url)
     if (!imagePath) return
 

@@ -164,7 +164,7 @@
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
-              @click="selecteImage"
+              @click="selectedImage"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -325,7 +325,7 @@ import * as toast from '@/assets/js/toast'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import LoadingBar from '../components/LoadingBar.vue'
 import VerticalSlideBar from '@/components/VerticalSlideBar.vue'
-import PaintInfo from '@/components/PaintInfo.vue'
+import PaintInfo from '@/components/InfoTable.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
@@ -695,7 +695,7 @@ function copyImage() {
   util.copyImage(destImg.value[previewIdx.value])
 }
 
-async function selecteImage() {
+async function selectedImage() {
   const url = destImg.value[previewIdx.value]
   window.electronAPI.selectedImage(url)
 }

@@ -60,9 +60,6 @@
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
             <button
-              v-if="
-                imageGeneration.activeWorkflow.backend === 'default' //change after comfyui integration
-              "
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -107,11 +104,11 @@
             </button>
           </div>
         </div>
-        <paint-info
+        <info-table
           v-show="showInfoParams"
           :params="currentImage?.infoParams"
           @close="showInfoParams = false"
-        ></paint-info>
+        ></info-table>
       </div>
     </div>
     <div class="h-32 gap-3 flex-none flex items-center">
@@ -148,7 +145,7 @@ import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
-import PaintInfo from '@/components/PaintInfo.vue'
+import InfoTable from '@/components/InfoTable.vue'
 import { generatedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
