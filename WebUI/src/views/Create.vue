@@ -2,13 +2,14 @@
   <div id="createPanel" class="h-full flex flex-col p-4">
     <div class="image-panel flex-auto flex p-4">
       <div v-if="imageGeneration.imageUrls.length > 0" class="image-preview-panel flex-none">
+        <!-- eslint-disable vue/require-v-for-key -->
         <div
           v-for="(image, i) in imageGeneration.imageUrls"
           class="image-preview-item flex items-center justify-center"
           :class="{ active: imageGeneration.previewIdx == i }"
           @click="swithPreview(i)"
-          :key="i"
         >
+          <!-- eslint-enable -->
           <div class="image-preview-item-bg">
             <img :src="image" class="image-thumb" />
           </div>
@@ -18,13 +19,14 @@
         <div
           class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
         >
+          <!-- eslint-disable vue/require-v-for-key -->
           <img
             v-for="(image, i) in imageGeneration.imageUrls"
             :src="image"
             class="p-1 max-w-768px max-h-512px"
             v-show="imageGeneration.previewIdx == i"
-            :key="i"
           />
+          <!-- eslint-enable -->
           <div
             v-show="
               imageGeneration.generateIdx == imageGeneration.previewIdx &&

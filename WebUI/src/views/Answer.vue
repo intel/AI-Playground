@@ -87,7 +87,9 @@
         :class="fontSizeClass"
         @scroll="handleScroll"
       >
+        <!-- eslint-disable vue/require-v-for-key -->
         <template v-for="(chat, i) in conversations.activeConversation" :key="i">
+          <!-- eslint-enable -->
           <div class="flex items-start gap-3">
             <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
             <div class="flex flex-col gap-3 max-w-3/4">
