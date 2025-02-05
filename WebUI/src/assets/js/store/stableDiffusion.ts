@@ -122,7 +122,7 @@ export const useStableDiffusion = defineStore(
           if (!data.safe_check_pass) {
             data.image = '/src/assets/image/nsfw_result_detected.png'
           }
-          await imageGeneration.updateImage(data.index, data.image, false)
+          await imageGeneration.updateImage(data.index, data.image, false, data.params)
           break
         case 'step_end':
           imageGeneration.currentState = 'generating'

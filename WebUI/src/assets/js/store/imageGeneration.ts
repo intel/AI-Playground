@@ -635,9 +635,6 @@ export const useImageGeneration = defineStore(
       } else {
         generatedImages.value.push(newImage)
         previewIdx.value = newImage.id
-        console.log('#################')
-        console.log(previewIdx)
-        console.log('#################')
       }
     }
 
