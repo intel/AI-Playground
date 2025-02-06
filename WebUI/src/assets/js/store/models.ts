@@ -19,10 +19,9 @@ export type Model = {
 const predefinedModels: Model[] = [
   { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'llm', downloaded: false },
   { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'llm', downloaded: false },
-  // { name: 'meta-llama/Meta-Llama-3.1-8B-Instruct', type: 'llm', downloaded: false },
   { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'llm', downloaded: false },
-  // { name: 'google/gemma-7b', type: 'llm', downloaded: false },
-  // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
+  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', type: 'llm', downloaded: false },
+  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B', type: 'llm', downloaded: false },
   {
     name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
     type: 'ggufLLM',
