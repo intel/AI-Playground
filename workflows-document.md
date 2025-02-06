@@ -17,7 +17,7 @@
 | “defaultSettings" | **Required**: yes <br>**Description**: data from ComfyUI that will come back to the AI Playground UI Syntax “name”: text string of the data being used for output <br> ie “output\_image” “type”: type of data <br>ie: “image”  |
 | "displayedSettings" | **Required**: yes if no default values need leave as empty brackets \[ \] <br>**Description**: Input types you’d like to show in settings, but are not modifiable such as: “resolution”, “seed”, prompt” “inferenceSteps”, “batchSize, “cfg”, “prompt”, “negativePrompt” <br>**Syntax**: “inputField” ie "scheduler", "cfg"  |
 | "modifiableSettings"  | **Required**: yes if no default values need leave as empty brackets \[ \] <br>**Description**: Input types you’d like the user to adjust: “resolution”, “seed”, prompt” “inferenceSteps”, “batchSize, “cfg”, “negativePrompt” <br>**Syntax**: “inputField” ie "inferenceSteps", "seed" |
-| "comfyUiApiWorkflow": | **Required**: yes <br>**Description**: This section should be a copu and paste of the API export of the workflow created in ComfyUI. 
+| "comfyUiApiWorkflow": | **Required**: yes <br>**Description**: This section should be a copy and paste of the API export of the workflow created in ComfyUI. 
 
 ## Instructions
 
