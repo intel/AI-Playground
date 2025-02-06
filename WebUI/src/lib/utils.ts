@@ -64,7 +64,7 @@ export function mapServiceNameToDisplayName(serviceName: string) {
   }
 }
 
-export function mapModeToText(value: number) {
+export function mapModeToText(value: number | undefined) {
   const i18nState = useI18N().state
   switch (value) {
     case 0:

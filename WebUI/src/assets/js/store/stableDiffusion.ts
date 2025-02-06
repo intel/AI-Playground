@@ -27,6 +27,11 @@ type BackendParams = {
   safe_check: boolean
 }
 
+type ImageInfoParams = {
+  size: string
+  model_name: string
+} & Partial<BackendParams>
+
 export const useStableDiffusion = defineStore(
   'stableDiffusion',
   () => {
@@ -36,6 +41,7 @@ export const useStableDiffusion = defineStore(
     const models = useModels()
 
     let abortController: AbortController | null
+    const defaultBackendParams = ref<BackendParams>()
 
     async function generate() {
       if (imageGeneration.processing) {
@@ -44,7 +50,7 @@ export const useStableDiffusion = defineStore(
       try {
         imageGeneration.processing = true
         await checkModel()
-        const defaultBackendParams = {
+        defaultBackendParams.value = {
           mode: 0,
           device: globalSetup.modelSettings.graphics,
           prompt: imageGeneration.prompt,
@@ -53,7 +59,7 @@ export const useStableDiffusion = defineStore(
           generate_number: imageGeneration.batchSize,
           inference_steps: imageGeneration.inferenceSteps,
           guidance_scale: imageGeneration.guidanceScale,
-          seed: imageGeneration.seed,
+          seed: imageGeneration.seed === -1 ? Math.random() * 1000000 : imageGeneration.seed,
           height: imageGeneration.height,
           width: imageGeneration.width,
           lora: imageGeneration.lora,
@@ -61,7 +67,7 @@ export const useStableDiffusion = defineStore(
           image_preview: imageGeneration.imagePreview,
           safe_check: imageGeneration.safeCheck,
         }
-        await sendGenerate(defaultBackendParams)
+        await sendGenerate()
       } catch (_error: unknown) {
       } finally {
         imageGeneration.processing = false
@@ -122,13 +128,16 @@ export const useStableDiffusion = defineStore(
           if (!data.safe_check_pass) {
             data.image = '/src/assets/image/nsfw_result_detected.png'
           }
-          await imageGeneration.updateImage(
-            data.index,
-            data.image,
-            false,
-            createInfoParamTable(data.params),
-          )
+          const infoParams: KVObject | undefined =
+            defaultBackendParams.value &&
+            createInfoParamTable({
+              ...defaultBackendParams.value,
+              size: String(data.params.size),
+              model_name: String(data.params.model_name),
+            })
+          await imageGeneration.updateImage(data.index, data.image, false, infoParams)
           break
+
         case 'step_end':
           imageGeneration.currentState = 'generating'
           imageGeneration.stepText = `${i18nState.COM_GENERATING} ${data.step}/${data.total_step}`
@@ -169,15 +178,16 @@ export const useStableDiffusion = defineStore(
       }
     }
 
-    async function sendGenerate(defaultBackendParams: BackendParams) {
+    async function sendGenerate() {
       try {
         imageGeneration.processing = true
         if (!abortController) {
           abortController = new AbortController()
         }
+
         const response = await fetch(`${useGlobalSetup().apiHost}/api/sd/generate`, {
           method: 'POST',
-          body: util.convertToFormData(defaultBackendParams),
+          body: util.convertToFormData(defaultBackendParams.value),
           signal: abortController.signal,
         })
         const reader = response.body!.getReader()
@@ -200,7 +210,7 @@ export const useStableDiffusion = defineStore(
       }
     }
 
-    function createInfoParamTable(infoParams: KVObject) {
+    function createInfoParamTable(infoParams: ImageInfoParams) {
       const infoParamsTable: KVObject = {
         resolution: infoParams.width + 'x' + infoParams.height,
         size: infoParams.size,
@@ -214,7 +224,7 @@ export const useStableDiffusion = defineStore(
         seed: infoParams.seed,
         scheduler: infoParams.scheduler,
         lora: infoParams.lora,
-        safe_check: infoParams.safe_check.toBoolean(),
+        safe_check: infoParams.safe_check,
       }
       return infoParamsTable
     }

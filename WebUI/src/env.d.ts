@@ -128,6 +128,10 @@ type StringKV = {
   [key: string]: string
 }
 
+type StringOrNumberKV = {
+  [key: string]: string | number
+}
+
 type WebSettings = {
   graphics: { name: string; index: number }[]
   schedulers: string[]
@@ -205,8 +209,8 @@ type LLMOutTextCallback = {
 
 type SDOutCallback =
   | LoadModelCallback
-  | LoadModelcomponentsCallback
-  | SDOutImagelCallback
+  | LoadModelComponentsCallback
+  | SDOutImageCallback
   | SDStepEndCallback
   | ErrorOutCallback
   | NotEnoughDiskSpaceExceptionCallback
@@ -229,17 +233,17 @@ type LoadModelCallback = {
   event: 'start' | 'finish'
 }
 
-type LoadModelcomponentsCallback = {
+type LoadModelComponentsCallback = {
   type: 'load_model_components'
   event: 'start' | 'finish'
 }
 
-type SDOutImagelCallback = {
+type SDOutImageCallback = {
   type: 'image_out'
   index: number
   image: string
   safe_check_pass: boolean
-  params: KVObject
+  params: StringOrNumberKV
 }
 
 type SDStepEndCallback = {
