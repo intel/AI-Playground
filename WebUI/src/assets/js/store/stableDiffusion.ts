@@ -9,7 +9,7 @@ import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { mapModeToText } from '@/lib/utils.ts'
 
-type BackendParams = {
+type DefaultBackendParams = {
   mode: number
   device: string
   prompt: string
@@ -29,7 +29,8 @@ type BackendParams = {
 
 type ImageInfoParams = {
   size: string
-} & BackendParams
+  output_seed: number
+} & DefaultBackendParams
 
 export const useStableDiffusion = defineStore(
   'stableDiffusion',
@@ -40,7 +41,7 @@ export const useStableDiffusion = defineStore(
     const models = useModels()
 
     let abortController: AbortController | null
-    const defaultBackendParams = ref<BackendParams>()
+    const defaultBackendParams = ref<DefaultBackendParams>()
 
     async function generate() {
       if (imageGeneration.processing) {
@@ -58,10 +59,7 @@ export const useStableDiffusion = defineStore(
           generate_number: imageGeneration.batchSize,
           inference_steps: imageGeneration.inferenceSteps,
           guidance_scale: imageGeneration.guidanceScale,
-          seed:
-            imageGeneration.seed === -1
-              ? Math.floor(Math.random() * 1000000)
-              : imageGeneration.seed,
+          seed: imageGeneration.seed,
           height: imageGeneration.height,
           width: imageGeneration.width,
           lora: imageGeneration.lora,
@@ -135,6 +133,7 @@ export const useStableDiffusion = defineStore(
             createInfoParamTable({
               ...defaultBackendParams.value,
               size: String(data.params.size),
+              output_seed: Number(data.params.seed),
             })
           await imageGeneration.updateImage(data.index, data.image, false, infoParams)
           break
@@ -212,7 +211,7 @@ export const useStableDiffusion = defineStore(
     }
 
     function createInfoParamTable(infoParams: ImageInfoParams) {
-      const infoParamsTable: KVObject = {
+      const infoParamsTable: StringOrNumberOrBooleanKV = {
         resolution: infoParams.width + 'x' + infoParams.height,
         size: infoParams.size,
         Device: infoParams.device,
@@ -222,17 +221,23 @@ export const useStableDiffusion = defineStore(
         negative_prompt: infoParams.negative_prompt,
         inference_steps: infoParams.inference_steps,
         guidance_scale: infoParams.guidance_scale,
-        seed: infoParams.seed,
+        seed: infoParams.output_seed,
         scheduler: infoParams.scheduler,
         lora: infoParams.lora,
         safe_check: infoParams.safe_check,
+        backend: 'Default',
       }
       return infoParamsTable
+    }
+
+    function reset() {
+      defaultBackendParams.value = undefined
     }
 
     return {
       generate,
       stop,
+      reset,
     }
   },
   {

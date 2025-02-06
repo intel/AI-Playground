@@ -443,6 +443,7 @@ export const useImageGeneration = defineStore(
       inpaintModel,
     }
     type ModifiableSettings = keyof typeof settings
+
     const backend = computed({
       get() {
         return activeWorkflow.value.backend
@@ -602,7 +603,7 @@ export const useImageGeneration = defineStore(
       index: number,
       image: string,
       loading: boolean,
-      infoParams: KVObject | undefined = undefined,
+      infoParams: StringOrNumberOrBooleanKV | undefined = undefined,
     ) {
       const newImage: generatedImage = {
         id: index,
@@ -759,6 +760,7 @@ export const useImageGeneration = defineStore(
       currentState.value = 'no_start'
       stepText.value = ''
       previewIdx.value = 0
+      stableDiffusion.reset()
       comfyUi.reset()
     }
 

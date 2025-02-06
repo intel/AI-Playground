@@ -128,8 +128,8 @@ type StringKV = {
   [key: string]: string
 }
 
-type StringOrNumberKV = {
-  [key: string]: string | number
+type StringOrNumberOrBooleanKV = {
+  [key: string]: string | number | boolean
 }
 
 type WebSettings = {
