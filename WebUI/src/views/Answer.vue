@@ -622,6 +622,10 @@ async function simulatedInput() {
 
 function fastGenerate(e: KeyboardEvent) {
   if (e.code == 'Enter') {
+    if (processing.value) {
+      return
+    }
+
     if (e.ctrlKey || e.shiftKey || e.altKey) {
       question.value += '\n'
     } else {
