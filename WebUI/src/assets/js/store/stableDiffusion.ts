@@ -29,8 +29,7 @@ type BackendParams = {
 
 type ImageInfoParams = {
   size: string
-  model_name: string
-} & Partial<BackendParams>
+} & BackendParams
 
 export const useStableDiffusion = defineStore(
   'stableDiffusion',
@@ -59,7 +58,10 @@ export const useStableDiffusion = defineStore(
           generate_number: imageGeneration.batchSize,
           inference_steps: imageGeneration.inferenceSteps,
           guidance_scale: imageGeneration.guidanceScale,
-          seed: imageGeneration.seed === -1 ? Math.random() * 1000000 : imageGeneration.seed,
+          seed:
+            imageGeneration.seed === -1
+              ? Math.floor(Math.random() * 1000000)
+              : imageGeneration.seed,
           height: imageGeneration.height,
           width: imageGeneration.width,
           lora: imageGeneration.lora,
@@ -133,7 +135,6 @@ export const useStableDiffusion = defineStore(
             createInfoParamTable({
               ...defaultBackendParams.value,
               size: String(data.params.size),
-              model_name: String(data.params.model_name),
             })
           await imageGeneration.updateImage(data.index, data.image, false, infoParams)
           break
@@ -216,7 +217,7 @@ export const useStableDiffusion = defineStore(
         size: infoParams.size,
         Device: infoParams.device,
         prompt: infoParams.prompt,
-        model_name: infoParams.model_name,
+        model_name: infoParams.model_repo_id,
         mode: mapModeToText(infoParams.mode),
         negative_prompt: infoParams.negative_prompt,
         inference_steps: infoParams.inference_steps,
