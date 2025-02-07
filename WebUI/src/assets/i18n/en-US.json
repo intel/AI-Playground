@@ -244,5 +244,8 @@
   "LOADING_VERIFYING_BACKENDS": "Verifying backends",
   "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Loading",
 
-  "COM_RESET": "Reset"
+  "COM_RESET": "Reset",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Device"
 }

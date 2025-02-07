@@ -603,7 +603,7 @@ export const useImageGeneration = defineStore(
       index: number,
       image: string,
       loading: boolean,
-      infoParams: StringOrNumberOrBooleanKV | undefined = undefined,
+      infoParams: KVObject | undefined = undefined,
     ) {
       const newImage: generatedImage = {
         id: index,

@@ -5,11 +5,12 @@ import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { getTranslationLabel } from '@/lib/utils.ts'
 
 type ImageInfoParams = {
   default_inputs: KVObject
   modifiable_settings: string[]
-  comfy_inputs: KVObject
+  comfy_inputs: KVObject[]
 }
 
 const WEBSOCKET_OPEN = 1
@@ -100,7 +101,7 @@ export const useComfyUi = defineStore(
     const imageInfoParams = ref<ImageInfoParams>({
       default_inputs: {},
       modifiable_settings: [],
-      comfy_inputs: {},
+      comfy_inputs: [],
     })
     const generateIdx = ref<number>(0)
 
@@ -274,7 +275,7 @@ export const useComfyUi = defineStore(
               case 'executed':
                 const newImage: { filename: string; type: string; subfolder: string } =
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
-                const infoParams: StringOrNumberOrBooleanKV = createInfoParamTable({
+                const infoParams: KVObject = createInfoParamTable({
                   ...imageInfoParams.value,
                   default_inputs: {
                     ...imageInfoParams.value.default_inputs,
@@ -475,7 +476,7 @@ export const useComfyUi = defineStore(
     }
 
     function createInfoParamTable(infoParams: ImageInfoParams) {
-      const infoParamsTable: StringOrNumberOrBooleanKV = {
+      const infoParamsTable: KVObject = {
         ...extractDefaultParams(infoParams.default_inputs, infoParams.modifiable_settings),
         ...extractComfyUiParams(infoParams.comfy_inputs),
       }
@@ -483,33 +484,44 @@ export const useComfyUi = defineStore(
     }
 
     function extractDefaultParams(input: StringOrNumberOrBooleanKV, modSettings: string[]) {
-      const infoDefaultParamsTable: StringOrNumberOrBooleanKV = {
+      const defaultSettings: string[] = ['backend', 'workflow_name', 'prompt']
+      const mappingKeyToTranslatable: StringKV = {
+        backend: 'BACKEND',
+        workflow_name: 'SETTINGS_IMAGE_WORKFLOW',
+        prompt: 'INPUT_PROMPT',
+        resolution: 'SETTINGS_MODEL_IMAGE_RESOLUTION',
+        seed: 'SETTINGS_MODEL_SEED',
+        negativePrompt: 'SETTINGS_MODEL_NEGATIVE_PROMPT',
+        inferenceSteps: 'SETTINGS_MODEL_IMAGE_STEPS',
+      }
+      const mappingKeyToInfoParams: StringOrNumberOrBooleanKV = {
+        backend: 'ComfyUI',
         workflow_name: input.workflow_name,
         prompt: input.prompt,
-      }
-      const mappings: StringOrNumberOrBooleanKV = {
         resolution: input.width + 'x' + input.height,
         seed: input.seed,
         negativePrompt: input.negative_prompt,
         inferenceSteps: input.inference_steps,
       }
-      Object.keys(mappings).forEach((key) => {
-        if (modSettings.includes(key)) {
-          infoDefaultParamsTable[key] = mappings[key]
-        }
-      })
-      return infoDefaultParamsTable
+      return Object.fromEntries(
+        Object.keys(mappingKeyToInfoParams)
+          .filter((key) => defaultSettings.includes(key) || modSettings.includes(key))
+          .map((key) => [mappingKeyToTranslatable[key], mappingKeyToInfoParams[key]]),
+      )
     }
 
-    function extractComfyUiParams(inputs: StringOrNumberOrBooleanKV) {
-      const infoComfyParamsTable: StringOrNumberOrBooleanKV = {}
-      //ToDo: Continue here
+    function extractComfyUiParams(inputs: KVObject[]) {
+      const infoComfyParamsTable: KVObject = {}
+      for (const input of inputs) {
+        infoComfyParamsTable[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] =
+          input.type === 'image' ? input : input.current
+      }
       return infoComfyParamsTable
     }
 
     function reset() {
       loaderNodes.value.length = 0
-      imageInfoParams.value = { default_inputs: {}, modifiable_settings: [], comfy_inputs: {} }
+      imageInfoParams.value = { default_inputs: {}, modifiable_settings: [], comfy_inputs: [] }
       generateIdx.value = 0
     }
 

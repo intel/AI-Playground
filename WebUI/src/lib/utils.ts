@@ -81,3 +81,7 @@ export function mapModeToText(value: number | undefined) {
       return 'unknown'
   }
 }
+
+export function getTranslationLabel(prefix: string, label: string) {
+  return prefix + label.replace(/ - /g, '_').replace(/-/g, '_').replace(/ /g, '_').toUpperCase()
+}

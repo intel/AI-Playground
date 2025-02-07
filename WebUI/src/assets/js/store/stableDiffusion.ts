@@ -29,6 +29,7 @@ type DefaultBackendParams = {
 
 type ImageInfoParams = {
   size: string
+  model_name: string
   output_seed: number
 } & DefaultBackendParams
 
@@ -132,7 +133,8 @@ export const useStableDiffusion = defineStore(
             defaultBackendParams.value &&
             createInfoParamTable({
               ...defaultBackendParams.value,
-              size: String(data.params.size),
+              size: data.params.size,
+              model_name: data.params.model_name,
               output_seed: Number(data.params.seed),
             })
           await imageGeneration.updateImage(data.index, data.image, false, infoParams)
@@ -211,23 +213,43 @@ export const useStableDiffusion = defineStore(
     }
 
     function createInfoParamTable(infoParams: ImageInfoParams) {
-      const infoParamsTable: StringOrNumberOrBooleanKV = {
-        resolution: infoParams.width + 'x' + infoParams.height,
-        size: infoParams.size,
-        Device: infoParams.device,
+      const mappingKeyToTranslatable: StringKV = {
+        backend: 'BACKEND',
+        model_name: 'DOWNLOADER_MODEL',
+        prompt: 'INPUT_PROMPT',
+        resolution: 'SETTINGS_MODEL_IMAGE_RESOLUTION',
+        Device: 'DEVICE',
+        size: 'SETTINGS_MODEL_IMAGE_SIZE',
+        seed: 'SETTINGS_MODEL_SEED',
+        negative_prompt: 'SETTINGS_MODEL_NEGATIVE_PROMPT',
+        inference_steps: 'SETTINGS_MODEL_IMAGE_STEPS',
+        guidance_scale: 'SETTINGS_MODEL_IMAGE_CFG',
+        scheduler: 'SETTINGS_MODEL_SCHEDULER',
+        lora: 'SETTINGS_MODEL_LORA',
+        safe_check: 'SETTINGS_MODEL_SAFE_CHECK',
+      }
+      const mappingKeyToInfoParams: StringOrNumberOrBooleanKV = {
+        backend: 'Default',
+        model_name: infoParams.model_name,
         prompt: infoParams.prompt,
-        model_name: infoParams.model_repo_id,
+        resolution: infoParams.width + 'x' + infoParams.height,
+        Device: infoParams.device,
         mode: mapModeToText(infoParams.mode),
+        size: infoParams.size,
+        seed: infoParams.output_seed,
         negative_prompt: infoParams.negative_prompt,
         inference_steps: infoParams.inference_steps,
         guidance_scale: infoParams.guidance_scale,
-        seed: infoParams.output_seed,
         scheduler: infoParams.scheduler,
         lora: infoParams.lora,
         safe_check: infoParams.safe_check,
-        backend: 'Default',
       }
-      return infoParamsTable
+      return Object.fromEntries(
+        Object.keys(mappingKeyToInfoParams).map((key) => [
+          mappingKeyToTranslatable[key],
+          mappingKeyToInfoParams[key],
+        ]),
+      )
     }
 
     function reset() {

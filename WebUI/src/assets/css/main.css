@@ -101,6 +101,13 @@ textarea {
     overflow-y: auto;
   }
 }
+
+.info-params-image {
+  max-width: 250px;
+  margin: 10px;
+  border: 1px solid white;
+}
+
 .enhance-content {
   display: flex;
   align-items: center;

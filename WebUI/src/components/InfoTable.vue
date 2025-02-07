@@ -1,5 +1,5 @@
 <template>
-  <div v-if="props.params" class="info-params absolute px-5 pt-8 pb-5 text-white">
+  <div v-if="props.params" class="info-params absolute px-5 pt-8 pb-5 text-white w-1000">
     <button
       class="w-5 h-5 svg-icon i-close absolute right-2 top-2"
       @click="emits('close')"
@@ -8,10 +8,13 @@
       <ul class="border border-color-spilter">
         <li
           v-for="(value, key) in props.params"
-          class="last:border-none border-b border-color-spilter flex items-start"
+          class="last:border-none border-b border-color-spilter flex items-center"
         >
-          <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{ key }}</span>
-          <span class="px-4 flex-auto break-word">{{ value }}</span>
+          <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{
+            languages[key]
+          }}</span>
+          <img v-if="value.type === 'image'" :src="value.current" class="info-params-image" />
+          <span v-else class="px-4 flex-auto break-word">{{ value }}</span>
         </li>
       </ul>
     </div>
