@@ -8,7 +8,7 @@
           :disabled="!modifiable('resolution')"
         />
       </div>
-      <div class="flex items-center gap-5">
+      <div v-if="modifiableOrDisplayed('imagePreview')" class="flex items-center gap-5">
         <p>{{ languages.SETTINGS_MODEL_IMAGE_PREVIEW }}</p>
         <button
           class="v-checkbox-control flex-none w-5 h-5"
@@ -61,6 +61,14 @@
           class="h-32 rounded-lg resize-none"
           v-model="imageGeneration.negativePrompt"
         ></textarea>
+      </div>
+      <div v-if="modifiableOrDisplayed('safetyCheck')" class="flex items-center gap-5">
+        <p>{{ languages.SETTINGS_MODEL_SAFE_CHECK }}</p>
+        <button
+          class="v-checkbox-control flex-none w-5 h-5"
+          :class="{ 'v-checkbox-checked': imageGeneration.safeCheck }"
+          @click="() => (imageGeneration.safeCheck = !imageGeneration.safeCheck)"
+        ></button>
       </div>
       <h2
         v-if="
@@ -208,7 +216,7 @@
     <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
       <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings">
         <div class="svg-icon i-refresh">Reset</div>
-        Load workflow defaults
+        {{ languages.COM_LOAD_WORKFLOW_DEFAULTS }}
       </button>
     </div>
   </div>

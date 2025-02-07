@@ -311,7 +311,6 @@ export const useImageGeneration = defineStore(
           'negativePrompt',
           'batchSize',
           'imagePreview',
-          'safetyCheck',
         ],
       },
       {
@@ -338,7 +337,6 @@ export const useImageGeneration = defineStore(
           'negativePrompt',
           'batchSize',
           'imagePreview',
-          'safetyCheck',
         ],
       },
       {
@@ -358,14 +356,7 @@ export const useImageGeneration = defineStore(
           lora: 'latent-consistency/lcm-lora-sdxl',
         },
         displayedSettings: ['imageModel', 'inpaintModel', 'guidanceScale', 'scheduler'],
-        modifiableSettings: [
-          'resolution',
-          'seed',
-          'inferenceSteps',
-          'batchSize',
-          'imagePreview',
-          'safetyCheck',
-        ],
+        modifiableSettings: ['resolution', 'seed', 'inferenceSteps', 'batchSize', 'imagePreview'],
       },
       {
         name: 'Manual',
@@ -674,6 +665,8 @@ export const useImageGeneration = defineStore(
               return Const.MODEL_TYPE_FACESWAP
             case 'facerestore':
               return Const.MODEL_TYPE_FACERESTORE
+            case 'nsfwdetector':
+              return Const.MODEL_TYPE_NSFW_DETECTOR
             case 'defaultCheckpoint':
               return Const.MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT
             case 'defaultLora':
@@ -685,6 +678,7 @@ export const useImageGeneration = defineStore(
               return -1
           }
         }
+
         return {
           type: modelTypeToId(requiredModel.type),
           repo_id: requiredModel.model,
@@ -692,6 +686,7 @@ export const useImageGeneration = defineStore(
           additionalLicenseLink: requiredModel.additionalLicenceLink,
         }
       }
+
       const checkList: CheckModelAlreadyLoadedParameters[] =
         workflow.comfyUIRequirements.requiredModels.map(extractDownloadModelParamsFromString)
       const checkedModels: CheckModelAlreadyLoadedResult[] =

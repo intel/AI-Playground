@@ -7,6 +7,22 @@
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
         class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
+        <div class="flex justify-end">
+          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+            <img
+              v-if="!isHistoryVisible"
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/expand.svg"
+              class="w-8 h-8"
+            />
+            <img
+              v-else
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/collapse.svg"
+              class="w-8 h-8"
+            />
+          </button>
+        </div>
         <div class="flex flex-col-reverse">
           <div
             v-if="isHistoryVisible"
@@ -69,40 +85,43 @@
             </svg>
           </div>
         </div>
-        <div class="flex justify-end">
-          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
-            <img
-              v-if="!isHistoryVisible"
-              :class="iconSizeClass"
-              src="@/assets/svg/expand.svg"
-              class="w-8 h-8"
-            />
-            <img v-else :class="iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
-          </button>
-        </div>
       </div>
       <div
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
-        :class="fontSizeClass"
+        :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
         <!-- eslint-disable vue/require-v-for-key -->
         <template v-for="(chat, i) in conversations.activeConversation">
           <!-- eslint-enable -->
           <div class="flex items-start gap-3">
-            <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
+            <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
             <div class="flex flex-col gap-3 max-w-3/4">
-              <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-              <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+              <p class="text-gray-300" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_USER_NAME }}
+              </p>
+              <pre class="chat-content">{{ chat.question }}</pre>
             </div>
           </div>
           <div class="flex items-start gap-3">
-            <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+            <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
             <div
               class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
             >
-              <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+              <div class="flex items-center gap-2">
+                <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                  {{ languages.ANSWER_AI_NAME }}
+                </p>
+                <div v-if="chat.model">
+                  <span
+                    class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                    :class="textInference.nameSizeClass"
+                  >
+                    {{ chat.model }}
+                  </span>
+                </div>
+              </div>
               <div
                 class="ai-answer chat-content"
                 v-html="markdownParser.parseMarkdown(chat.answer)"
@@ -134,6 +153,20 @@
                   <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
                 </button>
               </div>
+              <div
+                v-if="textInference.metricsEnabled && chat.metrics"
+                class="metrics-info text-xs text-gray-400"
+              >
+                <span class="mr-2">{{ chat.metrics.num_tokens }} Tokens</span>
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >{{ chat.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                >
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >1st Token Time: {{ chat.metrics.first_token_latency.toFixed(2) }}s</span
+                >
+              </div>
             </div>
           </div>
         </template>
@@ -141,9 +174,11 @@
           class="flex items-start gap-3"
           v-show="processing && conversations.activeKey === currentlyGeneratingKey"
         >
-          <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
+          <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
-            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
+            <p class="text-gray-300" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_USER_NAME }}
+            </p>
             <p v-html="textIn"></p>
           </div>
         </div>
@@ -151,11 +186,13 @@
           class="flex items-start gap-3"
           v-show="processing && conversations.activeKey === currentlyGeneratingKey"
         >
-          <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+          <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
-            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+            <p class="text-gray-300" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_AI_NAME }}
+            </p>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
               class="ai-answer cursor-block break-all"
@@ -228,7 +265,7 @@
               </template>
             </drop-selector>
             <button
-              class="svg-icon i-generate-add w-10 h-10 text-purple-500 ml-1.5"
+              class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
               @click="addLLMModel"
             ></button>
             <button
@@ -242,24 +279,6 @@
                 <span class="svg-icon i-clear w-4 h-4"></span>
                 <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
             </button> -->
-            <button
-              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="increaseFontSize"
-              :disabled="isMaxSize"
-              :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }"
-            >
-              <span class="svg-icon i-zoom-in w-4 h-4"></span>
-              <span>{{ languages.INCREASE_FONT_SIZE }}</span>
-            </button>
-            <button
-              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="decreaseFontSize"
-              :disabled="isMinSize"
-              :class="{ 'opacity-50 cursor-not-allowed': isMinSize }"
-            >
-              <span class="svg-icon i-zoom-out w-4 h-4"></span>
-              <span>{{ languages.DECREASE_FONT_SIZE }}</span>
-            </button>
           </div>
           <div
             v-show="textInference.backend !== 'LLAMA.CPP'"
@@ -390,6 +409,8 @@ const ragData = reactive({
   showUploader: false,
 })
 
+let sseMetrics: MetricsData | null = null
+
 const source = ref('')
 const emits = defineEmits<{
   (
@@ -403,43 +424,7 @@ const emits = defineEmits<{
 
 let abortContooler: AbortController | null
 const stopping = ref(false)
-const fontSizeIndex = ref(1) // sets default to text-sm
 
-const fontSizes = [
-  'text-xs',
-  'text-sm',
-  'text-base',
-  'text-lg',
-  'text-xl',
-  'text-2xl',
-  'text-3xl',
-  'text-4xl',
-  'text-5xl',
-  'text-6xl',
-  'text-7xl',
-  'text-8xl',
-  'text-9xl',
-]
-const iconSizes = [
-  'size-[40px]',
-  'size-[42px]',
-  'size-[44px]',
-  'size-[46px]',
-  'size-[48px]',
-  'size-[50px]',
-  'size-[52px]',
-  'size-[54px]',
-  'size-[56px]',
-  'size-[58px]',
-  'size-[60px]',
-  'size-[62px]',
-  'size-[64px]',
-]
-const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value])
-const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)])
-const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value])
-const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1)
-const isMinSize = computed(() => fontSizeIndex.value <= 0)
 const isHistoryVisible = ref(false)
 const currentBackendAPI = computed(() =>
   textInference.backend === 'LLAMA.CPP' ? textInference.llamaBackendUrl : globalSetup.apiHost,
@@ -448,18 +433,6 @@ const currentBackendAPI = computed(() =>
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
-
-const increaseFontSize = () => {
-  if (!isMaxSize.value) {
-    fontSizeIndex.value++
-  }
-}
-
-const decreaseFontSize = () => {
-  if (!isMinSize.value) {
-    fontSizeIndex.value--
-  }
-}
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
@@ -497,6 +470,15 @@ function dataProcess(line: string) {
       break
     case 'load_model':
       loadingModel.value = data.event == 'start'
+      break
+    case 'metrics':
+      sseMetrics = {
+        num_tokens: data.num_tokens ?? 0,
+        total_time: data.total_time ?? 0,
+        first_token_latency: data.first_token_latency ?? 0,
+        overall_tokens_per_second: data.overall_tokens_per_second ?? 0,
+        second_plus_tokens_per_second: data.second_plus_tokens_per_second ?? 0,
+      }
       break
     case 'error':
       processing.value = false
@@ -599,6 +581,14 @@ async function simulatedInput() {
   } else {
     const key = currentlyGeneratingKey.value
 
+    const finalMetrics: MetricsData = sseMetrics ?? {
+      num_tokens: 0,
+      total_time: 0,
+      first_token_latency: 0,
+      overall_tokens_per_second: 0,
+      second_plus_tokens_per_second: 0,
+    }
+
     if (key !== null) {
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -606,12 +596,19 @@ async function simulatedInput() {
           ragData.enable && source.value != ''
             ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
             : receiveOut,
+        metrics: finalMetrics,
+        model:
+          textInference.backend === 'IPEX-LLM'
+            ? globalSetup.modelSettings.llm_model
+            : globalSetup.modelSettings.ggufLLM_model,
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
         updateTitle(conversations.conversationList[key])
       }
     }
+
+    sseMetrics = null
     processing.value = false
     textIn.value = ''
     textOut.value = ''
@@ -776,7 +773,20 @@ function regenerateLastResponse(conversationKey: string) {
   if (!item) return
   const prompt = item.question
   const chatContext = [...toRaw(conversations.conversationList[conversationKey])]
-  chatContext.push({ question: prompt, answer: '' })
+
+  const finalMetrics: MetricsData = sseMetrics ?? {
+    num_tokens: 0,
+    total_time: 0,
+    first_token_latency: 0,
+    overall_tokens_per_second: 0,
+    second_plus_tokens_per_second: 0,
+  }
+
+  chatContext.push({
+    question: prompt,
+    answer: '',
+    metrics: finalMetrics,
+  })
   currentlyGeneratingKey.value = conversationKey
   generate(chatContext)
 }

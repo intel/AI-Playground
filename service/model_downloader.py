@@ -276,6 +276,11 @@ class HFPlaygroundDownloader:
         if "facerestore" in self.save_path or "insightface" in self.save_path:
             move_to_flat_structure = True
             desired_repo_root_dir_name = path.abspath(path.join(self.save_path, self.repo_id.replace("/", "---")))
+        elif "nsfw_detector" in self.save_path:
+            move_to_flat_structure = True
+            desired_repo_root_dir_name = path.abspath(path.join(self.save_path, 'vit-base-nsfw-detector'))
+            if not os.path.exists(desired_repo_root_dir_name):
+                os.makedirs(desired_repo_root_dir_name)
         try:
             if os.path.exists(desired_repo_root_dir_name) or move_to_flat_structure:
                 for item in os.listdir(self.save_path_tmp):
