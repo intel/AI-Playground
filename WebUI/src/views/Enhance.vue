@@ -13,12 +13,14 @@
           </div>
           <span class="preview-tip">{{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}</span>
         </div>
+        <!-- eslint-disable vue/require-v-for-key -->
         <div
           v-for="(image, i) in destImg"
           class="image-preview-item flex items-center justify-center flex-none"
           :class="{ active: previewIdx == i }"
           @click="swithPreview((previewIdx = i))"
         >
+          <!-- eslint-enable -->
           <div class="image-preview-item-bg">
             <img :src="image" class="image-thumb" />
           </div>
@@ -175,12 +177,14 @@
               <span class="svg-icon i-delete w-5 h-5" @click="removeImage"></span>
             </button>
           </div>
+          <!-- eslint-disable vue/require-v-for-key -->
           <img
             v-for="(image, i) in destImg"
             :src="image"
             v-show="previewIdx == i"
             class="p-1 max-w-768px max-h-400px"
           />
+          <!-- eslint-enable -->
           <div
             v-show="processing && generateIdx == previewIdx"
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"

@@ -21,7 +21,9 @@
       @drop="dropFileToUpload"
       @dragover="dragOverHandler"
     >
+      <!-- eslint-disable vue/require-v-for-key -->
       <div v-for="item in fileList" class="flex items-center gap-2 justify-center w-full h-8">
+        <!-- eslint-enable -->
         <span class="svg-icon flex-none w-5 h-5" :class="getIconClass(item.type)"></span>
         <div class="flex-grow line2 overflow-hidden text-ellipsis h-6" :title="item.filename">
           {{ item.filename }}
