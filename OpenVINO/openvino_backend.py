@@ -1,4 +1,5 @@
-from typing import Dict, List, Callable
+import time
+from typing import Any, Dict, List, Callable
 from os import path
 from openvino_interface import LLMInterface
 import sys
@@ -24,7 +25,6 @@ class OpenVino(LLMInterface):
             model_base_path = model_config.openVINOConfig.get("openvino")
             model_name = model_repo_id.replace("/", "---")
             model_path = path.abspath(path.join(model_base_path, model_name))
-            callback("Model Path " + model_path)
 
             enable_compile_cache = dict()
             enable_compile_cache["CACHE_DIR"] = "llm_cache"
@@ -35,18 +35,22 @@ class OpenVino(LLMInterface):
             if callback is not None:
                 callback("finish")
 
-            self.config = openvino_genai.GenerationConfig()
-            self.config.max_new_tokens = 1024
-            callback("Model loaded")
 
-    def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None]):
+
+    def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None], generation_parameters: Dict[str, Any]):
+        config = openvino_genai.GenerationConfig()
+        if generation_parameters.get("max_new_tokens"):
+            config.max_new_tokens = generation_parameters["max_new_tokens"]
+        else:
+            # TODO: set default 
+            config.max_new_tokens = 1024
+
         full_prompt = self._tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-        return self._model.generate(full_prompt, self.config, streamer)
-       
+        return self._model.generate(full_prompt, config, streamer)
+
 
     def unload_model(self):
         if self._model is not None:
-            #self._model.close()
             del self._model
         gc.collect()
         self._model = None

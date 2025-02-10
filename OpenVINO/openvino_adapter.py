@@ -80,8 +80,8 @@ class LLM_SSE_Adapter:
         elif isinstance(ex, RuntimeError):
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
-            self.put_msg({"type": "error", "err_type": "unknow_exception"})
-        print(f"exception:{str(ex)}")
+            self.put_msg({"type": "error", "err_type": "unknown_exception"})
+        self.put_msg(f"exception:{str(ex)}")
 
     def text_conversation(self, params: LLMParams):
         thread = threading.Thread(
@@ -94,10 +94,8 @@ class LLM_SSE_Adapter:
 
     def stream_function(self, output):
         self.text_out_callback(output)
-    
         if self.llm_interface.stop_generate:
             self.put_msg("Stopping generation.")
-            self.llm_interface.stop_generate = False
             return True  # Stop generation
         
         return False  
@@ -112,12 +110,13 @@ class LLM_SSE_Adapter:
             
             prompt = params.prompt
             full_prompt = convert_prompt(prompt)
-            self.llm_interface.create_chat_completion(full_prompt, self.stream_function)
-            
+            self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.generation_parameters)
+        
         except Exception as ex:
             traceback.print_exc()
             self.error_callback(ex)
         finally:
+            self.llm_interface.stop_generate = False
             self.finish = True
             self.singal.set()
 
