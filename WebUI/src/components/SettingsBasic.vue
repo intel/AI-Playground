@@ -105,7 +105,7 @@
           ></button>
         </div>
       </div>
-      <div class="flex items-center justify-center gap-3">
+      <div class="flex items-center gap-3">
         <p>Adjust Font Size</p>
         <button
           class="flex items-center justify-center gap-2 border border-white rounded-md text-sm px-4 py-1"
