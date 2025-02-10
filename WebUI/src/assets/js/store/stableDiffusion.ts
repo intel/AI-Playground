@@ -234,7 +234,6 @@ export const useStableDiffusion = defineStore(
         prompt: infoParams.prompt,
         resolution: infoParams.width + 'x' + infoParams.height,
         Device: infoParams.device,
-        mode: mapModeToText(infoParams.mode),
         size: infoParams.size,
         seed: infoParams.output_seed,
         negative_prompt: infoParams.negative_prompt,
