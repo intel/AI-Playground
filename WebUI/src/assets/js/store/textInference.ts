@@ -19,6 +19,7 @@ export const useTextInference = defineStore(
     const backend = ref<Backend>('IPEX-LLM')
     const activeModel = ref<string | null>(null)
     const metricsEnabled = ref(false)
+    const maxTokens = ref<number>(1024)
 
     const llamaBackendUrl = computed(() => {
       const url = backendServices.info.find(
@@ -96,6 +97,7 @@ export const useTextInference = defineStore(
       llamaBackendUrl,
       metricsEnabled,
       toggleMetrics,
+      maxTokens,
       fontSizeClass,
       nameSizeClass,
       iconSizeClass,
@@ -107,7 +109,7 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
-      pick: ['backend', 'activeModel'],
+      pick: ['backend', 'activeModel', 'maxTokens'],
     },
   },
 )

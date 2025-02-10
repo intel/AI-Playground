@@ -532,6 +532,7 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
+    max_tokens: textInference.maxTokens,
     model_repo_id:
       textInference.backend === 'IPEX-LLM'
         ? globalSetup.modelSettings.llm_model
@@ -710,6 +711,7 @@ async function generate(chatContext: ChatItem[]) {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
+      max_tokens: textInference.maxTokens,
       model_repo_id:
         textInference.backend === 'IPEX-LLM'
           ? globalSetup.modelSettings.llm_model
