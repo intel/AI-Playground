@@ -111,13 +111,13 @@
                   {{ languages.ANSWER_AI_NAME }}
                 </p>
                 <div v-if="chat.model">
-                  <span
-                    class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
-                    :class="textInference.nameSizeClass"
-                  >
-                    {{ chat.model }}
-                  </span>
-                </div>
+                <span
+                  class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                  :class="textInference.nameSizeClass"
+                >
+                  {{ chat.model }}
+                </span>
+              </div>
               </div>
               <div
                 class="ai-answer chat-content"
@@ -187,9 +187,21 @@
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
-            <p class="text-gray-300" :class="textInference.nameSizeClass">
-              {{ languages.ANSWER_AI_NAME }}
-            </p>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_AI_NAME }}
+              </p>
+              <span
+                class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                :class="textInference.nameSizeClass"
+              >
+                {{
+                  textInference.backend === 'IPEX-LLM'
+                    ? globalSetup.modelSettings.llm_model
+                    : globalSetup.modelSettings.ggufLLM_model
+                }}
+              </span>
+            </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
               class="ai-answer cursor-block break-all"
