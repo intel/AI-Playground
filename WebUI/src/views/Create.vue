@@ -49,10 +49,11 @@
             </div>
           </div>
           <div
-            v-show="currentImage && !currentImage.isLoading"
+            v-show="currentImage && (!currentImage.isLoading || !imageGeneration.processing)"
             class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
           >
             <button
+              v-show="currentImage && !currentImage.isLoading"
               @click="postImageToEnhance"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -60,6 +61,7 @@
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
             <button
+              v-show="currentImage && !currentImage.isLoading"
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -67,6 +69,7 @@
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
             <button
+              v-show="currentImage && !currentImage.isLoading"
               @click="openImage"
               :title="languages.COM_ZOOM_IN"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -74,6 +77,7 @@
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
             <button
+              v-show="currentImage && !currentImage.isLoading"
               @click="copyImage"
               :title="languages.COM_COPY"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -81,6 +85,7 @@
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
             <button
+              v-show="currentImage && !currentImage.isLoading"
               @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -96,7 +101,7 @@
             </button>
             <button
               v-show="!imageGeneration.processing"
-              @click="reset"
+              @click="reset(true)"
               :title="languages.COM_RESET"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -173,7 +178,7 @@ const emits = defineEmits<{
 
 async function generateImage() {
   await ensureModelsAreAvailable()
-  reset()
+  reset(false)
   const inferenceBackendService: BackendServiceName =
     imageGeneration.backend === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
   await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
@@ -219,9 +224,9 @@ function deleteImage() {
   imageGeneration.deleteImage(currentImage.value?.id)
 }
 
-function reset() {
+function reset(deleteAllImages: boolean) {
   downloadModel.downloading = false
   showInfoParams.value = false
-  imageGeneration.reset()
+  imageGeneration.reset(deleteAllImages)
 }
 </script>

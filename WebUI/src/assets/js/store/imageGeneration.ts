@@ -6,9 +6,10 @@ import { useI18N } from './i18n'
 import * as Const from '../const'
 import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast.ts'
+import { v4 as uuidv4 } from 'uuid'
 
 export type generatedImage = {
-  id: number
+  id: number | string
   imageUrl: string
   isLoading: boolean
   infoParams: KVObject | undefined
@@ -744,24 +745,31 @@ export const useImageGeneration = defineStore(
       comfyUi.stop()
     }
 
-    function deleteImage(id: number | undefined) {
+    function deleteImage(id: number | string | undefined) {
       if (id !== undefined) {
-        let index = generatedImages.value.findIndex((item) => item.id === id)
+        const index = generatedImages.value.findIndex((item) => item.id === id)
         generatedImages.value.splice(index, 1)
-        if (index === generatedImages.value.length && index !== 0) {
-          index--
-        }
-        previewIdx.value = generatedImages.value[index].id
+        previewIdx.value = generatedImages.value[Math.max(0, index - 1)].id
       }
     }
 
-    function reset() {
-      generatedImages.value.length = 0
+    function reset(deleteAllImages: boolean) {
+      storeGeneratedImages(deleteAllImages)
       currentState.value = 'no_start'
       stepText.value = ''
       previewIdx.value = 0
       stableDiffusion.reset()
       comfyUi.reset()
+    }
+
+    function storeGeneratedImages(deleteAllImages: boolean): void {
+      if (deleteAllImages) {
+        generatedImages.value.length = 0
+      }
+      generatedImages.value = generatedImages.value.filter((item) => item.isLoading === false)
+      generatedImages.value.forEach((item) => {
+        item.id = uuidv4()
+      })
     }
 
     loadWorkflowsFromJson()
