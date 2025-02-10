@@ -1,18 +1,33 @@
 <template>
   <div id="createPanel" class="h-full flex flex-col p-4">
-    <div class="image-panel flex-auto flex p-4">
-      <div v-if="imageGeneration.generatedImages.length > 0" class="image-preview-panel flex-none">
-        <!-- eslint-disable vue/require-v-for-key -->
-        <div
-          v-for="image in imageGeneration.generatedImages"
-          class="image-preview-item flex items-center justify-center"
-          :class="{ active: imageGeneration.previewIdx === image.id }"
-          @click="imageGeneration.previewIdx = image.id"
-        >
-          <!-- eslint-enable -->
-          <div class="image-preview-item-bg">
-            <img :src="image.imageUrl" class="image-thumb" />
+    <div class="image-panel justify-center items-center flex-auto flex h-full">
+      <div
+        v-show="imageGeneration.generatedImages.length > 0"
+        class="flex flex-row justify-center items-end"
+      >
+        <div class="image-preview-panel">
+          <!-- eslint-disable vue/require-v-for-key -->
+          <div
+            v-for="image in imageGeneration.generatedImages"
+            class="image-preview-item flex items-center justify-center"
+            :class="{ active: imageGeneration.previewIdx === image.id }"
+            @click="imageGeneration.previewIdx = image.id"
+          >
+            <!-- eslint-enable -->
+            <div class="image-preview-item-bg">
+              <img :src="image.imageUrl" class="image-thumb" />
+            </div>
           </div>
+        </div>
+        <div class="items-end justify-end">
+          <button
+            @click="reset(true)"
+            :title="languages.COM_RESET"
+            :disabled="imageGeneration.processing"
+            class="bg-color-image-tool-button rounded-sm w-6 h-6 ml-2 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-reset w-4 h-4"></span>
+          </button>
         </div>
       </div>
       <div class="flex-auto relative flex items-center justify-center">
@@ -98,14 +113,6 @@
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-delete w-4 h-4"></span>
-            </button>
-            <button
-              v-show="!imageGeneration.processing"
-              @click="reset(true)"
-              :title="languages.COM_RESET"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-reset w-4 h-4"></span>
             </button>
           </div>
         </div>
