@@ -34,6 +34,7 @@ from paint_biz import (
     OutpaintParams,
     UpscaleImageParams,
 )
+import metrics
 import paint_biz
 import llm_biz
 import aipg_utils as utils
@@ -406,6 +407,13 @@ def install_python_packages_for_comfy(comfyPackageInstallRequest: ComfyUIPackage
     except Exception as e:
         return jsonify({'error_message': f'failed to at least one package due to {e}'}), 501
 
+@app.get("/api/metrics/")
+def read_available_counters():
+    return metrics.read_available_counters()
+
+@app.get("/api/metrics/<string:metric_name>")
+def read_performance_counter(metric_name: str):
+    return metrics.read_performance_counter(metric_name)
 
 def cache_input_image():
     file = request.files.get("image")

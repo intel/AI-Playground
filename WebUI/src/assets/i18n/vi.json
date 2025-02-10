@@ -58,6 +58,7 @@
   "SETTINGS_TAB_IMAGE": "Hình ảnh",
   "SETTINGS_TAB_BASIC": "Cơ bản",
   "SETTINGS_TAB_MODEL": "Mô hình",
+  "SETTINGS_TAB_METRICS": "Thước đo",
   "SETTINGS_INFERENCE_DEVICE": "Thiết bị suy luận",
   "SETTINGS_LLM_BACKEND": "Backend LLM",
   "SETTINGS_MODEL_IMAGE_SIZE": "Kích thước ảnh",

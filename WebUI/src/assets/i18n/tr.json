@@ -58,6 +58,7 @@
   "SETTINGS_TAB_IMAGE": "Resim",
   "SETTINGS_TAB_BASIC": "Temel",
   "SETTINGS_TAB_MODEL": "Modeller",
+  "SETTINGS_TAB_METRICS": "Metrikler",
   "SETTINGS_INFERENCE_DEVICE": "Inference Donanımı",
   "SETTINGS_LLM_BACKEND": "LLM Backend",
   "SETTINGS_MODEL_IMAGE_SIZE": "Resim Boyutu",
