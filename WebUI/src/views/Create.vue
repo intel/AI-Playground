@@ -1,9 +1,10 @@
 <template>
   <div id="createPanel" class="h-full flex flex-col p-4">
-    <div class="image-panel justify-center items-center flex-auto flex h-full">
+    <div class="image-panel justify-center items-center flex-auto flex">
       <div
         v-show="imageGeneration.generatedImages.length > 0"
-        class="flex flex-row justify-center items-end"
+        class="flex flex-row justify-center items-end h-full"
+        style="height: 550px !important"
       >
         <div class="image-preview-panel">
           <!-- eslint-disable vue/require-v-for-key -->
