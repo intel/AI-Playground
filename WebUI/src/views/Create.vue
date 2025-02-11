@@ -23,11 +23,11 @@
         <div class="items-end justify-end">
           <button
             @click="reset(true)"
-            :title="languages.COM_RESET"
+            :title="languages.COM_CLEAR_HISTORY"
             :disabled="imageGeneration.processing"
             class="bg-color-image-tool-button rounded-sm w-6 h-6 ml-2 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-reset w-4 h-4"></span>
+            <span class="svg-icon text-white i-clear w-4 h-4"></span>
           </button>
         </div>
       </div>
