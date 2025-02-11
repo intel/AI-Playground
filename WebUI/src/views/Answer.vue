@@ -558,7 +558,7 @@ async function updateTitle(conversation: ChatItem[]) {
     'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
     'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
   };
-  const instruction = `Create me a short descriptive title for the following conversation in a maximum of 20 characters. Don't use unnecessary words like 'Conversation about': `
+  const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
   console.log('prompt', prompt)
   const chatContext = [{ question: prompt, answer: '' }]
@@ -567,7 +567,8 @@ async function updateTitle(conversation: ChatItem[]) {
     prompt: chatContext,
     enable_rag: false,
     model_repo_id: backendMapping[textInference.backend].model,
-    print_metrics: false
+    print_metrics: false,
+    max_new_tokens: 7,
   };
   const response = await fetch(`${ currentBackendAPI.value }/api/llm/chat`, {
     method: "POST",
