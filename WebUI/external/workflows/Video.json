@@ -1,0 +1,273 @@
+{
+    "name": "Video",
+    "tags": [
+        "Video",
+        "high-vram"
+    ],
+    "backend": "comfyui",
+    "comfyUIRequirements": {
+        "customNodes": [
+            "city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"
+        ],
+        "requiredModels": [
+          ]
+    },
+
+    "requirements": [
+        "high-vram"
+    ],
+    "inputs": [
+  {
+      "nodeTitle": "RandomNoise",
+      "nodeInput": "noise_seed",
+      "type": "number",
+      "label": "Noise Seed",
+      "defaultValue": 32,
+      "step": 1,
+      "min": 0,
+      "max": 255
+    }
+],
+    "outputs": [
+        {
+            "name": "output_image",
+            "type": "image"
+        }
+    ],
+    "defaultSettings": {
+	"resolution": "736x480",
+	"noise_seed": 32,
+        "inferenceSteps": 20
+    },
+    "displayedSettings": [
+    ],
+    "modifiableSettings": [
+        "inferenceSteps",
+        "imagePreview",
+        "resolution"
+    ],
+    "comfyUiApiWorkflow": {
+  "8": {
+    "inputs": {
+      "samples": [
+        "36",
+        0
+      ],
+      "vae": [
+        "102",
+        1
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+
+"112": {
+      "inputs": {
+        "images": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "PreviewImage",
+      "_meta": {
+        "title": "Preview Image"
+      }
+    },
+  "14": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "37": {
+    "inputs": {
+      "noise_seed": 32,
+      "control_after_generate": "fixed"
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "36": {
+    "inputs": {
+      "noise": [
+        "37",
+        0
+      ],
+      "guider": [
+        "42",
+        0
+      ],
+      "sampler": [
+        "14",
+        0
+      ],
+      "sigmas": [
+        "104",
+        0
+      ],
+      "latent_image": [
+        "103",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "42": {
+    "inputs": {
+      "cfg": 4,
+      "model": [
+        "103",
+        0
+      ],
+      "positive": [
+        "87",
+        0
+      ],
+      "negative": [
+        "88",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFGGuider"
+    }
+  },
+  "81": {
+    "inputs": {
+      "scheduler": "normal",
+      "steps": 20,
+      "denoise": 1,
+      "model": [
+        "103",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "87": {
+    "inputs": {
+      "text": "A cybernetic woman, with black hair and robotic parts...\nA cybernetic woman with black hair and robotic parts looks down and to her right, then back up; she has full lips, glowing electronics with white metallic body; the camera remains stationary on her face as she speaks; the background is out of focus, but shows a futurustic city and people moving; the scene is captured in real-life footage at night",
+      "clip": [
+        "109",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+                "title": "prompt"
+            }
+  },
+  "88": {
+    "inputs": {
+      "text": "worst quality, inconsistent motion, blurry, jittery, distorted, watermarks",
+      "clip": [
+        "109",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "102": {
+    "inputs": {
+      "ckpt_name": "ltx-video-2b-v0.9.1.safetensors",
+      "dtype": "bfloat16"
+    },
+    "class_type": "LTXVLoader",
+    "_meta": {
+      "title": "🅛🅣🅧 LTXV Loader"
+    }
+  },
+  "103": {
+    "inputs": {
+      "preset": "736x480    | 113",
+      "width": 384,
+      "height": 256,
+      "frames_number": 65,
+      "frame_rate": 25,
+      "batch": 1,
+      "mixed_precision": true,
+      "img_compression": 29,
+      "model": [
+        "102",
+        0
+      ],
+      "vae": [
+        "102",
+        1
+      ]
+    },
+    "class_type": "LTXVModelConfigurator",
+    "_meta": {
+      "title": "🅛🅣🅧 LTXV Model Configurator"
+    }
+  },
+  "104": {
+    "inputs": {
+      "sigma_shift": [
+        "103",
+        2
+      ],
+      "stretch": true,
+      "terminal": 0.1,
+      "sigmas": [
+        "81",
+        0
+      ]
+    },
+    "class_type": "LTXVShiftSigmas",
+    "_meta": {
+      "title": "🅛🅣🅧 LTXV Shift Sigmas"
+    }
+  },
+  "106": {
+    "inputs": {
+      "frame_rate": 25,
+      "loop_count": 0,
+      "filename_prefix": "LTXVideo",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "109": {
+    "inputs": {
+      "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
+      "type": "ltxv"
+    },
+    "class_type": "CLIPLoaderGGUF",
+    "_meta": {
+      "title": "CLIPLoader (GGUF)"
+    }
+  }
+}
+}
