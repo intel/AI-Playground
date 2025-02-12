@@ -9,6 +9,7 @@
         <li
           v-for="(value, key) in props.params"
           class="last:border-none border-b border-color-spilter flex items-center"
+          :key="key"
         >
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{
             languages[key]

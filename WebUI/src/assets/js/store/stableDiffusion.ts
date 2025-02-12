@@ -7,7 +7,6 @@ import * as util from '../util'
 import { SSEProcessor } from '../sseProcessor'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
-import { mapModeToText } from '@/lib/utils.ts'
 
 type DefaultBackendParams = {
   mode: number
