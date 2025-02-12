@@ -481,8 +481,6 @@ export const aiBackendServiceDir = () =>
       : path.join(__dirname, '../../../service'),
   )
 
-const ipexWheel = 'intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl'
-
 export interface ApiService {
   readonly name: string
   readonly baseUrl: string
@@ -512,9 +510,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
   readonly prototypicalPythonEnv = app.isPackaged
     ? path.join(this.baseDir, 'prototype-python-env')
     : path.join(this.baseDir, 'build-envs/online/prototype-python-env')
-  readonly customIntelExtensionForPytorch = path.join(
-    app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
-    ipexWheel,
+  readonly wheelDir = path.join(
+    app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/')
   )
   abstract readonly pythonEnvDir: string
   abstract readonly lsLevelZeroDir: string
@@ -525,6 +522,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
   currentStatus: BackendStatus = 'uninitializedStatus'
 
   readonly appLogger = appLoggerInstance
+
+  getIPEXWheelPath(deviceArch: Arch): string {
+    const wheelName = `intel_extension_for_pytorch-2.3.110+${deviceArch}-cp311-cp311-win_amd64.whl`
+    return path.join(this.wheelDir, wheelName)
+  }
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.win = win
