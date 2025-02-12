@@ -170,7 +170,7 @@ const theme = useTheme()
 
 const textInferenceBackendDisplayName: Record<(typeof backendTypes)[number], string> = {
   'IPEX-LLM': 'IPEX-LLM',
-  'LLAMA.CPP': 'Llama.cpp - GGUF',,
+  'LLAMA.CPP': 'Llama.cpp - GGUF',
   "OpenVINO": "OpenVINO"
 }
 
