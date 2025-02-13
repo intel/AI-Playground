@@ -12,3 +12,5 @@ env/
 !tools/*.exe
 llm_cache/
 TinyLlama-*
+laion/
+db/

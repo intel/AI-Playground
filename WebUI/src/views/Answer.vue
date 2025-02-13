@@ -596,6 +596,11 @@ async function updateTitle(conversation: ChatItem[]) {
 }
 
 async function simulatedInput() {
+  const backendMapping = {
+    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost, model: globalSetup.modelSettings.llm_model },
+    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
+    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
+  };
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
@@ -627,9 +632,7 @@ async function simulatedInput() {
             : receiveOut,
         metrics: finalMetrics,
         model:
-          textInference.backend === 'IPEX-LLM'
-            ? globalSetup.modelSettings.llm_model
-            : globalSetup.modelSettings.ggufLLM_model,
+          backendMapping[textInference.backend].model,
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
@@ -697,6 +700,7 @@ async function checkModel() {
       ]
     } else if (textInference.backend === "OpenVINO") {
       checkList = [{ repo_id: globalSetup.modelSettings.openvino_model, type: Const.MODEL_TYPE_OPENVINO, backend: "openvino" }];
+      console.log('checkList', checkList)
     } else {
       checkList = [
         {
