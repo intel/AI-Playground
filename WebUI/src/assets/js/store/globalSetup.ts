@@ -26,29 +26,29 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     embedding: new Array<string>(),
   })
 
-    const modelSettings = reactive<KVObject>({
-        graphics: 0,
-        resolution: 0,
-        quality: 0,
-        enableRag: false,
-        llm_model: "microsoft/Phi-3-mini-4k-instruct",
-        ggufLLM_model: "bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf",
-        openvino_model: "TinyLlama-1.1B-Chat-v1.0",
-        sd_model: "Lykon/dreamshaper-8",
-        inpaint_model: "Lykon/dreamshaper-8-inpainting",
-        negativePrompt: "bad hands, nsfw",
-        generateNumber: 1,
-        width: 512,
-        height: 512,
-        guidanceScale: 7.5,
-        inferenceSteps: 20,
-        seed: -1,
-        lora: "None",
-        scheduler: "None",
-        embedding: "BAAI/bge-large-en-v1.5",
-        imagePreview: 1,
-        safeCheck: 1
-    });
+  const modelSettings = reactive<KVObject>({
+    graphics: 0,
+    resolution: 0,
+    quality: 0,
+    enableRag: false,
+    llm_model: 'microsoft/Phi-3-mini-4k-instruct',
+    ggufLLM_model: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
+    openvino_model: 'TinyLlama-1.1B-Chat-v1.0',
+    sd_model: 'Lykon/dreamshaper-8',
+    inpaint_model: 'Lykon/dreamshaper-8-inpainting',
+    negativePrompt: 'bad hands, nsfw',
+    generateNumber: 1,
+    width: 512,
+    height: 512,
+    guidanceScale: 7.5,
+    inferenceSteps: 20,
+    seed: -1,
+    lora: 'None',
+    scheduler: 'None',
+    embedding: 'BAAI/bge-large-en-v1.5',
+    imagePreview: 1,
+    safeCheck: 1,
+  })
 
   const paths = ref<ModelPaths>({
     llm: '',

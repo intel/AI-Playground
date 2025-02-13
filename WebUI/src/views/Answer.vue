@@ -261,15 +261,25 @@
                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
               </template>
             </drop-selector>
-            <drop-selector v-if="textInference.backend === 'OpenVINO'" :array="models.openVINOModels" @change="(i) => textInference.activeModel = i.name" class="w-96">
+            <drop-selector
+              v-if="textInference.backend === 'OpenVINO'"
+              :array="models.openVINOModels"
+              @change="(i) => (textInference.activeModel = i.name)"
+              class="w-96"
+            >
               <template #selected>
                 <model-drop-down-item
-                  :model="models.openVINOModels.find((m) => m.name === globalSetup.modelSettings.openvino_model)"></model-drop-down-item>
+                  :model="
+                    models.openVINOModels.find(
+                      (m) => m.name === globalSetup.modelSettings.openvino_model,
+                    )
+                  "
+                ></model-drop-down-item>
               </template>
               <template #list="slotItem">
                 <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-            </template>
-          </drop-selector>
+              </template>
+            </drop-selector>
             <button
               class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
               @click="addLLMModel"
@@ -428,33 +438,61 @@ const emits = defineEmits<{
   (e: 'showModelRequest', success?: () => void, fail?: () => void): void
 }>()
 
-let abortContooler: AbortController | null;
-const stopping = ref(false);
-const fontSizeIndex = ref(1); // sets default to text-sm
+let abortContooler: AbortController | null
+const stopping = ref(false)
+const fontSizeIndex = ref(1) // sets default to text-sm
 
-const fontSizes = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];
-const iconSizes = ['size-[40px]', 'size-[42px]', 'size-[44px]', 'size-[46px]', 'size-[48px]', 'size-[50px]', 'size-[52px]', 'size-[54px]', 'size-[56px]', 'size-[58px]', 'size-[60px]', 'size-[62px]', 'size-[64px]'];
-const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value]);
-const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)]);
-const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value]);
-const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1);
-const isMinSize = computed(() => fontSizeIndex.value <= 0);
-const isHistoryVisible = ref(false);
+const fontSizes = [
+  'text-xs',
+  'text-sm',
+  'text-base',
+  'text-lg',
+  'text-xl',
+  'text-2xl',
+  'text-3xl',
+  'text-4xl',
+  'text-5xl',
+  'text-6xl',
+  'text-7xl',
+  'text-8xl',
+  'text-9xl',
+]
+const iconSizes = [
+  'size-[40px]',
+  'size-[42px]',
+  'size-[44px]',
+  'size-[46px]',
+  'size-[48px]',
+  'size-[50px]',
+  'size-[52px]',
+  'size-[54px]',
+  'size-[56px]',
+  'size-[58px]',
+  'size-[60px]',
+  'size-[62px]',
+  'size-[64px]',
+]
+const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value])
+const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)])
+const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value])
+const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1)
+const isMinSize = computed(() => fontSizeIndex.value <= 0)
+const isHistoryVisible = ref(false)
 
 const currentBackendAPI = computed(() => {
-  const backendKey = textInference.backend;
+  const backendKey = textInference.backend
 
   switch (backendKey) {
     case 'IPEX-LLM':
-      return globalSetup.apiHost;
+      return globalSetup.apiHost
     case 'LLAMA.CPP':
-      return textInference.llamaBackendUrl;
+      return textInference.llamaBackendUrl
     case 'OpenVINO':
-      return textInference.openVINOBackendUrl;
+      return textInference.openVINOBackendUrl
     default:
-      throw new Error(`Unknown backend: ${backendKey}`);
+      throw new Error(`Unknown backend: ${backendKey}`)
   }
-});
+})
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
@@ -554,10 +592,22 @@ function onConversationClick(conversationKey: string) {
 
 async function updateTitle(conversation: ChatItem[]) {
   const backendMapping = {
-    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost, model: globalSetup.modelSettings.llm_model },
-    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
-    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
-  };
+    'IPEX-LLM': {
+      service: 'ai-backend',
+      api: globalSetup.apiHost,
+      model: globalSetup.modelSettings.llm_model,
+    },
+    'LLAMA.CPP': {
+      service: 'llamacpp-backend',
+      api: textInference.llamaBackendUrl,
+      model: globalSetup.modelSettings.ggufLLM_model,
+    },
+    OpenVINO: {
+      service: 'openvino-backend',
+      api: textInference.openVINOBackendUrl,
+      model: globalSetup.modelSettings.openvino_model,
+    },
+  }
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
   console.log('prompt', prompt)
@@ -569,9 +619,9 @@ async function updateTitle(conversation: ChatItem[]) {
     model_repo_id: backendMapping[textInference.backend].model,
     print_metrics: false,
     max_new_tokens: 7,
-  };
-  const response = await fetch(`${ currentBackendAPI.value }/api/llm/chat`, {
-    method: "POST",
+  }
+  const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -597,10 +647,22 @@ async function updateTitle(conversation: ChatItem[]) {
 
 async function simulatedInput() {
   const backendMapping = {
-    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost, model: globalSetup.modelSettings.llm_model },
-    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
-    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
-  };
+    'IPEX-LLM': {
+      service: 'ai-backend',
+      api: globalSetup.apiHost,
+      model: globalSetup.modelSettings.llm_model,
+    },
+    'LLAMA.CPP': {
+      service: 'llamacpp-backend',
+      api: textInference.llamaBackendUrl,
+      model: globalSetup.modelSettings.ggufLLM_model,
+    },
+    OpenVINO: {
+      service: 'openvino-backend',
+      api: textInference.openVINOBackendUrl,
+      model: globalSetup.modelSettings.openvino_model,
+    },
+  }
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
@@ -631,8 +693,7 @@ async function simulatedInput() {
             ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
             : receiveOut,
         metrics: finalMetrics,
-        model:
-          backendMapping[textInference.backend].model,
+        model: backendMapping[textInference.backend].model,
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
@@ -698,8 +759,14 @@ async function checkModel() {
           backend: 'llama_cpp',
         },
       ]
-    } else if (textInference.backend === "OpenVINO") {
-      checkList = [{ repo_id: globalSetup.modelSettings.openvino_model, type: Const.MODEL_TYPE_OPENVINO, backend: "openvino" }];
+    } else if (textInference.backend === 'OpenVINO') {
+      checkList = [
+        {
+          repo_id: globalSetup.modelSettings.openvino_model,
+          type: Const.MODEL_TYPE_OPENVINO,
+          backend: 'openvino',
+        },
+      ]
       console.log('checkList', checkList)
     } else {
       checkList = [
@@ -720,16 +787,29 @@ async function checkModel() {
 
 async function generate(chatContext: ChatItem[]) {
   const backendMapping = {
-    'IPEX-LLM': { service: 'ai-backend', api: globalSetup.apiHost, model: globalSetup.modelSettings.llm_model },
-    'LLAMA.CPP': { service: 'llamacpp-backend', api: textInference.llamaBackendUrl, model: globalSetup.modelSettings.ggufLLM_model },
-    'OpenVINO': { service: 'openvino-backend', api: textInference.openVINOBackendUrl, model: globalSetup.modelSettings.openvino_model }
-  };
+    'IPEX-LLM': {
+      service: 'ai-backend',
+      api: globalSetup.apiHost,
+      model: globalSetup.modelSettings.llm_model,
+    },
+    'LLAMA.CPP': {
+      service: 'llamacpp-backend',
+      api: textInference.llamaBackendUrl,
+      model: globalSetup.modelSettings.ggufLLM_model,
+    },
+    OpenVINO: {
+      service: 'openvino-backend',
+      api: textInference.openVINOBackendUrl,
+      model: globalSetup.modelSettings.openvino_model,
+    },
+  }
   if (processing.value || chatContext.length == 0) {
     return
   }
 
   try {
-    const inferenceBackendService: BackendServiceName = backendMapping[textInference.backend].service as BackendServiceName;
+    const inferenceBackendService: BackendServiceName = backendMapping[textInference.backend]
+      .service as BackendServiceName
     await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
     globalSetup.updateLastUsedBackend(inferenceBackendService)
 
@@ -749,7 +829,7 @@ async function generate(chatContext: ChatItem[]) {
       prompt: chatContext,
       enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
       model_repo_id: backendMapping[textInference.backend].model,
-    };
+    }
     const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
       method: 'POST',
       headers: {

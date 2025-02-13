@@ -171,7 +171,7 @@ const theme = useTheme()
 const textInferenceBackendDisplayName: Record<(typeof backendTypes)[number], string> = {
   'IPEX-LLM': 'IPEX-LLM',
   'LLAMA.CPP': 'Llama.cpp - GGUF',
-  "OpenVINO": "OpenVINO"
+  OpenVINO: 'OpenVINO',
 }
 
 const themeToDisplayName = (theme: Theme) => {
@@ -217,7 +217,7 @@ function mapBackendNames(name: Backend): BackendServiceName | undefined {
   } else if (name === 'LLAMA.CPP') {
     return 'llamacpp-backend' as BackendServiceName
   } else if (name === 'OpenVINO') {
-      return 'openvino-backend' as BackendServiceName
+    return 'openvino-backend' as BackendServiceName
   } else {
     return undefined
   }

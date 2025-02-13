@@ -136,37 +136,36 @@ async function addModel() {
 }
 
 async function registerModel() {
-  let modelType: ModelType;
+  let modelType: ModelType
   switch (textInference.backend) {
     case 'IPEX-LLM':
-      modelType = 'llm';
-      break;
+      modelType = 'llm'
+      break
     case 'LLAMA.CPP':
-      modelType = 'ggufLLM';
-      break;
+      modelType = 'ggufLLM'
+      break
     case 'OpenVINO':
-      modelType = 'openvino';
-      break;
+      modelType = 'openvino'
+      break
     default:
-      modelType = 'llm';
+      modelType = 'llm'
   }
 
-  userModels.push({ name: modelRequest.value, type: modelType, downloaded: false });
-  await models.refreshModels();
+  userModels.push({ name: modelRequest.value, type: modelType, downloaded: false })
+  await models.refreshModels()
 
   switch (textInference.backend) {
     case 'IPEX-LLM':
-      globalSetup.modelSettings.llm_model = modelRequest.value;
-      break;
+      globalSetup.modelSettings.llm_model = modelRequest.value
+      break
     case 'LLAMA.CPP':
-      globalSetup.modelSettings.ggufLLM_model = modelRequest.value;
-      break;
+      globalSetup.modelSettings.ggufLLM_model = modelRequest.value
+      break
     case 'OpenVINO':
-      globalSetup.modelSettings.openvino_model = modelRequest.value;
-      break;
+      globalSetup.modelSettings.openvino_model = modelRequest.value
+      break
   }
 }
-
 
 async function isLLM(repo_id: string) {
   const response = await fetch(`${globalSetup.apiHost}/api/isLLM?repo_id=${repo_id}`)

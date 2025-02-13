@@ -119,21 +119,23 @@ export class PathsManager {
       .map((path) => path.replace('\\', '/'))
       .reduce((acc, pathname) => acc.add(pathname), new Set<string>())
 
-        return [...modelsSet]
+    return [...modelsSet]
+  }
+  scanOpenVINOModels() {
+    const dir = this.modelPaths.openvino
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
     }
-    scanOpenVINOModels() {
-        const dir = this.modelPaths.openvino;
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        console.log('getting models', dir);
-        const modelsSet = fs.readdirSync(dir)
-        .filter(subDir => {
-            const fullpath = path.join(dir, subDir);
-            return fs.statSync(fullpath).isDirectory() && fs.existsSync(path.join(fullpath))})
-        .map(subDir => subDir.replace("---", "/"))
-        .reduce((set, modelName) => set.add(modelName), new Set<string>());
-        
+    console.log('getting models', dir)
+    const modelsSet = fs
+      .readdirSync(dir)
+      .filter((subDir) => {
+        const fullpath = path.join(dir, subDir)
+        return fs.statSync(fullpath).isDirectory() && fs.existsSync(path.join(fullpath))
+      })
+      .map((subDir) => subDir.replace('---', '/'))
+      .reduce((set, modelName) => set.add(modelName), new Set<string>())
+
     return [...modelsSet]
   }
   scanLora(returnDefaults = true) {

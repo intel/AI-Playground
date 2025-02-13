@@ -10,7 +10,7 @@ export type Backend = z.infer<typeof BackendSchema>
 const backendModelKey = {
   'IPEX-LLM': 'llm_model',
   'LLAMA.CPP': 'ggufLLM_model',
-  'OpenVINO': 'openvino_model',
+  OpenVINO: 'openvino_model',
 }
 export const useTextInference = defineStore(
   'textInference',
@@ -22,29 +22,36 @@ export const useTextInference = defineStore(
     const metricsEnabled = ref(false)
 
     const llamaBackendUrl = computed(() => {
-        const url = backendServices.info.find(item => item.serviceName === "llamacpp-backend")?.baseUrl;
-        console.log('llama url', url);
-        return url;
-    });
+      const url = backendServices.info.find(
+        (item) => item.serviceName === 'llamacpp-backend',
+      )?.baseUrl
+      console.log('llama url', url)
+      return url
+    })
 
     const openVINOBackendUrl = computed(() => {
-        const url = backendServices.info.find(item => item.serviceName === "openvino-backend")?.baseUrl;
-        console.log('openvino url', backendServices.info.find(item => item.serviceName === "openvino-backend")?.baseUrl);
-        return url;
-    });
-
+      const url = backendServices.info.find(
+        (item) => item.serviceName === 'openvino-backend',
+      )?.baseUrl
+      console.log(
+        'openvino url',
+        backendServices.info.find((item) => item.serviceName === 'openvino-backend')?.baseUrl,
+      )
+      return url
+    })
 
     watch([llamaBackendUrl], () => {
-        console.log('llamaBackendUrl changed', llamaBackendUrl.value);
-    }
-    );
+      console.log('llamaBackendUrl changed', llamaBackendUrl.value)
+    })
 
-    watch([openVINOBackendUrl], () => {
-        console.log('openVINOBackendUrl changed', openVINOBackendUrl.value);
-    },
-    { immediate: true }
-    );
-    
+    watch(
+      [openVINOBackendUrl],
+      () => {
+        console.log('openVINOBackendUrl changed', openVINOBackendUrl.value)
+      },
+      { immediate: true },
+    )
+
     watch([activeModel], () => {
       console.log('activeModel changed', activeModel.value)
       globalSetup.applyModelSettings({ [backendModelKey[backend.value]]: activeModel.value })

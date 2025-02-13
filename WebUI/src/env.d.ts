@@ -341,7 +341,7 @@ type CheckModelAlreadyLoadedParameters = {
   additionalLicenseLink?: string
 }
 
-type BackendType = 'comfyui' | 'default' | 'llama_cpp' | "openvino"
+type BackendType = 'comfyui' | 'default' | 'llama_cpp' | 'openvino'
 
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
