@@ -57,7 +57,7 @@ def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
         
 def check_openvino_model_exists(type, repo_id) -> bool:
     folder_name = repo_local_root_dir_name(repo_id)
-    dir = service_config.openvino_model_paths.get("openvino")
+    dir = service_config.openvino_model_paths.get("openvinoLLM")
     return os.path.exists(os.path.join(dir, folder_name))
 
 
@@ -163,7 +163,7 @@ def convert_model_type(type: int):
     elif type == 8:
         return "ggufLLM"
     elif type == 9:
-        return "openvino"
+        return "openvinoLLM"
     elif type == 100:
         return "unet"
     elif type == 101:

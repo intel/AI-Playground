@@ -9,7 +9,7 @@ export type ModelType =
   | 'vae'
   | 'undefined'
   | 'ggufLLM'
-  | 'openvino'
+  | 'openvinoLLM'
 
 export type Model = {
   name: string
@@ -44,11 +44,11 @@ const predefinedModels: Model[] = [
     type: 'ggufLLM',
     downloaded: false,
   },
-  { name: 'OpenVINO/Phi-3-medium-4k-instruct-int4-ov', type: 'openvino', downloaded: false },
-  { name: 'OpenVINO/mixtral-8x7b-instruct-v0.1-int4-ov', type: 'openvino', downloaded: false },
-  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-fp16-ov', type: 'openvino', downloaded: false },
-  { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openvino', downloaded: false },
-  { name: 'OpenVINO/Phi-3.5-mini-instruct-fp16-ov', type: 'openvino', downloaded: false },
+  { name: 'OpenVINO/Phi-3-medium-4k-instruct-int4-ov', type: 'openvinoLLM', downloaded: false },
+  { name: 'OpenVINO/mixtral-8x7b-instruct-v0.1-int4-ov', type: 'openvinoLLM', downloaded: false },
+  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-fp16-ov', type: 'openvinoLLM', downloaded: false },
+  { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openvinoLLM', downloaded: false },
+  { name: 'OpenVINO/Phi-3.5-mini-instruct-fp16-ov', type: 'openvinoLLM', downloaded: false },
 ]
 
 export const userModels: Model[] = []
@@ -63,13 +63,13 @@ export const useModels = defineStore(
     const downloadList = ref<DownloadModelParam[]>([])
     const ggufLLMs = computed(() => models.value.filter((m) => m.type === 'ggufLLM'))
 
-    const openVINOModels = computed(() => models.value.filter((m) => m.type === 'openvino'))
+    const openVINOLLMModels = computed(() => models.value.filter((m) => m.type === 'openvinoLLM'))
 
     async function refreshModels() {
       const sdModels = await window.electronAPI.getDownloadedDiffusionModels()
       const llmModels = await window.electronAPI.getDownloadedLLMs()
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
-      const openVINOModels = await window.electronAPI.getDownloadedOpenVINOModels()
+      const openVINOLLMModels = await window.electronAPI.getDownloadedOpenVINOLLMModels()
       const loraModels = await window.electronAPI.getDownloadedLoras()
       const inpaintModels = await window.electronAPI.getDownloadedInpaintModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
@@ -78,7 +78,11 @@ export const useModels = defineStore(
         ...sdModels.map<Model>((name) => ({ name, type: 'stableDiffusion', downloaded: true })),
         ...llmModels.map<Model>((name) => ({ name, type: 'llm', downloaded: true })),
         ...ggufModels.map<Model>((name) => ({ name, type: 'ggufLLM', downloaded: true })),
-        ...openVINOModels.map<Model>((name) => ({ name, type: 'openvino', downloaded: true })),
+        ...openVINOLLMModels.map<Model>((name) => ({
+          name,
+          type: 'openvinoLLM',
+          downloaded: true,
+        })),
         ...loraModels.map<Model>((name) => ({ name, type: 'lora', downloaded: true })),
         ...inpaintModels.map<Model>((name) => ({ name, type: 'inpaint', downloaded: true })),
         ...embeddingModels.map<Model>((name) => ({ name, type: 'embedding', downloaded: true })),
@@ -101,7 +105,7 @@ export const useModels = defineStore(
       models,
       llms,
       ggufLLMs,
-      openVINOModels,
+      openVINOLLMModels,
       hfToken,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       downloadList,

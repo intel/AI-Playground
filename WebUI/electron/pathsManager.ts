@@ -5,7 +5,7 @@ export class PathsManager {
   modelPaths: ModelPaths = {
     llm: '',
     ggufLLM: '',
-    openvino: '',
+    openvinoLLM: '',
     embedding: '',
     stableDiffusion: '',
     inpaint: '',
@@ -122,7 +122,7 @@ export class PathsManager {
     return [...modelsSet]
   }
   scanOpenVINOModels() {
-    const dir = this.modelPaths.openvino
+    const dir = this.modelPaths.openvinoLLM
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }

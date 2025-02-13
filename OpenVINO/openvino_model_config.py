@@ -1,4 +1,4 @@
 openVINOConfig = {
-    "openvino": "../service/models/llm/openvino",
+    "openvinoLLM": "../service/models/llm/openvino",
 }
 

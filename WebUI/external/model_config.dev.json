@@ -1,7 +1,7 @@
 {
   "llm": "../service/models/llm/checkpoints",
   "ggufLLM": "../service/models/llm/ggufLLM",
-  "openvino": "../service/models/llm/openvino",
+  "openvinoLLM": "../service/models/llm/openvino",
   "embedding": "../service/models/llm/embedding",
   "stableDiffusion": "../service/models/stable_diffusion/checkpoints",
   "inpaint": "../service/models/stable_diffusion/inpaint",

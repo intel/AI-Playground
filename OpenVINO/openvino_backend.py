@@ -22,7 +22,7 @@ class OpenVino(LLMInterface):
             self.unload_model()
             callback(params.model_repo_id)
 
-            model_base_path = model_config.openVINOConfig.get("openvino")
+            model_base_path = model_config.openVINOConfig.get("openvinoLLM")
             model_name = model_repo_id.replace("/", "---")
             model_path = path.abspath(path.join(model_base_path, model_name))
 

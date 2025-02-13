@@ -145,7 +145,7 @@ async function registerModel() {
       modelType = 'ggufLLM'
       break
     case 'OpenVINO':
-      modelType = 'openvino'
+      modelType = 'openvinoLLM'
       break
     default:
       modelType = 'llm'
@@ -162,7 +162,7 @@ async function registerModel() {
       globalSetup.modelSettings.ggufLLM_model = modelRequest.value
       break
     case 'OpenVINO':
-      globalSetup.modelSettings.openvino_model = modelRequest.value
+      globalSetup.modelSettings.openvinoLLM_model = modelRequest.value
       break
   }
 }

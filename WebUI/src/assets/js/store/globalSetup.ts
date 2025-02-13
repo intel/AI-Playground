@@ -33,7 +33,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     enableRag: false,
     llm_model: 'microsoft/Phi-3-mini-4k-instruct',
     ggufLLM_model: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
-    openvino_model: 'TinyLlama-1.1B-Chat-v1.0',
+    openvinoLLM_model: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov',
     sd_model: 'Lykon/dreamshaper-8',
     inpaint_model: 'Lykon/dreamshaper-8-inpainting',
     negativePrompt: 'bad hands, nsfw',

@@ -55,7 +55,7 @@ type electronAPI = {
   getDownloadedLoras(): Promise<string[]>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
-  getDownloadedOpenVINOModels(): Promise<string[]>
+  getDownloadedOpenVINOLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<string[]>
   openImageWithSystem(url: string): void
   selecteImage(url: string): void

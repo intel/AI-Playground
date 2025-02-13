@@ -263,15 +263,15 @@
             </drop-selector>
             <drop-selector
               v-if="textInference.backend === 'OpenVINO'"
-              :array="models.openVINOModels"
+              :array="models.openVINOLLMModels"
               @change="(i) => (textInference.activeModel = i.name)"
               class="w-96"
             >
               <template #selected>
                 <model-drop-down-item
                   :model="
-                    models.openVINOModels.find(
-                      (m) => m.name === globalSetup.modelSettings.openvino_model,
+                    models.openVINOLLMModels.find(
+                      (m) => m.name === globalSetup.modelSettings.openvinoLLM_model,
                     )
                   "
                 ></model-drop-down-item>
@@ -605,7 +605,7 @@ async function updateTitle(conversation: ChatItem[]) {
     OpenVINO: {
       service: 'openvino-backend',
       api: textInference.openVINOBackendUrl,
-      model: globalSetup.modelSettings.openvino_model,
+      model: globalSetup.modelSettings.openvinoLLM_model,
     },
   }
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
@@ -660,7 +660,7 @@ async function simulatedInput() {
     OpenVINO: {
       service: 'openvino-backend',
       api: textInference.openVINOBackendUrl,
-      model: globalSetup.modelSettings.openvino_model,
+      model: globalSetup.modelSettings.openvinoLLM_model,
     },
   }
   while (textOutQueue.length > 0) {
@@ -762,7 +762,7 @@ async function checkModel() {
     } else if (textInference.backend === 'OpenVINO') {
       checkList = [
         {
-          repo_id: globalSetup.modelSettings.openvino_model,
+          repo_id: globalSetup.modelSettings.openvinoLLM_model,
           type: Const.MODEL_TYPE_OPENVINO,
           backend: 'openvino',
         },
@@ -800,7 +800,7 @@ async function generate(chatContext: ChatItem[]) {
     OpenVINO: {
       service: 'openvino-backend',
       api: textInference.openVINOBackendUrl,
-      model: globalSetup.modelSettings.openvino_model,
+      model: globalSetup.modelSettings.openvinoLLM_model,
     },
   }
   if (processing.value || chatContext.length == 0) {
