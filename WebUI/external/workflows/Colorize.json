@@ -2,31 +2,47 @@
   "name": "Colorize",
   "backend": "comfyui",
   "comfyUIRequirements": {
-	"customNodes": [],
-    "requiredModels": []
+    "customNodes": [],
+    "requiredModels": [
+      {
+        "type": "ddcolor",
+        "model": "piddnad/DDColor-models/ddcolor_artistic.pth"
+      },
+      {
+        "type": "ddcolor",
+        "model": "piddnad/DDColor-models/ddcolor_modelscope.pth"
+      },
+      {
+        "type": "ddcolor",
+        "model": "piddnad/DDColor-models/ddcolor_paper.pth"
+      },
+      {
+        "type": "ddcolor",
+        "model": "piddnad/DDColor-models/ddcolor_paper_tiny.pth"
+      }
+    ]
   },
   "tags": [],
   "requirements": [],
   "inputs": [
- {
+    {
       "nodeTitle": "DDColor_Colorize",
       "nodeInput": "model_input_size",
       "type": "number",
       "label": "model_input_size",
-  "defaultValue": 512,
+      "defaultValue": 512,
       "step": 128,
       "min": 512,
       "max": 1024
-    
     },
- {
+    {
       "nodeTitle": "DDColor_Colorize",
       "nodeInput": "checkpoint",
       "type": "string",
       "label": "checkpoint model",
-  "defaultValue": "ddcolor_artistic.pth"
+      "defaultValue": "ddcolor_artistic.pth"
     },
-        {
+    {
       "nodeTitle": "Load Image",
       "nodeInput": "image",
       "type": "image",
@@ -55,42 +71,36 @@
   "displayedSettings": [],
   "modifiableSettings": [],
   "comfyUiApiWorkflow": {
-  "2": {
-    "inputs": {
-      "image": "Marilyn-marilyn-monroe.jpg",
-      "upload": "image"
+    "2": {
+      "inputs": {
+        "image": "Marilyn-marilyn-monroe.jpg",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
     },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "Load Image"
-    }
-  },
-  "5": {
-    "inputs": {
-      "filename_prefix": "ComfyUI",
-      "images": [
-        "6",
-        0
-      ]
+    "5": {
+      "inputs": {
+        "filename_prefix": "ComfyUI",
+        "images": ["6", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
     },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "6": {
-    "inputs": {
-      "model_input_size": 512,
-      "checkpoint": "ddcolor_artistic.pth",
-      "image": [
-        "2",
-        0
-      ]
-    },
-    "class_type": "DDColor_Colorize",
-    "_meta": {
-      "title": "DDColor_Colorize"
+    "6": {
+      "inputs": {
+        "model_input_size": 512,
+        "checkpoint": "ddcolor_artistic.pth",
+        "image": ["2", 0]
+      },
+      "class_type": "DDColor_Colorize",
+      "_meta": {
+        "title": "DDColor_Colorize"
+      }
     }
   }
-}
 }
