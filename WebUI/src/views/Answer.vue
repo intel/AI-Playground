@@ -111,13 +111,13 @@
                   {{ languages.ANSWER_AI_NAME }}
                 </p>
                 <div v-if="chat.model">
-                <span
-                  class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
-                  :class="textInference.nameSizeClass"
-                >
-                  {{ chat.model }}
-                </span>
-              </div>
+                  <span
+                    class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                    :class="textInference.nameSizeClass"
+                  >
+                    {{ chat.model }}
+                  </span>
+                </div>
               </div>
               <div
                 class="ai-answer chat-content"
