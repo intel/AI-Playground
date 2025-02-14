@@ -36,19 +36,18 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   async *set_up(): AsyncIterable<SetupProgress> {
     this.appLogger.info('setting up service', this.name)
     this.setStatus('installing')
-    const self = this
 
-    async function checkServiceDir(): Promise<boolean> {
-      if (!filesystem.existsSync(self.serviceDir)) {
+    const checkServiceDir = async (): Promise<boolean> => {
+      if (!filesystem.existsSync(this.serviceDir)) {
         return false
       }
 
       // Check if it's a valid git repo
       try {
-        await self.git.run(['-C', self.serviceDir, 'status'])
+        await this.git.run(['-C', this.serviceDir, 'status'])
       } catch (_e) {
         try {
-          filesystem.removeSync(self.serviceDir)
+          filesystem.removeSync(this.serviceDir)
         } finally {
           return false
         }
@@ -57,31 +56,31 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       return true
     }
 
-    async function setupComfyUiBaseService(): Promise<void> {
+    const setupComfyUiBaseService = async (): Promise<void> => {
       if (await checkServiceDir()) {
-        self.appLogger.info('comfyUI already cloned, skipping', self.name)
+        this.appLogger.info('comfyUI already cloned, skipping', this.name)
       } else {
-        await self.git.run(['clone', self.remoteUrl, self.serviceDir])
-        await self.git.run(['-C', self.serviceDir, 'checkout', self.revision], {}, self.serviceDir)
+        await this.git.run(['clone', this.remoteUrl, this.serviceDir])
+        await this.git.run(['-C', this.serviceDir, 'checkout', this.revision], {}, this.serviceDir)
       }
 
       // Check whether all requirements are installed
       const requirementsTextPath = existingFileOrError(
-        path.join(self.serviceDir, 'requirements.txt'),
+        path.join(this.serviceDir, 'requirements.txt'),
       )
       try {
-        await self.uvPip.checkRequirementsTxt(requirementsTextPath)
+        await this.uvPip.checkRequirementsTxt(requirementsTextPath)
       } catch (_e) {
-        await self.uvPip.run(['install', '-r', requirementsTextPath])
+        await this.uvPip.run(['install', '-r', requirementsTextPath])
       }
     }
 
-    async function configureComfyUI(): Promise<void> {
+    const configureComfyUI = async (): Promise<void> => {
       try {
-        self.appLogger.info('Configuring extra model paths for comfyUI', self.name)
-        const extraModelPathsYaml = path.join(self.serviceDir, 'extra_model_paths.yaml')
+        this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
+        const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')
         const extraModelsYaml = `aipg:
-  base_path: ${path.resolve(self.baseDir, 'service/models/stable_diffusion')}
+  base_path: ${path.resolve(this.baseDir, 'service/models/stable_diffusion')}
   checkpoints: checkpoints
   clip: checkpoints
   vae: checkpoints
@@ -91,43 +90,43 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           encoding: 'utf-8',
           flag: 'w',
         })
-        self.appLogger.info(
+        this.appLogger.info(
           `Configured extra model paths for comfyUI at ${extraModelPathsYaml} as ${extraModelsYaml} `,
-          self.name,
+          this.name,
         )
       } catch (_e) {
-        self.appLogger.error('Failed to configure extra model paths for comfyUI', self.name)
+        this.appLogger.error('Failed to configure extra model paths for comfyUI', this.name)
         throw new Error('Failed to configure extra model paths for comfyUI')
       }
     }
 
     try {
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: 'start',
         status: 'executing',
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await self.lsLevelZero.ensureInstalled()
-      await self.git.ensureInstalled()
+      await this.lsLevelZero.ensureInstalled()
+      await this.git.ensureInstalled()
 
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `Detecting intel device`,
         status: 'executing',
         debugMessage: `Trying to identify intel hardware`,
       }
-      const deviceArch = await self.lsLevelZero.detectDevice()
+      const deviceArch = await this.lsLevelZero.detectDevice()
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `Detecting intel device`,
         status: 'executing',
         debugMessage: `detected intel hardware ${deviceArch}`,
       }
 
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `install dependencies`,
         status: 'executing',
         debugMessage: `installing dependencies`,
@@ -135,41 +134,41 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       const deviceSpecificRequirements = existingFileOrError(
         path.join(aiBackendServiceDir(), `requirements-${deviceArch}.txt`),
       )
-      await self.uvPip.pip.run(['install', '-r', deviceSpecificRequirements])
+      await this.uvPip.pip.run(['install', '-r', deviceSpecificRequirements])
       if (deviceArch === 'bmg') {
-        const intelSpecificExtension = existingFileOrError(self.customIntelExtensionForPytorch)
-        await self.uvPip.pip.run(['install', intelSpecificExtension])
+        const intelSpecificExtension = existingFileOrError(this.customIntelExtensionForPytorch)
+        await this.uvPip.pip.run(['install', intelSpecificExtension])
       }
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `install dependencies`,
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
 
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `install comfyUI`,
         status: 'executing',
         debugMessage: `installing comfyUI base repo`,
       }
       await setupComfyUiBaseService()
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `install comfyUI`,
         status: 'executing',
         debugMessage: `installation of comfyUI base repo complete`,
       }
 
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `configure comfyUI`,
         status: 'executing',
         debugMessage: `configuring comfyUI base repo`,
       }
       await configureComfyUI()
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: `configure comfyUI`,
         status: 'executing',
         debugMessage: `configured comfyUI base repo`,
@@ -178,17 +177,17 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
       this.setStatus('notYetStarted')
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: 'end',
         status: 'success',
         debugMessage: `service set up completely`,
       }
     } catch (e) {
-      self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
-      self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
+      this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
+      this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
       yield {
-        serviceName: self.name,
+        serviceName: this.name,
         step: 'end',
         status: 'failed',
         debugMessage: `Failed to setup comfyUI service due to ${e}`,
