@@ -3,24 +3,7 @@
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
-    "requiredModels": [
-      {
-        "type": "ddcolor",
-        "model": "piddnad/DDColor-models/blob/main/ddcolor_artistic.pth"
-      },
-      {
-        "type": "ddcolor",
-        "model": "piddnad/DDColor-models/blob/main/ddcolor_modelscope.pth"
-      },
-      {
-        "type": "ddcolor",
-        "model": "piddnad/DDColor-models/blob/main/ddcolor_paper.pth"
-      },
-      {
-        "type": "ddcolor",
-        "model": "piddnad/DDColor-models/blob/main/ddcolor_paper_tiny.pth"
-      }
-    ]
+    "requiredModels": []
   },
   "tags": [],
   "requirements": [],
