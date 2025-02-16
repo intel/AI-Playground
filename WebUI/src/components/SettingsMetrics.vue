@@ -7,41 +7,66 @@
     <div v-if="cpuTotalUsagePercentage" class="metrics-container">
       <div class="flex flex-row justify-between items-center w-full">
         <label for="cpu-usage" class="w-1/4">{{ metricsLabels.cpuUsage }}</label>
-        <progress id="cpu-usage" :value="getLastValue(cpuTotalUsagePercentage)" max="100" class="w-3/4">
-          {{ getLastValue(cpuTotalUsagePercentage) }}%
-        </progress>
+        <div class="relative w-3/4">
+          <progress id="cpu-usage" :value="getLastValue(cpuTotalUsagePercentage)" max="100" class="w-full">
+            {{ getLastValue(cpuTotalUsagePercentage) }}%
+          </progress>
+          <div class="absolute inset-0 flex items-center justify-center text-white">
+            {{ getLastValue(cpuTotalUsagePercentage) }}%
+          </div>
+        </div>
       </div>
     </div>
     <div v-if="memoryTotalUsagePercentage" class="metrics-container">
       <div class="flex flex-row justify-between items-center w-full">
         <label for="memory-usage" class="w-1/4">{{ metricsLabels.memoryUsage }}</label>
-        <progress id="memory-usage" :value="getLastValue(memoryTotalUsagePercentage)" max="100" class="w-3/4">
-          {{ memoryTotalUsagePercentage }}%
-        </progress>
+        <div class="relative w-3/4">
+          <progress id="memory-usage" :value="getLastValue(memoryTotalUsagePercentage)" max="100" class="w-full">
+            {{ getLastValue(memoryTotalUsagePercentage) }}%
+          </progress>
+          <div class="absolute inset-0 flex items-center justify-center text-white">
+            {{ getLastValue(memoryTotalUsagePercentage) }}%
+          </div>
+        </div>
       </div>
     </div>
     <div v-if="gpuDedicatedMemoryPercentage" class="metrics-container">
       <div class="flex flex-row justify-between items-center w-full">
         <label for="gpu-dedicated-memory" class="w-1/4">{{ metricsLabels.gpuDedicatedMemoryUsage }}</label>
-        <progress id="gpu-dedicated-memory" :value="getLastValue(gpuDedicatedMemoryPercentage)" max="100" class="w-3/4">
-          {{ getLastValue(gpuDedicatedMemoryPercentage) }}%
-        </progress>
+        <div class="relative w-3/4">
+          <progress id="gpu-dedicated-memory" :value="getLastValue(gpuDedicatedMemoryPercentage)" max="100" class="w-full">
+            {{ getLastValue(gpuDedicatedMemoryPercentage) }}%
+          </progress>
+          <div class="absolute inset-0 flex items-center justify-center text-white">
+            {{ getLastValue(gpuDedicatedMemoryPercentage) }}%
+          </div>
+        </div>
       </div>
     </div>
     <div v-if="gpuCopyUsagePercentage" class="metrics-container">
       <div class="flex flex-row justify-between items-center w-full">
         <label for="gpu-copy-usage" class="w-1/4">{{ metricsLabels.gpuCopyUsage }}</label>
-        <progress id="gpu-copy-usage" :value="getLastValue(gpuCopyUsagePercentage)" max="100" class="w-3/4">
-          {{ getLastValue(gpuCopyUsagePercentage) }}%
-        </progress>
+        <div class="relative w-3/4">
+          <progress id="gpu-copy-usage" :value="getLastValue(gpuCopyUsagePercentage)" max="100" class="w-full">
+            {{ getLastValue(gpuCopyUsagePercentage) }}%
+          </progress>
+          <div class="absolute inset-0 flex items-center justify-center text-white">
+            {{ getLastValue(gpuCopyUsagePercentage) }}%
+          </div>
+        </div>
       </div>
     </div>
     <div v-if="gpuComputeUsagePercentage" class="metrics-container">
       <div class="flex flex-row justify-between items-center w-full">
         <label for="gpu-compute-usage" class="w-1/4">{{ metricsLabels.gpuComputeUsage }}</label>
-        <progress id="gpu-compute-usage" :value="getLastValue(gpuComputeUsagePercentage)" max="100" class="w-3/4">
-          {{ getLastValue(gpuComputeUsagePercentage) }}%
-        </progress>
+        <div class="relative w-3/4">
+          <progress id="gpu-compute-usage" :value="getLastValue(gpuComputeUsagePercentage)" max="100" class="w-full">
+            {{ getLastValue(gpuComputeUsagePercentage) }}%
+          </progress>
+          <div class="absolute inset-0 flex items-center justify-center text-white">
+            {{ getLastValue(gpuComputeUsagePercentage) }}%
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -107,6 +132,12 @@ onMounted(() => {
 <style scoped>
 .metrics-container {
   margin-top: 10px;
+}
+
+.metrics-container progress {
+  height: 30px;
+  border: 1px solid #000;
+  border-radius: 5px;
 }
 
 </style>
