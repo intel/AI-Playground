@@ -653,7 +653,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     const startTime = performance.now()
     const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
       const queryIntervalMs = 250
-      const startupPeriodMaxMs = 120000
+      const startupPeriodMaxMs = 300000
       while (performance.now() < startTime + startupPeriodMaxMs) {
         try {
           const serviceHealthResponse = await fetch(this.healthEndpointUrl)

@@ -27,7 +27,7 @@
           <div
             v-if="isHistoryVisible"
             v-for="(conversation, conversationKey) in conversations.conversationList"
-            :key="conversationKey"
+            :key="'if' + conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
             class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
@@ -45,6 +45,7 @@
           <div
             v-else
             v-for="(conversation, conversationKey) in conversations.conversationList"
+            :key="'else' + conversationKey"
             :inVisibleKey="conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
@@ -91,7 +92,9 @@
         :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
+        <!-- eslint-disable vue/require-v-for-key -->
         <template v-for="(chat, i) in conversations.activeConversation">
+          <!-- eslint-enable -->
           <div class="flex items-start gap-3">
             <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
             <div class="flex flex-col gap-3 max-w-3/4">
