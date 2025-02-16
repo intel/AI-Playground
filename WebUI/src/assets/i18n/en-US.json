@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Clear History",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Device"
+  "DEVICE": "Device",
+
+  "SETTINGS_IMAGE_COMFY_MODEL_INPUT_SIZE": "Model Input Size",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Checkpoint Model"
 }

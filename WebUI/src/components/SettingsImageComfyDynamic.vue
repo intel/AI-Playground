@@ -31,6 +31,26 @@
       v-model="input.current.value as string"
     ></Input>
 
+    <!--    StringList    -->
+    <drop-selector
+      v-if="input.type === 'stringList'"
+      :array="input.stringList"
+      @change="(stringItem) => (input.current.value = stringItem)"
+    >
+      <template #selected>
+        <div class="flex gap-2 items-center">
+          <span class="rounded-full bg-green-500 w-2 h-2"></span>
+          <span>{{ input.current.value as string }}</span>
+        </div>
+      </template>
+      <template #list="slotItem">
+        <div class="flex gap-2 items-center">
+          <span class="rounded-full bg-green-500 w-2 h-2"></span>
+          <span>{{ slotItem.item }}</span>
+        </div>
+      </template>
+    </drop-selector>
+
     <!--    Boolean    -->
     <button
       v-if="input.type === 'boolean'"
@@ -47,6 +67,7 @@ import { Input } from '../components/ui/input'
 import { LoadImage } from '../components/ui/loadImage'
 import SlideBar from '../components/SlideBar.vue'
 import { getTranslationLabel } from '@/lib/utils'
+import DropSelector from '@/components/DropSelector.vue'
 
 const imageGeneration = useImageGeneration()
 </script>

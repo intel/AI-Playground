@@ -155,6 +155,17 @@ const ComfyStringInputSchema = z.object({
 })
 export type ComfyStringInput = z.infer<typeof ComfyStringInputSchema>
 
+const ComfyStringListInputSchema = z.object({
+  nodeTitle: z.string(),
+  nodeInput: z.string(),
+  type: z.literal('stringList'),
+  stringList: z.array(z.string()),
+  defaultValue: z.string(),
+  label: z.string(),
+})
+
+export type ComfyStringListInput = z.infer<typeof ComfyStringListInputSchema>
+
 const ComfyBooleanInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
@@ -168,6 +179,7 @@ const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
   ComfyNumberInputSchema,
   ComfyImageInputSchema,
   ComfyStringInputSchema,
+  ComfyStringListInputSchema,
   ComfyBooleanInputSchema,
 ])
 export type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
