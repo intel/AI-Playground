@@ -2,23 +2,23 @@
   "name": "Colorize",
   "backend": "comfyui",
   "comfyUIRequirements": {
-    "customNodes": [],
+    "customNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
     "requiredModels": [
       {
         "type": "ddcolor",
-        "model": "piddnad/DDColor-models/ddcolor_artistic.pth"
+        "model": "piddnad/DDColor-models/blob/main/ddcolor_artistic.pth"
       },
       {
         "type": "ddcolor",
-        "model": "piddnad/DDColor-models/ddcolor_modelscope.pth"
+        "model": "piddnad/DDColor-models/blob/main/ddcolor_modelscope.pth"
       },
       {
         "type": "ddcolor",
-        "model": "piddnad/DDColor-models/ddcolor_paper.pth"
+        "model": "piddnad/DDColor-models/blob/main/ddcolor_paper.pth"
       },
       {
         "type": "ddcolor",
-        "model": "piddnad/DDColor-models/ddcolor_paper_tiny.pth"
+        "model": "piddnad/DDColor-models/blob/main/ddcolor_paper_tiny.pth"
       }
     ]
   },
