@@ -119,7 +119,7 @@
         </div>
         <info-table
           v-show="showInfoParams"
-          :params="currentImage?.infoParams ?? {}"
+          :generationParameters="currentImage?.infoParams ?? {}"
           @close="showInfoParams = false"
         ></info-table>
       </div>
