@@ -6,13 +6,39 @@ import { useI18N } from './i18n'
 import * as Const from '../const'
 import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast.ts'
-import { v4 as uuidv4 } from 'uuid'
+
+export type DefaultBackendParams = {
+  mode: number
+  device: string
+  prompt: string
+  model_repo_id: string
+  negative_prompt: string
+  generate_number: number
+  inference_steps: number
+  guidance_scale: number
+  seed: number
+  height: number
+  width: number
+  lora: string
+  scheduler: string
+  image_preview: boolean
+  safe_check: boolean
+}
+
+export type RefImage = {
+  type: string
+  image: string
+}
+
+export type ImageInfoParameter = {
+  [key: string]: string | number | boolean | RefImage
+}
 
 export type GeneratedImage = {
   id: number | string
   imageUrl: string
   isLoading: boolean
-  infoParams: KVObject | undefined
+  infoParams: ImageInfoParameter | undefined
 }
 
 const SettingsSchema = z.object({
@@ -133,7 +159,8 @@ const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
   ComfyStringInputSchema,
   ComfyBooleanInputSchema,
 ])
-type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
+export type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
+
 const ComfyUiWorkflowSchema = z.object({
   name: z.string(),
   displayPriority: z.number().default(0),
@@ -740,8 +767,6 @@ export const useImageGeneration = defineStore(
       storeGeneratedImages(deleteAllImages)
       currentState.value = 'no_start'
       stepText.value = ''
-      stableDiffusion.reset()
-      comfyUi.reset()
     }
 
     function storeGeneratedImages(deleteAllImages: boolean): void {
@@ -750,7 +775,7 @@ export const useImageGeneration = defineStore(
       }
       generatedImages.value = generatedImages.value.filter((item) => item.isLoading === false)
       generatedImages.value.forEach((item) => {
-        item.id = uuidv4()
+        item.id = window.crypto.randomUUID()
       })
     }
 

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { GeneratedImage, useImageGeneration } from './imageGeneration'
+import { GeneratedImage, ImageInfoParameter, useImageGeneration } from './imageGeneration'
 import { useGlobalSetup } from './globalSetup'
 import * as Const from '../const'
 import { useModels } from './models'
@@ -7,26 +7,9 @@ import * as util from '../util'
 import { SSEProcessor } from '../sseProcessor'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
+import { DefaultBackendParams } from '@/assets/js/store/imageGeneration.ts'
 
-type DefaultBackendParams = {
-  mode: number
-  device: string
-  prompt: string
-  model_repo_id: string
-  negative_prompt: string
-  generate_number: number
-  inference_steps: number
-  guidance_scale: number
-  seed: number
-  height: number
-  width: number
-  lora: string
-  scheduler: string
-  image_preview: boolean
-  safe_check: boolean
-}
-
-type ImageInfoParams = {
+type ImageInfoParamsSD = {
   size: string
   model_name: string
   output_seed: number
@@ -41,7 +24,7 @@ export const useStableDiffusion = defineStore(
     const models = useModels()
 
     let abortController: AbortController | null
-    const defaultBackendParams = ref<DefaultBackendParams>()
+    const generationParameters = ref<DefaultBackendParams>()
 
     async function generate() {
       if (imageGeneration.processing) {
@@ -50,7 +33,7 @@ export const useStableDiffusion = defineStore(
       try {
         imageGeneration.processing = true
         await checkModel()
-        defaultBackendParams.value = {
+        generationParameters.value = {
           mode: 0,
           device: globalSetup.modelSettings.graphics,
           prompt: imageGeneration.prompt,
@@ -128,10 +111,10 @@ export const useStableDiffusion = defineStore(
           if (!data.safe_check_pass) {
             data.image = '/src/assets/image/nsfw_result_detected.png'
           }
-          const infoParams: KVObject | undefined =
-            defaultBackendParams.value &&
+          const infoParams: ImageInfoParameter | undefined =
+            generationParameters.value &&
             createInfoParamTable({
-              ...defaultBackendParams.value,
+              ...generationParameters.value,
               size: data.params.size,
               model_name: data.params.model_name,
               output_seed: Number(data.params.seed),
@@ -200,7 +183,7 @@ export const useStableDiffusion = defineStore(
 
         const response = await fetch(`${useGlobalSetup().apiHost}/api/sd/generate`, {
           method: 'POST',
-          body: util.convertToFormData(defaultBackendParams.value),
+          body: util.convertToFormData(generationParameters.value),
           signal: abortController.signal,
         })
         const reader = response.body!.getReader()
@@ -223,7 +206,7 @@ export const useStableDiffusion = defineStore(
       }
     }
 
-    function createInfoParamTable(infoParams: ImageInfoParams) {
+    function createInfoParamTable(infoParams: ImageInfoParamsSD) {
       const mappingKeyToTranslatable: StringKV = {
         backend: 'BACKEND',
         model_name: 'DOWNLOADER_MODEL',
@@ -239,7 +222,7 @@ export const useStableDiffusion = defineStore(
         lora: 'SETTINGS_MODEL_LORA',
         safe_check: 'SETTINGS_MODEL_SAFE_CHECK',
       }
-      const mappingKeyToInfoParams: StringOrNumberOrBooleanKV = {
+      const mappingKeyToInfoParams: ImageInfoParameter = {
         backend: 'Default',
         model_name: infoParams.model_name,
         prompt: infoParams.prompt,
@@ -262,14 +245,9 @@ export const useStableDiffusion = defineStore(
       )
     }
 
-    function reset() {
-      defaultBackendParams.value = undefined
-    }
-
     return {
       generate,
       stop,
-      reset,
     }
   },
   {

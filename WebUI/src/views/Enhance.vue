@@ -207,11 +207,11 @@
             </div>
           </div>
         </div>
-        <paint-info
+        <info-table
           :params="infoParams"
           v-show="showParams"
-          @close="showInfoParams = false"
-        ></paint-info>
+          @close="showParams = false"
+        ></info-table>
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
@@ -325,12 +325,11 @@ import * as toast from '@/assets/js/toast'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import LoadingBar from '../components/LoadingBar.vue'
 import VerticalSlideBar from '@/components/VerticalSlideBar.vue'
-import PaintInfo from '@/components/InfoTable.vue'
+import InfoTable from '@/components/InfoTable.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
 import { useImageGeneration } from '@/assets/js/store/imageGeneration'
-
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
 const imageGeneration = useImageGeneration()
@@ -503,7 +502,7 @@ function dataProcess(line: string) {
         case 'runtime_error':
           toast.error(i18nState.ERROR_RUNTIME_ERROR)
           break
-        case 'unknow_exception':
+        case 'unknown_exception':
           toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
           break
       }

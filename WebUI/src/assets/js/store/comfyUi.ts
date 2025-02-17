@@ -1,16 +1,27 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import { ComfyUIApiWorkflow, GeneratedImage, Setting, useImageGeneration } from './imageGeneration'
+import {
+  ComfyDynamicInput,
+  ComfyUIApiWorkflow,
+  GeneratedImage,
+  ImageInfoParameter,
+  Setting,
+  useImageGeneration,
+} from './imageGeneration'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { getTranslationLabel } from '@/lib/utils.ts'
+import { DefaultBackendParams } from '@/assets/js/store/imageGeneration.ts'
 
-type ImageInfoParams = {
-  default_inputs: KVObject
-  modifiable_settings: string[]
-  comfy_inputs: KVObject[]
+type DefaultBackendParamsWithName = Partial<DefaultBackendParams & { workflow_name: string }>
+type ComfyDynamicInputWithCurrent = ComfyDynamicInput & { current: string | number | boolean }
+
+type ImageInfoParamsComfy = {
+  defaultInputs: DefaultBackendParamsWithName
+  modifiableSettings: string[]
+  comfyInputs: ComfyDynamicInputWithCurrent[]
 }
 
 const WEBSOCKET_OPEN = 1
@@ -92,31 +103,22 @@ export const useComfyUi = defineStore(
     const imageGeneration = useImageGeneration()
     const globalSetup = useGlobalSetup()
     const i18nState = useI18N().state
-    const comfyPort = computed(() => comfyUiState.value.port)
-    const comfyBaseUrl = computed(() => comfyUiState.value.baseUrl)
+    const comfyPort = computed(() => comfyUiState.value?.port ?? -1)
+    const comfyBaseUrl = computed(() => comfyUiState.value?.baseUrl ?? '')
 
     const websocket = ref<WebSocket | null>(null)
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
-    const imageInfoParams = ref<ImageInfoParams>({
-      default_inputs: {},
-      modifiable_settings: [],
-      comfy_inputs: [],
-    })
+    let imageInfoParams: ImageInfoParamsComfy = {
+      defaultInputs: {},
+      modifiableSettings: [],
+      comfyInputs: [],
+    }
     const generateIdx = ref<number>(0)
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
-      return (
-        backendServices.info.find((item) => item.serviceName === 'comfyui-backend') ?? {
-          serviceName: 'comfyui-backend',
-          status: 'uninitializedStatus',
-          baseUrl: '???',
-          port: -1,
-          isSetUp: false,
-          isRequired: false,
-        }
-      )
+      return backendServices.info.find((item) => item.serviceName === 'comfyui-backend') ?? null
     })
 
     async function installCustomNodesForActiveWorkflowFully() {
@@ -212,7 +214,7 @@ export const useComfyUi = defineStore(
     }
 
     function connectToComfyUi() {
-      if (comfyUiState.value.status !== 'running') {
+      if (comfyUiState.value?.status !== 'running') {
         console.warn('ComfyUI backend not running, cannot start websocket')
         return
       }
@@ -281,11 +283,11 @@ export const useComfyUi = defineStore(
               case 'executed':
                 const imageFromOutput: { filename: string; type: string; subfolder: string } =
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
-                const infoParams: KVObject = createInfoParamTable({
-                  ...imageInfoParams.value,
-                  default_inputs: {
-                    ...imageInfoParams.value.default_inputs,
-                    seed: Number(imageInfoParams.value.default_inputs.seed) + generateIdx.value,
+                const infoParams: ImageInfoParameter = createInfoParamTable({
+                  ...imageInfoParams,
+                  defaultInputs: {
+                    ...imageInfoParams.defaultInputs,
+                    seed: Number(imageInfoParams.defaultInputs.seed) + generateIdx.value,
                   },
                 })
                 const newImage: GeneratedImage = {
@@ -323,7 +325,7 @@ export const useComfyUi = defineStore(
     }
 
     watchEffect(() => {
-      if (comfyPort && comfyUiState.value.status === 'running') {
+      if (comfyPort && comfyUiState.value?.status === 'running') {
         connectToComfyUi()
       }
     })
@@ -425,8 +427,8 @@ export const useComfyUi = defineStore(
           ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
         ]
 
-        imageInfoParams.value = {
-          default_inputs: {
+        imageInfoParams = {
+          defaultInputs: {
             workflow_name: imageGeneration.activeWorkflow.name,
             height: imageGeneration.height,
             width: imageGeneration.width,
@@ -435,10 +437,13 @@ export const useComfyUi = defineStore(
             negative_prompt: imageGeneration.negativePrompt,
             inference_steps: imageGeneration.inferenceSteps,
           },
-          modifiable_settings: imageGeneration.activeWorkflow.modifiableSettings,
-          comfy_inputs: imageGeneration.comfyInputs,
+          modifiableSettings: imageGeneration.activeWorkflow.modifiableSettings,
+          comfyInputs: imageGeneration.comfyInputs.map((i) => ({
+            ...i,
+            current: i.current.value,
+          })),
         }
-
+        generateIdx.value = 0
         for (let i = 0; i < imageGeneration.batchSize; i++) {
           modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`)
           const result = await fetch(`${comfyBaseUrl.value}/prompt`, {
@@ -482,15 +487,15 @@ export const useComfyUi = defineStore(
       })
     }
 
-    function createInfoParamTable(infoParams: ImageInfoParams) {
-      const infoParamsTable: KVObject = {
-        ...extractDefaultParams(infoParams.default_inputs, infoParams.modifiable_settings),
-        ...extractComfyUiParams(infoParams.comfy_inputs),
+    function createInfoParamTable(infoParams: ImageInfoParamsComfy) {
+      const infoParamsTable: ImageInfoParameter = {
+        ...extractDefaultParams(infoParams.defaultInputs, infoParams.modifiableSettings),
+        ...extractComfyUiParams(infoParams.comfyInputs),
       }
       return infoParamsTable
     }
 
-    function extractDefaultParams(input: StringOrNumberOrBooleanKV, modSettings: string[]) {
+    function extractDefaultParams(input: ImageInfoParameter, modSettings: string[]) {
       const defaultSettings: string[] = ['backend', 'workflow_name', 'prompt']
       const mappingKeyToTranslatable: StringKV = {
         backend: 'BACKEND',
@@ -501,7 +506,7 @@ export const useComfyUi = defineStore(
         negativePrompt: 'SETTINGS_MODEL_NEGATIVE_PROMPT',
         inferenceSteps: 'SETTINGS_MODEL_IMAGE_STEPS',
       }
-      const mappingKeyToInfoParams: StringOrNumberOrBooleanKV = {
+      const mappingKeyToInfoParams: ImageInfoParameter = {
         backend: 'ComfyUI',
         workflow_name: input.workflow_name,
         prompt: input.prompt,
@@ -517,25 +522,20 @@ export const useComfyUi = defineStore(
       )
     }
 
-    function extractComfyUiParams(inputs: KVObject[]) {
-      const infoComfyParamsTable: KVObject = {}
+    function extractComfyUiParams(inputs: ComfyDynamicInputWithCurrent[]) {
+      const infoComfyParamsTable: ImageInfoParameter = {}
       for (const input of inputs) {
         infoComfyParamsTable[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] =
-          input.type === 'image' ? input : input.current
+          input.type === 'image'
+            ? { type: input.type, image: String(input.current) }
+            : input.current
       }
       return infoComfyParamsTable
-    }
-
-    function reset() {
-      loaderNodes.value.length = 0
-      imageInfoParams.value = { default_inputs: {}, modifiable_settings: [], comfy_inputs: [] }
-      generateIdx.value = 0
     }
 
     return {
       generate,
       stop,
-      reset,
     }
   },
   {

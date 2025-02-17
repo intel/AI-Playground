@@ -128,10 +128,6 @@ type StringKV = {
   [key: string]: string
 }
 
-type StringOrNumberOrBooleanKV = {
-  [key: string]: string | number | boolean
-}
-
 type WebSettings = {
   graphics: { name: string; index: number }[]
   schedulers: string[]
