@@ -19,7 +19,7 @@
       "max": 1024
     },
     {
-      "nodeTitle": "Colorize Model",
+      "nodeTitle": "DDColor_Colorize",
       "nodeInput": "checkpoint",
       "type": "stringList",
       "label": "checkpoint model",
