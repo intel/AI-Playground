@@ -50,7 +50,8 @@
   ],
   "defaultSettings": {
     "resolution": "896x896",
-    "inferenceSteps": 4
+    "inferenceSteps": 4,
+    "batchSize": 1
   },
   "displayedSettings": [],
   "modifiableSettings": [],

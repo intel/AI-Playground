@@ -261,13 +261,21 @@ export const useComfyUi = defineStore(
               case 'executed':
                 const imageFromOutput: { filename: string; type: string; subfolder: string } =
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
-
+                const gifs: { filename: string; type: string; subfolder: string }[] =
+                  msg.data?.output?.gifs?.find((i: { type: string }) => i.type === 'output')
                 const currentImage = queuedImages[generateIdx]
                 const newImage: Image = {
                   ...currentImage,
                   state: 'done',
                   imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
                 }
+                gifs.forEach((gif) => {
+                  imageGeneration.updateDestImage(
+                    imageGeneration.generateIdx,
+                    `${comfyBaseUrl.value}/view?filename=${gif.filename}&type=${gif.type}&subfolder=${gif.subfolder ?? ''}`,
+                  )
+                  imageGeneration.generateIdx++
+                }) // ToDo: Change to fit current workflow
                 imageGeneration.updateImage(newImage)
                 generateIdx++
                 console.log('executed', { detail: msg.data })

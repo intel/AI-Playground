@@ -728,6 +728,8 @@ export const useImageGeneration = defineStore(
       ): CheckModelAlreadyLoadedParameters {
         function modelTypeToId(type: string) {
           switch (type) {
+            case 'checkpoints':
+              return Const.MODEL_TYPE_COMFY_CHECKPOINTS
             case 'unet':
               return Const.MODEL_TYPE_COMFY_UNET
             case 'clip':
