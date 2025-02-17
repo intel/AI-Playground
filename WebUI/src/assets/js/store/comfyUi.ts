@@ -320,11 +320,6 @@ export const useComfyUi = defineStore(
     async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
       for (const input of imageGeneration.comfyInputs) {
         const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle)
-        console.log('################')
-        console.log(mutableWorkflow)
-        console.log(input)
-        console.log(keys)
-        console.log('################')
         if (
           input.type === 'number' ||
           input.type === 'string' ||
