@@ -320,11 +320,16 @@ export const useComfyUi = defineStore(
     async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
       for (const input of imageGeneration.comfyInputs) {
         const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle)
-        if (input.type === 'number' || input.type === 'string' || input.type === 'boolean') {
-          if (input.type === 'string')
+        if (
+          input.type === 'number' ||
+          input.type === 'string' ||
+          input.type === 'boolean' ||
+          input.type === 'stringList'
+        ) {
+          if (input.type === 'string' || input.type === 'stringList')
             console.log('probably modifying string', input.label, input.current.value)
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
-            if (input.type === 'string')
+            if (input.type === 'string' || input.type === 'stringList')
               console.log('actually modifying string', input.label, input.current.value)
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
