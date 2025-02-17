@@ -25,6 +25,7 @@ export const useStableDiffusion = defineStore(
 
     let abortController: AbortController | null
     const generationParameters = ref<DefaultBackendParams>()
+    let hashIds: string[] = []
 
     async function generate() {
       if (imageGeneration.processing) {
@@ -50,6 +51,9 @@ export const useStableDiffusion = defineStore(
           image_preview: imageGeneration.imagePreview,
           safe_check: imageGeneration.safeCheck,
         }
+        hashIds = Array.from({ length: imageGeneration.batchSize }, () =>
+          window.crypto.randomUUID(),
+        )
         await sendGenerate()
       } catch (_error: unknown) {
       } finally {
@@ -120,7 +124,7 @@ export const useStableDiffusion = defineStore(
               output_seed: Number(data.params.seed),
             })
           const newImage: GeneratedImage = {
-            id: data.index,
+            id: hashIds[data.index],
             imageUrl: data.image,
             isLoading: false,
             infoParams: infoParams,
@@ -132,7 +136,7 @@ export const useStableDiffusion = defineStore(
           imageGeneration.currentState = 'generating'
           imageGeneration.stepText = `${i18nState.COM_GENERATING} ${data.step}/${data.total_step}`
           const updatedImage: GeneratedImage = {
-            id: data.index,
+            id: hashIds[data.index],
             imageUrl: data.image ?? '',
             isLoading: true,
             infoParams: undefined,

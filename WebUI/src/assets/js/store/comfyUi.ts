@@ -114,7 +114,8 @@ export const useComfyUi = defineStore(
       modifiableSettings: [],
       comfyInputs: [],
     }
-    const generateIdx = ref<number>(0)
+    let hashIds: string[] = []
+    let generateIdx: number = 0
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
@@ -249,7 +250,7 @@ export const useComfyUi = defineStore(
                 console.log('image url', imageUrl)
                 if (imageBlob) {
                   const updatedImage: GeneratedImage = {
-                    id: generateIdx.value,
+                    id: hashIds[generateIdx],
                     imageUrl: imageUrl,
                     isLoading: true,
                     infoParams: undefined,
@@ -287,17 +288,17 @@ export const useComfyUi = defineStore(
                   ...imageInfoParams,
                   defaultInputs: {
                     ...imageInfoParams.defaultInputs,
-                    seed: Number(imageInfoParams.defaultInputs.seed) + generateIdx.value,
+                    seed: Number(imageInfoParams.defaultInputs.seed) + generateIdx,
                   },
                 })
                 const newImage: GeneratedImage = {
-                  id: generateIdx.value,
+                  id: hashIds[generateIdx],
                   imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
                   isLoading: false,
                   infoParams: infoParams,
                 }
                 imageGeneration.updateImage(newImage)
-                generateIdx.value++
+                generateIdx++
                 console.log('executed', { detail: msg.data })
                 break
               case 'execution_start':
@@ -443,7 +444,10 @@ export const useComfyUi = defineStore(
             current: i.current.value,
           })),
         }
-        generateIdx.value = 0
+        hashIds = Array.from({ length: imageGeneration.batchSize }, () =>
+          window.crypto.randomUUID(),
+        )
+        generateIdx = 0
         for (let i = 0; i < imageGeneration.batchSize; i++) {
           modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`)
           const result = await fetch(`${comfyBaseUrl.value}/prompt`, {

@@ -208,8 +208,8 @@
           </div>
         </div>
         <info-table
-          :params="infoParams"
           v-show="showParams"
+          :generationParameters="infoParams"
           @close="showParams = false"
         ></info-table>
       </div>

@@ -22,7 +22,7 @@
         </div>
         <div class="items-end justify-end">
           <button
-            @click="reset(true)"
+            @click="deleteAllImages"
             :title="languages.COM_CLEAR_HISTORY"
             :disabled="imageGeneration.processing"
             class="bg-color-image-tool-button rounded-sm w-6 h-6 ml-2 flex items-center justify-center"
@@ -160,13 +160,11 @@ import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { GeneratedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
 const imageGeneration = useImageGeneration()
-const globalSetup = useGlobalSetup()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
-const selectedImageId = ref<string | number | null>(null) //ToDo: Change when only allowing strings as ID
+const selectedImageId = ref<string | null>(null)
 const currentImage: ComputedRef<GeneratedImage | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
@@ -175,7 +173,6 @@ watch(
   () => {
     const numberOfImages = imageGeneration.generatedImages.length
     if (numberOfImages > 0) {
-      //ToDo: Make sure it does not jump somewhere else if a picture gets deleted
       selectedImageId.value = imageGeneration.generatedImages[numberOfImages - 1].id
     } else {
       selectedImageId.value = null
@@ -196,12 +193,6 @@ const emits = defineEmits<{
 
 async function generateImage() {
   await ensureModelsAreAvailable()
-  reset(false)
-  const inferenceBackendService: BackendServiceName =
-    imageGeneration.backend === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
-  await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-  globalSetup.updateLastUsedBackend(inferenceBackendService)
-
   await imageGeneration.generate()
 }
 
@@ -242,8 +233,7 @@ function deleteImage() {
   currentImage.value && imageGeneration.deleteImage(currentImage.value.id)
 }
 
-function reset(deleteAllImages: boolean) {
-  showInfoParams.value = false
-  imageGeneration.reset(deleteAllImages)
+function deleteAllImages() {
+  imageGeneration.deleteAllImages()
 }
 </script>

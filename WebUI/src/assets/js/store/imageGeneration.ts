@@ -35,7 +35,7 @@ export type ImageInfoParameter = {
 }
 
 export type GeneratedImage = {
-  id: number | string
+  id: string
   imageUrl: string
   isLoading: boolean
   infoParams: ImageInfoParameter | undefined
@@ -745,7 +745,13 @@ export const useImageGeneration = defineStore(
     }
 
     async function generate() {
+      generatedImages.value = generatedImages.value.filter((item) => item.isLoading === false)
+      currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
+      const inferenceBackendService: BackendServiceName =
+        backend.value === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
+      await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
+      globalSetup.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
         await stableDiffusion.generate()
       } else {
@@ -758,25 +764,12 @@ export const useImageGeneration = defineStore(
       comfyUi.stop()
     }
 
-    function deleteImage(id: number | string) {
+    function deleteImage(id: string) {
       generatedImages.value = generatedImages.value.filter((image) => image.id !== id)
     }
 
-    // ToDo: Refactor
-    function reset(deleteAllImages: boolean) {
-      storeGeneratedImages(deleteAllImages)
-      currentState.value = 'no_start'
-      stepText.value = ''
-    }
-
-    function storeGeneratedImages(deleteAllImages: boolean): void {
-      if (deleteAllImages) {
-        generatedImages.value.length = 0
-      }
-      generatedImages.value = generatedImages.value.filter((item) => item.isLoading === false)
-      generatedImages.value.forEach((item) => {
-        item.id = window.crypto.randomUUID()
-      })
+    function deleteAllImages() {
+      generatedImages.value.length = 0
     }
 
     loadWorkflowsFromJson()
@@ -818,7 +811,7 @@ export const useImageGeneration = defineStore(
       generate,
       stopGeneration,
       deleteImage,
-      reset,
+      deleteAllImages,
     }
   },
   {
