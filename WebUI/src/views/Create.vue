@@ -11,8 +11,8 @@
           <div
             v-for="image in imageGeneration.generatedImages"
             class="image-preview-item flex items-center justify-center"
-            :class="{ active: imageGeneration.previewIdx === image.id }"
-            @click="imageGeneration.previewIdx = image.id"
+            :class="{ active: selectedImageId === image.id }"
+            @click="selectedImageId = image.id"
           >
             <!-- eslint-enable -->
             <div class="image-preview-item-bg">
@@ -40,7 +40,7 @@
             v-for="image in imageGeneration.generatedImages"
             :src="image.imageUrl"
             class="p-1 max-w-768px max-h-512px"
-            v-show="imageGeneration.previewIdx === image.id"
+            v-show="selectedImageId === image.id"
           />
           <!-- eslint-enable -->
           <div
@@ -159,21 +159,31 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { generatedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { GeneratedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
 const imageGeneration = useImageGeneration()
 const globalSetup = useGlobalSetup()
 const i18nState = useI18N().state
-const downloadModel = reactive({
-  downloading: false,
-  text: '',
-  percent: 0,
-})
 const showInfoParams = ref(false)
-const currentImage: ComputedRef<generatedImage | undefined> = computed(() => {
-  return imageGeneration.generatedImages.find((image) => image.id === imageGeneration.previewIdx)
+const selectedImageId = ref<string | number | null>(null) //ToDo: Change when only allowing strings as ID
+const currentImage: ComputedRef<GeneratedImage | null> = computed(() => {
+  return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
+watch(
+  () => imageGeneration.generatedImages.length,
+  () => {
+    const numberOfImages = imageGeneration.generatedImages.length
+    if (numberOfImages > 0) {
+      //ToDo: Make sure it does not jump somewhere else if a picture gets deleted
+      selectedImageId.value = imageGeneration.generatedImages[numberOfImages - 1].id
+    } else {
+      selectedImageId.value = null
+    }
+    showInfoParams.value = false
+  },
+)
+
 const emits = defineEmits<{
   (
     e: 'showDownloadModelConfirm',
@@ -225,15 +235,14 @@ function copyImage() {
 }
 
 function openImageInFolder() {
-  window.electronAPI.selectedImage(currentImage.value?.imageUrl ?? '')
+  window.electronAPI.openImageInFolder(currentImage.value?.imageUrl ?? '')
 }
 
 function deleteImage() {
-  imageGeneration.deleteImage(currentImage.value?.id)
+  currentImage.value && imageGeneration.deleteImage(currentImage.value.id)
 }
 
 function reset(deleteAllImages: boolean) {
-  downloadModel.downloading = false
   showInfoParams.value = false
   imageGeneration.reset(deleteAllImages)
 }

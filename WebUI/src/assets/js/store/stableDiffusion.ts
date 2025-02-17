@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { useImageGeneration } from './imageGeneration'
+import { GeneratedImage, useImageGeneration } from './imageGeneration'
 import { useGlobalSetup } from './globalSetup'
 import * as Const from '../const'
 import { useModels } from './models'
@@ -136,14 +136,26 @@ export const useStableDiffusion = defineStore(
               model_name: data.params.model_name,
               output_seed: Number(data.params.seed),
             })
-          await imageGeneration.updateImage(data.index, data.image, false, infoParams)
+          const newImage: GeneratedImage = {
+            id: data.index,
+            imageUrl: data.image,
+            isLoading: false,
+            infoParams: infoParams,
+          }
+          await imageGeneration.updateImage(newImage)
           break
 
         case 'step_end':
           imageGeneration.currentState = 'generating'
           imageGeneration.stepText = `${i18nState.COM_GENERATING} ${data.step}/${data.total_step}`
+          const updatedImage: GeneratedImage = {
+            id: data.index,
+            imageUrl: data.image ?? '',
+            isLoading: true,
+            infoParams: undefined,
+          }
           if (data.image) {
-            await imageGeneration.updateImage(data.index, data.image, true)
+            await imageGeneration.updateImage(updatedImage)
           }
           break
         case 'load_model':

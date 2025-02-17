@@ -8,7 +8,7 @@ import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast.ts'
 import { v4 as uuidv4 } from 'uuid'
 
-export type generatedImage = {
+export type GeneratedImage = {
   id: number | string
   imageUrl: string
   isLoading: boolean
@@ -397,7 +397,7 @@ export const useImageGeneration = defineStore(
     const seed = ref<number>(generalDefaultSettings.seed)
     const imagePreview = ref<boolean>(generalDefaultSettings.imagePreview)
     const safeCheck = ref<boolean>(generalDefaultSettings.safeCheck)
-    const batchSize = ref<number>(globalDefaultSettings.batchSize)
+    const batchSize = ref<number>(globalDefaultSettings.batchSize) // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
 
     const resetActiveWorkflowSettings = () => {
       prompt.value = generalDefaultSettings.prompt
@@ -566,10 +566,9 @@ export const useImageGeneration = defineStore(
       saveToSettingsPerWorkflow('inpaintModel')
     })
 
-    const generatedImages = ref<generatedImage[]>([])
+    const generatedImages = ref<GeneratedImage[]>([])
     const currentState = ref<SDGenerateState>('no_start')
     const stepText = ref('')
-    const previewIdx = ref<string | number>(0)
 
     function loadSettingsForActiveWorkflow() {
       console.log('loading settings for', activeWorkflowName.value)
@@ -600,24 +599,12 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    async function updateImage(
-      index: number,
-      image: string,
-      loading: boolean,
-      infoParams: KVObject | undefined = undefined,
-    ) {
-      const newImage: generatedImage = {
-        id: index,
-        imageUrl: image,
-        isLoading: loading,
-        infoParams: infoParams,
-      }
+    async function updateImage(newImage: GeneratedImage) {
       const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
       if (existingImageIndex !== -1) {
         generatedImages.value.splice(existingImageIndex, 1, newImage)
       } else {
         generatedImages.value.push(newImage)
-        previewIdx.value = newImage.id
       }
     }
 
@@ -731,7 +718,6 @@ export const useImageGeneration = defineStore(
     }
 
     async function generate() {
-      previewIdx.value = 0
       stepText.value = i18nState.COM_GENERATING
       if (activeWorkflow.value.backend === 'default') {
         await stableDiffusion.generate()
@@ -745,19 +731,15 @@ export const useImageGeneration = defineStore(
       comfyUi.stop()
     }
 
-    function deleteImage(id: number | string | undefined) {
-      if (id !== undefined) {
-        const index = generatedImages.value.findIndex((item) => item.id === id)
-        generatedImages.value.splice(index, 1)
-        previewIdx.value = generatedImages.value[Math.max(0, index - 1)].id
-      }
+    function deleteImage(id: number | string) {
+      generatedImages.value = generatedImages.value.filter((image) => image.id !== id)
     }
 
+    // ToDo: Refactor
     function reset(deleteAllImages: boolean) {
       storeGeneratedImages(deleteAllImages)
       currentState.value = 'no_start'
       stepText.value = ''
-      previewIdx.value = 0
       stableDiffusion.reset()
       comfyUi.reset()
     }
@@ -786,7 +768,6 @@ export const useImageGeneration = defineStore(
       currentState,
       stepText,
       stopping,
-      previewIdx,
       imageModel,
       inpaintModel,
       lora,

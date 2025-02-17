@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import { ComfyUIApiWorkflow, Setting, useImageGeneration } from './imageGeneration'
+import { ComfyUIApiWorkflow, GeneratedImage, Setting, useImageGeneration } from './imageGeneration'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
@@ -246,7 +246,13 @@ export const useComfyUi = defineStore(
                 const imageUrl = URL.createObjectURL(imageBlob)
                 console.log('image url', imageUrl)
                 if (imageBlob) {
-                  imageGeneration.updateImage(generateIdx.value, imageUrl, true)
+                  const updatedImage: GeneratedImage = {
+                    id: generateIdx.value,
+                    imageUrl: imageUrl,
+                    isLoading: true,
+                    infoParams: undefined,
+                  }
+                  imageGeneration.updateImage(updatedImage)
                 }
                 break
               default:
@@ -273,7 +279,7 @@ export const useComfyUi = defineStore(
                 }
                 break
               case 'executed':
-                const newImage: { filename: string; type: string; subfolder: string } =
+                const imageFromOutput: { filename: string; type: string; subfolder: string } =
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
                 const infoParams: KVObject = createInfoParamTable({
                   ...imageInfoParams.value,
@@ -282,12 +288,13 @@ export const useComfyUi = defineStore(
                     seed: Number(imageInfoParams.value.default_inputs.seed) + generateIdx.value,
                   },
                 })
-                imageGeneration.updateImage(
-                  generateIdx.value,
-                  `${comfyBaseUrl.value}/view?filename=${newImage.filename}&type=${newImage.type}&subfolder=${newImage.subfolder ?? ''}`,
-                  false,
-                  infoParams,
-                )
+                const newImage: GeneratedImage = {
+                  id: generateIdx.value,
+                  imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
+                  isLoading: false,
+                  infoParams: infoParams,
+                }
+                imageGeneration.updateImage(newImage)
                 generateIdx.value++
                 console.log('executed', { detail: msg.data })
                 break

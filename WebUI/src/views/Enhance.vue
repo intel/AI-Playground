@@ -164,7 +164,7 @@
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
-              @click="selectedImage"
+              @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -695,9 +695,9 @@ function copyImage() {
   util.copyImage(destImg.value[previewIdx.value])
 }
 
-async function selectedImage() {
+async function openImageInFolder() {
   const url = destImg.value[previewIdx.value]
-  window.electronAPI.selectedImage(url)
+  window.electronAPI.openImageInFolder(url)
 }
 
 function removeImage() {
