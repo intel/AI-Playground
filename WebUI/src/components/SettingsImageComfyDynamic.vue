@@ -5,7 +5,7 @@
     class="flex flex-col gap-2 py-2"
   >
     <p>
-      {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ??= input.label }}
+      {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
     </p>
 
     <!--    Number    -->
