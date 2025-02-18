@@ -10,16 +10,6 @@
   "inputs": [
     {
       "nodeTitle": "DDColor_Colorize",
-      "nodeInput": "model_input_size",
-      "type": "number",
-      "label": "model_input_size",
-      "defaultValue": 512,
-      "step": 128,
-      "min": 512,
-      "max": 1024
-    },
-    {
-      "nodeTitle": "DDColor_Colorize",
       "nodeInput": "checkpoint",
       "type": "stringList",
       "label": "checkpoint model",
