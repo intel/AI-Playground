@@ -52,7 +52,7 @@ function fetchFile(url) {
       })
     })
     .on('error', (err) => {
-      console.error(`Error downloading ${embeddablePythonUrl}: ${err}`)
+      console.error(`Error downloading ${url}: ${err}`)
     })
 }
 
