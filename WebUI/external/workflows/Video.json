@@ -56,7 +56,7 @@
     "batchSize": 1
   },
   "displayedSettings": [],
-  "modifiableSettings": ["inferenceSteps", "imagePreview", "resolution", "seed"],
+  "modifiableSettings": ["inferenceSteps", "resolution", "seed"],
   "comfyUiApiWorkflow": {
     "8": {
       "inputs": {
