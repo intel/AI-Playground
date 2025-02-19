@@ -59,8 +59,8 @@ const ID2ARCH: { [key: number]: Arch } = {
 
   // // arl
   // 0x7D67: "arl",
-  0x7D51: "arl_h",
-  0x7DD1: "arl_h",
+  0x7d51: 'arl_h',
+  0x7dd1: 'arl_h',
   // 0x7D41: "arl",
 }
 

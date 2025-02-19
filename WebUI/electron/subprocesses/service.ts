@@ -511,7 +511,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     ? path.join(this.baseDir, 'prototype-python-env')
     : path.join(this.baseDir, 'build-envs/online/prototype-python-env')
   readonly wheelDir = path.join(
-    app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/')
+    app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
   )
   abstract readonly pythonEnvDir: string
   abstract readonly lsLevelZeroDir: string
