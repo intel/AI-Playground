@@ -208,7 +208,11 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       ...(await this.lsLevelZero.getDeviceSelectorEnv()),
     }
-
+    const homeDir = process.env.USERPROFILE
+    if (homeDir === undefined) {
+      throw new Error('Home directory not found.');
+    }
+    const mediaDir = path.join(homeDir, 'Documents', 'AI-Playground', 'media')
     const parameters = [
       'main.py',
       '--port',
@@ -216,7 +220,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       '--preview-method',
       'auto',
       '--output-directory',
-      '../service/static/sd_out',
+      mediaDir,
       ...this.comfyUIStartupParameters,
     ]
     this.appLogger.info(

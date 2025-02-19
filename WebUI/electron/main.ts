@@ -507,6 +507,12 @@ function initEventHandle() {
       console.error('Could not find image for URL', { url })
       return
     }
+    const homeDir = process.env.USERPROFILE
+    if (homeDir === undefined) {
+      console.error('Home directory could not be found.')
+      return
+    }
+    const mediaDir = path.join(homeDir, 'Documents', 'AI-Playground', 'media')
     const aiBackendUrl = serviceRegistry?.getService('ai-backend')?.baseUrl
     const backend = aiBackendUrl && url.includes(aiBackendUrl) ? 'service' : 'ComfyUI'
 
@@ -515,10 +521,10 @@ function initEventHandle() {
       imagePath = imageUrl.pathname.replace(/^\/*/, '')
     } else {
       const s = imageUrl.searchParams
-      imagePath = `static/sd_out/${s.get('filename')}`
+      imagePath = path.join(mediaDir, `${s.get('filename')}`)
     }
 
-    return path.join(externalRes, 'service', imagePath)
+    return imagePath
   }
 
   ipcMain.on('openImageWithSystem', (_event, url: string) => {
