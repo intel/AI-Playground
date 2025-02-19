@@ -180,6 +180,7 @@ export const useStableDiffusion = defineStore(
       util.log(`SD data: ${line}`)
       const dataJson = line.slice(5)
       const data = SDOutCallbackSchema.parse(JSON.parse(dataJson))
+      const mediaUrlBase = await window.electronAPI.getMediaUrlBase()
       let currentImage: Image
       switch (data.type) {
         case 'image_out':
@@ -190,9 +191,10 @@ export const useStableDiffusion = defineStore(
           currentImage = queuedImages[data.index]
           currentImage.state = 'done'
           currentImage.settings.seed = data.params.seed
-          currentImage.imageUrl = data.image
+          currentImage.imageUrl = mediaUrlBase + data.image
 
           imageGeneration.updateImage(currentImage)
+
           break
 
         case 'step_end':

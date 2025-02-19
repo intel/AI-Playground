@@ -11,6 +11,7 @@ import {
   screen,
   shell,
 } from 'electron'
+import { ChildProcess, execSync, fork } from 'child_process'
 import path from 'node:path'
 import fs from 'fs'
 import { exec } from 'node:child_process'
@@ -24,6 +25,7 @@ import {
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
+import getPort, { portNumbers } from 'get-port'
 
 // }
 // The built directory structure
@@ -47,6 +49,10 @@ const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
+let child: ChildProcess | null = null
+const mediaDir = path.join(process.env.USERPROFILE!, 'Documents', 'AI-Playground', 'media')
+let mediaPort: number = -1
+createMediaServer()
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
@@ -167,6 +173,21 @@ async function createWindow() {
   return win
 }
 
+async function createMediaServer() {
+  appLogger.info('Setting up media server', 'electron-backend')
+  mediaPort = await getPort({ port: portNumbers(59000, 59999) })
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    PORT_NUMBER: String(mediaPort),
+    MEDIA_DIRECTORY: mediaDir,
+  };
+  child = fork(path.join(__dirname, '../media/mediaServer.js'), [], {env})
+}
+
+function stopMediaServer() {
+  child?.kill()
+}
+
 app.on('quit', async () => {
   if (singleInstanceLock) {
     app.releaseSingleInstanceLock()
@@ -178,10 +199,12 @@ app.on('quit', async () => {
 app.on('window-all-closed', async () => {
   try {
     await serviceRegistry?.stopAllServices()
+    stopMediaServer()
   } catch {}
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
+    child = null
   }
 })
 
@@ -329,6 +352,10 @@ function initEventHandle() {
     } catch (error) {
       appLogger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend')
     }
+  })
+
+  ipcMain.handle('getMediaUrlBase', () => {
+    return `http://127.0.0.1:${mediaPort}/`
   })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {
@@ -507,23 +534,18 @@ function initEventHandle() {
       console.error('Could not find image for URL', { url })
       return
     }
-    const homeDir = process.env.USERPROFILE
-    if (homeDir === undefined) {
-      console.error('Home directory could not be found.')
-      return
-    }
-    const mediaDir = path.join(homeDir, 'Documents', 'AI-Playground', 'media')
-    const aiBackendUrl = serviceRegistry?.getService('ai-backend')?.baseUrl
-    const backend = aiBackendUrl && url.includes(aiBackendUrl) ? 'service' : 'ComfyUI'
+    
+    const comfyBackendUrl = serviceRegistry?.getService('comfyui-backend')?.baseUrl
+    const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
     let imagePath: string
-    if (backend === 'service') {
-      imagePath = imageUrl.pathname.replace(/^\/*/, '')
-    } else {
+    if (backend === 'comfyui') {
       const s = imageUrl.searchParams
       imagePath = path.join(mediaDir, `${s.get('filename')}`)
+    } else {
+      imagePath = path.join(mediaDir, `${imageUrl.pathname}`)
     }
-
+    
     return imagePath
   }
 

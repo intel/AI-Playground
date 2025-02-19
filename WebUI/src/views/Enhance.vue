@@ -462,14 +462,15 @@ function updateDestImage(index: number, image: string) {
   previewIdx.value = index
 }
 
-function dataProcess(line: string) {
+async function dataProcess(line: string) {
   util.log(`SD data: ${line}`)
   const dataJson = line.slice(5)
   const data = JSON.parse(dataJson) as SDOutCallback
+  const mediaUrlBase = await window.electronAPI.getMediaUrlBase()
   switch (data.type) {
     case 'image_out':
       generateState.value = 'image_out'
-      updateDestImage(data.index, data.image)
+      updateDestImage(data.index, mediaUrlBase + data.image)
       generateParams.push(data.params)
       generateIdx.value++
       generateFinishIdx.value++
