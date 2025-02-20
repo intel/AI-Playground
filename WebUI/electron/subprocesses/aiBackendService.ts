@@ -50,8 +50,8 @@ export class AiBackendService extends LongLivedPythonApiService {
         path.join(this.serviceDir, `requirements-${deviceArch}.txt`),
       )
       await this.pip.run(['install', '-r', deviceSpecificRequirements])
-      if (deviceArch === 'bmg') {
-        const intelSpecificExtension = existingFileOrError(this.customIntelExtensionForPytorch)
+      if (deviceArch === 'bmg' || deviceArch === 'arl_h') {
+        const intelSpecificExtension = existingFileOrError(this.getIPEXWheelPath(deviceArch))
         await this.pip.run(['install', intelSpecificExtension])
       }
 
