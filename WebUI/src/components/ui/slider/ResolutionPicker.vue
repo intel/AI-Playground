@@ -181,7 +181,7 @@ const sliderModel = computed({
         <SliderRange :className="clsx('absolute h-full', { 'bg-gradient': !disabled })" />
       </SliderTrack>
       <SliderThumb
-        v-if="!disabled"
+        v-show="!disabled"
         v-for="(_, key) in sliderModel"
         :key="key"
         :className="
