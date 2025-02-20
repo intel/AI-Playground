@@ -98,7 +98,9 @@
               <p class="text-gray-300" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_USER_NAME }}
               </p>
-              <pre class="chat-content">{{ chat.question }}</pre>
+              <div class="chat-content" style="white-space: pre-wrap">
+                {{ chat.question }}
+              </div>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -176,7 +178,9 @@
             <p class="text-gray-300" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
-            <p v-html="textIn"></p>
+            <div class="chat-content" style="white-space: pre-wrap">
+              {{ textIn }}
+            </div>
           </div>
         </div>
         <div
