@@ -10,7 +10,7 @@ export type Backend = z.infer<typeof BackendSchema>
 const backendModelKey = {
   'IPEX-LLM': 'llm_model',
   'LLAMA.CPP': 'ggufLLM_model',
-  'OpenVINO': 'openvinoLLM_model',
+  OpenVINO: 'openvinoLLM_model',
 }
 export const useTextInference = defineStore(
   'textInference',

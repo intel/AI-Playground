@@ -1,8 +1,6 @@
-import time
 from typing import Any, Dict, List, Callable
 from os import path
 from openvino_interface import LLMInterface
-import sys
 import openvino_genai
 from openvino_params import LLMParams
 import openvino_model_config as model_config

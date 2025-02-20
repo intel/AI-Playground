@@ -1,12 +1,9 @@
 import os
 os.environ['PATH'] = os.path.abspath('../openvino-env/Library/bin') + os.pathsep + os.environ['PATH']
-import sys
-current_folder = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_folder)
 from apiflask import APIFlask
 from flask import jsonify, request, Response, stream_with_context
-from openvino_adapter import LLM_SSE_Adapter
 from openvino_backend import OpenVino
+from openvino_adapter import LLM_SSE_Adapter
 from openvino_params import LLMParams
 
 app = APIFlask(__name__)
