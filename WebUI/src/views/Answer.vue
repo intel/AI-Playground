@@ -440,43 +440,7 @@ const emits = defineEmits<{
 
 let abortContooler: AbortController | null
 const stopping = ref(false)
-const fontSizeIndex = ref(1) // sets default to text-sm
 
-const fontSizes = [
-  'text-xs',
-  'text-sm',
-  'text-base',
-  'text-lg',
-  'text-xl',
-  'text-2xl',
-  'text-3xl',
-  'text-4xl',
-  'text-5xl',
-  'text-6xl',
-  'text-7xl',
-  'text-8xl',
-  'text-9xl',
-]
-const iconSizes = [
-  'size-[40px]',
-  'size-[42px]',
-  'size-[44px]',
-  'size-[46px]',
-  'size-[48px]',
-  'size-[50px]',
-  'size-[52px]',
-  'size-[54px]',
-  'size-[56px]',
-  'size-[58px]',
-  'size-[60px]',
-  'size-[62px]',
-  'size-[64px]',
-]
-const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value])
-const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)])
-const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value])
-const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1)
-const isMinSize = computed(() => fontSizeIndex.value <= 0)
 const isHistoryVisible = ref(false)
 
 const currentBackendAPI = computed(() => {

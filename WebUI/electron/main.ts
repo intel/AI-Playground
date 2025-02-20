@@ -416,7 +416,7 @@ function initEventHandle() {
     return pathsManager.scanGGUFLLMModels()
   })
 
-  ipcMain.handle('getDownloadedOpenVINOLLMModels', (event) => {
+  ipcMain.handle('getDownloadedOpenVINOLLMModels', (_event) => {
     return pathsManager.scanOpenVINOModels()
   })
 
