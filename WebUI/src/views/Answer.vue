@@ -295,6 +295,24 @@
                 <span class="svg-icon i-clear w-4 h-4"></span>
                 <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
             </button> -->
+            <button
+              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
+              @click="textInference.increaseFontSize"
+              :disabled="textInference.isMaxSize"
+              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
+            >
+              <span class="svg-icon i-zoom-in w-4 h-4"></span>
+              <span>{{ languages.INCREASE_FONT_SIZE }}</span>
+            </button>
+            <button
+              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
+              @click="textInference.decreaseFontSize"
+              :disabled="textInference.isMinSize"
+              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
+            >
+              <span class="svg-icon i-zoom-out w-4 h-4"></span>
+              <span>{{ languages.DECREASE_FONT_SIZE }}</span>
+            </button>
           </div>
           <div
             v-show="textInference.backend !== 'LLAMA.CPP'"
