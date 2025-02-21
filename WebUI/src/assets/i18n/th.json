@@ -58,6 +58,7 @@
   "SETTINGS_TAB_IMAGE": "ภาพ",
   "SETTINGS_TAB_BASIC": "พื้นฐาน",
   "SETTINGS_TAB_MODEL": "โมเดล",
+  "SETTINGS_TAB_METRICS": "เมตริก",
   "SETTINGS_INFERENCE_DEVICE": "อุปกรณ์อนุมาน",
   "SETTINGS_LLM_BACKEND": "แบ็กเอนด์ LLM",
   "SETTINGS_MODEL_IMAGE_SIZE": "ขนาดภาพ",

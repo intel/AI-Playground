@@ -326,7 +326,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: 420px;
+  width: 530px;
   height: 100%;
   overflow: hidden;
   z-index: 99;

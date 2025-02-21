@@ -58,6 +58,7 @@
   "SETTINGS_TAB_IMAGE": "Image",
   "SETTINGS_TAB_BASIC": "Basic",
   "SETTINGS_TAB_MODEL": "Models",
+  "SETTINGS_TAB_METRICS": "Metrics",
   "SETTINGS_INFERENCE_DEVICE": "Inference Device",
   "SETTINGS_LLM_BACKEND": "LLM Backend",
   "SETTINGS_MODEL_IMAGE_SIZE": "Image Size",

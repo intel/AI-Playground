@@ -58,6 +58,7 @@
   "SETTINGS_TAB_IMAGE": "Obraz",
   "SETTINGS_TAB_BASIC": "Podstawowe",
   "SETTINGS_TAB_MODEL": "Modele",
+  "SETTINGS_TAB_METRICS": "Metryki",
   "SETTINGS_INFERENCE_DEVICE": "Urządzenie do wnioskowania",
   "SETTINGS_LLM_BACKEND": "LLM Backend",
   "SETTINGS_MODEL_IMAGE_SIZE": "Rozmiar obrazu",

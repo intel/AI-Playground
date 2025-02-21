@@ -58,6 +58,7 @@
   "SETTINGS_TAB_IMAGE": "Gambar",
   "SETTINGS_TAB_BASIC": "Pengaturan Dasar",
   "SETTINGS_TAB_MODEL": "Model",
+  "SETTINGS_TAB_METRICS": "Metrik",
   "SETTINGS_INFERENCE_DEVICE": "Perangkat Inferensi",
   "SETTINGS_LLM_BACKEND": "LLM Backend",
   "SETTINGS_MODEL_IMAGE_SIZE": "Ukuran Gambar",
