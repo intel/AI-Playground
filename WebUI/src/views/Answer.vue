@@ -101,7 +101,9 @@
               <p class="text-gray-300" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_USER_NAME }}
               </p>
-              <pre class="chat-content">{{ chat.question }}</pre>
+              <div class="chat-content" style="white-space: pre-wrap">
+                {{ chat.question }}
+              </div>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -179,7 +181,9 @@
             <p class="text-gray-300" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
-            <p v-html="textIn"></p>
+            <div class="chat-content" style="white-space: pre-wrap">
+              {{ textIn }}
+            </div>
           </div>
         </div>
         <div
@@ -190,9 +194,21 @@
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
-            <p class="text-gray-300" :class="textInference.nameSizeClass">
-              {{ languages.ANSWER_AI_NAME }}
-            </p>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_AI_NAME }}
+              </p>
+              <span
+                class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                :class="textInference.nameSizeClass"
+              >
+                {{
+                  textInference.backend === 'IPEX-LLM'
+                    ? globalSetup.modelSettings.llm_model
+                    : globalSetup.modelSettings.ggufLLM_model
+                }}
+              </span>
+            </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
               class="ai-answer cursor-block break-all"
@@ -535,6 +551,7 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
+    max_tokens: textInference.maxTokens,
     model_repo_id:
       textInference.backend === 'IPEX-LLM'
         ? globalSetup.modelSettings.llm_model
@@ -625,6 +642,10 @@ async function simulatedInput() {
 
 function fastGenerate(e: KeyboardEvent) {
   if (e.code == 'Enter') {
+    if (processing.value) {
+      return
+    }
+
     if (e.ctrlKey || e.shiftKey || e.altKey) {
       question.value += '\n'
     } else {
@@ -709,6 +730,7 @@ async function generate(chatContext: ChatItem[]) {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
+      max_tokens: textInference.maxTokens,
       model_repo_id:
         textInference.backend === 'IPEX-LLM'
           ? globalSetup.modelSettings.llm_model
