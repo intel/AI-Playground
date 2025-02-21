@@ -458,19 +458,6 @@ function finishGenerate() {
   textOutFinish = true
 }
 
-const deepThinkModels = [
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B',
-]
-
-const isThinkingModel = computed(
-  () =>
-    textInference.backend === 'IPEX-LLM' &&
-    deepThinkModels.includes(globalSetup.modelSettings.llm_model),
-)
-
-const isThinking = ref(false)
-
 function dataProcess(line: string) {
   console.log(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
 
@@ -479,33 +466,11 @@ function dataProcess(line: string) {
   switch (data.type) {
     case 'text_out':
       if (data.dtype == 1) {
-        // Do not output thinking generation.
-        if (isThinkingModel.value && isThinking.value) {
-          const idx = data.value.indexOf('</think>')
-          if (idx === -1) {
-            // Still in thinking mode; do NOT show user yet.
-          } else {
-            isThinking.value = false
-
-            let startIndex = idx + 8
-
-            if (data.value[startIndex] === '\n') {
-              startIndex++
-            }
-
-            const afterThink = data.value.slice(startIndex)
-
-            if (afterThink.trim() !== '') {
-              textOutQueue.push(afterThink)
-            }
-          }
-        } else {
-          const text = firstOutput ? data.value : data.value
-          textOutQueue.push(text)
-          if (firstOutput) {
-            firstOutput = false
-            simulatedInput()
-          }
+        const text = firstOutput ? data.value : data.value //.replace(/<[^>]+>/g, "");
+        textOutQueue.push(text)
+        if (firstOutput) {
+          firstOutput = false
+          simulatedInput()
         }
       } else {
         source.value = data.value
@@ -745,7 +710,6 @@ async function generate(chatContext: ChatItem[]) {
   }
 
   try {
-    isThinking.value = isThinkingModel.value
     const inferenceBackendService: BackendServiceName =
       textInference.backend === 'IPEX-LLM' ? 'ai-backend' : 'llamacpp-backend'
     await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
