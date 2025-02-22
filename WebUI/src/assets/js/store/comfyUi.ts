@@ -1,28 +1,10 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import {
-  ComfyDynamicInput,
-  ComfyUIApiWorkflow,
-  GeneratedImage,
-  ImageInfoParameter,
-  Setting,
-  useImageGeneration,
-} from './imageGeneration'
+import { ComfyUIApiWorkflow, Image, Setting, useImageGeneration } from './imageGeneration'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
-import { getTranslationLabel } from '@/lib/utils.ts'
-import { DefaultBackendParams } from '@/assets/js/store/imageGeneration.ts'
-
-type DefaultBackendParamsWithName = Partial<DefaultBackendParams & { workflow_name: string }>
-type ComfyDynamicInputWithCurrent = ComfyDynamicInput & { current: string | number | boolean }
-
-type ImageInfoParamsComfy = {
-  defaultInputs: DefaultBackendParamsWithName
-  modifiableSettings: string[]
-  comfyInputs: ComfyDynamicInputWithCurrent[]
-}
 
 const WEBSOCKET_OPEN = 1
 
@@ -103,23 +85,18 @@ export const useComfyUi = defineStore(
     const imageGeneration = useImageGeneration()
     const globalSetup = useGlobalSetup()
     const i18nState = useI18N().state
-    const comfyPort = computed(() => comfyUiState.value?.port ?? -1)
-    const comfyBaseUrl = computed(() => comfyUiState.value?.baseUrl ?? '')
+    const comfyPort = computed(() => comfyUiState.value?.port)
+    const comfyBaseUrl = computed(() => comfyUiState.value?.baseUrl)
 
     const websocket = ref<WebSocket | null>(null)
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
-    let imageInfoParams: ImageInfoParamsComfy = {
-      defaultInputs: {},
-      modifiableSettings: [],
-      comfyInputs: [],
-    }
-    let hashIds: string[] = []
     let generateIdx: number = 0
+    let queuedImages: Image[] = []
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
-      return backendServices.info.find((item) => item.serviceName === 'comfyui-backend') ?? null
+      return backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
     })
 
     async function installCustomNodesForActiveWorkflowFully() {
@@ -249,13 +226,13 @@ export const useComfyUi = defineStore(
                 const imageUrl = URL.createObjectURL(imageBlob)
                 console.log('image url', imageUrl)
                 if (imageBlob) {
-                  const updatedImage: GeneratedImage = {
-                    id: hashIds[generateIdx],
-                    imageUrl: imageUrl,
-                    isLoading: true,
-                    infoParams: undefined,
+                  const currentImage = queuedImages[generateIdx]
+                  const newImage: Image = {
+                    ...currentImage,
+                    state: 'generating',
+                    imageUrl,
                   }
-                  imageGeneration.updateImage(updatedImage)
+                  imageGeneration.updateImage(newImage)
                 }
                 break
               default:
@@ -284,18 +261,12 @@ export const useComfyUi = defineStore(
               case 'executed':
                 const imageFromOutput: { filename: string; type: string; subfolder: string } =
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
-                const infoParams: ImageInfoParameter = createInfoParamTable({
-                  ...imageInfoParams,
-                  defaultInputs: {
-                    ...imageInfoParams.defaultInputs,
-                    seed: Number(imageInfoParams.defaultInputs.seed) + generateIdx,
-                  },
-                })
-                const newImage: GeneratedImage = {
-                  id: hashIds[generateIdx],
+
+                const currentImage = queuedImages[generateIdx]
+                const newImage: Image = {
+                  ...currentImage,
+                  state: 'done',
                   imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
-                  isLoading: false,
-                  infoParams: infoParams,
                 }
                 imageGeneration.updateImage(newImage)
                 generateIdx++
@@ -411,7 +382,8 @@ export const useComfyUi = defineStore(
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
           JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow),
         )
-        const seed =
+        generateIdx = 0
+        const baseSeed =
           imageGeneration.seed === -1 ? Math.floor(Math.random() * 1000000) : imageGeneration.seed
 
         modifySettingInWorkflow(mutableWorkflow, 'inferenceSteps', imageGeneration.inferenceSteps)
@@ -428,28 +400,25 @@ export const useComfyUi = defineStore(
           ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
         ]
 
-        imageInfoParams = {
-          defaultInputs: {
-            workflow_name: imageGeneration.activeWorkflow.name,
-            height: imageGeneration.height,
-            width: imageGeneration.width,
-            seed: seed,
-            prompt: imageGeneration.prompt,
-            negative_prompt: imageGeneration.negativePrompt,
-            inference_steps: imageGeneration.inferenceSteps,
-          },
-          modifiableSettings: imageGeneration.activeWorkflow.modifiableSettings,
-          comfyInputs: imageGeneration.comfyInputs.map((i) => ({
-            ...i,
-            current: i.current.value,
-          })),
-        }
-        hashIds = Array.from({ length: imageGeneration.batchSize }, () =>
-          window.crypto.randomUUID(),
-        )
-        generateIdx = 0
-        for (let i = 0; i < imageGeneration.batchSize; i++) {
-          modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`)
+        queuedImages = Array.from({ length: imageGeneration.batchSize }, (_, i) => {
+          const seed = baseSeed + i
+          const settings = imageGeneration.getGenerationParameters()
+          settings.seed = seed
+
+          return {
+            id: window.crypto.randomUUID(),
+            imageUrl:
+              'data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%3F%3E%3Csvg%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20color%3D%22%23000000%22%3E%3Cpath%20d%3D%22M12%2012C15.866%2012%2019%208.86599%2019%205H5C5%208.86599%208.13401%2012%2012%2012ZM12%2012C15.866%2012%2019%2015.134%2019%2019H5C5%2015.134%208.13401%2012%2012%2012Z%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%202L12%202L19%202%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%2022H12L19%2022%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+            state: 'queued',
+            settings,
+            dynamicSettings: imageGeneration.comfyInputs.map((input) => ({
+              ...input,
+              current: input.current.value as never,
+            })),
+          }
+        })
+        for (const image of queuedImages) {
+          modifySettingInWorkflow(mutableWorkflow, 'seed', `${image.settings.seed!.toFixed(0)}`)
           const result = await fetch(`${comfyBaseUrl.value}/prompt`, {
             method: 'POST',
             headers: {
@@ -489,52 +458,6 @@ export const useComfyUi = defineStore(
           'Content-Type': 'application/json',
         },
       })
-    }
-
-    function createInfoParamTable(infoParams: ImageInfoParamsComfy) {
-      const infoParamsTable: ImageInfoParameter = {
-        ...extractDefaultParams(infoParams.defaultInputs, infoParams.modifiableSettings),
-        ...extractComfyUiParams(infoParams.comfyInputs),
-      }
-      return infoParamsTable
-    }
-
-    function extractDefaultParams(input: ImageInfoParameter, modSettings: string[]) {
-      const defaultSettings: string[] = ['backend', 'workflow_name', 'prompt']
-      const mappingKeyToTranslatable: StringKV = {
-        backend: 'BACKEND',
-        workflow_name: 'SETTINGS_IMAGE_WORKFLOW',
-        prompt: 'INPUT_PROMPT',
-        resolution: 'SETTINGS_MODEL_IMAGE_RESOLUTION',
-        seed: 'SETTINGS_MODEL_SEED',
-        negativePrompt: 'SETTINGS_MODEL_NEGATIVE_PROMPT',
-        inferenceSteps: 'SETTINGS_MODEL_IMAGE_STEPS',
-      }
-      const mappingKeyToInfoParams: ImageInfoParameter = {
-        backend: 'ComfyUI',
-        workflow_name: input.workflow_name,
-        prompt: input.prompt,
-        resolution: input.width + 'x' + input.height,
-        seed: input.seed,
-        negativePrompt: input.negative_prompt,
-        inferenceSteps: input.inference_steps,
-      }
-      return Object.fromEntries(
-        Object.keys(mappingKeyToInfoParams)
-          .filter((key) => defaultSettings.includes(key) || modSettings.includes(key))
-          .map((key) => [mappingKeyToTranslatable[key], mappingKeyToInfoParams[key]]),
-      )
-    }
-
-    function extractComfyUiParams(inputs: ComfyDynamicInputWithCurrent[]) {
-      const infoComfyParamsTable: ImageInfoParameter = {}
-      for (const input of inputs) {
-        infoComfyParamsTable[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] =
-          input.type === 'image'
-            ? { type: input.type, image: String(input.current) }
-            : input.current
-      }
-      return infoComfyParamsTable
     }
 
     return {

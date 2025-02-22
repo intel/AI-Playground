@@ -44,7 +44,9 @@
           />
           <!-- eslint-enable -->
           <div
-            v-show="imageGeneration.processing && (!currentImage || currentImage?.isLoading)"
+            v-show="
+              imageGeneration.processing && (!currentImage || currentImage?.state === 'generating')
+            "
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
           >
             <loading-bar
@@ -65,11 +67,14 @@
             </div>
           </div>
           <div
-            v-show="currentImage && (!currentImage.isLoading || !imageGeneration.processing)"
+            v-show="
+              currentImage &&
+              (!(currentImage?.state === 'generating') || !imageGeneration.processing)
+            "
             class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
           >
             <button
-              v-show="currentImage && !currentImage.isLoading"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="postImageToEnhance"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -77,7 +82,7 @@
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !currentImage.isLoading"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -85,7 +90,7 @@
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !currentImage.isLoading"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="openImage"
               :title="languages.COM_ZOOM_IN"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -93,7 +98,7 @@
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !currentImage.isLoading"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="copyImage"
               :title="languages.COM_COPY"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -101,7 +106,7 @@
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !currentImage.isLoading"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -119,7 +124,8 @@
         </div>
         <info-table
           v-show="showInfoParams"
-          :generationParameters="currentImage?.infoParams ?? {}"
+          :generationParameters="currentImage?.settings ?? {}"
+          :dynamicInputs="currentImage?.dynamicSettings"
           @close="showInfoParams = false"
         ></info-table>
       </div>
@@ -159,13 +165,13 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { GeneratedImage, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { Image, useImageGeneration } from '@/assets/js/store/imageGeneration'
 
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
 const selectedImageId = ref<string | null>(null)
-const currentImage: ComputedRef<GeneratedImage | null> = computed(() => {
+const currentImage: ComputedRef<Image | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
 watch(
@@ -213,7 +219,7 @@ function postImageToEnhance() {
 
 function showParamsDialog() {
   showInfoParams.value = true
-  console.log(currentImage.value?.infoParams)
+  console.log(currentImage.value?.settings)
 }
 
 function openImage() {
@@ -230,7 +236,8 @@ function openImageInFolder() {
 }
 
 function deleteImage() {
-  currentImage.value && imageGeneration.deleteImage(currentImage.value.id)
+  if (!currentImage.value) return
+  imageGeneration.deleteImage(currentImage.value.id)
 }
 
 function deleteAllImages() {

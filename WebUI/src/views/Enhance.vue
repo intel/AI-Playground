@@ -576,7 +576,7 @@ async function generate() {
         lora: imageGeneration.lora,
         scheduler: imageGeneration.scheduler,
         image_preview: imageGeneration.imagePreview,
-        safe_check: imageGeneration.safeCheck,
+        safe_check: imageGeneration.safetyCheck,
       },
       extParams,
     )

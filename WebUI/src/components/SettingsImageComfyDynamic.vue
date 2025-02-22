@@ -46,7 +46,7 @@ import { useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { Input } from '../components/ui/input'
 import { LoadImage } from '../components/ui/loadImage'
 import SlideBar from '../components/SlideBar.vue'
-import { getTranslationLabel } from '@/lib/utils.ts'
+import { getTranslationLabel } from '@/lib/utils'
 
 const imageGeneration = useImageGeneration()
 </script>

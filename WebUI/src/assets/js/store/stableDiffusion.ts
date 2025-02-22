@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
-import { GeneratedImage, ImageInfoParameter, useImageGeneration } from './imageGeneration'
+import { acceptHMRUpdate, defineStore } from 'pinia'
+import { GenerationSettings, Image, useImageGeneration } from './imageGeneration'
 import { useGlobalSetup } from './globalSetup'
 import * as Const from '../const'
 import { useModels } from './models'
@@ -7,13 +7,75 @@ import * as util from '../util'
 import { SSEProcessor } from '../sseProcessor'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
-import { DefaultBackendParams } from '@/assets/js/store/imageGeneration.ts'
+import { z } from 'zod'
 
-type ImageInfoParamsSD = {
-  size: string
-  model_name: string
-  output_seed: number
-} & DefaultBackendParams
+const LoadModelCallbackSchema = z.object({
+  type: z.literal('load_model'),
+  event: z.union([z.literal('start'), z.literal('finish')]),
+})
+
+const LoadModelComponentsCallbackSchema = z.object({
+  type: z.literal('load_model_components'),
+  event: z.union([z.literal('start'), z.literal('finish')]),
+})
+
+const SDOutImageCallbackSchema = z.object({
+  type: z.literal('image_out'),
+  index: z.number(),
+  image: z.string(),
+  safe_check_pass: z.boolean(),
+  params: z.object({
+    seed: z.number(),
+  }),
+})
+
+const SDStepEndCallbackSchema = z.object({
+  type: z.literal('step_end'),
+  index: z.number(),
+  step: z.number(),
+  total_step: z.number(),
+  image: z.string().nullable().optional(),
+})
+
+const ErrorOutCallbackSchema = z.object({
+  type: z.literal('error'),
+  err_type: z.enum([
+    'not_enough_disk_space',
+    'runtime_error',
+    'download_exception',
+    'unknown_exception',
+  ]),
+  requires_space: z.string(),
+  free_space: z.string(),
+})
+
+const SDOutCallbackSchema = z.discriminatedUnion('type', [
+  LoadModelCallbackSchema,
+  LoadModelComponentsCallbackSchema,
+  SDOutImageCallbackSchema,
+  SDStepEndCallbackSchema,
+  ErrorOutCallbackSchema,
+])
+
+// zod schema for DefaultBackendParams
+const DefaultBackendParamsSchema = z.object({
+  mode: z.number(),
+  device: z.number(),
+  prompt: z.string(),
+  negative_prompt: z.string(),
+  model_repo_id: z.string(),
+  generate_number: z.number(),
+  inference_steps: z.number(),
+  guidance_scale: z.number(),
+  seed: z.number(),
+  height: z.number(),
+  width: z.number(),
+  lora: z.string(),
+  scheduler: z.string(),
+  image_preview: z.boolean(),
+  safe_check: z.boolean(),
+})
+type DefaultBackendParams = z.infer<typeof DefaultBackendParamsSchema>
 
 export const useStableDiffusion = defineStore(
   'stableDiffusion',
@@ -24,8 +86,27 @@ export const useStableDiffusion = defineStore(
     const models = useModels()
 
     let abortController: AbortController | null
-    const generationParameters = ref<DefaultBackendParams>()
-    let hashIds: string[] = []
+    let queuedImages: Image[] = []
+
+    const toBackendParams = (params: GenerationSettings): DefaultBackendParams => {
+      return DefaultBackendParamsSchema.parse({
+        mode: 0,
+        device: params.device,
+        prompt: params.prompt,
+        negative_prompt: params.negativePrompt,
+        model_repo_id: `stableDiffusion:${params.imageModel}`,
+        generate_number: params.batchSize,
+        inference_steps: params.inferenceSteps,
+        guidance_scale: params.guidanceScale,
+        seed: params.seed,
+        height: params.height,
+        width: params.width,
+        lora: params.lora,
+        scheduler: params.scheduler,
+        image_preview: params.imagePreview,
+        safe_check: params.safetyCheck,
+      })
+    }
 
     async function generate() {
       if (imageGeneration.processing) {
@@ -34,28 +115,17 @@ export const useStableDiffusion = defineStore(
       try {
         imageGeneration.processing = true
         await checkModel()
-        generationParameters.value = {
-          mode: 0,
-          device: globalSetup.modelSettings.graphics,
-          prompt: imageGeneration.prompt,
-          model_repo_id: `stableDiffusion:${imageGeneration.imageModel}`,
-          negative_prompt: imageGeneration.negativePrompt,
-          generate_number: imageGeneration.batchSize,
-          inference_steps: imageGeneration.inferenceSteps,
-          guidance_scale: imageGeneration.guidanceScale,
-          seed: imageGeneration.seed,
-          height: imageGeneration.height,
-          width: imageGeneration.width,
-          lora: imageGeneration.lora,
-          scheduler: imageGeneration.scheduler,
-          image_preview: imageGeneration.imagePreview,
-          safe_check: imageGeneration.safeCheck,
-        }
-        hashIds = Array.from({ length: imageGeneration.batchSize }, () =>
-          window.crypto.randomUUID(),
-        )
-        await sendGenerate()
-      } catch (_error: unknown) {
+        queuedImages = Array.from({ length: imageGeneration.batchSize }, () => ({
+          id: window.crypto.randomUUID(),
+          imageUrl:
+            'data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%3F%3E%3Csvg%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20color%3D%22%23000000%22%3E%3Cpath%20d%3D%22M12%2012C15.866%2012%2019%208.86599%2019%205H5C5%208.86599%208.13401%2012%2012%2012ZM12%2012C15.866%2012%2019%2015.134%2019%2019H5C5%2015.134%208.13401%2012%2012%2012Z%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%202L12%202L19%202%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%2022H12L19%2022%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+          state: 'queued',
+          settings: imageGeneration.getGenerationParameters(),
+        }))
+        await sendGenerate(imageGeneration.getGenerationParameters())
+      } catch (error: unknown) {
+        toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
+        console.error(error)
       } finally {
         imageGeneration.processing = false
       }
@@ -108,42 +178,31 @@ export const useStableDiffusion = defineStore(
     async function dataProcess(line: string) {
       util.log(`SD data: ${line}`)
       const dataJson = line.slice(5)
-      const data = JSON.parse(dataJson) as SDOutCallback
+      const data = SDOutCallbackSchema.parse(JSON.parse(dataJson))
+      let currentImage: Image
       switch (data.type) {
         case 'image_out':
           imageGeneration.currentState = 'image_out'
           if (!data.safe_check_pass) {
             data.image = '/src/assets/image/nsfw_result_detected.png'
           }
-          const infoParams: ImageInfoParameter | undefined =
-            generationParameters.value &&
-            createInfoParamTable({
-              ...generationParameters.value,
-              size: data.params.size,
-              model_name: data.params.model_name,
-              output_seed: Number(data.params.seed),
-            })
-          const newImage: GeneratedImage = {
-            id: hashIds[data.index],
-            imageUrl: data.image,
-            isLoading: false,
-            infoParams: infoParams,
-          }
-          await imageGeneration.updateImage(newImage)
+          currentImage = queuedImages[data.index]
+          currentImage.state = 'done'
+          currentImage.settings.seed = data.params.seed
+          currentImage.imageUrl = data.image
+
+          await imageGeneration.updateImage(currentImage)
           break
 
         case 'step_end':
           imageGeneration.currentState = 'generating'
           imageGeneration.stepText = `${i18nState.COM_GENERATING} ${data.step}/${data.total_step}`
-          const updatedImage: GeneratedImage = {
-            id: hashIds[data.index],
-            imageUrl: data.image ?? '',
-            isLoading: true,
-            infoParams: undefined,
-          }
+          currentImage = queuedImages[data.index]
+          currentImage.state = 'generating'
           if (data.image) {
-            await imageGeneration.updateImage(updatedImage)
+            currentImage.imageUrl = data.image
           }
+          await imageGeneration.updateImage(currentImage)
           break
         case 'load_model':
           imageGeneration.currentState = 'load_model'
@@ -155,6 +214,7 @@ export const useStableDiffusion = defineStore(
         case 'error':
           imageGeneration.processing = false
           imageGeneration.currentState = 'error'
+
           switch (data.err_type) {
             case 'not_enough_disk_space':
               toast.error(
@@ -178,7 +238,7 @@ export const useStableDiffusion = defineStore(
       }
     }
 
-    async function sendGenerate() {
+    async function sendGenerate(generationParams: GenerationSettings) {
       try {
         imageGeneration.processing = true
         if (!abortController) {
@@ -187,7 +247,7 @@ export const useStableDiffusion = defineStore(
 
         const response = await fetch(`${useGlobalSetup().apiHost}/api/sd/generate`, {
           method: 'POST',
-          body: util.convertToFormData(generationParameters.value),
+          body: util.convertToFormData(toBackendParams(generationParams)),
           signal: abortController.signal,
         })
         const reader = response.body!.getReader()
@@ -210,45 +270,6 @@ export const useStableDiffusion = defineStore(
       }
     }
 
-    function createInfoParamTable(infoParams: ImageInfoParamsSD) {
-      const mappingKeyToTranslatable: StringKV = {
-        backend: 'BACKEND',
-        model_name: 'DOWNLOADER_MODEL',
-        prompt: 'INPUT_PROMPT',
-        resolution: 'SETTINGS_MODEL_IMAGE_RESOLUTION',
-        device: 'DEVICE',
-        size: 'SETTINGS_MODEL_IMAGE_SIZE',
-        seed: 'SETTINGS_MODEL_SEED',
-        negative_prompt: 'SETTINGS_MODEL_NEGATIVE_PROMPT',
-        inference_steps: 'SETTINGS_MODEL_IMAGE_STEPS',
-        guidance_scale: 'SETTINGS_MODEL_IMAGE_CFG',
-        scheduler: 'SETTINGS_MODEL_SCHEDULER',
-        lora: 'SETTINGS_MODEL_LORA',
-        safe_check: 'SETTINGS_MODEL_SAFE_CHECK',
-      }
-      const mappingKeyToInfoParams: ImageInfoParameter = {
-        backend: 'Default',
-        model_name: infoParams.model_name,
-        prompt: infoParams.prompt,
-        resolution: infoParams.width + 'x' + infoParams.height,
-        device: infoParams.device,
-        size: infoParams.size,
-        seed: infoParams.output_seed,
-        negative_prompt: infoParams.negative_prompt,
-        inference_steps: infoParams.inference_steps,
-        guidance_scale: infoParams.guidance_scale,
-        scheduler: infoParams.scheduler,
-        lora: infoParams.lora,
-        safe_check: infoParams.safe_check,
-      }
-      return Object.fromEntries(
-        Object.keys(mappingKeyToInfoParams).map((key) => [
-          mappingKeyToTranslatable[key],
-          mappingKeyToInfoParams[key],
-        ]),
-      )
-    }
-
     return {
       generate,
       stop,
@@ -260,3 +281,7 @@ export const useStableDiffusion = defineStore(
     },
   },
 )
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useStableDiffusion, import.meta.hot))
+}

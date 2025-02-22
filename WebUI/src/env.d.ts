@@ -203,14 +203,6 @@ type LLMOutTextCallback = {
   2
 }
 
-type SDOutCallback =
-  | LoadModelCallback
-  | LoadModelComponentsCallback
-  | SDOutImageCallback
-  | SDStepEndCallback
-  | ErrorOutCallback
-  | NotEnoughDiskSpaceExceptionCallback
-
 type LoadModelAllComplete = {
   type: 'allComplete'
 }
@@ -232,22 +224,6 @@ type LoadModelCallback = {
 type LoadModelComponentsCallback = {
   type: 'load_model_components'
   event: 'start' | 'finish'
-}
-
-type SDOutImageCallback = {
-  type: 'image_out'
-  index: number
-  image: string
-  safe_check_pass: boolean
-  params: StringOrNumberKV
-}
-
-type SDStepEndCallback = {
-  type: 'step_end'
-  index: number
-  step: number
-  total_step: number
-  image?: string
 }
 
 type NotEnoughDiskSpaceExceptionCallback = {
