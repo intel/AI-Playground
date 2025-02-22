@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "ダウンロード速度",
   "COM_LOADING_MODEL": "AI モデルをロードしています",
   "COM_LOADING_MODEL_COMPONENTS": "AI モデル コンポーネントをロードしています",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "ワークフローコンポーネントをインストール中",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "ワークフローコンポーネントを読み込み中",
   "COM_NO_SELECTED": "選択されていません",
   "COM_CONFIRM": "確認",
   "COM_CANCEL": "キャンセル",

@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "Velocidad de descarga",
   "COM_LOADING_MODEL": "Cargando modelo de inteligencia artificial",
   "COM_LOADING_MODEL_COMPONENTS": "Cargando componentes del modelo de inteligencia artificial",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "Instalando componentes del flujo de trabajo",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "Cargando componentes del flujo de trabajo",
   "COM_NO_SELECTED": "No seleccionado",
   "COM_CONFIRM": "Confirmar",
   "COM_CANCEL": "Cancelar",

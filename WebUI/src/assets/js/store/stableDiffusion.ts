@@ -57,6 +57,8 @@ const SDOutCallbackSchema = z.discriminatedUnion('type', [
   ErrorOutCallbackSchema,
 ])
 
+export type SDOutCallback = z.infer<typeof SDOutCallbackSchema>
+
 // zod schema for DefaultBackendParams
 const DefaultBackendParamsSchema = z.object({
   mode: z.number(),

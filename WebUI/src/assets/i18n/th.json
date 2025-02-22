@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "ความเร็วในการดาวน์โหลด",
   "COM_LOADING_MODEL": "กำลังโหลดโมเดล AI",
   "COM_LOADING_MODEL_COMPONENTS": "กำลังโหลดส่วนประกอบโมเดล AI",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "กำลังติดตั้งคอมโพเนนต์เวิร์กโฟลว์",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "กำลังโหลดคอมโพเนนต์เวิร์กโฟลว์",
   "COM_NO_SELECTED": "ไม่มีการเลือก",
   "COM_CONFIRM": "ยืนยัน",
   "COM_CANCEL": "ยกเลิก",

@@ -329,7 +329,9 @@ import InfoTable from '@/components/InfoTable.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageGeneration'
+import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
+
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
 const imageGeneration = useImageGeneration()
@@ -341,7 +343,7 @@ const destImg = ref<string[]>([])
 const previewIdx = ref(-1)
 const generateIdx = ref(-999)
 const generateFinishIdx = ref(-999)
-const generateState = ref<SDGenerateState>('no_start')
+const generateState = ref<GenerateState>('no_start')
 const processing = ref(false)
 const upscaleCompt = ref<InstanceType<typeof UpscaleOptions>>()
 const imagePromptCompt = ref<InstanceType<typeof ImagePromptOptions>>()

@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "Downloadgeschwindigkeit",
   "COM_LOADING_MODEL": "KI-Modell laden",
   "COM_LOADING_MODEL_COMPONENTS": "Komponenten des KI-Modells laden",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "Workflow-Komponenten werden installiert",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "Workflow-Komponenten werden geladen",
   "COM_NO_SELECTED": "Keine Auswahl",
   "COM_CONFIRM": "Bestätigen",
   "COM_CANCEL": "Abbrechen",

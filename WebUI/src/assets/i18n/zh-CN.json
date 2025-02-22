@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "下载速度",
   "COM_LOADING_MODEL": "正在加载AI模型",
   "COM_LOADING_MODEL_COMPONENTS": "正在加载AI模型组件",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "正在安装工作流组件",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "正在加载工作流组件",
   "COM_NO_SELECTED": "未选中",
   "COM_CONFIRM": "确认",
   "COM_CANCEL": "取消",

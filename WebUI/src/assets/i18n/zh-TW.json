@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "下載速度",
   "COM_LOADING_MODEL": "模型載入中",
   "COM_LOADING_MODEL_COMPONENTS": "模型套件載入中",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "工作流程套件安裝中",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "工作流程套件載入中",
   "COM_NO_SELECTED": "無選取項目",
   "COM_CONFIRM": "確認",
   "COM_CANCEL": "取消",

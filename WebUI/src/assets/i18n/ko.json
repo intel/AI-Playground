@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "다운로드 속도",
   "COM_LOADING_MODEL": "AI 모델 로딩 중",
   "COM_LOADING_MODEL_COMPONENTS": "AI 모델 구성 요소 로딩 중",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "워크플로우 구성 요소 설치 중",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "워크플로우 구성 요소 로딩 중",
   "COM_NO_SELECTED": "선택된 항목 없음",
   "COM_CONFIRM": "확인",
   "COM_CANCEL": "취소",

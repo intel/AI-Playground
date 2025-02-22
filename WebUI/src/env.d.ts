@@ -336,14 +336,6 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type SDGenerateState =
-  | 'no_start'
-  | 'input_image'
-  | 'load_model'
-  | 'load_model_components'
-  | 'generating'
-  | 'image_out'
-  | 'error'
 
 type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend'
 

@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "Prędkość pobierania",
   "COM_LOADING_MODEL": "Ładowanie modelu AI",
   "COM_LOADING_MODEL_COMPONENTS": "Ładowanie komponentów modelu AI",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "Instalowanie komponentów przepływu pracy",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "Ładowanie komponentów przepływu pracy",
   "COM_NO_SELECTED": "Nie wybrano",
   "COM_CONFIRM": "Potwierdź",
   "COM_CANCEL": "Anuluj",

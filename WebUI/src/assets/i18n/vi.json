@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "Tốc độ tải về",
   "COM_LOADING_MODEL": "Đang tải mô hình AI",
   "COM_LOADING_MODEL_COMPONENTS": "Đang tải thành phần mô hình AI",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "Đang cài đặt thành phần quy trình",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "Đang tải thành phần quy trình",
   "COM_NO_SELECTED": "Chưa chọn",
   "COM_CONFIRM": "Xác nhận",
   "COM_CANCEL": "Hủy bỏ",

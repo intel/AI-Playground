@@ -12,6 +12,17 @@ export type RefImage = {
   image: string
 }
 
+export type GenerateState =
+  | 'no_start'
+  | 'input_image'
+  | 'install_workflow_components'
+  | 'load_workflow_components'
+  | 'load_model'
+  | 'load_model_components'
+  | 'generating'
+  | 'image_out'
+  | 'error'
+
 export type ImageInfoParameter = {
   [key: string]: string | number | boolean | RefImage
 }
@@ -622,7 +633,7 @@ export const useImageGeneration = defineStore(
     })
 
     const generatedImages = ref<Image[]>([])
-    const currentState = ref<SDGenerateState>('no_start')
+    const currentState = ref<GenerateState>('no_start')
     const stepText = ref('')
 
     function loadSettingsForActiveWorkflow() {

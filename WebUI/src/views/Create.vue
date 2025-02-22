@@ -44,18 +44,12 @@
           />
           <!-- eslint-enable -->
           <div
-            v-show="
-              imageGeneration.processing && (!currentImage || currentImage?.state === 'generating')
-            "
+            v-show="imageGeneration.processing"
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
           >
             <loading-bar
-              v-if="['load_model', 'load_model_components'].includes(imageGeneration.currentState)"
-              :text="
-                imageGeneration.currentState == 'load_model'
-                  ? languages.COM_LOADING_MODEL
-                  : languages.COM_LOADING_MODEL_COMPONENTS
-              "
+              v-if="['load_model', 'load_model_components', 'install_workflow_components', 'load_workflow_components'].includes(imageGeneration.currentState)"
+              :text="loadingStateToText(imageGeneration.currentState)"
               class="w-3/4"
             ></loading-bar>
             <div
@@ -242,5 +236,20 @@ function deleteImage() {
 
 function deleteAllImages() {
   imageGeneration.deleteAllImages()
+}
+
+function loadingStateToText(state: string) {
+  switch (state) {
+    case 'load_model':
+      return i18nState.COM_LOADING_MODEL
+    case 'load_model_components':
+      return i18nState.COM_LOADING_MODEL_COMPONENTS
+    case 'install_workflow_components':
+      return i18nState.COM_INSTALL_WORKFLOW_COMPONENTS
+    case 'load_workflow_components':
+      return i18nState.COM_LOADING_WORKFLOW_COMPONENTS
+    default:
+      return state
+  }
 }
 </script>

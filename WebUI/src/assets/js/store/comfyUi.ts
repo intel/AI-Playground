@@ -377,6 +377,8 @@ export const useComfyUi = defineStore(
       }
 
       try {
+        imageGeneration.processing = true
+        imageGeneration.currentState = 'install_workflow_components'
         await installCustomNodesForActiveWorkflowFully()
 
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
@@ -435,6 +437,7 @@ export const useComfyUi = defineStore(
             )
           }
         }
+        imageGeneration.currentState = 'load_workflow_components'
       } catch (ex) {
         console.error('Error generating image', ex)
         toast.error('Backend could not generate image.')
