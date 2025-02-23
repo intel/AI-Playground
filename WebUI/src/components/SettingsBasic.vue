@@ -169,9 +169,9 @@ const backendServices = useBackendServices()
 const theme = useTheme()
 
 const textInferenceBackendDisplayName: Record<(typeof llmBackendTypes)[number], string> = {
-  'ipexLLM': 'ipexLLM',
+  'ipexLLM': 'IPEX-LLM',
   'llamaCPP': 'llamaCPP - GGUF',
-  openVINO: 'openVINO',
+  openVINO: 'OpenVINO',
 }
 
 const themeToDisplayName = (theme: Theme) => {
