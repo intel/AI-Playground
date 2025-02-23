@@ -3,13 +3,13 @@ import { type LlmBackend } from './textInference'
 import { useBackendServices } from './backendServices'
 
 export type ModelType =
-| 'embedding'
-| 'stableDiffusion'
-| 'inpaint'
-| 'lora'
-| 'vae'
-| 'undefined'
-| LlmBackend
+  | 'embedding'
+  | 'stableDiffusion'
+  | 'inpaint'
+  | 'lora'
+  | 'vae'
+  | 'undefined'
+  | LlmBackend
 
 export type Model = {
   name: string
@@ -70,16 +70,28 @@ export const useModels = defineStore(
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
 
       const downloadedModels = [
-        ...sdModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'stableDiffusion' })),
-        ...llmModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'ipexLLM' })),
-        ...ggufModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'llamaCPP' })),
-        ...openVINOLLMModels.map<{name: string, type: ModelType}>((name) => ({
+        ...sdModels.map<{ name: string; type: ModelType }>((name) => ({
+          name,
+          type: 'stableDiffusion',
+        })),
+        ...llmModels.map<{ name: string; type: ModelType }>((name) => ({ name, type: 'ipexLLM' })),
+        ...ggufModels.map<{ name: string; type: ModelType }>((name) => ({
+          name,
+          type: 'llamaCPP',
+        })),
+        ...openVINOLLMModels.map<{ name: string; type: ModelType }>((name) => ({
           name,
           type: 'openVINO',
         })),
-        ...loraModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'lora' })),
-        ...inpaintModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'inpaint' })),
-        ...embeddingModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'embedding' })),
+        ...loraModels.map<{ name: string; type: ModelType }>((name) => ({ name, type: 'lora' })),
+        ...inpaintModels.map<{ name: string; type: ModelType }>((name) => ({
+          name,
+          type: 'inpaint',
+        })),
+        ...embeddingModels.map<{ name: string; type: ModelType }>((name) => ({
+          name,
+          type: 'embedding',
+        })),
       ]
 
       const notYetDownloaded = (model: { name: string }) =>
@@ -91,9 +103,11 @@ export const useModels = defineStore(
         ...downloadedModels,
         ...predefinedModels.filter(notYetDownloaded),
         ...models.value.filter(notPredefined).filter(notYetDownloaded),
-      ].map<Model>((m) => ({ ...m,
+      ].map<Model>((m) => ({
+        ...m,
         downloaded: downloadedModels.map((dm) => dm.name).includes(m.name),
-        default: predefinedModels.find((pm) => pm.name === m.name)?.default ?? false }))
+        default: predefinedModels.find((pm) => pm.name === m.name)?.default ?? false,
+      }))
     }
 
     async function download(_models: DownloadModelParam[]) {}
@@ -103,15 +117,15 @@ export const useModels = defineStore(
     }
 
     const aipgBackendUrl = () => {
-      const aiBackendUrl = backendServices.info.find((item) => item.serviceName === 'ai-backend')?.baseUrl
+      const aiBackendUrl = backendServices.info.find(
+        (item) => item.serviceName === 'ai-backend',
+      )?.baseUrl
       if (!aiBackendUrl) throw new Error('AIPG Backend not running')
       return aiBackendUrl
     }
 
     async function checkIfHuggingFaceUrlExists(repo_id: string) {
-      const response = await fetch(
-        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`,
-      )
+      const response = await fetch(`${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`)
       const data = await response.json()
       return data.exists
     }

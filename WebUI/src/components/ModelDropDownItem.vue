@@ -8,7 +8,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { type LlmModel } from '@/assets/js/store/textInference';
+import { type LlmModel } from '@/assets/js/store/textInference'
 
 // only shows the filename for .gguf models
 function toDisplayName(name: string) {

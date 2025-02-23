@@ -230,12 +230,16 @@
           <div class="flex items-center">
             <drop-selector
               :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
-              @change="(i) => (textInference.selectModel(textInference.backend, i.name))"
+              @change="(i) => textInference.selectModel(textInference.backend, i.name)"
               class="w-96"
             >
               <template #selected>
                 <model-drop-down-item
-                  :model="textInference.llmModels.filter((m) => m.type === textInference.backend).find((m) => m.active)"
+                  :model="
+                    textInference.llmModels
+                      .filter((m) => m.type === textInference.backend)
+                      .find((m) => m.active)
+                  "
                 ></model-drop-down-item>
               </template>
               <template #list="slotItem">

@@ -88,7 +88,6 @@ function onShow() {
 }
 
 async function addModel() {
-
   const cancelAndShowWarning = (text: string) => {
     addModelErrorMessage.value = text
     addModelError.value = true
@@ -116,7 +115,12 @@ async function addModel() {
 
   const isLlm = await isLLM(modelRequest.value)
   const downloadNewModel = async () => {
-    await models.addModel({ name: modelRequest.value, type: textInference.backend, downloaded: false, default: false })
+    await models.addModel({
+      name: modelRequest.value,
+      type: textInference.backend,
+      downloaded: false,
+      default: false,
+    })
     textInference.selectModel(textInference.backend, modelRequest.value)
     emits('callCheckModel')
     closeAdd()

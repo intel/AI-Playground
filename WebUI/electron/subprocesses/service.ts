@@ -101,7 +101,10 @@ abstract class ExecutableService extends GenericServiceImpl {
 }
 
 export class PythonService extends ExecutableService {
-  constructor(readonly dir: string, readonly serviceDir: string) {
+  constructor(
+    readonly dir: string,
+    readonly serviceDir: string,
+  ) {
     super('python', dir)
   }
 
@@ -120,7 +123,9 @@ export class PythonService extends ExecutableService {
   }
 
   async install(): Promise<void> {
-    this.log(`installing python env at ${this.dir} from ${this.name} for service ${this.serviceDir}`)
+    this.log(
+      `installing python env at ${this.dir} from ${this.name} for service ${this.serviceDir}`,
+    )
     await this.clonePythonEnv()
   }
 
@@ -140,21 +145,27 @@ export class PythonService extends ExecutableService {
     }
     this.log(`copying prototypical python env to ${this.dir}`)
     await filesystem.copy(this.prototypicalEnvDir, this.dir)
-    filesystem.writeFile(path.join(this.dir, 'python311._pth'), `
+    filesystem.writeFile(
+      path.join(this.dir, 'python311._pth'),
+      `
     python311.zip
     .
     ../${this.serviceDir}
 
     # Uncomment to run site.main() automatically
     import site
-    `)
+    `,
+    )
   }
 }
 
 export class PipService extends ExecutableService {
   readonly python: PythonService
 
-  constructor(readonly pythonEnvDir: string, readonly serviceDir: string) {
+  constructor(
+    readonly pythonEnvDir: string,
+    readonly serviceDir: string,
+  ) {
     super('pip', pythonEnvDir)
     this.log(`setting up pip service at ${this.dir} for service ${this.serviceDir}`)
     this.python = new PythonService(this.dir, this.serviceDir)
@@ -231,7 +242,10 @@ export class UvPipService extends PipService {
   readonly pip: PipService
   readonly python: PythonService
 
-  constructor(readonly pythonEnvDir: string, readonly serviceDir: string) {
+  constructor(
+    readonly pythonEnvDir: string,
+    readonly serviceDir: string,
+  ) {
     super(pythonEnvDir, serviceDir)
     this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
     this.pip = new PipService(this.dir, this.serviceDir)

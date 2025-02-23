@@ -82,7 +82,9 @@ export const useTextInference = defineStore(
     }
 
     const activeModel = computed(() => {
-      const newActiveModel = llmModels.value.filter((m) => m.type === backend.value).find((m) => m.active)?.name
+      const newActiveModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)?.name
       console.log('activeModel changed', newActiveModel)
       return newActiveModel
     })
