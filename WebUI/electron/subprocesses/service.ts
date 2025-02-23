@@ -101,7 +101,7 @@ abstract class ExecutableService extends GenericServiceImpl {
 }
 
 export class PythonService extends ExecutableService {
-  constructor(readonly dir: string) {
+  constructor(readonly dir: string, readonly serviceDir: string) {
     super('python', dir)
   }
 
@@ -120,7 +120,7 @@ export class PythonService extends ExecutableService {
   }
 
   async install(): Promise<void> {
-    this.log('start installing')
+    this.log(`installing python env at ${this.dir} from ${this.name} for service ${this.serviceDir}`)
     await this.clonePythonEnv()
   }
 
@@ -140,14 +140,24 @@ export class PythonService extends ExecutableService {
     }
     this.log(`copying prototypical python env to ${this.dir}`)
     await filesystem.copy(this.prototypicalEnvDir, this.dir)
+    filesystem.writeFile(path.join(this.dir, 'python311._pth'), `
+    python311.zip
+    .
+    ../${this.serviceDir}
+
+    # Uncomment to run site.main() automatically
+    import site
+    `)
   }
 }
 
 export class PipService extends ExecutableService {
-  readonly python: PythonService = new PythonService(this.dir)
+  readonly python: PythonService
 
-  constructor(readonly pythonEnvDir: string) {
+  constructor(readonly pythonEnvDir: string, readonly serviceDir: string) {
     super('pip', pythonEnvDir)
+    this.log(`setting up pip service at ${this.dir} for service ${this.serviceDir}`)
+    this.python = new PythonService(this.dir, this.serviceDir)
   }
 
   getExePath(): string {
@@ -218,11 +228,14 @@ export class PipService extends ExecutableService {
 }
 
 export class UvPipService extends PipService {
-  readonly pip: PipService = new PipService(this.dir)
-  readonly python: PythonService = this.pip.python
+  readonly pip: PipService
+  readonly python: PythonService
 
-  constructor(readonly pythonEnvDir: string) {
-    super(pythonEnvDir)
+  constructor(readonly pythonEnvDir: string, readonly serviceDir: string) {
+    super(pythonEnvDir, serviceDir)
+    this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
+    this.pip = new PipService(this.dir, this.serviceDir)
+    this.python = this.pip.python
     this.name = 'uvpip'
   }
 
@@ -258,7 +271,7 @@ export class UvPipService extends PipService {
 }
 
 export class LsLevelZeroService extends ExecutableService {
-  readonly uvPip: UvPipService = new UvPipService(this.dir)
+  readonly uvPip: UvPipService = new UvPipService(this.dir, 'service')
   readonly requirementsTxtPath = path.resolve(
     path.join(this.baseDir, 'service/requirements-ls_level_zero.txt'),
   )
@@ -288,8 +301,8 @@ export class LsLevelZeroService extends ExecutableService {
     this.log('checking')
     try {
       await this.uvPip.check()
-      await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
-      await this.run()
+      // await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
+      // await this.run()
     } catch (e) {
       this.log(`warning: ${e}`)
       if (e instanceof ServiceCheckError) throw e

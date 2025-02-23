@@ -4,8 +4,9 @@ import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from './service.ts'
 
+const serviceFolder = 'openVINO'
 export class OpenVINOBackendService extends LongLivedPythonApiService {
-  readonly serviceDir = path.resolve(path.join(this.baseDir, 'OpenVINO'))
+  readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `openvino-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
@@ -14,7 +15,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/health`
 
   readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
-  readonly uvPip = new UvPipService(this.pythonEnvDir)
+  readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
 
   serviceIsSetUp(): boolean {

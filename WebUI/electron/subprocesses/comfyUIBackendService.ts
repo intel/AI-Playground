@@ -9,15 +9,17 @@ import {
   LongLivedPythonApiService,
   aiBackendServiceDir,
   GitService,
+  UvPipService,
 } from './service.ts'
 
+const serviceFolder = 'ComfyUI'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
-  readonly serviceDir = path.resolve(path.join(this.baseDir, 'ComfyUI'))
+  readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
-  readonly lsLevelZeroDir = this.pythonEnvDir
+  readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
   readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
-  readonly uvPip = this.lsLevelZero.uvPip
+  readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
