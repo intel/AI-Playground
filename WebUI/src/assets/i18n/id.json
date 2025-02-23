@@ -244,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Model ini memerlukan banyak VRAM. Kurangi resolusi dan/atau mulai ulang backend ComfyUI jika Anda mengalami masalah kinerja.",
   "WORKFLOW_HIGH_VRAM_WARNING": "VRAM tinggi diperlukan",
   "LOADING_VERIFYING_BACKENDS": "Memverifikasi backend",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Sedang Memuat"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Sedang Memuat",
+  "COM_CLEAR_HISTORY": "Hapus Riwayat",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Perangkat"
 }

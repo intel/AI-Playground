@@ -244,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "このモデルは大量のビデオメモリ（VRAM）を必要とします。パフォーマンスが低下する場合は、解像度を下げるか、ComfyUIバックエンドを再起動してください。",
   "WORKFLOW_HIGH_VRAM_WARNING": "大量のビデオメモリが必要",
   "LOADING_VERIFYING_BACKENDS": "バックエンドを確認中",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 読み込み中"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 読み込み中",
+  "COM_CLEAR_HISTORY": "履歴を消去",
+  "INPUT_PROMPT": "プロンプト",
+  "BACKEND": "バックエンド",
+  "DEVICE": "デバイス"
 }

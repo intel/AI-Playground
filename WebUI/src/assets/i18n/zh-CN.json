@@ -244,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "此模型需要大量显存。如果遇到性能问题，请降低分辨率或重启ComfyUI后端",
   "WORKFLOW_HIGH_VRAM_WARNING": "需要大量显存",
   "LOADING_VERIFYING_BACKENDS": "验证后端",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 加载中"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 加载中",
+  "COM_CLEAR_HISTORY": "清除历史",
+  "INPUT_PROMPT": "提示",
+  "BACKEND": "后端",
+  "DEVICE": "设备"
 }

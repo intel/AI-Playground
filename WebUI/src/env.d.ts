@@ -336,7 +336,6 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-
 type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend'
 
 type ApiServiceInformation = {

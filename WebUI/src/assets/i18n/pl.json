@@ -244,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Ten model wymaga dużo pamięci VRAM. Zmniejsz rozdzielczość i/lub uruchom ponownie backend ComfyUI w przypadku problemów z wydajnością.",
   "WORKFLOW_HIGH_VRAM_WARNING": "wymagana duża ilość VRAM",
   "LOADING_VERIFYING_BACKENDS": "Weryfikacja backendów",
-  "LOADING_AI_PLAYGROUND_LOADING": "Ładowanie AI Playground"
+  "LOADING_AI_PLAYGROUND_LOADING": "Ładowanie AI Playground",
+  "COM_CLEAR_HISTORY": "Wyczyść historię",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Urządzenie"
 }

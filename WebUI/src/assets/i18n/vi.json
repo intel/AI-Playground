@@ -244,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Mô hình này yêu cầu nhiều VRAM. Giảm độ phân giải và/hoặc khởi động lại backend ComfyUI khi gặp hiệu suất kém.",
   "WORKFLOW_HIGH_VRAM_WARNING": "yêu cầu VRAM cao",
   "LOADING_VERIFYING_BACKENDS": "Đang xác minh backends",
-  "LOADING_AI_PLAYGROUND_LOADING": "Đang tải AI Playground"
+  "LOADING_AI_PLAYGROUND_LOADING": "Đang tải AI Playground",
+  "COM_CLEAR_HISTORY": "Xóa lịch sử",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Thiết bị"
 }

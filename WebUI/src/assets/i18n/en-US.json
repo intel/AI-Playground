@@ -245,7 +245,6 @@
   "WORKFLOW_HIGH_VRAM_WARNING": "high VRAM required",
   "LOADING_VERIFYING_BACKENDS": "Verifying backends",
   "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Loading",
-
   "COM_CLEAR_HISTORY": "Clear History",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",

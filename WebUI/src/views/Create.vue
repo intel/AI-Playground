@@ -48,7 +48,14 @@
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
           >
             <loading-bar
-              v-if="['load_model', 'load_model_components', 'install_workflow_components', 'load_workflow_components'].includes(imageGeneration.currentState)"
+              v-if="
+                [
+                  'load_model',
+                  'load_model_components',
+                  'install_workflow_components',
+                  'load_workflow_components',
+                ].includes(imageGeneration.currentState)
+              "
               :text="loadingStateToText(imageGeneration.currentState)"
               class="w-3/4"
             ></loading-bar>
