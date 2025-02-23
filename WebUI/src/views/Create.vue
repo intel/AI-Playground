@@ -43,7 +43,9 @@
           >
             <!-- eslint-enable -->
             <img v-if="!isVideo(image)" :src="image.imageUrl" />
-            <video v-else :src="image.videoUrl" :type="image.videoFormat" />
+            <video v-else>
+              <source :src="image.videoUrl" :type="image.videoFormat" />
+            </video>
           </div>
           <div
             v-show="imageGeneration.processing"

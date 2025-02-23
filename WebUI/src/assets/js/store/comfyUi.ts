@@ -263,9 +263,10 @@ export const useComfyUi = defineStore(
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
                 const gifFromOutput: {
                   filename: string
-                  workflow_name: string
+                  workflow: string
                   type: string
                   subfolder: string
+                  format: string
                 } = msg.data?.output?.gifs?.find((i: { type: string }) => i.type === 'output')
                 const currentImage = queuedImages[generateIdx]
                 let newImage: Media
@@ -280,8 +281,9 @@ export const useComfyUi = defineStore(
                   newImage = {
                     ...currentImage,
                     state: 'done',
-                    imageUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.filename}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
-                    videoUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.workflow_name}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
+                    imageUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.workflow}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
+                    videoUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.filename}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
+                    videoFormat: gifFromOutput.format,
                   }
                 }
                 imageGeneration.updateImage(newImage!)
