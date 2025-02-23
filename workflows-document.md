@@ -6,18 +6,18 @@
 | :---- | :---- |
 | “name” |**Required**: Yes<br>**Value Type**: Text string in quotes <br>**Description**: name of workflow as it should show in the workflow dropdown|
 | “displayPriority” |  **Required**: No <br>**Value Type**: Integer <br>**Description**: If present will provide an order hierarchy for the workflow dropdown. Higher number is higher in the list</li></ui>  |
-| “tags” |  **Required**: No <br>**Value Type**: String Array, <br>**Description:** List of tags in quotes separated by commas, these are listed in the Workflow list</li></ui> |
-| “backend” | **Required**, yes set value to “comfyui” |
-| “comfyuiRequirements” | **Required**, yes, this is where the dependecies for models and nodes are defined |
-| “customNodes”  | **Required**: yes if no custom nodes leave as empty brackets \[ \] <br>**Description**: A list of required custom nodes for this workflow <br>**Syntax**: \[“host/nodename@node-ID”\]<br> ie\["city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"\] |
-| “requiredModels” | **Required**: yes, if no model dependencies leave as empty brackets \[ \] <br>**Description**: A list of required models for this workflow <br>**Syntax** <br>“**type**”: text string in quotes for the folder location for the model <br>ie “unet” <br>“**model**”: text string in quotes of the models huggingface id <br> ie "city96/FLUX.1-schnell-gguf/flux1-schnell-Q4\_K\_S.gguf" |
-| “requirements” | **Required**: yes if nothing leave as empty brackets \[ \] Type:  Text string in quotes  Description: A tag that if used can trigger other information in the UI <br>**Allowed Values:** “high-vram” |
-| “inputs”  | **Required**: yes if nothing leave as empty brackets \[ \] <br>**Description**: Add inputs to settings menu, such as number sliders, text strings, load image etc. <br>**Syntax**: <br>"_nodeTitle_": the name of the node this input will influence <br>"nodeInput": the name of the field in that node this input will influence <br>"_type_": the type of input ie: number, string, image <br>"_label_": text string for the label of this input in the settings menu <br>"_defaultValue_": the default value for this node, which will need to match the value type<br>If the input is an image use the value found at the bottom of this document <br>**Number Syntax**: additional values for a number input <br>"_step_":  a float or integer value that will be the increment values between the minimum and maximum value <br>"_min_": the lowest value this number can be <br>"_max_": the highest value this number can be |
-| “outputs” | **Required**: yes if nothing leave as empty brackets \[ \] <br>**Type**:  Text string in quotes  <br>**Description**: A tag that if used can trigger other information in the UI <br>**Allowed Values**: “high-vram” |
-| “defaultSettings" | **Required**: yes <br>**Description**: data from ComfyUI that will come back to the AI Playground UI Syntax “name”: text string of the data being used for output <br> ie “output\_image” “type”: type of data <br>ie: “image”  |
-| "displayedSettings" | **Required**: yes if no default values need leave as empty brackets \[ \] <br>**Description**: Input types you’d like to show in settings, but are not modifiable such as: “resolution”, “seed”, prompt” “inferenceSteps”, “batchSize, “cfg”, “prompt”, “negativePrompt” <br>**Syntax**: “inputField” ie "scheduler", "cfg"  |
-| "modifiableSettings"  | **Required**: yes if no default values need leave as empty brackets \[ \] <br>**Description**: Input types you’d like the user to adjust: “resolution”, “seed”, prompt” “inferenceSteps”, “batchSize, “cfg”, “negativePrompt” <br>**Syntax**: “inputField” ie "inferenceSteps", "seed" |
-| "comfyUiApiWorkflow": | **Required**: yes <br>**Description**: This section should be a copy and paste of the API export of the workflow created in ComfyUI. 
+| “tags” |  **Required**: Yes, if no tags leave as empty brackets \[ \] <br>**Value Type**: String Array, <br>**Description:** List of tags in quotes separated by commas, these are listed in the Workflow list</li></ui> |
+| “backend” | **Required**: Yes, set value to “comfyui” |
+| “comfyuiRequirements” | **Required**: Yes, this is where the dependecies for models and nodes are defined |
+| “customNodes”  | **Required**: Yes, if no custom nodes leave as empty brackets \[ \] <br>**Description**: A list of required custom nodes for this workflow <br>**Syntax**: \[“githubOwner/repoName@commitHash”\]<br> ie\["city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"\] |
+| “requiredModels” | **Required**: No <br>**Description**: A list of required models for this workflow <br>**Syntax** <br>“**type**”: text string in quotes for the folder location for the model <br>ie “unet” <br>“**model**”: text string in quotes of the models huggingface id <br> ie "city96/FLUX.1-schnell-gguf/flux1-schnell-Q4\_K\_S.gguf" |
+| “requirements” | **Required**: Yes, if nothing leave as empty brackets \[ \] <br>**Type**:  Text string in quotes  <br>**Description**: A tag that if used can trigger other information in the UI <br>**Allowed Values:** “high-vram” |
+| “inputs”  | **Required**: Yes, if nothing leave as empty brackets \[ \] <br>**Description**: Add inputs to settings menu, such as number sliders, text strings, load image etc. <br>**Syntax**: <br>"_nodeTitle_": the title of the node in ComfyUI this input will influence <br>"_nodeInput_": the name of the field in that node this input will influence <br>"_type_": the type of input ie: number, string, image <br>"_label_": text string for the label of this input in the settings menu <br>"_defaultValue_": the default value for this node, which will need to match the value type<br>If the input is an image use the value found at the bottom of this document <br>**Number Syntax**: additional values for a number input <br>"_step_":  a float or integer value that will be the increment values between the minimum and maximum value <br>"_min_": the lowest value this number can be <br>"_max_": the highest value this number can be |
+| “outputs” | **Required**: Yes, leave as empty brackets \[ \]
+| “defaultSettings" | **Required**: No <br>**Description**: Default values for settings when they should differ from the AIPG default <br>**Syntax**: { setting1: value, ... }, e.g. { inferenceSteps: 10 }  |
+| "displayedSettings" | **Required**: Yes, if no default values need leave as empty brackets \[ \] <br>**Description**: Input types you’d like to show in settings, but are not modifiable such as: “resolution”, “seed”, prompt” “inferenceSteps”, “batchSize, “cfg”, “prompt”, “negativePrompt” <br>**Syntax**: “inputField” ie "scheduler", "cfg"  |
+| "modifiableSettings"  | **Required**: Yes, if no default values need leave as empty brackets \[ \] <br>**Description**: Input types you’d like the user to adjust: “resolution”, “seed”, prompt” “inferenceSteps”, “batchSize, “cfg”, “negativePrompt” <br>**Syntax**: “inputField” ie "inferenceSteps", "seed" |
+| "comfyUiApiWorkflow": | **Required**: Yes <br>**Description**: This section should be a copy and paste of the API export of the workflow created in ComfyUI. 
 
 ## Instructions
 
@@ -26,7 +26,7 @@
 * Select an existing workflow and make a copy of it
 * Change the name of the workflow keeping the .json at the end
 * Open the workflow in a text or code editor and edit the workflow name and other tags for your new workflow needs. Follow the above guide for editing the workflow for your new workflow
-* In AI Playground, refesh the list of workflows to see your workflow in the list - See first row in table above
+* In AI Playground, refresh the list of workflows to see your workflow in the list - See first row in table above
 * Follow the next steps to edit the "comfyUiApiWorkflow" section
 
 **Adding API data intro an AI Playground Workflow JSON**
@@ -71,7 +71,7 @@
 * “resolution”,   
 * “inferenceSteps”  
 * “seed”  
-* “cfg”  
+* “guidanceScale” 
 * “sampler”  
 * “scheduler”  
 * “batchSize”  

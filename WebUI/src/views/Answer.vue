@@ -27,7 +27,7 @@
           <div
             v-if="isHistoryVisible"
             v-for="(conversation, conversationKey) in conversations.conversationList"
-            :key="conversationKey"
+            :key="'if' + conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
             class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
@@ -45,6 +45,7 @@
           <div
             v-else
             v-for="(conversation, conversationKey) in conversations.conversationList"
+            :key="'else' + conversationKey"
             :inVisibleKey="conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
@@ -91,14 +92,18 @@
         :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
+        <!-- eslint-disable vue/require-v-for-key -->
         <template v-for="(chat, i) in conversations.activeConversation">
+          <!-- eslint-enable -->
           <div class="flex items-start gap-3">
             <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
             <div class="flex flex-col gap-3 max-w-3/4">
               <p class="text-gray-300" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_USER_NAME }}
               </p>
-              <pre class="chat-content">{{ chat.question }}</pre>
+              <div class="chat-content" style="white-space: pre-wrap">
+                {{ chat.question }}
+              </div>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -176,7 +181,9 @@
             <p class="text-gray-300" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
-            <p v-html="textIn"></p>
+            <div class="chat-content" style="white-space: pre-wrap">
+              {{ textIn }}
+            </div>
           </div>
         </div>
         <div
@@ -187,9 +194,21 @@
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
-            <p class="text-gray-300" :class="textInference.nameSizeClass">
-              {{ languages.ANSWER_AI_NAME }}
-            </p>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_AI_NAME }}
+              </p>
+              <span
+                class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                :class="textInference.nameSizeClass"
+              >
+                {{
+                  textInference.backend === 'IPEX-LLM'
+                    ? globalSetup.modelSettings.llm_model
+                    : globalSetup.modelSettings.ggufLLM_model
+                }}
+              </span>
+            </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
               class="ai-answer cursor-block break-all"
@@ -261,6 +280,24 @@
                 <span class="svg-icon i-clear w-4 h-4"></span>
                 <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
             </button> -->
+            <button
+              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
+              @click="textInference.increaseFontSize"
+              :disabled="textInference.isMaxSize"
+              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
+            >
+              <span class="svg-icon i-zoom-in w-4 h-4"></span>
+              <span>{{ languages.INCREASE_FONT_SIZE }}</span>
+            </button>
+            <button
+              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
+              @click="textInference.decreaseFontSize"
+              :disabled="textInference.isMinSize"
+              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
+            >
+              <span class="svg-icon i-zoom-out w-4 h-4"></span>
+              <span>{{ languages.DECREASE_FONT_SIZE }}</span>
+            </button>
           </div>
           <div
             v-show="textInference.backend !== 'llamaCPP'"
@@ -516,6 +553,7 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
+    max_tokens: textInference.maxTokens,
     model_repo_id: textInference.activeModel,
     print_metrics: false,
     max_new_tokens: 7,
@@ -604,6 +642,10 @@ async function simulatedInput() {
 
 function fastGenerate(e: KeyboardEvent) {
   if (e.code == 'Enter') {
+    if (processing.value) {
+      return
+    }
+
     if (e.ctrlKey || e.shiftKey || e.altKey) {
       question.value += '\n'
     } else {
@@ -675,6 +717,7 @@ async function generate(chatContext: ChatItem[]) {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       enable_rag: ragData.enable && textInference.backend === 'ipexLLM',
+      max_tokens: textInference.maxTokens,
       model_repo_id: textInference.activeModel,
     }
     const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {

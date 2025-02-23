@@ -89,6 +89,7 @@ export const useTextInference = defineStore(
       return newActiveModel
     })
     const metricsEnabled = ref(false)
+    const maxTokens = ref<number>(1024)
 
     const currentBackendUrl = computed(
       () =>
@@ -156,6 +157,7 @@ export const useTextInference = defineStore(
       llmModels,
       currentBackendUrl,
       metricsEnabled,
+      maxTokens,
       fontSizeClass,
       nameSizeClass,
       iconSizeClass,
@@ -170,7 +172,7 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels'],
+      pick: ['backend', 'selectedModels', 'maxTokens'],
     },
   },
 )

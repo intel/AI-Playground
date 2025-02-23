@@ -32,6 +32,7 @@ class LLMParams:
     device: int
     enable_rag: bool
     model_repo_id: str
+    max_tokens: int
     print_metrics: bool
     generation_parameters: Dict[str, Any]
 
@@ -42,6 +43,7 @@ class LLMParams:
             device: int,
             enable_rag: bool,
             model_repo_id: str,
+            max_tokens: int,
             print_metrics: bool = True,
             **kwargs
     ) -> None:
@@ -49,6 +51,7 @@ class LLMParams:
         self.device = device
         self.enable_rag = enable_rag
         self.model_repo_id = model_repo_id
+        self.max_tokens = max_tokens
         self.print_metrics = print_metrics
         self.generation_parameters = kwargs
 
@@ -183,7 +186,7 @@ def chat(
         prompt = params.prompt
         enable_rag = params.enable_rag
         model_repo_id = params.model_repo_id
-        max_token = 1024
+        max_tokens = params.max_tokens
 
         _generating = True
 
@@ -245,7 +248,7 @@ def chat(
         with torch.inference_mode():
             all_stream_output = ""
             for stream_output in generate(
-                    prompt, _model, _tokenizer, max_token, error_callback
+                    prompt, _model, _tokenizer, max_tokens, error_callback
             ):
                 assert_stop_generate()
 
