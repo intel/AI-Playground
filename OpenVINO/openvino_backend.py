@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Callable
+from typing import Dict, List, Callable
 from os import path
 from openvino_interface import LLMInterface
 import openvino_genai
@@ -34,14 +34,9 @@ class OpenVino(LLMInterface):
                 callback("finish")
 
 
-
-    def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None], generation_parameters: Dict[str, Any]):
+    def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None], max_tokens: int = 1024):
         config = openvino_genai.GenerationConfig()
-        if generation_parameters.get("max_new_tokens"):
-            config.max_new_tokens = generation_parameters["max_new_tokens"]
-        else:
-            # TODO: set default 
-            config.max_new_tokens = 1024
+        config.max_new_tokens = max_tokens
 
         full_prompt = self._tokenizer.apply_chat_template(messages, add_generation_prompt=True)
         return self._model.generate(full_prompt, config, streamer)

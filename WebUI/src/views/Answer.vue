@@ -202,11 +202,7 @@
                 class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                 :class="textInference.nameSizeClass"
               >
-                {{
-                  textInference.backend === 'IPEX-LLM'
-                    ? globalSetup.modelSettings.llm_model
-                    : globalSetup.modelSettings.ggufLLM_model
-                }}
+                {{ textInference.activeModel }}
               </span>
             </div>
             <div
@@ -553,10 +549,9 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
-    max_tokens: textInference.maxTokens,
+    max_tokens: 8,
     model_repo_id: textInference.activeModel,
     print_metrics: false,
-    max_new_tokens: 7,
   }
   const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
     method: 'POST',
@@ -868,6 +863,17 @@ async function disableRag() {
     console.error(`Disabling rag failed due to ${e}`)
   }
 }
+
+watch(
+  () => textInference.backend,
+  (newBackend, _oldBackend) => {
+    if (newBackend === 'ipexLLM') {
+      restoreRagState()
+    } else {
+      disableRag()
+    }
+  },
+)
 
 async function restoreRagState() {
   ragData.processEnable = true

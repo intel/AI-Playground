@@ -3,11 +3,8 @@ from queue import Empty, Queue
 import json
 import traceback
 from typing import Dict, List, Callable
-#from model_downloader import NotEnoughDiskSpaceException, DownloadException
-#from psutil._common import bytes2human
 from openvino_interface import LLMInterface
 from openvino_params import LLMParams
-
 
 RAG_PROMPT_FORMAT = "Answer the questions based on the information below. \n{context}\n\nQuestion: {prompt}"
 
@@ -110,7 +107,7 @@ class LLM_SSE_Adapter:
             
             prompt = params.prompt
             full_prompt = convert_prompt(prompt)
-            self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.generation_parameters)
+            self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.max_tokens)
         
         except Exception as ex:
             traceback.print_exc()

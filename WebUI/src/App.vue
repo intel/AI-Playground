@@ -246,12 +246,10 @@ import { useTheme } from './assets/js/store/theme.ts'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import WarningDialog from '@/components/WarningDialog.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
-import { useTextInference } from '@/assets/js/store/textInference.ts'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
-const textInference = useTextInference()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<InstanceType<typeof Answer>>()
@@ -367,14 +365,6 @@ function switchTab(index: number) {
     answer.value!.disableRag()
   }
 }
-
-watch(textInference, (newSetting, _oldSetting) => {
-  if (newSetting.backend === 'llamaCPP') {
-    answer.value!.disableRag()
-  } else {
-    answer.value!.restoreRagState()
-  }
-})
 
 function miniWindow() {
   window.electronAPI.miniWindow()
