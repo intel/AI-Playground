@@ -135,8 +135,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         path.join(aiBackendServiceDir(), `requirements-${deviceArch}.txt`),
       )
       await this.uvPip.pip.run(['install', '-r', deviceSpecificRequirements])
-      if (deviceArch === 'bmg') {
-        const intelSpecificExtension = existingFileOrError(this.customIntelExtensionForPytorch)
+      if (deviceArch === 'bmg' || deviceArch === 'arl_h') {
+        const intelSpecificExtension = existingFileOrError(this.getIPEXWheelPath(deviceArch))
         await this.uvPip.pip.run(['install', intelSpecificExtension])
       }
       yield {

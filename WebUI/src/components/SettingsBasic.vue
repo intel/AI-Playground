@@ -105,28 +105,15 @@
           ></button>
         </div>
       </div>
-    </div>
-    <div class="flex items-center justify-center gap-3">
-      <p>Adjust Font Size</p>
-      <button
-        class="flex items-center justify-center gap-2 border border-white rounded-md text-sm px-4 py-1"
-        @click="textInference.increaseFontSize"
-        :disabled="textInference.isMaxSize"
-        :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
-      >
-        <span class="svg-icon i-zoom-in w-4 h-4"></span>
-        <span>{{ languages.INCREASE_FONT_SIZE }}</span>
-      </button>
-
-      <button
-        class="flex items-center justify-center gap-2 border border-white rounded-md text-sm px-4 py-1"
-        @click="textInference.decreaseFontSize"
-        :disabled="textInference.isMinSize"
-        :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
-      >
-        <span class="svg-icon i-zoom-out w-4 h-4"></span>
-        <span>{{ languages.DECREASE_FONT_SIZE }}</span>
-      </button>
+      <div class="flex flex-col gap-2">
+        <p>Max Tokens</p>
+        <slide-bar
+          v-model:current="textInference.maxTokens"
+          :min="0"
+          :max="4096"
+          :step="1"
+        ></slide-bar>
+      </div>
     </div>
   </div>
   <div class="flex flex-col gap-3">
@@ -162,6 +149,7 @@ import { useTextInference, backendTypes, Backend } from '@/assets/js/store/textI
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import SlideBar from '../components/SlideBar.vue'
 
 const globalSetup = useGlobalSetup()
 const textInference = useTextInference()

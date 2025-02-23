@@ -1,6 +1,7 @@
 import threading
 from queue import Empty, Queue
 import json
+import time
 import traceback
 from typing import Dict, List, Callable
 #from model_downloader import NotEnoughDiskSpaceException, DownloadException
@@ -92,7 +93,13 @@ class LLM_SSE_Adapter:
         return self.generator()
     
 
-    def stream_function(self, stream):
+    def stream_function(self, stream):  
+        num_tokens = 0
+        start_time = time.time()
+        is_first = True
+        first_token_time = 0.0
+        last_token_time = 0.0
+
         for output in stream:
             if self.llm_interface.stop_generate:
                 self.llm_interface.stop_generate = False
@@ -104,6 +111,26 @@ class LLM_SSE_Adapter:
             else:
                 # openai style
                 self.text_out_callback(output["choices"][0]["delta"].get("content",""))
+                num_tokens += 1
+
+                if is_first:
+                    first_token_time = time.time()
+                    is_first = False
+
+        last_token_time = time.time()
+
+        metrics_data = {
+            "type": "metrics",
+            "num_tokens": num_tokens,
+            "total_time": last_token_time - start_time,
+            "overall_tokens_per_second": num_tokens / (last_token_time - start_time),
+            "second_plus_tokens_per_second": (num_tokens - 1) / (last_token_time - first_token_time),
+            "first_token_latency": first_token_time - start_time,
+            "after_token_latency": (last_token_time - first_token_time) / (num_tokens - 1) if num_tokens > 1 else None
+        }
+
+        self.put_msg(metrics_data)
+
         self.put_msg({"type": "finish"})
 
     def text_conversation_run(
