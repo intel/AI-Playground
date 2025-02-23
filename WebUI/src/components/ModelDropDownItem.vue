@@ -8,7 +8,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { type Model } from '../assets/js/store/models'
+import { type LlmModel } from '@/assets/js/store/textInference';
 
 // only shows the filename for .gguf models
 function toDisplayName(name: string) {
@@ -18,13 +18,15 @@ function toDisplayName(name: string) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = withDefaults(
   defineProps<{
-    model?: Model
+    model?: LlmModel
   }>(),
   {
     model: () => ({
       name: 'model not found',
-      type: 'llm',
+      type: 'ipexLLM',
       downloaded: false,
+      default: false,
+      active: false,
     }),
   },
 )

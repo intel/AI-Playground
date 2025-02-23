@@ -44,7 +44,7 @@
       <p>{{ languages.SETTINGS_LLM_BACKEND }}</p>
       <div class="flex items-center gap-2">
         <drop-selector
-          :array="[...backendTypes]"
+          :array="[...llmBackendTypes]"
           @change="(item) => (textInference.backend = item)"
         >
           <template #selected>
@@ -59,7 +59,7 @@
               <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
               <!--       Flag LlamaCpp as experimental       -->
               <span
-                v-if="textInference.backend == 'LLAMA.CPP'"
+                v-if="textInference.backend == 'llamaCPP'"
                 class="rounded-lg h-4 px-1 text-xs"
                 :style="{ 'background-color': '#cc00ff88' }"
               >
@@ -77,10 +77,10 @@
                 }"
               ></span>
               <span>{{
-                textInferenceBackendDisplayName[slotItem.item as (typeof backendTypes)[number]]
+                textInferenceBackendDisplayName[slotItem.item as (typeof llmBackendTypes)[number]]
               }}</span>
               <span
-                v-if="slotItem.item == 'LLAMA.CPP'"
+                v-if="slotItem.item == 'llamaCPP'"
                 class="rounded-lg h-4 px-1 text-xs"
                 :style="{ 'background-color': '#cc00ff88' }"
               >
@@ -158,7 +158,7 @@ import RadioBlock from '../components/RadioBlock.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 
 import { useTheme } from '@/assets/js/store/theme'
-import { useTextInference, backendTypes, Backend } from '@/assets/js/store/textInference'
+import { useTextInference, llmBackendTypes, LlmBackend } from '@/assets/js/store/textInference'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
@@ -168,10 +168,10 @@ const textInference = useTextInference()
 const backendServices = useBackendServices()
 const theme = useTheme()
 
-const textInferenceBackendDisplayName: Record<(typeof backendTypes)[number], string> = {
-  'IPEX-LLM': 'IPEX-LLM',
-  'LLAMA.CPP': 'Llama.cpp - GGUF',
-  OpenVINO: 'OpenVINO',
+const textInferenceBackendDisplayName: Record<(typeof llmBackendTypes)[number], string> = {
+  'ipexLLM': 'ipexLLM',
+  'llamaCPP': 'llamaCPP - GGUF',
+  openVINO: 'openVINO',
 }
 
 const themeToDisplayName = (theme: Theme) => {
@@ -211,19 +211,19 @@ function changeGraphics(value: GraphicsItem, _index: number) {
   globalSetup.applyModelSettings({ graphics: value.index })
 }
 
-function mapBackendNames(name: Backend): BackendServiceName | undefined {
-  if (name === 'IPEX-LLM') {
+function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
+  if (name === 'ipexLLM') {
     return 'ai-backend' as BackendServiceName
-  } else if (name === 'LLAMA.CPP') {
+  } else if (name === 'llamaCPP') {
     return 'llamacpp-backend' as BackendServiceName
-  } else if (name === 'OpenVINO') {
+  } else if (name === 'openVINO') {
     return 'openvino-backend' as BackendServiceName
   } else {
     return undefined
   }
 }
 
-function isRunning(name: Backend) {
+function isRunning(name: LlmBackend) {
   const backendName: BackendServiceName | undefined = mapBackendNames(name)
   return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
 }

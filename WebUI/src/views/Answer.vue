@@ -229,51 +229,13 @@
         <div class="flex items-center justify-between gap-5 text-white px-2">
           <div class="flex items-center">
             <drop-selector
-              v-if="textInference.backend === 'IPEX-LLM'"
-              :array="models.llms"
-              @change="(i) => (textInference.activeModel = i.name)"
-              class="w-96"
-            >
-              {{ console.log('models.llms', models.llms) }}
-              <template #selected>
-                <model-drop-down-item
-                  :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"
-                ></model-drop-down-item>
-              </template>
-              <template #list="slotItem">
-                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-              </template>
-            </drop-selector>
-            <drop-selector
-              v-if="textInference.backend === 'LLAMA.CPP'"
-              :array="models.ggufLLMs"
-              @change="(i) => (textInference.activeModel = i.name)"
+              :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
+              @change="(i) => (textInference.selectModel(textInference.backend, i.name))"
               class="w-96"
             >
               <template #selected>
                 <model-drop-down-item
-                  :model="
-                    models.ggufLLMs.find((m) => m.name === globalSetup.modelSettings.ggufLLM_model)
-                  "
-                ></model-drop-down-item>
-              </template>
-              <template #list="slotItem">
-                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-              </template>
-            </drop-selector>
-            <drop-selector
-              v-if="textInference.backend === 'OpenVINO'"
-              :array="models.openVINOLLMModels"
-              @change="(i) => (textInference.activeModel = i.name)"
-              class="w-96"
-            >
-              <template #selected>
-                <model-drop-down-item
-                  :model="
-                    models.openVINOLLMModels.find(
-                      (m) => m.name === globalSetup.modelSettings.openvinoLLM_model,
-                    )
-                  "
+                  :model="textInference.llmModels.filter((m) => m.type === textInference.backend).find((m) => m.active)"
                 ></model-drop-down-item>
               </template>
               <template #list="slotItem">
@@ -297,7 +259,7 @@
             </button> -->
           </div>
           <div
-            v-show="textInference.backend !== 'LLAMA.CPP'"
+            v-show="textInference.backend !== 'llamaCPP'"
             class="flex justify-center items-center gap-2"
           >
             <div class="v-checkbox flex-none" type="button" :disabled="processing">
@@ -371,7 +333,7 @@
         </button>
       </div>
       <rag
-        v-if="ragData.showUploader && textInference.backend !== 'LLAMA.CPP'"
+        v-if="ragData.showUploader && textInference.backend !== 'llamaCPP'"
         ref="ragPanel"
         @close="ragData.showUploader = false"
       ></rag>
@@ -394,11 +356,13 @@ import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import * as Const from '@/assets/js/const'
 import { useConversations } from '@/assets/js/store/conversations'
-import { useTextInference } from '@/assets/js/store/textInference'
+import { LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import { useBackendServices } from '@/assets/js/store/backendServices'
 
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()
+const backendServices = useBackendServices()
 const textInference = useTextInference()
 const i18nState = useI18N().state
 const question = ref('')
@@ -442,21 +406,6 @@ let abortContooler: AbortController | null
 const stopping = ref(false)
 
 const isHistoryVisible = ref(false)
-
-const currentBackendAPI = computed(() => {
-  const backendKey = textInference.backend
-
-  switch (backendKey) {
-    case 'IPEX-LLM':
-      return globalSetup.apiHost
-    case 'LLAMA.CPP':
-      return textInference.llamaBackendUrl
-    case 'OpenVINO':
-      return textInference.openVINOBackendUrl
-    default:
-      throw new Error(`Unknown backend: ${backendKey}`)
-  }
-})
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
@@ -555,23 +504,6 @@ function onConversationClick(conversationKey: string) {
 }
 
 async function updateTitle(conversation: ChatItem[]) {
-  const backendMapping = {
-    'IPEX-LLM': {
-      service: 'ai-backend',
-      api: globalSetup.apiHost,
-      model: globalSetup.modelSettings.llm_model,
-    },
-    'LLAMA.CPP': {
-      service: 'llamacpp-backend',
-      api: textInference.llamaBackendUrl,
-      model: globalSetup.modelSettings.ggufLLM_model,
-    },
-    OpenVINO: {
-      service: 'openvino-backend',
-      api: textInference.openVINOBackendUrl,
-      model: globalSetup.modelSettings.openvinoLLM_model,
-    },
-  }
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
   console.log('prompt', prompt)
@@ -580,11 +512,11 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
-    model_repo_id: backendMapping[textInference.backend].model,
+    model_repo_id: textInference.activeModel,
     print_metrics: false,
     max_new_tokens: 7,
   }
-  const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
+  const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -592,7 +524,10 @@ async function updateTitle(conversation: ChatItem[]) {
     body: JSON.stringify(requestParams),
     signal: abortController.signal,
   })
-  const reader = response.body!.getReader()
+  if (!response.body) {
+    return
+  }
+  const reader = response.body.getReader()
   const responses: LLMOutCallback[] = []
   const getResponse = (line: string) => {
     responses.push(JSON.parse(line.slice(5)))
@@ -610,23 +545,6 @@ async function updateTitle(conversation: ChatItem[]) {
 }
 
 async function simulatedInput() {
-  const backendMapping = {
-    'IPEX-LLM': {
-      service: 'ai-backend',
-      api: globalSetup.apiHost,
-      model: globalSetup.modelSettings.llm_model,
-    },
-    'LLAMA.CPP': {
-      service: 'llamacpp-backend',
-      api: textInference.llamaBackendUrl,
-      model: globalSetup.modelSettings.ggufLLM_model,
-    },
-    OpenVINO: {
-      service: 'openvino-backend',
-      api: textInference.openVINOBackendUrl,
-      model: globalSetup.modelSettings.openvinoLLM_model,
-    },
-  }
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
@@ -657,7 +575,7 @@ async function simulatedInput() {
             ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
             : receiveOut,
         metrics: finalMetrics,
-        model: backendMapping[textInference.backend].model,
+        model: textInference.activeModel,
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
@@ -700,7 +618,7 @@ async function newPromptGenerate() {
     return
   }
   try {
-    await checkModel()
+    await checkModelAvailability()
 
     // Mark which conversation is about to generate
     currentlyGeneratingKey.value = conversations.activeKey
@@ -712,37 +630,11 @@ async function newPromptGenerate() {
   } catch {}
 }
 
-async function checkModel() {
+async function checkModelAvailability() {
   return new Promise<void>(async (resolve, reject) => {
-    let checkList: CheckModelAlreadyLoadedParameters[]
-    if (textInference.backend === 'LLAMA.CPP') {
-      checkList = [
-        {
-          repo_id: globalSetup.modelSettings.ggufLLM_model,
-          type: Const.MODEL_TYPE_LLAMA_CPP,
-          backend: 'llama_cpp',
-        },
-      ]
-    } else if (textInference.backend === 'OpenVINO') {
-      checkList = [
-        {
-          repo_id: globalSetup.modelSettings.openvinoLLM_model,
-          type: Const.MODEL_TYPE_OPENVINO,
-          backend: 'openvino',
-        },
-      ]
-      console.log('checkList', checkList)
-    } else {
-      checkList = [
-        {
-          repo_id: globalSetup.modelSettings.llm_model,
-          type: Const.MODEL_TYPE_LLM,
-          backend: 'default',
-        },
-      ]
-    }
-    if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
-      emits('showDownloadModelConfirm', checkList, resolve, reject)
+    const requiredModelDownloads = await textInference.getDownloadParamsForCurrentModelIfRequired()
+    if (requiredModelDownloads.length > 0) {
+      emits('showDownloadModelConfirm', requiredModelDownloads, resolve, reject)
     } else {
       resolve()
     }
@@ -750,32 +642,19 @@ async function checkModel() {
 }
 
 async function generate(chatContext: ChatItem[]) {
-  const backendMapping = {
-    'IPEX-LLM': {
-      service: 'ai-backend',
-      api: globalSetup.apiHost,
-      model: globalSetup.modelSettings.llm_model,
-    },
-    'LLAMA.CPP': {
-      service: 'llamacpp-backend',
-      api: textInference.llamaBackendUrl,
-      model: globalSetup.modelSettings.ggufLLM_model,
-    },
-    OpenVINO: {
-      service: 'openvino-backend',
-      api: textInference.openVINOBackendUrl,
-      model: globalSetup.modelSettings.openvinoLLM_model,
-    },
-  }
   if (processing.value || chatContext.length == 0) {
     return
   }
 
   try {
-    const inferenceBackendService: BackendServiceName = backendMapping[textInference.backend]
-      .service as BackendServiceName
-    await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-    globalSetup.updateLastUsedBackend(inferenceBackendService)
+    const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
+      llamaCPP: 'llamacpp-backend',
+      openVINO: 'openvino-backend',
+      ipexLLM: 'ai-backend',
+    }
+    const inferenceBackendService = backendToInferenceService[textInference.backend]
+    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+    backendServices.updateLastUsedBackend(inferenceBackendService)
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
     textOut.value = ''
@@ -791,10 +670,10 @@ async function generate(chatContext: ChatItem[]) {
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
-      model_repo_id: backendMapping[textInference.backend].model,
+      enable_rag: ragData.enable && textInference.backend === 'ipexLLM',
+      model_repo_id: textInference.activeModel,
     }
-    const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
+    const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -812,7 +691,7 @@ async function generate(chatContext: ChatItem[]) {
 async function stopGenerate() {
   if (processing.value && !stopping.value) {
     stopping.value = true
-    await fetch(`${currentBackendAPI.value}/api/llm/stopGenerate`)
+    await fetch(`${textInference.currentBackendUrl}/api/llm/stopGenerate`)
     if (abortContooler) {
       abortContooler.abort()
       abortContooler = null
@@ -904,7 +783,7 @@ async function toggleRag(value: boolean) {
           backend: 'default',
         },
       ]
-      if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
+      if (!(await models.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
         emits('showDownloadModelConfirm', checkList, enableRag, () => {
           ragData.processEnable = false
         })
@@ -954,7 +833,7 @@ async function restoreRagState() {
 }
 
 defineExpose({
-  checkModel,
+  checkModel: checkModelAvailability,
   restoreRagState,
   disableRag,
 })

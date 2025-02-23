@@ -1,69 +1,64 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { type LlmBackend } from './textInference'
+import { useBackendServices } from './backendServices'
 
 export type ModelType =
-  | 'llm'
-  | 'embedding'
-  | 'stableDiffusion'
-  | 'inpaint'
-  | 'lora'
-  | 'vae'
-  | 'undefined'
-  | 'ggufLLM'
-  | 'openvinoLLM'
+| 'embedding'
+| 'stableDiffusion'
+| 'inpaint'
+| 'lora'
+| 'vae'
+| 'undefined'
+| LlmBackend
 
 export type Model = {
   name: string
   downloaded: boolean
   type: ModelType
+  default: boolean
 }
 
-const predefinedModels: Model[] = [
-  { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'llm', downloaded: false },
-  { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'llm', downloaded: false },
-  // { name: 'meta-llama/Meta-Llama-3.1-8B-Instruct', type: 'llm', downloaded: false },
-  { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'llm', downloaded: false },
-  // { name: 'google/gemma-7b', type: 'llm', downloaded: false },
-  // { name: 'THUDM/chatglm3-6b', type: 'llm', downloaded: false },
+const predefinedModels: Omit<Model, 'downloaded'>[] = [
+  { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'ipexLLM', default: false },
+  { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'ipexLLM', default: true },
+  { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'ipexLLM', default: false },
+  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', type: 'ipexLLM', default: false },
+  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B', type: 'ipexLLM', default: false },
   {
     name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
+    type: 'llamaCPP',
+    default: true,
   },
   {
     name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q8_0.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
+    type: 'llamaCPP',
+    default: false,
   },
   {
     name: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q5_K_S.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
+    type: 'llamaCPP',
+    default: false,
   },
   {
     name: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf',
-    type: 'ggufLLM',
-    downloaded: false,
+    type: 'llamaCPP',
+    default: false,
   },
-  { name: 'OpenVINO/Phi-3-medium-4k-instruct-int4-ov', type: 'openvinoLLM', downloaded: false },
-  { name: 'OpenVINO/mixtral-8x7b-instruct-v0.1-int4-ov', type: 'openvinoLLM', downloaded: false },
-  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-fp16-ov', type: 'openvinoLLM', downloaded: false },
-  { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openvinoLLM', downloaded: false },
-  { name: 'OpenVINO/Phi-3.5-mini-instruct-fp16-ov', type: 'openvinoLLM', downloaded: false },
+  { name: 'OpenVINO/Phi-3-medium-4k-instruct-int4-ov', type: 'openVINO', default: false },
+  { name: 'OpenVINO/mixtral-8x7b-instruct-v0.1-int4-ov', type: 'openVINO', default: false },
+  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-fp16-ov', type: 'openVINO', default: false },
+  { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: true },
+  { name: 'OpenVINO/Phi-3.5-mini-instruct-fp16-ov', type: 'openVINO', default: false },
 ]
-
-export const userModels: Model[] = []
 
 export const useModels = defineStore(
   'models',
   () => {
     const hfToken = ref<string | undefined>(undefined)
-    const models = ref(predefinedModels)
-    const llms = computed(() => models.value.filter((m) => m.type === 'llm'))
+    const models = ref<Model[]>([])
+    const backendServices = useBackendServices()
 
     const downloadList = ref<DownloadModelParam[]>([])
-    const ggufLLMs = computed(() => models.value.filter((m) => m.type === 'ggufLLM'))
-
-    const openVINOLLMModels = computed(() => models.value.filter((m) => m.type === 'openvinoLLM'))
 
     async function refreshModels() {
       const sdModels = await window.electronAPI.getDownloadedDiffusionModels()
@@ -75,42 +70,78 @@ export const useModels = defineStore(
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
 
       const downloadedModels = [
-        ...sdModels.map<Model>((name) => ({ name, type: 'stableDiffusion', downloaded: true })),
-        ...llmModels.map<Model>((name) => ({ name, type: 'llm', downloaded: true })),
-        ...ggufModels.map<Model>((name) => ({ name, type: 'ggufLLM', downloaded: true })),
-        ...openVINOLLMModels.map<Model>((name) => ({
+        ...sdModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'stableDiffusion' })),
+        ...llmModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'ipexLLM' })),
+        ...ggufModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'llamaCPP' })),
+        ...openVINOLLMModels.map<{name: string, type: ModelType}>((name) => ({
           name,
-          type: 'openvinoLLM',
-          downloaded: true,
+          type: 'openVINO',
         })),
-        ...loraModels.map<Model>((name) => ({ name, type: 'lora', downloaded: true })),
-        ...inpaintModels.map<Model>((name) => ({ name, type: 'inpaint', downloaded: true })),
-        ...embeddingModels.map<Model>((name) => ({ name, type: 'embedding', downloaded: true })),
+        ...loraModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'lora' })),
+        ...inpaintModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'inpaint' })),
+        ...embeddingModels.map<{name: string, type: ModelType}>((name) => ({ name, type: 'embedding' })),
       ]
 
-      const notYetDownloaded = (model: Model) =>
+      const notYetDownloaded = (model: { name: string }) =>
         !downloadedModels.map((m) => m.name).includes(model.name)
+      const notPredefined = (model: { name: string }) =>
+        !predefinedModels.map((m) => m.name).includes(model.name)
 
       models.value = [
         ...downloadedModels,
-        ...userModels.filter(notYetDownloaded),
         ...predefinedModels.filter(notYetDownloaded),
-      ]
+        ...models.value.filter(notPredefined).filter(notYetDownloaded),
+      ].map<Model>((m) => ({ ...m,
+        downloaded: downloadedModels.map((dm) => dm.name).includes(m.name),
+        default: predefinedModels.find((pm) => pm.name === m.name)?.default ?? false }))
     }
 
     async function download(_models: DownloadModelParam[]) {}
+    async function addModel(model: Model) {
+      models.value.push(model)
+      await refreshModels()
+    }
+
+    const aipgBackendUrl = () => {
+      const aiBackendUrl = backendServices.info.find((item) => item.serviceName === 'ai-backend')?.baseUrl
+      if (!aiBackendUrl) throw new Error('AIPG Backend not running')
+      return aiBackendUrl
+    }
+
+    async function checkIfHuggingFaceUrlExists(repo_id: string) {
+      const response = await fetch(
+        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`,
+      )
+      const data = await response.json()
+      return data.exists
+    }
+
+    async function checkModelAlreadyLoaded(params: CheckModelAlreadyLoadedParameters[]) {
+      const response = await fetch(`${aipgBackendUrl()}/api/checkModelAlreadyLoaded`, {
+        method: 'POST',
+        body: JSON.stringify({ data: params }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      const parsedResponse = (await response.json()) as ApiResponse & {
+        data: CheckModelAlreadyLoadedResult[]
+      }
+      return parsedResponse.data
+    }
+
     refreshModels()
 
     return {
       models,
-      llms,
-      ggufLLMs,
-      openVINOLLMModels,
       hfToken,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       downloadList,
+      addModel,
       refreshModels,
       download,
+      checkIfHuggingFaceUrlExists,
+      checkModelAlreadyLoaded,
     }
   },
   {

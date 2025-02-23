@@ -369,7 +369,7 @@ function switchTab(index: number) {
 }
 
 watch(textInference, (newSetting, _oldSetting) => {
-  if (newSetting.backend === 'LLAMA.CPP') {
+  if (newSetting.backend === 'llamaCPP') {
     answer.value!.disableRag()
   } else {
     answer.value!.restoreRagState()

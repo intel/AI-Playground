@@ -148,11 +148,11 @@ import LoadingBar from '../components/LoadingBar.vue'
 import PaintInfo from '@/components/PaintInfo.vue'
 import { useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useStableDiffusion } from '@/assets/js/store/stableDiffusion'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
+import { useBackendServices } from '@/assets/js/store/backendServices'
 
 const imageGeneration = useImageGeneration()
 const stableDiffusion = useStableDiffusion()
-const globalSetup = useGlobalSetup()
+const backendServices = useBackendServices()
 const i18nState = useI18N().state
 const downloadModel = reactive({
   downloading: false,
@@ -177,8 +177,8 @@ async function generateImage() {
   reset()
   const inferenceBackendService: BackendServiceName =
     imageGeneration.backend === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
-  await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-  globalSetup.updateLastUsedBackend(inferenceBackendService)
+  await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+  backendServices.updateLastUsedBackend(inferenceBackendService)
 
   await imageGeneration.generate()
 }

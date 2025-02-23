@@ -263,6 +263,8 @@ function getInfoURL(serviceName: string) {
       return 'https://github.com/comfyanonymous/ComfyUI'
     case 'llamacpp-backend':
       return 'https://github.com/abetlen/llama-cpp-python'
+    case 'openvino-backend':
+      return 'https://github.com/openvinotoolkit/openvino.genai'
     default:
       return undefined
   }

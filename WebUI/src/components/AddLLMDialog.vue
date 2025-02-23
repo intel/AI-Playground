@@ -51,7 +51,7 @@
 import { Input } from '@/components/ui/input'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useI18N } from '@/assets/js/store/i18n'
-import { useModels, userModels, ModelType } from '@/assets/js/store/models'
+import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
 
 const i18nState = useI18N().state
@@ -70,18 +70,18 @@ const emits = defineEmits<{
 }>()
 
 const exampleModelName = computed(() =>
-  textInference.backend === 'IPEX-LLM'
+  textInference.backend === 'ipexLLM'
     ? i18nState.REQUEST_LLM_MODEL_EXAMPLE
     : i18nState.REQUEST_LLM_SINGLE_EXAMPLE,
 )
 const examplePlaceholder = computed(() =>
-  textInference.backend === 'IPEX-LLM'
+  textInference.backend === 'ipexLLM'
     ? i18nState.COM_LLM_HF_PROMPT
     : i18nState.COM_LLM_HF_PROMPT_GGUF,
 )
 
 const isValidModelName = (name: string) => {
-  if (textInference.backend === 'IPEX-LLM') {
+  if (textInference.backend === 'ipexLLM') {
     return name.split('/').length === 2
   } else {
     return name.split('/').length >= 3
@@ -93,10 +93,8 @@ function onShow() {
 }
 
 async function addModel() {
-  const previousModel = globalSetup.modelSettings.llm_model
 
   const cancelAndShowWarning = (text: string) => {
-    globalSetup.modelSettings.llm_model = previousModel
     addModelErrorMessage.value = text
     addModelError.value = true
   }
@@ -113,7 +111,7 @@ async function addModel() {
     return
   }
 
-  const urlExists = await globalSetup.checkIfHuggingFaceUrlExists(modelRequest.value)
+  const urlExists = await models.checkIfHuggingFaceUrlExists(modelRequest.value)
   if (!urlExists) {
     cancelAndShowWarning(i18nState.ERROR_REPO_NOT_EXISTS)
     return
@@ -123,7 +121,7 @@ async function addModel() {
 
   const isLlm = await isLLM(modelRequest.value)
   const downloadNewModel = async () => {
-    await registerModel()
+    await models.addModel({ name: modelRequest.value, type: textInference.backend, downloaded: false, default: false })
     emits('callCheckModel')
     closeAdd()
   }
@@ -132,38 +130,6 @@ async function addModel() {
     emits('showWarning', i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
   } else {
     downloadNewModel()
-  }
-}
-
-async function registerModel() {
-  let modelType: ModelType
-  switch (textInference.backend) {
-    case 'IPEX-LLM':
-      modelType = 'llm'
-      break
-    case 'LLAMA.CPP':
-      modelType = 'ggufLLM'
-      break
-    case 'OpenVINO':
-      modelType = 'openvinoLLM'
-      break
-    default:
-      modelType = 'llm'
-  }
-
-  userModels.push({ name: modelRequest.value, type: modelType, downloaded: false })
-  await models.refreshModels()
-
-  switch (textInference.backend) {
-    case 'IPEX-LLM':
-      globalSetup.modelSettings.llm_model = modelRequest.value
-      break
-    case 'LLAMA.CPP':
-      globalSetup.modelSettings.ggufLLM_model = modelRequest.value
-      break
-    case 'OpenVINO':
-      globalSetup.modelSettings.openvinoLLM_model = modelRequest.value
-      break
   }
 }
 

@@ -1,10 +1,8 @@
 import { defineStore } from 'pinia'
 import * as util from '../util'
 import { useI18N } from './i18n'
-import { useBackendServices } from './backendServices'
 
 type GlobalSetupState = 'running' | 'verifyBackend' | 'manageInstallations' | 'loading' | 'failed'
-type LastUsedBackend = BackendServiceName | 'None'
 
 export const useGlobalSetup = defineStore('globalSetup', () => {
   const state = reactive<KVObject>({
@@ -14,7 +12,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
   })
 
   const defaultBackendBaseUrl = ref('http://127.0.0.1:9999')
-  const lastUsedBackend = ref<LastUsedBackend>('None')
 
   const models = ref<ModelLists>({
     llm: new Array<string>(),
@@ -31,9 +28,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     resolution: 0,
     quality: 0,
     enableRag: false,
-    llm_model: 'microsoft/Phi-3-mini-4k-instruct',
-    ggufLLM_model: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
-    openvinoLLM_model: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov',
     sd_model: 'Lykon/dreamshaper-8',
     inpaint_model: 'Lykon/dreamshaper-8-inpainting',
     negativePrompt: 'bad hands, nsfw',
@@ -73,8 +67,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
   const loadingState = ref<GlobalSetupState>('verifyBackend')
   const errorMessage = ref('')
   const hdPersistentConfirmation = ref(localStorage.getItem('HdPersistentConfirmation') === 'true')
-
-  const backendServices = useBackendServices()
 
   watchEffect(() => {
     localStorage.setItem('HdPersistentConfirmation', hdPersistentConfirmation.value.toString())
@@ -222,27 +214,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     assertSelectExist()
   }
 
-  function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
-    lastUsedBackend.value = currentInferenceBackend
-  }
-
-  async function resetLastUsedInferenceBackend(currentInferenceBackend: BackendServiceName) {
-    const lastUsedBackendSnapshot = lastUsedBackend.value
-    if (lastUsedBackendSnapshot === 'None' || lastUsedBackendSnapshot === currentInferenceBackend) {
-      return
-    }
-    try {
-      const stopStatus = await backendServices.stopService(lastUsedBackendSnapshot)
-      console.info(`unused service ${lastUsedBackendSnapshot} now in state ${stopStatus}`)
-      const startStatus = await backendServices.startService(lastUsedBackendSnapshot)
-      console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
-    } catch (e) {
-      console.warn(
-        `Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`,
-      )
-    }
-  }
-
   function assertSelectExist() {
     let changeUserSetup = false
     if (models.value.llm.length > 0 && !models.value.llm.includes(modelSettings.llm_model)) {
@@ -288,28 +259,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     }
   }
 
-  async function checkModelAlreadyLoaded(params: CheckModelAlreadyLoadedParameters[]) {
-    const response = await fetch(`${defaultBackendBaseUrl.value}/api/checkModelAlreadyLoaded`, {
-      method: 'POST',
-      body: JSON.stringify({ data: params }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    const parsedResponse = (await response.json()) as ApiResponse & {
-      data: CheckModelAlreadyLoadedResult[]
-    }
-    return parsedResponse.data
-  }
-
-  async function checkIfHuggingFaceUrlExists(repo_id: string) {
-    const response = await fetch(
-      `${defaultBackendBaseUrl.value}/api/checkHFRepoExists?repo_id=${repo_id}`,
-    )
-    const data = await response.json()
-    return data.exists
-  }
-
   return {
     state,
     modelSettings,
@@ -319,11 +268,8 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     apiHost: defaultBackendBaseUrl,
     graphicsList,
     loadingState,
-    lastUsedBackend,
     errorMessage,
     hdPersistentConfirmation,
-    updateLastUsedBackend,
-    resetLastUsedInferenceBackend,
     initSetup,
     applyPathsSettings,
     applyModelSettings,
@@ -331,8 +277,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     refreshSDModles,
     refreshInpaintModles,
     refreshLora,
-    checkModelAlreadyLoaded: checkModelAlreadyLoaded,
-    checkIfHuggingFaceUrlExists,
     applyPresetModelSettings,
     restorePathsSettings,
   }
