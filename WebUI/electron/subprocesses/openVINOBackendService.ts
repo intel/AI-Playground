@@ -54,13 +54,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         debugMessage: `installing dependencies`,
       }
       const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
-      await this.uvPip.run(['install', '-r', commonRequirements])
-      await this.uvPip.run([
-        'install',
-        '--extra-index-url',
-        'https://storage.openvinotoolkit.org/simple/wheels/nightly',
-        'openvino-genai==2025.1.0.0.dev20250203',
-      ])
+      await this.uvPip.run(['install', '--index-strategy', 'unsafe-best-match', '-r', commonRequirements])
 
       yield {
         serviceName: self.name,
