@@ -38,12 +38,11 @@
           <!-- eslint-disable vue/require-v-for-key -->
           <div
             v-for="image in imageGeneration.generatedImages"
-            class="p-1 max-w-768px max-h-512px"
             v-show="selectedImageId === image.id"
           >
             <!-- eslint-enable -->
-            <img v-if="!isVideo(image)" :src="image.imageUrl" />
-            <video v-else>
+            <img class="p-1 max-w-768px max-h-512px" v-if="!isVideo(image)" :src="image.imageUrl" />
+            <video class="p-1 max-w-768px max-h-512px" v-else controls>
               <source :src="image.videoUrl" :type="image.videoFormat" />
             </video>
           </div>

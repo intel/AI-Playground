@@ -272,18 +272,6 @@
         "title": "CLIPLoader (GGUF)"
       }
     },
-    "112": {
-      "inputs": {
-        "images": [
-          "8",
-          0
-        ]
-      },
-      "class_type": "PreviewImage",
-      "_meta": {
-        "title": "Preview Image"
-      }
-    },
     "115": {
       "inputs": {
         "a": 25

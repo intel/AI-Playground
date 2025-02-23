@@ -283,7 +283,7 @@ export const useComfyUi = defineStore(
                     state: 'done',
                     imageUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.workflow}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
                     videoUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.filename}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
-                    videoFormat: gifFromOutput.format,
+                    videoFormat: gifFromOutput.format.replace('video/h264-mp4', 'video/mp4'), // 'video/h264-mp4' is not a valid MIME type
                   }
                 }
                 imageGeneration.updateImage(newImage!)
