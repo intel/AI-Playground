@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import { ComfyUIApiWorkflow, Image, Setting, useImageGeneration } from './imageGeneration'
+import { ComfyUIApiWorkflow, Media, Setting, useImageGeneration } from './imageGeneration'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
@@ -92,7 +92,7 @@ export const useComfyUi = defineStore(
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
     let generateIdx: number = 0
-    let queuedImages: Image[] = []
+    let queuedImages: Media[] = []
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
@@ -227,7 +227,7 @@ export const useComfyUi = defineStore(
                 console.log('image url', imageUrl)
                 if (imageBlob) {
                   const currentImage = queuedImages[generateIdx]
-                  const newImage: Image = {
+                  const newImage: Media = {
                     ...currentImage,
                     state: 'generating',
                     imageUrl,
@@ -261,22 +261,30 @@ export const useComfyUi = defineStore(
               case 'executed':
                 const imageFromOutput: { filename: string; type: string; subfolder: string } =
                   msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
-                const gifs: { filename: string; type: string; subfolder: string }[] =
-                  msg.data?.output?.gifs?.find((i: { type: string }) => i.type === 'output')
+                const gifFromOutput: {
+                  filename: string
+                  workflow_name: string
+                  type: string
+                  subfolder: string
+                } = msg.data?.output?.gifs?.find((i: { type: string }) => i.type === 'output')
                 const currentImage = queuedImages[generateIdx]
-                const newImage: Image = {
-                  ...currentImage,
-                  state: 'done',
-                  imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
+                let newImage: Media
+                if (imageFromOutput) {
+                  newImage = {
+                    ...currentImage,
+                    state: 'done',
+                    imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
+                  }
                 }
-                gifs.forEach((gif) => {
-                  imageGeneration.updateDestImage(
-                    imageGeneration.generateIdx,
-                    `${comfyBaseUrl.value}/view?filename=${gif.filename}&type=${gif.type}&subfolder=${gif.subfolder ?? ''}`,
-                  )
-                  imageGeneration.generateIdx++
-                }) // ToDo: Change to fit current workflow
-                imageGeneration.updateImage(newImage)
+                if (gifFromOutput) {
+                  newImage = {
+                    ...currentImage,
+                    state: 'done',
+                    imageUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.filename}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
+                    videoUrl: `${comfyBaseUrl.value}/view?filename=${gifFromOutput.workflow_name}&type=${gifFromOutput.type}&subfolder=${gifFromOutput.subfolder ?? ''}`,
+                  }
+                }
+                imageGeneration.updateImage(newImage!)
                 generateIdx++
                 console.log('executed', { detail: msg.data })
                 break

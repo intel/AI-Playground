@@ -42,6 +42,7 @@ export type ComfyDynamicInputWithCurrent =
   | (ComfyNumberInput & { current: number })
   | (ComfyStringInput & { current: string })
   | (ComfyBooleanInput & { current: boolean })
+  | (ComfyStringListInput & { current: string })
 
 export type Image = {
   id: string
@@ -50,6 +51,12 @@ export type Image = {
   dynamicSettings?: ComfyDynamicInputWithCurrent[]
   imageUrl: string
 }
+
+export type Video = Image & { videoFormat: string; videoUrl: string }
+
+export type Media = Image | Video
+
+export const isVideo = (media: Media): media is Video => 'videoFormat' in media
 
 const SettingsSchema = z.object({
   imageModel: z.string(),
@@ -648,7 +655,7 @@ export const useImageGeneration = defineStore(
       saveToSettingsPerWorkflow('inpaintModel')
     })
 
-    const generatedImages = ref<Image[]>([])
+    const generatedImages = ref<Media[]>([])
     const currentState = ref<GenerateState>('no_start')
     const stepText = ref('')
 
@@ -681,7 +688,7 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    async function updateImage(newImage: Image) {
+    async function updateImage(newImage: Media) {
       console.log('updating image', newImage)
       const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
       if (existingImageIndex !== -1) {

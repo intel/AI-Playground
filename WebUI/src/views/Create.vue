@@ -36,13 +36,15 @@
           class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
         >
           <!-- eslint-disable vue/require-v-for-key -->
-          <img
+          <div
             v-for="image in imageGeneration.generatedImages"
-            :src="image.imageUrl"
             class="p-1 max-w-768px max-h-512px"
             v-show="selectedImageId === image.id"
-          />
-          <!-- eslint-enable -->
+          >
+            <!-- eslint-enable -->
+            <img v-if="!isVideo(image)" :src="image.imageUrl" />
+            <video v-else :src="image.videoUrl" :type="image.videoFormat" />
+          </div>
           <div
             v-show="imageGeneration.processing"
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
@@ -75,7 +77,9 @@
             class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
           >
             <button
-              v-show="currentImage && !(currentImage?.state === 'generating')"
+              v-show="
+                currentImage && !(currentImage?.state === 'generating') && !isVideo(currentImage)
+              "
               @click="postImageToEnhance"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -166,13 +170,13 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { Image, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { Media, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
 const selectedImageId = ref<string | null>(null)
-const currentImage: ComputedRef<Image | null> = computed(() => {
+const currentImage: ComputedRef<Media | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
 watch(
@@ -215,7 +219,7 @@ async function ensureModelsAreAvailable() {
 }
 
 function postImageToEnhance() {
-  emits('postImageToEnhance', currentImage.value?.imageUrl ?? '')
+  emits('postImageToEnhance', getMediaUrl(currentImage.value!))
 }
 
 function showParamsDialog() {
@@ -224,16 +228,16 @@ function showParamsDialog() {
 }
 
 function openImage() {
-  window.electronAPI.openImageWithSystem(currentImage.value?.imageUrl ?? '')
+  window.electronAPI.openImageWithSystem(getMediaUrl(currentImage.value!))
 }
 
 function copyImage() {
-  util.copyImage(currentImage.value?.imageUrl ?? '')
+  util.copyImage(getMediaUrl(currentImage.value!))
   toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
 function openImageInFolder() {
-  window.electronAPI.openImageInFolder(currentImage.value?.imageUrl ?? '')
+  window.electronAPI.openImageInFolder(getMediaUrl(currentImage.value!))
 }
 
 function deleteImage() {
@@ -258,5 +262,9 @@ function loadingStateToText(state: string) {
     default:
       return state
   }
+}
+
+function getMediaUrl(image: Media) {
+  return isVideo(image) ? image.videoUrl : image.imageUrl
 }
 </script>
