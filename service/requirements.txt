@@ -18,6 +18,6 @@ trl==0.9.3
 faiss-cpu==1.8.0
 docx2txt==0.8
 pypdf==4.2.0
-unstructured==0.14.6
+unstructured==0.16.16
 setuptools>=75.2.0
 huggingface_hub==0.25.2

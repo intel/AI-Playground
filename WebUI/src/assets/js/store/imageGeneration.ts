@@ -6,24 +6,49 @@ import { useI18N } from './i18n'
 import * as Const from '../const'
 import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
+import { useBackendServices } from './backendServices'
+import { useGlobalSetup } from './globalSetup'
 
-export type StableDiffusionSettings = {
-  resolution: 'standard' | 'hd' | 'manual' // ~ modelSettings.resolution 0, 1, 3
-  quality: 'standard' | 'high' | 'fast' // ~ modelSettings.quality 0, 1, 2
-  imageModel: string
-  inpaintModel: string
-  negativePrompt: string
-  batchSize: number // ~ modelSettings.generateNumber
-  pickerResolution?: string
-  width: number
-  height: number
-  guidanceScale: number
-  inferenceSteps: number
-  seed: number
-  lora: string | null
-  scheduler: string | null
-  imagePreview: boolean
-  safetyCheck: boolean
+export type RefImage = {
+  type: string
+  image: string
+}
+
+export type GenerateState =
+  | 'no_start'
+  | 'input_image'
+  | 'install_workflow_components'
+  | 'load_workflow_components'
+  | 'load_model'
+  | 'load_model_components'
+  | 'generating'
+  | 'image_out'
+  | 'error'
+
+export type ImageInfoParameter = {
+  [key: string]: string | number | boolean | RefImage
+}
+
+export type GenerationSettings = Partial<
+  Settings & {
+    workflow: string
+  } & {
+    device: number
+  }
+>
+
+export type ComfyDynamicInputWithCurrent =
+  | (ComfyImageInput & { current: string })
+  | (ComfyNumberInput & { current: number })
+  | (ComfyStringInput & { current: string })
+  | (ComfyBooleanInput & { current: boolean })
+
+export type Image = {
+  id: string
+  state: 'queued' | 'generating' | 'done' | 'stopped'
+  settings: GenerationSettings
+  dynamicSettings?: ComfyDynamicInputWithCurrent[]
+  imageUrl: string
 }
 
 const SettingsSchema = z.object({
@@ -43,6 +68,7 @@ const SettingsSchema = z.object({
   imagePreview: z.boolean(),
   safetyCheck: z.boolean(),
 })
+type Settings = z.infer<typeof SettingsSchema>
 
 const SettingSchema = SettingsSchema.keyof()
 
@@ -110,6 +136,7 @@ const ComfyNumberInputSchema = z.object({
   step: z.number(),
 })
 export type ComfyNumberInput = z.infer<typeof ComfyNumberInputSchema>
+
 const ComfyImageInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
@@ -143,7 +170,8 @@ const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
   ComfyStringInputSchema,
   ComfyBooleanInputSchema,
 ])
-type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
+export type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
+
 const ComfyUiWorkflowSchema = z.object({
   name: z.string(),
   displayPriority: z.number().default(0),
@@ -195,7 +223,7 @@ const generalDefaultSettings = {
   prompt: '',
   seed: -1,
   imagePreview: true,
-  safeCheck: true,
+  safetyCheck: true,
 }
 
 export const useImageGeneration = defineStore(
@@ -386,6 +414,8 @@ export const useImageGeneration = defineStore(
 
     const comfyUi = useComfyUi()
     const stableDiffusion = useStableDiffusion()
+    const backendServices = useBackendServices()
+    const globalSetup = useGlobalSetup()
     const models = useModels()
     const i18nState = useI18N().state
 
@@ -406,14 +436,14 @@ export const useImageGeneration = defineStore(
     const prompt = ref<string>(generalDefaultSettings.prompt)
     const seed = ref<number>(generalDefaultSettings.seed)
     const imagePreview = ref<boolean>(generalDefaultSettings.imagePreview)
-    const safeCheck = ref<boolean>(generalDefaultSettings.safeCheck)
+    const safetyCheck = ref<boolean>(generalDefaultSettings.safetyCheck)
     const batchSize = ref<number>(globalDefaultSettings.batchSize) // TODO this should be imageCount instead, as we only support batchSize 1 due to memory constraints
 
     const resetActiveWorkflowSettings = () => {
       prompt.value = generalDefaultSettings.prompt
       seed.value = generalDefaultSettings.seed
       imagePreview.value = generalDefaultSettings.imagePreview
-      safeCheck.value = generalDefaultSettings.safeCheck
+      safetyCheck.value = generalDefaultSettings.safetyCheck
       settingsPerWorkflow.value[activeWorkflowName.value ?? ''] = undefined
       comfyInputsPerWorkflow.value[activeWorkflowName.value ?? ''] = undefined
       loadSettingsForActiveWorkflow()
@@ -439,6 +469,36 @@ export const useImageGeneration = defineStore(
       },
     })
 
+    // TODO: Model Settings better (probably all settings should be an array of Settings, similar to comfyInputs) to better align ComfyUI and Default backends
+    const settingIsRelevant = (setting: Setting) =>
+      activeWorkflow.value.backend === 'default' ||
+      activeWorkflow.value.displayedSettings.includes(setting) ||
+      activeWorkflow.value.modifiableSettings.includes(setting)
+
+    const getGenerationParameters = (): GenerationSettings => {
+      const allSettings = {
+        workflow: activeWorkflowName.value ?? 'unknown',
+        device: globalSetup.modelSettings.graphics,
+        prompt: prompt.value,
+        negativePrompt: negativePrompt.value,
+        imageModel: imageModel.value,
+        batchSize: batchSize.value,
+        inferenceSteps: inferenceSteps.value,
+        guidanceScale: guidanceScale.value,
+        seed: seed.value,
+        height: height.value,
+        width: width.value,
+        resolution: resolution.value,
+        lora: lora.value,
+        scheduler: scheduler.value,
+        imagePreview: imagePreview.value,
+        safetyCheck: safetyCheck.value,
+      }
+      return Object.fromEntries(
+        Object.entries(allSettings).filter(([key]) => settingIsRelevant(key as Setting)),
+      )
+    }
+
     const settings = {
       seed,
       inferenceSteps,
@@ -454,6 +514,7 @@ export const useImageGeneration = defineStore(
       inpaintModel,
     }
     type ModifiableSettings = keyof typeof settings
+
     const backend = computed({
       get() {
         return activeWorkflow.value.backend
@@ -575,11 +636,9 @@ export const useImageGeneration = defineStore(
       saveToSettingsPerWorkflow('inpaintModel')
     })
 
-    const imageUrls = ref<string[]>([])
-    const currentState = ref<SDGenerateState>('no_start')
+    const generatedImages = ref<Image[]>([])
+    const currentState = ref<GenerateState>('no_start')
     const stepText = ref('')
-    const previewIdx = ref(0)
-    const generateIdx = ref(-999)
 
     function loadSettingsForActiveWorkflow() {
       console.log('loading settings for', activeWorkflowName.value)
@@ -610,11 +669,13 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    async function updateDestImage(index: number, image: string) {
-      if (index + 1 > imageUrls.value.length) {
-        imageUrls.value.push(image)
+    async function updateImage(newImage: Image) {
+      console.log('updating image', newImage)
+      const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
+      if (existingImageIndex !== -1) {
+        generatedImages.value.splice(existingImageIndex, 1, newImage)
       } else {
-        imageUrls.value.splice(index, 1, image)
+        generatedImages.value.push(newImage)
       }
     }
 
@@ -728,13 +789,17 @@ export const useImageGeneration = defineStore(
     }
 
     async function generate() {
-      generateIdx.value = 0
-      previewIdx.value = 0
+      generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
+      currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
+      const inferenceBackendService: BackendServiceName =
+        backend.value === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
+      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+      backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
-        stableDiffusion.generate()
+        await stableDiffusion.generate()
       } else {
-        comfyUi.generate()
+        await comfyUi.generate()
       }
     }
 
@@ -743,12 +808,12 @@ export const useImageGeneration = defineStore(
       comfyUi.stop()
     }
 
-    function reset() {
-      currentState.value = 'no_start'
-      stableDiffusion.generateParams.length = 0
-      imageUrls.value.length = 0
-      generateIdx.value = -999
-      previewIdx.value = -1
+    function deleteImage(id: string) {
+      generatedImages.value = generatedImages.value.filter((image) => image.id !== id)
+    }
+
+    function deleteAllImages() {
+      generatedImages.value.length = 0
     }
 
     loadWorkflowsFromJson()
@@ -761,19 +826,17 @@ export const useImageGeneration = defineStore(
       activeWorkflow,
       processing,
       prompt,
-      imageUrls,
+      generatedImages,
       currentState,
       stepText,
       stopping,
-      previewIdx,
-      generateIdx,
       imageModel,
       inpaintModel,
       lora,
       scheduler,
       guidanceScale,
       imagePreview,
-      safeCheck,
+      safetyCheck,
       inferenceSteps,
       seed,
       width,
@@ -788,10 +851,12 @@ export const useImageGeneration = defineStore(
       loadWorkflowsFromJson,
       loadWorkflowsFromIntel,
       getMissingModels,
-      updateDestImage,
+      updateImage,
       generate,
       stopGeneration,
-      reset,
+      deleteImage,
+      deleteAllImages,
+      getGenerationParameters,
     }
   },
   {

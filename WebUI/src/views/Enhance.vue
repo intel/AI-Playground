@@ -164,7 +164,7 @@
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
-              @click="selecteImage"
+              @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -207,11 +207,11 @@
             </div>
           </div>
         </div>
-        <paint-info
-          :params="infoParams"
+        <info-table
           v-show="showParams"
+          :generationParameters="infoParams"
           @close="showParams = false"
-        ></paint-info>
+        ></info-table>
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
@@ -325,13 +325,14 @@ import * as toast from '@/assets/js/toast'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import LoadingBar from '../components/LoadingBar.vue'
 import VerticalSlideBar from '@/components/VerticalSlideBar.vue'
-import PaintInfo from '@/components/PaintInfo.vue'
+import InfoTable from '@/components/InfoTable.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageGeneration'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useModels } from '@/assets/js/store/models'
+import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
@@ -346,7 +347,7 @@ const destImg = ref<string[]>([])
 const previewIdx = ref(-1)
 const generateIdx = ref(-999)
 const generateFinishIdx = ref(-999)
-const generateState = ref<SDGenerateState>('no_start')
+const generateState = ref<GenerateState>('no_start')
 const processing = ref(false)
 const upscaleCompt = ref<InstanceType<typeof UpscaleOptions>>()
 const imagePromptCompt = ref<InstanceType<typeof ImagePromptOptions>>()
@@ -507,7 +508,7 @@ function dataProcess(line: string) {
         case 'runtime_error':
           toast.error(i18nState.ERROR_RUNTIME_ERROR)
           break
-        case 'unknow_exception':
+        case 'unknown_exception':
           toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
           break
       }
@@ -580,7 +581,7 @@ async function generate() {
         lora: imageGeneration.lora,
         scheduler: imageGeneration.scheduler,
         image_preview: imageGeneration.imagePreview,
-        safe_check: imageGeneration.safeCheck,
+        safe_check: imageGeneration.safetyCheck,
       },
       extParams,
     )
@@ -698,9 +699,9 @@ function copyImage() {
   util.copyImage(destImg.value[previewIdx.value])
 }
 
-async function selecteImage() {
+async function openImageInFolder() {
   const url = destImg.value[previewIdx.value]
-  window.electronAPI.selecteImage(url)
+  window.electronAPI.openImageInFolder(url)
 }
 
 function removeImage() {

@@ -66,8 +66,8 @@
         <p>{{ languages.SETTINGS_MODEL_SAFE_CHECK }}</p>
         <button
           class="v-checkbox-control flex-none w-5 h-5"
-          :class="{ 'v-checkbox-checked': imageGeneration.safeCheck }"
-          @click="() => (imageGeneration.safeCheck = !imageGeneration.safeCheck)"
+          :class="{ 'v-checkbox-checked': imageGeneration.safetyCheck }"
+          @click="() => (imageGeneration.safetyCheck = !imageGeneration.safetyCheck)"
         ></button>
       </div>
       <h2

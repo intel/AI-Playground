@@ -62,7 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke('getDownloadedEmbeddingModels'),
   openImageWithSystem: (url: string) => ipcRenderer.send('openImageWithSystem', url),
-  selecteImage: (url: string) => ipcRenderer.send('selecteImage', url),
+  openImageInFolder: (url: string) => ipcRenderer.send('openImageInFolder', url),
   setFullScreen: (enable: boolean) => ipcRenderer.send('setFullScreen', enable),
   onDebugLog: (callback: (data: { level: string; source: string; message: string }) => void) =>
     ipcRenderer.on('debugLog', (_event, value) => callback(value)),
