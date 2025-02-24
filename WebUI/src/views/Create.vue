@@ -39,10 +39,20 @@
           <div
             v-for="image in imageGeneration.generatedImages"
             v-show="selectedImageId === image.id"
+            class="flex justify-center items-center"
           >
             <!-- eslint-enable -->
-            <img class="p-1 max-w-768px max-h-512px" v-if="!isVideo(image)" :src="image.imageUrl" />
-            <video class="p-1 max-w-768px max-h-512px" v-else controls>
+            <img
+              v-if="!isVideo(image)"
+              class="max-w-768px max-h-512px object-contain p-2"
+              :src="image.imageUrl"
+            />
+            <video
+              v-else
+              class="max-w-768px max-h-512px object-contain p-2"
+              controlsList="nodownload nofullscreen noremoteplayback"
+              controls
+            >
               <source :src="image.videoUrl" :type="image.videoFormat" />
             </video>
           </div>
