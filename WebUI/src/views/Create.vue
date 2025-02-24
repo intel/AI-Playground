@@ -1,18 +1,34 @@
 <template>
   <div id="createPanel" class="h-full flex flex-col p-4">
-    <div class="image-panel flex-auto flex p-4">
-      <div v-if="imageGeneration.imageUrls.length > 0" class="image-preview-panel flex-none">
-        <!-- eslint-disable vue/require-v-for-key -->
-        <div
-          v-for="(image, i) in imageGeneration.imageUrls"
-          class="image-preview-item flex items-center justify-center"
-          :class="{ active: imageGeneration.previewIdx == i }"
-          @click="swithPreview(i)"
-        >
-          <!-- eslint-enable -->
-          <div class="image-preview-item-bg">
-            <img :src="image" class="image-thumb" />
+    <div class="image-panel justify-center items-center flex-auto flex">
+      <div
+        v-show="imageGeneration.generatedImages.length > 0"
+        class="flex flex-row justify-center items-end h-full"
+        style="height: 550px !important"
+      >
+        <div class="image-preview-panel">
+          <!-- eslint-disable vue/require-v-for-key -->
+          <div
+            v-for="image in imageGeneration.generatedImages"
+            class="image-preview-item flex items-center justify-center"
+            :class="{ active: selectedImageId === image.id }"
+            @click="selectedImageId = image.id"
+          >
+            <!-- eslint-enable -->
+            <div class="image-preview-item-bg">
+              <img :src="image.imageUrl" class="image-thumb" />
+            </div>
           </div>
+        </div>
+        <div class="items-end justify-end">
+          <button
+            @click="deleteAllImages"
+            :title="languages.COM_CLEAR_HISTORY"
+            :disabled="imageGeneration.processing"
+            class="bg-color-image-tool-button rounded-sm w-6 h-6 ml-2 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-clear w-4 h-4"></span>
+          </button>
         </div>
       </div>
       <div class="flex-auto relative flex items-center justify-center">
@@ -21,26 +37,26 @@
         >
           <!-- eslint-disable vue/require-v-for-key -->
           <img
-            v-for="(image, i) in imageGeneration.imageUrls"
-            :src="image"
+            v-for="image in imageGeneration.generatedImages"
+            :src="image.imageUrl"
             class="p-1 max-w-768px max-h-512px"
-            v-show="imageGeneration.previewIdx == i"
+            v-show="selectedImageId === image.id"
           />
           <!-- eslint-enable -->
           <div
-            v-show="
-              imageGeneration.generateIdx == imageGeneration.previewIdx &&
-              imageGeneration.processing
-            "
+            v-show="imageGeneration.processing"
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
           >
             <loading-bar
-              v-if="['load_model', 'load_model_components'].includes(imageGeneration.currentState)"
-              :text="
-                imageGeneration.currentState == 'load_model'
-                  ? languages.COM_LOADING_MODEL
-                  : languages.COM_LOADING_MODEL_COMPONENTS
+              v-if="
+                [
+                  'load_model',
+                  'load_model_components',
+                  'install_workflow_components',
+                  'load_workflow_components',
+                ].includes(imageGeneration.currentState)
               "
+              :text="loadingStateToText(imageGeneration.currentState)"
               class="w-3/4"
             ></loading-bar>
             <div
@@ -53,12 +69,13 @@
           </div>
           <div
             v-show="
-              imageGeneration.previewIdx != -1 &&
-              imageGeneration.generateIdx > imageGeneration.previewIdx
+              currentImage &&
+              (!(currentImage?.state === 'generating') || !imageGeneration.processing)
             "
             class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
           >
             <button
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="postImageToEnhance"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -66,7 +83,7 @@
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
             <button
-              v-if="imageGeneration.activeWorkflow.backend === 'default'"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -74,6 +91,7 @@
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
             <button
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="openImage"
               :title="languages.COM_ZOOM_IN"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -81,6 +99,7 @@
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
             <button
+              v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="copyImage"
               :title="languages.COM_COPY"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
@@ -88,19 +107,15 @@
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
             <button
-              @click="selecteImage"
+              v-show="currentImage && !(currentImage?.state === 'generating')"
+              @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
-            <!-- <button @click="regenerate" :title="languages.COM_REGENERATE"
-                            class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center">
-                            <span class="svg-icon text-white i-refresh w-4 h-4"></span>
-                        </button> -->
             <button
-              v-show="!imageGeneration.processing"
-              @click="reset"
+              @click="deleteImage"
               :title="languages.COM_DELETE"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -108,11 +123,12 @@
             </button>
           </div>
         </div>
-        <paint-info
-          :params="infoParams"
-          v-show="showParams"
-          @close="showParams = false"
-        ></paint-info>
+        <info-table
+          v-show="showInfoParams"
+          :generationParameters="currentImage?.settings ?? {}"
+          :dynamicInputs="currentImage?.dynamicSettings"
+          @close="showInfoParams = false"
+        ></info-table>
       </div>
     </div>
     <div class="h-32 gap-3 flex-none flex items-center">
@@ -149,22 +165,28 @@ import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
-import PaintInfo from '@/components/PaintInfo.vue'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
-import { useStableDiffusion } from '@/assets/js/store/stableDiffusion'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
+import InfoTable from '@/components/InfoTable.vue'
+import { Image, useImageGeneration } from '@/assets/js/store/imageGeneration'
 
 const imageGeneration = useImageGeneration()
-const stableDiffusion = useStableDiffusion()
-const globalSetup = useGlobalSetup()
 const i18nState = useI18N().state
-const downloadModel = reactive({
-  downloading: false,
-  text: '',
-  percent: 0,
+const showInfoParams = ref(false)
+const selectedImageId = ref<string | null>(null)
+const currentImage: ComputedRef<Image | null> = computed(() => {
+  return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
-const showParams = ref(false)
-const infoParams = ref<KVObject>({})
+watch(
+  () => imageGeneration.generatedImages.length,
+  () => {
+    const numberOfImages = imageGeneration.generatedImages.length
+    if (numberOfImages > 0) {
+      selectedImageId.value = imageGeneration.generatedImages[numberOfImages - 1].id
+    } else {
+      selectedImageId.value = null
+    }
+    showInfoParams.value = false
+  },
+)
 
 const emits = defineEmits<{
   (
@@ -178,12 +200,6 @@ const emits = defineEmits<{
 
 async function generateImage() {
   await ensureModelsAreAvailable()
-  reset()
-  const inferenceBackendService: BackendServiceName =
-    imageGeneration.backend === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
-  await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-  globalSetup.updateLastUsedBackend(inferenceBackendService)
-
   await imageGeneration.generate()
 }
 
@@ -199,39 +215,48 @@ async function ensureModelsAreAvailable() {
 }
 
 function postImageToEnhance() {
-  emits('postImageToEnhance', imageGeneration.imageUrls[imageGeneration.previewIdx])
-}
-
-function openImage() {
-  const path = imageGeneration.imageUrls[imageGeneration.previewIdx]
-  window.electronAPI.openImageWithSystem(path)
-}
-
-function selecteImage() {
-  window.electronAPI.selecteImage(imageGeneration.imageUrls[imageGeneration.previewIdx])
-}
-
-function copyImage() {
-  util.copyImage(imageGeneration.imageUrls[imageGeneration.previewIdx])
-  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
-}
-
-function reset() {
-  downloadModel.downloading = false
-  imageGeneration.reset()
-}
-
-function swithPreview(i: number) {
-  imageGeneration.previewIdx = i
-  if (i > -1) {
-    infoParams.value = stableDiffusion.generateParams[i]
-  } else {
-    showParams.value = false
-  }
+  emits('postImageToEnhance', currentImage.value?.imageUrl ?? '')
 }
 
 function showParamsDialog() {
-  showParams.value = true
-  infoParams.value = stableDiffusion.generateParams[imageGeneration.previewIdx]
+  showInfoParams.value = true
+  console.log(currentImage.value?.settings)
+}
+
+function openImage() {
+  window.electronAPI.openImageWithSystem(currentImage.value?.imageUrl ?? '')
+}
+
+function copyImage() {
+  util.copyImage(currentImage.value?.imageUrl ?? '')
+  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
+}
+
+function openImageInFolder() {
+  window.electronAPI.openImageInFolder(currentImage.value?.imageUrl ?? '')
+}
+
+function deleteImage() {
+  if (!currentImage.value) return
+  imageGeneration.deleteImage(currentImage.value.id)
+}
+
+function deleteAllImages() {
+  imageGeneration.deleteAllImages()
+}
+
+function loadingStateToText(state: string) {
+  switch (state) {
+    case 'load_model':
+      return i18nState.COM_LOADING_MODEL
+    case 'load_model_components':
+      return i18nState.COM_LOADING_MODEL_COMPONENTS
+    case 'install_workflow_components':
+      return i18nState.COM_INSTALL_WORKFLOW_COMPONENTS
+    case 'load_workflow_components':
+      return i18nState.COM_LOADING_WORKFLOW_COMPONENTS
+    default:
+      return state
+  }
 }
 </script>

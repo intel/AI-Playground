@@ -57,7 +57,7 @@ type electronAPI = {
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<string[]>
   openImageWithSystem(url: string): void
-  selecteImage(url: string): void
+  openImageInFolder(url: string): void
   setFullScreen(enable: boolean): void
   onDebugLog(
     callback: (data: {
@@ -203,14 +203,6 @@ type LLMOutTextCallback = {
   2
 }
 
-type SDOutCallback =
-  | LoadModelCallback
-  | LoadModelcomponentsCallback
-  | SDOutImagelCallback
-  | SDStepEndCallback
-  | ErrorOutCallback
-  | NotEnoughDiskSpaceExceptionCallback
-
 type LoadModelAllComplete = {
   type: 'allComplete'
 }
@@ -229,25 +221,9 @@ type LoadModelCallback = {
   event: 'start' | 'finish'
 }
 
-type LoadModelcomponentsCallback = {
+type LoadModelComponentsCallback = {
   type: 'load_model_components'
   event: 'start' | 'finish'
-}
-
-type SDOutImagelCallback = {
-  type: 'image_out'
-  index: number
-  image: string
-  safe_check_pass: boolean
-  params: KVObject
-}
-
-type SDStepEndCallback = {
-  type: 'step_end'
-  index: number
-  step: number
-  total_step: number
-  image?: string
 }
 
 type NotEnoughDiskSpaceExceptionCallback = {
@@ -259,7 +235,7 @@ type NotEnoughDiskSpaceExceptionCallback = {
 
 type ErrorOutCallback = {
   type: 'error'
-  err_type: 'runtime_error' | 'download_exception' | 'unknow_exception'
+  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception'
 }
 
 type DownloadModelProgressCallback = {
@@ -359,15 +335,6 @@ type ComfyUICustomNodesRequestParameters = {
 type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
-
-type SDGenerateState =
-  | 'no_start'
-  | 'input_image'
-  | 'load_model'
-  | 'load_model_components'
-  | 'generating'
-  | 'image_out'
-  | 'error'
 
 type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend'
 

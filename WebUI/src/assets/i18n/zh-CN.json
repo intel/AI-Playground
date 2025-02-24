@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "下载速度",
   "COM_LOADING_MODEL": "正在加载AI模型",
   "COM_LOADING_MODEL_COMPONENTS": "正在加载AI模型组件",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "正在安装工作流组件",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "正在加载工作流组件",
   "COM_NO_SELECTED": "未选中",
   "COM_CONFIRM": "确认",
   "COM_CANCEL": "取消",
@@ -242,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "此模型需要大量显存。如果遇到性能问题，请降低分辨率或重启ComfyUI后端",
   "WORKFLOW_HIGH_VRAM_WARNING": "需要大量显存",
   "LOADING_VERIFYING_BACKENDS": "验证后端",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 加载中"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 加载中",
+  "COM_CLEAR_HISTORY": "清除历史",
+  "INPUT_PROMPT": "提示",
+  "BACKEND": "后端",
+  "DEVICE": "设备"
 }

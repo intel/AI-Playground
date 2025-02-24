@@ -12,7 +12,7 @@
     "prepare-build": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/prototype-python-env",
     "build": "node ./build/scripts/patch-nsis-template.js && cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "lint:eslint": "eslint . --fix",
-    "lint": "run-s lint:*",
+    "lint": "eslint . --fix",
     "format": "prettier --write .",
     "lint:ci": "eslint .",
     "format:ci": "prettier --check ."
@@ -39,6 +39,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "unplugin-auto-import": "^0.18.6",
+    "uuid": "^11.0.5",
     "vue": "^3.5.12",
     "zod": "^3.24.1"
   },

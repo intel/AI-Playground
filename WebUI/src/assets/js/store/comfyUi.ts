@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import { ComfyUIApiWorkflow, Setting, useImageGeneration } from './imageGeneration'
+import { ComfyUIApiWorkflow, Image, Setting, useImageGeneration } from './imageGeneration'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
@@ -8,32 +8,95 @@ import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 
 const WEBSOCKET_OPEN = 1
 
+const settingToComfyInputsName = {
+  seed: ['seed', 'noise_seed'],
+  inferenceSteps: ['steps'],
+  height: ['height'],
+  width: ['width'],
+  prompt: ['text'],
+  negativePrompt: ['text'],
+  guidanceScale: ['cfg'],
+  scheduler: ['scheduler'],
+  batchSize: ['batch_size'],
+} satisfies Partial<Record<Setting, string[]>>
+
+type ComfySetting = keyof typeof settingToComfyInputsName
+
+const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
+  Object.entries(workflow)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
+    .map(([key, _value]) => key)
+
+const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
+  Object.entries(workflow)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter(([_key, value]) => (value as any)?.['class_type'] === classType)
+    .map(([key, _value]) => key)
+
+const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
+  for (const inputName of settingToComfyInputsName[setting]) {
+    if (inputName === 'text') continue
+    const keys = Object.entries(workflow)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter(([_key, value]) => (value as any)?.['inputs']?.[inputName ?? ''] !== undefined)
+      .map(([key, _value]) => key)
+    if (keys.length > 0) return keys
+  }
+  return []
+}
+
+const getInputNameBySettingAndKey = (
+  workflow: ComfyUIApiWorkflow,
+  key: string,
+  setting: ComfySetting,
+) => {
+  for (const inputName of settingToComfyInputsName[setting]) {
+    if (workflow[key]?.inputs?.[inputName ?? '']) return inputName
+  }
+  return ''
+}
+
+function modifySettingInWorkflow(
+  workflow: ComfyUIApiWorkflow,
+  setting: ComfySetting,
+  value: unknown,
+) {
+  const keys =
+    findKeysByTitle(workflow, setting).length > 0
+      ? findKeysByTitle(workflow, setting)
+      : findKeysByInputsName(workflow, setting)
+  if (keys.length === 0) {
+    console.error(`No key found for setting ${setting}. Stopping generation`)
+    return
+  }
+  if (keys.length > 1) {
+    console.warn(`Multiple keys found for setting ${setting}. Using first one`)
+  }
+  const key = keys[0]
+  if (workflow[key]?.inputs?.[getInputNameBySettingAndKey(workflow, key, setting)] !== undefined) {
+    workflow[key].inputs[getInputNameBySettingAndKey(workflow, key, setting)] = value
+  }
+}
+
 export const useComfyUi = defineStore(
   'comfyUi',
   () => {
     const imageGeneration = useImageGeneration()
     const globalSetup = useGlobalSetup()
     const i18nState = useI18N().state
-    const comfyPort = computed(() => comfyUiState.value.port)
-    const comfyBaseUrl = computed(() => comfyUiState.value.baseUrl)
+    const comfyPort = computed(() => comfyUiState.value?.port)
+    const comfyBaseUrl = computed(() => comfyUiState.value?.baseUrl)
 
     const websocket = ref<WebSocket | null>(null)
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
+    let generateIdx: number = 0
+    let queuedImages: Image[] = []
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
-      const comfyUiState = backendServices.info.find(
-        (item) => item.serviceName === 'comfyui-backend',
-      ) ?? {
-        serviceName: 'comfyui-backend',
-        status: 'uninitializedStatus',
-        baseUrl: '???',
-        port: -1,
-        isSetUp: false,
-        isRequired: false,
-      }
-      return comfyUiState
+      return backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
     })
 
     async function installCustomNodesForActiveWorkflowFully() {
@@ -129,7 +192,7 @@ export const useComfyUi = defineStore(
     }
 
     function connectToComfyUi() {
-      if (comfyUiState.value.status !== 'running') {
+      if (comfyUiState.value?.status !== 'running') {
         console.warn('ComfyUI backend not running, cannot start websocket')
         return
       }
@@ -163,8 +226,13 @@ export const useComfyUi = defineStore(
                 const imageUrl = URL.createObjectURL(imageBlob)
                 console.log('image url', imageUrl)
                 if (imageBlob) {
-                  imageGeneration.previewIdx = imageGeneration.generateIdx
-                  imageGeneration.updateDestImage(imageGeneration.generateIdx, imageUrl)
+                  const currentImage = queuedImages[generateIdx]
+                  const newImage: Image = {
+                    ...currentImage,
+                    state: 'generating',
+                    imageUrl,
+                  }
+                  imageGeneration.updateImage(newImage)
                 }
                 break
               default:
@@ -191,15 +259,17 @@ export const useComfyUi = defineStore(
                 }
                 break
               case 'executed':
-                const images: { filename: string; type: string; subfolder: string }[] =
-                  msg.data?.output?.images?.filter((i: { type: string }) => i.type === 'output')
-                images.forEach((image) => {
-                  imageGeneration.updateDestImage(
-                    imageGeneration.generateIdx,
-                    `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
-                  )
-                  imageGeneration.generateIdx++
-                })
+                const imageFromOutput: { filename: string; type: string; subfolder: string } =
+                  msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
+
+                const currentImage = queuedImages[generateIdx]
+                const newImage: Image = {
+                  ...currentImage,
+                  state: 'done',
+                  imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
+                }
+                imageGeneration.updateImage(newImage)
+                generateIdx++
                 console.log('executed', { detail: msg.data })
                 break
               case 'execution_start':
@@ -227,7 +297,7 @@ export const useComfyUi = defineStore(
     }
 
     watchEffect(() => {
-      if (comfyPort && comfyUiState.value.status === 'running') {
+      if (comfyPort && comfyUiState.value?.status === 'running') {
         connectToComfyUi()
       }
     })
@@ -307,12 +377,16 @@ export const useComfyUi = defineStore(
       }
 
       try {
+        imageGeneration.processing = true
+        imageGeneration.currentState = 'install_workflow_components'
         await installCustomNodesForActiveWorkflowFully()
 
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
           JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow),
         )
-        const seed = imageGeneration.seed === -1 ? Math.random() * 1000000 : imageGeneration.seed
+        generateIdx = 0
+        const baseSeed =
+          imageGeneration.seed === -1 ? Math.floor(Math.random() * 1000000) : imageGeneration.seed
 
         modifySettingInWorkflow(mutableWorkflow, 'inferenceSteps', imageGeneration.inferenceSteps)
         modifySettingInWorkflow(mutableWorkflow, 'height', imageGeneration.height)
@@ -328,9 +402,25 @@ export const useComfyUi = defineStore(
           ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
         ]
 
-        for (let i = 0; i < imageGeneration.batchSize; i++) {
-          modifySettingInWorkflow(mutableWorkflow, 'seed', `${(seed + i).toFixed(0)}`)
+        queuedImages = Array.from({ length: imageGeneration.batchSize }, (_, i) => {
+          const seed = baseSeed + i
+          const settings = imageGeneration.getGenerationParameters()
+          settings.seed = seed
 
+          return {
+            id: window.crypto.randomUUID(),
+            imageUrl:
+              'data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%3F%3E%3Csvg%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20color%3D%22%23000000%22%3E%3Cpath%20d%3D%22M12%2012C15.866%2012%2019%208.86599%2019%205H5C5%208.86599%208.13401%2012%2012%2012ZM12%2012C15.866%2012%2019%2015.134%2019%2019H5C5%2015.134%208.13401%2012%2012%2012Z%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%202L12%202L19%202%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%2022H12L19%2022%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+            state: 'queued',
+            settings,
+            dynamicSettings: imageGeneration.comfyInputs.map((input) => ({
+              ...input,
+              current: input.current.value as never,
+            })),
+          }
+        })
+        for (const image of queuedImages) {
+          modifySettingInWorkflow(mutableWorkflow, 'seed', `${image.settings.seed!.toFixed(0)}`)
           const result = await fetch(`${comfyBaseUrl.value}/prompt`, {
             method: 'POST',
             headers: {
@@ -347,6 +437,7 @@ export const useComfyUi = defineStore(
             )
           }
         }
+        imageGeneration.currentState = 'load_workflow_components'
       } catch (ex) {
         console.error('Error generating image', ex)
         toast.error('Backend could not generate image.')
@@ -383,72 +474,6 @@ export const useComfyUi = defineStore(
     },
   },
 )
-
-const settingToComfyInputsName = {
-  seed: ['seed', 'noise_seed'],
-  inferenceSteps: ['steps'],
-  height: ['height'],
-  width: ['width'],
-  prompt: ['text'],
-  negativePrompt: ['text'],
-  guidanceScale: ['cfg'],
-  scheduler: ['scheduler'],
-  batchSize: ['batch_size'],
-} satisfies Partial<Record<Setting, string[]>>
-type ComfySetting = keyof typeof settingToComfyInputsName
-const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
-  Object.entries(workflow)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
-    .map(([key, _value]) => key)
-const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
-  Object.entries(workflow)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter(([_key, value]) => (value as any)?.['class_type'] === classType)
-    .map(([key, _value]) => key)
-const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
-  for (const inputName of settingToComfyInputsName[setting]) {
-    if (inputName === 'text') continue
-    const keys = Object.entries(workflow)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter(([_key, value]) => (value as any)?.['inputs']?.[inputName ?? ''] !== undefined)
-      .map(([key, _value]) => key)
-    if (keys.length > 0) return keys
-  }
-  return []
-}
-const getInputNameBySettingAndKey = (
-  workflow: ComfyUIApiWorkflow,
-  key: string,
-  setting: ComfySetting,
-) => {
-  for (const inputName of settingToComfyInputsName[setting]) {
-    if (workflow[key]?.inputs?.[inputName ?? '']) return inputName
-  }
-  return ''
-}
-
-function modifySettingInWorkflow(
-  workflow: ComfyUIApiWorkflow,
-  setting: ComfySetting,
-  value: unknown,
-) {
-  const keys =
-    findKeysByTitle(workflow, setting).length > 0
-      ? findKeysByTitle(workflow, setting)
-      : findKeysByInputsName(workflow, setting)
-  if (keys.length === 0) {
-    console.error(`No key found for setting ${setting}. Stopping generation`)
-    return
-  }
-  if (keys.length > 1) {
-    console.warn(`Multiple keys found for setting ${setting}. Using first one`)
-  }
-  const key = keys[0]
-  if (workflow[key]?.inputs?.[getInputNameBySettingAndKey(workflow, key, setting)] !== undefined) {
-    workflow[key].inputs[getInputNameBySettingAndKey(workflow, key, setting)] = value
-  }
-}
 
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useComfyUi, import.meta.hot))

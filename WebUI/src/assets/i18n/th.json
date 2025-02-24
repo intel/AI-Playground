@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "ความเร็วในการดาวน์โหลด",
   "COM_LOADING_MODEL": "กำลังโหลดโมเดล AI",
   "COM_LOADING_MODEL_COMPONENTS": "กำลังโหลดส่วนประกอบโมเดล AI",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "กำลังติดตั้งคอมโพเนนต์เวิร์กโฟลว์",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "กำลังโหลดคอมโพเนนต์เวิร์กโฟลว์",
   "COM_NO_SELECTED": "ไม่มีการเลือก",
   "COM_CONFIRM": "ยืนยัน",
   "COM_CANCEL": "ยกเลิก",
@@ -242,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "โมเดลนี้ต้องการ VRAM จำนวนมาก ลดความละเอียดและ/หรือรีสตาร์ทแบ็กเอนด์ ComfyUI เมื่อประสบปัญหาประสิทธิภาพการทำงานที่ไม่ดี",
   "WORKFLOW_HIGH_VRAM_WARNING": "ต้องการ VRAM สูง",
   "LOADING_VERIFYING_BACKENDS": "กำลังตรวจสอบแบ็กเอนด์",
-  "LOADING_AI_PLAYGROUND_LOADING": "กำลังโหลด AI Playground"
+  "LOADING_AI_PLAYGROUND_LOADING": "กำลังโหลด AI Playground",
+  "COM_CLEAR_HISTORY": "ล้างประวัติ",
+  "INPUT_PROMPT": "พรอมต์",
+  "BACKEND": "แบ็กเอนด์",
+  "DEVICE": "อุปกรณ์"
 }

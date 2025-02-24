@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "Tốc độ tải về",
   "COM_LOADING_MODEL": "Đang tải mô hình AI",
   "COM_LOADING_MODEL_COMPONENTS": "Đang tải thành phần mô hình AI",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "Đang cài đặt thành phần quy trình",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "Đang tải thành phần quy trình",
   "COM_NO_SELECTED": "Chưa chọn",
   "COM_CONFIRM": "Xác nhận",
   "COM_CANCEL": "Hủy bỏ",
@@ -242,5 +244,9 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Mô hình này yêu cầu nhiều VRAM. Giảm độ phân giải và/hoặc khởi động lại backend ComfyUI khi gặp hiệu suất kém.",
   "WORKFLOW_HIGH_VRAM_WARNING": "yêu cầu VRAM cao",
   "LOADING_VERIFYING_BACKENDS": "Đang xác minh backends",
-  "LOADING_AI_PLAYGROUND_LOADING": "Đang tải AI Playground"
+  "LOADING_AI_PLAYGROUND_LOADING": "Đang tải AI Playground",
+  "COM_CLEAR_HISTORY": "Xóa lịch sử",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Thiết bị"
 }
