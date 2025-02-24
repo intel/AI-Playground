@@ -7,7 +7,7 @@ import torch
 import logging
 import sys
 
-from typing import List, Dict
+from typing import Any, List, Dict
 from os import path
 from transformers import (
     TextIteratorStreamer,
@@ -34,6 +34,8 @@ class LLMParams:
     model_repo_id: str
     max_tokens: int
     print_metrics: bool
+    generation_parameters: Dict[str, Any]
+
 
     def __init__(
             self,
@@ -43,6 +45,7 @@ class LLMParams:
             model_repo_id: str,
             max_tokens: int,
             print_metrics: bool = True,
+            **kwargs
     ) -> None:
         self.prompt = prompt
         self.device = device
@@ -50,6 +53,7 @@ class LLMParams:
         self.model_repo_id = model_repo_id
         self.max_tokens = max_tokens
         self.print_metrics = print_metrics
+        self.generation_parameters = kwargs
 
 
 RAG_PROMPT_FORMAT = "Answer the questions based on the information below. \n{context}\n\nQuestion: {prompt}"

@@ -101,7 +101,7 @@ class Model_Downloader_Adapter:
         elif isinstance(ex, RuntimeError):
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
-            self.put_msg({"type": "error", "err_type": "unknow_exception"})
+            self.put_msg({"type": "error", "err_type": "unknown_exception"})
         print(f"exception:{str(ex)}")
 
     def download(self, model_download_list: List[DownloadModelData]):

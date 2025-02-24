@@ -161,7 +161,7 @@ export const useStableDiffusion = defineStore(
             backend: 'default',
           })
         }
-        const result = await globalSetup.checkModelAlreadyLoaded(checkList)
+        const result = await models.checkModelAlreadyLoaded(checkList)
         const downloadList: CheckModelAlreadyLoadedParameters[] = []
         for (const item of result) {
           if (!item.already_loaded) {

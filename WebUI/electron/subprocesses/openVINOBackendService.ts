@@ -1,14 +1,13 @@
-import { app } from 'electron'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from './service.ts'
 
-const serviceFolder = 'LlamaCPP'
-export class LlamaCppBackendService extends LongLivedPythonApiService {
+const serviceFolder = 'openVINO'
+export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
+  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `openvino-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
   readonly isRequired = false
@@ -28,10 +27,11 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
+    const self = this
 
     try {
       yield {
-        serviceName: this.name,
+        serviceName: self.name,
         step: 'start',
         status: 'executing',
         debugMessage: 'starting to set up python environment',
@@ -39,31 +39,31 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       await this.lsLevelZero.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch = await self.lsLevelZero.detectDevice()
       yield {
-        serviceName: this.name,
+        serviceName: self.name,
         step: `Detecting intel device`,
         status: 'executing',
         debugMessage: `detected intel hardware ${deviceArch}`,
       }
 
       yield {
-        serviceName: this.name,
+        serviceName: self.name,
         step: `install dependencies`,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      const intelSpecificExtensionDir = app.isPackaged
-        ? this.baseDir
-        : path.join(__dirname, '../../external')
-      const intelSpecificExtension = existingFileOrError(
-        path.join(intelSpecificExtensionDir, 'llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl'),
-      )
-      await this.uvPip.pip.run(['install', intelSpecificExtension])
-      await this.uvPip.run(['install', '-r', commonRequirements])
+      const commonRequirements = existingFileOrError(path.join(self.serviceDir, 'requirements.txt'))
+      await this.uvPip.run([
+        'install',
+        '--index-strategy',
+        'unsafe-best-match',
+        '-r',
+        commonRequirements,
+      ])
+
       yield {
-        serviceName: this.name,
+        serviceName: self.name,
         step: `install dependencies`,
         status: 'executing',
         debugMessage: `dependencies installed`,
@@ -71,17 +71,17 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
       this.setStatus('notYetStarted')
       yield {
-        serviceName: this.name,
+        serviceName: self.name,
         step: 'end',
         status: 'success',
         debugMessage: `service set up completely`,
       }
     } catch (e) {
-      this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
-      this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
+      self.appLogger.warn(`Set up of service failed due to ${e}`, self.name, true)
+      self.appLogger.warn(`Aborting set up of ${self.name} service environment`, self.name, true)
       this.setStatus('installationFailed')
       yield {
-        serviceName: this.name,
+        serviceName: self.name,
         step: 'end',
         status: 'failed',
         debugMessage: `Failed to setup python environment due to ${e}`,
@@ -102,7 +102,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
     const apiProcess = spawn(
       this.python.getExePath(),
-      ['llama_web_api.py', '--port', this.port.toString()],
+      ['openvino_web_api.py', '--port', this.port.toString()],
       {
         cwd: this.serviceDir,
         windowsHide: true,

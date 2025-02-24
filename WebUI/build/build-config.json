@@ -27,6 +27,16 @@
       "filter": ["!__pycache__/"]
     },
     {
+      "from": "external/OpenVINO",
+      "to": "OpenVINO",
+      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/"]
+    },
+    {
+      "from": "external/OpenVINO",
+      "to": "OpenVINO",
+      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/"]
+    },
+    {
       "from": "external/intel_extension_for_pytorch-2.3.110+bmg-cp311-cp311-win_amd64.whl",
       "to": "intel_extension_for_pytorch-2.3.110+bmg-cp311-cp311-win_amd64.whl"
     },

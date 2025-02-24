@@ -4,8 +4,10 @@ import { useComfyUi } from './comfyUi'
 import { useStableDiffusion } from './stableDiffusion'
 import { useI18N } from './i18n'
 import * as Const from '../const'
-import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast.ts'
+import { useModels } from './models'
+import { useBackendServices } from './backendServices'
+import { useGlobalSetup } from './globalSetup'
 
 export type RefImage = {
   type: string
@@ -412,7 +414,9 @@ export const useImageGeneration = defineStore(
 
     const comfyUi = useComfyUi()
     const stableDiffusion = useStableDiffusion()
+    const backendServices = useBackendServices()
     const globalSetup = useGlobalSetup()
+    const models = useModels()
     const i18nState = useI18N().state
 
     const hdWarningDismissed = ref(false)
@@ -747,12 +751,12 @@ export const useImageGeneration = defineStore(
       const checkList: CheckModelAlreadyLoadedParameters[] =
         workflow.comfyUIRequirements.requiredModels.map(extractDownloadModelParamsFromString)
       const checkedModels: CheckModelAlreadyLoadedResult[] =
-        await globalSetup.checkModelAlreadyLoaded(checkList)
+        await models.checkModelAlreadyLoaded(checkList)
       const modelsToBeLoaded = checkedModels.filter(
         (checkModelExistsResult) => !checkModelExistsResult.already_loaded,
       )
       for (const item of modelsToBeLoaded) {
-        if (!(await globalSetup.checkIfHuggingFaceUrlExists(item.repo_id))) {
+        if (!(await models.checkIfHuggingFaceUrlExists(item.repo_id))) {
           toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
           return []
         }
@@ -780,7 +784,7 @@ export const useImageGeneration = defineStore(
         })
       }
 
-      const result = await globalSetup.checkModelAlreadyLoaded(checkList)
+      const result = await models.checkModelAlreadyLoaded(checkList)
       return result.filter((checkModelExistsResult) => !checkModelExistsResult.already_loaded)
     }
 
@@ -790,8 +794,8 @@ export const useImageGeneration = defineStore(
       stepText.value = i18nState.COM_GENERATING
       const inferenceBackendService: BackendServiceName =
         backend.value === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
-      await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-      globalSetup.updateLastUsedBackend(inferenceBackendService)
+      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+      backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
         await stableDiffusion.generate()
       } else {

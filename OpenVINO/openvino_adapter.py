@@ -1,14 +1,10 @@
 import threading
 from queue import Empty, Queue
 import json
-import time
 import traceback
 from typing import Dict, List, Callable
-#from model_downloader import NotEnoughDiskSpaceException, DownloadException
-#from psutil._common import bytes2human
-from llama_interface import LLMInterface
-from llama_params import LLMParams
-
+from openvino_interface import LLMInterface
+from openvino_params import LLMParams
 
 RAG_PROMPT_FORMAT = "Answer the questions based on the information below. \n{context}\n\nQuestion: {prompt}"
 
@@ -82,7 +78,7 @@ class LLM_SSE_Adapter:
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
             self.put_msg({"type": "error", "err_type": "unknown_exception"})
-        print(f"exception:{str(ex)}")
+        self.put_msg(f"exception:{str(ex)}")
 
     def text_conversation(self, params: LLMParams):
         thread = threading.Thread(
@@ -93,45 +89,14 @@ class LLM_SSE_Adapter:
         return self.generator()
     
 
-    def stream_function(self, stream):  
-        num_tokens = 0
-        start_time = time.time()
-        is_first = True
-        first_token_time = 0.0
-        last_token_time = 0.0
-
-        for output in stream:
-            if self.llm_interface.stop_generate:
-                self.llm_interface.stop_generate = False
-                break
-            
-            if self.llm_interface.get_backend_type() == "ipex_llm":
-                # transformer style
-                self.text_out_callback(output)
-            else:
-                # openai style
-                self.text_out_callback(output["choices"][0]["delta"].get("content",""))
-                num_tokens += 1
-
-                if is_first:
-                    first_token_time = time.time()
-                    is_first = False
-
-        last_token_time = time.time()
-
-        metrics_data = {
-            "type": "metrics",
-            "num_tokens": num_tokens,
-            "total_time": last_token_time - start_time,
-            "overall_tokens_per_second": num_tokens / (last_token_time - start_time),
-            "second_plus_tokens_per_second": (num_tokens - 1) / (last_token_time - first_token_time),
-            "first_token_latency": first_token_time - start_time,
-            "after_token_latency": (last_token_time - first_token_time) / (num_tokens - 1) if num_tokens > 1 else None
-        }
-
-        self.put_msg(metrics_data)
-
-        self.put_msg({"type": "finish"})
+    def stream_function(self, output):
+        self.text_out_callback(output)
+        if self.llm_interface.stop_generate:
+            self.put_msg("Stopping generation.")
+            return True  # Stop generation
+        
+        return False  
+    
 
     def text_conversation_run(
         self,
@@ -141,20 +106,14 @@ class LLM_SSE_Adapter:
             self.llm_interface.load_model(params, callback=self.load_model_callback)
             
             prompt = params.prompt
-            if params.enable_rag:
-                last_prompt = prompt[prompt.__len__() - 1]
-                last_prompt.__setitem__(
-                    "question", process_rag(last_prompt.get("question"), params.device)
-                )
-
             full_prompt = convert_prompt(prompt)
-            stream = self.llm_interface.create_chat_completion(full_prompt)
-            self.stream_function(stream)	
-            
+            self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.max_tokens)
+        
         except Exception as ex:
             traceback.print_exc()
             self.error_callback(ex)
         finally:
+            self.llm_interface.stop_generate = False
             self.finish = True
             self.singal.set()
 

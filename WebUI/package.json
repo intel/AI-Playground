@@ -8,7 +8,7 @@
     "fetch-build-resources": "cross-env node ./build/scripts/fetch-python-package-resources.js --target_dir=../build_resources",
     "prepare-python-env": "cross-env node ./build/scripts/prepare-python-env.js --build_resources_dir=../build_resources --target_dir=../build-envs/online/prototype-python-env",
     "install-full-python-env": "cross-env node ./build/scripts/install-full-python-env.js --env_dir=../build-envs/online/prototype-python-env --comfy_ui_dir=../build_resources/ComfyUI",
-    "provide-electron-build-resources": "cross-env node build/scripts/provide-electron-build-resources.js --build_resources_dir=../build_resources --backend_dir=../service --llamacpp_dir=../LlamaCPP --target_dir=./external",
+    "provide-electron-build-resources": "cross-env node build/scripts/provide-electron-build-resources.js --build_resources_dir=../build_resources --backend_dir=../service --llamacpp_dir=../LlamaCPP --openvino_dir=../OpenVINO --target_dir=./external",
     "prepare-build": "cross-env npm run prepare-python-env && npm run provide-electron-build-resources -- --python_env_dir=../build-envs/online/prototype-python-env",
     "build": "node ./build/scripts/patch-nsis-template.js && cross-env-shell VITE_PLATFORM_TITLE=\"for Intel® Arc™\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64\"",
     "lint:eslint": "eslint . --fix",

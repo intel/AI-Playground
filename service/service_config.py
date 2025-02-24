@@ -36,4 +36,8 @@ llama_cpp_model_paths = {
     "ggufLLM": "./models/llm/ggufLLM",
 }
 
+openvino_model_paths = {
+    "openvinoLLM": "./models/llm/openvino",
+}
+
 device = "xpu"

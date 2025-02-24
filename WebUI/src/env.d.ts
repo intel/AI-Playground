@@ -55,6 +55,7 @@ type electronAPI = {
   getDownloadedLoras(): Promise<string[]>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
+  getDownloadedOpenVINOLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<string[]>
   openImageWithSystem(url: string): void
   openImageInFolder(url: string): void
@@ -312,11 +313,9 @@ type DownloadFailedParams = {
 type CheckModelAlreadyLoadedParameters = {
   repo_id: string
   type: number
-  backend: BackendType
+  backend: 'comfyui' | 'default' | 'llama_cpp' | 'openvino'
   additionalLicenseLink?: string
 }
-
-type BackendType = 'comfyui' | 'default' | 'llama_cpp'
 
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
@@ -336,7 +335,7 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend'
+type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
 
 type ApiServiceInformation = {
   serviceName: BackendServiceName

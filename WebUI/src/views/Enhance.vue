@@ -330,10 +330,14 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
 import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageGeneration'
+import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useModels } from '@/assets/js/store/models'
 import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
+const backendServices = useBackendServices()
+const models = useModels()
 const imageGeneration = useImageGeneration()
 const mode = ref(1)
 const sourceImage = ref<HTMLImageElement>()
@@ -549,9 +553,8 @@ async function generate() {
     return
   }
   await checkModel()
-  const inferenceBackendService: BackendServiceName = 'ai-backend'
-  await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-  globalSetup.updateLastUsedBackend(inferenceBackendService)
+  await backendServices.resetLastUsedInferenceBackend('ai-backend')
+  backendServices.updateLastUsedBackend('ai-backend')
 
   try {
     processing.value = true
@@ -636,7 +639,7 @@ async function checkModel() {
         backend: imageGeneration.activeWorkflow.backend,
       })
     }
-    const result = await globalSetup.checkModelAlreadyLoaded(checkList)
+    const result = await models.checkModelAlreadyLoaded(checkList)
     const downloadList: DownloadModelParam[] = []
     for (const item of result) {
       if (!item.already_loaded) {
