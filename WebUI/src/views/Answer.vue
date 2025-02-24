@@ -511,7 +511,7 @@ function dataProcess(line: string) {
         case 'runtime_error':
           toast.error(i18nState.ERROR_RUNTIME_ERROR)
           break
-        case 'unknow_exception':
+        case 'unknown_exception':
           toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
           break
       }

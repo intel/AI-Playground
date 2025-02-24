@@ -139,7 +139,7 @@ class SD_SSE_Adapter:
         elif isinstance(ex, RuntimeError):
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
-            self.put_msg({"type": "error", "err_type": "unknow_exception"})
+            self.put_msg({"type": "error", "err_type": "unknown_exception"})
         print(f"exception:{str(ex)}")
 
     def generate(self, params: paint_biz.TextImageParams):

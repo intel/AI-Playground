@@ -245,7 +245,7 @@ function dataProcess(line: string) {
         case 'runtime_error':
           errorText.value = i18nState.ERROR_RUNTIME_ERROR
           break
-        case 'unknow_exception':
+        case 'unknown_exception':
           errorText.value = i18nState.ERROR_GENERATE_UNKONW_EXCEPTION
           break
       }
