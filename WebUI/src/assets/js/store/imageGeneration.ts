@@ -43,11 +43,11 @@ export type Image = {
   imageUrl: string
 }
 
-export type Video = Image & { videoFormat: string; videoUrl: string }
+export type Video = Image & { videoUrl: string }
 
-export type Media = Image | Video
+export type MediaItem = Image | Video
 
-export const isVideo = (media: Media): media is Video => 'videoFormat' in media
+export const isVideo = (item: MediaItem): item is Video => 'videoUrl' in item
 
 const SettingsSchema = z.object({
   imageModel: z.string(),
@@ -157,7 +157,7 @@ const ComfyStringListInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
   type: z.literal('stringList'),
-  stringList: z.array(z.string()),
+  options: z.array(z.string()),
   defaultValue: z.string(),
   label: z.string(),
 })
@@ -646,7 +646,7 @@ export const useImageGeneration = defineStore(
       saveToSettingsPerWorkflow('inpaintModel')
     })
 
-    const generatedImages = ref<Media[]>([])
+    const generatedImages = ref<MediaItem[]>([])
     const currentState = ref<GenerateState>('no_start')
     const stepText = ref('')
 
@@ -679,7 +679,7 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    function updateImage(newImage: Media) {
+    function updateImage(newImage: MediaItem) {
       console.log('updating image', newImage)
       const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
       if (existingImageIndex !== -1) {

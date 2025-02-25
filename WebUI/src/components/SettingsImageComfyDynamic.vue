@@ -34,7 +34,7 @@
     <!--    StringList    -->
     <drop-selector
       v-if="input.type === 'stringList'"
-      :array="input.stringList"
+      :array="input.options"
       @change="(stringItem) => (input.current.value = stringItem)"
     >
       <template #selected>

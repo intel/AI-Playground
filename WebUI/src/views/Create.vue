@@ -53,7 +53,7 @@
               controlsList="nodownload nofullscreen noremoteplayback"
               controls
             >
-              <source :src="image.videoUrl" :type="image.videoFormat" />
+              <source :src="image.videoUrl" />
             </video>
           </div>
           <div
@@ -73,7 +73,7 @@
               class="w-3/4"
             ></loading-bar>
             <div
-              v-else-if="imageGeneration.currentState == 'generating'"
+              v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
               class="flex gap-2 items-center justify-center text-white"
             >
               <span class="svg-icon i-loading w-8 h-8"></span>
@@ -88,10 +88,10 @@
             class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
           >
             <button
-              v-show="
+              v-if="
                 currentImage && !(currentImage?.state === 'generating') && !isVideo(currentImage)
               "
-              @click="postImageToEnhance"
+              @click="postImageToEnhance(currentImage)"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -106,31 +106,32 @@
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !(currentImage?.state === 'generating')"
-              @click="openImage"
+              v-if="currentImage && !(currentImage?.state === 'generating')"
+              @click="openImage(currentImage)"
               :title="languages.COM_ZOOM_IN"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !(currentImage?.state === 'generating')"
-              @click="copyImage"
+              v-if="currentImage && !(currentImage?.state === 'generating')"
+              @click="copyImage(currentImage)"
               :title="languages.COM_COPY"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
             <button
-              v-show="currentImage && !(currentImage?.state === 'generating')"
-              @click="openImageInFolder"
+              v-if="currentImage && !(currentImage?.state === 'generating')"
+              @click="openImageInFolder(currentImage)"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
             <button
-              @click="deleteImage"
+              v-if="currentImage"
+              @click="deleteImage(currentImage)"
               :title="languages.COM_DELETE"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -181,13 +182,13 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { Media, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
 const selectedImageId = ref<string | null>(null)
-const currentImage: ComputedRef<Media | null> = computed(() => {
+const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
 watch(
@@ -231,8 +232,8 @@ async function ensureModelsAreAvailable() {
   })
 }
 
-function postImageToEnhance() {
-  emits('postImageToEnhance', getMediaUrl(currentImage.value!))
+function postImageToEnhance(image: MediaItem) {
+  emits('postImageToEnhance', getMediaUrl(image))
 }
 
 function showParamsDialog() {
@@ -240,22 +241,21 @@ function showParamsDialog() {
   console.log(currentImage.value?.settings)
 }
 
-function openImage() {
-  window.electronAPI.openImageWithSystem(getMediaUrl(currentImage.value!))
+function openImage(image: MediaItem) {
+  window.electronAPI.openImageWithSystem(getMediaUrl(image))
 }
 
-function copyImage() {
-  util.copyImage(getMediaUrl(currentImage.value!))
+function copyImage(image: MediaItem) {
+  util.copyImage(getMediaUrl(image))
   toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
-function openImageInFolder() {
-  window.electronAPI.openImageInFolder(getMediaUrl(currentImage.value!))
+function openImageInFolder(image: MediaItem) {
+  window.electronAPI.openImageInFolder(getMediaUrl(image))
 }
 
-function deleteImage() {
-  if (!currentImage.value) return
-  imageGeneration.deleteImage(currentImage.value.id)
+function deleteImage(image: MediaItem) {
+  imageGeneration.deleteImage(image.id)
 }
 
 function deleteAllImages() {
@@ -277,7 +277,7 @@ function loadingStateToText(state: string) {
   }
 }
 
-function getMediaUrl(image: Media) {
+function getMediaUrl(image: MediaItem) {
   return isVideo(image) ? image.videoUrl : image.imageUrl
 }
 </script>
