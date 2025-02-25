@@ -9,7 +9,7 @@
         <div class="image-preview-panel">
           <!-- eslint-disable vue/require-v-for-key -->
           <div
-            v-for="image in imageGeneration.generatedImages"
+            v-for="image in imageGeneration.generatedImages.filter((i) => i.state !== 'queued')"
             class="image-preview-item flex items-center justify-center"
             :class="{ active: selectedImageId === image.id }"
             @click="selectedImageId = image.id"
@@ -191,9 +191,11 @@ const currentImage: ComputedRef<Media | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
 watch(
-  () => imageGeneration.generatedImages.length,
+  () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
-    const numberOfImages = imageGeneration.generatedImages.length
+    const numberOfImages = imageGeneration.generatedImages.filter(
+      (i) => i.state !== 'queued',
+    ).length
     if (numberOfImages > 0) {
       selectedImageId.value = imageGeneration.generatedImages[numberOfImages - 1].id
     } else {

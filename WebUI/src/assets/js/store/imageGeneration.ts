@@ -9,11 +9,6 @@ import { useModels } from './models'
 import { useBackendServices } from './backendServices'
 import { useGlobalSetup } from './globalSetup'
 
-export type RefImage = {
-  type: string
-  image: string
-}
-
 export type GenerateState =
   | 'no_start'
   | 'input_image'
@@ -24,10 +19,6 @@ export type GenerateState =
   | 'generating'
   | 'image_out'
   | 'error'
-
-export type ImageInfoParameter = {
-  [key: string]: string | number | boolean | RefImage
-}
 
 export type GenerationSettings = Partial<
   Settings & {
@@ -688,7 +679,7 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    async function updateImage(newImage: Media) {
+    function updateImage(newImage: Media) {
       console.log('updating image', newImage)
       const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
       if (existingImageIndex !== -1) {
@@ -811,6 +802,15 @@ export const useImageGeneration = defineStore(
 
     async function generate() {
       generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
+      const imageIds: string[] = Array.from({ length: batchSize.value }, () => crypto.randomUUID())
+      imageIds.forEach((imageId) => {
+        updateImage({
+          id: imageId,
+          state: 'queued',
+          settings: {},
+          imageUrl: '',
+        })
+      })
       currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
       const inferenceBackendService: BackendServiceName =
@@ -818,9 +818,9 @@ export const useImageGeneration = defineStore(
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
-        await stableDiffusion.generate()
+        await stableDiffusion.generate(imageIds)
       } else {
-        await comfyUi.generate()
+        await comfyUi.generate(imageIds)
       }
     }
 
