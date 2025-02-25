@@ -310,6 +310,7 @@ export const useComfyUi = defineStore(
                 break
               case 'execution_error':
                 imageGeneration.processing = false
+                toast.error(msg.exception_message)
                 break
               case 'execution_interrupted':
                 imageGeneration.processing = false

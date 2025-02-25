@@ -126,7 +126,6 @@ export const useStableDiffusion = defineStore(
         }))
         await sendGenerate(imageGeneration.getGenerationParameters())
       } catch (error: unknown) {
-        toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
         console.error(error)
       } finally {
         imageGeneration.processing = false
