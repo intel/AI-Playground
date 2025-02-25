@@ -246,11 +246,6 @@ export const useComfyUi = defineStore(
                 break
               case 'progress':
                 imageGeneration.currentState = 'generating'
-                currentImage = queuedImages[generateIdx]
-                imageGeneration.updateImage({
-                  ...currentImage,
-                  state: 'generating',
-                })
                 imageGeneration.stepText = `${i18nState.COM_GENERATING} ${msg.data.value}/${msg.data.max}`
                 console.log('progress', { data: msg.data })
                 break
@@ -262,6 +257,11 @@ export const useComfyUi = defineStore(
                   imageGeneration.currentState = 'load_model'
                 } else {
                   imageGeneration.currentState = 'generating'
+                  currentImage = queuedImages[0]
+                  imageGeneration.updateImage({
+                    ...currentImage,
+                    state: 'generating',
+                  })
                 }
                 break
               case 'executed':

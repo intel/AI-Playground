@@ -2,7 +2,7 @@
   <div id="createPanel" class="h-full flex flex-col p-4">
     <div class="image-panel justify-center items-center flex-auto flex">
       <div
-        v-show="imageGeneration.generatedImages.length > 0"
+        v-show="imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length > 0"
         class="flex flex-row justify-center items-end h-full"
         style="height: 550px !important"
       >

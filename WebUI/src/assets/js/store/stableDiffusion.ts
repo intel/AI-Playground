@@ -210,8 +210,23 @@ export const useStableDiffusion = defineStore(
           imageGeneration.currentState = 'load_model'
           break
         case 'load_model_components':
+          if (data.event !== 'finish') {
+            imageGeneration.currentState = 'load_model_components'
+          } else {
+            imageGeneration.currentState = 'generating'
+            currentImage = queuedImages[0]
+            imageGeneration.updateImage({
+              ...currentImage,
+              state: 'generating',
+            })
+          }
           imageGeneration.currentState =
             data.event == 'finish' ? 'generating' : 'load_model_components'
+          currentImage = queuedImages[0]
+          imageGeneration.updateImage({
+            ...currentImage,
+            state: 'generating',
+          })
           break
         case 'error':
           imageGeneration.processing = false
