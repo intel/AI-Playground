@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@types/exif": "^0.6.5",
+    "@types/express": "^5.0.0",
     "@types/minimist": "^1.2.5",
     "@types/node": "^20.17.10",
     "@vitejs/plugin-vue": "^5.2.1",
