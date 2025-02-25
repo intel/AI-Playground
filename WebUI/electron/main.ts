@@ -11,7 +11,7 @@ import {
   screen,
   shell,
 } from 'electron'
-import { ChildProcess, execSync, fork } from 'child_process'
+import { ChildProcess, fork } from 'child_process'
 import path from 'node:path'
 import fs from 'fs'
 import { exec } from 'node:child_process'
@@ -51,6 +51,9 @@ let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
 let child: ChildProcess | null = null
 const mediaDir = path.join(process.env.USERPROFILE!, 'Documents', 'AI-Playground', 'media')
+if (!fs.existsSync(mediaDir)) {
+  fs.mkdirSync(mediaDir)
+}
 let mediaPort: number = -1
 createMediaServer()
 
@@ -180,8 +183,8 @@ async function createMediaServer() {
     ...process.env,
     PORT_NUMBER: String(mediaPort),
     MEDIA_DIRECTORY: mediaDir,
-  };
-  child = fork(path.join(__dirname, '../media/mediaServer.js'), [], {env})
+  }
+  child = fork(path.join(__dirname, '../media/mediaServer.js'), [], { env })
 }
 
 function stopMediaServer() {
@@ -534,7 +537,7 @@ function initEventHandle() {
       console.error('Could not find image for URL', { url })
       return
     }
-    
+
     const comfyBackendUrl = serviceRegistry?.getService('comfyui-backend')?.baseUrl
     const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
@@ -545,7 +548,7 @@ function initEventHandle() {
     } else {
       imagePath = path.join(mediaDir, `${imageUrl.pathname}`)
     }
-    
+
     return imagePath
   }
 
