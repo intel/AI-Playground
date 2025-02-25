@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "履歴を消去",
   "INPUT_PROMPT": "プロンプト",
   "BACKEND": "バックエンド",
-  "DEVICE": "デバイス"
+  "DEVICE": "デバイス",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "チェックポイントモデル",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "フレームレート",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "総フレーム数"
 }

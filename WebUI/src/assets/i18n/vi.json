@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Xóa lịch sử",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Thiết bị"
+  "DEVICE": "Thiết bị",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Mô hình checkpoint",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Tốc độ khung hình",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Tổng số khung hình"
 }

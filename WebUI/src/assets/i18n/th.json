@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "ล้างประวัติ",
   "INPUT_PROMPT": "พรอมต์",
   "BACKEND": "แบ็กเอนด์",
-  "DEVICE": "อุปกรณ์"
+  "DEVICE": "อุปกรณ์",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "โมเดลเช็คพอยต์",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "อัตราเฟรม",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "จำนวนเฟรมทั้งหมด"
 }

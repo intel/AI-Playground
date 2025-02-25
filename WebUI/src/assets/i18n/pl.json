@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Wyczyść historię",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Urządzenie"
+  "DEVICE": "Urządzenie",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Model punktu kontrolnego",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Liczba klatek",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Całkowita liczba klatek"
 }

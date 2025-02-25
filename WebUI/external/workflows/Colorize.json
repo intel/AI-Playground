@@ -6,7 +6,7 @@
     "requiredModels": []
   },
   "tags": [],
-  "requirements": [],
+  "requirements": ["high-vram"],
   "inputs": [
     {
       "nodeTitle": "DDColor_Colorize",
