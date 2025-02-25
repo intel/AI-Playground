@@ -46,7 +46,6 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
   },
   { name: 'OpenVINO/Phi-3.5-mini-instruct-int4-ov', type: 'openVINO', default: true },
   { name: 'OpenVINO/Phi-3-mini-4k-instruct-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/open_llama_7b_v2-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov', type: 'openVINO', default: false },
 ]
 
