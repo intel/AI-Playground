@@ -296,7 +296,7 @@
             </button>
           </div>
           <div
-            v-show="textInference.backend !== 'llamaCPP'"
+            v-show="textInference.backend === 'ipexLLM'"
             class="flex justify-center items-center gap-2"
           >
             <div class="v-checkbox flex-none" type="button" :disabled="processing">
