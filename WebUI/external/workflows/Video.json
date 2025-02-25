@@ -60,14 +60,8 @@
   "comfyUiApiWorkflow": {
     "8": {
       "inputs": {
-        "samples": [
-          "36",
-          0
-        ],
-        "vae": [
-          "102",
-          1
-        ]
+        "samples": ["36", 0],
+        "vae": ["102", 1]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -85,26 +79,11 @@
     },
     "36": {
       "inputs": {
-        "noise": [
-          "37",
-          0
-        ],
-        "guider": [
-          "42",
-          0
-        ],
-        "sampler": [
-          "14",
-          0
-        ],
-        "sigmas": [
-          "104",
-          0
-        ],
-        "latent_image": [
-          "103",
-          1
-        ]
+        "noise": ["37", 0],
+        "guider": ["42", 0],
+        "sampler": ["14", 0],
+        "sigmas": ["104", 0],
+        "latent_image": ["103", 1]
       },
       "class_type": "SamplerCustomAdvanced",
       "_meta": {
@@ -123,18 +102,9 @@
     "42": {
       "inputs": {
         "cfg": 4,
-        "model": [
-          "103",
-          0
-        ],
-        "positive": [
-          "87",
-          0
-        ],
-        "negative": [
-          "88",
-          0
-        ]
+        "model": ["103", 0],
+        "positive": ["87", 0],
+        "negative": ["88", 0]
       },
       "class_type": "CFGGuider",
       "_meta": {
@@ -146,10 +116,7 @@
         "scheduler": "normal",
         "steps": 20,
         "denoise": 1,
-        "model": [
-          "103",
-          0
-        ]
+        "model": ["103", 0]
       },
       "class_type": "BasicScheduler",
       "_meta": {
@@ -159,10 +126,7 @@
     "87": {
       "inputs": {
         "text": "A cybernetic woman, with black hair and robotic parts...\nA cybernetic woman with black hair and robotic parts looks down and to her right, then back up; she has full lips, glowing electronics with white metallic body; the camera remains stationary on her face as she speaks; the background is out of focus, but shows a futurustic city and people moving; the scene is captured in real-life footage at night",
-        "clip": [
-          "109",
-          0
-        ]
+        "clip": ["109", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -172,10 +136,7 @@
     "88": {
       "inputs": {
         "text": "worst quality, inconsistent motion, blurry, jittery, distorted, watermarks",
-        "clip": [
-          "109",
-          0
-        ]
+        "clip": ["109", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -198,21 +159,12 @@
         "width": 384,
         "height": 256,
         "frames_number": 9,
-        "frame_rate": [
-          "116",
-          0
-        ],
+        "frame_rate": ["116", 0],
         "batch": 1,
         "mixed_precision": true,
         "img_compression": 29,
-        "model": [
-          "102",
-          0
-        ],
-        "vae": [
-          "102",
-          1
-        ]
+        "model": ["102", 0],
+        "vae": ["102", 1]
       },
       "class_type": "LTXVModelConfigurator",
       "_meta": {
@@ -221,16 +173,10 @@
     },
     "104": {
       "inputs": {
-        "sigma_shift": [
-          "103",
-          2
-        ],
+        "sigma_shift": ["103", 2],
         "stretch": true,
         "terminal": 0.1,
-        "sigmas": [
-          "81",
-          0
-        ]
+        "sigmas": ["81", 0]
       },
       "class_type": "LTXVShiftSigmas",
       "_meta": {
@@ -239,10 +185,7 @@
     },
     "106": {
       "inputs": {
-        "frame_rate": [
-          "115",
-          0
-        ],
+        "frame_rate": ["115", 0],
         "loop_count": 0,
         "filename_prefix": "LTXVideo",
         "format": "video/h264-mp4",
@@ -252,10 +195,7 @@
         "trim_to_audio": false,
         "pingpong": false,
         "save_output": true,
-        "images": [
-          "8",
-          0
-        ]
+        "images": ["8", 0]
       },
       "class_type": "VHS_VideoCombine",
       "_meta": {
@@ -283,10 +223,7 @@
     },
     "116": {
       "inputs": {
-        "a": [
-          "115",
-          0
-        ]
+        "a": ["115", 0]
       },
       "class_type": "CM_FloatToInt",
       "_meta": {

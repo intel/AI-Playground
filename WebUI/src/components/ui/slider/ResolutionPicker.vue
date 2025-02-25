@@ -5,7 +5,6 @@ import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'radix-vue'
 import { cn } from '@/lib/utils'
 import { clsx } from 'clsx'
 import { useImageGeneration } from '@/assets/js/store/imageGeneration'
-import { getLifeCycleTarget } from '@vueuse/core'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
 

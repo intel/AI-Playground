@@ -13,7 +13,12 @@
       "nodeInput": "checkpoint",
       "type": "stringList",
       "label": "checkpoint model",
-      "stringList": ["ddcolor_paper_tiny.pth", "ddcolor_paper.pth", "ddcolor_modelscope.pth", "ddcolor_artistic.pth"],
+      "stringList": [
+        "ddcolor_paper_tiny.pth",
+        "ddcolor_paper.pth",
+        "ddcolor_modelscope.pth",
+        "ddcolor_artistic.pth"
+      ],
       "defaultValue": "ddcolor_artistic.pth"
     },
     {
