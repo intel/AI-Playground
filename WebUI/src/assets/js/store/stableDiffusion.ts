@@ -220,13 +220,6 @@ export const useStableDiffusion = defineStore(
               state: 'generating',
             })
           }
-          imageGeneration.currentState =
-            data.event == 'finish' ? 'generating' : 'load_model_components'
-          currentImage = queuedImages[0]
-          imageGeneration.updateImage({
-            ...currentImage,
-            state: 'generating',
-          })
           break
         case 'error':
           imageGeneration.processing = false
