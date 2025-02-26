@@ -156,11 +156,7 @@
                 </button>
               </div>
               <div
-                v-if="
-                  textInference.metricsEnabled &&
-                  textInference.backend !== 'openVINO' &&
-                  chat.metrics
-                "
+                v-if="textInference.metricsEnabled && chat.metrics"
                 class="metrics-info text-xs text-gray-400"
               >
                 <span class="mr-2">{{ chat.metrics.num_tokens }} Tokens</span>
