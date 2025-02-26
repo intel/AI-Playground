@@ -111,6 +111,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       }
 
       await this.lsLevelZero.ensureInstalled()
+      await this.uvPip.ensureInstalled()
       await this.git.ensureInstalled()
 
       yield {

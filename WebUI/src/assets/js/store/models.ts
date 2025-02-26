@@ -44,11 +44,9 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
     type: 'llamaCPP',
     default: false,
   },
-  { name: 'OpenVINO/Phi-3-medium-4k-instruct-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/mixtral-8x7b-instruct-v0.1-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-fp16-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: true },
-  { name: 'OpenVINO/Phi-3.5-mini-instruct-fp16-ov', type: 'openVINO', default: false },
+  { name: 'OpenVINO/Phi-3.5-mini-instruct-int4-ov', type: 'openVINO', default: true },
+  { name: 'OpenVINO/Phi-3-mini-4k-instruct-int4-ov', type: 'openVINO', default: false },
+  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov', type: 'openVINO', default: false },
 ]
 
 export const useModels = defineStore(
