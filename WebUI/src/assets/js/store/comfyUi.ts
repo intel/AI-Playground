@@ -1,10 +1,11 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import { ComfyUIApiWorkflow, Image, Setting, useImageGeneration } from './imageGeneration'
+import { ComfyUIApiWorkflow, MediaItem, Setting, useImageGeneration } from './imageGeneration'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { z } from 'zod'
 
 const WEBSOCKET_OPEN = 1
 
@@ -21,6 +22,79 @@ const settingToComfyInputsName = {
 } satisfies Partial<Record<Setting, string[]>>
 
 type ComfySetting = keyof typeof settingToComfyInputsName
+
+const ComfyMessageSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('status'),
+  }),
+  z.object({
+    type: z.literal('execution_start'),
+    data: z.object({}).passthrough(),
+  }),
+  z.object({
+    type: z.literal('execution_success'),
+    data: z.object({}).passthrough(),
+  }),
+  z.object({
+    type: z.literal('execution_error'),
+    data: z.object({ exception_message: z.string().optional() }).passthrough(),
+  }),
+  z.object({
+    type: z.literal('execution_interrupted'),
+    data: z.object({}).passthrough(),
+  }),
+  z.object({
+    type: z.literal('execution_cached'),
+    data: z.object({}).passthrough(),
+  }),
+  z.object({
+    type: z.literal('progress'),
+    data: z
+      .object({
+        value: z.number(),
+        max: z.number(),
+      })
+      .passthrough(),
+  }),
+  z.object({
+    type: z.literal('executing'),
+    data: z
+      .object({
+        node: z.string().nullable().optional(),
+        display_node: z.string().optional(),
+      })
+      .passthrough(),
+  }),
+  z.object({
+    type: z.literal('executed'),
+    data: z
+      .object({
+        output: z.union([
+          z.object({
+            images: z.array(
+              z.object({
+                filename: z.string(),
+                subfolder: z.string(),
+                type: z.string(),
+              }),
+            ),
+          }),
+          z.object({
+            gifs: z.array(
+              z.object({
+                filename: z.string(),
+                workflow: z.string(),
+                type: z.string(),
+                subfolder: z.string(),
+                format: z.string(),
+              }),
+            ),
+          }),
+        ]),
+      })
+      .passthrough(),
+  }),
+])
 
 const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
   Object.entries(workflow)
@@ -92,7 +166,7 @@ export const useComfyUi = defineStore(
     const clientId = '12345'
     const loaderNodes = ref<string[]>([])
     let generateIdx: number = 0
-    let queuedImages: Image[] = []
+    let queuedImages: MediaItem[] = []
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
@@ -226,9 +300,8 @@ export const useComfyUi = defineStore(
                 const imageUrl = URL.createObjectURL(imageBlob)
                 console.log('image url', imageUrl)
                 if (imageBlob) {
-                  const currentImage = queuedImages[generateIdx]
-                  const newImage: Image = {
-                    ...currentImage,
+                  const newImage: MediaItem = {
+                    ...queuedImages[generateIdx],
                     state: 'generating',
                     imageUrl,
                   }
@@ -239,7 +312,7 @@ export const useComfyUi = defineStore(
                 throw new Error(`Unknown binary websocket message of type ${eventType}`)
             }
           } else {
-            const msg = JSON.parse(event.data)
+            const msg = ComfyMessageSchema.parse(JSON.parse(event.data))
             switch (msg.type) {
               case 'status':
                 break
@@ -252,23 +325,35 @@ export const useComfyUi = defineStore(
                 console.log('executing', {
                   detail: msg.data.display_node || msg.data.node,
                 })
-                if (loaderNodes.value.includes(msg?.data?.node)) {
-                  imageGeneration.currentState = 'load_model'
-                } else {
-                  imageGeneration.currentState = 'generating'
-                }
+                imageGeneration.currentState = loaderNodes.value.includes(msg.data.node ?? '')
+                  ? 'load_model'
+                  : 'generating'
                 break
               case 'executed':
-                const imageFromOutput: { filename: string; type: string; subfolder: string } =
-                  msg.data?.output?.images?.find((i: { type: string }) => i.type === 'output')
-
-                const currentImage = queuedImages[generateIdx]
-                const newImage: Image = {
-                  ...currentImage,
-                  state: 'done',
-                  imageUrl: `${comfyBaseUrl.value}/view?filename=${imageFromOutput.filename}&type=${imageFromOutput.type}&subfolder=${imageFromOutput.subfolder ?? ''}`,
+                const output = msg.data.output
+                if ('images' in output) {
+                  const image = output.images.find((i) => i.type === 'output')
+                  if (image) {
+                    const newImage: MediaItem = {
+                      ...queuedImages[generateIdx],
+                      state: 'done',
+                      imageUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
+                    }
+                    imageGeneration.updateImage(newImage)
+                  }
                 }
-                imageGeneration.updateImage(newImage)
+                if ('gifs' in output) {
+                  const video = output.gifs.find((i) => i.type === 'output')
+                  if (video) {
+                    const newImage: MediaItem = {
+                      ...queuedImages[generateIdx],
+                      state: 'done',
+                      imageUrl: `${comfyBaseUrl.value}/view?filename=${video.workflow}&type=${video.type}&subfolder=${video.subfolder ?? ''}`,
+                      videoUrl: `${comfyBaseUrl.value}/view?filename=${video.filename}&type=${video.type}&subfolder=${video.subfolder ?? ''}`,
+                    }
+                    imageGeneration.updateImage(newImage)
+                  }
+                }
                 generateIdx++
                 console.log('executed', { detail: msg.data })
                 break
@@ -282,6 +367,7 @@ export const useComfyUi = defineStore(
                 break
               case 'execution_error':
                 imageGeneration.processing = false
+                if (msg.data.exception_message) toast.error(msg.data.exception_message)
                 break
               case 'execution_interrupted':
                 imageGeneration.processing = false
@@ -320,11 +406,16 @@ export const useComfyUi = defineStore(
     async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
       for (const input of imageGeneration.comfyInputs) {
         const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle)
-        if (input.type === 'number' || input.type === 'string' || input.type === 'boolean') {
-          if (input.type === 'string')
+        if (
+          input.type === 'number' ||
+          input.type === 'string' ||
+          input.type === 'boolean' ||
+          input.type === 'stringList'
+        ) {
+          if (input.type === 'string' || input.type === 'stringList')
             console.log('probably modifying string', input.label, input.current.value)
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
-            if (input.type === 'string')
+            if (input.type === 'string' || input.type === 'stringList')
               console.log('actually modifying string', input.label, input.current.value)
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
@@ -361,7 +452,7 @@ export const useComfyUi = defineStore(
       }
     }
 
-    async function generate() {
+    async function generate(imageIds: string[]) {
       console.log('generateWithComfy')
       if (imageGeneration.activeWorkflow.backend !== 'comfyui') {
         console.warn('The selected workflow is not a comfyui workflow')
@@ -401,14 +492,13 @@ export const useComfyUi = defineStore(
           ...findKeysByClassType(mutableWorkflow, 'Unet Loader (GGUF)'),
           ...findKeysByClassType(mutableWorkflow, 'DualCLIPLoader (GGUF)'),
         ]
-
         queuedImages = Array.from({ length: imageGeneration.batchSize }, (_, i) => {
           const seed = baseSeed + i
           const settings = imageGeneration.getGenerationParameters()
           settings.seed = seed
 
           return {
-            id: window.crypto.randomUUID(),
+            id: imageIds[i],
             imageUrl:
               'data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%3F%3E%3Csvg%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20color%3D%22%23000000%22%3E%3Cpath%20d%3D%22M12%2012C15.866%2012%2019%208.86599%2019%205H5C5%208.86599%208.13401%2012%2012%2012ZM12%2012C15.866%2012%2019%2015.134%2019%2019H5C5%2015.134%208.13401%2012%2012%2012Z%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%202L12%202L19%202%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%2022H12L19%2022%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
             state: 'queued',
@@ -437,6 +527,10 @@ export const useComfyUi = defineStore(
             )
           }
         }
+        imageGeneration.updateImage({
+          ...queuedImages[0],
+          state: 'generating',
+        })
         imageGeneration.currentState = 'load_workflow_components'
       } catch (ex) {
         console.error('Error generating image', ex)

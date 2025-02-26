@@ -182,6 +182,8 @@ def convert_model_type(type: int):
         return "facerestore"
     elif type == 108:
         return "nsfwdetector"
+    elif type == 109:
+        return "checkpoints"
     else:
         raise Exception(f"unknown model type value {type}")
 

@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Hapus Riwayat",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Perangkat"
+  "DEVICE": "Perangkat",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Model Checkpoint",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frame"
 }

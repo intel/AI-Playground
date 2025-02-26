@@ -21,6 +21,7 @@ comfyui_python_exe = "../comfyui-backend-env/python.exe"
 comfyui_python_env = "../comfyui-backend-env"
 
 comfy_ui_model_paths = {
+    "checkpoints": f"{comfy_ui_root_path}/models/checkpoints",
     "unet": f"{comfy_ui_root_path}/models/unet",
     "clip": f"{comfy_ui_root_path}/models/clip",
     "vae": f"{comfy_ui_root_path}/models/vae",

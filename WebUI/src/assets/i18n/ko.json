@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "기록 지우기",
   "INPUT_PROMPT": "프롬프트",
   "BACKEND": "백엔드",
-  "DEVICE": "디바이스"
+  "DEVICE": "디바이스",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "체크포인트 모델",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "프레임 레이트",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "총 프레임"
 }

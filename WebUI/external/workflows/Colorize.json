@@ -1,65 +1,25 @@
 {
-  "name": "FaceSwap-HD",
+  "name": "Colorize",
   "backend": "comfyui",
   "comfyUIRequirements": {
-    "pythonPackages": [
-      "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl",
-      "onnxruntime"
-    ],
-    "customNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
-    "requiredModels": [
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
-      },
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
-      },
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
-      },
-      {
-        "type": "defaultCheckpoint",
-        "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
-      },
-      {
-        "type": "defaultLora",
-        "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
-      },
-      {
-        "type": "faceswap",
-        "model": "Aitrepreneur/insightface/inswapper_128.onnx",
-        "additionalLicenceLink": "https://huggingface.co/datasets/Gourieff/ReActor"
-      },
-      {
-        "type": "facerestore",
-        "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
-      },
-      {
-        "type": "nsfwdetector",
-        "model": "AdamCodd/vit-base-nsfw-detector/config.json"
-      },
-      {
-        "type": "nsfwdetector",
-        "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
-      },
-      {
-        "type": "nsfwdetector",
-        "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
-      }
-    ]
+    "customNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
+    "requiredModels": []
   },
-  "tags": ["SDXL", "Fast-LCM", "non-com"],
+  "tags": [],
   "requirements": ["high-vram"],
   "inputs": [
     {
-      "nodeTitle": "ReActor 🌌 Fast Face Swap",
-      "nodeInput": "enabled",
-      "type": "boolean",
-      "label": "Activate FaceSwap",
-      "defaultValue": true
+      "nodeTitle": "DDColor_Colorize",
+      "nodeInput": "checkpoint",
+      "type": "stringList",
+      "label": "checkpoint model",
+      "options": [
+        "ddcolor_paper_tiny.pth",
+        "ddcolor_paper.pth",
+        "ddcolor_modelscope.pth",
+        "ddcolor_artistic.pth"
+      ],
+      "defaultValue": "ddcolor_artistic.pth"
     },
     {
       "nodeTitle": "Load Image",
@@ -77,83 +37,15 @@
   ],
   "defaultSettings": {
     "resolution": "896x896",
-    "inferenceSteps": 4
+    "inferenceSteps": 4,
+    "batchSize": 1
   },
   "displayedSettings": [],
-  "modifiableSettings": ["inferenceSteps", "seed", "batchSize", "imagePreview", "resolution"],
+  "modifiableSettings": [],
   "comfyUiApiWorkflow": {
-    "3": {
+    "2": {
       "inputs": {
-        "seed": 826090,
-        "steps": 4,
-        "cfg": 1.5,
-        "sampler_name": "lcm",
-        "scheduler": "simple",
-        "denoise": 1,
-        "model": ["19", 0],
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "latent_image": ["5", 0]
-      },
-      "class_type": "KSampler",
-      "_meta": {
-        "title": "KSampler"
-      }
-    },
-    "5": {
-      "inputs": {
-        "width": 896,
-        "height": 896,
-        "batch_size": 1
-      },
-      "class_type": "EmptyLatentImage",
-      "_meta": {
-        "title": "Empty Latent Image"
-      }
-    },
-    "6": {
-      "inputs": {
-        "text": "a photograph of a dudde",
-        "clip": ["19", 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "prompt"
-      }
-    },
-    "7": {
-      "inputs": {
-        "text": "nsfw",
-        "clip": ["19", 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "negativePrompt"
-      }
-    },
-    "8": {
-      "inputs": {
-        "samples": ["3", 0],
-        "vae": ["22", 0]
-      },
-      "class_type": "VAEDecode",
-      "_meta": {
-        "title": "VAE Decode"
-      }
-    },
-    "9": {
-      "inputs": {
-        "filename_prefix": "ComfyUI",
-        "images": ["25", 0]
-      },
-      "class_type": "SaveImage",
-      "_meta": {
-        "title": "Save Image"
-      }
-    },
-    "15": {
-      "inputs": {
-        "image": "85fa6a8da7737ef1f7a4887155536862a1907b6e93c8f77db78dce70aab44c2b.png",
+        "image": "Marilyn-marilyn-monroe.jpg",
         "upload": "image"
       },
       "class_type": "LoadImage",
@@ -161,68 +53,25 @@
         "title": "Load Image"
       }
     },
-    "19": {
+    "5": {
       "inputs": {
-        "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
-        "strength_model": 1,
-        "strength_clip": 1,
-        "model": ["23", 0],
-        "clip": ["24", 0]
+        "filename_prefix": "ComfyUI",
+        "images": ["6", 0]
       },
-      "class_type": "LoraLoader",
+      "class_type": "SaveImage",
       "_meta": {
-        "title": "Load LoRA"
+        "title": "Save Image"
       }
     },
-    "22": {
+    "6": {
       "inputs": {
-        "vae_name": "RunDiffusion---Juggernaut-XL-v9\\vae\\diffusion_pytorch_model.fp16.safetensors"
+        "model_input_size": 512,
+        "checkpoint": "ddcolor_artistic.pth",
+        "image": ["2", 0]
       },
-      "class_type": "VAELoader",
+      "class_type": "DDColor_Colorize",
       "_meta": {
-        "title": "Load VAE"
-      }
-    },
-    "23": {
-      "inputs": {
-        "unet_name": "RunDiffusion---Juggernaut-XL-v9\\unet\\diffusion_pytorch_model.fp16.safetensors",
-        "weight_dtype": "default"
-      },
-      "class_type": "UNETLoader",
-      "_meta": {
-        "title": "Load Diffusion Model"
-      }
-    },
-    "24": {
-      "inputs": {
-        "clip_name1": "RunDiffusion---Juggernaut-XL-v9\\text_encoder\\model.fp16.safetensors",
-        "clip_name2": "RunDiffusion---Juggernaut-XL-v9\\text_encoder_2\\model.fp16.safetensors",
-        "type": "sdxl"
-      },
-      "class_type": "DualCLIPLoader",
-      "_meta": {
-        "title": "DualCLIPLoader"
-      }
-    },
-    "25": {
-      "inputs": {
-        "enabled": true,
-        "swap_model": "Aitrepreneur---insightface---inswapper_128.onnx",
-        "facedetection": "retinaface_resnet50",
-        "face_restore_model": "gmk123---GFPGAN---GFPGANv1.4.pth",
-        "face_restore_visibility": 1,
-        "codeformer_weight": 0.5,
-        "detect_gender_input": "no",
-        "detect_gender_source": "no",
-        "input_faces_index": "0",
-        "source_faces_index": "0",
-        "console_log_level": 1,
-        "input_image": ["8", 0],
-        "source_image": ["15", 0]
-      },
-      "class_type": "ReActorFaceSwap",
-      "_meta": {
-        "title": "ReActor 🌌 Fast Face Swap"
+        "title": "DDColor_Colorize"
       }
     }
   }

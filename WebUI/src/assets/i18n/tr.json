@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Geçmişi Temizle",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Cihaz"
+  "DEVICE": "Cihaz",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Kontrol Noktası Modeli",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Kare Hızı",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Toplam Kare"
 }

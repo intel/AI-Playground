@@ -110,15 +110,15 @@ export const useStableDiffusion = defineStore(
       })
     }
 
-    async function generate() {
+    async function generate(imageIds: string[]) {
       if (imageGeneration.processing) {
         return
       }
       try {
         imageGeneration.processing = true
         await checkModel()
-        queuedImages = Array.from({ length: imageGeneration.batchSize }, () => ({
-          id: window.crypto.randomUUID(),
+        queuedImages = Array.from({ length: imageGeneration.batchSize }, (_, i) => ({
+          id: imageIds[i],
           imageUrl:
             'data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%3F%3E%3Csvg%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20color%3D%22%23000000%22%3E%3Cpath%20d%3D%22M12%2012C15.866%2012%2019%208.86599%2019%205H5C5%208.86599%208.13401%2012%2012%2012ZM12%2012C15.866%2012%2019%2015.134%2019%2019H5C5%2015.134%208.13401%2012%2012%2012Z%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%202L12%202L19%202%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%2022H12L19%2022%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
           state: 'queued',
@@ -126,7 +126,6 @@ export const useStableDiffusion = defineStore(
         }))
         await sendGenerate(imageGeneration.getGenerationParameters())
       } catch (error: unknown) {
-        toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
         console.error(error)
       } finally {
         imageGeneration.processing = false
@@ -193,7 +192,7 @@ export const useStableDiffusion = defineStore(
           currentImage.settings.seed = data.params.seed
           currentImage.imageUrl = data.image
 
-          await imageGeneration.updateImage(currentImage)
+          imageGeneration.updateImage(currentImage)
           break
 
         case 'step_end':
@@ -204,14 +203,22 @@ export const useStableDiffusion = defineStore(
           if (data.image) {
             currentImage.imageUrl = data.image
           }
-          await imageGeneration.updateImage(currentImage)
+          imageGeneration.updateImage(currentImage)
           break
         case 'load_model':
           imageGeneration.currentState = 'load_model'
           break
         case 'load_model_components':
-          imageGeneration.currentState =
-            data.event == 'finish' ? 'generating' : 'load_model_components'
+          if (data.event !== 'finish') {
+            imageGeneration.currentState = 'load_model_components'
+          } else {
+            imageGeneration.currentState = 'generating'
+            currentImage = queuedImages[0]
+            imageGeneration.updateImage({
+              ...currentImage,
+              state: 'generating',
+            })
+          }
           break
         case 'error':
           imageGeneration.processing = false

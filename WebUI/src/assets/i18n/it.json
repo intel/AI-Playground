@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Cancella cronologia",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Dispositivo"
+  "DEVICE": "Dispositivo",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Modello checkpoint",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frequenza fotogrammi",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Fotogrammi totali"
 }

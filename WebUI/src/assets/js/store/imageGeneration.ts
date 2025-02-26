@@ -9,11 +9,6 @@ import { useModels } from './models'
 import { useBackendServices } from './backendServices'
 import { useGlobalSetup } from './globalSetup'
 
-export type RefImage = {
-  type: string
-  image: string
-}
-
 export type GenerateState =
   | 'no_start'
   | 'input_image'
@@ -24,10 +19,6 @@ export type GenerateState =
   | 'generating'
   | 'image_out'
   | 'error'
-
-export type ImageInfoParameter = {
-  [key: string]: string | number | boolean | RefImage
-}
 
 export type GenerationSettings = Partial<
   Settings & {
@@ -42,6 +33,7 @@ export type ComfyDynamicInputWithCurrent =
   | (ComfyNumberInput & { current: number })
   | (ComfyStringInput & { current: string })
   | (ComfyBooleanInput & { current: boolean })
+  | (ComfyStringListInput & { current: string })
 
 export type Image = {
   id: string
@@ -50,6 +42,12 @@ export type Image = {
   dynamicSettings?: ComfyDynamicInputWithCurrent[]
   imageUrl: string
 }
+
+export type Video = Image & { videoUrl: string }
+
+export type MediaItem = Image | Video
+
+export const isVideo = (item: MediaItem): item is Video => 'videoUrl' in item
 
 const SettingsSchema = z.object({
   imageModel: z.string(),
@@ -155,6 +153,17 @@ const ComfyStringInputSchema = z.object({
 })
 export type ComfyStringInput = z.infer<typeof ComfyStringInputSchema>
 
+const ComfyStringListInputSchema = z.object({
+  nodeTitle: z.string(),
+  nodeInput: z.string(),
+  type: z.literal('stringList'),
+  options: z.array(z.string()),
+  defaultValue: z.string(),
+  label: z.string(),
+})
+
+export type ComfyStringListInput = z.infer<typeof ComfyStringListInputSchema>
+
 const ComfyBooleanInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
@@ -168,6 +177,7 @@ const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
   ComfyNumberInputSchema,
   ComfyImageInputSchema,
   ComfyStringInputSchema,
+  ComfyStringListInputSchema,
   ComfyBooleanInputSchema,
 ])
 export type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
@@ -636,7 +646,7 @@ export const useImageGeneration = defineStore(
       saveToSettingsPerWorkflow('inpaintModel')
     })
 
-    const generatedImages = ref<Image[]>([])
+    const generatedImages = ref<MediaItem[]>([])
     const currentState = ref<GenerateState>('no_start')
     const stepText = ref('')
 
@@ -669,7 +679,7 @@ export const useImageGeneration = defineStore(
       getSavedOrDefault('inpaintModel')
     }
 
-    async function updateImage(newImage: Image) {
+    function updateImage(newImage: MediaItem) {
       console.log('updating image', newImage)
       const existingImageIndex = generatedImages.value.findIndex((img) => img.id === newImage.id)
       if (existingImageIndex !== -1) {
@@ -716,6 +726,8 @@ export const useImageGeneration = defineStore(
       ): CheckModelAlreadyLoadedParameters {
         function modelTypeToId(type: string) {
           switch (type) {
+            case 'checkpoints':
+              return Const.MODEL_TYPE_COMFY_CHECKPOINTS
             case 'unet':
               return Const.MODEL_TYPE_COMFY_UNET
             case 'clip':
@@ -790,6 +802,15 @@ export const useImageGeneration = defineStore(
 
     async function generate() {
       generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
+      const imageIds: string[] = Array.from({ length: batchSize.value }, () => crypto.randomUUID())
+      imageIds.forEach((imageId) => {
+        updateImage({
+          id: imageId,
+          state: 'queued',
+          settings: {},
+          imageUrl: '',
+        })
+      })
       currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
       const inferenceBackendService: BackendServiceName =
@@ -797,9 +818,9 @@ export const useImageGeneration = defineStore(
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
-        await stableDiffusion.generate()
+        await stableDiffusion.generate(imageIds)
       } else {
-        await comfyUi.generate()
+        await comfyUi.generate(imageIds)
       }
     }
 

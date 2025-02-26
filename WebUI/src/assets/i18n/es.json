@@ -248,5 +248,8 @@
   "COM_CLEAR_HISTORY": "Borrar historial",
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
-  "DEVICE": "Dispositivo"
+  "DEVICE": "Dispositivo",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Modelo de checkpoint",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Velocidad de fotogramas",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Frames totales"
 }
