@@ -340,6 +340,7 @@ export const useComfyUi = defineStore(
                       imageUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
                     }
                     imageGeneration.updateImage(newImage)
+                    generateIdx++
                   }
                 }
                 if ('gifs' in output) {
@@ -352,9 +353,10 @@ export const useComfyUi = defineStore(
                       videoUrl: `${comfyBaseUrl.value}/view?filename=${video.filename}&type=${video.type}&subfolder=${video.subfolder ?? ''}`,
                     }
                     imageGeneration.updateImage(newImage)
+                    generateIdx++
                   }
                 }
-                generateIdx++
+
                 console.log('executed', { detail: msg.data })
                 break
               case 'execution_start':
