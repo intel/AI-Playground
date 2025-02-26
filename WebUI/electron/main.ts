@@ -51,9 +51,7 @@ let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
 let child: ChildProcess | null = null
 const mediaDir = path.join(process.env.USERPROFILE!, 'Documents', 'AI-Playground', 'media')
-if (!fs.existsSync(mediaDir)) {
-  fs.mkdirSync(mediaDir)
-}
+fs.mkdirSync(mediaDir, { recursive: true })
 let mediaPort: number = -1
 createMediaServer()
 
