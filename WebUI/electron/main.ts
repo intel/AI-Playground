@@ -540,7 +540,8 @@ function initEventHandle() {
     const comfyBackendUrl = serviceRegistry?.getService('comfyui-backend')?.baseUrl
     const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
-    const imageSubPath = backend === 'comfyui' ? `${ imageUrl.searchParams.get('filename')}` : `${imageUrl.pathname}`
+    const imageSubPath =
+      backend === 'comfyui' ? `${imageUrl.searchParams.get('filename')}` : `${imageUrl.pathname}`
     return path.join(mediaDir, imageSubPath)
   }
 

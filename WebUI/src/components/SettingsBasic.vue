@@ -95,7 +95,7 @@
   <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
     <h2 class="text-center font-bold">Answer</h2>
     <div class="flex flex-col gap-2">
-      <div class="flex items-center gap-2">
+      <div v-if="textInference.backend !== 'openVINO'" class="flex items-center gap-2">
         <div class="flex items-center gap-5">
           <p>Performance Metrics</p>
           <button
@@ -105,7 +105,7 @@
           ></button>
         </div>
       </div>
-      <div class="flex flex-col gap-2">
+      <div v-if="textInference.backend !== 'llamaCPP'" class="flex flex-col gap-2">
         <p>Max Tokens</p>
         <slide-bar
           v-model:current="textInference.maxTokens"
