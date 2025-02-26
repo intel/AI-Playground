@@ -11,6 +11,7 @@ import {
   GitService,
   UvPipService,
 } from './service.ts'
+import { getMediaDir } from '../util.ts'
 
 const serviceFolder = 'ComfyUI'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -208,11 +209,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       ...(await this.lsLevelZero.getDeviceSelectorEnv()),
     }
-    const homeDir = process.env.USERPROFILE
-    if (homeDir === undefined) {
-      throw new Error('Home directory not found.')
-    }
-    const mediaDir = path.join(homeDir, 'Documents', 'AI-Playground', 'media')
+    const mediaDir = getMediaDir()
     const parameters = [
       'main.py',
       '--port',

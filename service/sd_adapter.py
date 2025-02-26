@@ -24,7 +24,12 @@ class SD_SSE_Adapter:
         self.finish = False
         self.singal = threading.Event()
         self.url_root = url_root
-        self.save_image_path = os.path.join(os.environ['USERPROFILE'], 'Documents', 'AI-Playground', 'media')
+        if os.getenv('USERPROFILE'):
+            self.save_image_path = os.path.join(os.getenv('USERPROFILE'), 'Documents', 'AI-Playground', 'media')
+        elif os.getenv('HOME'):
+            self.save_image_path = os.path.join(os.getenv('HOME'), 'AI-Playground', 'media')
+        else:
+            self.save_image_path = os.path.join('static', 'sd_out')
 
     def put_msg(self, data):
         self.msg_queue.put_nowait(data)
@@ -89,8 +94,8 @@ class SD_SSE_Adapter:
         now = datetime.now()
         folder = now.strftime("%d_%m_%Y")
         base_name = now.strftime("%H%M%S")
-        image_name = f"{base_name}"+".png"
-        filename = os.path.join(self.save_image_path, f"{folder}", image_name)
+        image_name = f"{base_name}.png"
+        filename = os.path.join(self.save_image_path, folder, image_name)
         dir = os.path.dirname(filename)
         if not os.path.exists(dir):
             os.makedirs(dir)

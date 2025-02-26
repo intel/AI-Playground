@@ -163,7 +163,7 @@ Function uninstallOldVersion
     ${endif}
   ${endif}
 
-  MessageBox MB_OK "AI Playground Update: Backup your images before proceeding. The new version saves images to $DOCUMENTS and will delete the current location."
+  MessageBox MB_OK "NOTE: Custom installation and nodes added to AI Playground will be deleted by the uninstall process. In addition, the version of AI Playground that is going to be installed will save images to ${DOCUMENTS}/AI-Playground. Be sure to back-up any data and content you want to retain."
 
   # uninstaller should be copied out of app installation dir (because this dir will be deleted), so, extract uninstaller file name
   !insertmacro GetInQuotes $uninstallerFileName "$uninstallString"

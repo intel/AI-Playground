@@ -26,6 +26,7 @@ import {
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import getPort, { portNumbers } from 'get-port'
+import { getMediaDir } from './util.ts'
 
 // }
 // The built directory structure
@@ -50,9 +51,9 @@ const appLogger = appLoggerInstance
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
 let child: ChildProcess | null = null
-const mediaDir = path.join(process.env.USERPROFILE!, 'Documents', 'AI-Playground', 'media')
+const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
-let mediaPort: number = -1
+let mediaServerPort: number = 58000
 createMediaServer()
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -174,12 +175,12 @@ async function createWindow() {
   return win
 }
 
-async function createMediaServer() {
-  appLogger.info('Setting up media server', 'electron-backend')
-  mediaPort = await getPort({ port: portNumbers(59000, 59999) })
+export async function createMediaServer() {
+  appLogger.info('Starting media server', 'electron-backend')
+  mediaServerPort = await getPort({ port: portNumbers(58000, 58999) })
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    PORT_NUMBER: String(mediaPort),
+    PORT_NUMBER: String(mediaServerPort),
     MEDIA_DIRECTORY: mediaDir,
   }
   child = fork(path.join(__dirname, '../media/mediaServer.js'), [], { env })
@@ -356,7 +357,7 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getMediaUrlBase', () => {
-    return `http://127.0.0.1:${mediaPort}/`
+    return `http://127.0.0.1:${mediaServerPort}/`
   })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {
@@ -539,15 +540,8 @@ function initEventHandle() {
     const comfyBackendUrl = serviceRegistry?.getService('comfyui-backend')?.baseUrl
     const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
-    let imagePath: string
-    if (backend === 'comfyui') {
-      const s = imageUrl.searchParams
-      imagePath = path.join(mediaDir, `${s.get('filename')}`)
-    } else {
-      imagePath = path.join(mediaDir, `${imageUrl.pathname}`)
-    }
-
-    return imagePath
+    const imageSubPath = backend === 'comfyui' ? `${ imageUrl.searchParams.get('filename')}` : `${imageUrl.pathname}`
+    return path.join(mediaDir, imageSubPath)
   }
 
   ipcMain.on('openImageWithSystem', (_event, url: string) => {

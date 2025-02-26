@@ -194,7 +194,6 @@ export const useStableDiffusion = defineStore(
           currentImage.imageUrl = mediaUrlBase + data.image
 
           imageGeneration.updateImage(currentImage)
-
           break
 
         case 'step_end':

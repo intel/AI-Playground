@@ -71,7 +71,7 @@ export default defineConfig(({ command }) => {
           entry: 'electron/subprocesses/mediaServer.ts',
           vite: {
             build: {
-              sourcemap: sourcemap ? 'inline' : undefined, // #332
+              sourcemap: sourcemap ? 'inline' : undefined,
               minify: isBuild,
               outDir: 'dist/media',
               rollupOptions: {
