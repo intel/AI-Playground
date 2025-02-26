@@ -104,7 +104,6 @@
     "electronLanguages": ["en-US", "zh-CN"]
   },
   "nsis": {
-    "script": "custom-nsis-script.nsh",
     "license": "build/license.rtf",
     "oneClick": false,
     "perMachine": false,
