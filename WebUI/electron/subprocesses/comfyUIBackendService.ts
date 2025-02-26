@@ -210,7 +210,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
     const homeDir = process.env.USERPROFILE
     if (homeDir === undefined) {
-      throw new Error('Home directory not found.');
+      throw new Error('Home directory not found.')
     }
     const mediaDir = path.join(homeDir, 'Documents', 'AI-Playground', 'media')
     const parameters = [

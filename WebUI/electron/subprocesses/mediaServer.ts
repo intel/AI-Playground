@@ -1,11 +1,9 @@
 import express from 'express'
-import * as path from 'path'
-import * as os from 'os'
 
 const app = express()
 
-const port : number = Number(process.env.PORT_NUMBER)
-const mediaPath : string = process.env.MEDIA_DIRECTORY!
+const port: number = Number(process.env.PORT_NUMBER)
+const mediaPath: string = process.env.MEDIA_DIRECTORY!
 
 app.use(express.static(mediaPath))
 
