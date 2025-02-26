@@ -26,7 +26,7 @@ class OpenVino(LLMInterface):
 
             enable_compile_cache = dict()
             enable_compile_cache["CACHE_DIR"] = "llm_cache"
-            self._model = openvino_genai.LLMPipeline(model_path, "GPU", **enable_compile_cache)
+            self._model = openvino_genai.LLMPipeline(model_path, "AUTO", **enable_compile_cache)
             self._tokenizer = self._model.get_tokenizer()
 
             self._last_repo_id = model_repo_id
