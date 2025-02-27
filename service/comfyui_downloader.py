@@ -121,13 +121,8 @@ def _install_pip_requirements(requirements_txt_path: str):
 
 
 def install_pypi_package(packageSpecifier: str):
-    installed_packages = aipg_utils.call_subprocess(f"{service_config.comfyui_python_exe} -m pip list")
-    if packageSpecifier.endswith(".whl"):
-        package_name = packageSpecifier.split("/")[-1].split("-")[0]
-    else:
-        package_name = packageSpecifier.split("==")[0]
-    if package_name in installed_packages:
-        logging.info(f"package {package_name} already installed. Omitting installation")
+    if is_package_installed(packageSpecifier):
+        logging.info(f"package {packageSpecifier} already installed. Omitting installation")
         return
     if packageSpecifier.endswith(".whl"):
         pip_specifier = os.path.abspath(os.path.join(service_config.comfyui_python_env, packageSpecifier.split("/")[-1]))
@@ -152,7 +147,7 @@ def install_pypi_package(packageSpecifier: str):
     aipg_utils.remove_existing_filesystem_resource('./dep.whl')
     logging.info("python package installation completed.")
 
-def check_pypi_package_is_installed(packageSpecifier: str):
+def is_package_installed(packageSpecifier: str):
     installed_packages = aipg_utils.call_subprocess(f"{service_config.comfyui_python_exe} -m pip list")
     if packageSpecifier.endswith(".whl"):
         package_name = packageSpecifier.split("/")[-1].split("-")[0]

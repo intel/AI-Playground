@@ -411,8 +411,8 @@ def install_python_packages_for_comfy(comfyPackageInstallRequest: ComfyUIPackage
 def check_workflow_requirements(comfyRequirementRequest: ComfyUICheckWorkflowRequirementRequest):
     try:
         nodes_to_be_installed = [not comfyui_downloader.is_custom_node_installed_with_git_ref(x) for x in comfyRequirementRequest.customNodes]
-        pypi_to_be_installed = [not comfyui_downloader.check_pypi_package_is_installed(x) for x in comfyRequirementRequest.pythonPackages]
-        needs_installation = any(nodes_to_be_installed) or any(pypi_to_be_installed)
+        packages_to_be_installed = [not comfyui_downloader.is_package_installed(x) for x in comfyRequirementRequest.pythonPackages]
+        needs_installation = any(nodes_to_be_installed) or any(packages_to_be_installed)
         return jsonify({'needsInstallation' : needs_installation})
     except Exception as e:
         return jsonify({'errorMessage': f'failed to check for installation {e}'}), 500

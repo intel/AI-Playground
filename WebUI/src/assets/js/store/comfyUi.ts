@@ -174,23 +174,26 @@ export const useComfyUi = defineStore(
     })
 
     async function installCustomNodesForActiveWorkflowFully() {
-      const needWorkflowsToBeInstalled = await checkWorkflowRequirements()
-      if (!needWorkflowsToBeInstalled) return
-      await backendServices.stopService('comfyui-backend')
+      const workflowNeedsToBeInstalled = await checkWorkflowRequirements()
+      if (!workflowNeedsToBeInstalled) return
       console.info('restarting comfyUI to finalize installation of required custom nodes')
+      await backendServices.stopService('comfyui-backend')
       await triggerInstallPythonPackagesForActiveWorkflow()
       await installCustomNodesForActiveWorkflow()
       const startingResult = await backendServices.startService('comfyui-backend')
-        if (startingResult !== 'running') {
-          throw new Error('Failed to restart comfyUI. Required Nodes are not active.')
-        }
-        console.info('restart complete')
+      if (startingResult !== 'running') {
+        throw new Error('Failed to restart comfyUI. Required Nodes are not active.')
       }
-    
+      console.info('restart complete')
+    }
+
     async function checkWorkflowRequirements() {
       const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/checkWorkflowRequirements`, {
         method: 'POST',
-        body: JSON.stringify({ customNodes: getRequiredCustomNodes() , pythonPackages: getToBeInstalledPythonPackages() }),
+        body: JSON.stringify({
+          customNodes: getRequiredCustomNodes(),
+          pythonPackages: getToBeInstalledPythonPackages(),
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -198,7 +201,7 @@ export const useComfyUi = defineStore(
       if (response.status !== 200) {
         throw new Error('Request Failure to check required comfyUINode')
       }
-      const answer = await response.json()
+      const answer = z.object({ needsInstallation: z.boolean() }).parse(await response.json())
       return answer.needsInstallation
     }
 
@@ -256,15 +259,13 @@ export const useComfyUi = defineStore(
           .filter((w) => w.backend === 'comfyui')
           .flatMap((item) => item.comfyUIRequirements.customNodes),
       )
-      return [...uniqueCustomNodes].map(
-        (nodeName) => extractCustomNodeInfo(nodeName),
-      )
-
+      return [...uniqueCustomNodes].map((nodeName) => extractCustomNodeInfo(nodeName))
     }
 
     async function triggerInstallPythonPackagesForActiveWorkflow() {
       const toBeInstalledPackages = getToBeInstalledPythonPackages()
       console.info('Installing python packages', { toBeInstalledPackages })
+      await backendServices.stopService('comfyui-backend')
       const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/installPythonPackage`, {
         method: 'POST',
         body: JSON.stringify({ data: toBeInstalledPackages }),
@@ -289,7 +290,6 @@ export const useComfyUi = defineStore(
       )
       return [...uniquePackages]
     }
-      
 
     function connectToComfyUi() {
       if (comfyUiState.value?.status !== 'running') {
