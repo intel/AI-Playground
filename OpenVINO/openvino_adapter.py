@@ -1,6 +1,7 @@
 import threading
 from queue import Empty, Queue
 import json
+import time
 import traceback
 from typing import Dict, List, Callable
 from openvino_interface import LLMInterface
@@ -21,6 +22,11 @@ class LLM_SSE_Adapter:
         self.singal = threading.Event()
         self.llm_interface = llm_interface
         self.should_stop = False
+        self.num_tokens = 0
+        self.start_time = 0
+        self.first_token_time = 0
+        self.last_token_time = 0
+        self.is_first_token = True
 
     def put_msg(self, data):
         self.msg_queue.put_nowait(data)
@@ -90,7 +96,13 @@ class LLM_SSE_Adapter:
     
 
     def stream_function(self, output):
+        if self.is_first_token:
+            self.first_token_time = time.time()
+            self.is_first_token = False
+        
         self.text_out_callback(output)
+        self.num_tokens += 1
+        
         if self.llm_interface.stop_generate:
             self.put_msg("Stopping generation.")
             return True  # Stop generation
@@ -105,9 +117,30 @@ class LLM_SSE_Adapter:
         try:
             self.llm_interface.load_model(params, callback=self.load_model_callback)
             
+            # Reset metrics tracking
+            self.num_tokens = 0
+            self.start_time = time.time()
+            self.first_token_time = 0
+            self.last_token_time = 0
+            self.is_first_token = True
+            
             prompt = params.prompt
             full_prompt = convert_prompt(prompt)
             self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.max_tokens)
+            
+            # Calculate and send metrics
+            self.last_token_time = time.time()
+            metrics_data = {
+                "type": "metrics",
+                "num_tokens": self.num_tokens,
+                "total_time": self.last_token_time - self.start_time,
+                "overall_tokens_per_second": self.num_tokens / (self.last_token_time - self.start_time) if self.num_tokens > 0 else 0,
+                "second_plus_tokens_per_second": (self.num_tokens - 1) / (self.last_token_time - self.first_token_time) if self.num_tokens > 1 else None,
+                "first_token_latency": self.first_token_time - self.start_time if self.num_tokens > 0 else None,
+                "after_token_latency": (self.last_token_time - self.first_token_time) / (self.num_tokens - 1) if self.num_tokens > 1 else None
+            }
+            self.put_msg(metrics_data)
+            self.put_msg({"type": "finish"})
         
         except Exception as ex:
             traceback.print_exc()

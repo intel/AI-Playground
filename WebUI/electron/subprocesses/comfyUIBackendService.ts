@@ -11,6 +11,7 @@ import {
   GitService,
   UvPipService,
 } from './service.ts'
+import { getMediaDir } from '../util.ts'
 
 const serviceFolder = 'ComfyUI'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -208,7 +209,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       ...(await this.lsLevelZero.getDeviceSelectorEnv()),
     }
-
+    const mediaDir = getMediaDir()
     const parameters = [
       'main.py',
       '--port',
@@ -216,7 +217,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       '--preview-method',
       'auto',
       '--output-directory',
-      '../service/static/sd_out',
+      mediaDir,
       ...this.comfyUIStartupParameters,
     ]
     this.appLogger.info(
