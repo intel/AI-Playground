@@ -28,5 +28,10 @@ class ComfyUICustomNodesDownloadRequest:
     data : List[ComfyUICustomNodesGithubRepoId]
 
 @marshmallow_dataclass.dataclass
+class ComfyUICheckWorkflowRequirementRequest:
+    pythonPackages : List[str]
+    customNodes : List[ComfyUICustomNodesGithubRepoId]
+
+@marshmallow_dataclass.dataclass
 class ComfyUIPackageInstallRequest:
     data : List[str]

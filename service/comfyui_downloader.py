@@ -152,6 +152,16 @@ def install_pypi_package(packageSpecifier: str):
     aipg_utils.remove_existing_filesystem_resource('./dep.whl')
     logging.info("python package installation completed.")
 
+def check_pypi_package_is_installed(packageSpecifier: str):
+    installed_packages = aipg_utils.call_subprocess(f"{service_config.comfyui_python_exe} -m pip list")
+    if packageSpecifier.endswith(".whl"):
+        package_name = packageSpecifier.split("/")[-1].split("-")[0]
+    else:
+        package_name = packageSpecifier.split("==")[0]
+    if package_name in installed_packages:
+        return True
+    return False
+    
 
 def install_comfyUI() -> bool:
     if is_comfyUI_installed():
