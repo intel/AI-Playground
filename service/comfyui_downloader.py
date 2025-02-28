@@ -209,6 +209,7 @@ import logging
 SCORE = 0.965 # 0.965 and less - is safety content
 
 logging.getLogger('transformers').setLevel(logging.ERROR)
+from scripts.reactor_logger import logger
 
 def nsfw_image(img_path: str, model_path: str):
     with Image.open(img_path) as img:
