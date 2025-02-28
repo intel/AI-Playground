@@ -194,8 +194,40 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool
             aipg_utils.remove_existing_filesystem_resource(expected_custom_node_path)
             _install_git_repo(expected_git_url, expected_custom_node_path)
             _checkout_git_ref(expected_custom_node_path, node_repo_data.gitRef)
+            _patch_custom_node_if_required(expected_custom_node_path, node_repo_data)
             _install_pip_requirements(potential_node_requirements)
             return True
         except Exception as e:
             logging.error(f"Failed to install custom comfy node {node_repo_data.username}/{node_repo_data.repoName} due to {e}")
             return False
+
+# Gourieff/ComfyUI-ReActor/scripts/reactor_sfw.py
+REACTOR_SFW_PATCH = """from transformers import pipeline
+from PIL import Image
+import logging
+
+SCORE = 0.965 # 0.965 and less - is safety content
+
+logging.getLogger('transformers').setLevel(logging.ERROR)
+
+def nsfw_image(img_path: str, model_path: str):
+    with Image.open(img_path) as img:
+        predict = pipeline("image-classification", model=model_path)
+        result = predict(img)
+        logger.status(result)
+        # Find the element with 'nsfw' label
+        for item in result:
+            if item["label"] == "nsfw":
+                # Return True if nsfw score is above threshold (indicating NSFW content)
+                # Return False if nsfw score is below threshold (indicating safe content)
+                return True if item["score"] > SCORE else False
+        # If no 'nsfw' label found, consider it safe
+        return False
+"""
+
+def _patch_custom_node_if_required(custom_node_path: str, node_repo_data: ComfyUICustomNodesGithubRepoId):
+    if f"{node_repo_data.username}/{node_repo_data.repoName}@{node_repo_data.gitRef}".lower() == "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed".lower():
+        reactor_sfw_path = os.path.join(custom_node_path, "scripts", "reactor_sfw.py")
+        with open(reactor_sfw_path, "w") as file:
+            file.write(REACTOR_SFW_PATCH)
+        logging.info(f"patched {reactor_sfw_path} with custom logic")
