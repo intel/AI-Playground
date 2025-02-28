@@ -83,6 +83,10 @@
     {
       "from": "external/service/static/assets/",
       "to": "service/static/assets/"
+    },
+    {
+      "from": "../3rdpartynoticeslicenses.txt",
+      "to": "3rdpartynoticeslicenses.txt"
     }
   ],
   "productName": "AI Playground",
