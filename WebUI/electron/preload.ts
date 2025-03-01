@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setIgnoreMouseEvents: (igrnore: boolean) => ipcRenderer.send('setIgnoreMouseEvents', igrnore),
   miniWindow: () => ipcRenderer.send('miniWindow'),
   exitApp: () => ipcRenderer.send('exitApp'),
+  getMediaUrlBase: () => ipcRenderer.invoke('getMediaUrlBase'),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     ipcRenderer.invoke('showOpenDialog', options),
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
@@ -59,9 +60,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDownloadedLoras: () => ipcRenderer.invoke('getDownloadedLoras'),
   getDownloadedLLMs: () => ipcRenderer.invoke('getDownloadedLLMs'),
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
+  getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke('getDownloadedEmbeddingModels'),
   openImageWithSystem: (url: string) => ipcRenderer.send('openImageWithSystem', url),
-  selecteImage: (url: string) => ipcRenderer.send('selecteImage', url),
+  openImageInFolder: (url: string) => ipcRenderer.send('openImageInFolder', url),
   setFullScreen: (enable: boolean) => ipcRenderer.send('setFullScreen', enable),
   onDebugLog: (callback: (data: { level: string; source: string; message: string }) => void) =>
     ipcRenderer.on('debugLog', (_event, value) => callback(value)),

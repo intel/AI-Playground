@@ -46,12 +46,20 @@ def check_mmodel_exist(type: int, repo_id: str, backend: str) -> bool:
     match(backend):
         case "default":
             return check_defaultbackend_mmodel_exist(type, repo_id)
+        case "openvino":
+            return check_openvino_model_exists(type, repo_id)
         case "comfyui":
             return check_comfyui_model_exists(type, repo_id)
         case "llama_cpp":
             return check_llama_cpp_model_exists(type, repo_id)
         case _:
             raise NameError("Unknown Backend")
+        
+def check_openvino_model_exists(type, repo_id) -> bool:
+    folder_name = repo_local_root_dir_name(repo_id)
+    dir = service_config.openvino_model_paths.get("openvinoLLM")
+    return os.path.exists(os.path.join(dir, folder_name))
+
 
 def check_llama_cpp_model_exists(type, repo_id) -> bool:
     model_dir = service_config.llama_cpp_model_paths.get(convert_model_type(type))
@@ -154,6 +162,8 @@ def convert_model_type(type: int):
         return "preview"
     elif type == 8:
         return "ggufLLM"
+    elif type == 9:
+        return "openvinoLLM"
     elif type == 100:
         return "unet"
     elif type == 101:
@@ -172,6 +182,8 @@ def convert_model_type(type: int):
         return "facerestore"
     elif type == 108:
         return "nsfwdetector"
+    elif type == 109:
+        return "checkpoints"
     else:
         raise Exception(f"unknown model type value {type}")
 
@@ -182,6 +194,8 @@ def get_model_path(type: int, backend: str):
             return service_config.service_model_paths.get(convert_model_type(type))
         case "llama_cpp":
             return service_config.llama_cpp_model_paths.get(convert_model_type(type))
+        case "openvino":
+            return service_config.openvino_model_paths.get(convert_model_type(type))
         case "comfyui":
             return service_config.comfy_ui_model_paths.get(convert_model_type(type))
 

@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "下載速度",
   "COM_LOADING_MODEL": "模型載入中",
   "COM_LOADING_MODEL_COMPONENTS": "模型套件載入中",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "工作流程套件安裝中",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "工作流程套件載入中",
   "COM_NO_SELECTED": "無選取項目",
   "COM_CONFIRM": "確認",
   "COM_CANCEL": "取消",
@@ -242,5 +244,12 @@
   "WORKFLOW_HIGH_VRAM_INFO": "此模型需要大量顯示記憶體。如果遇到效能問題，請降低解析度或重啟ComfyUI後端",
   "WORKFLOW_HIGH_VRAM_WARNING": "需要大量顯示記憶體",
   "LOADING_VERIFYING_BACKENDS": "驗證後端",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 載入中"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 載入中",
+  "COM_CLEAR_HISTORY": "清除歷史",
+  "INPUT_PROMPT": "提示",
+  "BACKEND": "後端",
+  "DEVICE": "設備",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "檢查點模型",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "幀率",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "總幀數"
 }

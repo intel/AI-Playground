@@ -13,12 +13,14 @@
           </div>
           <span class="preview-tip">{{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}</span>
         </div>
+        <!-- eslint-disable vue/require-v-for-key -->
         <div
           v-for="(image, i) in destImg"
           class="image-preview-item flex items-center justify-center flex-none"
           :class="{ active: previewIdx == i }"
           @click="swithPreview((previewIdx = i))"
         >
+          <!-- eslint-enable -->
           <div class="image-preview-item-bg">
             <img :src="image" class="image-thumb" />
           </div>
@@ -162,7 +164,7 @@
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
-              @click="selecteImage"
+              @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
               class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
             >
@@ -175,12 +177,14 @@
               <span class="svg-icon i-delete w-5 h-5" @click="removeImage"></span>
             </button>
           </div>
+          <!-- eslint-disable vue/require-v-for-key -->
           <img
             v-for="(image, i) in destImg"
             :src="image"
             v-show="previewIdx == i"
             class="p-1 max-w-768px max-h-400px"
           />
+          <!-- eslint-enable -->
           <div
             v-show="processing && generateIdx == previewIdx"
             class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
@@ -203,11 +207,11 @@
             </div>
           </div>
         </div>
-        <paint-info
-          :params="infoParams"
+        <info-table
           v-show="showParams"
+          :generationParameters="infoParams"
           @close="showParams = false"
-        ></paint-info>
+        ></info-table>
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
@@ -321,14 +325,19 @@ import * as toast from '@/assets/js/toast'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import LoadingBar from '../components/LoadingBar.vue'
 import VerticalSlideBar from '@/components/VerticalSlideBar.vue'
-import PaintInfo from '@/components/PaintInfo.vue'
+import InfoTable from '@/components/InfoTable.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageGeneration'
+import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useModels } from '@/assets/js/store/models'
+import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
+const backendServices = useBackendServices()
+const models = useModels()
 const imageGeneration = useImageGeneration()
 const mode = ref(1)
 const sourceImage = ref<HTMLImageElement>()
@@ -338,7 +347,7 @@ const destImg = ref<string[]>([])
 const previewIdx = ref(-1)
 const generateIdx = ref(-999)
 const generateFinishIdx = ref(-999)
-const generateState = ref<SDGenerateState>('no_start')
+const generateState = ref<GenerateState>('no_start')
 const processing = ref(false)
 const upscaleCompt = ref<InstanceType<typeof UpscaleOptions>>()
 const imagePromptCompt = ref<InstanceType<typeof ImagePromptOptions>>()
@@ -453,14 +462,15 @@ function updateDestImage(index: number, image: string) {
   previewIdx.value = index
 }
 
-function dataProcess(line: string) {
+async function dataProcess(line: string) {
   util.log(`SD data: ${line}`)
   const dataJson = line.slice(5)
   const data = JSON.parse(dataJson) as SDOutCallback
+  const mediaUrlBase = await window.electronAPI.getMediaUrlBase()
   switch (data.type) {
     case 'image_out':
       generateState.value = 'image_out'
-      updateDestImage(data.index, data.image)
+      updateDestImage(data.index, mediaUrlBase + data.image)
       generateParams.push(data.params)
       generateIdx.value++
       generateFinishIdx.value++
@@ -499,7 +509,7 @@ function dataProcess(line: string) {
         case 'runtime_error':
           toast.error(i18nState.ERROR_RUNTIME_ERROR)
           break
-        case 'unknow_exception':
+        case 'unknown_exception':
           toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
           break
       }
@@ -544,9 +554,8 @@ async function generate() {
     return
   }
   await checkModel()
-  const inferenceBackendService: BackendServiceName = 'ai-backend'
-  await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-  globalSetup.updateLastUsedBackend(inferenceBackendService)
+  await backendServices.resetLastUsedInferenceBackend('ai-backend')
+  backendServices.updateLastUsedBackend('ai-backend')
 
   try {
     processing.value = true
@@ -573,7 +582,7 @@ async function generate() {
         lora: imageGeneration.lora,
         scheduler: imageGeneration.scheduler,
         image_preview: imageGeneration.imagePreview,
-        safe_check: imageGeneration.safeCheck,
+        safe_check: imageGeneration.safetyCheck,
       },
       extParams,
     )
@@ -631,7 +640,7 @@ async function checkModel() {
         backend: imageGeneration.activeWorkflow.backend,
       })
     }
-    const result = await globalSetup.checkModelAlreadyLoaded(checkList)
+    const result = await models.checkModelAlreadyLoaded(checkList)
     const downloadList: DownloadModelParam[] = []
     for (const item of result) {
       if (!item.already_loaded) {
@@ -691,9 +700,9 @@ function copyImage() {
   util.copyImage(destImg.value[previewIdx.value])
 }
 
-async function selecteImage() {
+async function openImageInFolder() {
   const url = destImg.value[previewIdx.value]
-  window.electronAPI.selecteImage(url)
+  window.electronAPI.openImageInFolder(url)
 }
 
 function removeImage() {

@@ -4,7 +4,9 @@
     :key="`${input.nodeTitle}${input.nodeInput}`"
     class="flex flex-col gap-2 py-2"
   >
-    <p>{{ languages[getTranslationLabel(input.label)] ??= input.label }}</p>
+    <p>
+      {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
+    </p>
 
     <!--    Number    -->
     <slide-bar
@@ -29,6 +31,26 @@
       v-model="input.current.value as string"
     ></Input>
 
+    <!--    StringList    -->
+    <drop-selector
+      v-if="input.type === 'stringList'"
+      :array="input.options"
+      @change="(stringItem) => (input.current.value = stringItem)"
+    >
+      <template #selected>
+        <div class="flex gap-2 items-center">
+          <span class="rounded-full bg-green-500 w-2 h-2"></span>
+          <span>{{ input.current.value as string }}</span>
+        </div>
+      </template>
+      <template #list="slotItem">
+        <div class="flex gap-2 items-center">
+          <span class="rounded-full bg-green-500 w-2 h-2"></span>
+          <span>{{ slotItem.item }}</span>
+        </div>
+      </template>
+    </drop-selector>
+
     <!--    Boolean    -->
     <button
       v-if="input.type === 'boolean'"
@@ -44,13 +66,8 @@ import { useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { Input } from '../components/ui/input'
 import { LoadImage } from '../components/ui/loadImage'
 import SlideBar from '../components/SlideBar.vue'
+import { getTranslationLabel } from '@/lib/utils'
+import DropSelector from '@/components/DropSelector.vue'
 
 const imageGeneration = useImageGeneration()
-
-function getTranslationLabel(label: string) {
-  return (
-    'SETTINGS_IMAGE_COMFY_' +
-    label.replace(/ - /g, '_').replace(/-/g, '_').replace(/ /g, '_').toUpperCase()
-  )
-}
 </script>

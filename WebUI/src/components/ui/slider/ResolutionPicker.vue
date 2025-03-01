@@ -22,19 +22,28 @@ const aspectRatios = [
   { label: '5/12', value: 5 / 12 },
 ]
 
-const megaPixelsOptions = computed(() =>
-  imageGeneration.activeWorkflow.tags.includes('sd1.5')
-    ? [
-        { label: '0.25', totalPixels: 512 * 512 },
-        { label: '0.5', totalPixels: 704 * 704 },
-      ]
-    : [
-        { label: '0.25', totalPixels: 512 * 512 },
-        { label: '0.5', totalPixels: 704 * 704 },
-        { label: '0.8', totalPixels: 896 * 896 },
-        { label: '1.0', totalPixels: 1024 * 1024 },
-      ],
-)
+const megaPixelsOptions = computed(() => {
+  if (imageGeneration.activeWorkflow.tags.includes('sd1.5')) {
+    return [
+      { label: '0.25', totalPixels: 512 * 512 },
+      { label: '0.5', totalPixels: 704 * 704 },
+    ]
+  } else if (imageGeneration.activeWorkflow.tags.includes('LTX Video')) {
+    return [
+      { label: '0.1', totalPixels: 320 * 320 },
+      { label: '0.25', totalPixels: 512 * 512 },
+      { label: '0.35', totalPixels: 605 * 605 },
+      { label: '0.5', totalPixels: 704 * 704 },
+    ]
+  } else {
+    return [
+      { label: '0.25', totalPixels: 512 * 512 },
+      { label: '0.5', totalPixels: 704 * 704 },
+      { label: '0.8', totalPixels: 896 * 896 },
+      { label: '1.0', totalPixels: 1024 * 1024 },
+    ]
+  }
+})
 
 function findBestResolution(totalPixels: number, aspectRatio: number) {
   const MIN_SIZE = 256
@@ -181,7 +190,7 @@ const sliderModel = computed({
         <SliderRange :className="clsx('absolute h-full', { 'bg-gradient': !disabled })" />
       </SliderTrack>
       <SliderThumb
-        v-if="!disabled"
+        v-show="!disabled"
         v-for="(_, key) in sliderModel"
         :key="key"
         :className="

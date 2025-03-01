@@ -22,7 +22,9 @@
       class="v-drop-select-list absolute left-0 top-0"
       :style="{ translate: translate, width: `${listRect.width}px` }"
     >
+      <!-- eslint-disable vue/require-v-for-key -->
       <li v-for="(item, i) in array" @click="changeSelectedItem(item, i)">
+        <!-- eslint-enable -->
         <slot name="list" v-bind="{ item: item, index: i }">{{ item }}</slot>
       </li>
     </ul>

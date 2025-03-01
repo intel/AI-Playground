@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "다운로드 속도",
   "COM_LOADING_MODEL": "AI 모델 로딩 중",
   "COM_LOADING_MODEL_COMPONENTS": "AI 모델 구성 요소 로딩 중",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "워크플로우 구성 요소 설치 중",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "워크플로우 구성 요소 로딩 중",
   "COM_NO_SELECTED": "선택된 항목 없음",
   "COM_CONFIRM": "확인",
   "COM_CANCEL": "취소",
@@ -242,5 +244,12 @@
   "WORKFLOW_HIGH_VRAM_INFO": "이 모델은 많은 VRAM이 필요합니다. 성능이 저하되면 해상도를 낮추거나 ComfyUI Backend를 다시 시작하세요.",
   "WORKFLOW_HIGH_VRAM_WARNING": "많은 VRAM 필요",
   "LOADING_VERIFYING_BACKENDS": "Backend 확인 중",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 로딩 중"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground 로딩 중",
+  "COM_CLEAR_HISTORY": "기록 지우기",
+  "INPUT_PROMPT": "프롬프트",
+  "BACKEND": "백엔드",
+  "DEVICE": "디바이스",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "체크포인트 모델",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "프레임 레이트",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "총 프레임"
 }

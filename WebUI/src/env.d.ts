@@ -36,6 +36,7 @@ type electronAPI = {
   setIgnoreMouseEvents(ignore: boolean): void
   miniWindow(): void
   exitApp(): void
+  getMediaUrlBase(): Promise<string>
   saveImage(url: string): void
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void
@@ -55,9 +56,10 @@ type electronAPI = {
   getDownloadedLoras(): Promise<string[]>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
+  getDownloadedOpenVINOLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<string[]>
   openImageWithSystem(url: string): void
-  selecteImage(url: string): void
+  openImageInFolder(url: string): void
   setFullScreen(enable: boolean): void
   onDebugLog(
     callback: (data: {
@@ -158,10 +160,20 @@ type DropListItem = {
   value: string | number
 }
 
+type MetricsData = {
+  num_tokens: number
+  total_time: number
+  first_token_latency: number
+  overall_tokens_per_second: number
+  second_plus_tokens_per_second: number
+}
+
 type ChatItem = {
+  metrics: MetricsData
   question: string
   answer: string
   title?: string
+  model?: string
 }
 
 type ChatRequestParams = {
@@ -184,6 +196,7 @@ type LLMOutCallback =
   | DownloadModelCompleted
   | ErrorOutCallback
   | NotEnoughDiskSpaceExceptionCallback
+  | GatherMetrics
 
 type LLMOutTextCallback = {
   type: 'text_out'
@@ -192,16 +205,17 @@ type LLMOutTextCallback = {
   2
 }
 
-type SDOutCallback =
-  | LoadModelCallback
-  | LoadModelcomponentsCallback
-  | SDOutImagelCallback
-  | SDStepEndCallback
-  | ErrorOutCallback
-  | NotEnoughDiskSpaceExceptionCallback
-
 type LoadModelAllComplete = {
   type: 'allComplete'
+}
+
+type GatherMetrics = {
+  type: 'metrics'
+  num_tokens: number
+  total_time: number
+  overall_tokens_per_second: number
+  second_plus_tokens_per_second: number
+  first_token_latency: number
 }
 
 type LoadModelCallback = {
@@ -209,25 +223,9 @@ type LoadModelCallback = {
   event: 'start' | 'finish'
 }
 
-type LoadModelcomponentsCallback = {
+type LoadModelComponentsCallback = {
   type: 'load_model_components'
   event: 'start' | 'finish'
-}
-
-type SDOutImagelCallback = {
-  type: 'image_out'
-  index: number
-  image: string
-  safe_check_pass: boolean
-  params: KVObject
-}
-
-type SDStepEndCallback = {
-  type: 'step_end'
-  index: number
-  step: number
-  total_step: number
-  image?: string
 }
 
 type NotEnoughDiskSpaceExceptionCallback = {
@@ -239,7 +237,7 @@ type NotEnoughDiskSpaceExceptionCallback = {
 
 type ErrorOutCallback = {
   type: 'error'
-  err_type: 'runtime_error' | 'download_exception' | 'unknow_exception'
+  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception'
 }
 
 type DownloadModelProgressCallback = {
@@ -316,11 +314,9 @@ type DownloadFailedParams = {
 type CheckModelAlreadyLoadedParameters = {
   repo_id: string
   type: number
-  backend: BackendType
+  backend: 'comfyui' | 'default' | 'llama_cpp' | 'openvino'
   additionalLicenseLink?: string
 }
-
-type BackendType = 'comfyui' | 'default' | 'llama_cpp'
 
 type DownloadModelParam = CheckModelAlreadyLoadedParameters
 
@@ -340,16 +336,7 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type SDGenerateState =
-  | 'no_start'
-  | 'input_image'
-  | 'load_model'
-  | 'load_model_components'
-  | 'generating'
-  | 'image_out'
-  | 'error'
-
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend'
+type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
 
 type ApiServiceInformation = {
   serviceName: BackendServiceName

@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "Velocità di download",
   "COM_LOADING_MODEL": "Caricamento modello AI",
   "COM_LOADING_MODEL_COMPONENTS": "Caricamento componenti modello AI",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "Installazione dei componenti del workflow",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "Caricamento dei componenti del workflow",
   "COM_NO_SELECTED": "Nessuna selezione",
   "COM_CONFIRM": "Conferma",
   "COM_CANCEL": "Annulla",
@@ -242,5 +244,12 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Questo modello richiede molta VRAM. Riduci la risoluzione e/o riavvia il backend ComfyUI in caso di prestazioni ridotte",
   "WORKFLOW_HIGH_VRAM_WARNING": "alta VRAM richiesta",
   "LOADING_VERIFYING_BACKENDS": "Verifica backend",
-  "LOADING_AI_PLAYGROUND_LOADING": "Caricamento AI Playground"
+  "LOADING_AI_PLAYGROUND_LOADING": "Caricamento AI Playground",
+  "COM_CLEAR_HISTORY": "Cancella cronologia",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Dispositivo",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Modello checkpoint",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frequenza fotogrammi",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Fotogrammi totali"
 }

@@ -82,6 +82,7 @@ python311.zip
 ../service
 ../ComfyUI
 ../LlamaCPP
+../OpenVINO
 
 # Uncomment to run site.main() automatically
 import site

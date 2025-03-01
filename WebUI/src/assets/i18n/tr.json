@@ -28,6 +28,8 @@
   "COM_DOWNLOAD_SPEED": "İndirme Hızı",
   "COM_LOADING_MODEL": "AI Model Yükleniyor",
   "COM_LOADING_MODEL_COMPONENTS": "AI Model Bileşenleri Yükleniyor",
+  "COM_INSTALL_WORKFLOW_COMPONENTS": "İş Akışı Bileşenleri Yükleniyor",
+  "COM_LOADING_WORKFLOW_COMPONENTS": "İş Akışı Bileşenleri Yükleniyor",
   "COM_NO_SELECTED": "Seçim Yapılmadı",
   "COM_CONFIRM": "Onayla",
   "COM_CANCEL": "İptal",
@@ -242,5 +244,12 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Bu model çok fazla VRAM gerektiriyor. Düşük performans yaşarsanız çözünürlüğü düşürün ve/veya ComfyUI backend'ini yeniden başlatın",
   "WORKFLOW_HIGH_VRAM_WARNING": "yüksek VRAM gerekli",
   "LOADING_VERIFYING_BACKENDS": "Backend'ler doğrulanıyor",
-  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Yükleniyor"
+  "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Yükleniyor",
+  "COM_CLEAR_HISTORY": "Geçmişi Temizle",
+  "INPUT_PROMPT": "Prompt",
+  "BACKEND": "Backend",
+  "DEVICE": "Cihaz",
+  "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Kontrol Noktası Modeli",
+  "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Kare Hızı",
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Toplam Kare"
 }

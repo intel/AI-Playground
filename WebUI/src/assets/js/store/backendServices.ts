@@ -1,14 +1,15 @@
 import { defineStore } from 'pinia'
 
+const backends = ['ai-backend', 'comfyui-backend', 'llamacpp-backend', 'openvino-backend'] as const
+export type BackendServiceName = (typeof backends)[number]
+
 export const useBackendServices = defineStore(
   'backendServices',
   () => {
     const currentServiceInfo = ref<ApiServiceInformation[]>([])
-    const serviceListeners: Map<BackendServiceName, BackendServiceSetupProgressListener> = new Map([
-      ['ai-backend', new BackendServiceSetupProgressListener('ai-backend')],
-      ['comfyui-backend', new BackendServiceSetupProgressListener('comfyui-backend')],
-      ['llamacpp-backend', new BackendServiceSetupProgressListener('llamacpp-backend')],
-    ])
+    const serviceListeners = new Map(
+      backends.map((b) => [b, new BackendServiceSetupProgressListener(b)]),
+    )
 
     window.electronAPI
       .getServices()
@@ -94,12 +95,38 @@ export const useBackendServices = defineStore(
       return window.electronAPI.sendStopSignal(serviceName)
     }
 
+    const lastUsedBackend = ref<BackendServiceName | null>(null)
+
+    function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
+      lastUsedBackend.value = currentInferenceBackend
+    }
+
+    async function resetLastUsedInferenceBackend(currentInferenceBackend: BackendServiceName) {
+      const lastUsedBackendSnapshot = lastUsedBackend.value
+      if (lastUsedBackendSnapshot === null || lastUsedBackendSnapshot === currentInferenceBackend) {
+        return
+      }
+      try {
+        const stopStatus = await stopService(lastUsedBackendSnapshot)
+        console.info(`unused service ${lastUsedBackendSnapshot} now in state ${stopStatus}`)
+        const startStatus = await startService(lastUsedBackendSnapshot)
+        console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
+      } catch (e) {
+        console.warn(
+          `Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`,
+        )
+      }
+    }
+
     return {
       info: currentServiceInfo,
       serviceInfoUpdateReceived: serviceInfoUpdatePresent,
       allRequiredSetUp,
       allRequiredRunning,
       initalStartupRequestComplete,
+      lastUsedBackend,
+      updateLastUsedBackend,
+      resetLastUsedInferenceBackend,
       startAllSetUpServices,
       setUpService,
       startService,

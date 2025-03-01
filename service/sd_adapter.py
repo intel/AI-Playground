@@ -17,12 +17,19 @@ class SD_SSE_Adapter:
     finish: bool
     singal: threading.Event
     url_root: str
+    save_image_path : str
 
     def __init__(self, url_root: str):
         self.msg_queue = Queue(-1)
         self.finish = False
         self.singal = threading.Event()
         self.url_root = url_root
+        if os.getenv('USERPROFILE'):
+            self.save_image_path = os.path.join(os.getenv('USERPROFILE'), 'Documents', 'AI-Playground', 'media')
+        elif os.getenv('HOME'):
+            self.save_image_path = os.path.join(os.getenv('HOME'), 'AI-Playground', 'media')
+        else:
+            self.save_image_path = os.path.join('static', 'sd_out')
 
     def put_msg(self, data):
         self.msg_queue.put_nowait(data)
@@ -87,7 +94,8 @@ class SD_SSE_Adapter:
         now = datetime.now()
         folder = now.strftime("%d_%m_%Y")
         base_name = now.strftime("%H%M%S")
-        filename = "static/sd_out/{}/{}.png".format(folder, base_name)
+        image_name = f"{base_name}.png"
+        filename = os.path.join(self.save_image_path, folder, image_name)
         dir = os.path.dirname(filename)
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -102,11 +110,13 @@ class SD_SSE_Adapter:
         except Exception:
             traceback.print_exc()
             pass
-        image_url = f"{self.url_root}/{filename}"
+
+        image_location = f"{folder}/{image_name}"
+
         data = {
             "type": "image_out",
             "index": index,
-            "image": image_url,
+            "image": image_location,
             "params": response_params,
             "safe_check_pass": safe_check_pass,
         }
@@ -139,7 +149,7 @@ class SD_SSE_Adapter:
         elif isinstance(ex, RuntimeError):
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
-            self.put_msg({"type": "error", "err_type": "unknow_exception"})
+            self.put_msg({"type": "error", "err_type": "unknown_exception"})
         print(f"exception:{str(ex)}")
 
     def generate(self, params: paint_biz.TextImageParams):
@@ -215,9 +225,8 @@ class SD_SSE_Adapter:
 
     def log_to_file(self, params: Any, folder: str, base_name: str):
         from shutil import copyfile
-
-        json_path = f"./static/sd_out/{folder}/history.json"
-        base_output = os.path.abspath("./static/")
+        image_folder_path = os.path.join(self.save_image_path, f"{folder}")
+        json_path = os.path.join(image_folder_path,"history.json")
         if os.path.exists(json_path):
             try:
                 with open(json_path, "r+") as f:
@@ -234,6 +243,11 @@ class SD_SSE_Adapter:
             if k == "generate_number" or k == "image_preview":
                 continue
             elif k == "image" or k == "mask_image":
+                # currently, this option does not occur and would be, moreover,
+                # explicitly filtered out in get_response_params(). It is therefore
+                # uncertain, from where the reference images would be drawn from.
+                # This clause should, thus, be changed once the need occurs
+                base_output = os.path.abspath("./static/")
                 save_path = os.path.abspath(str(v))
                 save_path = save_path.replace(base_output, "../../").replace("\\", "/")
                 param_list.append(
@@ -260,8 +274,19 @@ class SD_SSE_Adapter:
         history_json.insert(0, history_item)
 
         with open(json_path, "w") as f:
-            f.write("let hisotry=")
+            f.write("let history=")
             json.dump(history_json, f)
-        html_path = f"./static/sd_out/{folder}/history.html"
+
+        html_path = os.path.join(image_folder_path,"history.html")
         if not os.path.exists(html_path):
-            copyfile("./static/assets/hisotory_template.html", html_path)
+            copyfile("./static/assets/history_template.html", html_path)
+            template_path = os.path.abspath("./static/assets/")
+            css_path = os.path.join(template_path, 'history.css')
+            js_path = os.path.join(template_path, 'history.js')
+            with open(html_path, 'r+') as file:
+                content = file.read()
+                content = content.replace('{css_path}', css_path)
+                content = content.replace('{js_path}', js_path)
+                file.seek(0)
+                file.write(content)
+                file.truncate()

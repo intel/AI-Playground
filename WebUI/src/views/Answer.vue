@@ -7,11 +7,27 @@
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
         class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
+        <div class="flex justify-end">
+          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+            <img
+              v-if="!isHistoryVisible"
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/expand.svg"
+              class="w-8 h-8"
+            />
+            <img
+              v-else
+              :class="textInference.iconSizeClass"
+              src="@/assets/svg/collapse.svg"
+              class="w-8 h-8"
+            />
+          </button>
+        </div>
         <div class="flex flex-col-reverse">
           <div
             v-if="isHistoryVisible"
             v-for="(conversation, conversationKey) in conversations.conversationList"
-            :key="conversationKey"
+            :key="'if' + conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
             class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
@@ -29,6 +45,7 @@
           <div
             v-else
             v-for="(conversation, conversationKey) in conversations.conversationList"
+            :key="'else' + conversationKey"
             :inVisibleKey="conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
@@ -68,38 +85,45 @@
             </svg>
           </div>
         </div>
-        <div class="flex justify-end">
-          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
-            <img
-              v-if="!isHistoryVisible"
-              :class="iconSizeClass"
-              src="@/assets/svg/expand.svg"
-              class="w-8 h-8"
-            />
-            <img v-else :class="iconSizeClass" src="@/assets/svg/collapse.svg" class="w-8 h-8" />
-          </button>
-        </div>
       </div>
       <div
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
-        :class="fontSizeClass"
+        :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
+        <!-- eslint-disable vue/require-v-for-key -->
         <template v-for="(chat, i) in conversations.activeConversation">
+          <!-- eslint-enable -->
           <div class="flex items-start gap-3">
-            <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
+            <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
             <div class="flex flex-col gap-3 max-w-3/4">
-              <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-              <div class="chat-content" v-html="util.processHTMLTag(chat.question)"></div>
+              <p class="text-gray-300" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_USER_NAME }}
+              </p>
+              <div class="chat-content" style="white-space: pre-wrap">
+                {{ chat.question }}
+              </div>
             </div>
           </div>
           <div class="flex items-start gap-3">
-            <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+            <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
             <div
               class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
             >
-              <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+              <div class="flex items-center gap-2">
+                <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                  {{ languages.ANSWER_AI_NAME }}
+                </p>
+                <div v-if="chat.model">
+                  <span
+                    class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                    :class="textInference.nameSizeClass"
+                  >
+                    {{ chat.model }}
+                  </span>
+                </div>
+              </div>
               <div
                 class="ai-answer chat-content"
                 v-html="markdownParser.parseMarkdown(chat.answer)"
@@ -131,6 +155,20 @@
                   <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
                 </button>
               </div>
+              <div
+                v-if="textInference.metricsEnabled && chat.metrics"
+                class="metrics-info text-xs text-gray-400"
+              >
+                <span class="mr-2">{{ chat.metrics.num_tokens }} Tokens</span>
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >{{ chat.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                >
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >1st Token Time: {{ chat.metrics.first_token_latency.toFixed(2) }}s</span
+                >
+              </div>
             </div>
           </div>
         </template>
@@ -138,21 +176,35 @@
           class="flex items-start gap-3"
           v-show="processing && conversations.activeKey === currentlyGeneratingKey"
         >
-          <img :class="iconSizeClass" src="@/assets/svg/user-icon.svg" />
+          <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
-            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_USER_NAME }}</p>
-            <p v-html="textIn"></p>
+            <p class="text-gray-300" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_USER_NAME }}
+            </p>
+            <div class="chat-content" style="white-space: pre-wrap">
+              {{ textIn }}
+            </div>
           </div>
         </div>
         <div
           class="flex items-start gap-3"
           v-show="processing && conversations.activeKey === currentlyGeneratingKey"
         >
-          <img :class="iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+          <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
-            <p class="text-gray-300" :class="nameSizeClass">{{ languages.ANSWER_AI_NAME }}</p>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_AI_NAME }}
+              </p>
+              <span
+                class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                :class="textInference.nameSizeClass"
+              >
+                {{ textInference.activeModel }}
+              </span>
+            </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
               class="ai-answer cursor-block break-all"
@@ -192,31 +244,16 @@
         <div class="flex items-center justify-between gap-5 text-white px-2">
           <div class="flex items-center">
             <drop-selector
-              v-if="textInference.backend === 'IPEX-LLM'"
-              :array="models.llms"
-              @change="(i) => (textInference.activeModel = i.name)"
-              class="w-96"
-            >
-              {{ console.log('models.llms', models.llms) }}
-              <template #selected>
-                <model-drop-down-item
-                  :model="models.llms.find((m) => m.name === globalSetup.modelSettings.llm_model)"
-                ></model-drop-down-item>
-              </template>
-              <template #list="slotItem">
-                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-              </template>
-            </drop-selector>
-            <drop-selector
-              v-if="textInference.backend === 'LLAMA.CPP'"
-              :array="models.ggufLLMs"
-              @change="(i) => (textInference.activeModel = i.name)"
+              :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
+              @change="(i) => textInference.selectModel(textInference.backend, i.name)"
               class="w-96"
             >
               <template #selected>
                 <model-drop-down-item
                   :model="
-                    models.ggufLLMs.find((m) => m.name === globalSetup.modelSettings.ggufLLM_model)
+                    textInference.llmModels
+                      .filter((m) => m.type === textInference.backend)
+                      .find((m) => m.active)
                   "
                 ></model-drop-down-item>
               </template>
@@ -225,7 +262,7 @@
               </template>
             </drop-selector>
             <button
-              class="svg-icon i-generate-add w-10 h-10 text-purple-500 ml-1.5"
+              class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
               @click="addLLMModel"
             ></button>
             <button
@@ -241,25 +278,25 @@
             </button> -->
             <button
               class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="increaseFontSize"
-              :disabled="isMaxSize"
-              :class="{ 'opacity-50 cursor-not-allowed': isMaxSize }"
+              @click="textInference.increaseFontSize"
+              :disabled="textInference.isMaxSize"
+              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
             >
               <span class="svg-icon i-zoom-in w-4 h-4"></span>
               <span>{{ languages.INCREASE_FONT_SIZE }}</span>
             </button>
             <button
               class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="decreaseFontSize"
-              :disabled="isMinSize"
-              :class="{ 'opacity-50 cursor-not-allowed': isMinSize }"
+              @click="textInference.decreaseFontSize"
+              :disabled="textInference.isMinSize"
+              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
             >
               <span class="svg-icon i-zoom-out w-4 h-4"></span>
               <span>{{ languages.DECREASE_FONT_SIZE }}</span>
             </button>
           </div>
           <div
-            v-show="textInference.backend !== 'LLAMA.CPP'"
+            v-show="textInference.backend === 'ipexLLM'"
             class="flex justify-center items-center gap-2"
           >
             <div class="v-checkbox flex-none" type="button" :disabled="processing">
@@ -333,7 +370,7 @@
         </button>
       </div>
       <rag
-        v-if="ragData.showUploader && textInference.backend !== 'LLAMA.CPP'"
+        v-if="ragData.showUploader && textInference.backend !== 'llamaCPP'"
         ref="ragPanel"
         @close="ragData.showUploader = false"
       ></rag>
@@ -356,11 +393,13 @@ import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import * as Const from '@/assets/js/const'
 import { useConversations } from '@/assets/js/store/conversations'
-import { useTextInference } from '@/assets/js/store/textInference'
+import { LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import { useBackendServices } from '@/assets/js/store/backendServices'
 
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()
+const backendServices = useBackendServices()
 const textInference = useTextInference()
 const i18nState = useI18N().state
 const question = ref('')
@@ -387,6 +426,8 @@ const ragData = reactive({
   showUploader: false,
 })
 
+let sseMetrics: MetricsData | null = null
+
 const source = ref('')
 const emits = defineEmits<{
   (
@@ -400,63 +441,12 @@ const emits = defineEmits<{
 
 let abortContooler: AbortController | null
 const stopping = ref(false)
-const fontSizeIndex = ref(1) // sets default to text-sm
 
-const fontSizes = [
-  'text-xs',
-  'text-sm',
-  'text-base',
-  'text-lg',
-  'text-xl',
-  'text-2xl',
-  'text-3xl',
-  'text-4xl',
-  'text-5xl',
-  'text-6xl',
-  'text-7xl',
-  'text-8xl',
-  'text-9xl',
-]
-const iconSizes = [
-  'size-[40px]',
-  'size-[42px]',
-  'size-[44px]',
-  'size-[46px]',
-  'size-[48px]',
-  'size-[50px]',
-  'size-[52px]',
-  'size-[54px]',
-  'size-[56px]',
-  'size-[58px]',
-  'size-[60px]',
-  'size-[62px]',
-  'size-[64px]',
-]
-const fontSizeClass = computed(() => fontSizes[fontSizeIndex.value])
-const nameSizeClass = computed(() => fontSizes[Math.max(fontSizeIndex.value - 2, 0)])
-const iconSizeClass = computed(() => iconSizes[fontSizeIndex.value])
-const isMaxSize = computed(() => fontSizeIndex.value >= fontSizes.length - 1)
-const isMinSize = computed(() => fontSizeIndex.value <= 0)
 const isHistoryVisible = ref(false)
-const currentBackendAPI = computed(() =>
-  textInference.backend === 'LLAMA.CPP' ? textInference.llamaBackendUrl : globalSetup.apiHost,
-)
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
-
-const increaseFontSize = () => {
-  if (!isMaxSize.value) {
-    fontSizeIndex.value++
-  }
-}
-
-const decreaseFontSize = () => {
-  if (!isMinSize.value) {
-    fontSizeIndex.value--
-  }
-}
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
@@ -495,6 +485,15 @@ function dataProcess(line: string) {
     case 'load_model':
       loadingModel.value = data.event == 'start'
       break
+    case 'metrics':
+      sseMetrics = {
+        num_tokens: data.num_tokens ?? 0,
+        total_time: data.total_time ?? 0,
+        first_token_latency: data.first_token_latency ?? 0,
+        overall_tokens_per_second: data.overall_tokens_per_second ?? 0,
+        second_plus_tokens_per_second: data.second_plus_tokens_per_second ?? 0,
+      }
+      break
     case 'error':
       processing.value = false
       switch (data.err_type) {
@@ -512,7 +511,7 @@ function dataProcess(line: string) {
         case 'runtime_error':
           toast.error(i18nState.ERROR_RUNTIME_ERROR)
           break
-        case 'unknow_exception':
+        case 'unknown_exception':
           toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
           break
       }
@@ -542,7 +541,7 @@ function onConversationClick(conversationKey: string) {
 }
 
 async function updateTitle(conversation: ChatItem[]) {
-  const instruction = `Create me a short descriptive title for the following conversation in a maximum of 20 characters. Don't use unnecessary words like 'Conversation about': `
+  const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
   console.log('prompt', prompt)
   const chatContext = [{ question: prompt, answer: '' }]
@@ -550,13 +549,11 @@ async function updateTitle(conversation: ChatItem[]) {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     enable_rag: false,
-    model_repo_id:
-      textInference.backend === 'IPEX-LLM'
-        ? globalSetup.modelSettings.llm_model
-        : globalSetup.modelSettings.ggufLLM_model,
+    max_tokens: 8,
+    model_repo_id: textInference.activeModel,
     print_metrics: false,
   }
-  const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
+  const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -564,7 +561,10 @@ async function updateTitle(conversation: ChatItem[]) {
     body: JSON.stringify(requestParams),
     signal: abortController.signal,
   })
-  const reader = response.body!.getReader()
+  if (!response.body) {
+    return
+  }
+  const reader = response.body.getReader()
   const responses: LLMOutCallback[] = []
   const getResponse = (line: string) => {
     responses.push(JSON.parse(line.slice(5)))
@@ -596,6 +596,14 @@ async function simulatedInput() {
   } else {
     const key = currentlyGeneratingKey.value
 
+    const finalMetrics: MetricsData = sseMetrics ?? {
+      num_tokens: 0,
+      total_time: 0,
+      first_token_latency: 0,
+      overall_tokens_per_second: 0,
+      second_plus_tokens_per_second: 0,
+    }
+
     if (key !== null) {
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -603,12 +611,16 @@ async function simulatedInput() {
           ragData.enable && source.value != ''
             ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
             : receiveOut,
+        metrics: finalMetrics,
+        model: textInference.activeModel,
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
         updateTitle(conversations.conversationList[key])
       }
     }
+
+    sseMetrics = null
     processing.value = false
     textIn.value = ''
     textOut.value = ''
@@ -625,6 +637,10 @@ async function simulatedInput() {
 
 function fastGenerate(e: KeyboardEvent) {
   if (e.code == 'Enter') {
+    if (processing.value) {
+      return
+    }
+
     if (e.ctrlKey || e.shiftKey || e.altKey) {
       question.value += '\n'
     } else {
@@ -643,7 +659,7 @@ async function newPromptGenerate() {
     return
   }
   try {
-    await checkModel()
+    await checkModelAvailability()
 
     // Mark which conversation is about to generate
     currentlyGeneratingKey.value = conversations.activeKey
@@ -655,28 +671,11 @@ async function newPromptGenerate() {
   } catch {}
 }
 
-async function checkModel() {
+async function checkModelAvailability() {
   return new Promise<void>(async (resolve, reject) => {
-    let checkList: CheckModelAlreadyLoadedParameters[]
-    if (textInference.backend === 'LLAMA.CPP') {
-      checkList = [
-        {
-          repo_id: globalSetup.modelSettings.ggufLLM_model,
-          type: Const.MODEL_TYPE_LLAMA_CPP,
-          backend: 'llama_cpp',
-        },
-      ]
-    } else {
-      checkList = [
-        {
-          repo_id: globalSetup.modelSettings.llm_model,
-          type: Const.MODEL_TYPE_LLM,
-          backend: 'default',
-        },
-      ]
-    }
-    if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
-      emits('showDownloadModelConfirm', checkList, resolve, reject)
+    const requiredModelDownloads = await textInference.getDownloadParamsForCurrentModelIfRequired()
+    if (requiredModelDownloads.length > 0) {
+      emits('showDownloadModelConfirm', requiredModelDownloads, resolve, reject)
     } else {
       resolve()
     }
@@ -689,10 +688,14 @@ async function generate(chatContext: ChatItem[]) {
   }
 
   try {
-    const inferenceBackendService: BackendServiceName =
-      textInference.backend === 'IPEX-LLM' ? 'ai-backend' : 'llamacpp-backend'
-    await globalSetup.resetLastUsedInferenceBackend(inferenceBackendService)
-    globalSetup.updateLastUsedBackend(inferenceBackendService)
+    const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
+      llamaCPP: 'llamacpp-backend',
+      openVINO: 'openvino-backend',
+      ipexLLM: 'ai-backend',
+    }
+    const inferenceBackendService = backendToInferenceService[textInference.backend]
+    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+    backendServices.updateLastUsedBackend(inferenceBackendService)
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
     textOut.value = ''
@@ -708,13 +711,11 @@ async function generate(chatContext: ChatItem[]) {
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: ragData.enable && textInference.backend !== 'LLAMA.CPP',
-      model_repo_id:
-        textInference.backend === 'IPEX-LLM'
-          ? globalSetup.modelSettings.llm_model
-          : globalSetup.modelSettings.ggufLLM_model,
+      enable_rag: ragData.enable && textInference.backend === 'ipexLLM',
+      max_tokens: textInference.maxTokens,
+      model_repo_id: textInference.activeModel,
     }
-    const response = await fetch(`${currentBackendAPI.value}/api/llm/chat`, {
+    const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -732,7 +733,7 @@ async function generate(chatContext: ChatItem[]) {
 async function stopGenerate() {
   if (processing.value && !stopping.value) {
     stopping.value = true
-    await fetch(`${currentBackendAPI.value}/api/llm/stopGenerate`)
+    await fetch(`${textInference.currentBackendUrl}/api/llm/stopGenerate`)
     if (abortContooler) {
       abortContooler.abort()
       abortContooler = null
@@ -773,7 +774,20 @@ function regenerateLastResponse(conversationKey: string) {
   if (!item) return
   const prompt = item.question
   const chatContext = [...toRaw(conversations.conversationList[conversationKey])]
-  chatContext.push({ question: prompt, answer: '' })
+
+  const finalMetrics: MetricsData = sseMetrics ?? {
+    num_tokens: 0,
+    total_time: 0,
+    first_token_latency: 0,
+    overall_tokens_per_second: 0,
+    second_plus_tokens_per_second: 0,
+  }
+
+  chatContext.push({
+    question: prompt,
+    answer: '',
+    metrics: finalMetrics,
+  })
   currentlyGeneratingKey.value = conversationKey
   generate(chatContext)
 }
@@ -811,7 +825,7 @@ async function toggleRag(value: boolean) {
           backend: 'default',
         },
       ]
-      if (!(await globalSetup.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
+      if (!(await models.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
         emits('showDownloadModelConfirm', checkList, enableRag, () => {
           ragData.processEnable = false
         })
@@ -850,6 +864,17 @@ async function disableRag() {
   }
 }
 
+watch(
+  () => textInference.backend,
+  (newBackend, _oldBackend) => {
+    if (newBackend === 'ipexLLM') {
+      restoreRagState()
+    } else {
+      disableRag()
+    }
+  },
+)
+
 async function restoreRagState() {
   ragData.processEnable = true
   if (ragData.enable) {
@@ -861,7 +886,7 @@ async function restoreRagState() {
 }
 
 defineExpose({
-  checkModel,
+  checkModel: checkModelAvailability,
   restoreRagState,
   disableRag,
 })

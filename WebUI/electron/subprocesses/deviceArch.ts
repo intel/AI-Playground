@@ -59,8 +59,8 @@ const ID2ARCH: { [key: number]: Arch } = {
 
   // // arl
   // 0x7D67: "arl",
-  // 0x7D51: "arl",
-  // 0x7DD1: "arl",
+  0x7d51: 'arl_h',
+  0x7dd1: 'arl_h',
   // 0x7D41: "arl",
 }
 
@@ -71,8 +71,10 @@ export function getDeviceArch(deviceId: number): Arch {
 export function getArchPriority(arch: Arch): number {
   switch (arch) {
     case 'bmg':
-      return 4
+      return 5
     case 'acm':
+      return 4
+    case 'arl_h':
       return 3
     case 'lnl':
       return 2
@@ -83,4 +85,4 @@ export function getArchPriority(arch: Arch): number {
   }
 }
 
-export type Arch = 'bmg' | 'acm' | 'lnl' | 'mtl' | 'unknown'
+export type Arch = 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | 'unknown'

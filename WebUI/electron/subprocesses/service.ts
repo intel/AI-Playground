@@ -101,7 +101,10 @@ abstract class ExecutableService extends GenericServiceImpl {
 }
 
 export class PythonService extends ExecutableService {
-  constructor(readonly dir: string) {
+  constructor(
+    readonly dir: string,
+    readonly serviceDir: string,
+  ) {
     super('python', dir)
   }
 
@@ -120,7 +123,9 @@ export class PythonService extends ExecutableService {
   }
 
   async install(): Promise<void> {
-    this.log('start installing')
+    this.log(
+      `installing python env at ${this.dir} from ${this.name} for service ${this.serviceDir}`,
+    )
     await this.clonePythonEnv()
   }
 
@@ -140,14 +145,30 @@ export class PythonService extends ExecutableService {
     }
     this.log(`copying prototypical python env to ${this.dir}`)
     await filesystem.copy(this.prototypicalEnvDir, this.dir)
+    filesystem.writeFile(
+      path.join(this.dir, 'python311._pth'),
+      `
+    python311.zip
+    .
+    ../${this.serviceDir}
+
+    # Uncomment to run site.main() automatically
+    import site
+    `,
+    )
   }
 }
 
 export class PipService extends ExecutableService {
-  readonly python: PythonService = new PythonService(this.dir)
+  readonly python: PythonService
 
-  constructor(readonly pythonEnvDir: string) {
+  constructor(
+    readonly pythonEnvDir: string,
+    readonly serviceDir: string,
+  ) {
     super('pip', pythonEnvDir)
+    this.log(`setting up pip service at ${this.dir} for service ${this.serviceDir}`)
+    this.python = new PythonService(this.dir, this.serviceDir)
   }
 
   getExePath(): string {
@@ -218,11 +239,17 @@ export class PipService extends ExecutableService {
 }
 
 export class UvPipService extends PipService {
-  readonly pip: PipService = new PipService(this.dir)
-  readonly python: PythonService = this.pip.python
+  readonly pip: PipService
+  readonly python: PythonService
 
-  constructor(readonly pythonEnvDir: string) {
-    super(pythonEnvDir)
+  constructor(
+    readonly pythonEnvDir: string,
+    readonly serviceDir: string,
+  ) {
+    super(pythonEnvDir, serviceDir)
+    this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
+    this.pip = new PipService(this.dir, this.serviceDir)
+    this.python = this.pip.python
     this.name = 'uvpip'
   }
 
@@ -258,7 +285,7 @@ export class UvPipService extends PipService {
 }
 
 export class LsLevelZeroService extends ExecutableService {
-  readonly uvPip: UvPipService = new UvPipService(this.dir)
+  readonly uvPip: UvPipService = new UvPipService(this.dir, 'service')
   readonly requirementsTxtPath = path.resolve(
     path.join(this.baseDir, 'service/requirements-ls_level_zero.txt'),
   )
@@ -288,8 +315,8 @@ export class LsLevelZeroService extends ExecutableService {
     this.log('checking')
     try {
       await this.uvPip.check()
-      await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
-      await this.run()
+      // await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
+      // await this.run()
     } catch (e) {
       this.log(`warning: ${e}`)
       if (e instanceof ServiceCheckError) throw e
@@ -481,8 +508,6 @@ export const aiBackendServiceDir = () =>
       : path.join(__dirname, '../../../service'),
   )
 
-const ipexWheel = 'intel_extension_for_pytorch-2.3.110+xpu-cp311-cp311-win_amd64.whl'
-
 export interface ApiService {
   readonly name: string
   readonly baseUrl: string
@@ -512,9 +537,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
   readonly prototypicalPythonEnv = app.isPackaged
     ? path.join(this.baseDir, 'prototype-python-env')
     : path.join(this.baseDir, 'build-envs/online/prototype-python-env')
-  readonly customIntelExtensionForPytorch = path.join(
+  readonly wheelDir = path.join(
     app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
-    ipexWheel,
   )
   abstract readonly pythonEnvDir: string
   abstract readonly lsLevelZeroDir: string
@@ -525,6 +549,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
   currentStatus: BackendStatus = 'uninitializedStatus'
 
   readonly appLogger = appLoggerInstance
+
+  getIPEXWheelPath(deviceArch: Arch): string {
+    const wheelName = `intel_extension_for_pytorch-2.3.110+${deviceArch}-cp311-cp311-win_amd64.whl`
+    return path.join(this.wheelDir, wheelName)
+  }
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.win = win
@@ -653,7 +682,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     const startTime = performance.now()
     const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
       const queryIntervalMs = 250
-      const startupPeriodMaxMs = 120000
+      const startupPeriodMaxMs = 300000
       while (performance.now() < startTime + startupPeriodMaxMs) {
         try {
           const serviceHealthResponse = await fetch(this.healthEndpointUrl)

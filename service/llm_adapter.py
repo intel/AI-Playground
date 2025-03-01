@@ -16,6 +16,7 @@ class LLM_SSE_Adapter:
         self.msg_queue = Queue(-1)
         self.finish = False
         self.singal = threading.Event()
+        self.metrics_data = None
 
     def put_msg(self, data):
         self.msg_queue.put_nowait(data)
@@ -72,8 +73,12 @@ class LLM_SSE_Adapter:
         elif isinstance(ex, RuntimeError):
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
-            self.put_msg({"type": "error", "err_type": "unknow_exception"})
+            self.put_msg({"type": "error", "err_type": "unknown_exception"})
         print(f"exception:{str(ex)}")
+
+    
+    def metrics_callback(self, msg: dict):
+        self.metrics_data = msg
 
     def text_conversation(self, params: llm_biz.LLMParams):
         thread = threading.Thread(
@@ -93,8 +98,11 @@ class LLM_SSE_Adapter:
                 load_model_callback=self.load_model_callback,
                 text_out_callback=self.text_out_callback,
                 error_callback=self.error_callback,
+                metrics_callback=self.metrics_callback,
             )
-            self.put_msg({"type": "finish"})
+            self.put_msg(self.metrics_data)
+            self.put_msg({"type": "finish"})          
+
         except Exception as ex:
             traceback.print_exc()
             self.error_callback(ex)
