@@ -1,7 +1,7 @@
 import sys
 
 import comfyui_downloader
-from web_request_bodies import DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest, ComfyUIPackageInstallRequest
+from web_request_bodies import ComfyUICheckWorkflowRequirementRequest, DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest, ComfyUIPackageInstallRequest
 
 
 # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -405,6 +405,17 @@ def install_python_packages_for_comfy(comfyPackageInstallRequest: ComfyUIPackage
         return jsonify({ f"{package}" : {"success": True, "errorMessage": ""} for x in comfyPackageInstallRequest.data})
     except Exception as e:
         return jsonify({'error_message': f'failed to at least one package due to {e}'}), 501
+
+@app.post("/api/comfyUi/checkWorkflowRequirements")
+@app.input(ComfyUICheckWorkflowRequirementRequest.Schema , location='json', arg_name='comfyRequirementRequest')
+def check_workflow_requirements(comfyRequirementRequest: ComfyUICheckWorkflowRequirementRequest):
+    try:
+        nodes_to_be_installed = [not comfyui_downloader.is_custom_node_installed_with_git_ref(x) for x in comfyRequirementRequest.customNodes]
+        packages_to_be_installed = [not comfyui_downloader.is_package_installed(x) for x in comfyRequirementRequest.pythonPackages]
+        needs_installation = any(nodes_to_be_installed) or any(packages_to_be_installed)
+        return jsonify({'needsInstallation' : needs_installation})
+    except Exception as e:
+        return jsonify({'errorMessage': f'failed to check for installation {e}'}), 500
 
 
 def cache_input_image():
