@@ -28,7 +28,7 @@ const megaPixelsOptions = computed(() => {
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
     ]
-  } else if (imageGeneration.activeWorkflow.tags.includes('Video')) {
+  } else if (imageGeneration.activeWorkflow.tags.includes('LTX Video')) {
     return [
       { label: '0.1', totalPixels: 320 * 320 },
       { label: '0.25', totalPixels: 512 * 512 },

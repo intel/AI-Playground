@@ -1,6 +1,6 @@
 {
-  "name": "Video",
-  "tags": ["Video", "high-vram"],
+  "name": "Txt To Video",
+  "tags": ["LTX Video", "high-vram"],
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [
