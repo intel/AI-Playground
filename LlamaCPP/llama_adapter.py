@@ -148,7 +148,7 @@ class LLM_SSE_Adapter:
                 )
 
             full_prompt = convert_prompt(prompt)
-            stream = self.llm_interface.create_chat_completion(full_prompt)
+            stream = self.llm_interface.create_chat_completion(full_prompt, params.max_tokens)
             self.stream_function(stream)	
             
         except Exception as ex:

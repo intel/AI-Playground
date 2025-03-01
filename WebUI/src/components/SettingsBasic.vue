@@ -105,7 +105,7 @@
           ></button>
         </div>
       </div>
-      <div v-if="textInference.backend !== 'llamaCPP'" class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2">
         <p>Max Tokens</p>
         <slide-bar
           v-model:current="textInference.maxTokens"

@@ -34,9 +34,10 @@ class LlamaCpp(LLMInterface):
             if callback is not None:
                 callback("finish")
 
-    def create_chat_completion(self, messages: List[Dict[str, str]]):
+    def create_chat_completion(self, messages: List[Dict[str, str]], max_tokens: int = 1024):
         completion: Iterator[CreateChatCompletionStreamResponse] = self._model.create_chat_completion(
             messages=messages,
+            max_tokens=max_tokens,
             stream=True,
         )
         return completion
