@@ -155,6 +155,7 @@ export class PythonService extends ExecutableService {
     python311.zip
     .
     ../${this.serviceDir}
+    ../hijacks
 
     # Uncomment to run site.main() automatically
     import site

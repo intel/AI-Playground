@@ -1,6 +1,7 @@
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import fs from 'fs'
+import fsPromises from 'fs/promises'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
@@ -18,11 +19,14 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
+  readonly hijacksDir = path.resolve(path.join(this.baseDir, `hijacks/ipex_to_cuda`))
   readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
+  private readonly hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
+  private readonly hijacksRevision = 'd04fe3b'
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
   private readonly revision = '61b5072'
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
@@ -30,7 +34,11 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '5.0']
 
   serviceIsSetUp(): boolean {
-    return filesystem.existsSync(this.pythonEnvDir) && filesystem.existsSync(this.serviceDir)
+    return (
+      filesystem.existsSync(this.pythonEnvDir) &&
+      filesystem.existsSync(this.serviceDir) &&
+      filesystem.existsSync(this.hijacksDir)
+    )
   }
 
   isSetUp = this.serviceIsSetUp()
@@ -58,7 +66,37 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       return true
     }
 
+    const checkHijacksDir = async (): Promise<boolean> => {
+      if (!filesystem.existsSync(this.hijacksDir)) {
+        return false
+      }
+
+      // Check if it's a valid git repo
+      try {
+        await this.git.run(['-C', this.hijacksDir, 'status'])
+      } catch (_e) {
+        try {
+          filesystem.removeSync(this.hijacksDir)
+        } finally {
+          return false
+        }
+      }
+
+      return true
+    }
+
     const setupComfyUiBaseService = async (): Promise<void> => {
+      if (await checkHijacksDir()) {
+        this.appLogger.info('ipex_to_cuda hijacks already cloned, skipping', this.name)
+      } else {
+        await this.git.run(['clone', this.hijacksRemote, this.hijacksDir])
+        await this.git.run(
+          ['-C', this.hijacksDir, 'checkout', this.hijacksRevision],
+          {},
+          this.hijacksDir,
+        )
+      }
+
       if (await checkServiceDir()) {
         this.appLogger.info('comfyUI already cloned, skipping', this.name)
       } else {
@@ -79,6 +117,21 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
     const configureComfyUI = async (): Promise<void> => {
       try {
+        this.appLogger.info('patching hijacks into comfyUI model_management', this.name)
+        const targetfilePath = path.join(this.serviceDir, 'comfy/model_management.py')
+        const targetFileContent = await fsPromises.readFile(targetfilePath, 'utf-8')
+        const targetFileLines = targetFileContent.split(/\r?\n/)
+        const lineAboveSpliceTargetIndex = targetFileLines.findIndex((l) =>
+          l.includes('xpu_available = torch.xpu.is_available()'),
+        )
+        const targetIndentation = targetFileLines[lineAboveSpliceTargetIndex].search(/\S/)
+        const linesToSpliceIn = [
+          ' '.repeat(targetIndentation) + 'from ipex_to_cuda import ipex_init',
+          ' '.repeat(targetIndentation) + 'ipex_init()',
+        ]
+        targetFileLines.splice(lineAboveSpliceTargetIndex + 1, 0, ...linesToSpliceIn)
+        await fsPromises.writeFile(targetfilePath, targetFileLines.join('\n'))
+
         this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
         const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')
         const extraModelsYaml = `aipg:
