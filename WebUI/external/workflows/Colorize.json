@@ -5,7 +5,7 @@
     "customNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
     "requiredModels": []
   },
-  "tags": [],
+  "tags": ["BMG only"],
   "requirements": ["high-vram"],
   "inputs": [
     {
