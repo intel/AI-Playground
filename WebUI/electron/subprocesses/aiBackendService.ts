@@ -2,7 +2,7 @@ import * as filesystem from 'fs-extra'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { aiBackendServiceDir, LongLivedPythonApiService, LsLevelZeroService } from './service.ts'
+import { aiBackendServiceDir, GitService, LongLivedPythonApiService, LsLevelZeroService } from './service.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
@@ -11,6 +11,7 @@ export class AiBackendService extends LongLivedPythonApiService {
   readonly uvPip = this.lsLevelZero.uvPip
   readonly pip = this.uvPip.pip
   readonly python = this.pip.python
+  readonly git = new GitService()
 
   readonly isRequired = true
   readonly serviceDir = aiBackendServiceDir()
@@ -89,6 +90,7 @@ export class AiBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
+      PATH: `${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
