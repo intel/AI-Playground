@@ -27,10 +27,9 @@ AI Playground alpha and beta installers are currently available downloadable exe
 Starting from v2.0, there is a single packaged installer that works for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground and get it running on their PC. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 2.2 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.2-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.2-beta/AI.Playground-2.2.0-beta-signed.exe) :new:
+:new: **AI Playground 2.2.1 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.2.1-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.2.1-beta/AI.Playground-2.2.1-beta.exe) :new:
 > [!IMPORTANT]  
-> Two bugs sighted - affecting Video and Colorize Generation - fix in process, new release to come. [See issue](https://github.com/intel/AI-Playground/issues/211)
-
+> This release fixes video generation and image generation bugs from 2.2
 
 ### Installation Process for v2.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
