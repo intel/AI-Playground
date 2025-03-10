@@ -43,26 +43,33 @@ def stop_llm_generate():
 @app.route('/v1/embeddings', methods=['POST'])
 def embeddings():
     data = request.json
-    input_text = data.get('input', '')
+    input_data = data.get('input', None)
 
-    if not input_text:
+    if not input_data:
         return jsonify({"error": "Input text is required"}), 400
 
-    embedding_result = embedding_model.get_embedding(input_text)
+    if isinstance(input_data, str):
+        input_texts = [input_data]
+    elif isinstance(input_data, list):
+        input_texts = input_data
+    else:
+        return jsonify({"error": "Input should be a string or list of strings"}), 400
+
+    embeddings_result = embedding_model.embed_documents(input_texts)
 
     response = {
         "object": "list",
         "data": [
             {
                 "object": "embedding",
-                "embedding": embedding_result,
-                "index": 0
-            }
+                "embedding": emb,
+                "index": idx
+            } for idx, emb in enumerate(embeddings_result)
         ],
         "model": embedding_model.embedding_model_path,
         "usage": {
-            "prompt_tokens": len(input_text.split()),
-            "total_tokens": len(input_text.split())
+            "prompt_tokens": sum(len(text.split()) for text in input_texts),
+            "total_tokens": sum(len(text.split()) for text in input_texts)
         }
     }
 

@@ -49,6 +49,3 @@ class IpexEmbeddingModel(Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         return self.embed_documents([text])[0]
-    
-    def get_embedding(self, text: str):
-        return self.embed_query(text)
