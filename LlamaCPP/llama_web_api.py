@@ -6,10 +6,11 @@ from flask import jsonify, request, Response, stream_with_context
 from llama_adapter import LLM_SSE_Adapter
 from llama_cpp_backend import LlamaCpp
 from llama_params import LLMParams
+from llama_cpp_embeddings import LlamaCppEmbeddingModel
 
 app = APIFlask(__name__)
 llm_backend = LlamaCpp()
-
+embedding_model = LlamaCppEmbeddingModel()
 
 @app.get("/health")
 def health():
@@ -36,6 +37,35 @@ def free():
 def stop_llm_generate():
     llm_backend.stop_generate = True
     return jsonify({"code": 0, "message": "success"})
+
+
+@app.route('/v1/embeddings', methods=['POST'])
+def embeddings():
+    data = request.json
+    input_text = data.get('input', '')
+
+    if not input_text:
+        return jsonify({"error": "Input text is required"}), 400
+
+    embedding_result = embedding_model.get_embedding(input_text)
+
+    response = {
+        "object": "list",
+        "data": [
+            {
+                "object": "embedding",
+                "embedding": embedding_result,
+                "index": 0
+            }
+        ],
+        "model": embedding_model.embedding_model_path,
+        "usage": {
+            "prompt_tokens": len(input_text.split()),
+            "total_tokens": len(input_text.split())
+        }
+    }
+
+    return jsonify(response)
 
 
 if __name__ == "__main__":
