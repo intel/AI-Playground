@@ -1,48 +1,86 @@
 <template>
-  <div class="rag-panel flex flex-col text-white">
+  <div class="rag-panel flex flex-col text-white" ref="dropZoneRef">
     <div
-      class="rag-header flex justify-between items-center h-11 px-4 border-b border-gray-200 text-sm"
+      class="flex justify-between items-center h-11 px-4 mb-3 border-b border-gray-200 text-sm w-full"
     >
       <span>{{ fileTotalText }}</span>
-      <div class="flex items-center gap-2">
-        <button
-          class="svg-icon i-add-box w-5 h-5 text-white hover:text-purple-500"
-          @click="chooseUploadFiles"
-        ></button>
-        <button
-          class="svg-icon i-close w-5 h-5 hover:text-purple-500"
-          @click="closeRagPanel"
-        ></button>
-      </div>
+      <button
+        class="svg-icon i-close w-5 h-5 hover:text-purple-500"
+        @click="closeRagPanel"
+      ></button>
+    </div>
+    <div v-show="textInference.ragList.length > 0" class="mx-2">
+      <table class="w-full text-center">
+        <tbody>
+          <tr v-for="file in textInference.ragList" :key="file.hash" class="flex items-center mb-2">
+            <td class="flex items-center justify-center w-[17%]">
+              <input
+                type="checkbox"
+                class="w-4 h-4"
+                :title="languages.COM_ADD_FILE_TO_RAG_CHECKBOX"
+                v-model="file.isChecked"
+                @change="textInference.updateFileCheckStatus(file.hash, file.isChecked)"
+              />
+            </td>
+            <td class="text-left flex items-center gap-2 overflow-hidden w-[70%]">
+              <span class="svg-icon flex-none w-5 h-5" :class="getIconClass(file.type)"></span>
+              <div class="flex-grow text-ellipsis overflow-hidden" :title="file.filename">
+                {{ file.filename }}
+              </div>
+            </td>
+            <td class="flex items-center justify-center w-[13%]">
+              <button
+                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+                :title="languages.COM_DELETE_FILE"
+                @click="deleteFile(file.hash)"
+              >
+                <span class="svg-icon text-white i-delete w-4 h-4"></span>
+              </button>
+            </td>
+          </tr>
+
+          <tr class="flex border-t pt-3">
+            <td class="flex items-center justify-center gap-1 w-[17%]">
+              <button
+                @click="textInference.checkAllFiles"
+                :title="languages.COM_CHECK_ALL_FILES"
+                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              >
+                <span class="svg-icon text-white i-check w-4 h-4"></span>
+              </button>
+              <button
+                @click="textInference.uncheckAllFiles"
+                :title="languages.COM_UNCHECK_ALL_FILES"
+                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              >
+                <span class="svg-icon text-white i-uncheck w-4 h-4"></span>
+              </button>
+            </td>
+            <td class="flex items-center justify-center w-[70%] pl-2">
+              <button
+                @click="chooseUploadFiles"
+                :title="languages.COM_ADD_FILE_TO_RAG"
+                class="bg-color-image-tool-button rounded-sm w-[90%] h-6 flex items-center justify-center"
+              >
+                <span class="svg-icon text-white i-add w-5 h-5"></span>
+              </button>
+            </td>
+            <td class="flex items-center justify-center w-[13%]">
+              <button
+                @click="deleteAllFiles"
+                :title="languages.COM_DELETE_ALL_FILES"
+                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              >
+                <span class="svg-icon text-white i-clear w-4 h-4"></span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <div
-      class="flex-auto overflow-y-auto px-4 py-2"
-      v-show="fileTotal > 0"
-      @drop="dropFileToUpload"
-      @dragover="dragOverHandler"
-    >
-      <!-- eslint-disable vue/require-v-for-key -->
-      <div v-for="item in fileList" class="flex items-center gap-2 justify-center w-full h-8">
-        <!-- eslint-enable -->
-        <span class="svg-icon flex-none w-5 h-5" :class="getIconClass(item.type)"></span>
-        <div class="flex-grow line2 overflow-hidden text-ellipsis h-6" :title="item.filename">
-          {{ item.filename }}
-        </div>
-        <span class="svg-icon i-queue flex-none w-5 h-5" v-if="item.status == 0"> </span>
-        <span class="svg-icon i-loading flex-none w-5 h-5" v-else-if="item.status == 1"> </span>
-        <button
-          class="svg-icon i-delete flex-none w-5 h-5 hover:text-red-500"
-          v-if="item.status == 2"
-          :disabled="opLocker"
-          @click="deleteFile(item)"
-        ></button>
-      </div>
-    </div>
-    <div
-      v-show="fileTotal == 0"
+      v-show="textInference.ragList.length == 0"
       class="flex-auto h-0 flex flex-col items-center gap-2 justify-center text-gray-400 select-none"
-      @dragover="dragOverHandler"
-      @drop="dropFileToUpload"
     >
       <p class="text-lg font-bold" v-if="!globalSetup.state.isAdminExec">
         {{ i18nState.RAG_DRAG_UPLOAD }}
@@ -51,81 +89,51 @@
         i18nState.RAG_UPLOAD_MIME_TYPE
       }}</pre>
       <p class="px-5" v-else>{{ i18nState.RAG_DRAG_UPLOAD_UNSUPPORTED }}</p>
+      <button
+        @click="chooseUploadFiles"
+        :title="languages.COM_ADD_FILE_TO_RAG"
+        class="bg-color-image-tool-button rounded-sm w-[270px] h-6 flex items-center justify-center"
+      >
+        <span class="svg-icon text-white i-add w-5 h-5"></span>
+      </button>
     </div>
   </div>
+  <div class="items-end justify-end"></div>
 </template>
 <script setup lang="ts">
 import * as toast from '@/assets/js/toast'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
+import { useTextInference } from '@/assets/js/store/textInference'
 import * as clientAPI from '@/assets/js/clientAPI'
+import { useDropZone } from '@vueuse/core'
+
+import { ValidFileExtension, IndexedDocument } from '@/assets/js/store/textInference'
 
 const globalSetup = useGlobalSetup()
+const textInference = useTextInference()
 const i18nState = useI18N().state
+const dropZoneRef = ref<HTMLDivElement>()
 const emits = defineEmits<{
-  (e: 'update:useRag', newVal: boolean): void
   (e: 'close'): void
 }>()
-const fileList = ref<Array<RagFileItem>>([])
-const fileTotal = computed(() => fileList.value.length)
 const fileTotalText = computed(() => {
-  return i18nState.RAG_FILE_TOTAL_FORMAT.replace('{total}', fileTotal.value.toString())
-})
-const opLocker = ref(false)
-let uploadWorking = false
-
-onBeforeMount(() => {
-  getIndexFiles()
+  return i18nState.RAG_FILE_TOTAL_FORMAT.replace('{total}', textInference.ragList.length.toString())
 })
 
-function getIconClass(type: number) {
+function getIconClass(type: ValidFileExtension) {
   switch (type) {
-    case 2:
-      return 'i-word'
-    case 3:
-      return 'i-ppt'
-    case 4:
-      return 'i-pdf'
-    case 5:
+    case 'txt':
+      return 'i-txt'
+    case 'doc':
+    case 'docx':
+      return 'i-doc'
+    case 'md':
       return 'i-md'
+    case 'pdf':
+      return 'i-pdf'
     default:
       return 'i-txt'
-  }
-}
-
-function getFileType(ext: string) {
-  switch (ext) {
-    case '.md':
-      return 5
-    case '.pdf':
-      return 4
-    case '.ppt':
-    case '.pptx':
-      return 3
-    case '.doc':
-    case '.docx':
-      return 2
-    default:
-      return 1
-  }
-}
-
-async function getIndexFiles() {
-  const response = await fetch(`${globalSetup.apiHost}/api/llm/getRagFiles`)
-  const rspJson = (await response.json()) as ApiResponse & {
-    data: { filename: string; md5: string }[]
-  }
-  if (rspJson.code == 0 && rspJson.data) {
-    fileList.value = rspJson.data.map((item) => {
-      const idx = item.filename.lastIndexOf('.')
-      const ext = idx > -1 ? item.filename.substring(idx) : ''
-      return {
-        type: getFileType(ext),
-        filename: item.filename,
-        md5: item.md5,
-        status: 2,
-      }
-    })
   }
 }
 
@@ -138,124 +146,64 @@ async function chooseUploadFiles() {
       { name: 'md files', extensions: ['md'] },
       { name: 'pdf files', extensions: ['pdf'] },
     ],
+    properties: ['openFile', 'multiSelections'],
   })
   if (!result.canceled) {
-    addFilesToWorkQueue(result.filePaths)
+    addDocumentToRagList(result.filePaths)
   }
 }
 
-function dragOverHandler(ev: DragEvent) {
-  ev.preventDefault()
+// does not work atm
+function onDrop(files: File[] | null) {
+  console.log('########')
+  console.log(files)
+  console.log('########')
 }
 
-function dropFileToUpload(e: DragEvent) {
-  if (e.dataTransfer && e.dataTransfer.files) {
-    const fileList = new Array<string>()
-    for (let i = 0; i < e.dataTransfer.files.length; i++) {
-      fileList.push(e.dataTransfer.files.item(i)!.path)
-    }
-    addFilesToWorkQueue(fileList)
-  }
-}
+// does not work atm
+const { isOverDropZone } = useDropZone(dropZoneRef, {
+  onDrop, // does not accept files because they are not local -> see LoadImage.vue
+  dataTypes: [
+    'application/pdf',
+    'text/plain',
+    'text/x-markdown', //not working for whatever reason
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ],
+  multiple: true,
+  preventDefaultForUnhandled: false,
+})
 
-function addFilesToWorkQueue(filePaths: string[]) {
-  let valid = true
-  let successCount = 0
-  for (let i = 0; i < filePaths.length; i++) {
-    const filePath = filePaths[i]
+async function addDocumentToRagList(filePaths: string[]) {
+  for (let filePath of filePaths) {
     console.log(filePath)
-    const idx = filePath.lastIndexOf('.')
-    if (idx > -1) {
-      const ext = filePath.substring(idx)
-      if (!/\.(docx?|txt|pdf|md)$/i.test(ext)) {
-        valid = false
-        continue
-      } else {
-        fileList.value.push({
-          type: getFileType(ext),
-          filename: filePath.substring(filePath.lastIndexOf('\\') + 1),
-          md5: '',
-          status: 0,
-          path: filePath,
-        })
-        successCount++
-      }
+    const name = filePath.split(/(\\|\/)/g).pop()
+    const ext = name?.split('.').pop() as ValidFileExtension | undefined
+    if (!name || !ext) {
+      toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
+      continue
     }
-  }
-  if (!valid) {
-    toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
-  }
-  if (successCount && !uploadWorking) {
-    startUpload()
+    const newDocument: IndexedDocument = {
+      filename: name,
+      filepath: filePath,
+      type: ext,
+      splitDB: [],
+      hash: '',
+      isChecked: true,
+    }
+    await textInference.addDocumentToRagList(newDocument)
   }
 }
 
-async function startUpload() {
-  uploadWorking = true
-  while (true) {
-    const fileItem = fileList.value.find((item) => item.status == 0)
-    if (fileItem == null) {
-      break
-    }
-    if (fileItem.path) {
-      try {
-        fileItem.status = 1
-        const formData = new FormData()
-        formData.append('path', fileItem.path)
-        const response = await fetch(`${globalSetup.apiHost}/api/llm/uploadRagFile`, {
-          method: 'post',
-          body: formData,
-        })
-        const result = (await response.json()) as ApiResponse & { md5: string }
-        if (result.code == 0) {
-          fileItem.status = 2
-          fileItem.md5 = result.md5
-          fileItem.path = null
-          continue
-        } else if (result.code == 1) {
-          toast.warning(i18nState.RAG_UPLOAD_FILE_EXISTS.replace('{filename}', fileItem.filename))
-        } else {
-          toast.error(i18nState.RAG_ANALYZE_FILE_FAILED.replace('{filename}', fileItem.filename))
-        }
-      } catch (ex) {
-        console.log(ex)
-        toast.error(i18nState.RAG_ANALYZE_FILE_FAILED.replace('{filename}', fileItem.filename))
-      }
-      fileList.value = fileList.value.filter((item) => item != fileItem)
-    }
-  }
-  uploadWorking = false
+function deleteFile(hash: string) {
+  textInference.deleteFile(hash)
 }
 
-async function deleteFile(index: RagFileItem) {
-  if (opLocker.value) {
-    return
-  }
-  try {
-    opLocker.value = true
-    const formData = new FormData()
-    formData.append('md5', index.md5)
-    const response = await fetch(`${globalSetup.apiHost}/api/llm/deleteRagIndex`, {
-      method: 'POST',
-      body: formData,
-    })
-    const rspData = (await response.json()) as ApiResponse
-    if (rspData.code == 0) {
-      fileList.value = fileList.value.filter((item) => item != index)
-      if (fileList.value.length == 0) {
-        emits('update:useRag', false)
-      }
-    }
-  } finally {
-    opLocker.value = false
-  }
+function deleteAllFiles() {
+  textInference.deleteAllFiles()
 }
 
 function closeRagPanel() {
-  if (uploadWorking) {
-    toast.warning(i18nState.RAG_WHEN_CLOSE_PANEL_AT_UPLODING)
-    return
-  }
   emits('close')
 }
 </script>

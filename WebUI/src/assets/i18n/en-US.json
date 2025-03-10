@@ -251,5 +251,12 @@
   "DEVICE": "Device",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Checkpoint Model",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frames"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frames",
+
+  "COM_ADD_FILE_TO_RAG": "Add file to the list of available documents",
+  "COM_ADD_FILE_TO_RAG_CHECKBOX": "Add/Remove file to/from the list of documents used to generate answers",
+  "COM_CHECK_ALL_FILES": "Add all files to the list of documents used to generate answers",
+  "COM_UNCHECK_ALL_FILES": "Remove all files from the list of documents used to generate answers",
+  "COM_DELETE_FILE": "Remove file from the list of available documents",
+  "COM_DELETE_ALL_FILES": "Clear the list of available documents"
 }

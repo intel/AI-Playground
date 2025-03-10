@@ -1,6 +1,25 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { type LlmBackend } from './textInference'
+import { LlmBackend } from './textInference'
 import { useBackendServices } from './backendServices'
+
+export type ModelPaths = {
+  llm: string
+  embedding: string
+  stableDiffusion: string
+  inpaint: string
+  lora: string
+  vae: string
+} & StringKV
+
+export type ModelLists = {
+  llm: string[]
+  stableDiffusion: string[]
+  lora: string[]
+  vae: string[]
+  scheduler: string[]
+  embedding: string[]
+  inpaint: string[]
+} & { [key: string]: Array<string> }
 
 export type ModelType =
   | 'embedding'
@@ -16,6 +35,7 @@ export type Model = {
   downloaded: boolean
   type: ModelType
   default: boolean
+  backend?: LlmBackend
 }
 
 const predefinedModels: Omit<Model, 'downloaded'>[] = [
@@ -48,6 +68,10 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
   { name: 'OpenVINO/Phi-3-mini-4k-instruct-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: false },
+  { name: 'BAAI/bge-large-en-v1.5', type: 'embedding', default: true, backend: 'ipexLLM' },
+  { name: 'BAAI/bge-large-zh-v1.5', type: 'embedding', default: false, backend: 'ipexLLM' },
+  { name: 'ChristianAzinn/bge-small-en-v1.5-gguf', type: 'embedding', default: true, backend: 'llamaCPP' },
+  { name: 'EmbeddedLLM/bge-m3-int4-sym-ov', type: 'embedding', default: true, backend: 'openVINO' },
 ]
 
 export const useModels = defineStore(
@@ -87,10 +111,7 @@ export const useModels = defineStore(
           name,
           type: 'inpaint',
         })),
-        ...embeddingModels.map<{ name: string; type: ModelType }>((name) => ({
-          name,
-          type: 'embedding',
-        })),
+        ...embeddingModels,
       ]
 
       const notYetDownloaded = (model: { name: string }) =>

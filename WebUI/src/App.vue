@@ -359,11 +359,6 @@ function autoHideAppSettings(e: MouseEvent) {
 
 function switchTab(index: number) {
   activeTabIdx.value = index
-  if (index === 2) {
-    answer.value!.restoreRagState()
-  } else {
-    answer.value!.disableRag()
-  }
 }
 
 function miniWindow() {

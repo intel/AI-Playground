@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import * as util from '../util'
 import { useI18N } from './i18n'
+import { ModelLists, ModelPaths } from './models'
 
 type GlobalSetupState = 'running' | 'verifyBackend' | 'manageInstallations' | 'loading' | 'failed'
 

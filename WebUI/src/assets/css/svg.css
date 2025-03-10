@@ -9,6 +9,14 @@
   mask-image: var(--svg);
 }
 
+.i-check {
+  --svg: url('@/assets/svg/check.svg');
+}
+
+.i-uncheck {
+  --svg: url('@/assets/svg/uncheck.svg');
+}
+
 .i-setup {
   --svg: url('@/assets/svg/setup.svg');
 }

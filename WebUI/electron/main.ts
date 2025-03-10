@@ -10,6 +10,8 @@ import {
   OpenDialogSyncOptions,
   screen,
   shell,
+  utilityProcess,
+  UtilityProcess,
 } from 'electron'
 import { ChildProcess, fork } from 'child_process'
 import path from 'node:path'
@@ -27,6 +29,8 @@ import {
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import getPort, { portNumbers } from 'get-port'
 import { getMediaDir } from './util.ts'
+import type { ModelPaths } from '@/assets/js/store/models.ts'
+import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 
 // }
 // The built directory structure
@@ -55,6 +59,7 @@ const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 let mediaServerPort: number = 58000
 createMediaServer()
+let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
@@ -187,7 +192,61 @@ export async function createMediaServer() {
 }
 
 function stopMediaServer() {
+  appLogger.info('Stopping media server', 'electron-backend')
   child?.kill()
+}
+
+function spawnLangchainUtilityProcess() {
+  appLogger.info('Starting langchain utility process', 'electron-backend')
+  try {
+    appLogger.info(path.join(__dirname, '../langchain/langchain.js'), 'electron-backend')
+    langchainChild = utilityProcess.fork(path.join(__dirname, '../langchain/langchain.js'))
+    langchainChild.postMessage('start')
+
+    langchainChild.on('message', (message) => {
+      appLogger.info(`Message from langchain utility process: ${JSON.stringify(message)}`, 'electron-backend')
+    })
+
+    langchainChild.on('error', (error) => {
+      appLogger.error(`Error from langchain utility process: ${error}`, 'electron-backend')
+    })
+
+    langchainChild.on('exit', (code) => {
+      if (code !== 0) {
+        appLogger.info(`Langchain utility process exited with code ${code}`, 'electron-backend')
+      }
+    })
+  } catch (error) {
+    appLogger.error(`Error starting langchain utility process: ${error}`, 'electron-backend')
+  }
+}
+
+function handleUtilityFunction<T, R>(
+  eventType: string,
+  child: UtilityProcess | null,
+  args: T,
+): Promise<R> {
+  if (!child) {
+    throw new Error('Utility process is not running')
+  }
+  return new Promise((resolve, reject) => {
+    const messageHandler = (message: any) => {
+      if (message.type === eventType) {
+        child.off('message', messageHandler)
+        resolve(message.returnValue)
+      }
+    }
+
+    const errorHandler = (error: any) => {
+      child.off('error', errorHandler)
+      reject(error)
+    }
+
+    child.on('message', messageHandler)
+    child.on('error', errorHandler)
+
+    child.postMessage({ type: eventType, args: args })
+  })
 }
 
 app.on('quit', async () => {
@@ -421,10 +480,6 @@ function initEventHandle() {
     return pathsManager.scanLLMModles()
   })
 
-  ipcMain.handle('refreshEmbeddingModels', (_event) => {
-    return pathsManager.scanEmbedding()
-  })
-
   ipcMain.handle('getDownloadedDiffusionModels', (_event) => {
     return pathsManager.scanSDModleLists(false)
   })
@@ -450,7 +505,24 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getDownloadedEmbeddingModels', (_event) => {
-    return pathsManager.scanEmbedding(false)
+    return pathsManager.scanEmbedding()
+  })
+
+  ipcMain.handle('addDocumentToRAGList', (_event, document: IndexedDocument) => {
+
+    return handleUtilityFunction<IndexedDocument, IndexedDocument>(
+      'addDocumentToRAGList',
+      langchainChild,
+      document,
+    )
+  })
+
+  ipcMain.handle('embedInputUsingRag', (_event, embedInquiry: EmbedInquiry) => {
+    return handleUtilityFunction<EmbedInquiry, KVObject>(
+      'embedInputUsingRag',
+      langchainChild,
+      embedInquiry,
+    )
   })
 
   ipcMain.on('openDevTools', () => {
@@ -655,7 +727,6 @@ app.whenReady().then(async () => {
     })
     return
   }
-
   /**Single instance processing */
   if (!singleInstanceLock) {
     dialog.showMessageBoxSync({
@@ -672,5 +743,6 @@ app.whenReady().then(async () => {
     initEventHandle()
     const window = await createWindow()
     await initServiceRegistry(window, settings)
+    spawnLangchainUtilityProcess()
   }
 })

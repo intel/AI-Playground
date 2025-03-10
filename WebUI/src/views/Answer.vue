@@ -226,6 +226,7 @@
           </div>
         </div>
       </div>
+      <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
     <!-- Button to scroll to bottom -->
     <button
@@ -270,12 +271,6 @@
               @animationend="removeRonate360"
               @click="refreshLLMModles"
             ></button>
-            <!-- <button
-                class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-6"
-                @click="() => conversations.clearConversation(conversations.activeKey)">
-                <span class="svg-icon i-clear w-4 h-4"></span>
-                <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
-            </button> -->
             <button
               class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
               @click="textInference.increaseFontSize"
@@ -295,48 +290,33 @@
               <span>{{ languages.DECREASE_FONT_SIZE }}</span>
             </button>
           </div>
-          <div
-            v-show="textInference.backend === 'ipexLLM'"
-            class="flex justify-center items-center gap-2"
-          >
-            <div class="v-checkbox flex-none" type="button" :disabled="processing">
-              <button
-                v-show="!ragData.processEnable"
-                class="v-checkbox-control flex-none"
-                :class="{ 'v-checkbox-checked': ragData.enable }"
-                @click="toggleRag(!ragData.enable)"
-              ></button>
-              <span
-                v-show="ragData.processEnable"
-                class="w-4 h-4 svg-icon i-loading flex-none"
-              ></span>
-              <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
-            </div>
+          <div class="flex justify-center items-center gap-2">
             <button
               class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
-              @click="ragData.showUploader = true"
-              :disabled="!ragData.enable || processing"
+              @click="showUploader = !showUploader"
+              :disabled="processing"
             >
               <span class="svg-icon i-upload w-4 h-4"></span>
               <span>{{ languages.ANSWER_RAG_OPEN_DIALOG }}</span>
             </button>
             <drop-selector
-              :array="globalSetup.models.embedding"
-              @change="changeEmbeddingModel"
-              :disabled="ragData.enable || processing"
+              :array="
+                textInference.llmEmbeddingModels.filter((m) => m.type === textInference.backend)
+              "
+              @change="(i) => textInference.selectEmbeddingModel(textInference.backend, i.name)"
               class="w-96"
             >
               <template #selected>
-                <div class="flex gap-2 items-center overflow-hidden text-ellipsis">
-                  <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                  <span>{{ globalSetup.modelSettings.embedding }}</span>
-                </div>
+                <model-drop-down-item
+                  :model="
+                    textInference.llmEmbeddingModels
+                      .filter((m) => m.type === textInference.backend)
+                      .find((m) => m.active)
+                  "
+                ></model-drop-down-item>
               </template>
               <template #list="slotItem">
-                <div class="flex gap-2 items-center text-ellipsis" :title="slotItem.item">
-                  <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                  <span class="h-7 overflow-hidden">{{ slotItem.item }}</span>
-                </div>
+                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
               </template>
             </drop-selector>
           </div>
@@ -369,11 +349,6 @@
           <span>{{ languages.COM_GENERATE }}</span>
         </button>
       </div>
-      <rag
-        v-if="ragData.showUploader && textInference.backend !== 'llamaCPP'"
-        ref="ragPanel"
-        @close="ragData.showUploader = false"
-      ></rag>
     </div>
   </div>
 </template>
@@ -411,6 +386,7 @@ const textIn = ref('')
 const textOut = ref('')
 let firstOutput = false
 const ragPanel = ref<InstanceType<typeof Rag>>()
+const showUploader = ref(false)
 const downloadModel = reactive({
   downloading: false,
   text: '',
@@ -420,11 +396,6 @@ const loadingModel = ref(false)
 let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
-const ragData = reactive({
-  enable: false,
-  processEnable: false,
-  showUploader: false,
-})
 
 let sseMetrics: MetricsData | null = null
 
@@ -608,7 +579,7 @@ async function simulatedInput() {
       conversations.addToActiveConversation(key, {
         question: textIn.value,
         answer:
-          ragData.enable && source.value != ''
+          textInference.ragList.length > 0 && source.value != ''
             ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
             : receiveOut,
         metrics: finalMetrics,
@@ -661,7 +632,6 @@ async function newPromptGenerate() {
   try {
     await checkModelAvailability()
 
-    // Mark which conversation is about to generate
     currentlyGeneratingKey.value = conversations.activeKey
 
     const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation))
@@ -671,9 +641,15 @@ async function newPromptGenerate() {
   } catch {}
 }
 
-async function checkModelAvailability() {
+async function checkModelAvailability() { // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
   return new Promise<void>(async (resolve, reject) => {
-    const requiredModelDownloads = await textInference.getDownloadParamsForCurrentModelIfRequired()
+    const requiredModelDownloads =
+      await textInference.getDownloadParamsForCurrentModelIfRequired('llm')
+    if (textInference.ragList.length > 0) {
+      const requiredEmbeddingModelDownloads =
+        await textInference.getDownloadParamsForCurrentModelIfRequired('embedding')
+      requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
+    }
     if (requiredModelDownloads.length > 0) {
       emits('showDownloadModelConfirm', requiredModelDownloads, resolve, reject)
     } else {
@@ -708,13 +684,27 @@ async function generate(chatContext: ChatItem[]) {
     textOutFinish = false
     processing.value = true
     nextTick(scrollToBottom)
+
+    //if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
+    const testResponse: KVObject = await textInference.embedInputUsingRag(
+      chatContext[chatContext.length - 1].question,
+    )
+    //}
+
+    console.log('##########')
+    console.log(testResponse)
+    console.log('##########')
+
+    return
+
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: ragData.enable && textInference.backend === 'ipexLLM',
+      enable_rag: true,
       max_tokens: textInference.maxTokens,
       model_repo_id: textInference.activeModel,
     }
+
     const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
       method: 'POST',
       headers: {
@@ -807,87 +797,7 @@ function copyCode(e: MouseEvent) {
   }
 }
 
-function changeEmbeddingModel(item: unknown, _: number) {
-  globalSetup.applyModelSettings({ embedding: item as string })
-}
-
-async function toggleRag(value: boolean) {
-  if (ragData.processEnable) {
-    return
-  }
-  ragData.processEnable = true
-  try {
-    if (value) {
-      const checkList: CheckModelAlreadyLoadedParameters[] = [
-        {
-          repo_id: globalSetup.modelSettings.embedding,
-          type: Const.MODEL_TYPE_EMBEDDING,
-          backend: 'default',
-        },
-      ]
-      if (!(await models.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
-        emits('showDownloadModelConfirm', checkList, enableRag, () => {
-          ragData.processEnable = false
-        })
-      } else {
-        await enableRag()
-      }
-    } else {
-      await disableRag()
-      ragData.enable = false
-    }
-  } finally {
-    ragData.processEnable = false
-  }
-}
-
-async function enableRag() {
-  const formData = new FormData()
-  formData.append('repo_id', globalSetup.modelSettings.embedding)
-  formData.append('device', globalSetup.modelSettings.graphics)
-  try {
-    await fetch(`${globalSetup.apiHost}/api/llm/enableRag`, {
-      method: 'POST',
-      body: formData,
-    })
-    ragData.enable = true
-  } catch (e) {
-    console.error(`Enabling rag failed due to ${e}`)
-  }
-}
-
-async function disableRag() {
-  try {
-    await fetch(`${globalSetup.apiHost}/api/llm/disableRag`)
-  } catch (e) {
-    console.error(`Disabling rag failed due to ${e}`)
-  }
-}
-
-watch(
-  () => textInference.backend,
-  (newBackend, _oldBackend) => {
-    if (newBackend === 'ipexLLM') {
-      restoreRagState()
-    } else {
-      disableRag()
-    }
-  },
-)
-
-async function restoreRagState() {
-  ragData.processEnable = true
-  if (ragData.enable) {
-    await enableRag()
-  } else {
-    await disableRag()
-  }
-  ragData.processEnable = false
-}
-
 defineExpose({
   checkModel: checkModelAvailability,
-  restoreRagState,
-  disableRag,
 })
 </script>

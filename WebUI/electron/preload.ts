@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import pkg from '../package.json'
+import { ModelPaths } from '@/assets/js/store/models';
+import { EmbedInquiry, IndexedDocument } from '@/assets/js/store/textInference';
 
 contextBridge.exposeInMainWorld('envVars', {
   platformTitle: import.meta.env.VITE_PLATFORM_TITLE,
@@ -47,6 +49,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(seriveName, normalExit),
     ),
   existsPath: (path: string) => ipcRenderer.invoke('existsPath', path),
+  addDocumentToRAGList: (doc: IndexedDocument) => ipcRenderer.invoke('addDocumentToRAGList', doc),
+  embedInputUsingRag: (embedInquiry: EmbedInquiry) => ipcRenderer.invoke('embedInputUsingRag', embedInquiry),
   getInitSetting: () => ipcRenderer.invoke('getInitSetting'),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke('updateModelPaths', modelPaths),
   restorePathsSettings: () => ipcRenderer.invoke('restorePathsSettings'),
@@ -54,7 +58,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshInpaintModles: () => ipcRenderer.invoke('refreshInpaintModles'),
   refreshLLMModles: () => ipcRenderer.invoke('refreshLLMModles'),
   refreshLora: () => ipcRenderer.invoke('refreshLora'),
-  refreshEmbeddingModels: () => ipcRenderer.invoke('refreshEmbeddingModels'),
   getDownloadedDiffusionModels: () => ipcRenderer.invoke('getDownloadedDiffusionModels'),
   getDownloadedInpaintModels: () => ipcRenderer.invoke('getDownloadedInpaintModels'),
   getDownloadedLoras: () => ipcRenderer.invoke('getDownloadedLoras'),
