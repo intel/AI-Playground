@@ -26,6 +26,11 @@
     </div>
     <div class="flex justify-between items-center gap-5">
       <button
+        title="Metrics"
+        class="svg-icon i-broom w-6 h-6"
+        @click="showAppMetrics"
+      ></button>
+      <button
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showAppSettings"
@@ -156,6 +161,10 @@
         @close="hideAppSettings"
         @show-download-model-confirm="showDownloadModelConfirm"
       ></app-settings>
+      <app-metrics
+        v-show="showMetrics"
+        @close="hideAppMetrics">
+      </app-metrics>
     </div>
     <download-dialog
       v-show="showDowloadDlg"
@@ -238,6 +247,7 @@ import Enhance from './views/Enhance.vue'
 import Answer from './views/Answer.vue'
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
+import AppMetrics from './views/AppMetrics.vue'
 import './assets/css/index.css'
 import { useGlobalSetup } from './assets/js/store/globalSetup'
 import DownloadDialog from '@/components/DownloadDialog.vue'
@@ -261,6 +271,7 @@ const showSettingBtn = ref<HTMLButtonElement>()
 const isOpen = ref(false)
 const activeTabIdx = ref(0)
 const showSetting = ref(false)
+const showMetrics = ref(false)
 const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
 const showWarningDialog = ref(false)
@@ -328,6 +339,18 @@ function showAppSettings() {
 
 function hideAppSettings() {
   showSetting.value = false
+}
+
+function showAppMetrics() {
+  if (showMetrics.value === false) {
+    showMetrics.value = true
+  } else {
+    showMetrics.value = false
+  }
+}
+
+function hideAppMetrics() {
+  showMetrics.value = false
 }
 
 function autoHideAppSettings(e: MouseEvent) {

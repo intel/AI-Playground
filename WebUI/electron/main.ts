@@ -28,6 +28,8 @@ import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import getPort, { portNumbers } from 'get-port'
 import { getMediaDir } from './util.ts'
 
+import { runPowerShellScript, setWindow } from './subprocesses/collectorService'
+
 // }
 // The built directory structure
 //
@@ -172,6 +174,11 @@ async function createWindow() {
     if (url.startsWith('https:')) shell.openExternal(url)
     return { action: 'deny' }
   })
+  
+  // Start metrics collection service
+  setWindow(win)
+  runPowerShellScript()
+
   return win
 }
 
