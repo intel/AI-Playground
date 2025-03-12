@@ -9,6 +9,7 @@ import {
   LongLivedPythonApiService,
   UvPipService,
 } from './service.ts'
+import { Arch } from './deviceArch.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
@@ -53,13 +54,28 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
+      const archToRequirements = (deviceArch: Arch) => {
+        switch (deviceArch) {
+          case 'arl_h':
+            return 'arl-h'
+          case 'acm':
+          case 'bmg':
+          case 'lnl':
+          case 'mtl':
+            return 'xpu'
+          default:
+            return 'unknown'
+        }
+      }
       const deviceSpecificRequirements = existingFileOrError(
-        path.join(this.serviceDir, `requirements-${deviceArch}.txt`),
+        path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
       )
-      await this.pip.run(['install', '-r', deviceSpecificRequirements])
-      if (deviceArch === 'bmg' || deviceArch === 'arl_h') {
-        const intelSpecificExtension = existingFileOrError(this.getIPEXWheelPath(deviceArch))
-        await this.pip.run(['install', intelSpecificExtension])
+      const ipexLlmRequirements = existingFileOrError(
+        path.join(this.serviceDir, `requirements-ipex-llm.txt`),
+      )
+      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
+      if (deviceArch !== 'unknown') {
+        await this.uvPip.run(['install', '-r', ipexLlmRequirements])
       }
 
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
