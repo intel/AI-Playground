@@ -60,7 +60,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':
-            return 'arl-h'
+            return 'arl_h'
           case 'acm':
           case 'bmg':
           case 'lnl':
