@@ -9,7 +9,6 @@ WebUI/external/workflows_intel/
 WebUI/external/workflows_bak/
 
 
-*.exe
 *.7z
 *.whl
 ComfyUI/

@@ -5,7 +5,7 @@ import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
 import {
-  LsLevelZeroService,
+  DeviceService,
   LongLivedPythonApiService,
   aiBackendServiceDir,
   GitService,
@@ -18,8 +18,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
-  readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
-  readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
+  readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
@@ -111,7 +110,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await this.lsLevelZero.ensureInstalled()
+      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
       await this.git.ensureInstalled()
 
@@ -121,7 +120,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `Trying to identify intel hardware`,
       }
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch = await this.deviceService.getBestDeviceArch()
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -208,7 +207,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...(await this.deviceService.getDeviceSelectorEnv()),
     }
     const mediaDir = getMediaDir()
     const parameters = [

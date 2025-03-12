@@ -10,6 +10,7 @@ import { createHash } from 'crypto'
 
 import * as childProcess from 'node:child_process'
 import { promisify } from 'util'
+import { z } from 'zod'
 const exec = promisify(childProcess.exec)
 
 class ServiceCheckError extends Error {
@@ -241,6 +242,37 @@ export class PipService extends ExecutableService {
   }
 }
 
+type Device = { id: number; name: string; arch: Arch }
+// Example xpu smi disovery -j outout
+// {
+//     "device_list": [
+//         {
+//             "device_id": 0,
+//             "device_name": "Intel(R) Arc(TM) A770 Graphics",
+//             "device_type": "GPU",
+//             "pci_bdf_address": "0000:03:00.0",
+//             "pci_device_id": "0x56a0",
+//             "uuid": "00000000-0000-0003-0000-000856a08086",
+//             "vendor_name": "Intel(R) Corporation"
+//         }
+//     ]
+// }
+const XpuSmiDiscoverySchema = z.object(
+  {
+    device_list: z.array(
+      z.object({
+        device_id: z.number(),
+        device_name: z.string(),
+        device_type: z.string(),
+        pci_bdf_address: z.string(),
+        pci_device_id: z.string(),
+        uuid: z.string(),
+        vendor_name: z.string(),
+      }),
+    ),
+  },
+)
+
 export class UvPipService extends PipService {
   readonly pip: PipService
   readonly python: PythonService
@@ -287,128 +319,73 @@ export class UvPipService extends PipService {
   }
 }
 
-export class LsLevelZeroService extends ExecutableService {
-  readonly uvPip: UvPipService = new UvPipService(this.dir, 'service')
-  readonly requirementsTxtPath = path.resolve(
-    path.join(this.baseDir, 'service/requirements-ls_level_zero.txt'),
-  )
-  readonly srcExePath = path.resolve(path.join(this.baseDir, 'service/tools/ls_level_zero.exe'))
-
-  private allLevelZeroDevices: { name: string; device_id: number; arch: Arch }[] = []
-  private selectedDeviceIdx: number = -1
-
-  constructor(readonly pythonEnvDir: string) {
-    super('lslevelzero', pythonEnvDir)
+export class DeviceService extends ExecutableService {
+  constructor() {
+    super('device-service', '')
+    this.dir = path.resolve(path.join(this.baseDir, 'device-service'))
   }
 
   getExePath(): string {
-    return path.resolve(path.join(this.dir, 'Library/bin/ls_level_zero.exe'))
+    return path.resolve(path.join(this.dir, '/xpu-smi.exe'))
   }
 
-  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
+  async run(_args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     // reset ONEAPI_DEVICE_SELECTOR to ensure full device discovery
     const env = {
       ...extraEnv,
       ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
     }
-    return super.run(args, env, workDir)
+    return super.run(['discovery', '-j'], env, workDir)
   }
 
   async check(): Promise<void> {
-    this.log('checking')
-    try {
-      await this.uvPip.check()
-      // await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
-      // await this.run()
-    } catch (e) {
-      this.log(`warning: ${e}`)
-      if (e instanceof ServiceCheckError) throw e
-      if (e instanceof Error && e.message.includes('requirements check failed'))
-        throw new ServiceCheckError(this.name, 'requirements')
-      throw new ServiceCheckError(this.name, 'main')
-    }
   }
 
   async install(): Promise<void> {
     this.log('start installing')
-    await this.uvPip.ensureInstalled()
-    await this.installRequirements()
-    await this.cloneLsLevelZero()
   }
 
-  async repair(checkError: ServiceCheckError): Promise<void> {
-    this.log('repairing')
-    if (checkError.component !== this.name) {
-      await this.uvPip.repair(checkError)
-    }
+  async repair(_checkError: ServiceCheckError): Promise<void> {
 
-    switch (checkError.stage) {
-      default:
-      case 'requirements':
-        await this.installRequirements()
-      // fallthrough
-      case 'main':
-        await this.cloneLsLevelZero()
-    }
   }
 
-  async installRequirements(): Promise<void> {
-    await this.uvPip.installRequirementsTxt(this.requirementsTxtPath)
-  }
-  private async cloneLsLevelZero(): Promise<void> {
-    existingFileOrError(this.srcExePath)
-    if (filesystem.existsSync(this.getExePath())) {
-      filesystem.removeSync(this.getExePath())
-    }
-    this.log(`copying ls-level-zero to ${this.getExePath()}`)
-    await filesystem.copy(this.srcExePath, this.getExePath())
+  private uuidToChipId(uuid: string): number {
+    return parseInt(uuid.slice(-8, -4), 16)
   }
 
-  async detectDevice(): Promise<Arch> {
-    if (this.selectedDeviceIdx >= 0 && this.selectedDeviceIdx < this.allLevelZeroDevices.length) {
-      return this.allLevelZeroDevices[this.selectedDeviceIdx]?.arch ?? 'unknown'
-    }
+  private async getDevices(): Promise<Device[]> {
+    const result = await this.run()
+    console.log(result)
+    const devices: Device[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
+      (d) => {
+        return { id: d.device_id, name: d.device_name, arch: getDeviceArch(this.uuidToChipId(d.uuid)) }
+      },
+    )
+    console.log(devices)
+    devices.sort((a, b) => getArchPriority(a.arch) - getArchPriority(b.arch))
+    return devices
+  }
 
+  async getBestDeviceArch(): Promise<Arch> {
     this.log('Detecting device')
     try {
-      const devices = JSON.parse(await this.run())
-      this.allLevelZeroDevices = devices.map(
-        (d: { id: number; name: string; device_id: number }) => {
-          return { name: d.name, device_id: d.device_id, arch: getDeviceArch(d.device_id) }
-        },
-      )
-      this.selectBestDevice()
-      return this.allLevelZeroDevices[this.selectedDeviceIdx]?.arch ?? 'unknown'
+      const devices = await this.getDevices()
+      return devices[0].arch ?? 'unknown'
     } catch (e) {
       this.logError(`Failed to detect device due to ${e}`)
       return 'unknown'
     }
   }
 
-  private selectBestDevice(): number {
-    let priority = -1
-    for (let i = 0; i < this.allLevelZeroDevices.length; i++) {
-      const device = this.allLevelZeroDevices[i]
-      const deviceArchPriority = getArchPriority(device?.arch ?? 'unknown')
-      if (deviceArchPriority > priority) {
-        this.selectedDeviceIdx = i
-        priority = deviceArchPriority
-      }
-    }
-    return this.selectedDeviceIdx
-  }
 
   async getDeviceSelectorEnv(): Promise<{ ONEAPI_DEVICE_SELECTOR: string }> {
-    if (this.selectedDeviceIdx < 0 || this.selectedDeviceIdx >= this.allLevelZeroDevices.length) {
-      await this.detectDevice()
-    }
-
-    if (this.selectedDeviceIdx < 0) {
-      this.logError('No supported device')
+    const devices = await this.getDevices()
+    const bestDevice = devices[0]
+    if (!bestDevice) {
       return { ONEAPI_DEVICE_SELECTOR: 'level_zero:*' }
     }
 
-    return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceIdx}` }
+    return { ONEAPI_DEVICE_SELECTOR: `level_zero:${bestDevice.id}` }
   }
 }
 
@@ -551,7 +528,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
     app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
   )
   abstract readonly pythonEnvDir: string
-  abstract readonly lsLevelZeroDir: string
   abstract readonly serviceDir: string
   abstract isSetUp: boolean
 

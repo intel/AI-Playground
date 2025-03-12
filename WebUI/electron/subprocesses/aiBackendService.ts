@@ -4,22 +4,22 @@ import path from 'node:path'
 import { existingFileOrError } from './osProcessHelper.ts'
 import {
   aiBackendServiceDir,
+  DeviceService, 
   GitService,
   LongLivedPythonApiService,
-  LsLevelZeroService,
+  UvPipService,
 } from './service.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
-  readonly lsLevelZero = new LsLevelZeroService(this.pythonEnvDir)
-  readonly lsLevelZeroDir: string = this.lsLevelZero.dir
-  readonly uvPip = this.lsLevelZero.uvPip
-  readonly pip = this.uvPip.pip
-  readonly python = this.pip.python
+  readonly deviceService = new DeviceService()
   readonly git = new GitService()
 
   readonly isRequired = true
   readonly serviceDir = aiBackendServiceDir()
+  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceDir)
+  readonly pip = this.uvPip.pip
+  readonly python = this.pip.python
   healthEndpointUrl = `${this.baseUrl}/healthy`
   serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath())
   isSetUp = this.serviceIsSetUp()
@@ -36,9 +36,10 @@ export class AiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up environment',
       }
       // lsLevelZero will ensure uv and pip are installed
-      await this.lsLevelZero.ensureInstalled()
+      await this.uvPip.ensureInstalled()
+      await this.deviceService.ensureInstalled()
 
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch = await this.deviceService.getBestDeviceArch()
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -99,7 +100,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...(await this.deviceService.getDeviceSelectorEnv()),
     }
 
     const apiProcess = spawn(
