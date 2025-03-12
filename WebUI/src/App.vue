@@ -27,7 +27,7 @@
     <div class="flex justify-between items-center gap-5">
       <button
         title="Metrics"
-        class="svg-icon i-broom w-6 h-6"
+        class="svg-icon i-info w-6 h-6"
         @click="showAppMetrics"
       ></button>
       <button
