@@ -11,6 +11,8 @@ import {
   aiBackendServiceDir,
   GitService,
   UvPipService,
+  hijacksDir,
+  installHijacks,
 } from './service.ts'
 import { getMediaDir } from '../util.ts'
 
@@ -19,14 +21,11 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
-  readonly hijacksDir = path.resolve(path.join(this.baseDir, `hijacks/ipex_to_cuda`))
   readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
-  private readonly hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
-  private readonly hijacksRevision = 'd04fe3b'
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
   private readonly revision = '61b5072'
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
@@ -37,7 +36,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     return (
       filesystem.existsSync(this.pythonEnvDir) &&
       filesystem.existsSync(this.serviceDir) &&
-      filesystem.existsSync(this.hijacksDir)
+      filesystem.existsSync(hijacksDir)
     )
   }
 
@@ -66,37 +65,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       return true
     }
 
-    const checkHijacksDir = async (): Promise<boolean> => {
-      if (!filesystem.existsSync(this.hijacksDir)) {
-        return false
-      }
-
-      // Check if it's a valid git repo
-      try {
-        await this.git.run(['-C', this.hijacksDir, 'status'])
-      } catch (_e) {
-        try {
-          filesystem.removeSync(this.hijacksDir)
-        } finally {
-          return false
-        }
-      }
-
-      return true
-    }
-
     const setupComfyUiBaseService = async (): Promise<void> => {
-      if (await checkHijacksDir()) {
-        this.appLogger.info('ipex_to_cuda hijacks already cloned, skipping', this.name)
-      } else {
-        await this.git.run(['clone', this.hijacksRemote, this.hijacksDir])
-        await this.git.run(
-          ['-C', this.hijacksDir, 'checkout', this.hijacksRevision],
-          {},
-          this.hijacksDir,
-        )
-      }
-
+      installHijacks()
       if (await checkServiceDir()) {
         this.appLogger.info('comfyUI already cloned, skipping', this.name)
       } else {

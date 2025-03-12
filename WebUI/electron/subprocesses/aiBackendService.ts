@@ -6,6 +6,7 @@ import {
   aiBackendServiceDir,
   DeviceService, 
   GitService,
+  installHijacks,
   LongLivedPythonApiService,
   UvPipService,
 } from './service.ts'
@@ -36,7 +37,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up environment',
       }
-      // lsLevelZero will ensure uv and pip are installed
+      await this.git.ensureInstalled()
       await this.uvPip.ensureInstalled()
       await this.deviceService.ensureInstalled()
 
@@ -54,6 +55,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
+      await installHijacks()
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':

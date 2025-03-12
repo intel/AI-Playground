@@ -13,6 +13,38 @@ import { promisify } from 'util'
 import { z } from 'zod'
 const exec = promisify(childProcess.exec)
 
+const aipgBaseDir = () => app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+export const hijacksDir = path.resolve(path.join(aipgBaseDir(), `hijacks/ipex_to_cuda`))
+const hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
+const hijacksRevision = '7379d6ecbc26a96b1a39f6fc063c61fc8462914f'
+
+const checkHijacksDir = async (): Promise<boolean> => {
+  try {
+    await filesystem.promises.stat(path.join(hijacksDir, '__init__.py'))
+    return true
+  } catch (_e) {
+    try {
+      await filesystem.promises.rm(hijacksDir, {recursive: true})
+    } finally {
+      return false
+    }
+  }
+}
+
+export const installHijacks = async (): Promise<void> => {
+  const git = new GitService()
+  if (await checkHijacksDir()) {
+    appLoggerInstance.info('ipex_to_cuda hijacks already cloned, skipping', 'ipex-hijacks')
+  } else {
+    await git.run(['clone', hijacksRemote, hijacksDir])
+    await git.run(
+      ['-C', hijacksDir, 'checkout', hijacksRevision],
+      {},
+      hijacksDir,
+    )
+  }
+}
+
 class ServiceCheckError extends Error {
   readonly component: string
   readonly stage: string
@@ -57,7 +89,7 @@ export abstract class GenericServiceImpl implements GenericService {
   name: string
 
   readonly appLogger = appLoggerInstance
-  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly baseDir = aipgBaseDir()
 
   constructor(name: string) {
     this.name = name
