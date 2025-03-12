@@ -15,14 +15,13 @@ import {
   installHijacks,
 } from './service.ts'
 import { getMediaDir } from '../util.ts'
-
-const serviceFolder = 'ComfyUI'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
-  readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
+  readonly serviceFolder = 'ComfyUI'
+  readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
   readonly deviceService = new DeviceService()
-  readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
+  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 

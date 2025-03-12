@@ -179,7 +179,7 @@ export class PythonService extends ExecutableService {
       this.log(`removing existing python env at ${this.dir}`)
       filesystem.removeSync(this.dir)
     }
-    this.log(`copying prototypical python env to ${this.dir}`)
+    this.log(`copying prototypical python env to ${this.dir} for service in ${this.serviceDir}`)
     await filesystem.copy(this.prototypicalEnvDir, this.dir)
     filesystem.writeFile(
       path.join(this.dir, 'python311._pth'),
@@ -276,20 +276,6 @@ export class PipService extends ExecutableService {
 }
 
 type Device = { id: number; name: string; arch: Arch }
-// Example xpu smi disovery -j outout
-// {
-//     "device_list": [
-//         {
-//             "device_id": 0,
-//             "device_name": "Intel(R) Arc(TM) A770 Graphics",
-//             "device_type": "GPU",
-//             "pci_bdf_address": "0000:03:00.0",
-//             "pci_device_id": "0x56a0",
-//             "uuid": "00000000-0000-0003-0000-000856a08086",
-//             "vendor_name": "Intel(R) Corporation"
-//         }
-//     ]
-// }
 const XpuSmiDiscoverySchema = z.object(
   {
     device_list: z.array(
@@ -388,13 +374,11 @@ export class DeviceService extends ExecutableService {
 
   private async getDevices(): Promise<Device[]> {
     const result = await this.run()
-    console.log(result)
     const devices: Device[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
       (d) => {
         return { id: d.device_id, name: d.device_name, arch: getDeviceArch(this.uuidToChipId(d.uuid)) }
       },
     )
-    console.log(devices)
     devices.sort((a, b) => getArchPriority(a.arch) - getArchPriority(b.arch))
     return devices
   }
@@ -568,11 +552,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
   currentStatus: BackendStatus = 'uninitializedStatus'
 
   readonly appLogger = appLoggerInstance
-
-  getIPEXWheelPath(deviceArch: Arch): string {
-    const wheelName = `intel_extension_for_pytorch-2.3.110+${deviceArch}-cp311-cp311-win_amd64.whl`
-    return path.join(this.wheelDir, wheelName)
-  }
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.win = win

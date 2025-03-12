@@ -14,12 +14,13 @@ import { Arch } from './deviceArch.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
+  readonly serviceFolder = 'service'
+  readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
   readonly deviceService = new DeviceService()
   readonly git = new GitService()
 
   readonly isRequired = true
-  readonly serviceDir = aiBackendServiceDir()
-  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceDir)
+  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
   readonly pip = this.uvPip.pip
   readonly python = this.pip.python
   healthEndpointUrl = `${this.baseUrl}/healthy`
@@ -75,13 +76,13 @@ export class AiBackendService extends LongLivedPythonApiService {
       const ipexLlmRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-ipex-llm.txt`),
       )
-      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
+      await this.uvPip.run(['install', '-r', deviceSpecificRequirements, '--index-strategy', 'unsafe-best-match'])
       if (deviceArch !== 'unknown') {
-        await this.uvPip.run(['install', '-r', ipexLlmRequirements])
+        await this.uvPip.run(['install', '-r', ipexLlmRequirements, '--index-strategy', 'unsafe-best-match'])
       }
 
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run(['install', '-r', commonRequirements])
+      await this.uvPip.run(['install', '-r', commonRequirements, '--index-strategy', 'unsafe-best-match'])
       yield {
         serviceName: this.name,
         step: `install dependencies`,
