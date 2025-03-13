@@ -181,10 +181,33 @@ export class PythonService extends ExecutableService {
     }
     this.log(`copying prototypical python env to ${this.dir} for service in ${this.serviceDir}`)
     await filesystem.copy(this.prototypicalEnvDir, this.dir)
+
+    // Find the Python version by looking for python*._pth file
+    const files = filesystem.readdirSync(this.dir)
+    const pthFilePattern = /^python(\d+)\._pth$/
+    let pythonVersion = null
+    let pthFileName = null
+
+    for (const file of files) {
+      const match = file.match(pthFilePattern)
+      if (match) {
+        pythonVersion = match[1]
+        pthFileName = file
+        break
+      }
+    }
+
+    if (!pythonVersion || !pthFileName) {
+      this.log(`Could not find python*._pth file in the directory: ${this.dir}`)
+      throw new Error(`Could not find python*._pth file in the directory: ${this.dir}`)
+    }
+
+    this.log(`Found Python version: ${pythonVersion} (${pthFileName})`)
+
     filesystem.writeFile(
-      path.join(this.dir, 'python311._pth'),
+      path.join(this.dir, pthFileName),
       `
-    python311.zip
+    python${pythonVersion}.zip
     .
     ../${this.serviceDir}
     ../hijacks
@@ -193,6 +216,7 @@ export class PythonService extends ExecutableService {
     import site
     `,
     )
+    this.log(`Patched Python paths in ${pthFileName}`)
   }
 }
 
