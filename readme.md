@@ -29,7 +29,8 @@ Starting from v2.0, there is a single packaged installer that works for all supp
 ### Download the installer
 :new: **AI Playground 2.2.1 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.2.1-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.2.1-beta/AI.Playground-2.2.1-beta.exe) :new:
 > [!IMPORTANT]  
-> This release fixes video generation and image generation bugs from 2.2
+> - This release fixes video generation and image generation bugs from 2.2
+> - The Answer TAB on new install does not have a LLM backend selected thus models are not showing.  To fix go to Settings > Basic > Backend - then select a Backend from the list
 
 ### Installation Process for v2.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
