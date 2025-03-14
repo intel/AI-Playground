@@ -102,10 +102,6 @@ function createPythonEnvFromEmbedabblePythonZip(targetDir, pythonEmbedZipFile) {
   const pthContent = `
 python${pythonVersion}.zip
 .
-../service
-../ComfyUI
-../LlamaCPP
-../OpenVINO
 
 # Uncomment to run site.main() automatically
 import site

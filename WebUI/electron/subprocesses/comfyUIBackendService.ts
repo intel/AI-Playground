@@ -15,6 +15,7 @@ import {
   installHijacks,
 } from './service.ts'
 import { getMediaDir } from '../util.ts'
+import { Arch } from './deviceArch.ts'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
   readonly serviceFolder = 'ComfyUI'
@@ -156,14 +157,23 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(aiBackendServiceDir(), `requirements-${deviceArch}.txt`),
-      )
-      await this.uvPip.pip.run(['install', '-r', deviceSpecificRequirements])
-      if (deviceArch === 'bmg' || deviceArch === 'arl_h') {
-        const intelSpecificExtension = existingFileOrError(this.getIPEXWheelPath(deviceArch))
-        await this.uvPip.pip.run(['install', intelSpecificExtension])
+      const archToRequirements = (deviceArch: Arch) => {
+        switch (deviceArch) {
+          case 'arl_h':
+            return 'arl_h'
+          case 'acm':
+          case 'bmg':
+          case 'lnl':
+          case 'mtl':
+            return 'xpu'
+          default:
+            return 'unknown'
+        }
       }
+      const deviceSpecificRequirements = existingFileOrError(
+        path.join(aiBackendServiceDir(), `requirements-${archToRequirements(deviceArch)}.txt`),
+      )
+      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
       yield {
         serviceName: this.name,
         step: `install dependencies`,
