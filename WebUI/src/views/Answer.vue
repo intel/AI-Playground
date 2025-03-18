@@ -30,18 +30,28 @@
             :key="'if' + conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
-            class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
-            :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
+            class="group relative cursor-pointer text-gray-300"
           >
-            <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{
-              conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION
-            }}</span>
-            <span
-              v-if="!conversations.isNewConversation(conversationKey)"
-              @click="() => conversations.deleteConversation(conversationKey)"
-              class="svg-icon i-delete w-5 h-5"
-            ></span>
+            <div class="flex justify-between items-center w-full h-9 px-3">
+              <div
+                v-if="conversations.activeKey === conversationKey"
+                class="absolute inset-1 bg-[#00c4fa]/50 rounded-lg"
+              ></div>
+              <div class="relative flex justify-between items-center w-full">
+                <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
+                  {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+                </span>
+                <span
+                  v-if="!conversations.isNewConversation(conversationKey)"
+                  @click.stop="conversations.deleteConversation(conversationKey)"
+                  class="text-3xl opacity-0 group-hover:opacity-70 transition-opacity duration-200 cursor-pointer ml-3"
+                >
+                  ×
+                </span>
+              </div>
+            </div>
           </div>
+
           <div
             v-else
             v-for="(conversation, conversationKey) in conversations.conversationList"
