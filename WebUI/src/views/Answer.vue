@@ -447,6 +447,7 @@ const isHistoryVisible = ref(false)
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
+const autoScrollEnabled = ref(true)
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
@@ -521,8 +522,15 @@ function dataProcess(line: string) {
 
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement
-  const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 50
-  showScrollButton.value = !atBottom
+  const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
+
+  if (distanceFromBottom > 35) {
+    autoScrollEnabled.value = false
+  } else {
+    autoScrollEnabled.value = true
+  }
+
+  showScrollButton.value = distanceFromBottom > 35
 }
 
 function scrollToBottom(smooth = true) {
@@ -585,10 +593,12 @@ async function simulatedInput() {
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
-    // textOut.value = receiveOut;
     textOut.value = markdownParser.parseMarkdown(receiveOut)
     await nextTick()
-    scrollToBottom()
+
+    if (autoScrollEnabled.value) {
+      scrollToBottom()
+    }
   }
   if (!textOutFinish) {
     await util.delay(20)
@@ -630,7 +640,9 @@ async function simulatedInput() {
         el.removeEventListener('click', copyCode)
         el.addEventListener('click', copyCode)
       })
-      scrollToBottom(false)
+      if (autoScrollEnabled.value) {
+        scrollToBottom(false)
+      }
     })
   }
 }
