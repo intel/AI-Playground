@@ -2,7 +2,12 @@ import * as filesystem from 'fs-extra'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { aiBackendServiceDir, GitService, LongLivedPythonApiService, LsLevelZeroService } from './service.ts'
+import {
+  aiBackendServiceDir,
+  GitService,
+  LongLivedPythonApiService,
+  LsLevelZeroService,
+} from './service.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))

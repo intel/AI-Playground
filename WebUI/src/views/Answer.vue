@@ -529,7 +529,6 @@ function handleScroll(e: Event) {
   } else {
     autoScrollEnabled.value = true
   }
-
   showScrollButton.value = distanceFromBottom > 35
 }
 
