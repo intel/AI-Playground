@@ -403,7 +403,7 @@ export class DeviceService extends ExecutableService {
         return { id: d.device_id, name: d.device_name, arch: getDeviceArch(this.uuidToChipId(d.uuid)) }
       },
     )
-    devices.sort((a, b) => getArchPriority(a.arch) - getArchPriority(b.arch))
+    devices.sort((a, b) => getArchPriority(b.arch) - getArchPriority(a.arch))
     return devices
   }
 
