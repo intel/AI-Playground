@@ -75,6 +75,7 @@ type electronAPI = {
   sendSetUpSignal(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
+  onMetrics(callback: (data: { [key: string]: number }) => void): void
 }
 
 type SetupProgress = {
