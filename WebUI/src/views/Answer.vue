@@ -114,6 +114,14 @@
               <div class="chat-content" style="white-space: pre-wrap">
                 {{ chat.question }}
               </div>
+              <button
+                class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+                :title="languages.COM_COPY"
+                @click="copyText(chat.question)"
+              >
+                <span class="svg-icon i-copy w-4 h-4"></span>
+                <span>{{ languages.COM_COPY }}</span>
+              </button>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -172,7 +180,17 @@
                 </template>
               </div>
               <div class="answer-tools flex gap-3 items-center text-gray-300">
-                <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
+                <button
+                  class="flex items-end"
+                  :title="languages.COM_COPY"
+                  @click="
+                    copyText(
+                      chat.model && thinkingModels[chat.model]
+                        ? extractPostMarker(chat.answer)
+                        : chat.answer,
+                    )
+                  "
+                >
                   <span class="svg-icon i-copy w-4 h-4"></span>
                   <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
                 </button>
@@ -792,6 +810,7 @@ async function simulatedInput() {
         model: textInference.activeModel,
         showThinkingText: false,
         reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
+        createdAt: Date.now(),
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
@@ -931,13 +950,9 @@ async function stopGenerate() {
   }
 }
 
-function copyText(e: Event) {
-  const target = e.target as HTMLElement
-  if (target) {
-    util.copyText(
-      (target.parentElement!.parentElement!.previousElementSibling! as HTMLElement).innerText,
-    )
-  }
+function copyText(text: string) {
+  util.copyText(text)
+  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
 function removeRonate360(ev: AnimationEvent) {
@@ -975,6 +990,7 @@ function regenerateLastResponse(conversationKey: string) {
     question: prompt,
     answer: '',
     metrics: finalMetrics,
+    createdAt: Date.now(),
   })
   currentlyGeneratingKey.value = conversationKey
   generate(chatContext)

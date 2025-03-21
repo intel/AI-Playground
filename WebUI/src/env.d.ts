@@ -176,6 +176,7 @@ type ChatItem = {
   model?: string
   showThinkingText?: boolean
   reasoningTime?: number
+  createdAt?: number
 }
 
 type ChatRequestParams = {
