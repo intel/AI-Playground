@@ -245,6 +245,14 @@
             <div class="chat-content" style="white-space: pre-wrap">
               {{ textIn }}
             </div>
+            <button
+              class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+              :title="languages.COM_COPY"
+              @click="copyText(textIn)"
+            >
+              <span class="svg-icon i-copy w-4 h-4"></span>
+              <span>{{ languages.COM_COPY }}</span>
+            </button>
           </div>
         </div>
         <div
