@@ -12,6 +12,7 @@ WebUI/external/workflows_bak/
 7zr.exe
 *.7z
 *.whl
+hijacks/
 ComfyUI/
 env
 llama-cpp-env/
