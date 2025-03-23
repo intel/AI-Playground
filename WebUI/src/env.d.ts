@@ -75,7 +75,12 @@ type electronAPI = {
   sendSetUpSignal(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
-  onMetrics(callback: (data: { [key: string]: number }) => void): void
+  onMetrics(
+    callback: (
+      metrics: { [key: string]: number }, 
+      gpuInfo: { adapter: string, luid: string, sharedMemory: string, dedicatedMemory: string }[]
+    ) => void
+  ): void
 }
 
 type SetupProgress = {
