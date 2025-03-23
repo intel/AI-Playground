@@ -1,3 +1,4 @@
+from http.client import HTTPException
 import os
 os.environ['PATH'] = os.path.abspath('../openvino-env/Library/bin') + os.pathsep + os.environ['PATH']
 from apiflask import APIFlask
@@ -5,10 +6,12 @@ from flask import jsonify, request, Response, stream_with_context
 from openvino_backend import OpenVino
 from openvino_adapter import LLM_SSE_Adapter
 from openvino_params import LLMParams
+from openvino_embeddings import OpenVINOEmbeddingModel
+from pydantic import BaseModel
 
 app = APIFlask(__name__)
 llm_backend = OpenVino()
-
+embedding_model = OpenVINOEmbeddingModel()
 
 @app.get("/health")
 def health():
@@ -35,6 +38,42 @@ def free():
 def stop_llm_generate():
     llm_backend.stop_generate = True
     return jsonify({"code": 0, "message": "success"})
+
+
+@app.route('/v1/embeddings', methods=['POST'])
+def embeddings():
+    data = request.json
+    input_data = data.get('input', None)
+
+    if not input_data:
+        return jsonify({"error": "Input text is required"}), 400
+
+    if isinstance(input_data, str):
+        input_texts = [input_data]
+    elif isinstance(input_data, list):
+        input_texts = input_data
+    else:
+        return jsonify({"error": "Input should be a string or list of strings"}), 400
+
+    embeddings_result = embedding_model.embed_documents(input_texts)
+
+    response = {
+        "object": "list",
+        "data": [
+            {
+                "object": "embedding",
+                "embedding": emb,
+                "index": idx
+            } for idx, emb in enumerate(embeddings_result)
+        ],
+        "model": embedding_model.embedding_model_path,
+        "usage": {
+            "prompt_tokens": sum(len(text.split()) for text in input_texts),
+            "total_tokens": sum(len(text.split()) for text in input_texts)
+        }
+    }
+
+    return jsonify(response)
 
 
 if __name__ == "__main__":

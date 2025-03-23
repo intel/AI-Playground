@@ -42,7 +42,8 @@ import service_config
 from model_downloader import HFPlaygroundDownloader
 from psutil._common import bytes2human
 import traceback
-
+from ipex_embedding import IpexEmbeddingModel
+from pydantic import BaseModel
 import logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -285,6 +286,44 @@ def fill_size_execute(repo_id: str, type: int, result_dict: dict):
     with lock:
         size_cache.__setitem__(key, total_size)
         result_dict.__setitem__(key, bytes2human(total_size, "%(value).2f%(symbol)s"))
+
+
+embedding_model = IpexEmbeddingModel("BAAI/bge-large-en-v1.5")
+
+@app.route('/v1/embeddings', methods=['POST'])
+def embeddings():
+    data = request.json
+    input_data = data.get('input', None)
+
+    if not input_data:
+        return jsonify({"error": "Input text is required"}), 400
+
+    if isinstance(input_data, str):
+        input_texts = [input_data]
+    elif isinstance(input_data, list):
+        input_texts = input_data
+    else:
+        return jsonify({"error": "Input should be a string or list of strings"}), 400
+
+    embeddings_result = embedding_model.embed_documents(input_texts)
+
+    response = {
+        "object": "list",
+        "data": [
+            {
+                "object": "embedding",
+                "embedding": emb,
+                "index": idx
+            } for idx, emb in enumerate(embeddings_result)
+        ],
+        "model": embedding_model.embedding_model_path,
+        "usage": {
+            "prompt_tokens": sum(len(text.split()) for text in input_texts),
+            "total_tokens": sum(len(text.split()) for text in input_texts)
+        }
+    }
+
+    return jsonify(response)
 
 
 @app.post("/api/llm/enableRag")

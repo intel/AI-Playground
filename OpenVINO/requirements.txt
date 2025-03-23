@@ -4,3 +4,4 @@ apiflask==2.3.0
 openvino==2025.1.0.dev20250203
 openvino-genai==2025.1.0.0.dev20250203
 openvino-tokenizers==2025.1.0.0.dev20250203
+langchain_community==0.3.0
