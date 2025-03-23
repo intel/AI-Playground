@@ -28,7 +28,7 @@ import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import getPort, { portNumbers } from 'get-port'
 import { getMediaDir } from './util.ts'
 
-import { runPowerShellScript, setWindow } from './subprocesses/collectorService'
+import { runGpuid, runPowerShellScript, setWindow } from './subprocesses/collectorService'
 
 // }
 // The built directory structure
@@ -177,6 +177,7 @@ async function createWindow() {
   
   // Start metrics collection service
   setWindow(win)
+  runGpuid()
   runPowerShellScript()
 
   return win

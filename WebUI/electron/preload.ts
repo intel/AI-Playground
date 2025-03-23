@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
     ipcRenderer.on('serviceInfoUpdate', (_event, value) => callback(value)),
-  onMetrics: (callback: (data: { [key: string]: number }) => void) =>
-    ipcRenderer.on('metrics', (_event, value) => callback(value)),
+  onMetrics: (
+    callback: (
+      metrics: { [key: string]: number }, 
+      gpuInfo: { adapter: string, luid: string, sharedMemory: string, dedicatedMemory: string }[]
+    ) => void) => ipcRenderer.on('metrics', (_event, metrics, gpuInfo) => callback(metrics, gpuInfo)),
 })

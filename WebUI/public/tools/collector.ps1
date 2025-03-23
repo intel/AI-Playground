@@ -1,7 +1,7 @@
 # Constants
 
 # Sample Interval is the time in seconds between each sample
-$SampleInterval = 4
+$SampleInterval = 1
 
 # Max Number of Samples is the maximum number of samples to collect
 $MaxNumberOfSamples = 60

@@ -1,8 +1,6 @@
 <template>
-  <div
-    id="app-metrics-panel"
-    class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4"
-  >
+  <div id="app-metrics-panel"
+    class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4">
     <div class="flex justify-between px-3">
       <!-- Title -->
       Utilization Monitor
@@ -26,16 +24,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Line } from 'vue-chartjs'
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  PointElement, 
-  LineElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ChartData 
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ChartData
 } from 'chart.js'
 
 ChartJS.register(
@@ -48,8 +46,18 @@ ChartJS.register(
   Legend
 )
 
+// GPU Info
+const gpuInfo = ref<{
+  adapter: string,
+  luid: string,
+  sharedMemory: string,
+  dedicatedMemory: string
+}[]>([])
+
 // Metrics data
-const metrics = ref<{ [key: string]: number[] }>({})
+const metrics = ref<{
+  [key: string]: number[]
+}>({})
 
 // Format timestamp
 const formatTimestamp = (timestamp: number): string => {
@@ -65,7 +73,7 @@ let gpuIds: string[] = []
 
 // Get label for metric
 const getLabel = (key: string): string => {
-  
+
   // This keys are easy to detect
   switch (key) {
     case 'cpu-utilization':
@@ -80,7 +88,7 @@ const getLabel = (key: string): string => {
     if (!gpuIds.includes(gpuId)) {
       gpuIds.push(gpuId)
     }
-    
+
     let index = gpuIds.indexOf(gpuId)
     const gpuMetric = key.split('-').slice(2).join('-')
 
@@ -121,19 +129,44 @@ const getChartOptions = (key: string) => {
 
   // See https://www.chartjs.org/docs/latest/axes/#default-scales
 
-  // For GPU memory metrics, don't use a upper limit
+  // For GPU memory metrics, find the upper limit in gpuInfo
   if (key.startsWith('gpu') && key.includes('memory')) {
-    return {
-      scales: {
-        y: {
-          min: 0
+    const gpuId = key.split('-')[1]
+    const gpuMetric = key.split('-').slice(2).join('-')
+    const gpu = gpuInfo.value.find(gpu => gpu.luid === gpuId)
+
+    switch (gpuMetric) {
+      case 'memory-shared-usage':
+        return {
+          scales: {
+            y: {
+              min: 0,
+              max: parseFloat(gpu.sharedMemory)
+            }
+          }
         }
-      }
+      case 'memory-dedicated-usage':
+        return {
+          scales: {
+            y: {
+              min: 0,
+              max: parseFloat(gpu.dedicatedMemory)
+            }
+          }
+        }
+      default:
+        return {
+          scales: {
+            y: {
+              min: 0
+            }
+          }
+        }
     }
   }
 
   // For other metrics, use a upper limit of 100 as they are percentages
-  return {   
+  return {
     scales: {
       y: {
         min: 0,
@@ -156,17 +189,26 @@ const shouldShow = (key: string): boolean => {
     return false
   }
 
+  // Process GPU metrics
   if (key.startsWith('gpu')) {
+
+    // Get the GPU ID
     const gpuId = key.split('-')[1]
     if (!gpuIds.includes(gpuId)) {
       gpuIds.push(gpuId)
     }
-    
+
+    // Get all metrics for this GPU ID
     const gpuMetrics = Object.keys(metrics.value).filter(metricKey => metricKey.includes(gpuId));
 
-    // Do not this GPU metrics if they don't have a compute engine
+    // Do not show this GPU metrics if they don't have a compute engine
     // This might be a legacy GPU, or virtual GPU like Remote Desktop
     if (!gpuMetrics.some(metricKey => metricKey.includes('compute'))) {
+      return false
+    }
+
+    // Do not show GPU memory total commited
+    if (key.includes('memory-total-committed')) {
       return false
     }
   }
@@ -176,13 +218,27 @@ const shouldShow = (key: string): boolean => {
 }
 
 // Subscribe to the onMetrics event
-window.electronAPI.onMetrics((data: { [key: string]: number }) => {
+window.electronAPI.onMetrics((
+  data: {
+    metrics: { [key: string]: number },
+    gpuInfo: {
+      adapter: string,
+      luid: string,
+      sharedMemory: string,
+      dedicatedMemory: string
+    }[]
+  }
+) => {
+
+  // Save gpuInfo
+  gpuInfo.value = data.gpuInfo
+
 
   // For every key in metrics
-  for (const key in data) {
+  for (const key in data.metrics) {
 
     // Ignore non-numerical values
-    if (typeof data[key] !== 'number') {
+    if (typeof data.metrics[key] !== 'number') {
       continue
     }
 
@@ -194,10 +250,10 @@ window.electronAPI.onMetrics((data: { [key: string]: number }) => {
     }
 
     // Push the value to the key
-    metrics.value[key].push(data[key])
+    metrics.value[key].push(data.metrics[key])
 
-    // Keep only the last 50 values
-    if (metrics.value[key].length > 50) {
+    // Keep only the last 60 values
+    if (metrics.value[key].length > 60) {
       metrics.value[key].shift()
     }
   }
