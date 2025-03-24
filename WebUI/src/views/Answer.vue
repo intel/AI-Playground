@@ -641,7 +641,7 @@ function dataProcess(line: string) {
   switch (data.type) {
     case 'text_out':
       if (data.dtype === 1) {
-        let chunk = data.value
+        const chunk = data.value
         textOutQueue.push(chunk)
 
         const activeModel = textInference.activeModel
