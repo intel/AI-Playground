@@ -382,7 +382,7 @@
               </template>
             </drop-selector>
             <button
-              class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
+              class="svg-icon i-generate-add w-9 h-9 text-purple-500 ml-1.5"
               @click="addLLMModel"
             ></button>
             <button
