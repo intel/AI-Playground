@@ -3,19 +3,19 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
 
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
-  readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
+  readonly deviceService = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
   readonly isRequired = false
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
+  readonly lsLevelZero = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
 
@@ -39,7 +39,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       await this.lsLevelZero.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch = await this.lsLevelZero.getBestDeviceArch()
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,

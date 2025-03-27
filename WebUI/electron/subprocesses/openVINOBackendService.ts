@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
 
 const serviceFolder = 'openVINO'
 export class OpenVINOBackendService extends LongLivedPythonApiService {
@@ -14,7 +14,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
+  readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
 
@@ -35,10 +35,10 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.lsLevelZero.ensureInstalled()
+      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch = await this.deviceService.getBestDeviceArch()
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -96,7 +96,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...(await this.deviceService.getDeviceSelectorEnv()),
     }
 
     const apiProcess = spawn(
