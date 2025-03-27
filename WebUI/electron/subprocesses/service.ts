@@ -1,6 +1,7 @@
 import { ChildProcess } from 'node:child_process'
 import { app, BrowserWindow, net } from 'electron'
 import * as filesystem from 'fs-extra'
+import fsPromises from 'fs/promises'
 import path from 'node:path'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { existingFileOrError, spawnProcessAsync } from './osProcessHelper'
@@ -13,7 +14,8 @@ import { promisify } from 'util'
 import { z } from 'zod'
 const exec = promisify(childProcess.exec)
 
-const aipgBaseDir = () => app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+const aipgBaseDir = () =>
+  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
 export const hijacksDir = path.resolve(path.join(aipgBaseDir(), `hijacks/ipex_to_cuda`))
 const hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
 const hijacksRevision = '7379d6ecbc26a96b1a39f6fc063c61fc8462914f'
@@ -24,7 +26,7 @@ const checkHijacksDir = async (): Promise<boolean> => {
     return true
   } catch (_e) {
     try {
-      await filesystem.promises.rm(hijacksDir, {recursive: true})
+      await filesystem.promises.rm(hijacksDir, { recursive: true })
     } finally {
       return false
     }
@@ -37,12 +39,35 @@ export const installHijacks = async (): Promise<void> => {
     appLoggerInstance.info('ipex_to_cuda hijacks already cloned, skipping', 'ipex-hijacks')
   } else {
     await git.run(['clone', hijacksRemote, hijacksDir])
-    await git.run(
-      ['-C', hijacksDir, 'checkout', hijacksRevision],
-      {},
-      hijacksDir,
+    await git.run(['-C', hijacksDir, 'checkout', hijacksRevision], {}, hijacksDir)
+    await patchFile(
+      path.join(hijacksDir, 'hijacks.py'),
+      'device_supports_fp64 = torch.xpu.has_fp64_dtype()',
+      ['torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)'],
     )
   }
+}
+
+export const patchFile = async (
+  filePath: string,
+  targetLineIncludes: string,
+  unindentedLinesToInsert: string[],
+): Promise<void> => {
+  const targetfilePath = path.normalize(filePath)
+  const targetFileContent = await fsPromises.readFile(targetfilePath, 'utf-8')
+  const targetFileLines = targetFileContent.split(/\r?\n/)
+  const lineAboveSpliceTargetIndex = targetFileLines.findIndex((l) =>
+    l.includes(targetLineIncludes),
+  )
+  if (lineAboveSpliceTargetIndex === -1) {
+    throw new Error(`Failed to find line to patch in ${filePath}`)
+  }
+  const targetIndentation = targetFileLines[lineAboveSpliceTargetIndex].search(/\S/)
+  const linesToSpliceIn = unindentedLinesToInsert.map(
+    (line) => ' '.repeat(targetIndentation) + line,
+  )
+  targetFileLines.splice(lineAboveSpliceTargetIndex + 1, 0, ...linesToSpliceIn)
+  await fsPromises.writeFile(targetfilePath, targetFileLines.join('\n'))
 }
 
 class ServiceCheckError extends Error {
@@ -300,21 +325,19 @@ export class PipService extends ExecutableService {
 }
 
 type Device = { id: number; name: string; arch: Arch }
-const XpuSmiDiscoverySchema = z.object(
-  {
-    device_list: z.array(
-      z.object({
-        device_id: z.number(),
-        device_name: z.string(),
-        device_type: z.string(),
-        pci_bdf_address: z.string(),
-        pci_device_id: z.string(),
-        uuid: z.string(),
-        vendor_name: z.string(),
-      }),
-    ),
-  },
-)
+const XpuSmiDiscoverySchema = z.object({
+  device_list: z.array(
+    z.object({
+      device_id: z.number(),
+      device_name: z.string(),
+      device_type: z.string(),
+      pci_bdf_address: z.string(),
+      pci_device_id: z.string(),
+      uuid: z.string(),
+      vendor_name: z.string(),
+    }),
+  ),
+})
 
 export class UvPipService extends PipService {
   readonly pip: PipService
@@ -381,16 +404,13 @@ export class DeviceService extends ExecutableService {
     return super.run(['discovery', '-j'], env, workDir)
   }
 
-  async check(): Promise<void> {
-  }
+  async check(): Promise<void> {}
 
   async install(): Promise<void> {
     this.log('start installing')
   }
 
-  async repair(_checkError: ServiceCheckError): Promise<void> {
-
-  }
+  async repair(_checkError: ServiceCheckError): Promise<void> {}
 
   private uuidToChipId(uuid: string): number {
     return parseInt(uuid.slice(-8, -4), 16)
@@ -400,7 +420,11 @@ export class DeviceService extends ExecutableService {
     const result = await this.run()
     const devices: Device[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
       (d) => {
-        return { id: d.device_id, name: d.device_name, arch: getDeviceArch(this.uuidToChipId(d.uuid)) }
+        return {
+          id: d.device_id,
+          name: d.device_name,
+          arch: getDeviceArch(this.uuidToChipId(d.uuid)),
+        }
       },
     )
     devices.sort((a, b) => getArchPriority(b.arch) - getArchPriority(a.arch))
@@ -417,7 +441,6 @@ export class DeviceService extends ExecutableService {
       return 'unknown'
     }
   }
-
 
   async getDeviceSelectorEnv(): Promise<{ ONEAPI_DEVICE_SELECTOR: string }> {
     const devices = await this.getDevices()

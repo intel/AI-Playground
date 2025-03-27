@@ -1,7 +1,6 @@
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import fs from 'fs'
-import fsPromises from 'fs/promises'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
@@ -13,6 +12,7 @@ import {
   UvPipService,
   hijacksDir,
   installHijacks,
+  patchFile,
 } from './service.ts'
 import { getMediaDir } from '../util.ts'
 import { Arch } from './deviceArch.ts'
@@ -30,7 +30,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private readonly revision = '61b5072'
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
     ? this.settings.comfyUiParameters
-    : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '5.0']
+    : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
   serviceIsSetUp(): boolean {
     return (
@@ -88,19 +88,11 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     const configureComfyUI = async (): Promise<void> => {
       try {
         this.appLogger.info('patching hijacks into comfyUI model_management', this.name)
-        const targetfilePath = path.join(this.serviceDir, 'comfy/model_management.py')
-        const targetFileContent = await fsPromises.readFile(targetfilePath, 'utf-8')
-        const targetFileLines = targetFileContent.split(/\r?\n/)
-        const lineAboveSpliceTargetIndex = targetFileLines.findIndex((l) =>
-          l.includes('xpu_available = torch.xpu.is_available()'),
+        patchFile(
+          path.join(this.serviceDir, 'comfy/model_management.py'),
+          'from comfy.model_management import get_model',
+          ['from ipex_to_cuda import ipex_init', 'ipex_init()'],
         )
-        const targetIndentation = targetFileLines[lineAboveSpliceTargetIndex].search(/\S/)
-        const linesToSpliceIn = [
-          ' '.repeat(targetIndentation) + 'from ipex_to_cuda import ipex_init',
-          ' '.repeat(targetIndentation) + 'ipex_init()',
-        ]
-        targetFileLines.splice(lineAboveSpliceTargetIndex + 1, 0, ...linesToSpliceIn)
-        await fsPromises.writeFile(targetfilePath, targetFileLines.join('\n'))
 
         this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
         const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')

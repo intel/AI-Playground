@@ -3,8 +3,7 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { existingFileOrError } from './osProcessHelper.ts'
 import {
-  aiBackendServiceDir,
-  DeviceService, 
+  DeviceService,
   GitService,
   installHijacks,
   LongLivedPythonApiService,
@@ -71,19 +70,39 @@ export class AiBackendService extends LongLivedPythonApiService {
         }
       }
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run(['install', '-r', commonRequirements, '--index-strategy', 'unsafe-best-match'])
+      await this.uvPip.run([
+        'install',
+        '-r',
+        commonRequirements,
+        '--index-strategy',
+        'unsafe-best-match',
+      ])
 
       const ipexLlmRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-ipex-llm.txt`),
       )
       if (deviceArch !== 'unknown') {
-        await this.uvPip.run(['install', '-r', ipexLlmRequirements, '--index-strategy', 'unsafe-best-match', '--prerelease=allow'])
+        await this.uvPip.run([
+          'install',
+          '-r',
+          ipexLlmRequirements,
+          '--index-strategy',
+          'unsafe-best-match',
+          '--prerelease=allow',
+        ])
       }
-      
+
       const deviceSpecificRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
       )
-      await this.uvPip.run(['install', '-r', deviceSpecificRequirements, '--index-strategy', 'unsafe-best-match', '--prerelease=allow'])
+      await this.uvPip.run([
+        'install',
+        '-r',
+        deviceSpecificRequirements,
+        '--index-strategy',
+        'unsafe-best-match',
+        '--prerelease=allow',
+      ])
 
       yield {
         serviceName: this.name,
