@@ -70,19 +70,21 @@ export class AiBackendService extends LongLivedPythonApiService {
             return 'unknown'
         }
       }
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
-      )
+      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
+      await this.uvPip.run(['install', '-r', commonRequirements, '--index-strategy', 'unsafe-best-match'])
+
       const ipexLlmRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-ipex-llm.txt`),
       )
-      await this.uvPip.run(['install', '-r', deviceSpecificRequirements, '--index-strategy', 'unsafe-best-match', '--prerelease=allow'])
       if (deviceArch !== 'unknown') {
         await this.uvPip.run(['install', '-r', ipexLlmRequirements, '--index-strategy', 'unsafe-best-match', '--prerelease=allow'])
       }
+      
+      const deviceSpecificRequirements = existingFileOrError(
+        path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
+      )
+      await this.uvPip.run(['install', '-r', deviceSpecificRequirements, '--index-strategy', 'unsafe-best-match', '--prerelease=allow'])
 
-      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run(['install', '-r', commonRequirements, '--index-strategy', 'unsafe-best-match'])
       yield {
         serviceName: this.name,
         step: `install dependencies`,
