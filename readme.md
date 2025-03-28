@@ -21,16 +21,15 @@ Welcome to AI Playground open source project and AI PC starter app for doing AI 
 AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
-*	Intel Core Ultra-H Processor, Intel Core Ultra 200V series processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
+*	Intel Core Ultra-H Processor, Intel Core Ultra-V processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
 Starting from v2.0, there is a single packaged installer that works for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground and get it running on their PC. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 2.2.1 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.2.1-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.2.1-beta/AI.Playground-2.2.1-beta.exe) :new:
+:new: **AI Playground 2.3.0 Alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.3.0-alpha) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.3.0-alpha/AI.Playground-2.3.0-alpha.exe) :new:
 > [!IMPORTANT]  
-> - This release fixes video generation and image generation bugs from 2.2
-> - The Answer TAB on new install does not have a LLM backend selected thus models are not showing.  To fix go to Settings > Basic > Backend - then select a Backend from the list
+> - This release is an alpha version.  If issues report, and consider moving to [v2.2.1](https://github.com/intel/AI-Playground/releases/tag/v2.2.1-beta) (for supported hardware)
 
 ### Installation Process for v2.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
@@ -40,7 +39,7 @@ Starting from v2.0, there is a single packaged installer that works for all supp
 ### Troubleshooting Installation
 The following are known situations where your installation may be blocked or interrupted.  Review the following to remedy installations issues.  If installation issues persist, generate a copy of the log by typing CTRL+SHIFT+I, select the console tab and copy the last few entries of the log written where the installer failed.  Provide these details to us via the issues tab here, or via the Intel Insiders Discord, or Graphics forum on Intel's support site.
 1. **Restart**: Time-out issues have been sighted, which show as a failed install but resolve when restarting AI Playground
-2. **Verify Intel Arc GPU**: Ensure your system has an Intel Arc GPU. Go to your Windows Start Menu, type "Device Manager," and under Display Adapters, check the name of your GPU device. It should describe an Intel Arc GPU. If so, then you you have a GPU that means our minimum specifications.  If it says "Intel(R) Graphics," your system does not have a built-in Intel Arc GPU and does not meet the minimum specifications.
+2. **Verify Intel Arc GPU**: Ensure your system has an Intel Arc GPU with the lastest driver. Go to your Windows Start Menu, type "Device Manager," and under Display Adapters, check the name of your GPU device. It should describe an Intel Arc GPU. If so, then you you have a GPU that means our minimum specifications.  If it says "Intel(R) Graphics," your system does not have a built-in Intel Arc GPU and does not meet the minimum specifications.
 3. **Interrupted Installation**: The online installation for backend components can be interrupted or blocked by an IT network, firewall, or sleep settings. Ensure you are on an open network, with the firewall off, and set sleep settings to stay awake when powered on.
 4. **Missing Libraries**: Some Windows systems may be missing needed libraries. This can be fixed by installing the 64-bit VC++ redistribution from Microsoft [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170). It is recommended this be done after updating the Graphics drivers. Then install AI Playground.
 5. **Python Conflict**: Some PCs with an existing installation of Python can cause a conflict with AI Playground installation, where the wrong or conflicting packages are installed due to the incorrect version or location of Python on the system.  This is usually remedied by uninstalling Python environment, restarting and reinstalling AI Playground
