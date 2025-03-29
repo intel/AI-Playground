@@ -556,8 +556,8 @@ const thinkingText = ref('')
 const showThinkingText = ref(false)
 const postMarkerText = ref('')
 
-let reasoningStartTime: number = 0
-let reasoningTotalTime: number = 0
+let reasoningStartTime = 0
+let reasoningTotalTime = 0
 
 function extractPreMarker(fullAnswer: string): string {
   const model = textInference.activeModel
@@ -640,6 +640,10 @@ function dataProcess(line: string) {
   const data = JSON.parse(dataJson) as LLMOutCallback
   switch (data.type) {
     case 'text_out':
+      if (reasoningStartTime === 0) {
+        reasoningStartTime = performance.now()
+      }
+
       if (data.dtype === 1) {
         const chunk = data.value
         textOutQueue.push(chunk)
@@ -865,7 +869,7 @@ async function newPromptGenerate() {
   thinkingText.value = ''
   showThinkingText.value = false
   postMarkerText.value = ''
-  reasoningStartTime = performance.now()
+  reasoningStartTime = 0
   reasoningTotalTime = 0
 
   const newPrompt = question.value.trim()
