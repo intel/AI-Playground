@@ -360,8 +360,40 @@
     <div
       class="pl-4 pt-4 flex flex-col items-center justify-center relative border-t border-color-spilter px-2"
     >
-      <div class="w-full flex items-center justify-between text-white">
+      <div class="w-full flex items-center gap-x-10 text-white">
         <div class="flex items-center gap-2">
+          <drop-selector
+            :array="[...llmBackendTypes]"
+            @change="(item) => (textInference.backend = item)"
+            class="w-30"
+          >
+            <template #selected>
+              <div class="flex gap-2 items-center">
+                <!-- If you want the "running" dot, use isRunning(...) below -->
+                <span
+                  class="rounded-full w-2 h-2"
+                  :class="{
+                    'bg-green-500': isRunning(textInference.backend),
+                    'bg-gray-500': !isRunning(textInference.backend),
+                  }"
+                ></span>
+                <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
+              </div>
+            </template>
+            <template #list="slotItem">
+              <div class="flex gap-2 items-center">
+                <!-- If you want the "running" dot, use isRunning(...) below -->
+                <span
+                  class="rounded-full w-2 h-2"
+                  :class="{
+                    'bg-green-500': isRunning(slotItem.item),
+                    'bg-gray-500': !isRunning(slotItem.item),
+                  }"
+                ></span>
+                <span>{{ textInferenceBackendDisplayName[slotItem.item as LlmBackend] }}</span>
+              </div>
+            </template>
+          </drop-selector>
           <drop-selector
             :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
             @change="(i) => textInference.selectModel(textInference.backend, i.name)"
@@ -381,17 +413,17 @@
             </template>
           </drop-selector>
           <button
-            class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
+            class="svg-icon i-generate-add w-10 h-10 text-purple-500 ml-1.5"
             @click="addLLMModel"
           ></button>
           <button
-            class="svg-icon i-refresh w-7 h-7 text-purple-500 ml-1"
+            class="svg-icon i-refresh w-12 h-12 text-purple-500 ml-1"
             @animationend="removeRonate360"
             @click="refreshLLMModles"
           ></button>
         </div>
         <div class="flex items-center gap-2">
-          <p>Metrics</p>
+          <label class="text-white whitespace-nowrap">Metrics</label>
           <button
             class="v-checkbox-control flex-none w-5 h-5"
             :class="{ 'v-checkbox-checked': textInference.metricsEnabled }"
@@ -399,18 +431,19 @@
           ></button>
         </div>
         <div class="flex items-center gap-2">
-          <p>Max Tokens</p>
-          <textarea
+          <label class="text-white whitespace-nowrap">Max Tokens</label>
+          <input
             type="number"
             v-model="textInference.maxTokens"
             min="0"
             max="4096"
             step="1"
-            class="rounded text-white text-center flex-auto resize-none overflow-hidden h-7 w-20 leading-7 p-0"
-          ></textarea>
+            class="rounded text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+          />
         </div>
+
         <div class="flex items-center gap-2">
-          <p>Font Size</p>
+          <label class="text-white whitespace-nowrap">Font Size</label>
           <button
             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-2 py-1"
             @click="textInference.increaseFontSize"
@@ -523,7 +556,7 @@ import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import * as Const from '@/assets/js/const'
 import { useConversations } from '@/assets/js/store/conversations'
-import { LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 
 const conversations = useConversations()
@@ -618,6 +651,25 @@ onMounted(async () => {
 
 function finishGenerate() {
   textOutFinish = true
+}
+
+// A friendly display name for each backend
+const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
+  ipexLLM: 'IPEX-LLM',
+  llamaCPP: 'llamaCPP - GGUF',
+  openVINO: 'OpenVINO',
+}
+
+// Optional: if you want to show whether each backend is currently running
+function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
+  if (name === 'ipexLLM') return 'ai-backend'
+  if (name === 'llamaCPP') return 'llamacpp-backend'
+  if (name === 'openVINO') return 'openvino-backend'
+  return undefined
+}
+function isRunning(name: LlmBackend) {
+  const backendName = mapBackendNames(name)
+  return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
 }
 
 const animatedReasoningText = ref('Reasoning.')
