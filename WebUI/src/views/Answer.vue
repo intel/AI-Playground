@@ -358,137 +358,147 @@
       </svg>
     </button>
     <div
-      class="pl-4 h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4"
+      class="pl-4 pt-4 flex flex-col items-center justify-center relative border-t border-color-spilter px-2"
     >
-      <div class="flex flex-col gap-2 flex-auto h-full">
-        <div class="flex items-center justify-between gap-5 text-white px-2">
-          <div class="flex items-center">
-            <drop-selector
-              :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
-              @change="(i) => textInference.selectModel(textInference.backend, i.name)"
-              class="w-96"
-            >
-              <template #selected>
-                <model-drop-down-item
-                  :model="
-                    textInference.llmModels
-                      .filter((m) => m.type === textInference.backend)
-                      .find((m) => m.active)
-                  "
-                ></model-drop-down-item>
-              </template>
-              <template #list="slotItem">
-                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-              </template>
-            </drop-selector>
-            <button
-              class="svg-icon i-generate-add w-9 h-9 text-purple-500 ml-1.5"
-              @click="addLLMModel"
-            ></button>
-            <button
-              class="svg-icon i-refresh w-5 h-5 text-purple-500 flex-none ml-1"
-              @animationend="removeRonate360"
-              @click="refreshLLMModles"
-            ></button>
-            <!-- <button
-                class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-6"
-                @click="() => conversations.clearConversation(conversations.activeKey)">
-                <span class="svg-icon i-clear w-4 h-4"></span>
-                <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
-            </button> -->
-            <button
-              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="textInference.increaseFontSize"
-              :disabled="textInference.isMaxSize"
-              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
-            >
-              <span class="svg-icon i-zoom-in w-4 h-4"></span>
-              <span>{{ languages.INCREASE_FONT_SIZE }}</span>
-            </button>
-            <button
-              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="textInference.decreaseFontSize"
-              :disabled="textInference.isMinSize"
-              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
-            >
-              <span class="svg-icon i-zoom-out w-4 h-4"></span>
-              <span>{{ languages.DECREASE_FONT_SIZE }}</span>
-            </button>
-          </div>
-          <div
-            v-show="textInference.backend === 'ipexLLM'"
-            class="flex justify-center items-center gap-2"
+      <div class="w-full flex items-center justify-between text-white">
+        <div class="flex items-center gap-2">
+          <drop-selector
+            :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
+            @change="(i) => textInference.selectModel(textInference.backend, i.name)"
+            class="w-96"
           >
-            <div class="v-checkbox flex-none" type="button" :disabled="processing">
-              <button
-                v-show="!ragData.processEnable"
-                class="v-checkbox-control flex-none"
-                :class="{ 'v-checkbox-checked': ragData.enable }"
-                @click="toggleRag(!ragData.enable)"
-              ></button>
-              <span
-                v-show="ragData.processEnable"
-                class="w-4 h-4 svg-icon i-loading flex-none"
-              ></span>
-              <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
-            </div>
-            <button
-              class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
-              @click="ragData.showUploader = true"
-              :disabled="!ragData.enable || processing"
-            >
-              <span class="svg-icon i-upload w-4 h-4"></span>
-              <span>{{ languages.ANSWER_RAG_OPEN_DIALOG }}</span>
-            </button>
-            <drop-selector
-              :array="globalSetup.models.embedding"
-              @change="changeEmbeddingModel"
-              :disabled="ragData.enable || processing"
-              class="w-96"
-            >
-              <template #selected>
-                <div class="flex gap-2 items-center overflow-hidden text-ellipsis">
-                  <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                  <span>{{ globalSetup.modelSettings.embedding }}</span>
-                </div>
-              </template>
-              <template #list="slotItem">
-                <div class="flex gap-2 items-center text-ellipsis" :title="slotItem.item">
-                  <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                  <span class="h-7 overflow-hidden">{{ slotItem.item }}</span>
-                </div>
-              </template>
-            </drop-selector>
-          </div>
+            <template #selected>
+              <model-drop-down-item
+                :model="
+                  textInference.llmModels
+                    .filter((m) => m.type === textInference.backend)
+                    .find((m) => m.active)
+                "
+              ></model-drop-down-item>
+            </template>
+            <template #list="slotItem">
+              <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
+            </template>
+          </drop-selector>
+          <button
+            class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
+            @click="addLLMModel"
+          ></button>
+          <button
+            class="svg-icon i-refresh w-7 h-7 text-purple-500 ml-1"
+            @animationend="removeRonate360"
+            @click="refreshLLMModles"
+          ></button>
         </div>
+        <div class="flex items-center gap-2">
+          <p>Metrics</p>
+          <button
+            class="v-checkbox-control flex-none w-5 h-5"
+            :class="{ 'v-checkbox-checked': textInference.metricsEnabled }"
+            @click="textInference.toggleMetrics()"
+          ></button>
+        </div>
+        <div class="flex items-center gap-2">
+          <p>Max Tokens</p>
+          <textarea
+            type="number"
+            v-model="textInference.maxTokens"
+            min="0"
+            max="4096"
+            step="1"
+            class="rounded text-white text-center flex-auto resize-none overflow-hidden h-7 w-20 leading-7 p-0"
+          ></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <p>Font Size</p>
+          <button
+            class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-2 py-1"
+            @click="textInference.increaseFontSize"
+            :disabled="textInference.isMaxSize"
+            :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
+          >
+            <span class="svg-icon i-zoom-in w-4 h-4"></span>
+          </button>
+          <button
+            class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-2 py-1"
+            @click="textInference.decreaseFontSize"
+            :disabled="textInference.isMinSize"
+            :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
+          >
+            <span class="svg-icon i-zoom-out w-4 h-4"></span>
+          </button>
+        </div>
+        <div v-show="textInference.backend === 'ipexLLM'" class="flex items-center gap-2">
+          <div class="v-checkbox flex-none" type="button" :disabled="processing">
+            <button
+              v-show="!ragData.processEnable"
+              class="v-checkbox-control flex-none"
+              :class="{ 'v-checkbox-checked': ragData.enable }"
+              @click="toggleRag(!ragData.enable)"
+            ></button>
+            <span
+              v-show="ragData.processEnable"
+              class="w-4 h-4 svg-icon i-loading flex-none"
+            ></span>
+            <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
+          </div>
+          <button
+            class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
+            @click="ragData.showUploader = true"
+            :disabled="!ragData.enable || processing"
+          >
+            <span class="svg-icon i-upload w-4 h-4"></span>
+            <span>{{ languages.ANSWER_RAG_OPEN_DIALOG }}</span>
+          </button>
+          <drop-selector
+            :array="globalSetup.models.embedding"
+            @change="changeEmbeddingModel"
+            :disabled="ragData.enable || processing"
+            class="w-96"
+          >
+            <template #selected>
+              <div class="flex gap-2 items-center overflow-hidden text-ellipsis">
+                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                <span>{{ globalSetup.modelSettings.embedding }}</span>
+              </div>
+            </template>
+            <template #list="slotItem">
+              <div class="flex gap-2 items-center text-ellipsis" :title="slotItem.item">
+                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                <span class="h-7 overflow-hidden">{{ slotItem.item }}</span>
+              </div>
+            </template>
+          </drop-selector>
+        </div>
+      </div>
+      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
         ></textarea>
-      </div>
-      <div class="flex flex-col items-center gap-2 self-stretch w-24 flex-none">
         <button
-          class="gernate-btn self-stretch flex flex-col flex-auto"
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-if="!processing"
           @click="newPromptGenerate"
-          v-show="!processing"
         >
-          <span class="svg-icon i-generate-add w-8 h-8"></span>
+          <span class="svg-icon i-generate-add w-7 h-7"></span>
           <span>{{ languages.COM_GENERATE }}</span>
         </button>
         <button
-          class="gernate-btn self-stretch flex flex-col flex-auto"
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-if="processing"
           @click="stopGenerate"
-          v-show="processing"
         >
           <span
             class="svg-icon w-7 h-7"
             :class="{ 'i-stop': !stopping, 'i-loading': stopping }"
           ></span>
-          <span>{{ languages.COM_GENERATE }}</span>
+          <span>{{ languages.COM_STOP }}</span>
         </button>
       </div>
+
       <rag
         v-if="ragData.showUploader && textInference.backend !== 'llamaCPP'"
         ref="ragPanel"
