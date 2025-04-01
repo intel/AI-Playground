@@ -60,8 +60,15 @@ def healthEndpoint():
 def llm_chat():
     paint_biz.dispose_basic_model()
     params = request.get_json()
+    # Extract external RAG parameters if they exist
+    external_rag_context = params.pop("external_rag_context", None)
+    external_rag_source = params.pop("external_rag_source", None)
+    
     llm_params = llm_biz.LLMParams(**params)
-    sse_invoker = LLM_SSE_Adapter()
+    sse_invoker = LLM_SSE_Adapter(
+        external_rag_context=external_rag_context,
+        external_rag_source=external_rag_source
+    )
     it = sse_invoker.text_conversation(llm_params)
     return Response(stream_with_context(it), content_type="text/event-stream")
 
@@ -288,12 +295,11 @@ def fill_size_execute(repo_id: str, type: int, result_dict: dict):
         result_dict.__setitem__(key, bytes2human(total_size, "%(value).2f%(symbol)s"))
 
 
-embedding_model = IpexEmbeddingModel("BAAI/bge-large-en-v1.5")
-
 @app.route('/v1/embeddings', methods=['POST'])
 def embeddings():
     data = request.json
     input_data = data.get('input', None)
+    model_name = data.get('model', "BAAI/bge-large-en-v1.5")  # Default model if not specified
 
     if not input_data:
         return jsonify({"error": "Input text is required"}), 400
@@ -305,6 +311,10 @@ def embeddings():
     else:
         return jsonify({"error": "Input should be a string or list of strings"}), 400
 
+    from ipex_embedding import IpexEmbeddingModel
+    embedding_model = IpexEmbeddingModel.get_instance(model_name)
+
+    # Dynamically load the model, compute embeddings, and then unload it
     embeddings_result = embedding_model.embed_documents(input_texts)
 
     response = {
@@ -324,22 +334,6 @@ def embeddings():
     }
 
     return jsonify(response)
-
-
-@app.post("/api/llm/enableRag")
-def enable_rag():
-    if not rag.Is_Inited:
-        repo_id = request.form.get("repo_id", default="", type=str)
-        device = request.form.get("device", default=0, type=int)
-        rag.init(repo_id, device)
-    return jsonify({"code": 0, "message": "success"})
-
-
-@app.get("/api/llm/disableRag")
-def disable_rag():
-    if rag.Is_Inited:
-        rag.dispose()
-    return jsonify({"code": 0, "message": "success"})
 
 
 def get_bearer_token(request):

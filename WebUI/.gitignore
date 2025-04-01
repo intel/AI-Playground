@@ -15,6 +15,7 @@ release/
 ComfyUI/
 LlamaCPP/
 OpenVino/
+embeddingCache/
 
 # Editor directories and files
 .vscode/*

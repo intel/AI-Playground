@@ -154,6 +154,7 @@ export class PythonService extends ExecutableService {
     python311.zip
     .
     ../${this.serviceDir}
+    ../backend-shared
 
     # Uncomment to run site.main() automatically
     import site

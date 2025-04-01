@@ -40,7 +40,7 @@ export type EmbedInquiry = {
   prompt: string
   ragList: IndexedDocument[]
   backendBaseUrl: string
-  embeddingModel: string | undefined
+  embeddingModel: string
 }
 
 export const useTextInference = defineStore(
@@ -85,6 +85,7 @@ export const useTextInference = defineStore(
 
     const llmEmbeddingModels: Ref<LlmModel[]> = computed(() => {
       const llmEmbeddingTypeModels = models.models.filter((m) => m.type === 'embedding')
+      console.log('llmEmbeddingTypeModels', llmEmbeddingTypeModels)
       const newEmbeddingModels = llmEmbeddingTypeModels.map((m) => {
         const selectedEmbeddingModelForType = selectedEmbeddingModels.value[m.backend as LlmBackend]
         return {
@@ -155,7 +156,7 @@ export const useTextInference = defineStore(
       if (!model) return []
       const checkList = {
         repo_id: model,
-        type: backendToAipgModelTypeNumber[backend.value],
+        type: type === 'embedding' ? Const.MODEL_TYPE_EMBEDDING : backendToAipgModelTypeNumber[backend.value],
         backend: backendToAipgBackendName[backend.value],
       }
       const checkedModels = await models.checkModelAlreadyLoaded([checkList])

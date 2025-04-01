@@ -428,7 +428,7 @@ function finishGenerate() {
 }
 
 function dataProcess(line: string) {
-  console.log(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
+  console.debug(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
 
   const dataJson = line.slice(5)
   const data = JSON.parse(dataJson) as LLMOutCallback
@@ -519,7 +519,6 @@ async function updateTitle(conversation: ChatItem[]) {
   const requestParams = {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
-    enable_rag: false,
     max_tokens: 8,
     model_repo_id: textInference.activeModel,
     print_metrics: false,
@@ -686,21 +685,37 @@ async function generate(chatContext: ChatItem[]) {
     nextTick(scrollToBottom)
 
     //if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
-    const testResponse: KVObject = await textInference.embedInputUsingRag(
-      chatContext[chatContext.length - 1].question,
-    )
+    // const testResponse: KVObject = await textInference.embedInputUsingRag(
+    //   chatContext[chatContext.length - 1].question,
+    // )
     //}
 
-    console.log('##########')
-    console.log(testResponse)
-    console.log('##########')
-
-    return
+    let externalRagContext = null;
+    let externalRagSource = null;
+    // If there are checked documents in the RAG list
+    if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
+      try {
+        // Get relevant documents from langchain.js
+        const ragResults = await textInference.embedInputUsingRag(
+          chatContext[chatContext.length - 1].question
+        );
+        
+        if (ragResults && ragResults.length > 0) {
+          // Extract context and source information using type assertions to handle different document structures
+          externalRagContext = ragResults.map(doc => doc.pageContent).join('\n\n');
+          
+          externalRagSource = ragResults.map(doc => doc.metadata.source ?? '').join('\n');
+        }
+      } catch (error) {
+        console.error('Error retrieving RAG documents:', error);
+      }
+    }
 
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: true,
+      external_rag_context: externalRagContext,
+      external_rag_source: externalRagSource,
       max_tokens: textInference.maxTokens,
       model_repo_id: textInference.activeModel,
     }

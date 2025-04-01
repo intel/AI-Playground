@@ -119,6 +119,8 @@ export const useModels = defineStore(
       const notPredefined = (model: { name: string }) =>
         !predefinedModels.map((m) => m.name).includes(model.name)
 
+      console.log('downloadedModels', downloadedModels)
+
       models.value = [
         ...downloadedModels,
         ...predefinedModels.filter(notYetDownloaded),
@@ -128,6 +130,7 @@ export const useModels = defineStore(
         downloaded: downloadedModels.map((dm) => dm.name).includes(m.name),
         default: predefinedModels.find((pm) => pm.name === m.name)?.default ?? false,
       }))
+      console.log('Models refreshed', models.value)
     }
 
     async function download(_models: DownloadModelParam[]) {}

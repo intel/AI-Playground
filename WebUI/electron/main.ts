@@ -28,7 +28,7 @@ import {
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import getPort, { portNumbers } from 'get-port'
-import { getMediaDir } from './util.ts'
+import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 
@@ -200,11 +200,18 @@ function spawnLangchainUtilityProcess() {
   appLogger.info('Starting langchain utility process', 'electron-backend')
   try {
     appLogger.info(path.join(__dirname, '../langchain/langchain.js'), 'electron-backend')
+
     langchainChild = utilityProcess.fork(path.join(__dirname, '../langchain/langchain.js'))
-    langchainChild.postMessage('start')
+    langchainChild.postMessage({
+      type: 'init',
+      embeddingCachePath: path.join(externalResourcesDir(), 'embeddingCache'),
+    })
 
     langchainChild.on('message', (message) => {
-      appLogger.info(`Message from langchain utility process: ${JSON.stringify(message)}`, 'electron-backend')
+      appLogger.info(
+        `Message from langchain utility process: ${JSON.stringify(message)}`,
+        'electron-backend',
+      )
     })
 
     langchainChild.on('error', (error) => {
@@ -345,7 +352,7 @@ function initEventHandle() {
     const paths = app.isPackaged
       ? {
           llm: './resources/service/models/llm/checkpoints',
-          embedding: './resources/service/models/llm/embedding',
+          embedding: './resources/service/models/llm/embedding/ipexLLM',
           stableDiffusion: './resources/service/models/stable_diffusion/checkpoints',
           inpaint: './resources/service/models/stable_diffusion/inpaint',
           lora: './resources/service/models/stable_diffusion/lora',
@@ -353,7 +360,7 @@ function initEventHandle() {
         }
       : {
           llm: '../service/models/llm/checkpoints',
-          embedding: '../service/models/llm/embedding',
+          embedding: '../service/models/llm/embedding/ipexLLM',
           stableDiffusion: '../service/models/stable_diffusion/checkpoints',
           inpaint: '../service/models/stable_diffusion/inpaint',
           lora: '../service/models/stable_diffusion/lora',
@@ -509,7 +516,6 @@ function initEventHandle() {
   })
 
   ipcMain.handle('addDocumentToRAGList', (_event, document: IndexedDocument) => {
-
     return handleUtilityFunction<IndexedDocument, IndexedDocument>(
       'addDocumentToRAGList',
       langchainChild,

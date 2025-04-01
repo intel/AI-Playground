@@ -1,104 +1,121 @@
 <template>
-  <div class="rag-panel flex flex-col text-white" ref="dropZoneRef">
-    <div
-      class="flex justify-between items-center h-11 px-4 mb-3 border-b border-gray-200 text-sm w-full"
-    >
-      <span>{{ fileTotalText }}</span>
+  <div 
+    class="rag-panel flex flex-col text-white bg-black/70 rounded-xl p-4" 
+    :class="{ 'border-2 border-dashed border-purple-500 bg-purple-900/10': isOverDropZone }" 
+    ref="dropZoneRef"
+  >
+    <!-- Header -->
+    <div class="flex justify-between items-center h-11 px-4 mb-3 border-b border-purple-800/60 text-sm w-full">
+      <span class="text-lg font-bold">{{ fileTotalText }}</span>
       <button
-        class="svg-icon i-close w-5 h-5 hover:text-purple-500"
+        class="svg-icon i-close w-7 h-7 hover:text-purple-500 transition-colors duration-200"
         @click="closeRagPanel"
       ></button>
     </div>
-    <div v-show="textInference.ragList.length > 0" class="mx-2">
-      <table class="w-full text-center">
-        <tbody>
-          <tr v-for="file in textInference.ragList" :key="file.hash" class="flex items-center mb-2">
-            <td class="flex items-center justify-center w-[17%]">
-              <input
-                type="checkbox"
-                class="w-4 h-4"
-                :title="languages.COM_ADD_FILE_TO_RAG_CHECKBOX"
-                v-model="file.isChecked"
-                @change="textInference.updateFileCheckStatus(file.hash, file.isChecked)"
-              />
-            </td>
-            <td class="text-left flex items-center gap-2 overflow-hidden w-[70%]">
-              <span class="svg-icon flex-none w-5 h-5" :class="getIconClass(file.type)"></span>
-              <div class="flex-grow text-ellipsis overflow-hidden" :title="file.filename">
-                {{ file.filename }}
-              </div>
-            </td>
-            <td class="flex items-center justify-center w-[13%]">
-              <button
-                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
-                :title="languages.COM_DELETE_FILE"
-                @click="deleteFile(file.hash)"
-              >
-                <span class="svg-icon text-white i-delete w-4 h-4"></span>
-              </button>
-            </td>
-          </tr>
-
-          <tr class="flex border-t pt-3">
-            <td class="flex items-center justify-center gap-1 w-[17%]">
-              <button
-                @click="textInference.checkAllFiles"
-                :title="languages.COM_CHECK_ALL_FILES"
-                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
-              >
-                <span class="svg-icon text-white i-check w-4 h-4"></span>
-              </button>
-              <button
-                @click="textInference.uncheckAllFiles"
-                :title="languages.COM_UNCHECK_ALL_FILES"
-                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
-              >
-                <span class="svg-icon text-white i-uncheck w-4 h-4"></span>
-              </button>
-            </td>
-            <td class="flex items-center justify-center w-[70%] pl-2">
-              <button
-                @click="chooseUploadFiles"
-                :title="languages.COM_ADD_FILE_TO_RAG"
-                class="bg-color-image-tool-button rounded-sm w-[90%] h-6 flex items-center justify-center"
-              >
-                <span class="svg-icon text-white i-add w-5 h-5"></span>
-              </button>
-            </td>
-            <td class="flex items-center justify-center w-[13%]">
-              <button
-                @click="deleteAllFiles"
-                :title="languages.COM_DELETE_ALL_FILES"
-                class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
-              >
-                <span class="svg-icon text-white i-clear w-4 h-4"></span>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    
+    <!-- File List -->
+    <div v-show="textInference.ragList.length > 0" class="mx-2 flex flex-col">
+      <!-- File Items -->
+      <div 
+        v-for="file in textInference.ragList" 
+        :key="file.hash" 
+        class="flex items-center mb-2 py-1 px-2 hover:bg-purple-900/20 rounded-lg transition-colors duration-200"
+      >
+        <!-- Checkbox (aligned left) -->
+        <div class="w-[10%] flex justify-start pl-2">
+          <input
+            type="checkbox"
+            class="w-5 h-5 accent-purple-600"
+            :title="languages.COM_ADD_FILE_TO_RAG_CHECKBOX"
+            v-model="file.isChecked"
+            @change="textInference.updateFileCheckStatus(file.hash, file.isChecked)"
+          />
+        </div>
+        
+        <!-- File Name (aligned left with icon) -->
+        <div class="w-[75%] flex items-center gap-2">
+          <span class="svg-icon flex-none w-5 h-5" :class="getIconClass(file.type)"></span>
+          <div class="truncate" :title="file.filepath">
+            {{ file.filename }}
+          </div>
+        </div>
+        
+        <!-- Delete Button (aligned right) -->
+        <div class="w-[15%] flex justify-end pr-2">
+          <button
+            class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
+            :title="languages.COM_DELETE_FILE"
+            @click="deleteFile(file.hash)"
+          >
+            <span class="svg-icon text-white i-delete w-4 h-4"></span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Bottom Controls -->
+      <div class="flex items-center border-t border-purple-800/60 py-1 px-2 pt-3 mt-2">
+        <!-- Three-state Checkbox (aligned left) -->
+        <div class="w-[10%] flex justify-start pl-2">
+          <input
+            type="checkbox"
+            class="w-5 h-5 accent-purple-600"
+            :checked="selectionState === 'all'"
+            @change="toggleSelectionState"
+            ref="selectAllCheckbox"
+          />
+        </div>
+        
+        <!-- Add Files Button (centered) -->
+        <div class="w-[60%] flex justify-center">
+          <button
+            @click="chooseUploadFiles"
+            :title="languages.COM_ADD_FILE_TO_RAG"
+            class="bg-blue-500 rounded px-4 h-8 flex items-center justify-center hover:bg-blue-500/50 transition-colors duration-200"
+          >
+            <span class="svg-icon text-white i-add w-5 h-5 mr-2"></span>
+            <span>Add Files</span>
+          </button>
+        </div>
+        
+        <!-- Clear All Button (aligned right) -->
+        <div class="w-[30%] flex justify-end pr-2">
+          <button
+            @click="deleteAllFiles"
+            :title="languages.COM_DELETE_ALL_FILES"
+            class="bg-gray-600/50 rounded px-2 h-8 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
+          >
+            <span class="svg-icon text-white i-delete w-4 h-4 mr-1"></span>
+            <span class="text-xs">Clear All</span>
+          </button>
+        </div>
+      </div>
     </div>
+    
+    <!-- Empty State -->
     <div
       v-show="textInference.ragList.length == 0"
-      class="flex-auto h-0 flex flex-col items-center gap-2 justify-center text-gray-400 select-none"
+      class="flex-auto h-0 flex flex-col items-center gap-4 justify-center text-gray-200 select-none p-10"
     >
+      <div class="w-20 h-20 rounded-full bg-purple-900/30 flex items-center justify-center">
+        <span class="svg-icon i-upload w-10 h-10"></span>
+      </div>
       <p class="text-lg font-bold" v-if="!globalSetup.state.isAdminExec">
         {{ i18nState.RAG_DRAG_UPLOAD }}
       </p>
-      <pre class="text-xs" v-if="!globalSetup.state.isAdminExec">{{
+      <pre class="text-xs bg-black/20 p-2 rounded" v-if="!globalSetup.state.isAdminExec">{{
         i18nState.RAG_UPLOAD_MIME_TYPE
       }}</pre>
       <p class="px-5" v-else>{{ i18nState.RAG_DRAG_UPLOAD_UNSUPPORTED }}</p>
       <button
         @click="chooseUploadFiles"
         :title="languages.COM_ADD_FILE_TO_RAG"
-        class="bg-color-image-tool-button rounded-sm w-[270px] h-6 flex items-center justify-center"
+        class="bg-purple-600 py-2 px-6 rounded hover:bg-purple-600/50 transition-colors duration-200 flex items-center justify-center gap-2"
       >
         <span class="svg-icon text-white i-add w-5 h-5"></span>
+        <span>Add Files</span>
       </button>
     </div>
   </div>
-  <div class="items-end justify-end"></div>
 </template>
 <script setup lang="ts">
 import * as toast from '@/assets/js/toast'
@@ -107,6 +124,7 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useTextInference } from '@/assets/js/store/textInference'
 import * as clientAPI from '@/assets/js/clientAPI'
 import { useDropZone } from '@vueuse/core'
+import { ref, computed, watch, onMounted } from 'vue'
 
 import { ValidFileExtension, IndexedDocument } from '@/assets/js/store/textInference'
 
@@ -114,11 +132,48 @@ const globalSetup = useGlobalSetup()
 const textInference = useTextInference()
 const i18nState = useI18N().state
 const dropZoneRef = ref<HTMLDivElement>()
+const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 const emits = defineEmits<{
   (e: 'close'): void
 }>()
 const fileTotalText = computed(() => {
   return i18nState.RAG_FILE_TOTAL_FORMAT.replace('{total}', textInference.ragList.length.toString())
+})
+
+// Computed property to determine the selection state (all, some, none)
+const selectionState = computed(() => {
+  if (!textInference.ragList.length) return 'none'
+  const checkedCount = textInference.ragList.filter(file => file.isChecked).length
+  if (checkedCount === 0) return 'none'
+  if (checkedCount === textInference.ragList.length) return 'all'
+  return 'some'
+})
+
+// Function to toggle selection state
+function toggleSelectionState() {
+  switch (selectionState.value) {
+    case 'none':
+    case 'some':
+      textInference.checkAllFiles()
+      break
+    case 'all':
+      textInference.uncheckAllFiles()
+      break
+  }
+}
+
+// Watch for changes in selection state to update the indeterminate property
+watch(selectionState, (newState) => {
+  if (selectAllCheckbox.value) {
+    selectAllCheckbox.value.indeterminate = newState === 'some'
+  }
+})
+
+// Update the indeterminate state when the component is mounted
+onMounted(() => {
+  if (selectAllCheckbox.value) {
+    selectAllCheckbox.value.indeterminate = selectionState.value === 'some'
+  }
 })
 
 function getIconClass(type: ValidFileExtension) {

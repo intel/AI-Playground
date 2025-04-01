@@ -44,7 +44,7 @@ type electronAPI = {
   webServiceExit(callback: (serviceName: string, normalExit: string) => void): void
   existsPath(path: string): Promise<boolean>
   addDocumentToRAGList(doc: IndexedDocument): Promise<IndexedDocument>
-  embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<KVObject>
+  embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<LangchainDocument[]>
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
@@ -87,6 +87,12 @@ type SetupProgress = {
 
 type Chrome = {
   webview: WebView
+}
+
+type LangchainDocument = {
+  pageContent: string
+  metadata: Record<string, any>
+  id?: string
 }
 
 type WebView = {

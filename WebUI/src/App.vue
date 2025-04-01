@@ -27,6 +27,12 @@
     <div class="flex justify-between items-center gap-5">
       <button
         :title="languages.COM_SETTINGS"
+        class="svg-icon i-refresh w-6 h-6"
+        @click="globalSetup.loadingState = 'manageInstallations'"
+        ref="showSettingBtn"
+      ></button>
+      <button
+        :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showAppSettings"
         ref="showSettingBtn"

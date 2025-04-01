@@ -1,13 +1,11 @@
-from http.client import HTTPException
 import os
 os.environ['PATH'] = os.path.abspath('../openvino-env/Library/bin') + os.pathsep + os.environ['PATH']
 from apiflask import APIFlask
 from flask import jsonify, request, Response, stream_with_context
 from openvino_backend import OpenVino
 from openvino_adapter import LLM_SSE_Adapter
-from openvino_params import LLMParams
+from params import LLMParams
 from openvino_embeddings import OpenVINOEmbeddingModel
-from pydantic import BaseModel
 
 app = APIFlask(__name__)
 llm_backend = OpenVino()
@@ -22,6 +20,17 @@ def health():
 def llm_chat():
     params = request.get_json()
     params.pop("print_metrics", None)
+    
+    # Extract external RAG parameters if they exist
+    external_rag_context = params.get("external_rag_context")
+    external_rag_source = params.get("external_rag_source")
+    
+    # Add them to the params if they exist
+    if external_rag_context is not None:
+        params["external_rag_context"] = external_rag_context
+    if external_rag_source is not None:
+        params["external_rag_source"] = external_rag_source
+            
     llm_params = LLMParams(**params)
     sse_invoker = LLM_SSE_Adapter(llm_backend)
     it = sse_invoker.text_conversation(llm_params)

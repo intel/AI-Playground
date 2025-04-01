@@ -2,6 +2,7 @@ import concurrent.futures
 import os
 import queue
 import shutil
+import logging
 import time
 import traceback
 from os import path, makedirs, rename
@@ -112,6 +113,7 @@ class HFPlaygroundDownloader:
         self.completed = False
         self.error = None
         self.save_path = path.join(utils.get_model_path(model_type, backend))
+        logging.info(f"save_path: {self.save_path}")
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
         )

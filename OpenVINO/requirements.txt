@@ -5,3 +5,4 @@ openvino==2025.1.0.dev20250203
 openvino-genai==2025.1.0.0.dev20250203
 openvino-tokenizers==2025.1.0.0.dev20250203
 langchain_community==0.3.0
+optimum[openvino,nncf]==1.24.0

@@ -5,7 +5,7 @@ from apiflask import APIFlask
 from flask import jsonify, request, Response, stream_with_context
 from llama_adapter import LLM_SSE_Adapter
 from llama_cpp_backend import LlamaCpp
-from llama_params import LLMParams
+from params import LLMParams
 from llama_cpp_embeddings import LlamaCppEmbeddingModel
 
 app = APIFlask(__name__)

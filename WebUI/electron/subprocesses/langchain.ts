@@ -1,7 +1,7 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
 import { CacheBackedEmbeddings } from 'langchain/embeddings/cache_backed'
 import { MemoryVectorStore } from 'langchain/vectorstores/memory'
-import { InMemoryStore } from 'langchain/storage/in_memory'
+import { LocalFileStore } from 'langchain/storage/file_system'
 
 import { TextLoader } from 'langchain/document_loaders/fs/text'
 import { DocxLoader } from '@langchain/community/document_loaders/fs/docx'
@@ -14,27 +14,38 @@ import { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.t
 
 import { createHash } from 'crypto'
 import { readFile } from 'fs/promises'
+import fs from 'fs'
 
-process.parentPort.once('message', (message) => {
-  if (message.data === 'start') {
-    console.log('Langchain utility process started')
-    process.parentPort.postMessage('Utility process started')
-  }
-})
+let documentEmbeddingStore: LocalFileStore
 
 process.parentPort.on('message', async (message) => {
-  console.log(message)
-  if (message.data.type === 'addDocumentToRAGList') {
-    process.parentPort.postMessage({
-      type: 'addDocumentToRAGList',
-      returnValue: await addDocumentToRAGList(message.data.args),
-    })
-  }
-  if (message.data.type === 'embedInputUsingRag') {
-    process.parentPort.postMessage({
-      type: 'embedInputUsingRag',
-      returnValue: await embedInputUsingRag(message.data.args),
-    })
+  console.log('message received in langchain utility process', message)
+  const type = message.data.type
+  switch (type) {
+    case 'init':
+      console.log('Initializing Langchain process')
+      // ensure that path exists
+      if (!fs.existsSync(message.data.embeddingCachePath)) {
+        fs.mkdirSync(message.data.embeddingCachePath, { recursive: true })
+      }
+
+      documentEmbeddingStore = new LocalFileStore({
+        rootPath: message.data.embeddingCachePath,
+      })
+      console.log('Langchain process initialized')
+      break
+    case 'addDocumentToRAGList':
+      process.parentPort.postMessage({
+        type,
+        returnValue: await addDocumentToRAGList(message.data.args),
+      })
+      break
+    case 'embedInputUsingRag':
+      process.parentPort.postMessage({
+        type,
+        returnValue: await embedInputUsingRag(message.data.args),
+      })
+      break
   }
 })
 
@@ -94,35 +105,44 @@ async function loadDocument(
   return await loader.load()
 }
 
-async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<KVObject> {
+async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[]> {
+  console.log('embedInputUsingRag', embedInquiry)
+
+  const model = embedInquiry.embeddingModel
+  const baseURL = `${embedInquiry.backendBaseUrl}/v1`
+
   const underlyingEmbeddings = new OpenAIEmbeddings({
+    verbose: true,
     openAIApiKey: '',
+    model,
     configuration: {
-      baseURL: embedInquiry.backendBaseUrl, // Your custom endpoint based on the backend, load for backend
+      baseURL,
     },
   })
 
-  // // Initialize cache-backed embeddings with in-memory cache
-  // const cacheBackedEmbeddings = CacheBackedEmbeddings.fromBytesStore(
-  //   underlyingEmbeddings,
-  //   new InMemoryStore(), // shall be initialized with start of the app
-  //   { namespace: underlyingEmbeddings.model }, // default atm, change
-  // )
+  console.log('underlyingEmbeddings', underlyingEmbeddings)
+  // Initialize cache-backed embeddings with in-memory cache
+  const cacheBackedEmbeddings = CacheBackedEmbeddings.fromBytesStore(
+    underlyingEmbeddings,
+    documentEmbeddingStore, // shall be initialized with start of the app
+    { namespace: btoa(underlyingEmbeddings.model) }, // default atm, change
+  )
 
-  // let vectorStore = null
-  // for (let indexedDocument of embedInquiry.ragList) {
-  //   vectorStore = await MemoryVectorStore.fromDocuments(
-  //     indexedDocument.splitDB,
-  //     cacheBackedEmbeddings,
-  //   ) // check again and add to vector store rather than create one
-  // }
+  console.log('cacheBackedEmbeddings', cacheBackedEmbeddings)
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    embedInquiry.ragList.flatMap((doc) => doc.splitDB),
+    cacheBackedEmbeddings,
+  )
 
-  // vectorStore?.similaritySearchWithScore(embedInquiry.prompt, 0.5)
-  // // do similarity search
-  // // save the used documents in store
-  // // return the result
+  console.log('vectorStore', vectorStore)
+  const result = await vectorStore.similaritySearchWithScore(embedInquiry.prompt, 4)
 
-  return {}
+  console.log('result', result)
+  // do similarity search
+  // save the used documents in store
+  // return the result
+
+  return result.filter(([doc, score]) => score > 0.5).map(([doc, _score]) => doc)
 }
 
 async function generateFileMD5Hash(filePath: string): Promise<string> {

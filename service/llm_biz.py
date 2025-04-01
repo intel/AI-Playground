@@ -1,11 +1,11 @@
 # Load model directly
 import gc
+import sys
 import threading
 import time
 import traceback
 import torch
 import logging
-import sys
 
 from typing import Any, List, Dict
 from os import path
@@ -24,36 +24,9 @@ from transformers.generation.stopping_criteria import (
     STOPPING_CRITERIA_INPUTS_DOCSTRING,
     add_start_docstrings,
 )
-import service_config
 
-
-class LLMParams:
-    prompt: List[Dict[str, str]]
-    device: int
-    enable_rag: bool
-    model_repo_id: str
-    max_tokens: int
-    print_metrics: bool
-    generation_parameters: Dict[str, Any]
-
-
-    def __init__(
-            self,
-            prompt: list,
-            device: int,
-            enable_rag: bool,
-            model_repo_id: str,
-            max_tokens: int,
-            print_metrics: bool = True,
-            **kwargs
-    ) -> None:
-        self.prompt = prompt
-        self.device = device
-        self.enable_rag = enable_rag
-        self.model_repo_id = model_repo_id
-        self.max_tokens = max_tokens
-        self.print_metrics = print_metrics
-        self.generation_parameters = kwargs
+import config
+from params import LLMParams
 
 
 RAG_PROMPT_FORMAT = "Answer the questions based on the information below. \n{context}\n\nQuestion: {prompt}"
@@ -120,7 +93,7 @@ def generate(
             chat_history, tokenize=False, add_generation_prompt=True
         )
 
-    model_inputs = tokenizer(new_prompt, return_tensors="pt").to(service_config.device)
+    model_inputs = tokenizer(new_prompt, return_tensors="pt").to(config.device)
     ##tensor: torch.Tensor = encoding.get("input_ids")
 
     stopping_criteria = StoppingCriteriaList()
@@ -154,18 +127,29 @@ def generate(
 
 def process_rag(
         prompt: str,
+        external_context: str,
         text_out_callback: Callable[[str, int], None] = None,
+        external_source: str = None,
 ):
-    import rag
-
-    rag.to(service_config.device)
-    query_success, context, rag_source = rag.query(prompt)
-    if query_success:
-        print("rag query input\r\n{}output:\r\n{}".format(prompt, context))
-        prompt = RAG_PROMPT_FORMAT.format(prompt=prompt, context=context)
-        if text_out_callback is not None:
-            text_out_callback(rag_source, 2)
-    return prompt
+    """
+    Process RAG using only external documents.
+    
+    Args:
+        prompt: The user's query
+        external_context: Context from external RAG system (langchain.js)
+        text_out_callback: Callback function for text output
+        external_source: Source information from external RAG system
+        
+    Returns:
+        Formatted prompt with context
+    """
+    print("Using external RAG context\r\n{}".format(external_context))
+    
+    if text_out_callback is not None and external_source is not None:
+        text_out_callback(external_source, 2)
+            
+    # Format the prompt with the external context
+    return RAG_PROMPT_FORMAT.format(prompt=prompt, context=external_context)
 
 
 def chat(
@@ -182,9 +166,8 @@ def chat(
         stop_generate()
 
         torch.xpu.set_device(params.device)
-        service_config.device = f"xpu:{params.device}"
+        config.device = f"xpu:{params.device}"
         prompt = params.prompt
-        enable_rag = params.enable_rag
         model_repo_id = params.model_repo_id
         max_tokens = params.max_tokens
 
@@ -199,7 +182,7 @@ def chat(
                 gc.collect()
                 torch.xpu.empty_cache()
 
-            model_base_path = service_config.service_model_paths.get("llm")
+            model_base_path = config.service_model_paths.get("llm")
             model_name = model_repo_id.replace("/", "---")
             model_path = path.abspath(path.join(model_base_path, model_name))
 
@@ -232,13 +215,20 @@ def chat(
 
         assert_stop_generate()
 
-        if enable_rag:
+        # Process RAG if external context is provided
+        if params.external_rag_context:
             last_prompt = prompt[prompt.__len__() - 1]
             last_prompt.__setitem__(
-                "question", process_rag(last_prompt.get("question"), text_out_callback)
+                "question", 
+                process_rag(
+                    last_prompt.get("question"), 
+                    params.external_rag_context,
+                    text_out_callback,
+                    params.external_rag_source
+                )
             )
 
-        _model = _model.to(service_config.device)
+        _model = _model.to(config.device)
 
         num_tokens = 0
         start_time = time.time()
