@@ -491,16 +491,16 @@
             class="w-96"
           >
             <template #selected>
-              <div class="flex gap-2 items-center overflow-hidden text-ellipsis">
-                <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                <span>{{ globalSetup.modelSettings.embedding }}</span>
-              </div>
+              <model-drop-down-item
+                :model="
+                  textInference.llmEmbeddingModels
+                    .filter((m) => m.type === textInference.backend)
+                    .find((m) => m.active)
+                "
+              ></model-drop-down-item>
             </template>
             <template #list="slotItem">
-              <div class="flex gap-2 items-center text-ellipsis" :title="slotItem.item">
-                <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                <span class="h-7 overflow-hidden">{{ slotItem.item }}</span>
-              </div>
+              <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
             </template>
           </drop-selector>
         </div>

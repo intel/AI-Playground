@@ -121,26 +121,20 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
   })
 
   console.log('underlyingEmbeddings', underlyingEmbeddings)
-  // Initialize cache-backed embeddings with in-memory cache
   const cacheBackedEmbeddings = CacheBackedEmbeddings.fromBytesStore(
     underlyingEmbeddings,
-    documentEmbeddingStore, // shall be initialized with start of the app
-    { namespace: btoa(underlyingEmbeddings.model) }, // default atm, change
+    documentEmbeddingStore,
+    { namespace: createHash('md5').update(underlyingEmbeddings.model).digest('hex') },
   )
 
-  console.log('cacheBackedEmbeddings', cacheBackedEmbeddings)
   const vectorStore = await MemoryVectorStore.fromDocuments(
     embedInquiry.ragList.flatMap((doc) => doc.splitDB),
     cacheBackedEmbeddings,
   )
 
-  console.log('vectorStore', vectorStore)
   const result = await vectorStore.similaritySearchWithScore(embedInquiry.prompt, 4)
 
   console.log('result', result)
-  // do similarity search
-  // save the used documents in store
-  // return the result
 
   return result.filter(([doc, score]) => score > 0.5).map(([doc, _score]) => doc)
 }
