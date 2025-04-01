@@ -5,7 +5,7 @@
       <div
         id="chatHistoryPanel"
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
-        class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
+        class="flex flex-shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
         <div class="flex justify-end">
           <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
@@ -30,18 +30,28 @@
             :key="'if' + conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
-            class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
-            :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
+            class="group relative cursor-pointer text-gray-300"
           >
-            <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{
-              conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION
-            }}</span>
-            <span
-              v-if="!conversations.isNewConversation(conversationKey)"
-              @click="() => conversations.deleteConversation(conversationKey)"
-              class="svg-icon i-delete w-5 h-5"
-            ></span>
+            <div class="flex justify-between items-center w-full h-10 px-3">
+              <div
+                v-if="conversations.activeKey === conversationKey"
+                class="absolute inset-1 bg-[#00c4fa]/50 rounded-lg"
+              ></div>
+              <div class="relative flex justify-between items-center w-full">
+                <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
+                  {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+                </span>
+                <span
+                  v-if="!conversations.isNewConversation(conversationKey)"
+                  @click.stop="conversations.deleteConversation(conversationKey)"
+                  class="text-3xl opacity-0 group-hover:opacity-70 transition-opacity duration-200 cursor-pointer ml-3"
+                >
+                  ×
+                </span>
+              </div>
+            </div>
           </div>
+
           <div
             v-else
             v-for="(conversation, conversationKey) in conversations.conversationList"
@@ -104,6 +114,14 @@
               <div class="chat-content" style="white-space: pre-wrap">
                 {{ chat.question }}
               </div>
+              <button
+                class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+                :title="languages.COM_COPY"
+                @click="copyText(chat.question)"
+              >
+                <span class="svg-icon i-copy w-4 h-4"></span>
+                <span>{{ languages.COM_COPY }}</span>
+              </button>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -124,12 +142,55 @@
                   </span>
                 </div>
               </div>
-              <div
-                class="ai-answer chat-content"
-                v-html="markdownParser.parseMarkdown(chat.answer)"
-              ></div>
+              <div class="ai-answer chat-content">
+                <template v-if="chat.model && thinkingModels[chat.model]">
+                  <div class="mb-2 flex items-center">
+                    <span class="italic text-gray-300">
+                      {{
+                        chat.reasoningTime !== undefined && chat.reasoningTime !== null
+                          ? `Reasoned for ${
+                              (chat.reasoningTime / 1000).toFixed(1).endsWith('.0')
+                                ? (chat.reasoningTime / 1000).toFixed(0)
+                                : (chat.reasoningTime / 1000).toFixed(1)
+                            } seconds`
+                          : 'Done Reasoning'
+                      }}
+                    </span>
+                    <button @click="chat.showThinkingText = !chat.showThinkingText" class="ml-1">
+                      <img
+                        v-if="chat.showThinkingText"
+                        src="@/assets/svg/arrow-up.svg"
+                        class="w-4 h-4"
+                      />
+                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div
+                    v-if="chat.showThinkingText"
+                    class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
+                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer))"
+                  ></div>
+                  <div
+                    class="mt-2 text-white whitespace-pre-wrap"
+                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer))"
+                  ></div>
+                </template>
+                <template v-else>
+                  <span v-html="markdownParser.parseMarkdown(chat.answer)"></span>
+                </template>
+              </div>
               <div class="answer-tools flex gap-3 items-center text-gray-300">
-                <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
+                <button
+                  class="flex items-end"
+                  :title="languages.COM_COPY"
+                  @click="
+                    copyText(
+                      chat.model && thinkingModels[chat.model]
+                        ? extractPostMarker(chat.answer)
+                        : chat.answer,
+                    )
+                  "
+                >
                   <span class="svg-icon i-copy w-4 h-4"></span>
                   <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
                 </button>
@@ -184,6 +245,14 @@
             <div class="chat-content" style="white-space: pre-wrap">
               {{ textIn }}
             </div>
+            <button
+              class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+              :title="languages.COM_COPY"
+              @click="copyText(textIn)"
+            >
+              <span class="svg-icon i-copy w-4 h-4"></span>
+              <span>{{ languages.COM_COPY }}</span>
+            </button>
           </div>
         </div>
         <div
@@ -207,9 +276,60 @@
             </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
-              class="ai-answer cursor-block break-all"
-              v-html="textOut"
-            ></div>
+              :class="[
+                'ai-answer',
+                {
+                  'cursor-block': !(
+                    textInference.activeModel && thinkingModels[textInference.activeModel]
+                  ),
+                },
+                'break-all',
+              ]"
+            >
+              <template
+                v-if="textInference.activeModel && thinkingModels[textInference.activeModel]"
+              >
+                <div class="mb-2 flex items-center">
+                  <span class="italic text-gray-300 inline-flex items-center">
+                    <template v-if="thinkingText || postMarkerText">
+                      <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
+                        {{ `Reasoned for ${(reasoningTotalTime / 1000).toFixed(1)} seconds` }}
+                      </span>
+                      <span v-else class="inline-block w-[9ch] truncate">
+                        {{ animatedReasoningText }}
+                      </span>
+
+                      <button
+                        @click="showThinkingText = !showThinkingText"
+                        class="flex items-center"
+                      >
+                        <img
+                          v-if="showThinkingText"
+                          src="@/assets/svg/arrow-up.svg"
+                          class="w-4 h-4"
+                        />
+                        <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                      </button>
+                    </template>
+                    <template v-else>
+                      <span class="cursor-block"></span>
+                    </template>
+                  </span>
+                </div>
+                <div
+                  v-if="showThinkingText"
+                  class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
+                  v-html="markdownParser.parseMarkdown(thinkingText)"
+                ></div>
+                <div
+                  class="mt-2 text-white whitespace-pre-wrap"
+                  v-html="markdownParser.parseMarkdown(postMarkerText)"
+                ></div>
+              </template>
+              <template v-else>
+                <span v-html="textOut"></span>
+              </template>
+            </div>
             <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
               <progress-bar
                 v-if="downloadModel.downloading"
@@ -263,7 +383,7 @@
               </template>
             </drop-selector>
             <button
-              class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
+              class="svg-icon i-generate-add w-9 h-9 text-purple-500 ml-1.5"
               @click="addLLMModel"
             ></button>
             <button
@@ -397,6 +517,39 @@ let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
 
+const thinkingModels: Record<string, string> = {
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
+}
+
+const markerFound = ref(false)
+const thinkingText = ref('')
+const showThinkingText = ref(false)
+const postMarkerText = ref('')
+
+let reasoningStartTime: number = 0
+let reasoningTotalTime: number = 0
+
+function extractPreMarker(fullAnswer: string): string {
+  const model = textInference.activeModel
+  if (model && thinkingModels[model]) {
+    const marker = thinkingModels[model]
+    const idx = fullAnswer.indexOf(marker)
+    return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
+  }
+  return fullAnswer
+}
+
+function extractPostMarker(fullAnswer: string): string {
+  const model = textInference.activeModel
+  if (model && thinkingModels[model]) {
+    const marker = thinkingModels[model]
+    const idx = fullAnswer.indexOf(marker)
+    return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
+  }
+  return ''
+}
+
 let sseMetrics: MetricsData | null = null
 
 const source = ref('')
@@ -418,6 +571,7 @@ const isHistoryVisible = ref(false)
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
+const autoScrollEnabled = ref(true)
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
@@ -427,6 +581,29 @@ function finishGenerate() {
   textOutFinish = true
 }
 
+const animatedReasoningText = ref('Reasoning.')
+const reasoningDots = ['Reasoning.  ', 'Reasoning.. ', 'Reasoning...']
+let reasoningInterval: number | null = null
+
+watch(
+  () => processing.value,
+  (isProcessing) => {
+    if (isProcessing && textInference.activeModel && thinkingModels[textInference.activeModel]) {
+      let i = 0
+      reasoningInterval = window.setInterval(() => {
+        animatedReasoningText.value = reasoningDots[i % 3]
+        i++
+      }, 500)
+    } else {
+      if (reasoningInterval !== null) {
+        clearInterval(reasoningInterval)
+        reasoningInterval = null
+      }
+      animatedReasoningText.value = 'Done Reasoning'
+    }
+  },
+)
+
 function dataProcess(line: string) {
   console.debug(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
 
@@ -434,9 +611,27 @@ function dataProcess(line: string) {
   const data = JSON.parse(dataJson) as LLMOutCallback
   switch (data.type) {
     case 'text_out':
-      if (data.dtype == 1) {
-        const text = firstOutput ? data.value : data.value //.replace(/<[^>]+>/g, "");
-        textOutQueue.push(text)
+      if (data.dtype === 1) {
+        const chunk = data.value
+        textOutQueue.push(chunk)
+
+        const activeModel = textInference.activeModel
+        if (activeModel && thinkingModels[activeModel]) {
+          const currentMarker = thinkingModels[activeModel]
+          if (!markerFound.value) {
+            const idx = chunk.indexOf(currentMarker)
+            if (idx === -1) {
+              thinkingText.value += chunk
+            } else {
+              reasoningTotalTime = performance.now() - reasoningStartTime
+              thinkingText.value += chunk.slice(0, idx)
+              markerFound.value = true
+              postMarkerText.value += chunk.slice(idx + currentMarker.length)
+            }
+          } else {
+            postMarkerText.value += chunk
+          }
+        }
         if (firstOutput) {
           firstOutput = false
           simulatedInput()
@@ -492,8 +687,14 @@ function dataProcess(line: string) {
 
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement
-  const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 50
-  showScrollButton.value = !atBottom
+  const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
+
+  if (distanceFromBottom > 35) {
+    autoScrollEnabled.value = false
+  } else {
+    autoScrollEnabled.value = true
+  }
+  showScrollButton.value = distanceFromBottom > 60
 }
 
 function scrollToBottom(smooth = true) {
@@ -555,10 +756,12 @@ async function simulatedInput() {
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
-    // textOut.value = receiveOut;
     textOut.value = markdownParser.parseMarkdown(receiveOut)
     await nextTick()
-    scrollToBottom()
+
+    if (autoScrollEnabled.value) {
+      scrollToBottom()
+    }
   }
   if (!textOutFinish) {
     await util.delay(20)
@@ -583,6 +786,9 @@ async function simulatedInput() {
             : receiveOut,
         metrics: finalMetrics,
         model: textInference.activeModel,
+        showThinkingText: false,
+        reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
+        createdAt: Date.now(),
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
@@ -600,7 +806,9 @@ async function simulatedInput() {
         el.removeEventListener('click', copyCode)
         el.addEventListener('click', copyCode)
       })
-      scrollToBottom(false)
+      if (autoScrollEnabled.value) {
+        scrollToBottom(false)
+      }
     })
   }
 }
@@ -623,6 +831,13 @@ function fastGenerate(e: KeyboardEvent) {
 }
 
 async function newPromptGenerate() {
+  markerFound.value = false
+  thinkingText.value = ''
+  showThinkingText.value = false
+  postMarkerText.value = ''
+  reasoningStartTime = performance.now()
+  reasoningTotalTime = 0
+
   const newPrompt = question.value.trim()
   if (newPrompt == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
@@ -748,13 +963,9 @@ async function stopGenerate() {
   }
 }
 
-function copyText(e: Event) {
-  const target = e.target as HTMLElement
-  if (target) {
-    util.copyText(
-      (target.parentElement!.parentElement!.previousElementSibling! as HTMLElement).innerText,
-    )
-  }
+function copyText(text: string) {
+  util.copyText(text)
+  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
 function removeRonate360(ev: AnimationEvent) {
@@ -792,6 +1003,7 @@ function regenerateLastResponse(conversationKey: string) {
     question: prompt,
     answer: '',
     metrics: finalMetrics,
+    createdAt: Date.now(),
   })
   currentlyGeneratingKey.value = conversationKey
   generate(chatContext)
