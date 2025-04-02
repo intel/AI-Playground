@@ -8,6 +8,7 @@ import { SSEProcessor } from '../sseProcessor'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { z } from 'zod'
+import nsfwPlaceholder from '/src/assets/image/nsfw_result_detected.png?inline'
 
 const LoadModelCallbackSchema = z.object({
   type: z.literal('load_model'),
@@ -185,13 +186,13 @@ export const useStableDiffusion = defineStore(
       switch (data.type) {
         case 'image_out':
           imageGeneration.currentState = 'image_out'
-          if (!data.safe_check_pass) {
-            data.image = '/src/assets/image/nsfw_result_detected.png'
-          }
           currentImage = queuedImages[data.index]
           currentImage.state = 'done'
           currentImage.settings.seed = data.params.seed
           currentImage.imageUrl = mediaUrlBase + data.image
+          if (!data.safe_check_pass) {
+            currentImage.imageUrl = nsfwPlaceholder
+          }
 
           imageGeneration.updateImage(currentImage)
           break
