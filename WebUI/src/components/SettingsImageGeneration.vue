@@ -49,7 +49,7 @@
         <slide-bar
           v-model:current="imageGeneration.batchSize"
           :min="1"
-          :max="4"
+          :max="50"
           :step="1"
           :disabled="!modifiable('batchSize')"
         ></slide-bar>
