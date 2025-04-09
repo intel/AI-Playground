@@ -75,20 +75,39 @@ function createPythonEnvFromEmbedabblePythonZip(targetDir, pythonEmbedZipFile) {
 
   // configure path of python env:
   console.log('Patching path of python environment')
-  const pthFile = path.join(targetDir, 'python311._pth')
+
+  // Find the Python version by looking for python*._pth file
+  const files = fs.readdirSync(targetDir)
+  const pthFilePattern = /^python(\d+)\._pth$/
+  let pythonVersion = null
+  let pthFileName = null
+
+  for (const file of files) {
+    const match = file.match(pthFilePattern)
+    if (match) {
+      pythonVersion = match[1]
+      pthFileName = file
+      break
+    }
+  }
+
+  if (!pythonVersion || !pthFileName) {
+    console.error('Could not find python*._pth file in the target directory')
+    process.exit(1)
+  }
+
+  console.log(`Found Python version: ${pythonVersion} (${pthFileName})`)
+
+  const pthFile = path.join(targetDir, pthFileName)
   const pthContent = `
-python311.zip
+python${pythonVersion}.zip
 .
-../service
-../ComfyUI
-../LlamaCPP
-../OpenVINO
 
 # Uncomment to run site.main() automatically
 import site
 `
   fs.writeFileSync(pthFile, pthContent)
-  console.log('patched python paths')
+  console.log(`Patched Python paths in ${pthFileName}`)
 
   console.log('Copying get-pip.py')
   const getPipDest = path.join(targetDir, 'get-pip.py')

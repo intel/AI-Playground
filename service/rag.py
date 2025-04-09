@@ -6,7 +6,6 @@ import time
 from typing import Any, List, Dict
 
 # from sentence_transformers import SentenceTransformer
-import intel_extension_for_pytorch as ipex  # noqa: F401
 import torch
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader

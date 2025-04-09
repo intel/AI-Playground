@@ -3,23 +3,25 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { existingFileOrError } from './osProcessHelper.ts'
 import {
-  aiBackendServiceDir,
+  DeviceService,
   GitService,
+  installHijacks,
   LongLivedPythonApiService,
-  LsLevelZeroService,
+  UvPipService,
 } from './service.ts'
+import { Arch } from './deviceArch.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
-  readonly lsLevelZero = new LsLevelZeroService(this.pythonEnvDir)
-  readonly lsLevelZeroDir: string = this.lsLevelZero.dir
-  readonly uvPip = this.lsLevelZero.uvPip
-  readonly pip = this.uvPip.pip
-  readonly python = this.pip.python
+  readonly serviceFolder = 'service'
+  readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
+  readonly deviceService = new DeviceService()
   readonly git = new GitService()
 
   readonly isRequired = true
-  readonly serviceDir = aiBackendServiceDir()
+  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
+  readonly pip = this.uvPip.pip
+  readonly python = this.pip.python
   healthEndpointUrl = `${this.baseUrl}/healthy`
   serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath())
   isSetUp = this.serviceIsSetUp()
@@ -35,10 +37,11 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up environment',
       }
-      // lsLevelZero will ensure uv and pip are installed
-      await this.lsLevelZero.ensureInstalled()
+      await this.git.ensureInstalled()
+      await this.uvPip.ensureInstalled()
+      await this.deviceService.ensureInstalled()
 
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch = await this.deviceService.getBestDeviceArch()
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -52,17 +55,55 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(this.serviceDir, `requirements-${deviceArch}.txt`),
+      await installHijacks()
+      const archToRequirements = (deviceArch: Arch) => {
+        switch (deviceArch) {
+          case 'arl_h':
+            return 'arl_h'
+          case 'acm':
+          case 'bmg':
+          case 'lnl':
+          case 'mtl':
+            return 'xpu'
+          default:
+            return 'unknown'
+        }
+      }
+      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
+      await this.uvPip.run([
+        'install',
+        '-r',
+        commonRequirements,
+        '--index-strategy',
+        'unsafe-best-match',
+      ])
+
+      const ipexLlmRequirements = existingFileOrError(
+        path.join(this.serviceDir, `requirements-ipex-llm.txt`),
       )
-      await this.pip.run(['install', '-r', deviceSpecificRequirements])
-      if (deviceArch === 'bmg' || deviceArch === 'arl_h') {
-        const intelSpecificExtension = existingFileOrError(this.getIPEXWheelPath(deviceArch))
-        await this.pip.run(['install', intelSpecificExtension])
+      if (deviceArch !== 'unknown') {
+        await this.uvPip.run([
+          'install',
+          '-r',
+          ipexLlmRequirements,
+          '--index-strategy',
+          'unsafe-best-match',
+          '--prerelease=allow',
+        ])
       }
 
-      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run(['install', '-r', commonRequirements])
+      const deviceSpecificRequirements = existingFileOrError(
+        path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
+      )
+      await this.uvPip.run([
+        'install',
+        '-r',
+        deviceSpecificRequirements,
+        '--index-strategy',
+        'unsafe-best-match',
+        '--prerelease=allow',
+      ])
+
       yield {
         serviceName: this.name,
         step: `install dependencies`,
@@ -99,7 +140,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...(await this.deviceService.getDeviceSelectorEnv()),
     }
 
     const apiProcess = spawn(

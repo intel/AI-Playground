@@ -1,6 +1,7 @@
 import { ChildProcess } from 'node:child_process'
 import { app, BrowserWindow, net } from 'electron'
 import * as filesystem from 'fs-extra'
+import fsPromises from 'fs/promises'
 import path from 'node:path'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { existingFileOrError, spawnProcessAsync } from './osProcessHelper'
@@ -10,7 +11,64 @@ import { createHash } from 'crypto'
 
 import * as childProcess from 'node:child_process'
 import { promisify } from 'util'
+import { z } from 'zod'
 const exec = promisify(childProcess.exec)
+
+const aipgBaseDir = () =>
+  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+export const hijacksDir = path.resolve(path.join(aipgBaseDir(), `hijacks/ipex_to_cuda`))
+const hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
+const hijacksRevision = '7379d6ecbc26a96b1a39f6fc063c61fc8462914f'
+
+const checkHijacksDir = async (): Promise<boolean> => {
+  try {
+    await filesystem.promises.stat(path.join(hijacksDir, '__init__.py'))
+    return true
+  } catch (_e) {
+    try {
+      await filesystem.promises.rm(hijacksDir, { recursive: true })
+    } finally {
+      return false
+    }
+  }
+}
+
+export const installHijacks = async (): Promise<void> => {
+  const git = new GitService()
+  if (await checkHijacksDir()) {
+    appLoggerInstance.info('ipex_to_cuda hijacks already cloned, skipping', 'ipex-hijacks')
+  } else {
+    await git.run(['clone', hijacksRemote, hijacksDir])
+    await git.run(['-C', hijacksDir, 'checkout', hijacksRevision], {}, hijacksDir)
+    await patchFile(
+      path.join(hijacksDir, 'hijacks.py'),
+      'device_supports_fp64 = torch.xpu.has_fp64_dtype()',
+      ['torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)'],
+    )
+  }
+}
+
+export const patchFile = async (
+  filePath: string,
+  targetLineIncludes: string,
+  unindentedLinesToInsert: string[],
+): Promise<void> => {
+  const targetfilePath = path.normalize(filePath)
+  const targetFileContent = await fsPromises.readFile(targetfilePath, 'utf-8')
+  const targetFileLines = targetFileContent.split(/\r?\n/)
+  const lineAboveSpliceTargetIndex = targetFileLines.findIndex((l) =>
+    l.includes(targetLineIncludes),
+  )
+  if (lineAboveSpliceTargetIndex === -1) {
+    throw new Error(`Failed to find line to patch in ${filePath}`)
+  }
+  const targetIndentation = targetFileLines[lineAboveSpliceTargetIndex].search(/\S/)
+  const linesToSpliceIn = unindentedLinesToInsert.map(
+    (line) => ' '.repeat(targetIndentation) + line,
+  )
+  targetFileLines.splice(lineAboveSpliceTargetIndex + 1, 0, ...linesToSpliceIn)
+  await fsPromises.writeFile(targetfilePath, targetFileLines.join('\n'))
+}
 
 class ServiceCheckError extends Error {
   readonly component: string
@@ -56,7 +114,7 @@ export abstract class GenericServiceImpl implements GenericService {
   name: string
 
   readonly appLogger = appLoggerInstance
-  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly baseDir = aipgBaseDir()
 
   constructor(name: string) {
     this.name = name
@@ -146,19 +204,44 @@ export class PythonService extends ExecutableService {
       this.log(`removing existing python env at ${this.dir}`)
       filesystem.removeSync(this.dir)
     }
-    this.log(`copying prototypical python env to ${this.dir}`)
+    this.log(`copying prototypical python env to ${this.dir} for service in ${this.serviceDir}`)
     await filesystem.copy(this.prototypicalEnvDir, this.dir)
+
+    // Find the Python version by looking for python*._pth file
+    const files = filesystem.readdirSync(this.dir)
+    const pthFilePattern = /^python(\d+)\._pth$/
+    let pythonVersion = null
+    let pthFileName = null
+
+    for (const file of files) {
+      const match = file.match(pthFilePattern)
+      if (match) {
+        pythonVersion = match[1]
+        pthFileName = file
+        break
+      }
+    }
+
+    if (!pythonVersion || !pthFileName) {
+      this.log(`Could not find python*._pth file in the directory: ${this.dir}`)
+      throw new Error(`Could not find python*._pth file in the directory: ${this.dir}`)
+    }
+
+    this.log(`Found Python version: ${pythonVersion} (${pthFileName})`)
+
     filesystem.writeFile(
-      path.join(this.dir, 'python311._pth'),
+      path.join(this.dir, pthFileName),
       `
-    python311.zip
+    python${pythonVersion}.zip
     .
     ../${this.serviceDir}
+    ../hijacks
 
     # Uncomment to run site.main() automatically
     import site
     `,
     )
+    this.log(`Patched Python paths in ${pthFileName}`)
   }
 }
 
@@ -241,6 +324,21 @@ export class PipService extends ExecutableService {
   }
 }
 
+type Device = { id: number; name: string; arch: Arch }
+const XpuSmiDiscoverySchema = z.object({
+  device_list: z.array(
+    z.object({
+      device_id: z.number(),
+      device_name: z.string(),
+      device_type: z.string(),
+      pci_bdf_address: z.string(),
+      pci_device_id: z.string(),
+      uuid: z.string(),
+      vendor_name: z.string(),
+    }),
+  ),
+})
+
 export class UvPipService extends PipService {
   readonly pip: PipService
   readonly python: PythonService
@@ -287,128 +385,71 @@ export class UvPipService extends PipService {
   }
 }
 
-export class LsLevelZeroService extends ExecutableService {
-  readonly uvPip: UvPipService = new UvPipService(this.dir, 'service')
-  readonly requirementsTxtPath = path.resolve(
-    path.join(this.baseDir, 'service/requirements-ls_level_zero.txt'),
-  )
-  readonly srcExePath = path.resolve(path.join(this.baseDir, 'service/tools/ls_level_zero.exe'))
-
-  private allLevelZeroDevices: { name: string; device_id: number; arch: Arch }[] = []
-  private selectedDeviceIdx: number = -1
-
-  constructor(readonly pythonEnvDir: string) {
-    super('lslevelzero', pythonEnvDir)
+export class DeviceService extends ExecutableService {
+  constructor() {
+    super('device-service', '')
+    this.dir = path.resolve(path.join(this.baseDir, 'device-service'))
   }
 
   getExePath(): string {
-    return path.resolve(path.join(this.dir, 'Library/bin/ls_level_zero.exe'))
+    return path.resolve(path.join(this.dir, '/xpu-smi.exe'))
   }
 
-  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
+  async run(_args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     // reset ONEAPI_DEVICE_SELECTOR to ensure full device discovery
     const env = {
       ...extraEnv,
       ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
     }
-    return super.run(args, env, workDir)
+    return super.run(['discovery', '-j'], env, workDir)
   }
 
-  async check(): Promise<void> {
-    this.log('checking')
-    try {
-      await this.uvPip.check()
-      // await this.uvPip.checkRequirementsTxt(this.requirementsTxtPath)
-      // await this.run()
-    } catch (e) {
-      this.log(`warning: ${e}`)
-      if (e instanceof ServiceCheckError) throw e
-      if (e instanceof Error && e.message.includes('requirements check failed'))
-        throw new ServiceCheckError(this.name, 'requirements')
-      throw new ServiceCheckError(this.name, 'main')
-    }
-  }
+  async check(): Promise<void> {}
 
   async install(): Promise<void> {
     this.log('start installing')
-    await this.uvPip.ensureInstalled()
-    await this.installRequirements()
-    await this.cloneLsLevelZero()
   }
 
-  async repair(checkError: ServiceCheckError): Promise<void> {
-    this.log('repairing')
-    if (checkError.component !== this.name) {
-      await this.uvPip.repair(checkError)
-    }
+  async repair(_checkError: ServiceCheckError): Promise<void> {}
 
-    switch (checkError.stage) {
-      default:
-      case 'requirements':
-        await this.installRequirements()
-      // fallthrough
-      case 'main':
-        await this.cloneLsLevelZero()
-    }
+  private uuidToChipId(uuid: string): number {
+    return parseInt(uuid.slice(-8, -4), 16)
   }
 
-  async installRequirements(): Promise<void> {
-    await this.uvPip.installRequirementsTxt(this.requirementsTxtPath)
-  }
-  private async cloneLsLevelZero(): Promise<void> {
-    existingFileOrError(this.srcExePath)
-    if (filesystem.existsSync(this.getExePath())) {
-      filesystem.removeSync(this.getExePath())
-    }
-    this.log(`copying ls-level-zero to ${this.getExePath()}`)
-    await filesystem.copy(this.srcExePath, this.getExePath())
+  private async getDevices(): Promise<Device[]> {
+    const result = await this.run()
+    const devices: Device[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
+      (d) => {
+        return {
+          id: d.device_id,
+          name: d.device_name,
+          arch: getDeviceArch(this.uuidToChipId(d.uuid)),
+        }
+      },
+    )
+    devices.sort((a, b) => getArchPriority(b.arch) - getArchPriority(a.arch))
+    return devices
   }
 
-  async detectDevice(): Promise<Arch> {
-    if (this.selectedDeviceIdx >= 0 && this.selectedDeviceIdx < this.allLevelZeroDevices.length) {
-      return this.allLevelZeroDevices[this.selectedDeviceIdx]?.arch ?? 'unknown'
-    }
-
+  async getBestDeviceArch(): Promise<Arch> {
     this.log('Detecting device')
     try {
-      const devices = JSON.parse(await this.run())
-      this.allLevelZeroDevices = devices.map(
-        (d: { id: number; name: string; device_id: number }) => {
-          return { name: d.name, device_id: d.device_id, arch: getDeviceArch(d.device_id) }
-        },
-      )
-      this.selectBestDevice()
-      return this.allLevelZeroDevices[this.selectedDeviceIdx]?.arch ?? 'unknown'
+      const devices = await this.getDevices()
+      return devices[0].arch ?? 'unknown'
     } catch (e) {
       this.logError(`Failed to detect device due to ${e}`)
       return 'unknown'
     }
   }
 
-  private selectBestDevice(): number {
-    let priority = -1
-    for (let i = 0; i < this.allLevelZeroDevices.length; i++) {
-      const device = this.allLevelZeroDevices[i]
-      const deviceArchPriority = getArchPriority(device?.arch ?? 'unknown')
-      if (deviceArchPriority > priority) {
-        this.selectedDeviceIdx = i
-        priority = deviceArchPriority
-      }
-    }
-    return this.selectedDeviceIdx
-  }
-
   async getDeviceSelectorEnv(): Promise<{ ONEAPI_DEVICE_SELECTOR: string }> {
-    if (this.selectedDeviceIdx < 0 || this.selectedDeviceIdx >= this.allLevelZeroDevices.length) {
-      await this.detectDevice()
-    }
-
-    if (this.selectedDeviceIdx < 0) {
-      this.logError('No supported device')
+    const devices = await this.getDevices()
+    const bestDevice = devices[0]
+    if (!bestDevice) {
       return { ONEAPI_DEVICE_SELECTOR: 'level_zero:*' }
     }
 
-    return { ONEAPI_DEVICE_SELECTOR: `level_zero:${this.selectedDeviceIdx}` }
+    return { ONEAPI_DEVICE_SELECTOR: `level_zero:${bestDevice.id}` }
   }
 }
 
@@ -551,7 +592,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
     app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
   )
   abstract readonly pythonEnvDir: string
-  abstract readonly lsLevelZeroDir: string
   abstract readonly serviceDir: string
   abstract isSetUp: boolean
 
@@ -559,11 +599,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
   currentStatus: BackendStatus = 'uninitializedStatus'
 
   readonly appLogger = appLoggerInstance
-
-  getIPEXWheelPath(deviceArch: Arch): string {
-    const wheelName = `intel_extension_for_pytorch-2.3.110+${deviceArch}-cp311-cp311-win_amd64.whl`
-    return path.join(this.wheelDir, wheelName)
-  }
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.win = win
