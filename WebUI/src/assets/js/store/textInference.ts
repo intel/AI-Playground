@@ -4,7 +4,8 @@ import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 
-export const llmBackendTypes = ['ipexLLM', 'llamaCPP', 'openVINO'] as const
+export const llmBackendTypes = ['ipexLLM', 'openVINO', 'llamaCPP'] as const
+
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
 
