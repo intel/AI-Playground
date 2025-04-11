@@ -55,8 +55,6 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
       await this.uvPip.run([
         'install',
-        '--index-strategy',
-        'unsafe-best-match',
         '-r',
         commonRequirements,
       ])
