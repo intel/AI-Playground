@@ -24,12 +24,10 @@ AI Playground alpha and beta installers are currently available downloadable exe
 *	Intel Core Ultra-H Processor, Intel Core Ultra-V processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
-Starting from v2.0, there is a single packaged installer that works for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground and get it running on their PC. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
+This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 2.3.0 Alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.3.0-alpha) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.3.0-alpha/AI.Playground-2.3.0-alpha.exe) :new:
-> [!IMPORTANT]  
-> - This release is an alpha version.  If issues report, and consider moving to [v2.2.1](https://github.com/intel/AI-Playground/releases/tag/v2.2.1-beta) (for supported hardware)
+:new: **AI Playground 2.4.0 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.4.0-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.4.0-beta/AI.Playground-2.4.0-beta.exe) :new:
 
 ### Installation Process for v2.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
