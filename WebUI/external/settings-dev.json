@@ -5,7 +5,7 @@
     "--disable-ipex-optimize",
     "--bf16-unet",
     "--reserve-vram",
-    "5.0"
+    "6.0"
   ],
   "availableThemes": ["dark", "lnl", "bmg"],
   "currentTheme": "bmg"

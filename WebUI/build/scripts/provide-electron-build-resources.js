@@ -10,6 +10,7 @@ const pythonEnvDirArg = argv.python_env_dir
 const aiBackendDirArg = argv.backend_dir
 const llamaCppBackendDirArg = argv.llamacpp_dir
 const openVINOBackendDirArg = argv.openvino_dir
+const deviceServiceDirArg = argv.device_service_dir
 const sharedBackendDirArg = argv.shared_dir
 const targetDirectoryArg = argv.target_dir
 
@@ -19,11 +20,12 @@ if (
   !aiBackendDirArg ||
   !targetDirectoryArg ||
   !llamaCppBackendDirArg ||
+  !deviceServiceDirArg ||
   !sharedBackendDirArg ||
   !openVINOBackendDirArg
 ) {
   console.error(
-    'Usage: node provide-electron-build-resources.js --build_resources_dir=$DIR --python_env_dir=$DIR --backend_dir=$DIR --llamacpp_dir=$DIR --openvino_dir=$DIR --shared_dir=$DIR --target_dir=$DIR\n',
+    'Usage: node provide-electron-build-resources.js --build_resources_dir=$DIR --python_env_dir=$DIR --backend_dir=$DIR --llamacpp_dir=$DIR --openvino_dir=$DIR  --device_service_dir=$DIR --shared_dir=$DIR --target_dir=$DIR\n',
   )
   process.exit(1)
 }
@@ -33,6 +35,7 @@ const pythenEnvDir = path.resolve(pythonEnvDirArg)
 const backendDir = path.resolve(aiBackendDirArg)
 const llamaCppBackendDir = path.resolve(llamaCppBackendDirArg)
 const openVINOBackendDir = path.resolve(openVINOBackendDirArg)
+const deviceServiceDir = path.resolve(deviceServiceDirArg)
 const sharedBackendDir = path.resolve(sharedBackendDirArg)
 const targetDir = path.resolve(targetDirectoryArg)
 
@@ -84,6 +87,7 @@ function main() {
   symlinkDir(backendDir, path.join(targetDir, 'service'))
   symlinkDir(llamaCppBackendDir, path.join(targetDir, 'LlamaCpp'))
   symlinkDir(openVINOBackendDir, path.join(targetDir, 'OpenVINO'))
+  symlinkDir(deviceServiceDir, path.join(targetDir, 'device-service'))
   symlinkDir(sharedBackendDir, path.join(targetDir, 'backend-shared'))
   copyFiles(targetDir, sevenZipExe)
 }

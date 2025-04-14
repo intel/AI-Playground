@@ -1,3 +1,23 @@
+import koffi from 'koffi'
+if (isAdmin()) {
+  const lib = koffi.load('user32.dll')
+  const MB_ICONINFORMATION = 0x40
+  const MessageBoxW = lib.func('__stdcall', 'MessageBoxW', 'int', [
+    'void *',
+    'str16',
+    'str16',
+    'uint',
+  ])
+
+  MessageBoxW(
+    null,
+    'For security reasons, AI Playground cannot be executed with administrative permissions. Please restart AI Playground from a Windows account without Administrator rights.',
+    'AI Playground',
+    MB_ICONINFORMATION,
+  )
+
+  process.exit(0)
+}
 import {
   app,
   BrowserWindow,
@@ -18,7 +38,6 @@ import path from 'node:path'
 import fs from 'fs'
 import { exec } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import koffi from 'koffi'
 import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
 import { appLoggerInstance } from './logging/logger.ts'
