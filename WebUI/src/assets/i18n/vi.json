@@ -251,5 +251,15 @@
   "DEVICE": "Thiết bị",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Mô hình checkpoint",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Tốc độ khung hình",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Tổng số khung hình"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Tổng số khung hình",
+  "ANSWER_MAX_TOKENS": "Số lượng token tối đa",
+  "ANSWER_METRICS": "Chỉ số",
+  "ANSWER_FONT_SIZE": "Cỡ chữ",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Mô hình nhúng tài liệu",
+  "RAG_DOCUMENTS": "Tài liệu",
+  "RAG_ENABLED": "Đã bật",
+  "RAG_ADD_DOCUMENTS": "Thêm tài liệu",
+  "RAG_ADD_FILES": "Thêm tệp",
+  "RAG_SEARCHABLE_DOCUMENTS": "Tài liệu có thể tìm kiếm",
+  "RAG_CLEAR_ALL": "Xóa tất cả"
 }

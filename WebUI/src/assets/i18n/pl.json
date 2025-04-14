@@ -251,5 +251,15 @@
   "DEVICE": "Urządzenie",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Model punktu kontrolnego",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Liczba klatek",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Całkowita liczba klatek"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Całkowita liczba klatek",
+  "ANSWER_MAX_TOKENS": "Maksymalna liczba tokenów",
+  "ANSWER_METRICS": "Metryki",
+  "ANSWER_FONT_SIZE": "Rozmiar czcionki",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Model osadzania dokumentów",
+  "RAG_DOCUMENTS": "Dokumenty",
+  "RAG_ENABLED": "Włączone",
+  "RAG_ADD_DOCUMENTS": "Dodaj dokumenty",
+  "RAG_ADD_FILES": "Dodaj pliki",
+  "RAG_SEARCHABLE_DOCUMENTS": "Dokumenty do przeszukania",
+  "RAG_CLEAR_ALL": "Wyczyść wszystko"
 }

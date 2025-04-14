@@ -433,7 +433,7 @@
         </button>
         </div>
         <div class="flex items-center gap-2">
-          <label class="text-white whitespace-nowrap">Metrics</label>
+          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_METRICS }}</label>
           <button
             class="v-checkbox-control flex-none w-5 h-5"
             :class="{ 'v-checkbox-checked': textInference.metricsEnabled }"
@@ -441,7 +441,7 @@
           ></button>
         </div>
         <div class="flex items-center gap-2">
-          <label class="text-white whitespace-nowrap">Max Tokens</label>
+          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
           <input
             type="number"
             v-model="textInference.maxTokens"
@@ -453,7 +453,7 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <label class="text-white whitespace-nowrap">Font Size</label>
+          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_FONT_SIZE }}</label>
           <button
             class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-2 py-1"
             @click="textInference.increaseFontSize"
@@ -494,7 +494,7 @@
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span><span>{{ documentButtonText }}</span>
           </button>
           <drop-down-new
-          title="Document Embedding Model"
+          :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
           @change="(item) => (textInference.selectEmbeddingModel(textInference.backend, item))"
           :value="textInference.llmEmbeddingModels
                     .filter((m) => m.type === textInference.backend)
@@ -685,7 +685,7 @@ const documentButtonText = computed(() => {
   if (stats.total === 0) {
     return "Add Documents";
   } else {
-    return `Documents (${stats.enabled}/${stats.total} enabled)`;
+    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled}/${stats.total} ${i18nState.RAG_ENABLED})`;
   }
 });
 

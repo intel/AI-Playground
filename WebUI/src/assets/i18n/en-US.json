@@ -258,5 +258,15 @@
   "COM_CHECK_ALL_FILES": "Add all files to the list of documents used to generate answers",
   "COM_UNCHECK_ALL_FILES": "Remove all files from the list of documents used to generate answers",
   "COM_DELETE_FILE": "Remove file from the list of available documents",
-  "COM_DELETE_ALL_FILES": "Clear the list of available documents"
+  "COM_DELETE_ALL_FILES": "Clear the list of available documents",
+  "ANSWER_MAX_TOKENS": "Max Tokens",
+  "ANSWER_METRICS": "Metrics",
+  "ANSWER_FONT_SIZE": "Font Size",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Document Embedding Model",
+  "RAG_DOCUMENTS": "Documents",
+  "RAG_ENABLED": "Enabled",
+  "RAG_ADD_DOCUMENTS": "Add Documents",
+  "RAG_ADD_FILES": "Add Files",
+  "RAG_SEARCHABLE_DOCUMENTS": "Searchable Documents",
+  "RAG_CLEAR_ALL": "Clear All"
 }

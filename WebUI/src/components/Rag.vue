@@ -6,7 +6,7 @@
   >
     <!-- Header -->
     <div class="flex justify-between items-center h-11 px-4 mb-3 border-b border-purple-800/60 text-sm w-full">
-      <span class="text-lg font-bold">Searchable Documents</span>
+      <span class="text-lg font-bold">{{ languages.RAG_SEARCHABLE_DOCUMENTS }}</span>
       <button
         class="svg-icon i-close w-7 h-7 hover:text-purple-500 transition-colors duration-200"
         @click="closeRagPanel"
@@ -73,7 +73,7 @@
             class="bg-blue-500 rounded px-4 h-8 flex items-center justify-center hover:bg-blue-500/50 transition-colors duration-200"
           >
             <span class="svg-icon text-white i-add w-5 h-5 mr-2"></span>
-            <span>Add Files</span>
+            <span>{{ languages.RAG_ADD_FILES }}</span>
           </button>
         </div>
         
@@ -85,7 +85,7 @@
             class="bg-gray-600/50 rounded px-2 h-8 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
           >
             <span class="svg-icon text-white i-delete w-4 h-4 mr-1"></span>
-            <span class="text-xs">Clear All</span>
+            <span class="text-xs">{{ languages.RAG_CLEAR_ALL }}</span>
           </button>
         </div>
       </div>
@@ -112,7 +112,7 @@
         class="bg-purple-600 py-2 px-6 rounded hover:bg-purple-600/50 transition-colors duration-200 flex items-center justify-center gap-2"
       >
         <span class="svg-icon text-white i-add w-5 h-5"></span>
-        <span>Add Files</span>
+        <span>{{ languages.RAG_ADD_FILES }}</span>
       </button>
     </div>
   </div>

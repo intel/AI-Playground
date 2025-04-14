@@ -251,5 +251,15 @@
   "DEVICE": "디바이스",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "체크포인트 모델",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "프레임 레이트",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "총 프레임"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "총 프레임",
+  "ANSWER_MAX_TOKENS": "최대 토큰 수",
+  "ANSWER_METRICS": "메트릭",
+  "ANSWER_FONT_SIZE": "글꼴 크기",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "문서 임베딩 모델",
+  "RAG_DOCUMENTS": "문서",
+  "RAG_ENABLED": "활성화됨",
+  "RAG_ADD_DOCUMENTS": "문서 추가",
+  "RAG_ADD_FILES": "파일 추가",
+  "RAG_SEARCHABLE_DOCUMENTS": "검색 가능한 문서",
+  "RAG_CLEAR_ALL": "모두 지우기"
 }

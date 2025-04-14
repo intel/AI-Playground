@@ -251,5 +251,15 @@
   "DEVICE": "Perangkat",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Model Checkpoint",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frame"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frame",
+  "ANSWER_MAX_TOKENS": "Token Maksimum",
+  "ANSWER_METRICS": "Metrik",
+  "ANSWER_FONT_SIZE": "Ukuran Font",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Model Penyematan Dokumen",
+  "RAG_DOCUMENTS": "Dokumen",
+  "RAG_ENABLED": "Diaktifkan",
+  "RAG_ADD_DOCUMENTS": "Tambahkan Dokumen",
+  "RAG_ADD_FILES": "Tambahkan File",
+  "RAG_SEARCHABLE_DOCUMENTS": "Dokumen yang Dapat Dicari",
+  "RAG_CLEAR_ALL": "Hapus Semua"
 }

@@ -251,5 +251,15 @@
   "DEVICE": "Dispositivo",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Modello checkpoint",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frequenza fotogrammi",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Fotogrammi totali"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Fotogrammi totali",
+  "ANSWER_MAX_TOKENS": "Token Massimi",
+  "ANSWER_METRICS": "Metriche",
+  "ANSWER_FONT_SIZE": "Dimensione del Carattere",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Modello di Embedding dei Documenti",
+  "RAG_DOCUMENTS": "Documenti",
+  "RAG_ENABLED": "Abilitato",
+  "RAG_ADD_DOCUMENTS": "Aggiungi Documenti",
+  "RAG_ADD_FILES": "Aggiungi File",
+  "RAG_SEARCHABLE_DOCUMENTS": "Documenti Ricercabili",
+  "RAG_CLEAR_ALL": "Cancella Tutto"
 }
