@@ -1,11 +1,12 @@
 declare interface Window {
   chrome: Chrome
   electronAPI: electronAPI
-  envVars: { platformTitle: string; productVersion: string }
+  envVars: { platformTitle: string; productVersion: string; debugToolsEnabled: boolean }
 }
 
 interface ImportMetaEnv {
   readonly VITE_PLATFORM_TITLE: string
+  readonly VITE_DEBUG_TOOLS: 'true' | undefined
 }
 
 interface ImportMeta {
@@ -13,6 +14,7 @@ interface ImportMeta {
 }
 
 type electronAPI = {
+  getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
   openDevTools(): void
@@ -184,6 +186,8 @@ type ChatItem = {
   showThinkingText?: boolean
   reasoningTime?: number
   createdAt?: number
+  ragSource?: string | null
+  showRagSource?: boolean
 }
 
 type ChatRequestParams = {

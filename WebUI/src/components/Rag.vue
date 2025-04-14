@@ -6,7 +6,7 @@
   >
     <!-- Header -->
     <div class="flex justify-between items-center h-11 px-4 mb-3 border-b border-purple-800/60 text-sm w-full">
-      <span class="text-lg font-bold">{{ fileTotalText }}</span>
+      <span class="text-lg font-bold">Searchable Documents</span>
       <button
         class="svg-icon i-close w-7 h-7 hover:text-purple-500 transition-colors duration-200"
         @click="closeRagPanel"
@@ -178,15 +178,14 @@ onMounted(() => {
 
 function getIconClass(type: ValidFileExtension) {
   switch (type) {
-    case 'txt':
-      return 'i-txt'
     case 'doc':
     case 'docx':
-      return 'i-doc'
+      return 'i-word'
     case 'md':
       return 'i-md'
     case 'pdf':
       return 'i-pdf'
+    case 'txt':
     default:
       return 'i-txt'
   }
@@ -204,32 +203,30 @@ async function chooseUploadFiles() {
     properties: ['openFile', 'multiSelections'],
   })
   if (!result.canceled) {
-    addDocumentToRagList(result.filePaths)
+    addDocumentsToRagList(result.filePaths)
   }
 }
 
-// does not work atm
 function onDrop(files: File[] | null) {
-  console.log('########')
-  console.log(files)
-  console.log('########')
+  console.log('onDrop', files)
+  if (!files) return
+  const filePaths = files.map((file) => window.electronAPI.getFilePath(file))
+  const validExtensions = ['txt', 'doc', 'docx', 'md', 'pdf']
+  const fileExtensions = filePaths.map((filePath) => filePath.split('.').pop() ?? '')
+  if (fileExtensions.some((ext) => !validExtensions.includes(ext))) {
+    toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
+    return
+  }
+  addDocumentsToRagList(filePaths)
 }
 
-// does not work atm
 const { isOverDropZone } = useDropZone(dropZoneRef, {
-  onDrop, // does not accept files because they are not local -> see LoadImage.vue
-  dataTypes: [
-    'application/pdf',
-    'text/plain',
-    'text/x-markdown', //not working for whatever reason
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  ],
+  onDrop,
   multiple: true,
   preventDefaultForUnhandled: false,
 })
 
-async function addDocumentToRagList(filePaths: string[]) {
+async function addDocumentsToRagList(filePaths: string[]) {
   for (let filePath of filePaths) {
     console.log(filePath)
     const name = filePath.split(/(\\|\/)/g).pop()

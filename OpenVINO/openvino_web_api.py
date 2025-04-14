@@ -23,13 +23,10 @@ def llm_chat():
     
     # Extract external RAG parameters if they exist
     external_rag_context = params.get("external_rag_context")
-    external_rag_source = params.get("external_rag_source")
     
     # Add them to the params if they exist
     if external_rag_context is not None:
         params["external_rag_context"] = external_rag_context
-    if external_rag_source is not None:
-        params["external_rag_source"] = external_rag_source
             
     llm_params = LLMParams(**params)
     sse_invoker = LLM_SSE_Adapter(llm_backend)

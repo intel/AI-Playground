@@ -16,6 +16,7 @@ ComfyUI/
 LlamaCPP/
 OpenVino/
 embeddingCache/
+backend-shared/
 
 # Editor directories and files
 .vscode/*

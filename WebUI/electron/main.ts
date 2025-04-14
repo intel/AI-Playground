@@ -54,7 +54,7 @@ const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
-let child: ChildProcess | null = null
+let mediaServerChild: ChildProcess | null = null
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 let mediaServerPort: number = 58000
@@ -188,20 +188,45 @@ export async function createMediaServer() {
     PORT_NUMBER: String(mediaServerPort),
     MEDIA_DIRECTORY: mediaDir,
   }
-  child = fork(path.join(__dirname, '../media/mediaServer.js'), [], { env })
+  mediaServerChild = fork(path.join(__dirname, '../media/mediaServer.js'), undefined, { env, stdio: 'pipe' })
+  mediaServerChild.stdout?.on('data', (data) => {
+    appLogger.info(data.toString(), 'media-server')
+  })
+  mediaServerChild.stderr?.on('data', (data) => {
+    appLogger.error(data.toString(), 'media-server')
+  })
+  mediaServerChild.on('exit', (code) => {
+    if (code !== 0) {
+      appLogger.error(`Media server exited with code ${code}`, 'electron-backend')
+    }
+    setTimeout(() => {
+      createMediaServer()
+    }, 1000)
+    mediaServerChild = null
+  });
 }
 
 function stopMediaServer() {
   appLogger.info('Stopping media server', 'electron-backend')
-  child?.kill()
+  mediaServerChild?.kill()
 }
 
 function spawnLangchainUtilityProcess() {
+  if (langchainChild) {
+    appLogger.info('Langchain utility process already running', 'electron-backend')
+    return
+  }
   appLogger.info('Starting langchain utility process', 'electron-backend')
   try {
     appLogger.info(path.join(__dirname, '../langchain/langchain.js'), 'electron-backend')
 
-    langchainChild = utilityProcess.fork(path.join(__dirname, '../langchain/langchain.js'))
+    langchainChild = utilityProcess.fork(path.join(__dirname, '../langchain/langchain.js'), undefined, { stdio: 'pipe' })
+    langchainChild.stdout?.on('data', (data) => {
+      appLogger.info(data.toString(), 'langchain')
+    })
+    langchainChild.stderr?.on('data', (data) => {
+      appLogger.error(data.toString(), 'langchain')
+    })
     langchainChild.postMessage({
       type: 'init',
       embeddingCachePath: path.join(externalResourcesDir(), 'embeddingCache'),
@@ -209,7 +234,7 @@ function spawnLangchainUtilityProcess() {
 
     langchainChild.on('message', (message) => {
       appLogger.info(
-        `Message from langchain utility process: ${JSON.stringify(message)}`,
+        `Message from langchain utility process: Type ${message.type}`,
         'electron-backend',
       )
     })
@@ -222,6 +247,10 @@ function spawnLangchainUtilityProcess() {
       if (code !== 0) {
         appLogger.info(`Langchain utility process exited with code ${code}`, 'electron-backend')
       }
+      setTimeout(() => {
+        spawnLangchainUtilityProcess()
+      }, 1000);
+      langchainChild = null
     })
   } catch (error) {
     appLogger.error(`Error starting langchain utility process: ${error}`, 'electron-backend')
@@ -272,7 +301,7 @@ app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
-    child = null
+    mediaServerChild = null
   }
 })
 

@@ -182,3 +182,7 @@
 .i-warning-triangle {
   --svg: url('@/assets/svg/warning-triangle.svg');
 }
+
+.i-rag {
+  --svg: url('@/assets/svg/rag-on.svg');
+}

@@ -120,7 +120,6 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
     },
   })
 
-  console.log('underlyingEmbeddings', underlyingEmbeddings)
   const cacheBackedEmbeddings = CacheBackedEmbeddings.fromBytesStore(
     underlyingEmbeddings,
     documentEmbeddingStore,
@@ -134,7 +133,7 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
 
   const result = await vectorStore.similaritySearchWithScore(embedInquiry.prompt, 4)
 
-  console.log('result', result)
+  console.log(`Got ${result.length} results:`, result.map(([doc, score]) => `${doc.metadata.source}@${JSON.stringify(doc.metadata.loc)}: Score ${score}`))
 
   return result.filter(([doc, score]) => score > 0.5).map(([doc, _score]) => doc)
 }

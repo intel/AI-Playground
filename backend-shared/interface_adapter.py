@@ -62,8 +62,6 @@ class InterfaceAdapter(BaseAdapter):
                 last_prompt["question"] = process_rag(
                     last_prompt["question"], 
                     params.external_rag_context,
-                    self.text_out_callback,
-                    params.external_rag_source
                 )
             
             full_prompt = convert_prompt(params.prompt)

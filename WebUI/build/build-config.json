@@ -22,6 +22,11 @@
       ]
     },
     {
+      "from": "external/backend-shared",
+      "to": "backend-shared",
+      "filter": ["!__pycache__/"]
+    },
+    {
       "from": "external/LlamaCPP",
       "to": "LlamaCPP",
       "filter": ["!__pycache__/"]

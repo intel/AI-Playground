@@ -7,12 +7,11 @@ from adapter import BaseAdapter
 class ServiceAdapter(BaseAdapter):
     """Adapter for the default service backend."""
     
-    def __init__(self, external_rag_context=None, external_rag_source=None):
+    def __init__(self, external_rag_context=None):
         """Initialize the adapter with optional RAG parameters."""
         super().__init__()
         self.metrics_data = None
         self.external_rag_context = external_rag_context
-        self.external_rag_source = external_rag_source
         
     def metrics_callback(self, msg: dict):
         """Callback for metrics data."""
@@ -28,8 +27,6 @@ class ServiceAdapter(BaseAdapter):
             # Set RAG context and source on the params object if provided
             if self.external_rag_context is not None:
                 params.external_rag_context = self.external_rag_context
-            if self.external_rag_source is not None:
-                params.external_rag_source = self.external_rag_source
                 
             llm_biz.chat(
                 params=params,

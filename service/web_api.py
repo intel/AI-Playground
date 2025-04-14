@@ -60,14 +60,12 @@ def healthEndpoint():
 def llm_chat():
     paint_biz.dispose_basic_model()
     params = request.get_json()
-    # Extract external RAG parameters if they exist
+    
     external_rag_context = params.pop("external_rag_context", None)
-    external_rag_source = params.pop("external_rag_source", None)
     
     llm_params = llm_biz.LLMParams(**params)
     sse_invoker = LLM_SSE_Adapter(
-        external_rag_context=external_rag_context,
-        external_rag_source=external_rag_source
+        external_rag_context=external_rag_context
     )
     it = sse_invoker.text_conversation(llm_params)
     return Response(stream_with_context(it), content_type="text/event-stream")

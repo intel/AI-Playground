@@ -128,8 +128,6 @@ def generate(
 def process_rag(
         prompt: str,
         external_context: str,
-        text_out_callback: Callable[[str, int], None] = None,
-        external_source: str = None,
 ):
     """
     Process RAG using only external documents.
@@ -137,16 +135,17 @@ def process_rag(
     Args:
         prompt: The user's query
         external_context: Context from external RAG system (langchain.js)
-        text_out_callback: Callback function for text output
-        external_source: Source information from external RAG system
+        text_out_callback: Callback function for text output (not used for source anymore)
+        external_source: Source information from external RAG system (not used)
         
     Returns:
         Formatted prompt with context
     """
     print("Using external RAG context\r\n{}".format(external_context))
     
-    if text_out_callback is not None and external_source is not None:
-        text_out_callback(external_source, 2)
+    # No longer sending source via callback
+    # if text_out_callback is not None and external_source is not None:
+    #     text_out_callback(external_source, 2)
             
     # Format the prompt with the external context
     return RAG_PROMPT_FORMAT.format(prompt=prompt, context=external_context)
@@ -223,8 +222,6 @@ def chat(
                 process_rag(
                     last_prompt.get("question"), 
                     params.external_rag_context,
-                    text_out_callback,
-                    params.external_rag_source
                 )
             )
 

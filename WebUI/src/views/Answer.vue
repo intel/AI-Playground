@@ -133,14 +133,32 @@
                 <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
                   {{ languages.ANSWER_AI_NAME }}
                 </p>
-                <div v-if="chat.model">
+                <div v-if="chat.model" class="flex items-center gap-2">
                   <span
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
                   >
                     {{ chat.model }}
                   </span>
+                  <!-- Display RAG source if available -->
+                  <span v-if="chat.ragSource" @click="chat.showRagSource = !chat.showRagSource" class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                    :class="textInference.nameSizeClass"
+                  >
+                    Source Docs
+                    <button class="ml-1">
+                      <img v-if="chat.showRagSource" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
+                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                    </button>
+                  </span>
                 </div>
+              </div>
+              
+              <!-- RAG Source Details (collapsible) -->
+              <div v-if="chat.ragSource && chat.showRagSource" class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+              :class="textInference.fontSizeClass"
+              >
+                <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+                <div class="whitespace-pre-wrap">{{ chat.ragSource }}</div>
               </div>
               <div class="ai-answer chat-content">
                 <template v-if="chat.model && thinkingModels[chat.model]">
@@ -273,6 +291,24 @@
               >
                 {{ textInference.activeModel }}
               </span>
+              <span v-if="ragRetrievalInProgress || actualRagResults?.length" class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                :class="textInference.nameSizeClass"
+                @click="showRagPreview = !showRagPreview"
+              >
+                Source Docs
+                <button class="ml-1">
+                      <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
+                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                </button>
+              </span>
+            </div>
+            
+            <div v-if="showRagPreview" class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+            :class="textInference.fontSizeClass"
+            >
+              <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+              <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">Retrieving Documents...</div>
+              <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">{{ getRagSources(actualRagResults) }}</div>
             </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
@@ -361,67 +397,40 @@
     <div
       class="pl-4 pt-4 flex flex-col items-center justify-center relative border-t border-color-spilter px-2"
     >
-      <div class="w-full flex items-center gap-x-10 text-white">
+      <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
-          <drop-selector
-            :array="[...llmBackendTypes]"
-            @change="(item) => (textInference.backend = item)"
-            class="w-30"
-          >
-            <template #selected>
-              <div class="flex gap-2 items-center">
-                <!-- If you want the "running" dot, use isRunning(...) below -->
-                <span
-                  class="rounded-full w-2 h-2"
-                  :class="{
-                    'bg-green-500': isRunning(textInference.backend),
-                    'bg-gray-500': !isRunning(textInference.backend),
-                  }"
-                ></span>
-                <span>{{ textInferenceBackendDisplayName[textInference.backend] }}</span>
-              </div>
-            </template>
-            <template #list="slotItem">
-              <div class="flex gap-2 items-center">
-                <!-- If you want the "running" dot, use isRunning(...) below -->
-                <span
-                  class="rounded-full w-2 h-2"
-                  :class="{
-                    'bg-green-500': isRunning(slotItem.item),
-                    'bg-gray-500': !isRunning(slotItem.item),
-                  }"
-                ></span>
-                <span>{{ textInferenceBackendDisplayName[slotItem.item as LlmBackend] }}</span>
-              </div>
-            </template>
-          </drop-selector>
-          <drop-selector
-            :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
-            @change="(i) => textInference.selectModel(textInference.backend, i.name)"
-            class="w-96"
-          >
-            <template #selected>
-              <model-drop-down-item
-                :model="
-                  textInference.llmModels
+          <drop-down-new
+          title="Inference Backend"
+          @change="(item) => (textInference.backend = item as LlmBackend)"
+          :value="textInference.backend"
+           :items="[...llmBackendTypes].map((item) => ({
+              label: textInferenceBackendDisplayName[item],
+              value: item,
+              active: isRunning(item),
+            }))"
+          ></drop-down-new>
+          <drop-down-new
+          title="Text Inference Model"
+          @change="(item) => (textInference.selectModel(textInference.backend, item))"
+          :value="textInference.llmModels
                     .filter((m) => m.type === textInference.backend)
-                    .find((m) => m.active)
-                "
-              ></model-drop-down-item>
-            </template>
-            <template #list="slotItem">
-              <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-            </template>
-          </drop-selector>
+                    .find((m) => m.active)?.name ?? ''"
+           :items="textInference.llmModels.filter((m) => m.type === textInference.backend).map((item) => ({
+              label: item.name.split('/').at(-1) ?? item.name,
+              value: item.name,
+              active: item.downloaded,
+            }))"
+          ></drop-down-new>
           <button
-            class="svg-icon i-generate-add w-10 h-10 text-purple-500 ml-1.5"
             @click="addLLMModel"
-          ></button>
+          >
+          <PlusIcon class="size-6 text-purple-500"></PlusIcon>
+        </button>
           <button
-            class="svg-icon i-refresh w-12 h-12 text-purple-500 ml-1"
-            @animationend="removeRonate360"
-            @click="refreshLLMModles"
-          ></button>
+            @click="models.refreshModels"
+          >
+          <ArrowPathIcon class="size-5 text-purple-500"></ArrowPathIcon>
+        </button>
         </div>
         <div class="flex items-center gap-2">
           <label class="text-white whitespace-nowrap">Metrics</label>
@@ -480,29 +489,22 @@
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
               @click="showUploader = !showUploader"
               :disabled="processing"
+              :title="languages.ANSWER_RAG_OPEN_DIALOG"
           >
-            <span class="svg-icon i-upload w-4 h-4"></span>
-            <span>{{ languages.ANSWER_RAG_OPEN_DIALOG }}</span>
+            <span class="w-4 h-4 svg-icon i-rag flex-none"></span><span>{{ documentButtonText }}</span>
           </button>
-          <drop-selector
-            :array="textInference.llmEmbeddingModels.filter((m) => m.type === textInference.backend)"
-            @change="(i) => textInference.selectEmbeddingModel(textInference.backend, i.name)"
-            :disabled="processing"
-            class="w-96"
-          >
-            <template #selected>
-              <model-drop-down-item
-                :model="
-                  textInference.llmEmbeddingModels
+          <drop-down-new
+          title="Document Embedding Model"
+          @change="(item) => (textInference.selectEmbeddingModel(textInference.backend, item))"
+          :value="textInference.llmEmbeddingModels
                     .filter((m) => m.type === textInference.backend)
-                    .find((m) => m.active)
-                "
-              ></model-drop-down-item>
-            </template>
-            <template #list="slotItem">
-              <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-            </template>
-          </drop-selector>
+                    .find((m) => m.active)?.name ?? ''"
+           :items="textInference.llmEmbeddingModels.filter((m) => m.type === textInference.backend).map((item) => ({
+              label: item.name.split('/').at(-1) ?? item.name,
+              value: item.name,
+              active: item.downloaded,
+            }))"
+          ></drop-down-new>
         </div>
       </div>
       <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
@@ -540,8 +542,6 @@
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
-import DropSelector from '@/components/DropSelector.vue'
-import ModelDropDownItem from '@/components/ModelDropDownItem.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -550,10 +550,11 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
-import * as Const from '@/assets/js/const'
+import DropDownNew from '@/components/DropDownNew.vue'
 import { useConversations } from '@/assets/js/store/conversations'
 import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
 const conversations = useConversations()
 const models = useModels()
@@ -577,11 +578,14 @@ const downloadModel = reactive({
   percent: 0,
 })
 const loadingModel = ref(false)
+const ragRetrievalInProgress = ref(false)
+const showRagPreview = ref(true)
 let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
 
 const thinkingModels: Record<string, string> = {
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
 }
@@ -615,6 +619,7 @@ function extractPostMarker(fullAnswer: string): string {
 }
 
 let sseMetrics: MetricsData | null = null
+let actualRagResults: LangchainDocument[] | null = null
 
 const source = ref('')
 const emits = defineEmits<{
@@ -667,6 +672,22 @@ function isRunning(name: LlmBackend) {
 const animatedReasoningText = ref('Reasoning.')
 const reasoningDots = ['Reasoning.  ', 'Reasoning.. ', 'Reasoning...']
 let reasoningInterval: number | null = null
+
+// Computed properties for document stats and button text
+const documentStats = computed(() => {
+  const totalDocs = textInference.ragList.length;
+  const enabledDocs = textInference.ragList.filter(doc => doc.isChecked).length;
+  return { total: totalDocs, enabled: enabledDocs };
+});
+
+const documentButtonText = computed(() => {
+  const stats = documentStats.value;
+  if (stats.total === 0) {
+    return "Add Documents";
+  } else {
+    return `Documents (${stats.enabled}/${stats.total} enabled)`;
+  }
+});
 
 watch(
   () => processing.value,
@@ -839,65 +860,211 @@ async function updateTitle(conversation: ChatItem[]) {
   conversation[0].title = newTitle
 }
 
-async function simulatedInput() {
-  while (textOutQueue.length > 0) {
-    const newText = textOutQueue.shift()!
-    receiveOut += newText
-    textOut.value = markdownParser.parseMarkdown(receiveOut)
-    await nextTick()
+    async function simulatedInput() {
+      while (textOutQueue.length > 0) {
+        const newText = textOutQueue.shift()!
+        receiveOut += newText
+        textOut.value = markdownParser.parseMarkdown(receiveOut)
+        await nextTick()
 
-    if (autoScrollEnabled.value) {
-      scrollToBottom()
-    }
-  }
-  if (!textOutFinish) {
-    await util.delay(20)
-    await simulatedInput()
-  } else {
-    const key = currentlyGeneratingKey.value
+        if (autoScrollEnabled.value) {
+          scrollToBottom()
+        }
+      }
+      if (!textOutFinish) {
+        await util.delay(20)
+        await simulatedInput()
+      } else {
+        const key = currentlyGeneratingKey.value
 
-    const finalMetrics: MetricsData = sseMetrics ?? {
-      num_tokens: 0,
-      total_time: 0,
-      first_token_latency: 0,
-      overall_tokens_per_second: 0,
-      second_plus_tokens_per_second: 0,
-    }
+        const finalMetrics: MetricsData = sseMetrics ?? {
+          num_tokens: 0,
+          total_time: 0,
+          first_token_latency: 0,
+          overall_tokens_per_second: 0,
+          second_plus_tokens_per_second: 0,
+        }
 
-    if (key !== null) {
-      conversations.addToActiveConversation(key, {
-        question: textIn.value,
-        answer:
-          textInference.ragList.length > 0 && source.value != ''
-            ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
-            : receiveOut,
-        metrics: finalMetrics,
-        model: textInference.activeModel,
-        showThinkingText: false,
-        reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
-        createdAt: Date.now(),
-      })
-      if (conversations.conversationList[key].length <= 3) {
-        console.log('Conversations is less than 4 items long, generating new title')
-        updateTitle(conversations.conversationList[key])
+        if (key !== null) {
+          const ragSourceInfo = actualRagResults && actualRagResults.length ? getRagSources(actualRagResults) : null;
+            
+          conversations.addToActiveConversation(key, {
+            question: textIn.value,
+            answer: receiveOut, // No longer append source to answer
+            metrics: finalMetrics,
+            model: textInference.activeModel,
+            ragSource: ragSourceInfo, // Store source separately
+            showRagSource: showRagPreview.value, // Initially collapsed
+            showThinkingText: false,
+            reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
+            createdAt: Date.now(),
+          })
+          if (conversations.conversationList[key].length <= 3) {
+            console.log('Conversations is less than 4 items long, generating new title')
+            updateTitle(conversations.conversationList[key])
+          }
+        }
+
+        sseMetrics = null
+        processing.value = false
+        textIn.value = ''
+        textOut.value = ''
+        nextTick(() => {
+          chatPanel.querySelectorAll('copy-code').forEach((item) => {
+            const el = item as HTMLElement
+            el.removeEventListener('click', copyCode)
+            el.addEventListener('click', copyCode)
+          })
+          if (autoScrollEnabled.value) {
+            scrollToBottom(false)
+          }
+        })
       }
     }
 
-    sseMetrics = null
-    processing.value = false
-    textIn.value = ''
-    textOut.value = ''
-    nextTick(() => {
-      chatPanel.querySelectorAll('copy-code').forEach((item) => {
-        const el = item as HTMLElement
-        el.removeEventListener('click', copyCode)
-        el.addEventListener('click', copyCode)
-      })
-      if (autoScrollEnabled.value) {
-        scrollToBottom(false)
+function getRagSources(actualRagResults: LangchainDocument[]): string {
+  // Group documents by source file
+  const fileGroups = new Map<string, Array<{
+    lines?: {from: number, to: number},
+    page?: number
+  }>>();
+  const unknownSources: string[] = [];
+  
+  // Process each document
+  actualRagResults.forEach(doc => {
+    const source = doc.metadata?.source;
+    const location = doc.metadata.loc as {pageNumber?: number; lines?: {from?: number, to?: number}} | undefined;
+    
+    // Handle unknown sources
+    if (!source) {
+      unknownSources.push('Unknown Source');
+      return;
+    }
+    
+    // Get or create array for this file
+    const entries = fileGroups.get(source) || [];
+    
+    // Create entry with available location information
+    const entry: {lines?: {from: number, to: number}, page?: number} = {};
+    
+    // Add line information if available
+    if (location?.lines?.from && location?.lines?.to) {
+      entry.lines = {
+        from: location.lines.from,
+        to: location.lines.to
+      };
+    }
+    
+    // Add page information if available
+    if (location?.pageNumber !== undefined) {
+      entry.page = location.pageNumber;
+    }
+    
+    // Only add entry if it has some location information
+    if (Object.keys(entry).length > 0) {
+      entries.push(entry);
+      fileGroups.set(source, entries);
+    }
+  });
+  
+  // Function to merge overlapping line ranges for the same page
+  const mergeRanges = (entries: Array<{lines?: {from: number, to: number}, page?: number}>): Array<{lines?: {from: number, to: number}, page?: number}> => {
+    if (entries.length <= 1) return entries;
+    
+    // Group entries by page number
+    const pageGroups = new Map<number | undefined, Array<{lines?: {from: number, to: number}, page?: number}>>();
+    
+    entries.forEach(entry => {
+      const pageKey = entry.page;
+      const pageEntries = pageGroups.get(pageKey) || [];
+      pageEntries.push(entry);
+      pageGroups.set(pageKey, pageEntries);
+    });
+    
+    const result: Array<{lines?: {from: number, to: number}, page?: number}> = [];
+    
+    // Process each page group
+    pageGroups.forEach((pageEntries, pageNumber) => {
+      // For entries with line information, merge overlapping ranges
+      const entriesWithLines = pageEntries.filter(e => e.lines);
+      
+      if (entriesWithLines.length > 0) {
+        // Sort by starting line
+        const sortedEntries = [...entriesWithLines].sort((a, b) => 
+          (a.lines?.from || 0) - (b.lines?.from || 0)
+        );
+        
+        let current = sortedEntries[0];
+        
+        // Merge overlapping line ranges
+        for (let i = 1; i < sortedEntries.length; i++) {
+          const next = sortedEntries[i];
+          
+          // Check if ranges overlap or are adjacent
+          if ((current.lines?.to || 0) >= (next.lines?.from || 0) - 1) {
+            // Merge ranges
+            current = {
+              lines: {
+                from: current.lines?.from || 0,
+                to: Math.max(current.lines?.to || 0, next.lines?.to || 0)
+              },
+              page: pageNumber
+            };
+          } else {
+            // No overlap, add current to result and move to next
+            result.push(current);
+            current = next;
+          }
+        }
+        
+        // Add the last range
+        result.push(current);
       }
-    })
-  }
+      
+      // For entries with only page information (no lines), add a single entry per page
+      if (pageEntries.some(e => !e.lines)) {
+        // If we haven't already added an entry for this page from the line merging
+        if (!result.some(r => r.page === pageNumber && !r.lines)) {
+          result.push({ page: pageNumber });
+        }
+      }
+    });
+    
+    return result;
+  };
+  
+  // Format results
+  const formattedResults: string[] = [];
+  
+  // Process each file group
+  fileGroups.forEach((entries, source) => {
+    const filename = source.split(/[\/\\]/).pop() || source;
+    const mergedEntries = mergeRanges(entries);
+    
+    // Format each merged entry
+    mergedEntries.forEach(entry => {
+      let locationInfo = "";
+      
+      // Format based on available information
+      if (entry.page !== undefined && entry.lines) {
+        // Both page and line information
+        locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`;
+      } else if (entry.page !== undefined) {
+        // Only page information
+        locationInfo = `Page ${entry.page}`;
+      } else if (entry.lines) {
+        // Only line information
+        locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`;
+      }
+      
+      formattedResults.push(`${filename} (${locationInfo})`);
+    });
+  });
+  
+  // Add unknown sources
+  formattedResults.push(...unknownSources);
+  
+  return formattedResults.join("\n");
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -918,13 +1085,6 @@ function fastGenerate(e: KeyboardEvent) {
 }
 
 async function newPromptGenerate() {
-  markerFound.value = false
-  thinkingText.value = ''
-  showThinkingText.value = false
-  postMarkerText.value = ''
-  reasoningStartTime = 0
-  reasoningTotalTime = 0
-
   const newPrompt = question.value.trim()
   if (newPrompt == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
@@ -975,6 +1135,12 @@ async function generate(chatContext: ChatItem[]) {
     backendServices.updateLastUsedBackend(inferenceBackendService)
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
+    markerFound.value = false
+    thinkingText.value = ''
+    showThinkingText.value = false
+    postMarkerText.value = ''
+    reasoningStartTime = 0
+    reasoningTotalTime = 0
     textOut.value = ''
     receiveOut = ''
     firstOutput = true
@@ -986,29 +1152,36 @@ async function generate(chatContext: ChatItem[]) {
     processing.value = true
     nextTick(scrollToBottom)
 
-    //if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
-    // const testResponse: KVObject = await textInference.embedInputUsingRag(
-    //   chatContext[chatContext.length - 1].question,
-    // )
-    //}
-
     let externalRagContext = null;
-    let externalRagSource = null;
-    // If there are checked documents in the RAG list
+    // Reset the global actualRagResults
+    actualRagResults = null;
+    
     if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
       try {
-        // Get relevant documents from langchain.js
+        // Set RAG retrieval in progress
+        ragRetrievalInProgress.value = true;
+        showRagPreview.value = true;
+                
+        // Perform RAG retrieval
         const ragResults = await textInference.embedInputUsingRag(
           chatContext[chatContext.length - 1].question
         );
         
+        ragRetrievalInProgress.value = false;
+        
         if (ragResults && ragResults.length > 0) {
-          // Extract context and source information using type assertions to handle different document structures
           externalRagContext = ragResults.map(doc => doc.pageContent).join('\n\n');
-          
-          externalRagSource = ragResults.map(doc => doc.metadata.source ?? '').join('\n');
+          actualRagResults = ragResults;
         }
       } catch (error) {
+        // // Reset RAG retrieval status in case of error
+        // ragRetrievalInProgress.value = false;
+        
+        // // Remove the temporary chat item if it exists
+        // if (conversations.conversationList[currentlyGeneratingKey.value!]?.length > 0) {
+        //   conversations.conversationList[currentlyGeneratingKey.value!].pop();
+        // }
+        
         console.error('Error retrieving RAG documents:', error);
       }
     }
@@ -1017,7 +1190,6 @@ async function generate(chatContext: ChatItem[]) {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       external_rag_context: externalRagContext,
-      external_rag_source: externalRagSource,
       max_tokens: textInference.maxTokens,
       model_repo_id: textInference.activeModel,
     }
@@ -1055,21 +1227,10 @@ function copyText(text: string) {
   toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
-function removeRonate360(ev: AnimationEvent) {
-  const target = ev.target as HTMLElement
-  target.classList.remove('animate-ronate360')
-}
-
 async function addLLMModel() {
   return new Promise<void>(async (resolve, reject) => {
     emits('showModelRequest', resolve, reject)
   })
-}
-
-async function refreshLLMModles(e: Event) {
-  const button = e.target as HTMLElement
-  button.classList.add('animate-ronate360')
-  await models.refreshModels()
 }
 
 function regenerateLastResponse(conversationKey: string) {

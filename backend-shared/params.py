@@ -14,14 +14,13 @@ class LLMParams:
     model_repo_id: str
     max_tokens: int
     external_rag_context: Optional[str]
-    external_rag_source: Optional[str]
     print_metrics: bool
     generation_parameters: Dict[str, Any]
 
     def __init__(
         self, prompt: list, device: int, model_repo_id: str, 
         max_tokens: int, external_rag_context: Optional[str] = None, 
-        external_rag_source: Optional[str] = None, print_metrics: bool = True, 
+        print_metrics: bool = True, 
         **kwargs
     ) -> None:
         """
@@ -33,7 +32,6 @@ class LLMParams:
             model_repo_id: Model repository ID or path
             max_tokens: Maximum number of tokens to generate
             external_rag_context: Optional context from external RAG system
-            external_rag_source: Optional source information from external RAG system
             print_metrics: Whether to print performance metrics
             **kwargs: Additional generation parameters passed to the model
         """
@@ -42,6 +40,5 @@ class LLMParams:
         self.model_repo_id = model_repo_id
         self.max_tokens = max_tokens
         self.external_rag_context = external_rag_context
-        self.external_rag_source = external_rag_source
         self.print_metrics = print_metrics
         self.generation_parameters = kwargs
