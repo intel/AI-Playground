@@ -588,6 +588,9 @@ const thinkingModels: Record<string, string> = {
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
 }
 
 const markerFound = ref(false)

@@ -6,7 +6,7 @@ import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { useGlobalSetup } from './globalSetup'
 
-export const llmBackendTypes = ['ipexLLM', 'llamaCPP', 'openVINO'] as const
+export const llmBackendTypes = ['ipexLLM', 'openVINO', 'llamaCPP'] as const
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>

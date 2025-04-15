@@ -1,8 +1,7 @@
---extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 Flask==3.0.3
 apiflask==2.3.0
-openvino==2025.1.0.dev20250203
-openvino-genai==2025.1.0.0.dev20250203
-openvino-tokenizers==2025.1.0.0.dev20250203
+openvino==2025.1.0.0
+openvino-genai==2025.1.0.0
+openvino-tokenizers==2025.1.0.0
 langchain_community==0.3.0
 optimum[openvino,nncf]==1.24.0
