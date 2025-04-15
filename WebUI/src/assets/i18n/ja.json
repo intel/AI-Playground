@@ -251,5 +251,15 @@
   "DEVICE": "デバイス",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "チェックポイントモデル",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "フレームレート",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "総フレーム数"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "総フレーム数",
+  "ANSWER_MAX_TOKENS": "最大トークン数",
+  "ANSWER_METRICS": "メトリクス",
+  "ANSWER_FONT_SIZE": "フォントサイズ",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "ドキュメント埋め込みモデル",
+  "RAG_DOCUMENTS": "ドキュメント",
+  "RAG_ENABLED": "有効",
+  "RAG_ADD_DOCUMENTS": "ドキュメントを追加",
+  "RAG_ADD_FILES": "ファイルを追加",
+  "RAG_SEARCHABLE_DOCUMENTS": "検索可能なドキュメント",
+  "RAG_CLEAR_ALL": "すべてクリア"
 }

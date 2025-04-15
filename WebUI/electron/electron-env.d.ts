@@ -43,25 +43,6 @@ type ThemeSettings = {
   currentTheme: Theme
 }
 
-type ModelPaths = {
-  llm: string
-  embedding: string
-  stableDiffusion: string
-  inpaint: string
-  lora: string
-  vae: string
-} & StringKV
-
-type ModelLists = {
-  llm: string[]
-  stableDiffusion: string[]
-  lora: string[]
-  vae: string[]
-  scheduler: string[]
-  embedding: string[]
-  inpaint: string[]
-} & { [key: string]: Array<string> }
-
 type SetupData = {
   modelPaths: ModelPaths
   modelLists: ModelLists

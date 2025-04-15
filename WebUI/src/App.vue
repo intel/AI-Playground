@@ -26,6 +26,21 @@
     </div>
     <div class="flex justify-between items-center gap-5">
       <button
+        v-if="debugToolsEnabled"
+        :title="languages.COM_SETTINGS"
+        @click="() => {
+          const curState = globalSetup.loadingState
+          if (curState === 'running') {
+            globalSetup.loadingState = 'manageInstallations'
+          } else if (curState === 'manageInstallations') {
+            globalSetup.loadingState = 'running'
+          }
+        }"
+        ref="showSettingBtn"
+      >
+      <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
+    </button>
+      <button
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showAppSettings"
@@ -246,6 +261,7 @@ import { useTheme } from './assets/js/store/theme.ts'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import WarningDialog from '@/components/WarningDialog.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
+import { ServerStackIcon } from '@heroicons/vue/24/solid'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -268,6 +284,7 @@ const fullscreen = ref(false)
 
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
+const debugToolsEnabled = window.envVars.debugToolsEnabled
 
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message }) => {
@@ -359,11 +376,6 @@ function autoHideAppSettings(e: MouseEvent) {
 
 function switchTab(index: number) {
   activeTabIdx.value = index
-  if (index === 2) {
-    answer.value!.restoreRagState()
-  } else {
-    answer.value!.disableRag()
-  }
 }
 
 function miniWindow() {

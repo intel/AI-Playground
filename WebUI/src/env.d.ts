@@ -1,11 +1,12 @@
 declare interface Window {
   chrome: Chrome
   electronAPI: electronAPI
-  envVars: { platformTitle: string; productVersion: string }
+  envVars: { platformTitle: string; productVersion: string; debugToolsEnabled: boolean }
 }
 
 interface ImportMetaEnv {
   readonly VITE_PLATFORM_TITLE: string
+  readonly VITE_DEBUG_TOOLS: 'true' | undefined
 }
 
 interface ImportMeta {
@@ -13,6 +14,7 @@ interface ImportMeta {
 }
 
 type electronAPI = {
+  getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
   openDevTools(): void
@@ -43,13 +45,14 @@ type electronAPI = {
   screenChange(callback: (width: number, height: number) => void): void
   webServiceExit(callback: (serviceName: string, normalExit: string) => void): void
   existsPath(path: string): Promise<boolean>
+  addDocumentToRAGList(doc: IndexedDocument): Promise<IndexedDocument>
+  embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<LangchainDocument[]>
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
   refreshSDModles(): Promise<string[]>
   refreshLLMModles(): Promise<string[]>
   refreshLora(): Promise<string[]>
-  refreshEmbeddingModels(): Promise<string[]>
   refreshInpaintModles(): Promise<string[]>
   getDownloadedDiffusionModels(): Promise<string[]>
   getDownloadedInpaintModels(): Promise<string[]>
@@ -57,7 +60,7 @@ type electronAPI = {
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
-  getDownloadedEmbeddingModels(): Promise<string[]>
+  getDownloadedEmbeddingModels(): Promise<Model[]>
   openImageWithSystem(url: string): void
   openImageInFolder(url: string): void
   setFullScreen(enable: boolean): void
@@ -86,6 +89,12 @@ type SetupProgress = {
 
 type Chrome = {
   webview: WebView
+}
+
+type LangchainDocument = {
+  pageContent: string
+  metadata: Record<string, any>
+  id?: string
 }
 
 type WebView = {
@@ -177,6 +186,8 @@ type ChatItem = {
   showThinkingText?: boolean
   reasoningTime?: number
   createdAt?: number
+  ragSource?: string | null
+  showRagSource?: boolean
 }
 
 type ChatRequestParams = {

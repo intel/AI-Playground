@@ -236,6 +236,7 @@ export class PythonService extends ExecutableService {
     .
     ../${this.serviceDir}
     ../hijacks
+    ../backend-shared
 
     # Uncomment to run site.main() automatically
     import site

@@ -1,44 +1,16 @@
-# CONFIG_PATH = "./service_config.json"
-service_model_paths = {
-    "llm": "./models/llm/checkpoints",
-    "embedding": "./models/llm/embedding",
-    "stableDiffusion": "./models/stable_diffusion/checkpoints",
-    "lora": "./models/stable_diffusion/lora",
-    "vae": "./models/stable_diffusion/vae",
-    "inpaint": "./models/stable_diffusion/inpaint",
-    "ESRGAN": "./models/stable_diffusion/ESRGAN",
-    "preview": "./models/stable_diffusion/preview",
-}
+# Import shared configuration from backend-shared
+import config
 
+# Re-export all configuration from the shared module
+service_model_paths = config.service_model_paths
+comfy_ui_root_path = config.comfy_ui_root_path
+git = config.git
+comfyui_python_exe = config.comfyui_python_exe
+comfyui_python_env = config.comfyui_python_env
+comfy_ui_model_paths = config.comfy_ui_model_paths
+llama_cpp_model_paths = config.llama_cpp_model_paths
+openvino_model_paths = config.openvino_model_paths
+device = config.device
 
-comfy_ui_root_path = "../ComfyUI"
-git = {
-    "rootDirPath": "../portable-git",
-    "exePath": "../portable-git/cmd/git.exe",
-}
-
-comfyui_python_exe = "../comfyui-backend-env/python.exe"
-comfyui_python_env = "../comfyui-backend-env"
-
-comfy_ui_model_paths = {
-    "checkpoints": f"{comfy_ui_root_path}/models/checkpoints",
-    "unet": f"{comfy_ui_root_path}/models/unet",
-    "clip": f"{comfy_ui_root_path}/models/clip",
-    "vae": f"{comfy_ui_root_path}/models/vae",
-    "faceswap": f"{comfy_ui_root_path}/models/insightface",
-    "facerestore": f"{comfy_ui_root_path}/models/facerestore_models",
-    "nsfwdetector": f"{comfy_ui_root_path}/models/nsfw_detector",
-    "controlNet": f"{comfy_ui_root_path}/models/controlnet",
-    "defaultCheckpoint": "./models/stable_diffusion/checkpoints",
-    "defaultLora": "./models/stable_diffusion/lora",
-}
-
-llama_cpp_model_paths = {
-    "ggufLLM": "./models/llm/ggufLLM",
-}
-
-openvino_model_paths = {
-    "openvinoLLM": "./models/llm/openvino",
-}
-
-device = "xpu"
+# Re-export the convert_model_type function
+convert_model_type = config.convert_model_type

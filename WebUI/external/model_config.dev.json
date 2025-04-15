@@ -2,7 +2,7 @@
   "llm": "../service/models/llm/checkpoints",
   "ggufLLM": "../service/models/llm/ggufLLM",
   "openvinoLLM": "../service/models/llm/openvino",
-  "embedding": "../service/models/llm/embedding",
+  "embedding": "../service/models/llm/embedding/ipexLLM",
   "stableDiffusion": "../service/models/stable_diffusion/checkpoints",
   "inpaint": "../service/models/stable_diffusion/inpaint",
   "lora": "../service/models/stable_diffusion/lora",

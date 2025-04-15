@@ -251,5 +251,15 @@
   "DEVICE": "Cihaz",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Kontrol Noktası Modeli",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Kare Hızı",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Toplam Kare"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Toplam Kare",
+  "ANSWER_MAX_TOKENS": "Maksimum Jeton",
+  "ANSWER_METRICS": "Metrikler",
+  "ANSWER_FONT_SIZE": "Yazı Tipi Boyutu",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Belge Gömme Modeli",
+  "RAG_DOCUMENTS": "Belgeler",
+  "RAG_ENABLED": "Etkin",
+  "RAG_ADD_DOCUMENTS": "Belgeleri Ekle",
+  "RAG_ADD_FILES": "Dosyaları Ekle",
+  "RAG_SEARCHABLE_DOCUMENTS": "Aranabilir Belgeler",
+  "RAG_CLEAR_ALL": "Hepsini Temizle"
 }

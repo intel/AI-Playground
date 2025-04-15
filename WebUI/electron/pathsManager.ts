@@ -1,6 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import type { ModelPaths, ModelLists, Model } from '@/assets/js/store/models'
 
+
+const llmBackendTypes = ['ipexLLM', 'llamaCPP', 'openVINO'] as const
 export class PathsManager {
   modelPaths: ModelPaths = {
     llm: '',
@@ -52,7 +55,7 @@ export class PathsManager {
         lora: this.scanLora(),
         vae: [],
         scheduler: [],
-        embedding: this.scanEmbedding(),
+        embedding: this.scanEmbedding().filter((model) => model.backend === 'ipexLLM').map((model) => model.name),
       }
       return model_settings
     } catch (ex) {
@@ -171,9 +174,28 @@ export class PathsManager {
     }
     return models
   }
-  scanEmbedding(returnDefaults = true) {
-    return returnDefaults ? ['BAAI/bge-large-en-v1.5', 'BAAI/bge-large-zh-v1.5'] : []
+
+  scanEmbedding() : Model[] {
+    const embeddingModels: Model[] = []
+    llmBackendTypes.forEach((backend) => {
+      const dir = path.join(this.modelPaths.embedding, '..', backend)
+      if (fs.existsSync(dir)) {
+        fs.readdirSync(dir).forEach((item) => {
+          embeddingModels.push({
+            name: item.replace('---', '/'),
+            downloaded: true,
+            type: 'embedding',
+            default: false,
+            backend: backend,
+          })
+        })
+      } else {
+        fs.mkdirSync(dir, { recursive: true })
+      }
+    })
+    return embeddingModels
   }
+
   scanInpaint(returnDefaults = true) {
     const models = returnDefaults ? ['Lykon/dreamshaper-8-inpainting'] : []
     const dir = this.modelPaths.inpaint

@@ -251,5 +251,15 @@
   "DEVICE": "อุปกรณ์",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "โมเดลเช็คพอยต์",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "อัตราเฟรม",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "จำนวนเฟรมทั้งหมด"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "จำนวนเฟรมทั้งหมด",
+  "ANSWER_MAX_TOKENS": "จำนวนโทเค็นสูงสุด",
+  "ANSWER_METRICS": "เมตริก",
+  "ANSWER_FONT_SIZE": "ขนาดตัวอักษร",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "โมเดลฝังเอกสาร",
+  "RAG_DOCUMENTS": "เอกสาร",
+  "RAG_ENABLED": "เปิดใช้งาน",
+  "RAG_ADD_DOCUMENTS": "เพิ่มเอกสาร",
+  "RAG_ADD_FILES": "เพิ่มไฟล์",
+  "RAG_SEARCHABLE_DOCUMENTS": "เอกสารที่ค้นหาได้",
+  "RAG_CLEAR_ALL": "ล้างทั้งหมด"
 }
