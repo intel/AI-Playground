@@ -18,7 +18,7 @@ Welcome to AI Playground open source project and AI PC starter app for doing AI 
 - English (readme.md)
 
 ## Min Specs
-AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
+AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our GitHub repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
 *	Intel Core Ultra-H Processor, Intel Core Ultra-V processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
