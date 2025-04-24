@@ -4,7 +4,6 @@ import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
-import { useGlobalSetup } from './globalSetup'
 
 export const llmBackendTypes = ['ipexLLM', 'openVINO', 'llamaCPP'] as const
 
@@ -31,7 +30,7 @@ export type IndexedDocument = {
   filename: string
   filepath: string
   type: ValidFileExtension
-  splitDB: Document<Record<string, any>>[]
+  splitDB: Document[]
   hash: string
   isChecked: boolean
 }
@@ -46,7 +45,6 @@ export type EmbedInquiry = {
 export const useTextInference = defineStore(
   'textInference',
   () => {
-    const globalSetup = useGlobalSetup()
     const backendServices = useBackendServices()
     const models = useModels()
     const backend = ref<LlmBackend>('ipexLLM')
@@ -156,7 +154,10 @@ export const useTextInference = defineStore(
       if (!model) return []
       const checkList = {
         repo_id: model,
-        type: type === 'embedding' ? Const.MODEL_TYPE_EMBEDDING : backendToAipgModelTypeNumber[backend.value],
+        type:
+          type === 'embedding'
+            ? Const.MODEL_TYPE_EMBEDDING
+            : backendToAipgModelTypeNumber[backend.value],
         backend: backendToAipgBackendName[backend.value],
       }
       const checkedModels = await models.checkModelAlreadyLoaded([checkList])
@@ -229,7 +230,9 @@ export const useTextInference = defineStore(
     }
 
     async function embedInputUsingRag(prompt: string) {
-      const checkedRagList = ragList.value.filter((item) => item.isChecked).map(doc => JSON.parse(JSON.stringify(doc)))
+      const checkedRagList = ragList.value
+        .filter((item) => item.isChecked)
+        .map((doc) => JSON.parse(JSON.stringify(doc)))
       if (checkedRagList.length === 0) {
         throw new Error('No documents selected')
       }
@@ -245,7 +248,7 @@ export const useTextInference = defineStore(
         backendBaseUrl: currentBackendUrl.value,
         embeddingModel: activeEmbeddingModel.value,
       }
-      console.log('trying to request rag for', {newEmbedInquiry, ragList: ragList.value})
+      console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
       const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)
       return response
     }

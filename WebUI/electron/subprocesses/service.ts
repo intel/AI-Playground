@@ -356,7 +356,11 @@ export class UvPipService extends PipService {
   }
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    return this.python.run(['-m', 'uv', 'pip', ...args], extraEnv, workDir)
+    return this.python.run(
+      ['-m', 'uv', 'pip', ...args],
+      { ...extraEnv, UV_LINK_MODE: 'copy' },
+      workDir,
+    )
   }
 
   async check(): Promise<void> {
@@ -571,6 +575,9 @@ export interface ApiService {
   set_up(): AsyncIterable<SetupProgress>
   start(): Promise<BackendStatus>
   stop(): Promise<BackendStatus>
+  updateSettings(settings: ServiceSettings): Promise<void>
+  getSettings(): Promise<ServiceSettings>
+  uninstall(): Promise<void>
   get_info(): ApiServiceInformation
 }
 
@@ -611,6 +618,19 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
   abstract serviceIsSetUp(): boolean
 
+  updateSettings(settings: ServiceSettings): Promise<void> {
+    this.appLogger.info(
+      `updating settings with ${settings}, but settings are not implemented`,
+      this.name,
+    )
+    return Promise.resolve()
+  }
+
+  getSettings(): Promise<ServiceSettings> {
+    this.appLogger.info(`get settings called, but settings are not implemented`, this.name)
+    return Promise.resolve({ serviceName: this.name })
+  }
+
   setStatus(status: BackendStatus) {
     this.currentStatus = status
     this.updateStatus()
@@ -636,8 +656,19 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
   abstract set_up(): AsyncIterable<SetupProgress>
 
+  async uninstall(): Promise<void> {
+    this.stop()
+    this.appLogger.info(`removing python env of ${this.name} service`, this.name)
+    await filesystem.remove(this.pythonEnvDir)
+    this.appLogger.info(`removed python env of ${this.name} service`, this.name)
+    this.setStatus('notInstalled')
+  }
+
   async start(): Promise<BackendStatus> {
-    if (this.desiredStatus === 'stopped' && this.currentStatus !== 'stopped') {
+    if (
+      this.desiredStatus === 'stopped' &&
+      !(this.currentStatus === 'stopped' || this.currentStatus === 'notYetStarted')
+    ) {
       throw new Error('Server currently stopping. Cannot start it.')
     }
     if (this.currentStatus === 'running') {
@@ -693,7 +724,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     })
 
     this.encapsulatedProcess = null
-    this.currentStatus = 'stopped'
+    this.setStatus('stopped')
     return 'stopped'
   }
 

@@ -20,6 +20,7 @@
               <td>{{ languages.BACKEND_ENABLE }}</td>
               <td>{{ languages.BACKEND_STATUS }}</td>
               <td>{{ languages.BACKEND_ACTION }}</td>
+              <td class="w-6"></td>
             </tr>
           </thead>
           <tbody>
@@ -101,6 +102,9 @@
 
                 <p v-else>-</p>
               </td>
+              <td class="w-6">
+                <BackendOptions :backend="component.serviceName"></BackendOptions>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -150,6 +154,7 @@ import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } fro
 import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import BackendOptions from '@/components/BackendOptions.vue'
 
 const emits = defineEmits<{
   (e: 'close'): void

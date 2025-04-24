@@ -77,7 +77,9 @@
               class="flex gap-2 items-center justify-center text-white bg-black/50 py-6 px-12 rounded-lg"
             >
               <span class="svg-icon i-loading w-8 h-8"></span>
-              <span class="text-2xl tabular-nums" style="min-width: 200px;">{{ imageGeneration.stepText }}</span>
+              <span class="text-2xl tabular-nums" style="min-width: 200px">{{
+                imageGeneration.stepText
+              }}</span>
             </div>
           </div>
           <div

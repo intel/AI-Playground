@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { useImageGeneration } from '@/assets/js/store/imageGeneration'
-import { Input } from '../components/ui/input'
+import { Input } from './ui/aipgInput'
 import { LoadImage } from '../components/ui/loadImage'
 import SlideBar from '../components/SlideBar.vue'
 import { getTranslationLabel } from '@/lib/utils'
