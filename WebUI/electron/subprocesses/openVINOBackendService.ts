@@ -38,14 +38,6 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
-      const deviceArch = await this.deviceService.getBestDeviceArch()
-      yield {
-        serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `detected intel hardware ${deviceArch}`,
-      }
-
       yield {
         serviceName: this.name,
         step: `install dependencies`,

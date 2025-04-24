@@ -135,7 +135,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `Trying to identify intel hardware`,
       }
-      const deviceArch = await this.deviceService.getBestDeviceArch()
+      const deviceArch =
+        this.settings.deviceArchOverride ?? (await this.deviceService.getBestDeviceArch())
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,

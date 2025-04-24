@@ -41,7 +41,8 @@ export class AiBackendService extends LongLivedPythonApiService {
       await this.uvPip.ensureInstalled()
       await this.deviceService.ensureInstalled()
 
-      const deviceArch = await this.deviceService.getBestDeviceArch()
+      const deviceArch =
+        this.settings.deviceArchOverride ?? (await this.deviceService.getBestDeviceArch())
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
