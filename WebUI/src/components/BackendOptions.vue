@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useI18N } from '@/assets/js/store/i18n'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +39,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { mapServiceNameToDisplayName } from '@/lib/utils'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
@@ -46,6 +48,7 @@ const props = defineProps<{
   backend: BackendServiceName
 }>()
 const backendServices = useBackendServices()
+const i18nState = useI18N().state
 const backendStatus = computed(
   () =>
     backendServices.info.filter(
@@ -95,12 +98,12 @@ const showMenuButton = computed(
     <DropdownMenuContent>
       <DropdownMenuLabel>{{ mapServiceNameToDisplayName(backend) }}</DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuItem v-if="showStop" @click="() => backendServices.stopService(backend)"
-        >Stop Backend</DropdownMenuItem
-      >
-      <DropdownMenuItem v-if="showStart" @click="() => backendServices.startService(backend)"
-        >Start Backend</DropdownMenuItem
-      >
+      <DropdownMenuItem v-if="showStop" @click="() => backendServices.stopService(backend)">{{
+        i18nState.BACKEND_STOP
+      }}</DropdownMenuItem>
+      <DropdownMenuItem v-if="showStart" @click="() => backendServices.startService(backend)">{{
+        i18nState.BACKEND_START
+      }}</DropdownMenuItem>
 
       <AlertDialog
         v-if="showReinstall"
@@ -111,20 +114,24 @@ const showMenuButton = computed(
         "
       >
         <AlertDialogTrigger asChild
-          ><DropdownMenuItem @select="(e) => e.preventDefault()"
-            >Reinstall Backend</DropdownMenuItem
-          ></AlertDialogTrigger
+          ><DropdownMenuItem @select="(e) => e.preventDefault()">{{
+            i18nState.BACKEND_REINSTALL
+          }}</DropdownMenuItem></AlertDialogTrigger
         >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>{{ i18nState.BACKEND_CONFIRM }}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will reinstall the {{ mapServiceNameToDisplayName(backend) }} backend. Depending
-              on your internet connection, this may take a while.
+              {{
+                i18nState.BACKEND_REINSTALL_DESCRIPTION.replace(
+                  '{backend}',
+                  mapServiceNameToDisplayName(backend),
+                )
+              }}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
             <AlertDialogAction
               @click="
                 async () => {
@@ -133,7 +140,7 @@ const showMenuButton = computed(
                   await backendServices.startService(backend)
                 }
               "
-              >Continue</AlertDialogAction
+              >{{ i18nState.COM_CONTINUE }}</AlertDialogAction
             >
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -156,16 +163,25 @@ const showMenuButton = computed(
           v-model:open="settingsDialogOpen"
         >
           <DialogTrigger asChild
-            ><DropdownMenuItem @select="(e) => e.preventDefault()"
-              >Settings</DropdownMenuItem
-            ></DialogTrigger
+            ><DropdownMenuItem @select="(e) => e.preventDefault()">{{
+              i18nState.COM_SETTINGS
+            }}</DropdownMenuItem></DialogTrigger
           >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{{ `${mapServiceNameToDisplayName(backend)} Settings` }}</DialogTitle>
+              <DialogTitle>{{
+                i18nState.BACKEND_SETTINGS_TITLE.replace(
+                  '{backend}',
+                  mapServiceNameToDisplayName(backend),
+                )
+              }}</DialogTitle>
               <DialogDescription>
-                Configure the settings for {{ mapServiceNameToDisplayName(backend) }} backend.
-                Changes might require a restart or reinstall to take effect.
+                {{
+                  i18nState.BACKEND_SETTINGS_DESCRIPTION.replace(
+                    '{backend}',
+                    mapServiceNameToDisplayName(backend),
+                  )
+                }}
               </DialogDescription>
             </DialogHeader>
 
@@ -183,13 +199,12 @@ const showMenuButton = computed(
             >
               <FormField v-slot="{ componentField }" name="version">
                 <FormItem>
-                  <FormLabel>Version</FormLabel>
+                  <FormLabel>{{ i18nState.BACKEND_VERSION }}</FormLabel>
                   <FormControl>
                     <Input type="text" placeholder="v1.0.0" v-bind="componentField" />
                   </FormControl>
                   <FormDescription>
-                    The Git reference to use for the backend. This can be a version tag or commit
-                    hash.
+                    {{ i18nState.BACKEND_VERSION_DESCRIPTION }}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -197,7 +212,9 @@ const showMenuButton = computed(
             </form>
 
             <DialogFooter>
-              <Button type="submit" form="dialogForm"> Save changes </Button></DialogFooter
+              <Button type="submit" form="dialogForm">
+                {{ i18nState.BACKEND_SAVE_CHANGES }}
+              </Button></DialogFooter
             >
           </DialogContent>
         </Dialog>

@@ -13,8 +13,8 @@
   --textbox-bg: #38383d;
   --compontents-main: #fff;
   --color-image-bg: #110f1779;
-  --textbox-gradient-border: linear-gradient(var(--textbox-bg), var(--textbox-bg)),
-    var(--main-gradient);
+  --textbox-gradient-border:
+    linear-gradient(var(--textbox-bg), var(--textbox-bg)), var(--main-gradient);
   --textbox-clip: padding-box, border-box;
 }
 

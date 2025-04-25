@@ -253,6 +253,17 @@
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
   "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frames",
 
+  "BACKEND_STOP": "Stop Backend",
+  "BACKEND_START": "Start Backend",
+  "BACKEND_REINSTALL": "Reinstall Backend",
+  "BACKEND_CONFIRM": "Are you sure?",
+  "BACKEND_REINSTALL_DESCRIPTION": "This will reinstall the {backend} backend. Depending on your internet connection, this may take a while.",
+  "BACKEND_SETTINGS_TITLE": "{backend} Settings",
+  "BACKEND_SETTINGS_DESCRIPTION": "Configure the settings for {backend} backend. Changes might require a restart or reinstall to take effect.",
+  "BACKEND_VERSION": "Version",
+  "BACKEND_VERSION_DESCRIPTION": "The Git reference to use for the backend. This can be a version tag or commit hash.",
+  "BACKEND_SAVE_CHANGES": "Save changes",
+
   "COM_ADD_FILE_TO_RAG": "Add file to the list of available documents",
   "COM_ADD_FILE_TO_RAG_CHECKBOX": "Add/Remove file to/from the list of documents used to generate answers",
   "COM_CHECK_ALL_FILES": "Add all files to the list of documents used to generate answers",
