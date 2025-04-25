@@ -59,7 +59,6 @@ export class AiBackendService extends LongLivedPythonApiService {
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':
-            return 'arl_h'
           case 'acm':
           case 'bmg':
           case 'lnl':
@@ -78,19 +77,19 @@ export class AiBackendService extends LongLivedPythonApiService {
         'unsafe-best-match',
       ])
 
-      const ipexLlmRequirements = existingFileOrError(
-        path.join(this.serviceDir, `requirements-ipex-llm.txt`),
-      )
-      if (deviceArch !== 'unknown') {
-        await this.uvPip.run([
-          'install',
-          '-r',
-          ipexLlmRequirements,
-          '--index-strategy',
-          'unsafe-best-match',
-          '--prerelease=allow',
-        ])
-      }
+      // const ipexLlmRequirements = existingFileOrError(
+      //   path.join(this.serviceDir, `requirements-ipex-llm.txt`),
+      // )
+      // if (deviceArch !== 'unknown') {
+      //   await this.uvPip.run([
+      //     'install',
+      //     '-r',
+      //     ipexLlmRequirements,
+      //     '--index-strategy',
+      //     'unsafe-best-match',
+      //     '--prerelease=allow',
+      //   ])
+      // }
 
       const deviceSpecificRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
@@ -102,6 +101,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         '--index-strategy',
         'unsafe-best-match',
         '--prerelease=allow',
+        // '--force-reinstall',
       ])
 
       yield {

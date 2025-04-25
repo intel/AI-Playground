@@ -5,7 +5,7 @@ import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 
-export const llmBackendTypes = ['ipexLLM', 'openVINO', 'llamaCPP'] as const
+export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP'] as const
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -47,7 +47,7 @@ export const useTextInference = defineStore(
   () => {
     const backendServices = useBackendServices()
     const models = useModels()
-    const backend = ref<LlmBackend>('ipexLLM')
+    const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
 
     const selectedModels = ref<LlmBackendKV>({
@@ -109,15 +109,15 @@ export const useTextInference = defineStore(
     }
 
     const backendToAipgBackendName = {
+      openVINO: 'openvino',
       ipexLLM: 'default',
       llamaCPP: 'llama_cpp',
-      openVINO: 'openvino',
     } as const
 
     const backendToAipgModelTypeNumber = {
+      openVINO: Const.MODEL_TYPE_OPENVINO,
       ipexLLM: Const.MODEL_TYPE_LLM,
       llamaCPP: Const.MODEL_TYPE_LLAMA_CPP,
-      openVINO: Const.MODEL_TYPE_OPENVINO,
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {

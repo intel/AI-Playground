@@ -27,7 +27,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/queue`
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
-  private revision = '61b5072'
+  private revision = 'v0.3.30'
 
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
     ? this.settings.comfyUiParameters
@@ -194,7 +194,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':
-            return 'arl_h'
           case 'acm':
           case 'bmg':
           case 'lnl':

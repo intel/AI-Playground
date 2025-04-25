@@ -10,7 +10,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `openvino-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
-  readonly isRequired = false
+  readonly isRequired = true
 
   healthEndpointUrl = `${this.baseUrl}/health`
 

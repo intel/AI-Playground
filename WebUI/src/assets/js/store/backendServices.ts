@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-const backends = ['ai-backend', 'comfyui-backend', 'llamacpp-backend', 'openvino-backend'] as const
+const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
 
 type ServiceSettings = {
   ['ai-backend']?: object

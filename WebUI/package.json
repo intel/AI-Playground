@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "2.4.0-beta.backendsettings",
+  "version": "2.5.0-beta.pt27",
   "scripts": {
     "dev": "cross-env VITE_DEBUG_TOOLS=\"true\" VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "preview": "vite preview",

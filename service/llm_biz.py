@@ -15,9 +15,10 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    AutoModelForCausalLM,
 )
 
-from ipex_llm.transformers import AutoModelForCausalLM
+# from ipex_llm.transformers import AutoModelForCausalLM
 from typing import Callable
 from transformers.generation.stopping_criteria import (
     StoppingCriteria,
