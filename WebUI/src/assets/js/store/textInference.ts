@@ -5,7 +5,7 @@ import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 
-export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP'] as const
+export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP', 'ollama'] as const
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -15,6 +15,7 @@ const backendToService = {
   ipexLLM: 'ai-backend',
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
+  ollama: 'ollama-backend',
 } as const
 
 export type LlmModel = {
@@ -54,12 +55,14 @@ export const useTextInference = defineStore(
       ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
+      ollama: null,
     })
 
     const selectedEmbeddingModels = ref<LlmBackendKV>({
       ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
+      ollama: null,
     })
 
     const llmModels: Ref<LlmModel[]> = computed(() => {
@@ -77,6 +80,17 @@ export const useTextInference = defineStore(
             (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
         }
       })
+      
+      // Add Ollama models
+      if (backend.value === 'ollama') {
+        newModels.push({
+          name: 'ollama-default',
+          type: 'ollama',
+          downloaded: true,
+          active: true,
+        })
+      }
+      
       console.log('llmModels changed', newModels)
       return newModels
     })
@@ -96,6 +110,17 @@ export const useTextInference = defineStore(
               m.default),
         }
       })
+      
+      // Add Ollama embedding models
+      if (backend.value === 'ollama') {
+        newEmbeddingModels.push({
+          name: 'ollama-embedding',
+          type: 'ollama',
+          downloaded: true,
+          active: true,
+        })
+      }
+      
       console.log('llmEmbeddingModels changed', newEmbeddingModels)
       return newEmbeddingModels
     })
@@ -112,12 +137,14 @@ export const useTextInference = defineStore(
       openVINO: 'openvino',
       ipexLLM: 'default',
       llamaCPP: 'llama_cpp',
+      ollama: 'ollama',
     } as const
 
     const backendToAipgModelTypeNumber = {
       openVINO: Const.MODEL_TYPE_OPENVINO,
       ipexLLM: Const.MODEL_TYPE_LLM,
       llamaCPP: Const.MODEL_TYPE_LLAMA_CPP,
+      ollama: Const.MODEL_TYPE_LLM, // Using LLM type for Ollama
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {
@@ -145,6 +172,11 @@ export const useTextInference = defineStore(
     )
 
     async function getDownloadParamsForCurrentModelIfRequired(type: 'llm' | 'embedding') {
+      // For Ollama backend, we don't need to download models from a repository
+      if (backend.value === 'ollama') {
+        return []
+      }
+      
       let model: string | undefined
       if (type === 'llm') {
         model = activeModel.value
@@ -152,6 +184,7 @@ export const useTextInference = defineStore(
         model = activeEmbeddingModel.value
       }
       if (!model) return []
+      
       const checkList = {
         repo_id: model,
         type:

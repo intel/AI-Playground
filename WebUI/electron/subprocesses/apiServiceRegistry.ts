@@ -6,8 +6,9 @@ import { appLoggerInstance } from '../logging/logger.ts'
 import getPort, { portNumbers } from 'get-port'
 import { LlamaCppBackendService } from './llamaCppBackendService.ts'
 import { OpenVINOBackendService } from './openVINOBackendService.ts'
+import { OllamaBackendService } from './ollamaBackendService.ts'
 
-export type backend = 'ai-backend' | 'comfyui-backend'
+export type backend = 'ai-backend' | 'comfyui-backend' | 'ollama-backend'
 
 export interface ApiServiceRegistry {
   register(apiService: ApiService): void
@@ -130,6 +131,14 @@ export async function aiplaygroundApiServiceRegistry(
       new LlamaCppBackendService(
         'llamacpp-backend',
         await getPort({ port: portNumbers(39000, 39999) }),
+        win,
+        settings,
+      ),
+    )
+    instance.register(
+      new OllamaBackendService(
+        'ollama-backend',
+        await getPort({ port: portNumbers(40000, 41000) }),
         win,
         settings,
       ),

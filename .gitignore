@@ -14,6 +14,7 @@ WebUI/external/workflows_bak/
 *.whl
 hijacks/
 ComfyUI/
+ollama-service/
 env
 llama-cpp-env/
 *env_tmp/

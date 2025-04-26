@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
+const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend', 'ollama-backend'] as const
 
 type ServiceSettings = {
   ['ai-backend']?: object
@@ -9,6 +9,7 @@ type ServiceSettings = {
   }
   ['llamacpp-backend']?: object
   ['openvino-backend']?: object
+  ['ollama-backend']?: object
 } & { serviceName: BackendServiceName }
 
 export type BackendServiceName = (typeof backends)[number]
