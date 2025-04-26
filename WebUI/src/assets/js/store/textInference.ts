@@ -43,6 +43,24 @@ export type EmbedInquiry = {
   embeddingModel: string
 }
 
+// Thinking model markers for different models
+export const thinkingModels: Record<string, string> = {
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
+}
+
+// A friendly display name for each backend
+export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
+  ipexLLM: 'IPEX-LLM',
+  llamaCPP: 'llamaCPP - GGUF',
+  openVINO: 'OpenVINO',
+  ollama: 'Ollama',
+}
+
 export const useTextInference = defineStore(
   'textInference',
   () => {
@@ -311,6 +329,191 @@ export const useTextInference = defineStore(
     function deleteAllFiles() {
       ragList.value.length = 0
     }
+    
+    // Extract the thinking text from the model's output
+    function extractPreMarker(fullAnswer: string, model?: string): string {
+      const modelName = model || activeModel.value
+      if (modelName && thinkingModels[modelName]) {
+        const marker = thinkingModels[modelName]
+        const idx = fullAnswer.indexOf(marker)
+        return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
+      }
+      return fullAnswer
+    }
+
+    // Extract the final response after the thinking marker
+    function extractPostMarker(fullAnswer: string, model?: string): string {
+      const modelName = model || activeModel.value
+      if (modelName && thinkingModels[modelName]) {
+        const marker = thinkingModels[modelName]
+        const idx = fullAnswer.indexOf(marker)
+        return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
+      }
+      return ''
+    }
+    
+    // Define a type for document location information
+    type DocumentLocation = {
+      pageNumber?: number;
+      lines?: { 
+        from?: number; 
+        to?: number 
+      };
+    };
+    
+    // Format RAG sources for display
+    function formatRagSources(documents: Document[] | { metadata?: { source?: string; loc?: DocumentLocation } }[]): string {
+      // Group documents by source file
+      const fileGroups = new Map<
+        string,
+        Array<{
+          lines?: { from: number; to: number }
+          page?: number
+        }>
+      >()
+      const unknownSources: string[] = []
+
+      // Process each document
+      documents.forEach((doc) => {
+        const source = doc.metadata?.source
+        const location = doc.metadata?.loc
+
+        // Handle unknown sources
+        if (!source) {
+          unknownSources.push('Unknown Source')
+          return
+        }
+
+        // Get or create array for this file
+        const entries = fileGroups.get(source) || []
+
+        // Create entry with available location information
+        const entry: { lines?: { from: number; to: number }; page?: number } = {}
+
+        // Add line information if available
+        if (location?.lines?.from && location?.lines?.to) {
+          entry.lines = {
+            from: location.lines.from,
+            to: location.lines.to,
+          }
+        }
+
+        // Add page information if available
+        if (location?.pageNumber !== undefined) {
+          entry.page = location.pageNumber
+        }
+
+        // Only add entry if it has some location information
+        if (Object.keys(entry).length > 0) {
+          entries.push(entry)
+          fileGroups.set(source, entries)
+        }
+      })
+
+      // Function to merge overlapping line ranges for the same page
+      const mergeRanges = (
+        entries: Array<{ lines?: { from: number; to: number }; page?: number }>,
+      ): Array<{ lines?: { from: number; to: number }; page?: number }> => {
+        if (entries.length <= 1) return entries
+
+        // Group entries by page number
+        const pageGroups = new Map<
+          number | undefined,
+          Array<{ lines?: { from: number; to: number }; page?: number }>
+        >()
+
+        entries.forEach((entry) => {
+          const pageKey = entry.page
+          const pageEntries = pageGroups.get(pageKey) || []
+          pageEntries.push(entry)
+          pageGroups.set(pageKey, pageEntries)
+        })
+
+        const result: Array<{ lines?: { from: number; to: number }; page?: number }> = []
+
+        // Process each page group
+        pageGroups.forEach((pageEntries, pageNumber) => {
+          // For entries with line information, merge overlapping ranges
+          const entriesWithLines = pageEntries.filter((e) => e.lines)
+
+          if (entriesWithLines.length > 0) {
+            // Sort by starting line
+            const sortedEntries = [...entriesWithLines].sort(
+              (a, b) => (a.lines?.from || 0) - (b.lines?.from || 0),
+            )
+
+            let current = sortedEntries[0]
+
+            // Merge overlapping line ranges
+            for (let i = 1; i < sortedEntries.length; i++) {
+              const next = sortedEntries[i]
+
+              // Check if ranges overlap or are adjacent
+              if ((current.lines?.to || 0) >= (next.lines?.from || 0) - 1) {
+                // Merge ranges
+                current = {
+                  lines: {
+                    from: current.lines?.from || 0,
+                    to: Math.max(current.lines?.to || 0, next.lines?.to || 0),
+                  },
+                  page: pageNumber,
+                }
+              } else {
+                // No overlap, add current to result and move to next
+                result.push(current)
+                current = next
+              }
+            }
+
+            // Add the last range
+            result.push(current)
+          }
+
+          // For entries with only page information (no lines), add a single entry per page
+          if (pageEntries.some((e) => !e.lines)) {
+            // If we haven't already added an entry for this page from the line merging
+            if (!result.some((r) => r.page === pageNumber && !r.lines)) {
+              result.push({ page: pageNumber })
+            }
+          }
+        })
+
+        return result
+      }
+
+      // Format results
+      const formattedResults: string[] = []
+
+      // Process each file group
+      fileGroups.forEach((entries, source) => {
+        const filename = source.split(/[\/\\]/).pop() || source
+        const mergedEntries = mergeRanges(entries)
+
+        // Format each merged entry
+        mergedEntries.forEach((entry) => {
+          let locationInfo = ''
+
+          // Format based on available information
+          if (entry.page !== undefined && entry.lines) {
+            // Both page and line information
+            locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`
+          } else if (entry.page !== undefined) {
+            // Only page information
+            locationInfo = `Page ${entry.page}`
+          } else if (entry.lines) {
+            // Only line information
+            locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`
+          }
+
+          formattedResults.push(`${filename} (${locationInfo})`)
+        })
+      })
+
+      // Add unknown sources
+      formattedResults.push(...unknownSources)
+
+      return formattedResults.join('\n')
+    }
 
     return {
       backend,
@@ -340,6 +543,9 @@ export const useTextInference = defineStore(
       checkAllFiles,
       uncheckAllFiles,
       deleteAllFiles,
+      extractPreMarker,
+      extractPostMarker,
+      formatRagSources,
     }
   },
   {

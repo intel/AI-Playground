@@ -224,6 +224,7 @@ export class OllamaBackendService implements ApiService {
     const additionalEnvVariables = {
       // Any environment variables needed by Ollama
       OLLAMA_HOST: `127.0.0.1:${this.port}`,
+      OLLAMA_ORIGINS: '*'
     };
 
     this.appLogger.info(`Starting Ollama service from ${this.ollamaExePath}`, this.name);

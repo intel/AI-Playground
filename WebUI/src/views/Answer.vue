@@ -195,11 +195,11 @@
                   <div
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer))"
+                    v-html="markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer))"
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer))"
+                    v-html="markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer))"
                   ></div>
                 </template>
                 <template v-else>
@@ -213,7 +213,7 @@
                   @click="
                     copyText(
                       chat.model && thinkingModels[chat.model]
-                        ? extractPostMarker(chat.answer)
+                        ? textInference.extractPostMarker(chat.answer)
                         : chat.answer,
                     )
                   "
@@ -324,7 +324,7 @@
                 Retrieving Documents...
               </div>
               <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
-                {{ getRagSources(actualRagResults) }}
+                {{ textInference.formatRagSources(actualRagResults) }}
               </div>
             </div>
             <div
@@ -579,7 +579,7 @@ import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { useConversations } from '@/assets/js/store/conversations'
-import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import { llmBackendTypes, LlmBackend, useTextInference, thinkingModels, textInferenceBackendDisplayName } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
@@ -611,14 +611,6 @@ let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
 
-const thinkingModels: Record<string, string> = {
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
-}
 
 const markerFound = ref(false)
 const thinkingText = ref('')
@@ -628,25 +620,7 @@ const postMarkerText = ref('')
 let reasoningStartTime = 0
 let reasoningTotalTime = 0
 
-function extractPreMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
-  if (model && thinkingModels[model]) {
-    const marker = thinkingModels[model]
-    const idx = fullAnswer.indexOf(marker)
-    return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
-  }
-  return fullAnswer
-}
 
-function extractPostMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
-  if (model && thinkingModels[model]) {
-    const marker = thinkingModels[model]
-    const idx = fullAnswer.indexOf(marker)
-    return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
-  }
-  return ''
-}
 
 let sseMetrics: MetricsData | null = null
 let actualRagResults: LangchainDocument[] | null = null
@@ -680,18 +654,13 @@ function finishGenerate() {
   textOutFinish = true
 }
 
-// A friendly display name for each backend
-const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
-  ipexLLM: 'IPEX-LLM',
-  llamaCPP: 'llamaCPP - GGUF',
-  openVINO: 'OpenVINO',
-}
 
 // Optional: if you want to show whether each backend is currently running
 function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
   if (name === 'ipexLLM') return 'ai-backend'
   if (name === 'llamaCPP') return 'llamacpp-backend'
   if (name === 'openVINO') return 'openvino-backend'
+  if (name === 'ollama') return 'ollama-backend' as BackendServiceName
   return undefined
 }
 function isRunning(name: LlmBackend) {
@@ -917,7 +886,7 @@ async function simulatedInput() {
 
     if (key !== null) {
       const ragSourceInfo =
-        actualRagResults && actualRagResults.length ? getRagSources(actualRagResults) : null
+        actualRagResults && actualRagResults.length ? textInference.formatRagSources(actualRagResults) : null
 
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -951,161 +920,6 @@ async function simulatedInput() {
       }
     })
   }
-}
-
-function getRagSources(actualRagResults: LangchainDocument[]): string {
-  // Group documents by source file
-  const fileGroups = new Map<
-    string,
-    Array<{
-      lines?: { from: number; to: number }
-      page?: number
-    }>
-  >()
-  const unknownSources: string[] = []
-
-  // Process each document
-  actualRagResults.forEach((doc) => {
-    const source = doc.metadata?.source
-    const location = doc.metadata.loc as
-      | { pageNumber?: number; lines?: { from?: number; to?: number } }
-      | undefined
-
-    // Handle unknown sources
-    if (!source) {
-      unknownSources.push('Unknown Source')
-      return
-    }
-
-    // Get or create array for this file
-    const entries = fileGroups.get(source) || []
-
-    // Create entry with available location information
-    const entry: { lines?: { from: number; to: number }; page?: number } = {}
-
-    // Add line information if available
-    if (location?.lines?.from && location?.lines?.to) {
-      entry.lines = {
-        from: location.lines.from,
-        to: location.lines.to,
-      }
-    }
-
-    // Add page information if available
-    if (location?.pageNumber !== undefined) {
-      entry.page = location.pageNumber
-    }
-
-    // Only add entry if it has some location information
-    if (Object.keys(entry).length > 0) {
-      entries.push(entry)
-      fileGroups.set(source, entries)
-    }
-  })
-
-  // Function to merge overlapping line ranges for the same page
-  const mergeRanges = (
-    entries: Array<{ lines?: { from: number; to: number }; page?: number }>,
-  ): Array<{ lines?: { from: number; to: number }; page?: number }> => {
-    if (entries.length <= 1) return entries
-
-    // Group entries by page number
-    const pageGroups = new Map<
-      number | undefined,
-      Array<{ lines?: { from: number; to: number }; page?: number }>
-    >()
-
-    entries.forEach((entry) => {
-      const pageKey = entry.page
-      const pageEntries = pageGroups.get(pageKey) || []
-      pageEntries.push(entry)
-      pageGroups.set(pageKey, pageEntries)
-    })
-
-    const result: Array<{ lines?: { from: number; to: number }; page?: number }> = []
-
-    // Process each page group
-    pageGroups.forEach((pageEntries, pageNumber) => {
-      // For entries with line information, merge overlapping ranges
-      const entriesWithLines = pageEntries.filter((e) => e.lines)
-
-      if (entriesWithLines.length > 0) {
-        // Sort by starting line
-        const sortedEntries = [...entriesWithLines].sort(
-          (a, b) => (a.lines?.from || 0) - (b.lines?.from || 0),
-        )
-
-        let current = sortedEntries[0]
-
-        // Merge overlapping line ranges
-        for (let i = 1; i < sortedEntries.length; i++) {
-          const next = sortedEntries[i]
-
-          // Check if ranges overlap or are adjacent
-          if ((current.lines?.to || 0) >= (next.lines?.from || 0) - 1) {
-            // Merge ranges
-            current = {
-              lines: {
-                from: current.lines?.from || 0,
-                to: Math.max(current.lines?.to || 0, next.lines?.to || 0),
-              },
-              page: pageNumber,
-            }
-          } else {
-            // No overlap, add current to result and move to next
-            result.push(current)
-            current = next
-          }
-        }
-
-        // Add the last range
-        result.push(current)
-      }
-
-      // For entries with only page information (no lines), add a single entry per page
-      if (pageEntries.some((e) => !e.lines)) {
-        // If we haven't already added an entry for this page from the line merging
-        if (!result.some((r) => r.page === pageNumber && !r.lines)) {
-          result.push({ page: pageNumber })
-        }
-      }
-    })
-
-    return result
-  }
-
-  // Format results
-  const formattedResults: string[] = []
-
-  // Process each file group
-  fileGroups.forEach((entries, source) => {
-    const filename = source.split(/[\/\\]/).pop() || source
-    const mergedEntries = mergeRanges(entries)
-
-    // Format each merged entry
-    mergedEntries.forEach((entry) => {
-      let locationInfo = ''
-
-      // Format based on available information
-      if (entry.page !== undefined && entry.lines) {
-        // Both page and line information
-        locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`
-      } else if (entry.page !== undefined) {
-        // Only page information
-        locationInfo = `Page ${entry.page}`
-      } else if (entry.lines) {
-        // Only line information
-        locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`
-      }
-
-      formattedResults.push(`${filename} (${locationInfo})`)
-    })
-  })
-
-  // Add unknown sources
-  formattedResults.push(...unknownSources)
-
-  return formattedResults.join('\n')
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -1167,11 +981,12 @@ async function generate(chatContext: ChatItem[]) {
   }
 
   try {
-    const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
+    const backendToInferenceService = {
       llamaCPP: 'llamacpp-backend',
       openVINO: 'openvino-backend',
       ipexLLM: 'ai-backend',
-    }
+      ollama: 'ollama-backend' as BackendServiceName,
+    } as const
     const inferenceBackendService = backendToInferenceService[textInference.backend]
     await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
     backendServices.updateLastUsedBackend(inferenceBackendService)
