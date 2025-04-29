@@ -2,7 +2,7 @@ import hashlib
 import logging
 import os
 import shutil
-from typing import IO
+from typing import IO, List
 
 # Import from the backend_shared package
 import config
@@ -180,3 +180,12 @@ def remove_existing_filesystem_resource(path: str):
             shutil.rmtree(path)
         else:
             os.remove(path)
+
+def convert_embedding(emb: List[float], encoding_format):
+    if encoding_format == 'float':
+        return emb
+    elif encoding_format == 'base64':
+        import base64
+        import numpy as np
+        emb = np.array(emb, dtype=np.float32)
+        return base64.b64encode(emb.tobytes()).decode('utf-8')
