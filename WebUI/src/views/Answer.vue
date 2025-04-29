@@ -96,7 +96,19 @@
           </div>
         </div>
       </div>
-      <div
+      <div v-if="textInference.backend === 'ollama'"
+        id="chatPanel"
+        class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
+        :class="textInference.fontSizeClass"
+        @scroll="handleScroll"
+      >
+        <div v-for="(message) in chat.messages.value" :key="message.id">
+          {{message.role === 'user' ? 'User: ' : 'AI: '}}
+          {{message.content}}
+          {{ message.parts }}
+        </div>
+    </div>
+      <div v-else
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
         :class="textInference.fontSizeClass"
@@ -583,6 +595,31 @@ import { llmBackendTypes, LlmBackend, useTextInference, thinkingModels, textInfe
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { useChat } from '@ai-sdk/vue'
+import { streamText } from 'ai';
+
+const getModel = () => createOpenAICompatible({
+  name: "model",
+  baseURL: `${textInference.currentBackendUrl}/v1/`
+}).chatModel('deepseek-r1:1.5b')
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const customFetch = async (_: any, options: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const m = JSON.parse(options.body) as any;
+  console.log(m)
+  const result = await streamText({
+    model: getModel(),
+    messages: m.messages,
+    abortSignal: options.signal,
+  });
+  return result.toDataStreamResponse()
+}
+
+
+const chat = useChat({fetch: customFetch })
+
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()
@@ -975,7 +1012,20 @@ async function checkModelAvailability() {
   })
 }
 
+async function generateWithAiSdk(chatContext: ChatItem[]) {
+  
+  await chat.append({
+    role: 'user',
+    content: chatContext[chatContext.length - 1].question,
+  })
+}
+
 async function generate(chatContext: ChatItem[]) {
+  if (textInference.backend === 'ollama') {
+    // For Ollama, we need to set the model name in the backend URL
+    await generateWithAiSdk(chatContext)
+    return
+  }
   if (processing.value || chatContext.length == 0) {
     return
   }
