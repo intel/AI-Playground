@@ -263,7 +263,11 @@ export class PipService extends ExecutableService {
   }
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    return this.python.run(['-m', 'pip', ...args], extraEnv, workDir)
+    return this.python.run(
+      ['-m', 'pip', ...args],
+      { ...extraEnv, PYTHONNOUSERSITE: 'true' },
+      workDir,
+    )
   }
 
   async check(): Promise<void> {
@@ -306,7 +310,7 @@ export class PipService extends ExecutableService {
 
   private async getPip(): Promise<void> {
     const getPipScript = existingFileOrError(path.join(this.dir, 'get-pip.py'))
-    await this.python.run([getPipScript])
+    await this.python.run([getPipScript], { PYTHONNOUSERSITE: 'true' })
   }
 
   async installRequirementsTxt(requirementsTxtPath: string): Promise<void> {
@@ -358,7 +362,7 @@ export class UvPipService extends PipService {
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     return this.python.run(
       ['-m', 'uv', 'pip', ...args],
-      { ...extraEnv, UV_LINK_MODE: 'copy' },
+      { ...extraEnv, PYTHONNOUSERSITE: 'true', UV_LINK_MODE: 'copy' },
       workDir,
     )
   }

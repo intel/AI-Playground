@@ -269,6 +269,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }> {
     const additionalEnvVariables = {
       PATH: `${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
