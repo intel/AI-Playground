@@ -251,5 +251,26 @@
   "DEVICE": "Cihaz",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Kontrol Noktası Modeli",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Kare Hızı",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Toplam Kare"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Toplam Kare",
+  "ANSWER_MAX_TOKENS": "Maksimum Jeton",
+  "ANSWER_METRICS": "Metrikler",
+  "ANSWER_FONT_SIZE": "Yazı Tipi Boyutu",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Belge Gömme Modeli",
+  "RAG_DOCUMENTS": "Belgeler",
+  "RAG_ENABLED": "Etkin",
+  "RAG_ADD_DOCUMENTS": "Belgeleri Ekle",
+  "RAG_ADD_FILES": "Dosyaları Ekle",
+  "RAG_SEARCHABLE_DOCUMENTS": "Aranabilir Belgeler",
+  "RAG_CLEAR_ALL": "Hepsini Temizle",
+
+  "BACKEND_STOP": "Backend'i Durdur",
+  "BACKEND_START": "Backend'i Başlat",
+  "BACKEND_REINSTALL": "Backend'i Yeniden Kur",
+  "BACKEND_CONFIRM": "Emin misiniz?",
+  "BACKEND_REINSTALL_DESCRIPTION": "Bu, {backend} backend'ini yeniden kuracak. İnternet bağlantınıza bağlı olarak, bu işlem biraz zaman alabilir.",
+  "BACKEND_SETTINGS_TITLE": "{backend} Ayarları",
+  "BACKEND_SETTINGS_DESCRIPTION": "{backend} backend'i için ayarları yapılandırın. Değişikliklerin etkili olması için yeniden başlatma veya yeniden kurulum gerekebilir.",
+  "BACKEND_VERSION": "Sürüm",
+  "BACKEND_VERSION_DESCRIPTION": "Backend için kullanılacak Git referansı. Bu, bir sürüm etiketi veya commit hash'i olabilir.",
+  "BACKEND_SAVE_CHANGES": "Değişiklikleri Kaydet"
 }

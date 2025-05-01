@@ -100,7 +100,6 @@ class SD_SSE_Adapter:
         if not os.path.exists(dir):
             os.makedirs(dir)
         image.save(filename)
-        utils.cache_file(filename, os.path.getsize(filename))
 
         response_params = self.get_response_params(
             image, os.path.getsize(filename), params

@@ -283,28 +283,17 @@ textarea {
 }
 
 .rag-panel {
-  width: 400px;
-  height: 503px;
+  width: 420px;
+  height: 500px;
+  margin: 10px 0;
   border-radius: 6px;
   border: 1px solid var(--color-spilter);
   background-color: var(--color-panel-focus);
   overflow: hidden;
   position: absolute;
   right: 16px;
-  top: -511px;
+  top: 10px;
   z-index: 30;
-
-  .s32 {
-    width: 20px;
-    height: 20px;
-  }
-
-  .line2 {
-    flex: 1 1 auto;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 
 .modify-mask {

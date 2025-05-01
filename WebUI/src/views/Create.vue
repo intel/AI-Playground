@@ -58,7 +58,7 @@
           </div>
           <div
             v-show="imageGeneration.processing"
-            class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
+            class="absolute left-0 top-0 w-full h-full flex justify-center items-center"
           >
             <loading-bar
               v-if="
@@ -74,10 +74,12 @@
             ></loading-bar>
             <div
               v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
-              class="flex gap-2 items-center justify-center text-white"
+              class="flex gap-2 items-center justify-center text-white bg-black/50 py-6 px-12 rounded-lg"
             >
               <span class="svg-icon i-loading w-8 h-8"></span>
-              <span class="text-2xl">{{ imageGeneration.stepText }}</span>
+              <span class="text-2xl tabular-nums" style="min-width: 200px">{{
+                imageGeneration.stepText
+              }}</span>
             </div>
           </div>
           <div

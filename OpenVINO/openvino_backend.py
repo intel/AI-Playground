@@ -1,9 +1,9 @@
 from typing import Dict, List, Callable
 from os import path
-from openvino_interface import LLMInterface
+from interface import LLMInterface
+from params import LLMParams
+import config
 import openvino_genai
-from openvino_params import LLMParams
-import openvino_model_config as model_config
 import gc
 
 class OpenVino(LLMInterface):
@@ -20,7 +20,7 @@ class OpenVino(LLMInterface):
             self.unload_model()
             callback(params.model_repo_id)
 
-            model_base_path = model_config.openVINOConfig.get("openvinoLLM")
+            model_base_path = config.openvino_model_paths.get("openvinoLLM")
             model_name = model_repo_id.replace("/", "---")
             model_path = path.abspath(path.join(model_base_path, model_name))
 

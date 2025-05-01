@@ -1,9 +1,9 @@
 from typing import Dict, List, Callable
 from os import path
-from llama_interface import LLMInterface
+from interface import LLMInterface
+from params import LLMParams
 from llama_cpp import CreateChatCompletionStreamResponse, Iterator, Llama
-from llama_params import LLMParams
-import model_config
+import config
 import gc
 
 class LlamaCpp(LLMInterface):
@@ -19,7 +19,7 @@ class LlamaCpp(LLMInterface):
                 callback("start")
             self.unload_model()
 
-            model_base_path = model_config.llamaCppConfig.get("ggufLLM")
+            model_base_path = config.llama_cpp_model_paths.get("ggufLLM")
             namespace, repo, *model = model_repo_id.split("/")
             model_path = path.abspath(path.join(model_base_path,"---".join([namespace, repo]), "---".join(model)))
             

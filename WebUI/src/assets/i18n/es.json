@@ -251,5 +251,27 @@
   "DEVICE": "Dispositivo",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Modelo de checkpoint",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Velocidad de fotogramas",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Frames totales"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Frames totales",
+
+  "BACKEND_STOP": "Detener Backend",
+  "BACKEND_START": "Iniciar Backend",
+  "BACKEND_REINSTALL": "Reinstalar Backend",
+  "BACKEND_CONFIRM": "¿Está seguro?",
+  "BACKEND_REINSTALL_DESCRIPTION": "Esto reinstalará el backend {backend}. Dependiendo de su conexión a Internet, esto puede llevar un tiempo.",
+  "BACKEND_SETTINGS_TITLE": "Configuración de {backend}",
+  "BACKEND_SETTINGS_DESCRIPTION": "Configure los ajustes para el backend {backend}. Los cambios pueden requerir un reinicio o reinstalación para surtir efecto.",
+  "BACKEND_VERSION": "Versión",
+  "BACKEND_VERSION_DESCRIPTION": "La referencia Git a utilizar para el backend. Puede ser una etiqueta de versión o un hash de commit.",
+  "BACKEND_SAVE_CHANGES": "Guardar cambios",
+
+  "ANSWER_MAX_TOKENS": "Máximo de tokens",
+  "ANSWER_METRICS": "Métricas",
+  "ANSWER_FONT_SIZE": "Tamaño de fuente",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Modelo de incrustación de documentos",
+  "RAG_DOCUMENTS": "Documentos",
+  "RAG_ENABLED": "Habilitado",
+  "RAG_ADD_DOCUMENTS": "Agregar documentos",
+  "RAG_ADD_FILES": "Agregar archivos",
+  "RAG_SEARCHABLE_DOCUMENTS": "Documentos buscables",
+  "RAG_CLEAR_ALL": "Borrar todo"
 }

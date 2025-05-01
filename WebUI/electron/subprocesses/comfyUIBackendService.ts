@@ -5,36 +5,77 @@ import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
 import {
-  LsLevelZeroService,
+  DeviceService,
   LongLivedPythonApiService,
   aiBackendServiceDir,
   GitService,
   UvPipService,
+  hijacksDir,
+  installHijacks,
+  patchFile,
 } from './service.ts'
 import { getMediaDir } from '../util.ts'
-
-const serviceFolder = 'ComfyUI'
+import { Arch } from './deviceArch.ts'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
-  readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
+  readonly serviceFolder = 'ComfyUI'
+  readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
-  readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
-  readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
-  readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
+  readonly deviceService = new DeviceService()
+  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
-  private readonly revision = '61b5072'
+  private revision = 'v0.3.30'
+
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
     ? this.settings.comfyUiParameters
-    : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '5.0']
+    : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
   serviceIsSetUp(): boolean {
-    return filesystem.existsSync(this.pythonEnvDir) && filesystem.existsSync(this.serviceDir)
+    const dirsExist =
+      filesystem.existsSync(this.pythonEnvDir) &&
+      filesystem.existsSync(this.serviceDir) &&
+      filesystem.existsSync(hijacksDir)
+    if (dirsExist) {
+      setTimeout(async () => {
+        const version = await this.getCurrentVersion()
+        if (version) {
+          this.appLogger.info(`comfyUI version ${version} detected`, this.name)
+          this.revision = version
+        }
+      })
+    }
+    return dirsExist
   }
 
   isSetUp = this.serviceIsSetUp()
+
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.revision = settings.version
+      this.appLogger.info(`applied new comfyUI version ${this.revision}`, this.name)
+    }
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    this.appLogger.info(`getting comfyUI settings`, this.name)
+    return { version: this.revision, serviceName: 'comfyui-backend' }
+  }
+
+  async getCurrentVersion(): Promise<string | undefined> {
+    try {
+      const gitOutput = await this.git.run(['-C', this.serviceDir, 'rev-parse', 'HEAD'])
+      const versionMatch = gitOutput.match(/HEAD detached at ([0-9a-f]{7,})|v(\d+\.\d+\.\d+)/)
+      if (versionMatch) {
+        return versionMatch[1]
+      }
+    } catch (e) {
+      this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
+      return undefined
+    }
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.appLogger.info('setting up service', this.name)
@@ -47,7 +88,16 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
       // Check if it's a valid git repo
       try {
-        await this.git.run(['-C', this.serviceDir, 'status'])
+        const version = await this.getCurrentVersion()
+        if (version === this.revision) {
+          this.appLogger.info('comfyUI already cloned, skipping', this.name)
+          return true
+        }
+        this.appLogger.info(
+          `ComfyUI version ${version?.[1]} does not match ${this.revision}. Removing...`,
+          this.name,
+        )
+        throw new Error('Version mismatch')
       } catch (_e) {
         try {
           filesystem.removeSync(this.serviceDir)
@@ -55,11 +105,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           return false
         }
       }
-
-      return true
     }
 
     const setupComfyUiBaseService = async (): Promise<void> => {
+      installHijacks()
       if (await checkServiceDir()) {
         this.appLogger.info('comfyUI already cloned, skipping', this.name)
       } else {
@@ -80,6 +129,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
     const configureComfyUI = async (): Promise<void> => {
       try {
+        this.appLogger.info('patching hijacks into comfyUI model_management', this.name)
+        patchFile(
+          path.join(this.serviceDir, 'comfy/model_management.py'),
+          'from comfy.model_management import get_model',
+          ['from ipex_to_cuda import ipex_init', 'ipex_init()'],
+        )
+
         this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
         const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')
         const extraModelsYaml = `aipg:
@@ -111,7 +167,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await this.lsLevelZero.ensureInstalled()
+      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
       await this.git.ensureInstalled()
 
@@ -121,7 +177,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `Trying to identify intel hardware`,
       }
-      const deviceArch = await this.lsLevelZero.detectDevice()
+      const deviceArch =
+        this.settings.deviceArchOverride ?? (await this.deviceService.getBestDeviceArch())
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -135,14 +192,22 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(aiBackendServiceDir(), `requirements-${deviceArch}.txt`),
-      )
-      await this.uvPip.pip.run(['install', '-r', deviceSpecificRequirements])
-      if (deviceArch === 'bmg' || deviceArch === 'arl_h') {
-        const intelSpecificExtension = existingFileOrError(this.getIPEXWheelPath(deviceArch))
-        await this.uvPip.pip.run(['install', intelSpecificExtension])
+      const archToRequirements = (deviceArch: Arch) => {
+        switch (deviceArch) {
+          case 'arl_h':
+          case 'acm':
+          case 'bmg':
+          case 'lnl':
+          case 'mtl':
+            return 'xpu'
+          default:
+            return 'unknown'
+        }
       }
+      const deviceSpecificRequirements = existingFileOrError(
+        path.join(aiBackendServiceDir(), `requirements-${archToRequirements(deviceArch)}.txt`),
+      )
+      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
       yield {
         serviceName: this.name,
         step: `install dependencies`,
@@ -204,10 +269,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
+      PATH: `${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...(await this.deviceService.getDeviceSelectorEnv()),
     }
     const mediaDir = getMediaDir()
     const parameters = [

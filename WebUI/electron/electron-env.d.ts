@@ -36,31 +36,13 @@ type Theme = 'dark' | 'lnl' | 'bmg'
 type LocalSettings = {
   debug: number
   comfyUiParameters?: string[]
+  deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
 } & KVObject
 
 type ThemeSettings = {
   availableThemes: Theme[]
   currentTheme: Theme
 }
-
-type ModelPaths = {
-  llm: string
-  embedding: string
-  stableDiffusion: string
-  inpaint: string
-  lora: string
-  vae: string
-} & StringKV
-
-type ModelLists = {
-  llm: string[]
-  stableDiffusion: string[]
-  lora: string[]
-  vae: string[]
-  scheduler: string[]
-  embedding: string[]
-  inpaint: string[]
-} & { [key: string]: Array<string> }
 
 type SetupData = {
   modelPaths: ModelPaths

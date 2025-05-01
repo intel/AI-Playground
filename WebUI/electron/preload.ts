@@ -1,12 +1,21 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import pkg from '../package.json'
+import { ModelPaths } from '@/assets/js/store/models'
+import { EmbedInquiry, IndexedDocument } from '@/assets/js/store/textInference'
 
 contextBridge.exposeInMainWorld('envVars', {
   platformTitle: import.meta.env.VITE_PLATFORM_TITLE,
+  debugToolsEnabled: import.meta.env.VITE_DEBUG_TOOLS === 'true',
   productVersion: pkg.version,
 })
 contextBridge.exposeInMainWorld('electronAPI', {
+  getFilePath: (file: File) => webUtils.getPathForFile(file),
   getServices: () => ipcRenderer.invoke('getServices'),
+  updateServiceSettings: (settings: ServiceSettings) =>
+    ipcRenderer.invoke('updateServiceSettings', settings),
+  getServiceSettings: (serviceName: string) =>
+    ipcRenderer.invoke('getServiceSettings', serviceName),
+  uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
   sendStartSignal: (serviceName: string) => ipcRenderer.invoke('sendStartSignal', serviceName),
   sendStopSignal: (serviceName: string) => ipcRenderer.invoke('sendStopSignal', serviceName),
   sendSetUpSignal: (serviceName: string) => ipcRenderer.invoke('sendSetUpSignal', serviceName),
@@ -47,6 +56,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(seriveName, normalExit),
     ),
   existsPath: (path: string) => ipcRenderer.invoke('existsPath', path),
+  addDocumentToRAGList: (doc: IndexedDocument) => ipcRenderer.invoke('addDocumentToRAGList', doc),
+  embedInputUsingRag: (embedInquiry: EmbedInquiry) =>
+    ipcRenderer.invoke('embedInputUsingRag', embedInquiry),
   getInitSetting: () => ipcRenderer.invoke('getInitSetting'),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke('updateModelPaths', modelPaths),
   restorePathsSettings: () => ipcRenderer.invoke('restorePathsSettings'),
@@ -54,7 +66,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshInpaintModles: () => ipcRenderer.invoke('refreshInpaintModles'),
   refreshLLMModles: () => ipcRenderer.invoke('refreshLLMModles'),
   refreshLora: () => ipcRenderer.invoke('refreshLora'),
-  refreshEmbeddingModels: () => ipcRenderer.invoke('refreshEmbeddingModels'),
   getDownloadedDiffusionModels: () => ipcRenderer.invoke('getDownloadedDiffusionModels'),
   getDownloadedInpaintModels: () => ipcRenderer.invoke('getDownloadedInpaintModels'),
   getDownloadedLoras: () => ipcRenderer.invoke('getDownloadedLoras'),

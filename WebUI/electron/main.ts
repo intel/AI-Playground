@@ -1,3 +1,23 @@
+import koffi from 'koffi'
+if (isAdmin()) {
+  const lib = koffi.load('user32.dll')
+  const MB_ICONINFORMATION = 0x40
+  const MessageBoxW = lib.func('__stdcall', 'MessageBoxW', 'int', [
+    'void *',
+    'str16',
+    'str16',
+    'uint',
+  ])
+
+  MessageBoxW(
+    null,
+    'For security reasons, AI Playground cannot be executed with administrative permissions. Please restart AI Playground from a Windows account without Administrator rights.',
+    'AI Playground',
+    MB_ICONINFORMATION,
+  )
+
+  process.exit(0)
+}
 import {
   app,
   BrowserWindow,
@@ -10,13 +30,14 @@ import {
   OpenDialogSyncOptions,
   screen,
   shell,
+  utilityProcess,
+  UtilityProcess,
 } from 'electron'
 import { ChildProcess, fork } from 'child_process'
 import path from 'node:path'
 import fs from 'fs'
 import { exec } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import koffi from 'koffi'
 import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
 import { appLoggerInstance } from './logging/logger.ts'
@@ -26,7 +47,9 @@ import {
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import getPort, { portNumbers } from 'get-port'
-import { getMediaDir } from './util.ts'
+import { externalResourcesDir, getMediaDir } from './util.ts'
+import type { ModelPaths } from '@/assets/js/store/models.ts'
+import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 
 // }
 // The built directory structure
@@ -50,11 +73,12 @@ const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
-let child: ChildProcess | null = null
+let mediaServerChild: ChildProcess | null = null
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 let mediaServerPort: number = 58000
 createMediaServer()
+let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
@@ -71,6 +95,7 @@ export const settings: LocalSettings = {
   availableThemes: ['dark', 'lnl'],
   currentTheme: 'lnl',
   comfyUiParameters: [],
+  deviceArchOverride: undefined,
 }
 
 async function loadSettings() {
@@ -183,11 +208,109 @@ export async function createMediaServer() {
     PORT_NUMBER: String(mediaServerPort),
     MEDIA_DIRECTORY: mediaDir,
   }
-  child = fork(path.join(__dirname, '../media/mediaServer.js'), [], { env })
+  mediaServerChild = fork(path.join(__dirname, '../media/mediaServer.js'), undefined, {
+    env,
+    stdio: 'pipe',
+  })
+  mediaServerChild.stdout?.on('data', (data) => {
+    appLogger.info(data.toString(), 'media-server')
+  })
+  mediaServerChild.stderr?.on('data', (data) => {
+    appLogger.error(data.toString(), 'media-server')
+  })
+  mediaServerChild.on('exit', (code) => {
+    if (code !== 0) {
+      appLogger.error(`Media server exited with code ${code}`, 'electron-backend')
+    }
+    setTimeout(() => {
+      createMediaServer()
+    }, 1000)
+    mediaServerChild = null
+  })
 }
 
 function stopMediaServer() {
-  child?.kill()
+  appLogger.info('Stopping media server', 'electron-backend')
+  mediaServerChild?.kill()
+}
+
+function spawnLangchainUtilityProcess() {
+  if (langchainChild) {
+    appLogger.info('Langchain utility process already running', 'electron-backend')
+    return
+  }
+  appLogger.info('Starting langchain utility process', 'electron-backend')
+  try {
+    appLogger.info(path.join(__dirname, '../langchain/langchain.js'), 'electron-backend')
+
+    langchainChild = utilityProcess.fork(
+      path.join(__dirname, '../langchain/langchain.js'),
+      undefined,
+      { stdio: 'pipe' },
+    )
+    langchainChild.stdout?.on('data', (data) => {
+      appLogger.info(data.toString(), 'langchain')
+    })
+    langchainChild.stderr?.on('data', (data) => {
+      appLogger.error(data.toString(), 'langchain')
+    })
+    langchainChild.postMessage({
+      type: 'init',
+      embeddingCachePath: path.join(externalResourcesDir(), 'embeddingCache'),
+    })
+
+    langchainChild.on('message', (message) => {
+      appLogger.info(
+        `Message from langchain utility process: Type ${message.type}`,
+        'electron-backend',
+      )
+    })
+
+    langchainChild.on('error', (error) => {
+      appLogger.error(`Error from langchain utility process: ${error}`, 'electron-backend')
+    })
+
+    langchainChild.on('exit', (code) => {
+      if (code !== 0) {
+        appLogger.info(`Langchain utility process exited with code ${code}`, 'electron-backend')
+      }
+      setTimeout(() => {
+        spawnLangchainUtilityProcess()
+      }, 1000)
+      langchainChild = null
+    })
+  } catch (error) {
+    appLogger.error(`Error starting langchain utility process: ${error}`, 'electron-backend')
+  }
+}
+
+function handleUtilityFunction<T, R>(
+  eventType: string,
+  child: UtilityProcess | null,
+  args: T,
+): Promise<R> {
+  if (!child) {
+    throw new Error('Utility process is not running')
+  }
+  return new Promise((resolve, reject) => {
+    const messageHandler = (message: { type: string; returnValue: R }) => {
+      if (message.type === eventType) {
+        child.off('message', messageHandler)
+        resolve(message.returnValue)
+      }
+    }
+
+    const errorHandler = (type: string, location: string, report: string) => {
+      const error = new Error(`Error in ${type} at ${location}: ${report}`)
+      child.off('error', errorHandler)
+      reject(error)
+    }
+
+    child.on('message', messageHandler)
+    child.on('error', errorHandler)
+
+    child.postMessage({ type: eventType, args: args })
+  })
 }
 
 app.on('quit', async () => {
@@ -206,7 +329,7 @@ app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
-    child = null
+    mediaServerChild = null
   }
 })
 
@@ -286,7 +409,7 @@ function initEventHandle() {
     const paths = app.isPackaged
       ? {
           llm: './resources/service/models/llm/checkpoints',
-          embedding: './resources/service/models/llm/embedding',
+          embedding: './resources/service/models/llm/embedding/ipexLLM',
           stableDiffusion: './resources/service/models/stable_diffusion/checkpoints',
           inpaint: './resources/service/models/stable_diffusion/inpaint',
           lora: './resources/service/models/stable_diffusion/lora',
@@ -294,7 +417,7 @@ function initEventHandle() {
         }
       : {
           llm: '../service/models/llm/checkpoints',
-          embedding: '../service/models/llm/embedding',
+          embedding: '../service/models/llm/embedding/ipexLLM',
           stableDiffusion: '../service/models/stable_diffusion/checkpoints',
           inpaint: '../service/models/stable_diffusion/inpaint',
           lora: '../service/models/stable_diffusion/lora',
@@ -421,10 +544,6 @@ function initEventHandle() {
     return pathsManager.scanLLMModles()
   })
 
-  ipcMain.handle('refreshEmbeddingModels', (_event) => {
-    return pathsManager.scanEmbedding()
-  })
-
   ipcMain.handle('getDownloadedDiffusionModels', (_event) => {
     return pathsManager.scanSDModleLists(false)
   })
@@ -450,7 +569,23 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getDownloadedEmbeddingModels', (_event) => {
-    return pathsManager.scanEmbedding(false)
+    return pathsManager.scanEmbedding()
+  })
+
+  ipcMain.handle('addDocumentToRAGList', (_event, document: IndexedDocument) => {
+    return handleUtilityFunction<IndexedDocument, IndexedDocument>(
+      'addDocumentToRAGList',
+      langchainChild,
+      document,
+    )
+  })
+
+  ipcMain.handle('embedInputUsingRag', (_event, embedInquiry: EmbedInquiry) => {
+    return handleUtilityFunction<EmbedInquiry, KVObject>(
+      'embedInputUsingRag',
+      langchainChild,
+      embedInquiry,
+    )
   })
 
   ipcMain.on('openDevTools', () => {
@@ -466,6 +601,61 @@ function initEventHandle() {
       return []
     }
     return serviceRegistry.getServiceInformation()
+  })
+
+  ipcMain.handle('uninstall', (_event: IpcMainInvokeEvent, serviceName: string) => {
+    if (!serviceRegistry) {
+      appLogger.warn('received uninstall too early during aipg startup', 'electron-backend')
+      return
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to uninstall service ${serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.uninstall()
+  })
+
+  ipcMain.handle('updateServiceSettings', (_event: IpcMainInvokeEvent, settings) => {
+    if (!serviceRegistry) {
+      appLogger.warn(
+        'received updateServiceSettings too early during aipg startup',
+        'electron-backend',
+      )
+      return
+    }
+    const service = serviceRegistry.getService(settings.serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to update settings for service ${settings.serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.updateSettings(settings)
+  })
+
+  ipcMain.handle('getServiceSettings', (_event: IpcMainInvokeEvent, serviceName) => {
+    appLogger.info(`getServiceSettings: ${serviceName}`, 'electron-backend')
+    if (!serviceRegistry) {
+      appLogger.warn(
+        'received getServiceSettings too early during aipg startup',
+        'electron-backend',
+      )
+      return
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to get settings for service ${serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.getSettings()
   })
 
   ipcMain.handle('sendStartSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {
@@ -655,7 +845,6 @@ app.whenReady().then(async () => {
     })
     return
   }
-
   /**Single instance processing */
   if (!singleInstanceLock) {
     dialog.showMessageBoxSync({
@@ -672,5 +861,6 @@ app.whenReady().then(async () => {
     initEventHandle()
     const window = await createWindow()
     await initServiceRegistry(window, settings)
+    spawnLangchainUtilityProcess()
   }
 })

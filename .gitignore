@@ -4,14 +4,15 @@ package_res/
 build_resources/
 build_envs/
 release/
+WebUI/external/device-service/
 WebUI/external/service/
 WebUI/external/workflows_intel/
 WebUI/external/workflows_bak/
 
-
-*.exe
+7zr.exe
 *.7z
 *.whl
+hijacks/
 ComfyUI/
 env
 llama-cpp-env/

@@ -251,5 +251,26 @@
   "DEVICE": "設備",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "檢查點模型",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "幀率",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "總幀數"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "總幀數",
+  "ANSWER_MAX_TOKENS": "最大標記數",
+  "ANSWER_METRICS": "指標",
+  "ANSWER_FONT_SIZE": "字體大小",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "文件嵌入模型",
+  "RAG_DOCUMENTS": "文件",
+  "RAG_ENABLED": "已啟用",
+  "RAG_ADD_DOCUMENTS": "新增文件",
+  "RAG_ADD_FILES": "新增檔案",
+  "RAG_SEARCHABLE_DOCUMENTS": "可搜尋的文件",
+  "RAG_CLEAR_ALL": "全部清除",
+
+  "BACKEND_STOP": "停止後端",
+  "BACKEND_START": "啟動後端",
+  "BACKEND_REINSTALL": "重新安裝後端",
+  "BACKEND_CONFIRM": "確定嗎？",
+  "BACKEND_REINSTALL_DESCRIPTION": "這將重新安裝 {backend} 後端。根據您的網路連線狀況，可能需要一些時間。",
+  "BACKEND_SETTINGS_TITLE": "{backend} 設定",
+  "BACKEND_SETTINGS_DESCRIPTION": "設定 {backend} 後端的參數。變更可能需要重新啟動或重新安裝才能生效。",
+  "BACKEND_VERSION": "版本",
+  "BACKEND_VERSION_DESCRIPTION": "用於後端的 Git 參考。這可以是版本標籤或提交雜湊。",
+  "BACKEND_SAVE_CHANGES": "儲存變更"
 }

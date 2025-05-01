@@ -326,10 +326,11 @@ import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import DropSelector from '../components/DropSelector.vue'
 import FolderSelector from '../components/FolderSelector.vue'
-import { Input } from '@/components/ui/input'
+import { Input } from '@/components/ui/aipgInput'
 import * as toast from '@/assets/js/toast'
 import * as Const from '@/assets/js/const'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
+import { ModelPaths } from '@/assets/js/store/models'
 
 const i18n = useI18N()
 const models = useModels()

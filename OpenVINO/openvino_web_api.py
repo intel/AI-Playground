@@ -4,11 +4,13 @@ from apiflask import APIFlask
 from flask import jsonify, request, Response, stream_with_context
 from openvino_backend import OpenVino
 from openvino_adapter import LLM_SSE_Adapter
-from openvino_params import LLMParams
+from params import LLMParams
+from openvino_embeddings import OpenVINOEmbeddingModel
+import utils
 
 app = APIFlask(__name__)
 llm_backend = OpenVino()
-
+embedding_model = OpenVINOEmbeddingModel()
 
 @app.get("/health")
 def health():
@@ -19,6 +21,14 @@ def health():
 def llm_chat():
     params = request.get_json()
     params.pop("print_metrics", None)
+    
+    # Extract external RAG parameters if they exist
+    external_rag_context = params.get("external_rag_context")
+    
+    # Add them to the params if they exist
+    if external_rag_context is not None:
+        params["external_rag_context"] = external_rag_context
+            
     llm_params = LLMParams(**params)
     sse_invoker = LLM_SSE_Adapter(llm_backend)
     it = sse_invoker.text_conversation(llm_params)
@@ -35,6 +45,44 @@ def free():
 def stop_llm_generate():
     llm_backend.stop_generate = True
     return jsonify({"code": 0, "message": "success"})
+
+
+@app.route('/v1/embeddings', methods=['POST'])
+def embeddings():
+    data = request.json
+    
+    encoding_format = data.get('encoding_format', 'float')
+    input_data = data.get('input', None)
+
+    if not input_data:
+        return jsonify({"error": "Input text is required"}), 400
+
+    if isinstance(input_data, str):
+        input_texts = [input_data]
+    elif isinstance(input_data, list):
+        input_texts = input_data
+    else:
+        return jsonify({"error": "Input should be a string or list of strings"}), 400
+
+    embeddings_result = embedding_model.embed_documents(input_texts)
+
+    response = {
+        "object": "list",
+        "data": [
+            {
+                "object": "embedding",
+                "embedding": utils.convert_embedding(emb, encoding_format),
+                "index": idx
+            } for idx, emb in enumerate(embeddings_result)
+        ],
+        "model": embedding_model.embedding_model_path,
+        "usage": {
+            "prompt_tokens": sum(len(text.split()) for text in input_texts),
+            "total_tokens": sum(len(text.split()) for text in input_texts)
+        }
+    }
+
+    return jsonify(response)
 
 
 if __name__ == "__main__":

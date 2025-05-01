@@ -5,7 +5,7 @@
       <div
         id="chatHistoryPanel"
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
-        class="flex flex-shrink-0 flex-col justify-between overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
+        class="flex flex-shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
         <div class="flex justify-end">
           <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
@@ -30,18 +30,28 @@
             :key="'if' + conversationKey"
             @click="onConversationClick(conversationKey)"
             :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
-            class="flex justify-between items-center h-12 cursor-pointer text-gray-300 p-4 hover:bg-[#00c4fa]/50"
-            :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
+            class="group relative cursor-pointer text-gray-300"
           >
-            <span class="w-40 whitespace-nowrap overflow-x-auto text-ellipsis">{{
-              conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION
-            }}</span>
-            <span
-              v-if="!conversations.isNewConversation(conversationKey)"
-              @click="() => conversations.deleteConversation(conversationKey)"
-              class="svg-icon i-delete w-5 h-5"
-            ></span>
+            <div class="flex justify-between items-center w-full h-10 px-3">
+              <div
+                v-if="conversations.activeKey === conversationKey"
+                class="absolute inset-1 bg-[#00c4fa]/50 rounded-lg"
+              ></div>
+              <div class="relative flex justify-between items-center w-full">
+                <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
+                  {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+                </span>
+                <span
+                  v-if="!conversations.isNewConversation(conversationKey)"
+                  @click.stop="conversations.deleteConversation(conversationKey)"
+                  class="text-3xl opacity-0 group-hover:opacity-70 transition-opacity duration-200 cursor-pointer ml-3"
+                >
+                  ×
+                </span>
+              </div>
+            </div>
           </div>
+
           <div
             v-else
             v-for="(conversation, conversationKey) in conversations.conversationList"
@@ -104,6 +114,14 @@
               <div class="chat-content" style="white-space: pre-wrap">
                 {{ chat.question }}
               </div>
+              <button
+                class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+                :title="languages.COM_COPY"
+                @click="copyText(chat.question)"
+              >
+                <span class="svg-icon i-copy w-4 h-4"></span>
+                <span>{{ languages.COM_COPY }}</span>
+              </button>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -115,21 +133,91 @@
                 <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
                   {{ languages.ANSWER_AI_NAME }}
                 </p>
-                <div v-if="chat.model">
+                <div v-if="chat.model" class="flex items-center gap-2">
                   <span
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
                   >
                     {{ chat.model }}
                   </span>
+                  <!-- Display RAG source if available -->
+                  <span
+                    v-if="chat.ragSource"
+                    @click="chat.showRagSource = !chat.showRagSource"
+                    class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                    :class="textInference.nameSizeClass"
+                  >
+                    Source Docs
+                    <button class="ml-1">
+                      <img
+                        v-if="chat.showRagSource"
+                        src="@/assets/svg/arrow-up.svg"
+                        class="w-3 h-3"
+                      />
+                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                    </button>
+                  </span>
                 </div>
               </div>
+
+              <!-- RAG Source Details (collapsible) -->
               <div
-                class="ai-answer chat-content"
-                v-html="markdownParser.parseMarkdown(chat.answer)"
-              ></div>
+                v-if="chat.ragSource && chat.showRagSource"
+                class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+                :class="textInference.fontSizeClass"
+              >
+                <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+                <div class="whitespace-pre-wrap">{{ chat.ragSource }}</div>
+              </div>
+              <div class="ai-answer chat-content">
+                <template v-if="chat.model && thinkingModels[chat.model]">
+                  <div class="mb-2 flex items-center">
+                    <span class="italic text-gray-300">
+                      {{
+                        chat.reasoningTime !== undefined && chat.reasoningTime !== null
+                          ? `Reasoned for ${
+                              (chat.reasoningTime / 1000).toFixed(1).endsWith('.0')
+                                ? (chat.reasoningTime / 1000).toFixed(0)
+                                : (chat.reasoningTime / 1000).toFixed(1)
+                            } seconds`
+                          : 'Done Reasoning'
+                      }}
+                    </span>
+                    <button @click="chat.showThinkingText = !chat.showThinkingText" class="ml-1">
+                      <img
+                        v-if="chat.showThinkingText"
+                        src="@/assets/svg/arrow-up.svg"
+                        class="w-4 h-4"
+                      />
+                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div
+                    v-if="chat.showThinkingText"
+                    class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
+                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer))"
+                  ></div>
+                  <div
+                    class="mt-2 text-white whitespace-pre-wrap"
+                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer))"
+                  ></div>
+                </template>
+                <template v-else>
+                  <span v-html="markdownParser.parseMarkdown(chat.answer)"></span>
+                </template>
+              </div>
               <div class="answer-tools flex gap-3 items-center text-gray-300">
-                <button class="flex items-end" :title="languages.COM_COPY" @click="copyText">
+                <button
+                  class="flex items-end"
+                  :title="languages.COM_COPY"
+                  @click="
+                    copyText(
+                      chat.model && thinkingModels[chat.model]
+                        ? extractPostMarker(chat.answer)
+                        : chat.answer,
+                    )
+                  "
+                >
                   <span class="svg-icon i-copy w-4 h-4"></span>
                   <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
                 </button>
@@ -184,6 +272,14 @@
             <div class="chat-content" style="white-space: pre-wrap">
               {{ textIn }}
             </div>
+            <button
+              class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+              :title="languages.COM_COPY"
+              @click="copyText(textIn)"
+            >
+              <span class="svg-icon i-copy w-4 h-4"></span>
+              <span>{{ languages.COM_COPY }}</span>
+            </button>
           </div>
         </div>
         <div
@@ -204,12 +300,89 @@
               >
                 {{ textInference.activeModel }}
               </span>
+              <span
+                v-if="ragRetrievalInProgress || actualRagResults?.length"
+                class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                :class="textInference.nameSizeClass"
+                @click="showRagPreview = !showRagPreview"
+              >
+                Source Docs
+                <button class="ml-1">
+                  <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
+                  <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                </button>
+              </span>
+            </div>
+
+            <div
+              v-if="showRagPreview"
+              class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+              :class="textInference.fontSizeClass"
+            >
+              <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+              <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">
+                Retrieving Documents...
+              </div>
+              <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
+                {{ getRagSources(actualRagResults) }}
+              </div>
             </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
-              class="ai-answer cursor-block break-all"
-              v-html="textOut"
-            ></div>
+              :class="[
+                'ai-answer',
+                {
+                  'cursor-block': !(
+                    textInference.activeModel && thinkingModels[textInference.activeModel]
+                  ),
+                },
+                'break-all',
+              ]"
+            >
+              <template
+                v-if="textInference.activeModel && thinkingModels[textInference.activeModel]"
+              >
+                <div class="mb-2 flex items-center">
+                  <span class="italic text-gray-300 inline-flex items-center">
+                    <template v-if="thinkingText || postMarkerText">
+                      <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
+                        {{ `Reasoned for ${(reasoningTotalTime / 1000).toFixed(1)} seconds` }}
+                      </span>
+                      <span v-else class="inline-block w-[9ch] truncate">
+                        {{ animatedReasoningText }}
+                      </span>
+
+                      <button
+                        @click="showThinkingText = !showThinkingText"
+                        class="flex items-center"
+                      >
+                        <img
+                          v-if="showThinkingText"
+                          src="@/assets/svg/arrow-up.svg"
+                          class="w-4 h-4"
+                        />
+                        <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                      </button>
+                    </template>
+                    <template v-else>
+                      <span class="cursor-block"></span>
+                    </template>
+                  </span>
+                </div>
+                <div
+                  v-if="showThinkingText"
+                  class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
+                  v-html="markdownParser.parseMarkdown(thinkingText)"
+                ></div>
+                <div
+                  class="mt-2 text-white whitespace-pre-wrap"
+                  v-html="markdownParser.parseMarkdown(postMarkerText)"
+                ></div>
+              </template>
+              <template v-else>
+                <span v-html="textOut"></span>
+              </template>
+            </div>
             <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
               <progress-bar
                 v-if="downloadModel.downloading"
@@ -226,6 +399,7 @@
           </div>
         </div>
       </div>
+      <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
     <!-- Button to scroll to bottom -->
     <button
@@ -238,142 +412,156 @@
       </svg>
     </button>
     <div
-      class="pl-4 h-48 gap-3 flex-none flex items-center justify-center relative border-t border-color-spilter pt-4"
+      class="pl-4 pt-4 flex flex-col items-center justify-center relative border-t border-color-spilter px-2"
     >
-      <div class="flex flex-col gap-2 flex-auto h-full">
-        <div class="flex items-center justify-between gap-5 text-white px-2">
-          <div class="flex items-center">
-            <drop-selector
-              :array="textInference.llmModels.filter((m) => m.type === textInference.backend)"
-              @change="(i) => textInference.selectModel(textInference.backend, i.name)"
-              class="w-96"
-            >
-              <template #selected>
-                <model-drop-down-item
-                  :model="
-                    textInference.llmModels
-                      .filter((m) => m.type === textInference.backend)
-                      .find((m) => m.active)
-                  "
-                ></model-drop-down-item>
-              </template>
-              <template #list="slotItem">
-                <model-drop-down-item :model="slotItem.item"></model-drop-down-item>
-              </template>
-            </drop-selector>
-            <button
-              class="svg-icon i-generate-add w-6 h-6 text-purple-500 ml-1.5"
-              @click="addLLMModel"
-            ></button>
-            <button
-              class="svg-icon i-refresh w-5 h-5 text-purple-500 flex-none ml-1"
-              @animationend="removeRonate360"
-              @click="refreshLLMModles"
-            ></button>
-            <!-- <button
-                class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-6"
-                @click="() => conversations.clearConversation(conversations.activeKey)">
-                <span class="svg-icon i-clear w-4 h-4"></span>
-                <span>{{ languages.ANSWER_ERROR_CLEAR_SESSION }}</span>
-            </button> -->
-            <button
-              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="textInference.increaseFontSize"
-              :disabled="textInference.isMaxSize"
-              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
-            >
-              <span class="svg-icon i-zoom-in w-4 h-4"></span>
-              <span>{{ languages.INCREASE_FONT_SIZE }}</span>
-            </button>
-            <button
-              class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-4 py-1 ml-2"
-              @click="textInference.decreaseFontSize"
-              :disabled="textInference.isMinSize"
-              :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
-            >
-              <span class="svg-icon i-zoom-out w-4 h-4"></span>
-              <span>{{ languages.DECREASE_FONT_SIZE }}</span>
-            </button>
-          </div>
-          <div
-            v-show="textInference.backend === 'ipexLLM'"
-            class="flex justify-center items-center gap-2"
-          >
-            <div class="v-checkbox flex-none" type="button" :disabled="processing">
-              <button
-                v-show="!ragData.processEnable"
-                class="v-checkbox-control flex-none"
-                :class="{ 'v-checkbox-checked': ragData.enable }"
-                @click="toggleRag(!ragData.enable)"
-              ></button>
-              <span
-                v-show="ragData.processEnable"
-                class="w-4 h-4 svg-icon i-loading flex-none"
-              ></span>
-              <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
-            </div>
-            <button
-              class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
-              @click="ragData.showUploader = true"
-              :disabled="!ragData.enable || processing"
-            >
-              <span class="svg-icon i-upload w-4 h-4"></span>
-              <span>{{ languages.ANSWER_RAG_OPEN_DIALOG }}</span>
-            </button>
-            <drop-selector
-              :array="globalSetup.models.embedding"
-              @change="changeEmbeddingModel"
-              :disabled="ragData.enable || processing"
-              class="w-96"
-            >
-              <template #selected>
-                <div class="flex gap-2 items-center overflow-hidden text-ellipsis">
-                  <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                  <span>{{ globalSetup.modelSettings.embedding }}</span>
-                </div>
-              </template>
-              <template #list="slotItem">
-                <div class="flex gap-2 items-center text-ellipsis" :title="slotItem.item">
-                  <span class="rounded-full bg-green-500 w-2 h-2"></span>
-                  <span class="h-7 overflow-hidden">{{ slotItem.item }}</span>
-                </div>
-              </template>
-            </drop-selector>
-          </div>
+      <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
+        <div class="flex items-center gap-2">
+          <drop-down-new
+            title="Inference Backend"
+            @change="(item) => (textInference.backend = item as LlmBackend)"
+            :value="textInference.backend"
+            :items="
+              [...llmBackendTypes].map((item) => ({
+                label: textInferenceBackendDisplayName[item],
+                value: item,
+                active: isRunning(item),
+              }))
+            "
+          ></drop-down-new>
+          <drop-down-new
+            title="Text Inference Model"
+            @change="(item) => textInference.selectModel(textInference.backend, item)"
+            :value="
+              textInference.llmModels
+                .filter((m) => m.type === textInference.backend)
+                .find((m) => m.active)?.name ?? ''
+            "
+            :items="
+              textInference.llmModels
+                .filter((m) => m.type === textInference.backend)
+                .map((item) => ({
+                  label: item.name.split('/').at(-1) ?? item.name,
+                  value: item.name,
+                  active: item.downloaded,
+                }))
+            "
+          ></drop-down-new>
+          <button @click="addLLMModel">
+            <PlusIcon class="size-6 text-purple-500"></PlusIcon>
+          </button>
+          <button @click="models.refreshModels">
+            <ArrowPathIcon class="size-5 text-purple-500"></ArrowPathIcon>
+          </button>
         </div>
+        <div class="flex items-center gap-2">
+          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_METRICS }}</label>
+          <button
+            class="v-checkbox-control flex-none w-5 h-5"
+            :class="{ 'v-checkbox-checked': textInference.metricsEnabled }"
+            @click="textInference.toggleMetrics()"
+          ></button>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
+          <input
+            type="number"
+            v-model="textInference.maxTokens"
+            min="0"
+            max="4096"
+            step="1"
+            class="rounded text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+          />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_FONT_SIZE }}</label>
+          <button
+            class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-2 py-1"
+            @click="textInference.increaseFontSize"
+            :disabled="textInference.isMaxSize"
+            :class="{ 'opacity-50 cursor-not-allowed': textInference.isMaxSize }"
+          >
+            <span class="svg-icon i-zoom-in w-4 h-4"></span>
+          </button>
+          <button
+            class="flex items-center flex-none justify-center gap-2 border border-white rounded-md text-sm px-2 py-1"
+            @click="textInference.decreaseFontSize"
+            :disabled="textInference.isMinSize"
+            :class="{ 'opacity-50 cursor-not-allowed': textInference.isMinSize }"
+          >
+            <span class="svg-icon i-zoom-out w-4 h-4"></span>
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- <div class="v-checkbox flex-none" type="button" :disabled="processing">
+            <button
+              v-show="!ragData.processEnable"
+              class="v-checkbox-control flex-none"
+              :class="{ 'v-checkbox-checked': ragData.enable }"
+              @click="toggleRag(!ragData.enable)"
+            ></button>
+            <span
+              v-show="ragData.processEnable"
+              class="w-4 h-4 svg-icon i-loading flex-none"
+            ></span>
+            <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
+          </div> -->
+          <button
+            class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
+            @click="showUploader = !showUploader"
+            :disabled="processing"
+            :title="languages.ANSWER_RAG_OPEN_DIALOG"
+          >
+            <span class="w-4 h-4 svg-icon i-rag flex-none"></span
+            ><span>{{ documentButtonText }}</span>
+          </button>
+          <drop-down-new
+            :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
+            @change="(item) => textInference.selectEmbeddingModel(textInference.backend, item)"
+            :value="
+              textInference.llmEmbeddingModels
+                .filter((m) => m.type === textInference.backend)
+                .find((m) => m.active)?.name ?? ''
+            "
+            :items="
+              textInference.llmEmbeddingModels
+                .filter((m) => m.type === textInference.backend)
+                .map((item) => ({
+                  label: item.name.split('/').at(-1) ?? item.name,
+                  value: item.name,
+                  active: item.downloaded,
+                }))
+            "
+          ></drop-down-new>
+        </div>
+      </div>
+      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
         ></textarea>
-      </div>
-      <div class="flex flex-col items-center gap-2 self-stretch w-24 flex-none">
         <button
-          class="gernate-btn self-stretch flex flex-col flex-auto"
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-if="!processing"
           @click="newPromptGenerate"
-          v-show="!processing"
         >
-          <span class="svg-icon i-generate-add w-8 h-8"></span>
+          <span class="svg-icon i-generate-add w-7 h-7"></span>
           <span>{{ languages.COM_GENERATE }}</span>
         </button>
         <button
-          class="gernate-btn self-stretch flex flex-col flex-auto"
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-if="processing"
           @click="stopGenerate"
-          v-show="processing"
         >
           <span
             class="svg-icon w-7 h-7"
             :class="{ 'i-stop': !stopping, 'i-loading': stopping }"
           ></span>
-          <span>{{ languages.COM_GENERATE }}</span>
+          <span>{{ languages.COM_STOP }}</span>
         </button>
       </div>
-      <rag
-        v-if="ragData.showUploader && textInference.backend !== 'llamaCPP'"
-        ref="ragPanel"
-        @close="ragData.showUploader = false"
-      ></rag>
     </div>
   </div>
 </template>
@@ -381,8 +569,6 @@
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
-import DropSelector from '@/components/DropSelector.vue'
-import ModelDropDownItem from '@/components/ModelDropDownItem.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -391,10 +577,11 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
-import * as Const from '@/assets/js/const'
+import DropDownNew from '@/components/DropDownNew.vue'
 import { useConversations } from '@/assets/js/store/conversations'
-import { LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
 const conversations = useConversations()
 const models = useModels()
@@ -411,22 +598,58 @@ const textIn = ref('')
 const textOut = ref('')
 let firstOutput = false
 const ragPanel = ref<InstanceType<typeof Rag>>()
+const showUploader = ref(false)
 const downloadModel = reactive({
   downloading: false,
   text: '',
   percent: 0,
 })
 const loadingModel = ref(false)
+const ragRetrievalInProgress = ref(false)
+const showRagPreview = ref(true)
 let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
-const ragData = reactive({
-  enable: false,
-  processEnable: false,
-  showUploader: false,
-})
+
+const thinkingModels: Record<string, string> = {
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
+}
+
+const markerFound = ref(false)
+const thinkingText = ref('')
+const showThinkingText = ref(false)
+const postMarkerText = ref('')
+
+let reasoningStartTime = 0
+let reasoningTotalTime = 0
+
+function extractPreMarker(fullAnswer: string): string {
+  const model = textInference.activeModel
+  if (model && thinkingModels[model]) {
+    const marker = thinkingModels[model]
+    const idx = fullAnswer.indexOf(marker)
+    return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
+  }
+  return fullAnswer
+}
+
+function extractPostMarker(fullAnswer: string): string {
+  const model = textInference.activeModel
+  if (model && thinkingModels[model]) {
+    const marker = thinkingModels[model]
+    const idx = fullAnswer.indexOf(marker)
+    return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
+  }
+  return ''
+}
 
 let sseMetrics: MetricsData | null = null
+let actualRagResults: LangchainDocument[] | null = null
 
 const source = ref('')
 const emits = defineEmits<{
@@ -447,6 +670,7 @@ const isHistoryVisible = ref(false)
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
+const autoScrollEnabled = ref(true)
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
@@ -456,16 +680,96 @@ function finishGenerate() {
   textOutFinish = true
 }
 
+// A friendly display name for each backend
+const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
+  ipexLLM: 'IPEX-LLM',
+  llamaCPP: 'llamaCPP - GGUF',
+  openVINO: 'OpenVINO',
+}
+
+// Optional: if you want to show whether each backend is currently running
+function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
+  if (name === 'ipexLLM') return 'ai-backend'
+  if (name === 'llamaCPP') return 'llamacpp-backend'
+  if (name === 'openVINO') return 'openvino-backend'
+  return undefined
+}
+function isRunning(name: LlmBackend) {
+  const backendName = mapBackendNames(name)
+  return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
+}
+
+const animatedReasoningText = ref('Reasoning.')
+const reasoningDots = ['Reasoning.  ', 'Reasoning.. ', 'Reasoning...']
+let reasoningInterval: number | null = null
+
+// Computed properties for document stats and button text
+const documentStats = computed(() => {
+  const totalDocs = textInference.ragList.length
+  const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
+  return { total: totalDocs, enabled: enabledDocs }
+})
+
+const documentButtonText = computed(() => {
+  const stats = documentStats.value
+  if (stats.total === 0) {
+    return 'Add Documents'
+  } else {
+    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled}/${stats.total} ${i18nState.RAG_ENABLED})`
+  }
+})
+
+watch(
+  () => processing.value,
+  (isProcessing) => {
+    if (isProcessing && textInference.activeModel && thinkingModels[textInference.activeModel]) {
+      let i = 0
+      reasoningInterval = window.setInterval(() => {
+        animatedReasoningText.value = reasoningDots[i % 3]
+        i++
+      }, 500)
+    } else {
+      if (reasoningInterval !== null) {
+        clearInterval(reasoningInterval)
+        reasoningInterval = null
+      }
+      animatedReasoningText.value = 'Done Reasoning'
+    }
+  },
+)
+
 function dataProcess(line: string) {
-  console.log(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
+  console.debug(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
 
   const dataJson = line.slice(5)
   const data = JSON.parse(dataJson) as LLMOutCallback
   switch (data.type) {
     case 'text_out':
-      if (data.dtype == 1) {
-        const text = firstOutput ? data.value : data.value //.replace(/<[^>]+>/g, "");
-        textOutQueue.push(text)
+      if (reasoningStartTime === 0) {
+        reasoningStartTime = performance.now()
+      }
+
+      if (data.dtype === 1) {
+        const chunk = data.value
+        textOutQueue.push(chunk)
+
+        const activeModel = textInference.activeModel
+        if (activeModel && thinkingModels[activeModel]) {
+          const currentMarker = thinkingModels[activeModel]
+          if (!markerFound.value) {
+            const idx = chunk.indexOf(currentMarker)
+            if (idx === -1) {
+              thinkingText.value += chunk
+            } else {
+              reasoningTotalTime = performance.now() - reasoningStartTime
+              thinkingText.value += chunk.slice(0, idx)
+              markerFound.value = true
+              postMarkerText.value += chunk.slice(idx + currentMarker.length)
+            }
+          } else {
+            postMarkerText.value += chunk
+          }
+        }
         if (firstOutput) {
           firstOutput = false
           simulatedInput()
@@ -521,8 +825,14 @@ function dataProcess(line: string) {
 
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement
-  const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 50
-  showScrollButton.value = !atBottom
+  const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
+
+  if (distanceFromBottom > 35) {
+    autoScrollEnabled.value = false
+  } else {
+    autoScrollEnabled.value = true
+  }
+  showScrollButton.value = distanceFromBottom > 60
 }
 
 function scrollToBottom(smooth = true) {
@@ -548,7 +858,6 @@ async function updateTitle(conversation: ChatItem[]) {
   const requestParams = {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
-    enable_rag: false,
     max_tokens: 8,
     model_repo_id: textInference.activeModel,
     print_metrics: false,
@@ -585,10 +894,12 @@ async function simulatedInput() {
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
-    // textOut.value = receiveOut;
     textOut.value = markdownParser.parseMarkdown(receiveOut)
     await nextTick()
-    scrollToBottom()
+
+    if (autoScrollEnabled.value) {
+      scrollToBottom()
+    }
   }
   if (!textOutFinish) {
     await util.delay(20)
@@ -605,14 +916,19 @@ async function simulatedInput() {
     }
 
     if (key !== null) {
+      const ragSourceInfo =
+        actualRagResults && actualRagResults.length ? getRagSources(actualRagResults) : null
+
       conversations.addToActiveConversation(key, {
         question: textIn.value,
-        answer:
-          ragData.enable && source.value != ''
-            ? `${receiveOut}\r\n\r\n${i18nState.RAG_SOURCE}${source.value}`
-            : receiveOut,
+        answer: receiveOut, // No longer append source to answer
         metrics: finalMetrics,
         model: textInference.activeModel,
+        ragSource: ragSourceInfo, // Store source separately
+        showRagSource: showRagPreview.value, // Initially collapsed
+        showThinkingText: false,
+        reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
+        createdAt: Date.now(),
       })
       if (conversations.conversationList[key].length <= 3) {
         console.log('Conversations is less than 4 items long, generating new title')
@@ -630,9 +946,166 @@ async function simulatedInput() {
         el.removeEventListener('click', copyCode)
         el.addEventListener('click', copyCode)
       })
-      scrollToBottom(false)
+      if (autoScrollEnabled.value) {
+        scrollToBottom(false)
+      }
     })
   }
+}
+
+function getRagSources(actualRagResults: LangchainDocument[]): string {
+  // Group documents by source file
+  const fileGroups = new Map<
+    string,
+    Array<{
+      lines?: { from: number; to: number }
+      page?: number
+    }>
+  >()
+  const unknownSources: string[] = []
+
+  // Process each document
+  actualRagResults.forEach((doc) => {
+    const source = doc.metadata?.source
+    const location = doc.metadata.loc as
+      | { pageNumber?: number; lines?: { from?: number; to?: number } }
+      | undefined
+
+    // Handle unknown sources
+    if (!source) {
+      unknownSources.push('Unknown Source')
+      return
+    }
+
+    // Get or create array for this file
+    const entries = fileGroups.get(source) || []
+
+    // Create entry with available location information
+    const entry: { lines?: { from: number; to: number }; page?: number } = {}
+
+    // Add line information if available
+    if (location?.lines?.from && location?.lines?.to) {
+      entry.lines = {
+        from: location.lines.from,
+        to: location.lines.to,
+      }
+    }
+
+    // Add page information if available
+    if (location?.pageNumber !== undefined) {
+      entry.page = location.pageNumber
+    }
+
+    // Only add entry if it has some location information
+    if (Object.keys(entry).length > 0) {
+      entries.push(entry)
+      fileGroups.set(source, entries)
+    }
+  })
+
+  // Function to merge overlapping line ranges for the same page
+  const mergeRanges = (
+    entries: Array<{ lines?: { from: number; to: number }; page?: number }>,
+  ): Array<{ lines?: { from: number; to: number }; page?: number }> => {
+    if (entries.length <= 1) return entries
+
+    // Group entries by page number
+    const pageGroups = new Map<
+      number | undefined,
+      Array<{ lines?: { from: number; to: number }; page?: number }>
+    >()
+
+    entries.forEach((entry) => {
+      const pageKey = entry.page
+      const pageEntries = pageGroups.get(pageKey) || []
+      pageEntries.push(entry)
+      pageGroups.set(pageKey, pageEntries)
+    })
+
+    const result: Array<{ lines?: { from: number; to: number }; page?: number }> = []
+
+    // Process each page group
+    pageGroups.forEach((pageEntries, pageNumber) => {
+      // For entries with line information, merge overlapping ranges
+      const entriesWithLines = pageEntries.filter((e) => e.lines)
+
+      if (entriesWithLines.length > 0) {
+        // Sort by starting line
+        const sortedEntries = [...entriesWithLines].sort(
+          (a, b) => (a.lines?.from || 0) - (b.lines?.from || 0),
+        )
+
+        let current = sortedEntries[0]
+
+        // Merge overlapping line ranges
+        for (let i = 1; i < sortedEntries.length; i++) {
+          const next = sortedEntries[i]
+
+          // Check if ranges overlap or are adjacent
+          if ((current.lines?.to || 0) >= (next.lines?.from || 0) - 1) {
+            // Merge ranges
+            current = {
+              lines: {
+                from: current.lines?.from || 0,
+                to: Math.max(current.lines?.to || 0, next.lines?.to || 0),
+              },
+              page: pageNumber,
+            }
+          } else {
+            // No overlap, add current to result and move to next
+            result.push(current)
+            current = next
+          }
+        }
+
+        // Add the last range
+        result.push(current)
+      }
+
+      // For entries with only page information (no lines), add a single entry per page
+      if (pageEntries.some((e) => !e.lines)) {
+        // If we haven't already added an entry for this page from the line merging
+        if (!result.some((r) => r.page === pageNumber && !r.lines)) {
+          result.push({ page: pageNumber })
+        }
+      }
+    })
+
+    return result
+  }
+
+  // Format results
+  const formattedResults: string[] = []
+
+  // Process each file group
+  fileGroups.forEach((entries, source) => {
+    const filename = source.split(/[\/\\]/).pop() || source
+    const mergedEntries = mergeRanges(entries)
+
+    // Format each merged entry
+    mergedEntries.forEach((entry) => {
+      let locationInfo = ''
+
+      // Format based on available information
+      if (entry.page !== undefined && entry.lines) {
+        // Both page and line information
+        locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`
+      } else if (entry.page !== undefined) {
+        // Only page information
+        locationInfo = `Page ${entry.page}`
+      } else if (entry.lines) {
+        // Only line information
+        locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`
+      }
+
+      formattedResults.push(`${filename} (${locationInfo})`)
+    })
+  })
+
+  // Add unknown sources
+  formattedResults.push(...unknownSources)
+
+  return formattedResults.join('\n')
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -661,7 +1134,6 @@ async function newPromptGenerate() {
   try {
     await checkModelAvailability()
 
-    // Mark which conversation is about to generate
     currentlyGeneratingKey.value = conversations.activeKey
 
     const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation))
@@ -672,8 +1144,15 @@ async function newPromptGenerate() {
 }
 
 async function checkModelAvailability() {
+  // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
   return new Promise<void>(async (resolve, reject) => {
-    const requiredModelDownloads = await textInference.getDownloadParamsForCurrentModelIfRequired()
+    const requiredModelDownloads =
+      await textInference.getDownloadParamsForCurrentModelIfRequired('llm')
+    if (textInference.ragList.length > 0) {
+      const requiredEmbeddingModelDownloads =
+        await textInference.getDownloadParamsForCurrentModelIfRequired('embedding')
+      requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
+    }
     if (requiredModelDownloads.length > 0) {
       emits('showDownloadModelConfirm', requiredModelDownloads, resolve, reject)
     } else {
@@ -698,6 +1177,12 @@ async function generate(chatContext: ChatItem[]) {
     backendServices.updateLastUsedBackend(inferenceBackendService)
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
+    markerFound.value = false
+    thinkingText.value = ''
+    showThinkingText.value = false
+    postMarkerText.value = ''
+    reasoningStartTime = 0
+    reasoningTotalTime = 0
     textOut.value = ''
     receiveOut = ''
     firstOutput = true
@@ -708,13 +1193,49 @@ async function generate(chatContext: ChatItem[]) {
     textOutFinish = false
     processing.value = true
     nextTick(scrollToBottom)
+
+    let externalRagContext = null
+    // Reset the global actualRagResults
+    actualRagResults = null
+
+    if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
+      try {
+        // Set RAG retrieval in progress
+        ragRetrievalInProgress.value = true
+        showRagPreview.value = true
+
+        // Perform RAG retrieval
+        const ragResults = await textInference.embedInputUsingRag(
+          chatContext[chatContext.length - 1].question,
+        )
+
+        ragRetrievalInProgress.value = false
+
+        if (ragResults && ragResults.length > 0) {
+          externalRagContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
+          actualRagResults = ragResults
+        }
+      } catch (error) {
+        // // Reset RAG retrieval status in case of error
+        // ragRetrievalInProgress.value = false;
+
+        // // Remove the temporary chat item if it exists
+        // if (conversations.conversationList[currentlyGeneratingKey.value!]?.length > 0) {
+        //   conversations.conversationList[currentlyGeneratingKey.value!].pop();
+        // }
+
+        console.error('Error retrieving RAG documents:', error)
+      }
+    }
+
     const requestParams = {
       device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
-      enable_rag: ragData.enable && textInference.backend === 'ipexLLM',
+      external_rag_context: externalRagContext,
       max_tokens: textInference.maxTokens,
       model_repo_id: textInference.activeModel,
     }
+
     const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
       method: 'POST',
       headers: {
@@ -743,30 +1264,15 @@ async function stopGenerate() {
   }
 }
 
-function copyText(e: Event) {
-  const target = e.target as HTMLElement
-  if (target) {
-    util.copyText(
-      (target.parentElement!.parentElement!.previousElementSibling! as HTMLElement).innerText,
-    )
-  }
-}
-
-function removeRonate360(ev: AnimationEvent) {
-  const target = ev.target as HTMLElement
-  target.classList.remove('animate-ronate360')
+function copyText(text: string) {
+  util.copyText(text)
+  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 
 async function addLLMModel() {
   return new Promise<void>(async (resolve, reject) => {
     emits('showModelRequest', resolve, reject)
   })
-}
-
-async function refreshLLMModles(e: Event) {
-  const button = e.target as HTMLElement
-  button.classList.add('animate-ronate360')
-  await models.refreshModels()
 }
 
 function regenerateLastResponse(conversationKey: string) {
@@ -787,6 +1293,7 @@ function regenerateLastResponse(conversationKey: string) {
     question: prompt,
     answer: '',
     metrics: finalMetrics,
+    createdAt: Date.now(),
   })
   currentlyGeneratingKey.value = conversationKey
   generate(chatContext)
@@ -807,87 +1314,7 @@ function copyCode(e: MouseEvent) {
   }
 }
 
-function changeEmbeddingModel(item: unknown, _: number) {
-  globalSetup.applyModelSettings({ embedding: item as string })
-}
-
-async function toggleRag(value: boolean) {
-  if (ragData.processEnable) {
-    return
-  }
-  ragData.processEnable = true
-  try {
-    if (value) {
-      const checkList: CheckModelAlreadyLoadedParameters[] = [
-        {
-          repo_id: globalSetup.modelSettings.embedding,
-          type: Const.MODEL_TYPE_EMBEDDING,
-          backend: 'default',
-        },
-      ]
-      if (!(await models.checkModelAlreadyLoaded(checkList))[0].already_loaded) {
-        emits('showDownloadModelConfirm', checkList, enableRag, () => {
-          ragData.processEnable = false
-        })
-      } else {
-        await enableRag()
-      }
-    } else {
-      await disableRag()
-      ragData.enable = false
-    }
-  } finally {
-    ragData.processEnable = false
-  }
-}
-
-async function enableRag() {
-  const formData = new FormData()
-  formData.append('repo_id', globalSetup.modelSettings.embedding)
-  formData.append('device', globalSetup.modelSettings.graphics)
-  try {
-    await fetch(`${globalSetup.apiHost}/api/llm/enableRag`, {
-      method: 'POST',
-      body: formData,
-    })
-    ragData.enable = true
-  } catch (e) {
-    console.error(`Enabling rag failed due to ${e}`)
-  }
-}
-
-async function disableRag() {
-  try {
-    await fetch(`${globalSetup.apiHost}/api/llm/disableRag`)
-  } catch (e) {
-    console.error(`Disabling rag failed due to ${e}`)
-  }
-}
-
-watch(
-  () => textInference.backend,
-  (newBackend, _oldBackend) => {
-    if (newBackend === 'ipexLLM') {
-      restoreRagState()
-    } else {
-      disableRag()
-    }
-  },
-)
-
-async function restoreRagState() {
-  ragData.processEnable = true
-  if (ragData.enable) {
-    await enableRag()
-  } else {
-    await disableRag()
-  }
-  ragData.processEnable = false
-}
-
 defineExpose({
   checkModel: checkModelAvailability,
-  restoreRagState,
-  disableRag,
 })
 </script>

@@ -80,6 +80,19 @@ export default defineConfig(({ command }) => {
             },
           },
         },
+        {
+          entry: 'electron/subprocesses/langchain.ts',
+          vite: {
+            build: {
+              sourcemap: sourcemap ? 'inline' : undefined,
+              minify: isBuild,
+              outDir: 'dist/langchain',
+              rollupOptions: {
+                external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
+              },
+            },
+          },
+        },
       ]),
     ],
     resolve: {

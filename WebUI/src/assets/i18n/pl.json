@@ -251,5 +251,26 @@
   "DEVICE": "Urządzenie",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Model punktu kontrolnego",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Liczba klatek",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Całkowita liczba klatek"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Całkowita liczba klatek",
+  "ANSWER_MAX_TOKENS": "Maksymalna liczba tokenów",
+  "ANSWER_METRICS": "Metryki",
+  "ANSWER_FONT_SIZE": "Rozmiar czcionki",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Model osadzania dokumentów",
+  "RAG_DOCUMENTS": "Dokumenty",
+  "RAG_ENABLED": "Włączone",
+  "RAG_ADD_DOCUMENTS": "Dodaj dokumenty",
+  "RAG_ADD_FILES": "Dodaj pliki",
+  "RAG_SEARCHABLE_DOCUMENTS": "Dokumenty do przeszukania",
+  "RAG_CLEAR_ALL": "Wyczyść wszystko",
+
+  "BACKEND_STOP": "Zatrzymaj Backend",
+  "BACKEND_START": "Uruchom Backend",
+  "BACKEND_REINSTALL": "Przeinstaluj Backend",
+  "BACKEND_CONFIRM": "Czy jesteś pewien?",
+  "BACKEND_REINSTALL_DESCRIPTION": "Spowoduje to ponowną instalację backendu {backend}. W zależności od połączenia internetowego, może to zająć trochę czasu.",
+  "BACKEND_SETTINGS_TITLE": "Ustawienia {backend}",
+  "BACKEND_SETTINGS_DESCRIPTION": "Skonfiguruj ustawienia dla backendu {backend}. Zmiany mogą wymagać ponownego uruchomienia lub reinstalacji, aby zostały zastosowane.",
+  "BACKEND_VERSION": "Wersja",
+  "BACKEND_VERSION_DESCRIPTION": "Referencja Git do użycia dla backendu. Może to być tag wersji lub hash commitu.",
+  "BACKEND_SAVE_CHANGES": "Zapisz zmiany"
 }

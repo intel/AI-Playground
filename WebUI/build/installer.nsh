@@ -3,6 +3,10 @@
   ShowUninstDetails show
 !macroend
 
+!macro customInstallMode
+    StrCpy $isForceCurrentInstall "1"
+    StrCpy $isForceMachineInstall "0"
+!macroend
 
 !macro customInstall
 
@@ -21,7 +25,6 @@
         DetailPrint "Extracting python environment..."
         nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\prototype-python-env.7z" -o"$INSTDIR\resources"'
         Delete "$INSTDIR\resources\prototype-python-env.7z"
-        Delete "$INSTDIR\resources\7zr.exe"
 
     StrCpy $0 "$INSTDIR"
     StrCpy $1 "_model_backup"

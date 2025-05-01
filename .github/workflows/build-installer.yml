@@ -1,19 +1,10 @@
 name: build installer
 
-run-name: installer-build-${{ inputs.platform }}-${{ github.sha }}
+run-name: installer-build-${{ github.sha }}
 
 on:
   workflow_dispatch:
-    inputs:
-      platform:
-        type: choice
-        description: installer(s) to build
-        required: true
-        options:
-          - arc
-          - ultra
-          - ultra2
-          - all
+
 jobs:
   build-installer:
     runs-on: windows-latest
@@ -55,10 +46,9 @@ jobs:
       - name: build installer
         working-directory: "WebUI"
         run: |
-          npm run fetch-build-resources
-          npm run pack-python
-          npm run prebuild
-          npm run build:${{ inputs.platform }}
+          npm run fetch-build-resources -- --conda_env_dir=../python_package_res/conda
+          npm run prepare-build
+          npm run build
 
       - name: set release path
         working-directory: "release"
@@ -69,7 +59,7 @@ jobs:
       - name: upload release
         uses: actions/upload-artifact@v4
         with:
-          name: "installers-${{ inputs.platform }}-${{ github.sha }}"
+          name: "installers-${{ github.sha }}"
           path: ${{ env.RELEASE_DIR }}\*.exe
           if-no-files-found: error
           retention-days: 1

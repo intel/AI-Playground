@@ -251,5 +251,26 @@
   "DEVICE": "Thiết bị",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Mô hình checkpoint",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Tốc độ khung hình",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Tổng số khung hình"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Tổng số khung hình",
+  "ANSWER_MAX_TOKENS": "Số lượng token tối đa",
+  "ANSWER_METRICS": "Chỉ số",
+  "ANSWER_FONT_SIZE": "Cỡ chữ",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "Mô hình nhúng tài liệu",
+  "RAG_DOCUMENTS": "Tài liệu",
+  "RAG_ENABLED": "Đã bật",
+  "RAG_ADD_DOCUMENTS": "Thêm tài liệu",
+  "RAG_ADD_FILES": "Thêm tệp",
+  "RAG_SEARCHABLE_DOCUMENTS": "Tài liệu có thể tìm kiếm",
+  "RAG_CLEAR_ALL": "Xóa tất cả",
+
+  "BACKEND_STOP": "Dừng Backend",
+  "BACKEND_START": "Khởi động Backend",
+  "BACKEND_REINSTALL": "Cài đặt lại Backend",
+  "BACKEND_CONFIRM": "Bạn có chắc chắn không?",
+  "BACKEND_REINSTALL_DESCRIPTION": "Điều này sẽ cài đặt lại backend {backend}. Tùy thuộc vào kết nối internet của bạn, quá trình này có thể mất một lúc.",
+  "BACKEND_SETTINGS_TITLE": "Cài đặt {backend}",
+  "BACKEND_SETTINGS_DESCRIPTION": "Cấu hình cài đặt cho backend {backend}. Các thay đổi có thể yêu cầu khởi động lại hoặc cài đặt lại để có hiệu lực.",
+  "BACKEND_VERSION": "Phiên bản",
+  "BACKEND_VERSION_DESCRIPTION": "Tham chiếu Git để sử dụng cho backend. Đây có thể là thẻ phiên bản hoặc mã băm commit.",
+  "BACKEND_SAVE_CHANGES": "Lưu thay đổi"
 }

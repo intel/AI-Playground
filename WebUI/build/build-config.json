@@ -22,6 +22,11 @@
       ]
     },
     {
+      "from": "external/backend-shared",
+      "to": "backend-shared",
+      "filter": ["!__pycache__/"]
+    },
+    {
       "from": "external/LlamaCPP",
       "to": "LlamaCPP",
       "filter": ["!__pycache__/"]
@@ -37,20 +42,16 @@
       "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/"]
     },
     {
-      "from": "external/intel_extension_for_pytorch-2.3.110+bmg-cp311-cp311-win_amd64.whl",
-      "to": "intel_extension_for_pytorch-2.3.110+bmg-cp311-cp311-win_amd64.whl"
-    },
-    {
-      "from": "external/intel_extension_for_pytorch-2.3.110+arl_h-cp311-cp311-win_amd64.whl",
-      "to": "intel_extension_for_pytorch-2.3.110+arl_h-cp311-cp311-win_amd64.whl"
-    },
-    {
-      "from": "external/llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl",
-      "to": "llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl"
+      "from": "external/llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl",
+      "to": "llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl"
     },
     {
       "from": "external/workflows",
       "to": "workflows"
+    },
+    {
+      "from": "external/device-service",
+      "to": "device-service"
     },
     {
       "from": "external/service/models/stable_diffusion/ESRGAN",

@@ -4,3 +4,4 @@ dpcpp-cpp-rt==2025.0
 mkl-dpcpp==2025.0
 intel-sycl-rt==2025.0.0
 onednn-devel==2025.0.0
+langchain_community==0.3.0

@@ -251,5 +251,27 @@
   "DEVICE": "设备",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "检查点模型",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "帧率",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "总帧数"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "总帧数",
+
+  "BACKEND_STOP": "停止后端",
+  "BACKEND_START": "启动后端",
+  "BACKEND_REINSTALL": "重新安装后端",
+  "BACKEND_CONFIRM": "确定吗？",
+  "BACKEND_REINSTALL_DESCRIPTION": "这将重新安装 {backend} 后端。根据您的网络连接情况，这可能需要一些时间。",
+  "BACKEND_SETTINGS_TITLE": "{backend} 设置",
+  "BACKEND_SETTINGS_DESCRIPTION": "配置 {backend} 后端的设置。更改可能需要重启或重新安装才能生效。",
+  "BACKEND_VERSION": "版本",
+  "BACKEND_VERSION_DESCRIPTION": "用于后端的 Git 引用。这可以是版本标签或提交哈希。",
+  "BACKEND_SAVE_CHANGES": "保存更改",
+
+  "ANSWER_MAX_TOKENS": "最大标记数",
+  "ANSWER_METRICS": "指标",
+  "ANSWER_FONT_SIZE": "字体大小",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "文档嵌入模型",
+  "RAG_DOCUMENTS": "文档",
+  "RAG_ENABLED": "已启用",
+  "RAG_ADD_DOCUMENTS": "添加文档",
+  "RAG_ADD_FILES": "添加文件",
+  "RAG_SEARCHABLE_DOCUMENTS": "可搜索文档",
+  "RAG_CLEAR_ALL": "清除全部"
 }

@@ -30,10 +30,10 @@ import re
 import schedulers_util
 from compel import Compel
 from threading import Event
-from xpu_hijacks import ipex_hijacks
 
-ipex_hijacks()
-print("workarounds applied")
+from ipex_to_cuda import ipex_init
+
+ipex_init()
 
 
 # region class define

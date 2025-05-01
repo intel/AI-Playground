@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { Input } from '@/components/ui/input'
+import { Input } from '@/components/ui/aipgInput'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'

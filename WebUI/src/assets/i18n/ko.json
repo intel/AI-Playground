@@ -251,5 +251,26 @@
   "DEVICE": "디바이스",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "체크포인트 모델",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "프레임 레이트",
-  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "총 프레임"
+  "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "총 프레임",
+  "ANSWER_MAX_TOKENS": "최대 토큰 수",
+  "ANSWER_METRICS": "메트릭",
+  "ANSWER_FONT_SIZE": "글꼴 크기",
+  "RAG_DOCUMENT_EMBEDDING_MODEL": "문서 임베딩 모델",
+  "RAG_DOCUMENTS": "문서",
+  "RAG_ENABLED": "활성화됨",
+  "RAG_ADD_DOCUMENTS": "문서 추가",
+  "RAG_ADD_FILES": "파일 추가",
+  "RAG_SEARCHABLE_DOCUMENTS": "검색 가능한 문서",
+  "RAG_CLEAR_ALL": "모두 지우기",
+
+  "BACKEND_STOP": "Backend 중지",
+  "BACKEND_START": "Backend 시작",
+  "BACKEND_REINSTALL": "Backend 재설치",
+  "BACKEND_CONFIRM": "확인하시겠습니까?",
+  "BACKEND_REINSTALL_DESCRIPTION": "이것은 {backend} backend를 재설치합니다. 인터넷 연결에 따라 시간이 걸릴 수 있습니다.",
+  "BACKEND_SETTINGS_TITLE": "{backend} 설정",
+  "BACKEND_SETTINGS_DESCRIPTION": "{backend} backend에 대한 설정을 구성합니다. 변경 사항을 적용하려면 재시작이나 재설치가 필요할 수 있습니다.",
+  "BACKEND_VERSION": "버전",
+  "BACKEND_VERSION_DESCRIPTION": "Backend에 사용할 Git 참조. 이는 버전 태그 또는 커밋 해시일 수 있습니다.",
+  "BACKEND_SAVE_CHANGES": "변경 사항 저장"
 }

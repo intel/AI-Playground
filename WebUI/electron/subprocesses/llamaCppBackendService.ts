@@ -3,19 +3,19 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
 
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
-  readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
+  readonly deviceService = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
   readonly isRequired = false
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
+  readonly lsLevelZero = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
 
@@ -39,14 +39,6 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       await this.lsLevelZero.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
-      const deviceArch = await this.lsLevelZero.detectDevice()
-      yield {
-        serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `detected intel hardware ${deviceArch}`,
-      }
-
       yield {
         serviceName: this.name,
         step: `install dependencies`,
@@ -58,7 +50,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         ? this.baseDir
         : path.join(__dirname, '../../external')
       const intelSpecificExtension = existingFileOrError(
-        path.join(intelSpecificExtensionDir, 'llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl'),
+        path.join(intelSpecificExtensionDir, 'llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl'),
       )
       await this.uvPip.pip.run(['install', intelSpecificExtension])
       await this.uvPip.run(['install', '-r', commonRequirements])
@@ -94,6 +86,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',

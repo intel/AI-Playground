@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { LsLevelZeroService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
 
 const serviceFolder = 'openVINO'
 export class OpenVINOBackendService extends LongLivedPythonApiService {
@@ -10,11 +10,11 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `openvino-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
-  readonly isRequired = false
+  readonly isRequired = true
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly lsLevelZero = new LsLevelZeroService(this.lsLevelZeroDir)
+  readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
 
@@ -35,16 +35,8 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.lsLevelZero.ensureInstalled()
+      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
-
-      const deviceArch = await this.lsLevelZero.detectDevice()
-      yield {
-        serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `detected intel hardware ${deviceArch}`,
-      }
 
       yield {
         serviceName: this.name,
@@ -53,13 +45,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         debugMessage: `installing dependencies`,
       }
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run([
-        'install',
-        '--index-strategy',
-        'unsafe-best-match',
-        '-r',
-        commonRequirements,
-      ])
+      await this.uvPip.run(['install', '-r', commonRequirements])
 
       yield {
         serviceName: this.name,
@@ -93,10 +79,11 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...(await this.deviceService.getDeviceSelectorEnv()),
     }
 
     const apiProcess = spawn(

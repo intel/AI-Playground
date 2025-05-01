@@ -3,10 +3,13 @@ import { z } from 'zod'
 import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import * as Const from '@/assets/js/const'
+import { Document } from 'langchain/document'
 
-export const llmBackendTypes = ['ipexLLM', 'llamaCPP', 'openVINO'] as const
+export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP'] as const
+
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
+type LlmBackendKV = { [key in LlmBackend]: string | null }
 
 const backendToService = {
   ipexLLM: 'ai-backend',
@@ -21,20 +24,45 @@ export type LlmModel = {
   downloaded: boolean
 }
 
+export type ValidFileExtension = 'txt' | 'doc' | 'docx' | 'md' | 'pdf'
+
+export type IndexedDocument = {
+  filename: string
+  filepath: string
+  type: ValidFileExtension
+  splitDB: Document[]
+  hash: string
+  isChecked: boolean
+}
+
+export type EmbedInquiry = {
+  prompt: string
+  ragList: IndexedDocument[]
+  backendBaseUrl: string
+  embeddingModel: string
+}
+
 export const useTextInference = defineStore(
   'textInference',
   () => {
     const backendServices = useBackendServices()
     const models = useModels()
-    const backend = ref<LlmBackend>('ipexLLM')
+    const backend = ref<LlmBackend>('openVINO')
+    const ragList = ref<IndexedDocument[]>([])
 
-    const selectedModels = ref<{ [key in LlmBackend]: string | null }>({
+    const selectedModels = ref<LlmBackendKV>({
       ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
     })
 
-    const llmModels = computed(() => {
+    const selectedEmbeddingModels = ref<LlmBackendKV>({
+      ipexLLM: null,
+      llamaCPP: null,
+      openVINO: null,
+    })
+
+    const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
         ['ipexLLM', 'llamaCPP', 'openVINO'].includes(m.type),
       )
@@ -53,40 +81,59 @@ export const useTextInference = defineStore(
       return newModels
     })
 
+    const llmEmbeddingModels: Ref<LlmModel[]> = computed(() => {
+      const llmEmbeddingTypeModels = models.models.filter((m) => m.type === 'embedding')
+      console.log('llmEmbeddingTypeModels', llmEmbeddingTypeModels)
+      const newEmbeddingModels = llmEmbeddingTypeModels.map((m) => {
+        const selectedEmbeddingModelForType = selectedEmbeddingModels.value[m.backend as LlmBackend]
+        return {
+          name: m.name,
+          type: m.backend as LlmBackend,
+          downloaded: m.downloaded,
+          active:
+            m.name === selectedEmbeddingModelForType ||
+            (!llmEmbeddingTypeModels.some((m) => m.name === selectedEmbeddingModelForType) &&
+              m.default),
+        }
+      })
+      console.log('llmEmbeddingModels changed', newEmbeddingModels)
+      return newEmbeddingModels
+    })
+
     const selectModel = (backend: LlmBackend, modelName: string) => {
       selectedModels.value[backend] = modelName
     }
 
+    const selectEmbeddingModel = (backend: LlmBackend, modelName: string) => {
+      selectedEmbeddingModels.value[backend] = modelName
+    }
+
     const backendToAipgBackendName = {
+      openVINO: 'openvino',
       ipexLLM: 'default',
       llamaCPP: 'llama_cpp',
-      openVINO: 'openvino',
     } as const
 
     const backendToAipgModelTypeNumber = {
+      openVINO: Const.MODEL_TYPE_OPENVINO,
       ipexLLM: Const.MODEL_TYPE_LLM,
       llamaCPP: Const.MODEL_TYPE_LLAMA_CPP,
-      openVINO: Const.MODEL_TYPE_OPENVINO,
     } as const
 
-    async function getDownloadParamsForCurrentModelIfRequired() {
-      if (!activeModel.value) return []
-      const checkList = {
-        repo_id: activeModel.value,
-        type: backendToAipgModelTypeNumber[backend.value],
-        backend: backendToAipgBackendName[backend.value],
-      }
-      const checkedModels = await models.checkModelAlreadyLoaded([checkList])
-      const notYetDownloaded = checkedModels.filter((m) => !m.already_loaded)
-      return notYetDownloaded
-    }
-
-    const activeModel = computed(() => {
+    const activeModel: Ref<string | undefined> = computed(() => {
       const newActiveModel = llmModels.value
         .filter((m) => m.type === backend.value)
         .find((m) => m.active)?.name
       console.log('activeModel changed', newActiveModel)
       return newActiveModel
+    })
+    const activeEmbeddingModel: Ref<string | undefined> = computed(() => {
+      const newActiveEmbeddingModel = llmEmbeddingModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)?.name
+      console.log(llmEmbeddingModels)
+      console.log('activeEmbeddingModel changed', newActiveEmbeddingModel)
+      return newActiveEmbeddingModel
     })
     const metricsEnabled = ref(false)
     const maxTokens = ref<number>(1024)
@@ -96,6 +143,27 @@ export const useTextInference = defineStore(
         backendServices.info.find((item) => item.serviceName === backendToService[backend.value])
           ?.baseUrl,
     )
+
+    async function getDownloadParamsForCurrentModelIfRequired(type: 'llm' | 'embedding') {
+      let model: string | undefined
+      if (type === 'llm') {
+        model = activeModel.value
+      } else {
+        model = activeEmbeddingModel.value
+      }
+      if (!model) return []
+      const checkList = {
+        repo_id: model,
+        type:
+          type === 'embedding'
+            ? Const.MODEL_TYPE_EMBEDDING
+            : backendToAipgModelTypeNumber[backend.value],
+        backend: backendToAipgBackendName[backend.value],
+      }
+      const checkedModels = await models.checkModelAlreadyLoaded([checkList])
+      const notYetDownloaded = checkedModels.filter((m) => !m.already_loaded)
+      return notYetDownloaded
+    }
 
     function toggleMetrics() {
       metricsEnabled.value = !metricsEnabled.value
@@ -150,11 +218,73 @@ export const useTextInference = defineStore(
       }
     }
 
+    async function addDocumentToRagList(document: IndexedDocument) {
+      const langchainDocument: IndexedDocument =
+        await window.electronAPI.addDocumentToRAGList(document)
+      console.log(langchainDocument)
+      if (ragList.value.some((item) => item.hash === langchainDocument.hash)) {
+        console.log('Document already in list')
+        return
+      }
+      ragList.value.push(langchainDocument)
+    }
+
+    async function embedInputUsingRag(prompt: string) {
+      const checkedRagList = ragList.value
+        .filter((item) => item.isChecked)
+        .map((doc) => JSON.parse(JSON.stringify(doc)))
+      if (checkedRagList.length === 0) {
+        throw new Error('No documents selected')
+      }
+      if (!currentBackendUrl.value) {
+        throw new Error('Backend service not found')
+      }
+      if (!activeEmbeddingModel.value) {
+        throw new Error('No embedding model selected')
+      }
+      const newEmbedInquiry: EmbedInquiry = {
+        prompt: prompt,
+        ragList: checkedRagList,
+        backendBaseUrl: currentBackendUrl.value,
+        embeddingModel: activeEmbeddingModel.value,
+      }
+      console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
+      const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)
+      return response
+    }
+
+    function updateFileCheckStatus(hash: string, isChecked: boolean) {
+      const index = ragList.value.findIndex((item) => item.hash === hash)
+      if (index !== -1) {
+        ragList.value[index].isChecked = isChecked
+      }
+    }
+
+    function deleteFile(hash: string) {
+      const index = ragList.value.findIndex((item) => item.hash === hash)
+      if (index !== -1) {
+        ragList.value.splice(index, 1)
+      }
+    }
+
+    function checkAllFiles() {
+      ragList.value.forEach((item) => (item.isChecked = true))
+    }
+
+    function uncheckAllFiles() {
+      ragList.value.forEach((item) => (item.isChecked = false))
+    }
+
+    function deleteAllFiles() {
+      ragList.value.length = 0
+    }
+
     return {
       backend,
       activeModel,
       selectedModels,
       llmModels,
+      llmEmbeddingModels,
       currentBackendUrl,
       metricsEnabled,
       maxTokens,
@@ -163,16 +293,25 @@ export const useTextInference = defineStore(
       iconSizeClass,
       isMaxSize,
       isMinSize,
+      ragList,
       selectModel,
+      selectEmbeddingModel,
       getDownloadParamsForCurrentModelIfRequired,
       toggleMetrics,
       increaseFontSize,
       decreaseFontSize,
+      addDocumentToRagList,
+      embedInputUsingRag,
+      updateFileCheckStatus,
+      deleteFile,
+      checkAllFiles,
+      uncheckAllFiles,
+      deleteAllFiles,
     }
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels', 'maxTokens'],
+      pick: ['backend', 'selectedModels', 'maxTokens', 'ragList'],
     },
   },
 )
