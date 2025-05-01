@@ -1,5 +1,5 @@
 {
-  "name": "Txt To Video",
+  "name": "Video - Txt2Vid",
   "tags": ["LTX Video", "high-vram"],
   "backend": "comfyui",
   "comfyUIRequirements": {
@@ -13,7 +13,7 @@
     "requiredModels": [
       {
         "type": "checkpoints",
-        "model": "Lightricks/LTX-Video/ltxv-2b-0.9.6-distilled-04-25.safetensors"
+        "model": "Lightricks/LTX-Video/ltx-video-2b-v0.9.5.safetensors"
       },
       {
         "type": "clip",
@@ -25,10 +25,11 @@
   "requirements": ["high-vram"],
   "inputs": [
     {
-      "nodeTitle": "LTXVImgToVideo",
+      "nodeTitle": "EmptyLTXVLatentVideo",
       "nodeInput": "length",
       "type": "number",
       "label": "Total Frames",
+      "defaultValue": 89,
       "defaultValue": 89,
       "step": 8,
       "min": 9,
@@ -59,7 +60,7 @@
     }
   ],
   "defaultSettings": {
-    "resolution": "512x512",
+    "resolution": "768x448",
     "inferenceSteps": 20,
     "batchSize": 1
   },
@@ -69,7 +70,7 @@
     "6": {
       "inputs": {
         "text": "a majestic water fall in a tropical jungle  a majestic water fall in a tropical jungle  rolls water over its edge.  clouds of misty water billow. The waterfall is surround by lush jungle and drops into a circular cavern and tranquil pool of water.  The jungle is swaying with breeze winds. The camera slow pans the scene",
-        "clip": ["111", 0]
+        "clip": ["78", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -79,7 +80,7 @@
     "7": {
       "inputs": {
         "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
-        "clip": ["111", 0]
+        "clip": ["78", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -88,7 +89,7 @@
     },
     "8": {
       "inputs": {
-        "samples": ["101", 1],
+        "samples": ["72", 0],
         "vae": ["44", 2]
       },
       "class_type": "VAEDecode",
@@ -96,9 +97,20 @@
         "title": "VAE Decode"
       }
     },
+    "38": {
+      "inputs": {
+        "clip_name": "t5xxl_fp16.safetensors",
+        "type": "ltxv",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
     "44": {
       "inputs": {
-        "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.6-distilled-04-25.safetensors"
+        "ckpt_name": "Lightricks---LTX-Video\\ltx-video-2b-v0.9.5.safetensors"
       },
       "class_type": "CheckpointLoaderSimple",
       "_meta": {
@@ -107,114 +119,89 @@
     },
     "69": {
       "inputs": {
-        "frame_rate": ["112", 0],
-        "positive": ["95", 0],
-        "negative": ["95", 1]
+        "frame_rate": ["80", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0]
       },
       "class_type": "LTXVConditioning",
       "_meta": {
         "title": "LTXVConditioning"
       }
     },
-    "78": {
-      "inputs": {
-        "image": "ComfyUI_00098_.png"
-      },
-      "class_type": "LoadImage",
-      "_meta": {
-        "title": "Load Image"
-      }
-    },
-    "82": {
-      "inputs": {
-        "img_compression": 38,
-        "image": ["78", 0]
-      },
-      "class_type": "LTXVPreprocess",
-      "_meta": {
-        "title": "LTXVPreprocess"
-      }
-    },
-    "95": {
+    "70": {
       "inputs": {
         "width": 576,
         "height": 576,
         "length": 97,
-        "batch_size": 1,
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "vae": ["44", 2],
-        "image": ["82", 0]
+        "batch_size": 1
       },
-      "class_type": "LTXVImgToVideo",
+      "class_type": "EmptyLTXVLatentVideo",
       "_meta": {
-        "title": "LTXVImgToVideo"
+        "title": "EmptyLTXVLatentVideo"
       }
     },
-    "97": {
+    "71": {
       "inputs": {
-        "sampler_name": "euler_ancestral"
+        "steps": 20,
+        "max_shift": 2.0500000000000003,
+        "base_shift": 0.9500000000000002,
+        "stretch": true,
+        "terminal": 0.10000000000000002,
+        "latent": ["70", 0]
+      },
+      "class_type": "LTXVScheduler",
+      "_meta": {
+        "title": "LTXVScheduler"
+      }
+    },
+    "72": {
+      "inputs": {
+        "add_noise": true,
+        "noise_seed": 68923661701780,
+        "cfg": 3,
+        "model": ["44", 0],
+        "positive": ["69", 0],
+        "negative": ["69", 1],
+        "sampler": ["73", 0],
+        "sigmas": ["71", 0],
+        "latent_image": ["70", 0]
+      },
+      "class_type": "SamplerCustom",
+      "_meta": {
+        "title": "SamplerCustom"
+      }
+    },
+    "73": {
+      "inputs": {
+        "sampler_name": "res_multistep"
       },
       "class_type": "KSamplerSelect",
       "_meta": {
         "title": "KSamplerSelect"
       }
     },
-    "98": {
+    "78": {
       "inputs": {
-        "float_list": ["100", 0]
+        "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
+        "type": "ltxv"
       },
-      "class_type": "FloatToSigmas",
+      "class_type": "CLIPLoaderGGUF",
       "_meta": {
-        "title": "Float To Sigmas"
+        "title": "CLIPLoader (GGUF)"
       }
     },
-    "99": {
+    "80": {
       "inputs": {
-        "cfg": 1,
-        "model": ["44", 0],
-        "positive": ["69", 0],
-        "negative": ["69", 1]
+        "a": 25
       },
-      "class_type": "CFGGuider",
+      "class_type": "CM_IntToFloat",
       "_meta": {
-        "title": "CFGGuider"
+        "title": "frame_rate"
       }
     },
-    "100": {
+    "81": {
       "inputs": {
-        "string": "1.0000, 0.9937, 0.9875, 0.9812, 0.9750, 0.9094, 0.7250, 0.4219, 0.0"
-      },
-      "class_type": "StringToFloatList",
-      "_meta": {
-        "title": "String to Float List"
-      }
-    },
-    "101": {
-      "inputs": {
-        "noise": ["102", 0],
-        "guider": ["99", 0],
-        "sampler": ["97", 0],
-        "sigmas": ["98", 0],
-        "latent_image": ["95", 2]
-      },
-      "class_type": "SamplerCustomAdvanced",
-      "_meta": {
-        "title": "SamplerCustomAdvanced"
-      }
-    },
-    "102": {
-      "inputs": {
-        "noise_seed": 45
-      },
-      "class_type": "RandomNoise",
-      "_meta": {
-        "title": "RandomNoise"
-      }
-    },
-    "103": {
-      "inputs": {
-        "frame_rate": ["112", 0],
+        "frame_rate": ["80", 0],
         "loop_count": 0,
         "filename_prefix": "ltxv",
         "format": "video/h264-mp4",
@@ -229,25 +216,6 @@
       "class_type": "VHS_VideoCombine",
       "_meta": {
         "title": "Video Combine 🎥🅥🅗🅢"
-      }
-    },
-    "111": {
-      "inputs": {
-        "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
-        "type": "ltxv"
-      },
-      "class_type": "CLIPLoaderGGUF",
-      "_meta": {
-        "title": "CLIPLoader (GGUF)"
-      }
-    },
-    "112": {
-      "inputs": {
-        "a": 25
-      },
-      "class_type": "CM_IntToFloat",
-      "_meta": {
-        "title": "frame_rate"
       }
     }
   }
