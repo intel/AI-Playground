@@ -95,6 +95,7 @@ export const settings: LocalSettings = {
   availableThemes: ['dark', 'lnl'],
   currentTheme: 'lnl',
   comfyUiParameters: [],
+  deviceArchOverride: undefined,
 }
 
 async function loadSettings() {
@@ -207,7 +208,10 @@ export async function createMediaServer() {
     PORT_NUMBER: String(mediaServerPort),
     MEDIA_DIRECTORY: mediaDir,
   }
-  mediaServerChild = fork(path.join(__dirname, '../media/mediaServer.js'), undefined, { env, stdio: 'pipe' })
+  mediaServerChild = fork(path.join(__dirname, '../media/mediaServer.js'), undefined, {
+    env,
+    stdio: 'pipe',
+  })
   mediaServerChild.stdout?.on('data', (data) => {
     appLogger.info(data.toString(), 'media-server')
   })
@@ -222,7 +226,7 @@ export async function createMediaServer() {
       createMediaServer()
     }, 1000)
     mediaServerChild = null
-  });
+  })
 }
 
 function stopMediaServer() {
@@ -239,7 +243,11 @@ function spawnLangchainUtilityProcess() {
   try {
     appLogger.info(path.join(__dirname, '../langchain/langchain.js'), 'electron-backend')
 
-    langchainChild = utilityProcess.fork(path.join(__dirname, '../langchain/langchain.js'), undefined, { stdio: 'pipe' })
+    langchainChild = utilityProcess.fork(
+      path.join(__dirname, '../langchain/langchain.js'),
+      undefined,
+      { stdio: 'pipe' },
+    )
     langchainChild.stdout?.on('data', (data) => {
       appLogger.info(data.toString(), 'langchain')
     })
@@ -268,7 +276,7 @@ function spawnLangchainUtilityProcess() {
       }
       setTimeout(() => {
         spawnLangchainUtilityProcess()
-      }, 1000);
+      }, 1000)
       langchainChild = null
     })
   } catch (error) {
@@ -285,14 +293,15 @@ function handleUtilityFunction<T, R>(
     throw new Error('Utility process is not running')
   }
   return new Promise((resolve, reject) => {
-    const messageHandler = (message: any) => {
+    const messageHandler = (message: { type: string; returnValue: R }) => {
       if (message.type === eventType) {
         child.off('message', messageHandler)
         resolve(message.returnValue)
       }
     }
 
-    const errorHandler = (error: any) => {
+    const errorHandler = (type: string, location: string, report: string) => {
+      const error = new Error(`Error in ${type} at ${location}: ${report}`)
       child.off('error', errorHandler)
       reject(error)
     }
@@ -592,6 +601,61 @@ function initEventHandle() {
       return []
     }
     return serviceRegistry.getServiceInformation()
+  })
+
+  ipcMain.handle('uninstall', (_event: IpcMainInvokeEvent, serviceName: string) => {
+    if (!serviceRegistry) {
+      appLogger.warn('received uninstall too early during aipg startup', 'electron-backend')
+      return
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to uninstall service ${serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.uninstall()
+  })
+
+  ipcMain.handle('updateServiceSettings', (_event: IpcMainInvokeEvent, settings) => {
+    if (!serviceRegistry) {
+      appLogger.warn(
+        'received updateServiceSettings too early during aipg startup',
+        'electron-backend',
+      )
+      return
+    }
+    const service = serviceRegistry.getService(settings.serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to update settings for service ${settings.serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.updateSettings(settings)
+  })
+
+  ipcMain.handle('getServiceSettings', (_event: IpcMainInvokeEvent, serviceName) => {
+    appLogger.info(`getServiceSettings: ${serviceName}`, 'electron-backend')
+    if (!serviceRegistry) {
+      appLogger.warn(
+        'received getServiceSettings too early during aipg startup',
+        'electron-backend',
+      )
+      return
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to get settings for service ${serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.getSettings()
   })
 
   ipcMain.handle('sendStartSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {

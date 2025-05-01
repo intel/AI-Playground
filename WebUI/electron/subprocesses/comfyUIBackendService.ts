@@ -27,20 +27,55 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/queue`
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
-  private readonly revision = '61b5072'
+  private revision = 'v0.3.30'
+
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
     ? this.settings.comfyUiParameters
     : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
   serviceIsSetUp(): boolean {
-    return (
+    const dirsExist =
       filesystem.existsSync(this.pythonEnvDir) &&
       filesystem.existsSync(this.serviceDir) &&
       filesystem.existsSync(hijacksDir)
-    )
+    if (dirsExist) {
+      setTimeout(async () => {
+        const version = await this.getCurrentVersion()
+        if (version) {
+          this.appLogger.info(`comfyUI version ${version} detected`, this.name)
+          this.revision = version
+        }
+      })
+    }
+    return dirsExist
   }
 
   isSetUp = this.serviceIsSetUp()
+
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.revision = settings.version
+      this.appLogger.info(`applied new comfyUI version ${this.revision}`, this.name)
+    }
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    this.appLogger.info(`getting comfyUI settings`, this.name)
+    return { version: this.revision, serviceName: 'comfyui-backend' }
+  }
+
+  async getCurrentVersion(): Promise<string | undefined> {
+    try {
+      const gitOutput = await this.git.run(['-C', this.serviceDir, 'rev-parse', 'HEAD'])
+      const versionMatch = gitOutput.match(/HEAD detached at ([0-9a-f]{7,})|v(\d+\.\d+\.\d+)/)
+      if (versionMatch) {
+        return versionMatch[1]
+      }
+    } catch (e) {
+      this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
+      return undefined
+    }
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.appLogger.info('setting up service', this.name)
@@ -53,7 +88,16 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
       // Check if it's a valid git repo
       try {
-        await this.git.run(['-C', this.serviceDir, 'status'])
+        const version = await this.getCurrentVersion()
+        if (version === this.revision) {
+          this.appLogger.info('comfyUI already cloned, skipping', this.name)
+          return true
+        }
+        this.appLogger.info(
+          `ComfyUI version ${version?.[1]} does not match ${this.revision}. Removing...`,
+          this.name,
+        )
+        throw new Error('Version mismatch')
       } catch (_e) {
         try {
           filesystem.removeSync(this.serviceDir)
@@ -61,8 +105,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           return false
         }
       }
-
-      return true
     }
 
     const setupComfyUiBaseService = async (): Promise<void> => {
@@ -135,7 +177,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `Trying to identify intel hardware`,
       }
-      const deviceArch = await this.deviceService.getBestDeviceArch()
+      const deviceArch =
+        this.settings.deviceArchOverride ?? (await this.deviceService.getBestDeviceArch())
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -152,7 +195,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':
-            return 'arl_h'
           case 'acm':
           case 'bmg':
           case 'lnl':
@@ -228,6 +270,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }> {
     const additionalEnvVariables = {
       PATH: `${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',

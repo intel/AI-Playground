@@ -42,8 +42,8 @@
       "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/"]
     },
     {
-      "from": "external/llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl",
-      "to": "llama_cpp_python-0.3.2-cp311-cp311-win_amd64.whl"
+      "from": "external/llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl",
+      "to": "llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl"
     },
     {
       "from": "external/workflows",

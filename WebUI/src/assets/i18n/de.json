@@ -252,6 +252,18 @@
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Checkpoint-Modell",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Bildrate",
   "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Gesamtanzahl Frames",
+
+  "BACKEND_STOP": "Backend stoppen",
+  "BACKEND_START": "Backend starten",
+  "BACKEND_REINSTALL": "Backend neu installieren",
+  "BACKEND_CONFIRM": "Sind Sie sicher?",
+  "BACKEND_REINSTALL_DESCRIPTION": "Dies wird das {backend} Backend neu installieren. Abhängig von Ihrer Internetverbindung kann dies eine Weile dauern.",
+  "BACKEND_SETTINGS_TITLE": "{backend} Einstellungen",
+  "BACKEND_SETTINGS_DESCRIPTION": "Konfigurieren Sie die Einstellungen für das {backend} Backend. Änderungen erfordern möglicherweise einen Neustart oder eine Neuinstallation, um wirksam zu werden.",
+  "BACKEND_VERSION": "Version",
+  "BACKEND_VERSION_DESCRIPTION": "Die Git-Referenz, die für das Backend verwendet werden soll. Dies kann ein Versions-Tag oder ein Commit-Hash sein.",
+  "BACKEND_SAVE_CHANGES": "Änderungen speichern",
+
   "ANSWER_MAX_TOKENS": "Maximale Tokenanzahl",
   "ANSWER_METRICS": "Metriken",
   "ANSWER_FONT_SIZE": "Schriftgröße",

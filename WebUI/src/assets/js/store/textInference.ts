@@ -4,9 +4,8 @@ import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
-import { useGlobalSetup } from './globalSetup'
 
-export const llmBackendTypes = ['ipexLLM', 'openVINO', 'llamaCPP'] as const
+export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP'] as const
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -31,7 +30,7 @@ export type IndexedDocument = {
   filename: string
   filepath: string
   type: ValidFileExtension
-  splitDB: Document<Record<string, any>>[]
+  splitDB: Document[]
   hash: string
   isChecked: boolean
 }
@@ -46,10 +45,9 @@ export type EmbedInquiry = {
 export const useTextInference = defineStore(
   'textInference',
   () => {
-    const globalSetup = useGlobalSetup()
     const backendServices = useBackendServices()
     const models = useModels()
-    const backend = ref<LlmBackend>('ipexLLM')
+    const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
 
     const selectedModels = ref<LlmBackendKV>({
@@ -111,15 +109,15 @@ export const useTextInference = defineStore(
     }
 
     const backendToAipgBackendName = {
+      openVINO: 'openvino',
       ipexLLM: 'default',
       llamaCPP: 'llama_cpp',
-      openVINO: 'openvino',
     } as const
 
     const backendToAipgModelTypeNumber = {
+      openVINO: Const.MODEL_TYPE_OPENVINO,
       ipexLLM: Const.MODEL_TYPE_LLM,
       llamaCPP: Const.MODEL_TYPE_LLAMA_CPP,
-      openVINO: Const.MODEL_TYPE_OPENVINO,
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {
@@ -156,7 +154,10 @@ export const useTextInference = defineStore(
       if (!model) return []
       const checkList = {
         repo_id: model,
-        type: type === 'embedding' ? Const.MODEL_TYPE_EMBEDDING : backendToAipgModelTypeNumber[backend.value],
+        type:
+          type === 'embedding'
+            ? Const.MODEL_TYPE_EMBEDDING
+            : backendToAipgModelTypeNumber[backend.value],
         backend: backendToAipgBackendName[backend.value],
       }
       const checkedModels = await models.checkModelAlreadyLoaded([checkList])
@@ -229,7 +230,9 @@ export const useTextInference = defineStore(
     }
 
     async function embedInputUsingRag(prompt: string) {
-      const checkedRagList = ragList.value.filter((item) => item.isChecked).map(doc => JSON.parse(JSON.stringify(doc)))
+      const checkedRagList = ragList.value
+        .filter((item) => item.isChecked)
+        .map((doc) => JSON.parse(JSON.stringify(doc)))
       if (checkedRagList.length === 0) {
         throw new Error('No documents selected')
       }
@@ -245,7 +248,7 @@ export const useTextInference = defineStore(
         backendBaseUrl: currentBackendUrl.value,
         embeddingModel: activeEmbeddingModel.value,
       }
-      console.log('trying to request rag for', {newEmbedInquiry, ragList: ragList.value})
+      console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
       const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)
       return response
     }

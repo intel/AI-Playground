@@ -141,21 +141,30 @@
                     {{ chat.model }}
                   </span>
                   <!-- Display RAG source if available -->
-                  <span v-if="chat.ragSource" @click="chat.showRagSource = !chat.showRagSource" class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                  <span
+                    v-if="chat.ragSource"
+                    @click="chat.showRagSource = !chat.showRagSource"
+                    class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
                     :class="textInference.nameSizeClass"
                   >
                     Source Docs
                     <button class="ml-1">
-                      <img v-if="chat.showRagSource" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
+                      <img
+                        v-if="chat.showRagSource"
+                        src="@/assets/svg/arrow-up.svg"
+                        class="w-3 h-3"
+                      />
                       <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
                     </button>
                   </span>
                 </div>
               </div>
-              
+
               <!-- RAG Source Details (collapsible) -->
-              <div v-if="chat.ragSource && chat.showRagSource" class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
-              :class="textInference.fontSizeClass"
+              <div
+                v-if="chat.ragSource && chat.showRagSource"
+                class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+                :class="textInference.fontSizeClass"
               >
                 <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
                 <div class="whitespace-pre-wrap">{{ chat.ragSource }}</div>
@@ -291,24 +300,32 @@
               >
                 {{ textInference.activeModel }}
               </span>
-              <span v-if="ragRetrievalInProgress || actualRagResults?.length" class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+              <span
+                v-if="ragRetrievalInProgress || actualRagResults?.length"
+                class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
                 :class="textInference.nameSizeClass"
                 @click="showRagPreview = !showRagPreview"
               >
                 Source Docs
                 <button class="ml-1">
-                      <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
-                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                  <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
+                  <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
                 </button>
               </span>
             </div>
-            
-            <div v-if="showRagPreview" class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
-            :class="textInference.fontSizeClass"
+
+            <div
+              v-if="showRagPreview"
+              class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+              :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-              <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">Retrieving Documents...</div>
-              <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">{{ getRagSources(actualRagResults) }}</div>
+              <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">
+                Retrieving Documents...
+              </div>
+              <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
+                {{ getRagSources(actualRagResults) }}
+              </div>
             </div>
             <div
               v-if="!downloadModel.downloading && !loadingModel"
@@ -400,37 +417,41 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-          title="Inference Backend"
-          @change="(item) => (textInference.backend = item as LlmBackend)"
-          :value="textInference.backend"
-           :items="[...llmBackendTypes].map((item) => ({
-              label: textInferenceBackendDisplayName[item],
-              value: item,
-              active: isRunning(item),
-            }))"
+            title="Inference Backend"
+            @change="(item) => (textInference.backend = item as LlmBackend)"
+            :value="textInference.backend"
+            :items="
+              [...llmBackendTypes].map((item) => ({
+                label: textInferenceBackendDisplayName[item],
+                value: item,
+                active: isRunning(item),
+              }))
+            "
           ></drop-down-new>
           <drop-down-new
-          title="Text Inference Model"
-          @change="(item) => (textInference.selectModel(textInference.backend, item))"
-          :value="textInference.llmModels
-                    .filter((m) => m.type === textInference.backend)
-                    .find((m) => m.active)?.name ?? ''"
-           :items="textInference.llmModels.filter((m) => m.type === textInference.backend).map((item) => ({
-              label: item.name.split('/').at(-1) ?? item.name,
-              value: item.name,
-              active: item.downloaded,
-            }))"
+            title="Text Inference Model"
+            @change="(item) => textInference.selectModel(textInference.backend, item)"
+            :value="
+              textInference.llmModels
+                .filter((m) => m.type === textInference.backend)
+                .find((m) => m.active)?.name ?? ''
+            "
+            :items="
+              textInference.llmModels
+                .filter((m) => m.type === textInference.backend)
+                .map((item) => ({
+                  label: item.name.split('/').at(-1) ?? item.name,
+                  value: item.name,
+                  active: item.downloaded,
+                }))
+            "
           ></drop-down-new>
-          <button
-            @click="addLLMModel"
-          >
-          <PlusIcon class="size-6 text-purple-500"></PlusIcon>
-        </button>
-          <button
-            @click="models.refreshModels"
-          >
-          <ArrowPathIcon class="size-5 text-purple-500"></ArrowPathIcon>
-        </button>
+          <button @click="addLLMModel">
+            <PlusIcon class="size-6 text-purple-500"></PlusIcon>
+          </button>
+          <button @click="models.refreshModels">
+            <ArrowPathIcon class="size-5 text-purple-500"></ArrowPathIcon>
+          </button>
         </div>
         <div class="flex items-center gap-2">
           <label class="text-white whitespace-nowrap">{{ languages.ANSWER_METRICS }}</label>
@@ -487,23 +508,30 @@
           </div> -->
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
-              @click="showUploader = !showUploader"
-              :disabled="processing"
-              :title="languages.ANSWER_RAG_OPEN_DIALOG"
+            @click="showUploader = !showUploader"
+            :disabled="processing"
+            :title="languages.ANSWER_RAG_OPEN_DIALOG"
           >
-            <span class="w-4 h-4 svg-icon i-rag flex-none"></span><span>{{ documentButtonText }}</span>
+            <span class="w-4 h-4 svg-icon i-rag flex-none"></span
+            ><span>{{ documentButtonText }}</span>
           </button>
           <drop-down-new
-          :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
-          @change="(item) => (textInference.selectEmbeddingModel(textInference.backend, item))"
-          :value="textInference.llmEmbeddingModels
-                    .filter((m) => m.type === textInference.backend)
-                    .find((m) => m.active)?.name ?? ''"
-           :items="textInference.llmEmbeddingModels.filter((m) => m.type === textInference.backend).map((item) => ({
-              label: item.name.split('/').at(-1) ?? item.name,
-              value: item.name,
-              active: item.downloaded,
-            }))"
+            :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
+            @change="(item) => textInference.selectEmbeddingModel(textInference.backend, item)"
+            :value="
+              textInference.llmEmbeddingModels
+                .filter((m) => m.type === textInference.backend)
+                .find((m) => m.active)?.name ?? ''
+            "
+            :items="
+              textInference.llmEmbeddingModels
+                .filter((m) => m.type === textInference.backend)
+                .map((item) => ({
+                  label: item.name.split('/').at(-1) ?? item.name,
+                  value: item.name,
+                  active: item.downloaded,
+                }))
+            "
           ></drop-down-new>
         </div>
       </div>
@@ -534,7 +562,6 @@
           <span>{{ languages.COM_STOP }}</span>
         </button>
       </div>
-
     </div>
   </div>
 </template>
@@ -678,19 +705,19 @@ let reasoningInterval: number | null = null
 
 // Computed properties for document stats and button text
 const documentStats = computed(() => {
-  const totalDocs = textInference.ragList.length;
-  const enabledDocs = textInference.ragList.filter(doc => doc.isChecked).length;
-  return { total: totalDocs, enabled: enabledDocs };
-});
+  const totalDocs = textInference.ragList.length
+  const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
+  return { total: totalDocs, enabled: enabledDocs }
+})
 
 const documentButtonText = computed(() => {
-  const stats = documentStats.value;
+  const stats = documentStats.value
   if (stats.total === 0) {
-    return "Add Documents";
+    return 'Add Documents'
   } else {
-    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled}/${stats.total} ${i18nState.RAG_ENABLED})`;
+    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled}/${stats.total} ${i18nState.RAG_ENABLED})`
   }
-});
+})
 
 watch(
   () => processing.value,
@@ -863,211 +890,222 @@ async function updateTitle(conversation: ChatItem[]) {
   conversation[0].title = newTitle
 }
 
-    async function simulatedInput() {
-      while (textOutQueue.length > 0) {
-        const newText = textOutQueue.shift()!
-        receiveOut += newText
-        textOut.value = markdownParser.parseMarkdown(receiveOut)
-        await nextTick()
+async function simulatedInput() {
+  while (textOutQueue.length > 0) {
+    const newText = textOutQueue.shift()!
+    receiveOut += newText
+    textOut.value = markdownParser.parseMarkdown(receiveOut)
+    await nextTick()
 
-        if (autoScrollEnabled.value) {
-          scrollToBottom()
-        }
-      }
-      if (!textOutFinish) {
-        await util.delay(20)
-        await simulatedInput()
-      } else {
-        const key = currentlyGeneratingKey.value
+    if (autoScrollEnabled.value) {
+      scrollToBottom()
+    }
+  }
+  if (!textOutFinish) {
+    await util.delay(20)
+    await simulatedInput()
+  } else {
+    const key = currentlyGeneratingKey.value
 
-        const finalMetrics: MetricsData = sseMetrics ?? {
-          num_tokens: 0,
-          total_time: 0,
-          first_token_latency: 0,
-          overall_tokens_per_second: 0,
-          second_plus_tokens_per_second: 0,
-        }
+    const finalMetrics: MetricsData = sseMetrics ?? {
+      num_tokens: 0,
+      total_time: 0,
+      first_token_latency: 0,
+      overall_tokens_per_second: 0,
+      second_plus_tokens_per_second: 0,
+    }
 
-        if (key !== null) {
-          const ragSourceInfo = actualRagResults && actualRagResults.length ? getRagSources(actualRagResults) : null;
-            
-          conversations.addToActiveConversation(key, {
-            question: textIn.value,
-            answer: receiveOut, // No longer append source to answer
-            metrics: finalMetrics,
-            model: textInference.activeModel,
-            ragSource: ragSourceInfo, // Store source separately
-            showRagSource: showRagPreview.value, // Initially collapsed
-            showThinkingText: false,
-            reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
-            createdAt: Date.now(),
-          })
-          if (conversations.conversationList[key].length <= 3) {
-            console.log('Conversations is less than 4 items long, generating new title')
-            updateTitle(conversations.conversationList[key])
-          }
-        }
+    if (key !== null) {
+      const ragSourceInfo =
+        actualRagResults && actualRagResults.length ? getRagSources(actualRagResults) : null
 
-        sseMetrics = null
-        processing.value = false
-        textIn.value = ''
-        textOut.value = ''
-        nextTick(() => {
-          chatPanel.querySelectorAll('copy-code').forEach((item) => {
-            const el = item as HTMLElement
-            el.removeEventListener('click', copyCode)
-            el.addEventListener('click', copyCode)
-          })
-          if (autoScrollEnabled.value) {
-            scrollToBottom(false)
-          }
-        })
+      conversations.addToActiveConversation(key, {
+        question: textIn.value,
+        answer: receiveOut, // No longer append source to answer
+        metrics: finalMetrics,
+        model: textInference.activeModel,
+        ragSource: ragSourceInfo, // Store source separately
+        showRagSource: showRagPreview.value, // Initially collapsed
+        showThinkingText: false,
+        reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
+        createdAt: Date.now(),
+      })
+      if (conversations.conversationList[key].length <= 3) {
+        console.log('Conversations is less than 4 items long, generating new title')
+        updateTitle(conversations.conversationList[key])
       }
     }
+
+    sseMetrics = null
+    processing.value = false
+    textIn.value = ''
+    textOut.value = ''
+    nextTick(() => {
+      chatPanel.querySelectorAll('copy-code').forEach((item) => {
+        const el = item as HTMLElement
+        el.removeEventListener('click', copyCode)
+        el.addEventListener('click', copyCode)
+      })
+      if (autoScrollEnabled.value) {
+        scrollToBottom(false)
+      }
+    })
+  }
+}
 
 function getRagSources(actualRagResults: LangchainDocument[]): string {
   // Group documents by source file
-  const fileGroups = new Map<string, Array<{
-    lines?: {from: number, to: number},
-    page?: number
-  }>>();
-  const unknownSources: string[] = [];
-  
+  const fileGroups = new Map<
+    string,
+    Array<{
+      lines?: { from: number; to: number }
+      page?: number
+    }>
+  >()
+  const unknownSources: string[] = []
+
   // Process each document
-  actualRagResults.forEach(doc => {
-    const source = doc.metadata?.source;
-    const location = doc.metadata.loc as {pageNumber?: number; lines?: {from?: number, to?: number}} | undefined;
-    
+  actualRagResults.forEach((doc) => {
+    const source = doc.metadata?.source
+    const location = doc.metadata.loc as
+      | { pageNumber?: number; lines?: { from?: number; to?: number } }
+      | undefined
+
     // Handle unknown sources
     if (!source) {
-      unknownSources.push('Unknown Source');
-      return;
+      unknownSources.push('Unknown Source')
+      return
     }
-    
+
     // Get or create array for this file
-    const entries = fileGroups.get(source) || [];
-    
+    const entries = fileGroups.get(source) || []
+
     // Create entry with available location information
-    const entry: {lines?: {from: number, to: number}, page?: number} = {};
-    
+    const entry: { lines?: { from: number; to: number }; page?: number } = {}
+
     // Add line information if available
     if (location?.lines?.from && location?.lines?.to) {
       entry.lines = {
         from: location.lines.from,
-        to: location.lines.to
-      };
+        to: location.lines.to,
+      }
     }
-    
+
     // Add page information if available
     if (location?.pageNumber !== undefined) {
-      entry.page = location.pageNumber;
+      entry.page = location.pageNumber
     }
-    
+
     // Only add entry if it has some location information
     if (Object.keys(entry).length > 0) {
-      entries.push(entry);
-      fileGroups.set(source, entries);
+      entries.push(entry)
+      fileGroups.set(source, entries)
     }
-  });
-  
+  })
+
   // Function to merge overlapping line ranges for the same page
-  const mergeRanges = (entries: Array<{lines?: {from: number, to: number}, page?: number}>): Array<{lines?: {from: number, to: number}, page?: number}> => {
-    if (entries.length <= 1) return entries;
-    
+  const mergeRanges = (
+    entries: Array<{ lines?: { from: number; to: number }; page?: number }>,
+  ): Array<{ lines?: { from: number; to: number }; page?: number }> => {
+    if (entries.length <= 1) return entries
+
     // Group entries by page number
-    const pageGroups = new Map<number | undefined, Array<{lines?: {from: number, to: number}, page?: number}>>();
-    
-    entries.forEach(entry => {
-      const pageKey = entry.page;
-      const pageEntries = pageGroups.get(pageKey) || [];
-      pageEntries.push(entry);
-      pageGroups.set(pageKey, pageEntries);
-    });
-    
-    const result: Array<{lines?: {from: number, to: number}, page?: number}> = [];
-    
+    const pageGroups = new Map<
+      number | undefined,
+      Array<{ lines?: { from: number; to: number }; page?: number }>
+    >()
+
+    entries.forEach((entry) => {
+      const pageKey = entry.page
+      const pageEntries = pageGroups.get(pageKey) || []
+      pageEntries.push(entry)
+      pageGroups.set(pageKey, pageEntries)
+    })
+
+    const result: Array<{ lines?: { from: number; to: number }; page?: number }> = []
+
     // Process each page group
     pageGroups.forEach((pageEntries, pageNumber) => {
       // For entries with line information, merge overlapping ranges
-      const entriesWithLines = pageEntries.filter(e => e.lines);
-      
+      const entriesWithLines = pageEntries.filter((e) => e.lines)
+
       if (entriesWithLines.length > 0) {
         // Sort by starting line
-        const sortedEntries = [...entriesWithLines].sort((a, b) => 
-          (a.lines?.from || 0) - (b.lines?.from || 0)
-        );
-        
-        let current = sortedEntries[0];
-        
+        const sortedEntries = [...entriesWithLines].sort(
+          (a, b) => (a.lines?.from || 0) - (b.lines?.from || 0),
+        )
+
+        let current = sortedEntries[0]
+
         // Merge overlapping line ranges
         for (let i = 1; i < sortedEntries.length; i++) {
-          const next = sortedEntries[i];
-          
+          const next = sortedEntries[i]
+
           // Check if ranges overlap or are adjacent
           if ((current.lines?.to || 0) >= (next.lines?.from || 0) - 1) {
             // Merge ranges
             current = {
               lines: {
                 from: current.lines?.from || 0,
-                to: Math.max(current.lines?.to || 0, next.lines?.to || 0)
+                to: Math.max(current.lines?.to || 0, next.lines?.to || 0),
               },
-              page: pageNumber
-            };
+              page: pageNumber,
+            }
           } else {
             // No overlap, add current to result and move to next
-            result.push(current);
-            current = next;
+            result.push(current)
+            current = next
           }
         }
-        
+
         // Add the last range
-        result.push(current);
+        result.push(current)
       }
-      
+
       // For entries with only page information (no lines), add a single entry per page
-      if (pageEntries.some(e => !e.lines)) {
+      if (pageEntries.some((e) => !e.lines)) {
         // If we haven't already added an entry for this page from the line merging
-        if (!result.some(r => r.page === pageNumber && !r.lines)) {
-          result.push({ page: pageNumber });
+        if (!result.some((r) => r.page === pageNumber && !r.lines)) {
+          result.push({ page: pageNumber })
         }
       }
-    });
-    
-    return result;
-  };
-  
+    })
+
+    return result
+  }
+
   // Format results
-  const formattedResults: string[] = [];
-  
+  const formattedResults: string[] = []
+
   // Process each file group
   fileGroups.forEach((entries, source) => {
-    const filename = source.split(/[\/\\]/).pop() || source;
-    const mergedEntries = mergeRanges(entries);
-    
+    const filename = source.split(/[\/\\]/).pop() || source
+    const mergedEntries = mergeRanges(entries)
+
     // Format each merged entry
-    mergedEntries.forEach(entry => {
-      let locationInfo = "";
-      
+    mergedEntries.forEach((entry) => {
+      let locationInfo = ''
+
       // Format based on available information
       if (entry.page !== undefined && entry.lines) {
         // Both page and line information
-        locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`;
+        locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`
       } else if (entry.page !== undefined) {
         // Only page information
-        locationInfo = `Page ${entry.page}`;
+        locationInfo = `Page ${entry.page}`
       } else if (entry.lines) {
         // Only line information
-        locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`;
+        locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`
       }
-      
-      formattedResults.push(`${filename} (${locationInfo})`);
-    });
-  });
-  
+
+      formattedResults.push(`${filename} (${locationInfo})`)
+    })
+  })
+
   // Add unknown sources
-  formattedResults.push(...unknownSources);
-  
-  return formattedResults.join("\n");
+  formattedResults.push(...unknownSources)
+
+  return formattedResults.join('\n')
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -1105,7 +1143,8 @@ async function newPromptGenerate() {
   } catch {}
 }
 
-async function checkModelAvailability() { // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
+async function checkModelAvailability() {
+  // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
   return new Promise<void>(async (resolve, reject) => {
     const requiredModelDownloads =
       await textInference.getDownloadParamsForCurrentModelIfRequired('llm')
@@ -1155,37 +1194,37 @@ async function generate(chatContext: ChatItem[]) {
     processing.value = true
     nextTick(scrollToBottom)
 
-    let externalRagContext = null;
+    let externalRagContext = null
     // Reset the global actualRagResults
-    actualRagResults = null;
-    
+    actualRagResults = null
+
     if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
       try {
         // Set RAG retrieval in progress
-        ragRetrievalInProgress.value = true;
-        showRagPreview.value = true;
-                
+        ragRetrievalInProgress.value = true
+        showRagPreview.value = true
+
         // Perform RAG retrieval
         const ragResults = await textInference.embedInputUsingRag(
-          chatContext[chatContext.length - 1].question
-        );
-        
-        ragRetrievalInProgress.value = false;
-        
+          chatContext[chatContext.length - 1].question,
+        )
+
+        ragRetrievalInProgress.value = false
+
         if (ragResults && ragResults.length > 0) {
-          externalRagContext = ragResults.map(doc => doc.pageContent).join('\n\n');
-          actualRagResults = ragResults;
+          externalRagContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
+          actualRagResults = ragResults
         }
       } catch (error) {
         // // Reset RAG retrieval status in case of error
         // ragRetrievalInProgress.value = false;
-        
+
         // // Remove the temporary chat item if it exists
         // if (conversations.conversationList[currentlyGeneratingKey.value!]?.length > 0) {
         //   conversations.conversationList[currentlyGeneratingKey.value!].pop();
         // }
-        
-        console.error('Error retrieving RAG documents:', error);
+
+        console.error('Error retrieving RAG documents:', error)
       }
     }
 

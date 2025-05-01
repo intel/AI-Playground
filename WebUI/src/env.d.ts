@@ -13,6 +13,11 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
+type ServiceSettings = {
+  version?: string
+  serviceName: BackendServiceName
+}
+
 type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
@@ -73,6 +78,9 @@ type electronAPI = {
   ): void
   wakeupComfyUIService(): void
   getServices(): Promise<ApiServiceInformation[]>
+  updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
+  getServiceSettings(serviceName: string): Promise<ServiceSettings[BackendServiceName]>
+  uninstall(serviceName: string): Promise<void>
   sendStartSignal(serviceName: string): Promise<BackendStatus>
   sendStopSignal(serviceName: string): Promise<BackendStatus>
   sendSetUpSignal(serviceName: string): void
@@ -93,6 +101,7 @@ type Chrome = {
 
 type LangchainDocument = {
   pageContent: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: Record<string, any>
   id?: string
 }

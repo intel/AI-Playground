@@ -7,7 +7,7 @@ import traceback
 import torch
 import logging
 
-from typing import Any, List, Dict
+from typing import List, Dict
 from os import path
 from transformers import (
     TextIteratorStreamer,

@@ -20,7 +20,7 @@ const condaTargetDir = path.join(targetDir, 'conda-env-lib')
 const condaEnvLibraryDir = path.resolve(path.join(condaEnvDirArg, 'Library'))
 
 const embeddablePythonUrl =
-  'https://raw.githubusercontent.com/adang1345/PythonWindows/master/3.11.10/python-3.11.10-embed-amd64.zip'
+  'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
 const getPipScriptUrl = 'https://bootstrap.pypa.io/get-pip.py'
 const sevenZrExeUrl = 'https://www.7-zip.org/a/7zr.exe'
 

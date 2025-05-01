@@ -261,5 +261,16 @@
   "RAG_ADD_DOCUMENTS": "เพิ่มเอกสาร",
   "RAG_ADD_FILES": "เพิ่มไฟล์",
   "RAG_SEARCHABLE_DOCUMENTS": "เอกสารที่ค้นหาได้",
-  "RAG_CLEAR_ALL": "ล้างทั้งหมด"
+  "RAG_CLEAR_ALL": "ล้างทั้งหมด",
+
+  "BACKEND_STOP": "หยุดแบ็กเอนด์",
+  "BACKEND_START": "เริ่มแบ็กเอนด์",
+  "BACKEND_REINSTALL": "ติดตั้งแบ็กเอนด์ใหม่",
+  "BACKEND_CONFIRM": "คุณแน่ใจหรือไม่?",
+  "BACKEND_REINSTALL_DESCRIPTION": "นี่จะติดตั้งแบ็กเอนด์ {backend} ใหม่ ขึ้นอยู่กับการเชื่อมต่ออินเทอร์เน็ตของคุณ อาจใช้เวลาสักครู่",
+  "BACKEND_SETTINGS_TITLE": "การตั้งค่า {backend}",
+  "BACKEND_SETTINGS_DESCRIPTION": "กำหนดค่าการตั้งค่าสำหรับแบ็กเอนด์ {backend} การเปลี่ยนแปลงอาจต้องการการรีสตาร์ทหรือการติดตั้งใหม่เพื่อให้มีผล",
+  "BACKEND_VERSION": "เวอร์ชัน",
+  "BACKEND_VERSION_DESCRIPTION": "การอ้างอิง Git ที่จะใช้สำหรับแบ็กเอนด์ นี่อาจเป็นแท็กเวอร์ชันหรือแฮชคอมมิต",
+  "BACKEND_SAVE_CHANGES": "บันทึกการเปลี่ยนแปลง"
 }

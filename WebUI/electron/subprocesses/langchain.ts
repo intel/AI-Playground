@@ -74,10 +74,7 @@ async function addDocumentToRAGList(document: IndexedDocument): Promise<IndexedD
   // }
 }
 
-async function loadDocument(
-  type: string,
-  filepath: string,
-): Promise<Document<Record<string, any>>[]> {
+async function loadDocument(type: string, filepath: string) {
   let loader: TextLoader | DocxLoader | PDFLoader
   switch (type) {
     case 'md':
@@ -133,9 +130,15 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
 
   const result = await vectorStore.similaritySearchWithScore(embedInquiry.prompt, 4)
 
-  console.log(`Got ${result.length} results:`, result.map(([doc, score]) => `${doc.metadata.source}@${JSON.stringify(doc.metadata.loc)}: Score ${score}`))
+  console.log(
+    `Got ${result.length} results:`,
+    result.map(
+      ([doc, score]) =>
+        `${doc.metadata.source}@${JSON.stringify(doc.metadata.loc)}: Score ${score}`,
+    ),
+  )
 
-  return result.filter(([doc, score]) => score > 0.5).map(([doc, _score]) => doc)
+  return result.filter(([_doc, score]) => score > 0.5).map(([doc, _score]) => doc)
 }
 
 async function generateFileMD5Hash(filePath: string): Promise<string> {
