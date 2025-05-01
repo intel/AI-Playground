@@ -6,6 +6,7 @@ from openvino_backend import OpenVino
 from openvino_adapter import LLM_SSE_Adapter
 from params import LLMParams
 from openvino_embeddings import OpenVINOEmbeddingModel
+import utils
 
 app = APIFlask(__name__)
 llm_backend = OpenVino()
@@ -49,6 +50,8 @@ def stop_llm_generate():
 @app.route('/v1/embeddings', methods=['POST'])
 def embeddings():
     data = request.json
+    
+    encoding_format = data.get('encoding_format', 'float')
     input_data = data.get('input', None)
 
     if not input_data:
@@ -68,7 +71,7 @@ def embeddings():
         "data": [
             {
                 "object": "embedding",
-                "embedding": emb,
+                "embedding": utils.convert_embedding(emb, encoding_format),
                 "index": idx
             } for idx, emb in enumerate(embeddings_result)
         ],

@@ -1,4 +1,0 @@
---extra-index-url https://pytorch-extension.intel.com/release-whl/stable/arl/us/
-torch==2.6.0.post0+xpu
-torchvision==0.21.0.post0+xpu
-torchaudio==2.6.0.post0+xpu

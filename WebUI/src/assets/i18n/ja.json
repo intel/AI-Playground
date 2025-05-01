@@ -261,5 +261,16 @@
   "RAG_ADD_DOCUMENTS": "ドキュメントを追加",
   "RAG_ADD_FILES": "ファイルを追加",
   "RAG_SEARCHABLE_DOCUMENTS": "検索可能なドキュメント",
-  "RAG_CLEAR_ALL": "すべてクリア"
+  "RAG_CLEAR_ALL": "すべてクリア",
+
+  "BACKEND_STOP": "バックエンドを停止",
+  "BACKEND_START": "バックエンドを開始",
+  "BACKEND_REINSTALL": "バックエンドを再インストール",
+  "BACKEND_CONFIRM": "よろしいですか？",
+  "BACKEND_REINSTALL_DESCRIPTION": "これにより{backend}バックエンドが再インストールされます。インターネット接続によっては時間がかかる場合があります。",
+  "BACKEND_SETTINGS_TITLE": "{backend}の設定",
+  "BACKEND_SETTINGS_DESCRIPTION": "{backend}バックエンドの設定を構成します。変更を有効にするには再起動または再インストールが必要な場合があります。",
+  "BACKEND_VERSION": "バージョン",
+  "BACKEND_VERSION_DESCRIPTION": "バックエンドに使用するGit参照。これはバージョンタグまたはコミットハッシュです。",
+  "BACKEND_SAVE_CHANGES": "変更を保存"
 }

@@ -10,7 +10,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `openvino-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
-  readonly isRequired = false
+  readonly isRequired = true
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
@@ -53,11 +53,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         debugMessage: `installing dependencies`,
       }
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run([
-        'install',
-        '-r',
-        commonRequirements,
-      ])
+      await this.uvPip.run(['install', '-r', commonRequirements])
 
       yield {
         serviceName: this.name,
@@ -91,6 +87,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',

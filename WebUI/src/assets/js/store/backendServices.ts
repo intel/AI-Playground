@@ -1,6 +1,16 @@
 import { defineStore } from 'pinia'
 
-const backends = ['ai-backend', 'comfyui-backend', 'llamacpp-backend', 'openvino-backend'] as const
+const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
+
+type ServiceSettings = {
+  ['ai-backend']?: object
+  ['comfyui-backend']?: {
+    version: string
+  }
+  ['llamacpp-backend']?: object
+  ['openvino-backend']?: object
+} & { serviceName: BackendServiceName }
+
 export type BackendServiceName = (typeof backends)[number]
 
 export const useBackendServices = defineStore(
@@ -61,9 +71,7 @@ export const useBackendServices = defineStore(
 
     async function startAllSetUpServices(): Promise<{ allServicesStarted: boolean }> {
       const serverStartups = await Promise.all(
-        currentServiceInfo.value
-          .filter((s) => s.isSetUp)
-          .map((s) => window.electronAPI.sendStartSignal(s.serviceName)),
+        currentServiceInfo.value.filter((s) => s.isSetUp).map((s) => startService(s.serviceName)),
       )
       const serverStartupsCompleted = {
         allServicesStarted: serverStartups.every((serverStatus) => serverStatus === 'running'),
@@ -74,17 +82,46 @@ export const useBackendServices = defineStore(
       return serverStartupsCompleted
     }
 
+    async function uninstallService(serviceName: BackendServiceName): Promise<void> {
+      const listener = serviceListeners.get(serviceName)
+      if (!listener) {
+        throw new Error(`service name ${serviceName} not found.`)
+      }
+      listener.isActive = true
+      try {
+        await stopService(serviceName)
+      } catch {
+        console.info(`service ${serviceName} was not running`)
+      }
+      return window.electronAPI.uninstall(serviceName)
+    }
+
     async function setUpService(
       serviceName: BackendServiceName,
     ): Promise<{ success: boolean; logs: SetupProgress[] }> {
       console.log('starting setup')
       const listener = serviceListeners.get(serviceName)
       if (!listener) {
-        new Error(`service name ${serviceName} not found.`)
+        throw new Error(`service name ${serviceName} not found.`)
       }
-      listener!.isActive = true
+      listener.isActive = true
+      try {
+        await stopService(serviceName)
+      } catch {
+        console.warn(`service ${serviceName} was not running`)
+      }
       window.electronAPI.sendSetUpSignal(serviceName)
       return listener!.awaitFinalizationAndResetData()
+    }
+
+    async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
+      return window.electronAPI.updateServiceSettings(settings)
+    }
+
+    async function getServiceSettings<T extends BackendServiceName>(
+      serviceName: T,
+    ): Promise<ServiceSettings[T]> {
+      return window.electronAPI.getServiceSettings(serviceName)
     }
 
     async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
@@ -129,8 +166,11 @@ export const useBackendServices = defineStore(
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
       setUpService,
+      getServiceSettings,
+      updateServiceSettings,
       startService,
       stopService,
+      uninstallService,
     }
   },
   {

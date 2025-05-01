@@ -2,7 +2,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { ModelPaths, ModelLists, Model } from '@/assets/js/store/models'
 
-
 const llmBackendTypes = ['ipexLLM', 'llamaCPP', 'openVINO'] as const
 export class PathsManager {
   modelPaths: ModelPaths = {
@@ -55,7 +54,9 @@ export class PathsManager {
         lora: this.scanLora(),
         vae: [],
         scheduler: [],
-        embedding: this.scanEmbedding().filter((model) => model.backend === 'ipexLLM').map((model) => model.name),
+        embedding: this.scanEmbedding()
+          .filter((model) => model.backend === 'ipexLLM')
+          .map((model) => model.name),
       }
       return model_settings
     } catch (ex) {
@@ -175,7 +176,7 @@ export class PathsManager {
     return models
   }
 
-  scanEmbedding() : Model[] {
+  scanEmbedding(): Model[] {
     const embeddingModels: Model[] = []
     llmBackendTypes.forEach((backend) => {
       const dir = path.join(this.modelPaths.embedding, '..', backend)

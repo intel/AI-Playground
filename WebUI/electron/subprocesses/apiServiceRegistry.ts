@@ -111,6 +111,14 @@ export async function aiplaygroundApiServiceRegistry(
       ),
     )
     instance.register(
+      new OpenVINOBackendService(
+        'openvino-backend',
+        await getPort({ port: portNumbers(29000, 29999) }),
+        win,
+        settings,
+      ),
+    )
+    instance.register(
       new ComfyUiBackendService(
         'comfyui-backend',
         await getPort({ port: portNumbers(49000, 49999) }),
@@ -122,14 +130,6 @@ export async function aiplaygroundApiServiceRegistry(
       new LlamaCppBackendService(
         'llamacpp-backend',
         await getPort({ port: portNumbers(39000, 39999) }),
-        win,
-        settings,
-      ),
-    )
-    instance.register(
-      new OpenVINOBackendService(
-        'openvino-backend',
-        await getPort({ port: portNumbers(29000, 29999) }),
         win,
         settings,
       ),

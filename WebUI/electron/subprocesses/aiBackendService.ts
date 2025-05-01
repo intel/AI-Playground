@@ -59,7 +59,6 @@ export class AiBackendService extends LongLivedPythonApiService {
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':
-            return 'arl_h'
           case 'acm':
           case 'bmg':
           case 'lnl':
@@ -102,6 +101,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         '--index-strategy',
         'unsafe-best-match',
         '--prerelease=allow',
+        // '--force-reinstall',
       ])
 
       yield {
@@ -137,6 +137,7 @@ export class AiBackendService extends LongLivedPythonApiService {
   }> {
     const additionalEnvVariables = {
       PATH: `${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',

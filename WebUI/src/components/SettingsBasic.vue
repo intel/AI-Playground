@@ -65,22 +65,13 @@ import RadioBlock from '../components/RadioBlock.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 
 import { useTheme } from '@/assets/js/store/theme'
-import { useTextInference, llmBackendTypes, LlmBackend } from '@/assets/js/store/textInference'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
-import SlideBar from '../components/SlideBar.vue'
 
 const globalSetup = useGlobalSetup()
-const textInference = useTextInference()
 const backendServices = useBackendServices()
 const theme = useTheme()
-
-const textInferenceBackendDisplayName: Record<(typeof llmBackendTypes)[number], string> = {
-  ipexLLM: 'IPEX-LLM',
-  llamaCPP: 'llamaCPP - GGUF',
-  openVINO: 'OpenVINO',
-}
 
 const themeToDisplayName = (theme: Theme) => {
   switch (theme) {
@@ -117,22 +108,5 @@ function openDebug() {
 
 function changeGraphics(value: GraphicsItem, _index: number) {
   globalSetup.applyModelSettings({ graphics: value.index })
-}
-
-function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
-  if (name === 'ipexLLM') {
-    return 'ai-backend' as BackendServiceName
-  } else if (name === 'llamaCPP') {
-    return 'llamacpp-backend' as BackendServiceName
-  } else if (name === 'openVINO') {
-    return 'openvino-backend' as BackendServiceName
-  } else {
-    return undefined
-  }
-}
-
-function isRunning(name: LlmBackend) {
-  const backendName: BackendServiceName | undefined = mapBackendNames(name)
-  return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
 }
 </script>

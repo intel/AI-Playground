@@ -7,6 +7,7 @@ from llama_adapter import LLM_SSE_Adapter
 from llama_cpp_backend import LlamaCpp
 from params import LLMParams
 from llama_cpp_embeddings import LlamaCppEmbeddingModel
+import utils
 
 app = APIFlask(__name__)
 llm_backend = LlamaCpp()
@@ -42,6 +43,8 @@ def stop_llm_generate():
 @app.route('/v1/embeddings', methods=['POST'])
 def embeddings():
     data = request.json
+
+    encoding_format = data.get('encoding_format', 'float')
     input_data = data.get('input', None)
 
     if not input_data:
@@ -61,7 +64,7 @@ def embeddings():
         "data": [
             {
                 "object": "embedding",
-                "embedding": emb,
+                "embedding": utils.convert_embedding(emb, encoding_format),
                 "index": idx
             } for idx, emb in enumerate(embeddings_result)
         ],

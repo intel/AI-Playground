@@ -261,5 +261,16 @@
   "RAG_ADD_DOCUMENTS": "Tambahkan Dokumen",
   "RAG_ADD_FILES": "Tambahkan File",
   "RAG_SEARCHABLE_DOCUMENTS": "Dokumen yang Dapat Dicari",
-  "RAG_CLEAR_ALL": "Hapus Semua"
+  "RAG_CLEAR_ALL": "Hapus Semua",
+
+  "BACKEND_STOP": "Hentikan Backend",
+  "BACKEND_START": "Mulai Backend",
+  "BACKEND_REINSTALL": "Pasang Ulang Backend",
+  "BACKEND_CONFIRM": "Apakah Anda yakin?",
+  "BACKEND_REINSTALL_DESCRIPTION": "Ini akan memasang ulang backend {backend}. Tergantung pada koneksi internet Anda, ini mungkin memerlukan waktu.",
+  "BACKEND_SETTINGS_TITLE": "Pengaturan {backend}",
+  "BACKEND_SETTINGS_DESCRIPTION": "Konfigurasikan pengaturan untuk backend {backend}. Perubahan mungkin memerlukan restart atau pemasangan ulang untuk diterapkan.",
+  "BACKEND_VERSION": "Versi",
+  "BACKEND_VERSION_DESCRIPTION": "Referensi Git yang akan digunakan untuk backend. Ini bisa berupa tag versi atau hash commit.",
+  "BACKEND_SAVE_CHANGES": "Simpan perubahan"
 }

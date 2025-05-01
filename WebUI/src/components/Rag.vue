@@ -1,24 +1,26 @@
 <template>
-  <div 
-    class="rag-panel flex flex-col text-white bg-black/70 rounded-xl p-4" 
-    :class="{ 'border-2 border-dashed border-purple-500 bg-purple-900/10': isOverDropZone }" 
+  <div
+    class="rag-panel flex flex-col text-white bg-black/70 rounded-xl p-4"
+    :class="{ 'border-2 border-dashed border-purple-500 bg-purple-900/10': isOverDropZone }"
     ref="dropZoneRef"
   >
     <!-- Header -->
-    <div class="flex justify-between items-center h-11 px-4 mb-3 border-b border-purple-800/60 text-sm w-full">
+    <div
+      class="flex justify-between items-center h-11 px-4 mb-3 border-b border-purple-800/60 text-sm w-full"
+    >
       <span class="text-lg font-bold">{{ languages.RAG_SEARCHABLE_DOCUMENTS }}</span>
       <button
         class="svg-icon i-close w-7 h-7 hover:text-purple-500 transition-colors duration-200"
         @click="closeRagPanel"
       ></button>
     </div>
-    
+
     <!-- File List -->
     <div v-show="textInference.ragList.length > 0" class="mx-2 flex flex-col">
       <!-- File Items -->
-      <div 
-        v-for="file in textInference.ragList" 
-        :key="file.hash" 
+      <div
+        v-for="file in textInference.ragList"
+        :key="file.hash"
         class="flex items-center mb-2 py-1 px-2 hover:bg-purple-900/20 rounded-lg transition-colors duration-200"
       >
         <!-- Checkbox (aligned left) -->
@@ -31,7 +33,7 @@
             @change="textInference.updateFileCheckStatus(file.hash, file.isChecked)"
           />
         </div>
-        
+
         <!-- File Name (aligned left with icon) -->
         <div class="w-[75%] flex items-center gap-2">
           <span class="svg-icon flex-none w-5 h-5" :class="getIconClass(file.type)"></span>
@@ -39,7 +41,7 @@
             {{ file.filename }}
           </div>
         </div>
-        
+
         <!-- Delete Button (aligned right) -->
         <div class="w-[15%] flex justify-end pr-2">
           <button
@@ -51,7 +53,7 @@
           </button>
         </div>
       </div>
-      
+
       <!-- Bottom Controls -->
       <div class="flex items-center border-t border-purple-800/60 py-1 px-2 pt-3 mt-2">
         <!-- Three-state Checkbox (aligned left) -->
@@ -64,7 +66,7 @@
             ref="selectAllCheckbox"
           />
         </div>
-        
+
         <!-- Add Files Button (centered) -->
         <div class="w-[60%] flex justify-center">
           <button
@@ -76,7 +78,7 @@
             <span>{{ languages.RAG_ADD_FILES }}</span>
           </button>
         </div>
-        
+
         <!-- Clear All Button (aligned right) -->
         <div class="w-[30%] flex justify-end pr-2">
           <button
@@ -90,7 +92,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Empty State -->
     <div
       v-show="textInference.ragList.length == 0"
@@ -136,14 +138,11 @@ const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 const emits = defineEmits<{
   (e: 'close'): void
 }>()
-const fileTotalText = computed(() => {
-  return i18nState.RAG_FILE_TOTAL_FORMAT.replace('{total}', textInference.ragList.length.toString())
-})
 
 // Computed property to determine the selection state (all, some, none)
 const selectionState = computed(() => {
   if (!textInference.ragList.length) return 'none'
-  const checkedCount = textInference.ragList.filter(file => file.isChecked).length
+  const checkedCount = textInference.ragList.filter((file) => file.isChecked).length
   if (checkedCount === 0) return 'none'
   if (checkedCount === textInference.ragList.length) return 'all'
   return 'some'
@@ -227,7 +226,7 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
 })
 
 async function addDocumentsToRagList(filePaths: string[]) {
-  for (let filePath of filePaths) {
+  for (const filePath of filePaths) {
     console.log(filePath)
     const name = filePath.split(/(\\|\/)/g).pop()
     const ext = name?.split('.').pop() as ValidFileExtension | undefined

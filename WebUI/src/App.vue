@@ -28,18 +28,20 @@
       <button
         v-if="debugToolsEnabled"
         :title="languages.COM_SETTINGS"
-        @click="() => {
-          const curState = globalSetup.loadingState
-          if (curState === 'running') {
-            globalSetup.loadingState = 'manageInstallations'
-          } else if (curState === 'manageInstallations') {
-            globalSetup.loadingState = 'running'
+        @click="
+          () => {
+            const curState = globalSetup.loadingState
+            if (curState === 'running') {
+              globalSetup.loadingState = 'manageInstallations'
+            } else if (curState === 'manageInstallations') {
+              globalSetup.loadingState = 'running'
+            }
           }
-        }"
+        "
         ref="showSettingBtn"
       >
-      <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
-    </button>
+        <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
+      </button>
       <button
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
@@ -262,6 +264,7 @@ import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import WarningDialog from '@/components/WarningDialog.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
+import { useColorMode } from '@vueuse/core'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -285,6 +288,9 @@ const fullscreen = ref(false)
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
 const debugToolsEnabled = window.envVars.debugToolsEnabled
+
+const mode = useColorMode()
+mode.value = 'dark'
 
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message }) => {
