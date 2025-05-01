@@ -95,6 +95,7 @@ export const settings: LocalSettings = {
   availableThemes: ['dark', 'lnl'],
   currentTheme: 'lnl',
   comfyUiParameters: [],
+  deviceArchOverride: undefined,
 }
 
 async function loadSettings() {

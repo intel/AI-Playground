@@ -36,6 +36,7 @@ type Theme = 'dark' | 'lnl' | 'bmg'
 type LocalSettings = {
   debug: number
   comfyUiParameters?: string[]
+  deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
 } & KVObject
 
 type ThemeSettings = {
