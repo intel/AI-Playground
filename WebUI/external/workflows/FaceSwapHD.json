@@ -51,7 +51,7 @@
       }
     ]
   },
-  "tags": ["SDXL", "v2.5", "Fast-LCM", "non-com"],
+  "tags": ["SDXL", "v2.5", "LCM", "non-com"],
   "requirements": ["high-vram"],
   "inputs": [
     {
