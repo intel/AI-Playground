@@ -2,7 +2,7 @@ basicsr==1.4.2
 compel==2.0.3
 datasets==2.18.0
 diffusers==0.27.2
-Flask==3.1.0
+Flask==3.1.1
 apiflask==2.3.2
 marshmallow-dataclass==8.7.1
 langchain_community==0.3.0
