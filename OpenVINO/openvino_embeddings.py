@@ -28,7 +28,7 @@ class OpenVINOEmbeddingModel:
         self.repo_id = repo_id
         self.embedding = None
         self.embedding_model_path = repo_id
-        self.model_kwargs = {'device': 'GPU'}
+        self.model_kwargs = {'device': os.environ.get("OPENVINO_DEVICE", "AUTO")}
         self.encode_kwargs = {
             "mean_pooling": True,
             "normalize_embeddings": True,
