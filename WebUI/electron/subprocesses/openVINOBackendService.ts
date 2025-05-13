@@ -2,7 +2,8 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { UvPipService, LongLivedPythonApiService } from './service.ts'
+import { detectOpenVINODevices, openVinoDeviceSelectorEnv } from './deviceDetection.ts'
 
 const serviceFolder = 'openVINO'
 export class OpenVINOBackendService extends LongLivedPythonApiService {
@@ -14,15 +15,24 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
+  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
 
   serviceIsSetUp(): boolean {
     return filesystem.existsSync(this.python.getExePath())
   }
 
   isSetUp = this.serviceIsSetUp()
+
+  async detectDevices() {
+    const availableDevices = await detectOpenVINODevices(this.python)
+    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+    this.devices = [
+      { id: 'AUTO', name: 'Auto select device', selected: true },
+      ...availableDevices.map((d) => ({ ...d, selected: d.id == '0' })),
+    ]
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
@@ -35,7 +45,6 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
       yield {
@@ -83,7 +92,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.deviceService.getDeviceSelectorEnv()),
+      ...openVinoDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
     const apiProcess = spawn(

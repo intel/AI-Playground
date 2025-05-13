@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServiceSettings: (serviceName: string) =>
     ipcRenderer.invoke('getServiceSettings', serviceName),
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
+  selectDevice: (serviceName: string, deviceId: string) =>
+    ipcRenderer.invoke('selectDevice', serviceName, deviceId),
+  detectDevices: (serviceName: string) => ipcRenderer.invoke('detectDevices', serviceName),
   sendStartSignal: (serviceName: string) => ipcRenderer.invoke('sendStartSignal', serviceName),
   sendStopSignal: (serviceName: string) => ipcRenderer.invoke('sendStopSignal', serviceName),
   sendSetUpSignal: (serviceName: string) => ipcRenderer.invoke('sendSetUpSignal', serviceName),

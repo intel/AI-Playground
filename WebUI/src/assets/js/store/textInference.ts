@@ -11,7 +11,7 @@ const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
 type LlmBackendKV = { [key in LlmBackend]: string | null }
 
-const backendToService = {
+export const backendToService = {
   ipexLLM: 'ai-backend',
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',

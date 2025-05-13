@@ -428,6 +428,7 @@
               }))
             "
           ></drop-down-new>
+          <DeviceSelector :backend="backendToService[textInference.backend]" />
           <drop-down-new
             title="Text Inference Model"
             @change="(item) => textInference.selectModel(textInference.backend, item)"
@@ -578,8 +579,14 @@ import { useModels } from '@/assets/js/store/models'
 import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import DropDownNew from '@/components/DropDownNew.vue'
+import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
-import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import {
+  llmBackendTypes,
+  LlmBackend,
+  useTextInference,
+  backendToService,
+} from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
