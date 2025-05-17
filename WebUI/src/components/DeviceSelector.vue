@@ -1,6 +1,6 @@
 <template>
   <drop-down-new
-    title="Inference Backend"
+    title="Inference Device"
     @change="selectInferenceDevice"
     :value="selectedDevice?.id"
     :items="items"
