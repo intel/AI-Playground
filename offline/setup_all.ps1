@@ -49,6 +49,11 @@ foreach ($env in $envsToSetup) {
         
         Write-Host "Running script: $scriptPath"
         & $scriptPath "$installDir"
+        # check if the script ran successfully
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: Failed to set up $env environment."
+            exit 1
+        }
         Write-Host "$env environment setup completed."
 
     }

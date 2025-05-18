@@ -35,8 +35,9 @@ $form.Controls.Add($label)
 
 # add checkboxes
 $checkboxil = New-Object System.Windows.Forms.CheckBox
-$checkboxil.Text = "Ipex-LLM"
+$checkboxil.Text = "AI-Playground Backend"
 $checkboxil.Location = New-Object System.Drawing.Point(20, 50)
+$checkboxil.Size = New-Object System.Drawing.Size(200, 20)
 $checkboxil.Checked = $true
 $form.Controls.Add($checkboxil)
 

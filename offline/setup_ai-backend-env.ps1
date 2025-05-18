@@ -34,6 +34,11 @@ function Install-PortableGit {
     $installerPath = Join-Path $offlineDir "PortableGit-2.48.1-64-bit.7z.exe"
     Write-Host "Install git from $installerPath"
     Start-Process -FilePath $installerPath -ArgumentList "-y -gm2 -o`"$gitDir`"" -NoNewWindow -Wait
+    # check the return code
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error installing git, exit the installation."
+        exit 1
+    }
     Write-Host "Install git [done]"
 }
 

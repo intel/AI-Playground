@@ -26,8 +26,8 @@ Just place the file of offline package in the same directory as the installer pa
 
 During the installation process, there will be a selection interface for you to choose the environment that needs to be pre-installed:
 
-![image]()
+![image](offline-envs-select.png)
 
-![image]()
+![image](offline-envs-install.png)
 
 The installation time for the environments is a bit long and there is no progress bar so far, please be patient.
