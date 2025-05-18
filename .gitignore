@@ -1,4 +1,5 @@
 .vscode/
+.backup/
 env/
 package_res/
 build_resources/

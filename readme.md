@@ -108,6 +108,18 @@ npm run build
 
 The installer executable will be located in the `release` folder.
 
+### (Optional) Create the offline resource package
+
+To create the offline resource package for windows, run:
+
+```
+run `npm run prepare-offline-package:win -- --conda_env_dir=$PATH_TO_CONDA_ENV`
+```
+
+The offline package will be located in the `release` folder.
+
+[More Detail](offline/README.md)
+
 ## Model Support
 AI Playground supports PyTorch LLM, SD1.5, and SDXL models. AI Playground does not ship with any models but does make  models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
 
