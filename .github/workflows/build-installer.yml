@@ -48,6 +48,7 @@ jobs:
         run: |
           npm run fetch-build-resources -- --conda_env_dir=../python_package_res/conda
           npm run prepare-build
+          npm run prepare-offline-package:win -- --conda_env_dir=../python_package_res/conda
           npm run build
 
       - name: set release path
@@ -60,7 +61,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "installers-${{ github.sha }}"
-          path: ${{ env.RELEASE_DIR }}\*.exe
+          path: |
+            ${{ env.RELEASE_DIR }}\*.exe
+            ${{ env.RELEASE_DIR }}\*.7z
           if-no-files-found: error
           retention-days: 1
           overwrite: true
