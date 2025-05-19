@@ -28,7 +28,7 @@ const intelWorkflowDirPath = Path.join(
 const workflowDirBakTargetPath = Path.join(externalRes, 'workflows_bak')
 
 const intelRepoUrl = 'https://github.com/intel/AI-Playground'
-const gitRef = 'dev'
+const gitRef = 'main'
 
 export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelResult> {
   try {
