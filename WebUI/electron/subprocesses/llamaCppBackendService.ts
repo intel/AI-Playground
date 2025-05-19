@@ -3,13 +3,13 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { UvPipService, LongLivedPythonApiService } from './service.ts'
+import { UvPipService, LongLivedPythonApiService, PythonService } from './service.ts'
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
+  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`)) 
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
@@ -17,6 +17,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/health`
 
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
+  readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
   readonly python = this.uvPip.python
 
   serviceIsSetUp(): boolean {
@@ -26,7 +27,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   isSetUp = this.serviceIsSetUp()
 
   async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.python)
+    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
     this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
     this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
   }
