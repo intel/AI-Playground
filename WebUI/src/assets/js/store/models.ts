@@ -72,6 +72,7 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
   { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: false },
   { name: 'BAAI/bge-large-en-v1.5', type: 'embedding', default: true, backend: 'ipexLLM' },
   { name: 'BAAI/bge-large-zh-v1.5', type: 'embedding', default: false, backend: 'ipexLLM' },
+  { name: 'intfloat/multilingual-e5-small', type: 'embedding', default: false, backend: 'ipexLLM' },
   {
     name: 'ChristianAzinn/bge-small-en-v1.5-gguf',
     type: 'embedding',
