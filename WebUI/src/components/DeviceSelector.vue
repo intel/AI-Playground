@@ -1,6 +1,6 @@
 <template>
   <drop-down-new
-    title="Inference Device"
+    :title=languages.SETTINGS_INFERENCE_DEVICE
     @change="selectInferenceDevice"
     :value="selectedDevice?.id"
     :items="items"

@@ -77,7 +77,7 @@ const selectedItem = computed(() => {
       class="w-full rounded-lg p-[3px] border border-[#cdcdcd] bg-[#05010f] max-h-[188px] overflow-y-auto z-[100] ml-4"
     >
       <DropdownMenuLabel class="text-white px-3 py-2 text-sm font-medium">{{
-        'Text Inference Model'
+        languages.SETTINGS_TEXT_INFERENCE_MODEL
       }}</DropdownMenuLabel>
       <div class="px-3 flex items-center" v-if="runningOnOpenvinoNpu">
         <Checkbox
@@ -89,7 +89,7 @@ const selectedItem = computed(() => {
           for="showOnlyCompatible"
           class="px-2 text-xs font-light text-base leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
-          Show only NPU compatible models
+          {{ languages.SETTINGS_TEXT_INFERENCE_NPU_ONLY }}
         </label>
       </div>
       <DropdownMenuSeparator class="bg-white/20" />

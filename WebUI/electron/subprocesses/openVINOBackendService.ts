@@ -17,7 +17,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
 
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
-  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Use best device', selected: true }]
 
   serviceIsSetUp(): boolean {
     return filesystem.existsSync(this.python.getExePath())
