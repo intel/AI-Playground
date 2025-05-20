@@ -123,8 +123,8 @@ except Exception as e:
   }
 }
 
-export function levelZeroDeviceSelectorEnv(id?: string): { OPENVINO_DEVICE: string } {
-  return { OPENVINO_DEVICE: `level_zero:${id ?? '*'}` }
+export function levelZeroDeviceSelectorEnv(id?: string): { ONEAPI_DEVICE_SELECTOR: string } {
+  return { ONEAPI_DEVICE_SELECTOR: `level_zero:${id ?? '*'}` }
 }
 
 export function openVinoDeviceSelectorEnv(id?: string): { OPENVINO_DEVICE: string } {
