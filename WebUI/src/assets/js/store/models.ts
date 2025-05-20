@@ -78,7 +78,7 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
     default: true,
     backend: 'llamaCPP',
   },
-  { name: 'EmbeddedLLM/bge-m3-int4-sym-ov', type: 'embedding', default: true, backend: 'openVINO' },
+  { name: 'OpenVINO/bge-base-en-v1.5-fp16-ov', type: 'embedding', default: true, backend: 'openVINO' },
 ]
 
 export const useModels = defineStore(

@@ -46,6 +46,7 @@ def embeddings():
 
     encoding_format = data.get('encoding_format', 'float')
     input_data = data.get('input', None)
+    model_name = data.get('model', "ChristianAzinn/bge-small-en-v1.5-gguf")
 
     if not input_data:
         return jsonify({"error": "Input text is required"}), 400
@@ -57,6 +58,7 @@ def embeddings():
     else:
         return jsonify({"error": "Input should be a string or list of strings"}), 400
 
+    embedding_model = embedding_model.get_instance(model_name)
     embeddings_result = embedding_model.embed_documents(input_texts)
 
     response = {
