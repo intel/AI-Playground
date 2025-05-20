@@ -25,7 +25,10 @@ except Exception as e:
 `
 
     // Execute the Python script
-    const result = await pythonService.run(['-c', pythonScript])
+    const result = await pythonService.run(['-c', pythonScript], {
+      PYTHONNOUSERSITE: 'true',
+      ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
+    })
 
     // Parse the output
     const devices: Device[] = []
@@ -86,7 +89,7 @@ except Exception as e:
 `
 
     // Execute the Python script
-    const result = await pythonService.run(['-c', pythonScript])
+    const result = await pythonService.run(['-c', pythonScript], { PYTHONNOUSERSITE: 'true' })
 
     // Parse the output
     const devices: Device[] = []
