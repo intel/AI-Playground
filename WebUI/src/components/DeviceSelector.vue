@@ -27,5 +27,5 @@ const devices = computed(
 )
 const selectedDevice = computed(() => devices.value.find((d) => d.selected) ?? devices.value[0])
 const items = computed(() => devices.value.map(deviceToItem))
-const deviceToItem = (d: InferenceDevice) => ({ label: d.name, value: d.id, active: true })
+const deviceToItem = (d: InferenceDevice) => ({ label: `${d.id}: ${d.name}`, value: d.id, active: true })
 </script>
