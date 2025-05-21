@@ -11,7 +11,6 @@ import utils
 
 app = APIFlask(__name__)
 llm_backend = LlamaCpp()
-embedding_model = LlamaCppEmbeddingModel()
 
 @app.get("/health")
 def health():
@@ -58,7 +57,7 @@ def embeddings():
     else:
         return jsonify({"error": "Input should be a string or list of strings"}), 400
 
-    embedding_model = embedding_model.get_instance(model_name)
+    embedding_model = LlamaCppEmbeddingModel.get_instance(model_name)
     embeddings_result = embedding_model.embed_documents(input_texts)
 
     response = {

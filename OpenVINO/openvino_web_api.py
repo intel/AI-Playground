@@ -10,7 +10,6 @@ import utils
 
 app = APIFlask(__name__)
 llm_backend = OpenVino()
-embedding_model = OpenVINOEmbeddingModel()
 
 @app.get("/health")
 def health():
