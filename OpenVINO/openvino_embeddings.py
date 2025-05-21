@@ -5,7 +5,6 @@ from typing import List, Optional
 from langchain_community.embeddings import OpenVINOEmbeddings
 import utils
 
-
 class OpenVINOEmbeddingModel:
     _instance = None
     
@@ -30,7 +29,7 @@ class OpenVINOEmbeddingModel:
         self.embedding_model_path = repo_id
         env_value = os.environ.get("OPENVINO_DEVICE", "AUTO")
         device = "CPU" if "NPU" in env_value else env_value # temporarily set embedding to cpu if npu is chosen
-        self.model_kwargs = {'device': device}
+        self.model_kwargs = {'device': device, "ov_config": {"CACHE_DIR": "emb_model_cache"}}
         self.encode_kwargs = {
             "mean_pooling": True,
             "normalize_embeddings": True,
