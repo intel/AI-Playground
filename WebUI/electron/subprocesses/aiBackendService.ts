@@ -9,13 +9,14 @@ import {
   LongLivedPythonApiService,
   UvPipService,
 } from './service.ts'
-import { Arch } from './deviceArch.ts'
+import { Arch, getBestDevice } from './deviceArch.ts'
+import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
   readonly serviceFolder = 'service'
   readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
-  readonly deviceService = new DeviceService()
+  devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
   readonly git = new GitService()
 
   readonly isRequired = true
@@ -25,6 +26,26 @@ export class AiBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/healthy`
   serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath())
   isSetUp = this.serviceIsSetUp()
+  readonly deviceService = new DeviceService()
+
+  async detectDevices() {
+    const availableDevices = await detectLevelZeroDevices(this.python)
+    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+
+    let bestDeviceId: string
+    try {
+      const bestDeviceName = (await this.deviceService.getDevices())[0].name
+      bestDeviceId = getBestDevice(availableDevices, bestDeviceName)
+      this.appLogger.info(
+        `Selected ${bestDeviceName} as best device by pci id via xpu-smi. Which should correspond to deviceId ${bestDeviceId}`,
+        this.name,
+      )
+    } catch (e: unknown) {
+      this.appLogger.error(`Couldn't detect best device, selecting first. Error: ${e}`, this.name)
+      bestDeviceId = availableDevices[0].name
+    }
+    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
@@ -39,10 +60,8 @@ export class AiBackendService extends LongLivedPythonApiService {
       }
       await this.git.ensureInstalled()
       await this.uvPip.ensureInstalled()
-      await this.deviceService.ensureInstalled()
 
-      const deviceArch =
-        this.settings.deviceArchOverride ?? (await this.deviceService.getBestDeviceArch())
+      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
       yield {
         serviceName: this.name,
         step: `Detecting intel device`,
@@ -81,7 +100,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       const ipexLlmRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-ipex-llm.txt`),
       )
-      if (deviceArch !== 'unknown') {
+      if (archToRequirements(deviceArch) !== 'unknown') {
         await this.uvPip.run([
           'install',
           '-r',
@@ -142,7 +161,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.deviceService.getDeviceSelectorEnv()),
+      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
     const apiProcess = spawn(

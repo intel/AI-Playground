@@ -5,7 +5,6 @@ import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
 import {
-  DeviceService,
   LongLivedPythonApiService,
   aiBackendServiceDir,
   GitService,
@@ -16,12 +15,13 @@ import {
 } from './service.ts'
 import { getMediaDir } from '../util.ts'
 import { Arch } from './deviceArch.ts'
+import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
   readonly serviceFolder = 'ComfyUI'
   readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
-  readonly deviceService = new DeviceService()
+  devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
   readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
@@ -75,6 +75,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
       return undefined
     }
+  }
+
+  async detectDevices() {
+    const availableDevices = await detectLevelZeroDevices(this.uvPip.python)
+    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -167,7 +173,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
       await this.git.ensureInstalled()
 
@@ -177,14 +182,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `Trying to identify intel hardware`,
       }
-      const deviceArch =
-        this.settings.deviceArchOverride ?? (await this.deviceService.getBestDeviceArch())
-      yield {
-        serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `detected intel hardware ${deviceArch}`,
-      }
 
       yield {
         serviceName: this.name,
@@ -192,6 +189,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
+      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
       const archToRequirements = (deviceArch: Arch) => {
         switch (deviceArch) {
           case 'arl_h':
@@ -274,7 +272,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.deviceService.getDeviceSelectorEnv()),
+      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
     const mediaDir = getMediaDir()
     const parameters = [

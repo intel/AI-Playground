@@ -658,6 +658,42 @@ function initEventHandle() {
     return service.getSettings()
   })
 
+  ipcMain.handle('detectDevices', (_event: IpcMainInvokeEvent, serviceName: string) => {
+    if (!serviceRegistry) {
+      appLogger.warn('received detectDevices too early during aipg startup', 'electron-backend')
+      return
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      appLogger.warn(
+        `Tried to detectDevices for service ${serviceName} which is not known`,
+        'electron-backend',
+      )
+      return
+    }
+    return service.detectDevices()
+  })
+
+  ipcMain.handle(
+    'selectDevice',
+    (_event: IpcMainInvokeEvent, serviceName: string, deviceId: string) => {
+      appLogger.info('selecting device', 'electron-backend')
+      if (!serviceRegistry) {
+        appLogger.warn('received selectDevice too early during aipg startup', 'electron-backend')
+        return
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        appLogger.warn(
+          `Tried to selectDevice for service ${serviceName} which is not known`,
+          'electron-backend',
+        )
+        return
+      }
+      return service.selectDevice(deviceId)
+    },
+  )
+
   ipcMain.handle('sendStartSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received start signal too early during aipg startup', 'electron-backend')

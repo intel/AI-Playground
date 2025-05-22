@@ -3,20 +3,21 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { UvPipService, LongLivedPythonApiService, PythonService } from './service.ts'
+import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
+  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`)) 
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
-  readonly deviceService = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
+  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly lsLevelZero = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
+  readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
   readonly python = this.uvPip.python
 
   serviceIsSetUp(): boolean {
@@ -24,6 +25,12 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   }
 
   isSetUp = this.serviceIsSetUp()
+
+  async detectDevices() {
+    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
+    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
@@ -36,7 +43,6 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.lsLevelZero.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
       yield {
@@ -90,7 +96,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.lsLevelZero.getDeviceSelectorEnv()),
+      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
     const apiProcess = spawn(

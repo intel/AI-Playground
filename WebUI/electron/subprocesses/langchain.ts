@@ -58,8 +58,8 @@ async function addDocumentToRAGList(document: IndexedDocument): Promise<IndexedD
   const rawDocument = await loadDocument(document.type, document.filepath)
   console.log(rawDocument)
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1600,
-    chunkOverlap: 400,
+    chunkSize: 512,
+    chunkOverlap: 64,
   })
   const splitDocument = await splitter.splitDocuments(rawDocument)
   const newDocument = {
@@ -107,6 +107,7 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
 
   const model = embedInquiry.embeddingModel
   const baseURL = `${embedInquiry.backendBaseUrl}/v1`
+  const maxResults = embedInquiry.maxResults ?? 6
 
   const underlyingEmbeddings = new OpenAIEmbeddings({
     verbose: true,
@@ -128,7 +129,7 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
     cacheBackedEmbeddings,
   )
 
-  const result = await vectorStore.similaritySearchWithScore(embedInquiry.prompt, 4)
+  const result = await vectorStore.similaritySearchWithScore(embedInquiry.prompt, maxResults)
 
   console.log(
     `Got ${result.length} results:`,

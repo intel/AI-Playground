@@ -11,6 +11,7 @@ env/
 
 !tools/*.exe
 llm_cache/
+emb_model_cache/
 TinyLlama-*
 laion/
 db/

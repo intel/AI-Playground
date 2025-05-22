@@ -11,7 +11,7 @@ const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
 type LlmBackendKV = { [key in LlmBackend]: string | null }
 
-const backendToService = {
+export const backendToService = {
   ipexLLM: 'ai-backend',
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
@@ -40,6 +40,7 @@ export type EmbedInquiry = {
   ragList: IndexedDocument[]
   backendBaseUrl: string
   embeddingModel: string
+  maxResults?: number
 }
 
 export const useTextInference = defineStore(
@@ -99,6 +100,14 @@ export const useTextInference = defineStore(
       console.log('llmEmbeddingModels changed', newEmbeddingModels)
       return newEmbeddingModels
     })
+
+    const runningOnOpenvinoNpu = computed(
+      () =>
+        !!backendServices.info
+          .find((s) => s.serviceName === backendToService[backend.value])
+          ?.devices.find((d) => d.selected)
+          ?.id.includes('NPU'),
+    )
 
     const selectModel = (backend: LlmBackend, modelName: string) => {
       selectedModels.value[backend] = modelName
@@ -247,6 +256,7 @@ export const useTextInference = defineStore(
         ragList: checkedRagList,
         backendBaseUrl: currentBackendUrl.value,
         embeddingModel: activeEmbeddingModel.value,
+        maxResults: runningOnOpenvinoNpu.value ? 2 : 8,
       }
       console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
       const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)

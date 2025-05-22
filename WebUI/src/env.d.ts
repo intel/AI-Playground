@@ -81,6 +81,8 @@ type electronAPI = {
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
   getServiceSettings(serviceName: string): Promise<ServiceSettings[BackendServiceName]>
   uninstall(serviceName: string): Promise<void>
+  selectDevice(serviceName: string, deviceId: string): Promise<void>
+  detectDevices(serviceName: string): Promise<void>
   sendStartSignal(serviceName: string): Promise<BackendStatus>
   sendStopSignal(serviceName: string): Promise<BackendStatus>
   sendSetUpSignal(serviceName: string): void
@@ -361,6 +363,12 @@ type CheckModelAlreadyLoadedResult = {
 
 type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
 
+type InferenceDevice = {
+  id: string
+  name: string
+  selected: boolean
+}
+
 type ApiServiceInformation = {
   serviceName: BackendServiceName
   status: BackendStatus
@@ -368,4 +376,5 @@ type ApiServiceInformation = {
   port: number
   isSetUp: boolean
   isRequired: boolean
+  devices: InferenceDevice[]
 }
