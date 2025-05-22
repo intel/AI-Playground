@@ -23,36 +23,42 @@ except Exception as e:
     print(f"Error detecting XPU devices: {str(e)}")
     sys.exit(1)
 `
+    let allDevices: Device[] = []
+    let lastDeviceList: Device[] = []
+    let i = 0;
+    while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
+      // Execute the Python script
+      const result = await pythonService.run(['-c', pythonScript], {
+        PYTHONNOUSERSITE: 'true',
+        ONEAPI_DEVICE_SELECTOR: `level_zero:${i}`,
+      })
 
-    // Execute the Python script
-    const result = await pythonService.run(['-c', pythonScript], {
-      PYTHONNOUSERSITE: 'true',
-      ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
-    })
+      // Parse the output
+      const devices: Device[] = []
+      const lines = result
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((line) => line !== '')
 
-    // Parse the output
-    const devices: Device[] = []
-    const lines = result
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((line) => line !== '')
+      for (const line of lines) {
+        if (line.startsWith('Error detecting XPU devices:')) {
+          console.error(line)
+          continue
+        }
 
-    for (const line of lines) {
-      if (line.startsWith('Error detecting XPU devices:')) {
-        console.error(line)
-        continue
+        const parts = line.split('|', 2)
+        if (parts.length == 2) {
+          const id = `${i}`
+          const name = parts[1]
+
+          devices.push({ id, name })
+        }
       }
-
-      const parts = line.split('|', 2)
-      if (parts.length == 2) {
-        const id = parts[0]
-        const name = parts[1]
-
-        devices.push({ id, name })
-      }
+      i = i + 1
+      lastDeviceList = devices
+      allDevices = allDevices.concat(lastDeviceList)
     }
-
-    return devices
+    return allDevices
   } catch (error) {
     console.error('Error detecting level_zero devices:', error)
     return []
