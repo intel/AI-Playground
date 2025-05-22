@@ -70,6 +70,7 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
   { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: false },
+  { name: 'tngtech/Phi-3-mini-4k-instruct-sym-int4-channelwise-ov', type: 'openVINO', default: false },
   { name: 'BAAI/bge-large-en-v1.5', type: 'embedding', default: true, backend: 'ipexLLM' },
   { name: 'BAAI/bge-large-zh-v1.5', type: 'embedding', default: false, backend: 'ipexLLM' },
   {
