@@ -8,9 +8,7 @@
         </div>
       </div>
     </div>
-    <div class="flex items-center gap-4 mb-2">
-      <WorkflowSelector />
-    </div>
+    <WorkflowSelector />
     <div class="items-center flex-wrap grid grid-cols-1 gap-2">
       <div class="flex flex-col gap-2">
         <ResolutionPicker
