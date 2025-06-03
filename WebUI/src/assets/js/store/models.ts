@@ -70,6 +70,7 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
   { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: false },
+  { name: 'tngtech/Phi-3-mini-4k-instruct-sym-int4-channelwise-ov', type: 'openVINO', default: false },
   { name: 'BAAI/bge-large-en-v1.5', type: 'embedding', default: true, backend: 'ipexLLM' },
   { name: 'BAAI/bge-large-zh-v1.5', type: 'embedding', default: false, backend: 'ipexLLM' },
   { name: 'intfloat/multilingual-e5-small', type: 'embedding', default: false, backend: 'ipexLLM' },
@@ -79,7 +80,7 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
     default: true,
     backend: 'llamaCPP',
   },
-  { name: 'EmbeddedLLM/bge-m3-int4-sym-ov', type: 'embedding', default: true, backend: 'openVINO' },
+  { name: 'OpenVINO/bge-base-en-v1.5-fp16-ov', type: 'embedding', default: true, backend: 'openVINO' },
 ]
 
 export const useModels = defineStore(

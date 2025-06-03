@@ -236,6 +236,11 @@ const generalDefaultSettings = {
   safetyCheck: true,
 }
 
+export const backendToService: Record<'comfyui' | 'default', BackendServiceName> = {
+  comfyui: 'comfyui-backend',
+  default: 'ai-backend',
+}
+
 export const useImageGeneration = defineStore(
   'imageGeneration',
   () => {
@@ -813,8 +818,7 @@ export const useImageGeneration = defineStore(
       })
       currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
-      const inferenceBackendService: BackendServiceName =
-        backend.value === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
+      const inferenceBackendService = backendToService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {

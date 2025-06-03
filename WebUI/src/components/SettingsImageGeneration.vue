@@ -1,5 +1,13 @@
 <template>
   <div class="flex flex-col gap-2">
+    <div class="flex items-center gap-4 mb-2">
+      <div class="items-center flex-wrap grid grid-cols-1 gap-2">
+        <div class="flex flex-col gap-2">
+          <p>{{ languages.SETTINGS_INFERENCE_DEVICE }}</p>
+          <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
+        </div>
+      </div>
+    </div>
     <WorkflowSelector />
     <div class="items-center flex-wrap grid grid-cols-1 gap-2">
       <div class="flex flex-col gap-2">
@@ -223,7 +231,8 @@
 </template>
 
 <script setup lang="ts">
-import { Setting, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { Setting, useImageGeneration, backendToService } from '@/assets/js/store/imageGeneration'
+import DeviceSelector from '@/components/DeviceSelector.vue'
 import WorkflowSelector from '../components/SettingsImageWorkflowSelector.vue'
 import ComfyDynamic from '../components/SettingsImageComfyDynamic.vue'
 import SlideBar from '../components/SlideBar.vue'
