@@ -410,22 +410,22 @@ class HFPlaygroundDownloader:
         self.download_stop = True
 
 
-def test_download_progress(dowanlod_size: int, total_size: int, speed: int):
-    print(f"download {dowanlod_size/1024}/{total_size /1024}KB  speed {speed}/s")
+def test_download_progress(repo_id: int, dowanlod_size: int, total_size: int, speed: int):
+    print(f"download {repo_id} {dowanlod_size/1024}/{total_size /1024}KB  speed {speed}/s")
 
 
-def test_download_complete(ex: Exception):
+def test_download_complete(repo_id: int, ex: Exception):
     if ex is None:
         print("download success")
     else:
-        print(f"{ex}")
+        print(f"{repo_id}-{ex}")
 
 
 def init():
     downloader = HFPlaygroundDownloader()
     downloader.on_download_progress = test_download_progress
     downloader.on_download_completed = test_download_complete
-    total_size = downloader.download("RunDiffusion/Juggernaut-X-v10", 1, thread_count=1)
+    total_size = downloader.download("RunDiffusion/Juggernaut-X-v10", 1, thread_count=1, backend="default")
     print(f"total-size: {total_size}")
 
 
