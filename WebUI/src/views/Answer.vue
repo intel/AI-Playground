@@ -195,11 +195,11 @@
                   <div
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer))"
+                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer, chat.model))"
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer))"
+                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer, chat.model))"
                   ></div>
                 </template>
                 <template v-else>
@@ -213,7 +213,7 @@
                   @click="
                     copyText(
                       chat.model && thinkingModels[chat.model]
-                        ? extractPostMarker(chat.answer)
+                        ? extractPostMarker(chat.answer, chat.model)
                         : chat.answer,
                     )
                   "
@@ -606,8 +606,7 @@ const postMarkerText = ref('')
 let reasoningStartTime = 0
 let reasoningTotalTime = 0
 
-function extractPreMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
+function extractPreMarker(fullAnswer: string, model: string): string {
   if (model && thinkingModels[model]) {
     const marker = thinkingModels[model]
     const idx = fullAnswer.indexOf(marker)
@@ -616,8 +615,7 @@ function extractPreMarker(fullAnswer: string): string {
   return fullAnswer
 }
 
-function extractPostMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
+function extractPostMarker(fullAnswer: string, model: string): string {
   if (model && thinkingModels[model]) {
     const marker = thinkingModels[model]
     const idx = fullAnswer.indexOf(marker)
