@@ -1,10 +1,12 @@
-import { app } from 'electron'
-import { ChildProcess, spawn } from 'node:child_process'
+import { ChildProcess, exec, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { UvPipService, LongLivedPythonApiService, PythonService } from './service.ts'
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { promisify } from 'node:util'
+import { net } from 'electron'
+const execAsync = promisify(exec)
 
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
@@ -19,9 +21,14 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
   readonly python = this.uvPip.python
+  readonly llamaCppRestDir = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-rest'));
+  readonly llamaCppRestExePath = path.resolve(path.join(this.llamaCppRestDir, 'llama-server.exe'));
+  readonly zipPath = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-ipex-llm.zip'));
+  // Download URL and file paths
+  readonly downloadUrl = 'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/llama-cpp-ipex-llm-2.2.0-win.zip';
 
   serviceIsSetUp(): boolean {
-    return filesystem.existsSync(this.python.getExePath())
+    return filesystem.existsSync(this.python.getExePath()) && filesystem.existsSync(this.llamaCppRestExePath)
   }
 
   isSetUp = this.serviceIsSetUp()
@@ -52,13 +59,6 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         debugMessage: `installing dependencies`,
       }
       const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      const intelSpecificExtensionDir = app.isPackaged
-        ? this.baseDir
-        : path.join(__dirname, '../../external')
-      const intelSpecificExtension = existingFileOrError(
-        path.join(intelSpecificExtensionDir, 'llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl'),
-      )
-      await this.uvPip.pip.run(['install', intelSpecificExtension])
       await this.uvPip.run(['install', '-r', commonRequirements])
       yield {
         serviceName: this.name,
@@ -66,6 +66,40 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
+
+      // Download Ollama ZIP file
+      yield {
+        serviceName: this.name,
+        step: 'download',
+        status: 'executing',
+        debugMessage: `downloading Ollama from ${this.downloadUrl}`,
+      };
+
+      await this.downloadOllama();
+
+      yield {
+        serviceName: this.name,
+        step: 'download',
+        status: 'executing',
+        debugMessage: 'download complete',
+      };
+
+      // Extract Ollama ZIP file
+      yield {
+        serviceName: this.name,
+        step: 'extract',
+        status: 'executing',
+        debugMessage: 'extracting Ollama',
+      };
+
+      await this.extractOllama();
+
+      yield {
+        serviceName: this.name,
+        step: 'extract',
+        status: 'executing',
+        debugMessage: 'extraction complete',
+      };
 
       this.setStatus('notYetStarted')
       yield {
@@ -86,6 +120,51 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       }
     }
   }
+  
+    private async downloadOllama(): Promise<void> {
+      this.appLogger.info(`Downloading Ollama from ${this.downloadUrl}`, this.name);
+      
+      // Delete existing zip if it exists
+      if (filesystem.existsSync(this.zipPath)) {
+        this.appLogger.info(`Removing existing Ollama zip file`, this.name);
+        filesystem.removeSync(this.zipPath);
+      }
+  
+      // Using electron net for better proxy support
+      const response = await net.fetch(this.downloadUrl);
+      if (!response.ok || response.status !== 200 || !response.body) {
+        throw new Error(`Failed to download Ollama: ${response.statusText}`);
+      }
+      
+      const buffer = await response.arrayBuffer();
+      await filesystem.writeFile(this.zipPath, Buffer.from(buffer));
+      
+      this.appLogger.info(`Ollama zip file downloaded successfully`, this.name);
+    }
+  
+    private async extractOllama(): Promise<void> {
+      this.appLogger.info(`Extracting Ollama to ${this.llamaCppRestDir}`, this.name);
+      
+      // Delete existing ollama directory if it exists
+      if (filesystem.existsSync(this.llamaCppRestDir)) {
+        this.appLogger.info(`Removing existing Ollama directory`, this.name);
+        filesystem.removeSync(this.llamaCppRestDir);
+      }
+      
+      // Create ollama directory
+      filesystem.mkdirSync(this.llamaCppRestDir, { recursive: true });
+      
+      // Extract zip file using PowerShell's Expand-Archive
+      try {
+        const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.llamaCppRestDir}' -Force"`;
+        await execAsync(command);
+        
+        this.appLogger.info(`Ollama extracted successfully`, this.name);
+      } catch (error) {
+        this.appLogger.error(`Failed to extract Ollama: ${error}`, this.name);
+        throw error;
+      }
+    }
 
   async spawnAPIProcess(): Promise<{
     process: ChildProcess
