@@ -6,6 +6,7 @@ import { UvPipService, LongLivedPythonApiService, PythonService } from './servic
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { promisify } from 'node:util'
 import { net } from 'electron'
+import getPort, { portNumbers } from 'get-port'
 const execAsync = promisify(exec)
 
 const serviceFolder = 'LlamaCPP'
@@ -170,11 +171,17 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+
+    const llamaLlmPort = await getPort({ port: portNumbers(39100, 39199) })
+    const llamaEmbeddingPort = await getPort({ port: portNumbers(39200, 39299) })
+
     const additionalEnvVariables = {
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
+      LLAMA_LLM_PORT: llamaLlmPort,
+      LLAMA_EMBEDDING_PORT: llamaEmbeddingPort,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 

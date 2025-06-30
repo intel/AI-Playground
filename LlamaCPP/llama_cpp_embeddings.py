@@ -19,7 +19,7 @@ class LlamaCppEmbeddingModel:
     def __init__(self, repo_id: str = "ChristianAzinn/bge-small-en-v1.5-gguf"):
         self.repo_id = repo_id
         self.model_path = None
-        self.port = 5006
+        self.port = int(os.environ.get("LLAMA_EMBEDDING_PORT", "39250"))
         self.server_url = f"http://localhost:{self.port}/embedding"
         self.executable_path = os.path.normpath(os.path.join("llama-cpp-rest", "llama-server.exe"))
         self.server_process = None

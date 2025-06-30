@@ -6,6 +6,7 @@ import json
 import time
 import config
 import gc
+import os
 from interface import LLMInterface
 from params import LLMParams
 
@@ -16,7 +17,8 @@ class LlamaCpp(LLMInterface):
         self._last_repo_id = None
         self._model_path = None
         self._process = None
-        self.api_url = "http://127.0.0.1:5005"
+        self.port = os.environ.get("LLAMA_LLM_PORT", "39150")
+        self.api_url = f"http://127.0.0.1:{self.port}"
 
     def _convert_messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
         lines = []
@@ -49,11 +51,11 @@ class LlamaCpp(LLMInterface):
 
         self._model_path = model_path
 
-        exe_path = path.abspath("./llama-cpp-rest/llama-server.exe")
+        exe_path = path.normpath(path.join("llama-cpp-rest", "llama-server.exe"))
         args = [
             exe_path,
             "--model", self._model_path,
-            "--port", "5005",
+            "--port", self.port,
             "-ngl","999",
 
         ]
@@ -62,7 +64,7 @@ class LlamaCpp(LLMInterface):
 
         for i in range(30):
             try:
-                r = requests.get("http://127.0.0.1:5005/health", timeout=1)
+                r = requests.get(f"{self.api_url}/health", timeout=1)
                 print(f"[{i}] Status: {r.status_code}")
                 if r.status_code == 200:
                     break
