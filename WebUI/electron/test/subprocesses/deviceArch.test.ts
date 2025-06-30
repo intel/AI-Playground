@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getDeviceArch, getArchPriority } from '../../subprocesses/deviceArch'
+import { getDeviceArch, getArchPriority, getBestDevice } from '../../subprocesses/deviceArch'
 
 describe('deviceArch', () => {
   describe('getDeviceArch', () => {
@@ -23,6 +23,28 @@ describe('deviceArch', () => {
       expect(getArchPriority('lnl')).toBe(2)
       expect(getArchPriority('mtl')).toBe(1)
       expect(getArchPriority('unknown')).toBe(0)
+    })
+  })
+  describe('getBestDevice', () => {
+    it('should return the id of the best device', () => {
+      expect(
+        getBestDevice(
+          [
+            { id: '0', name: 'Intel® Arc™ B580 Graphics' },
+            { id: '1', name: 'Intel® Arc™ A770M Graphics' },
+          ],
+          'B580',
+        ),
+      ).toEqual('0')
+      expect(
+        getBestDevice(
+          [
+            { id: '0', name: 'Intel® Arc™ B580 Graphics' },
+            { id: '1', name: 'Intel® Arc™ A770M Graphics' },
+          ],
+          'A770',
+        ),
+      ).toEqual('1')
     })
   })
 })

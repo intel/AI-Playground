@@ -41,27 +41,6 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
     return this.registeredServices.find((item) => item.name === serviceName)
   }
 
-  async bootUpAllSetUpServices(): Promise<{ serviceName: string; state: BackendStatus }[]> {
-    const setUpServices = this.registeredServices.filter((item) => item.isSetUp)
-    return Promise.all(
-      setUpServices.map((service) =>
-        service
-          .start()
-          .then((state) => {
-            return { serviceName: service.name, state }
-          })
-          .catch((e) => {
-            appLoggerInstance.error(
-              `Failed to start service ${service.name} due to ${e}`,
-              'apiServiceRegistry',
-              true,
-            )
-            return { serviceName: service.name, state: 'failed' as BackendStatus }
-          }),
-      ),
-    )
-  }
-
   async stopAllServices(): Promise<{ serviceName: string; state: BackendStatus }[]> {
     appLoggerInstance.info(`stopping all running services`, 'apiServiceRegistry')
     const runningServices = this.registeredServices.filter(

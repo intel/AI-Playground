@@ -296,6 +296,7 @@ def fill_size_execute(repo_id: str, type: int, result_dict: dict):
 @app.route('/v1/embeddings', methods=['POST'])
 def embeddings():
     data = request.json
+    encoding_format = data.get('encoding_format', 'float')
     input_data = data.get('input', None)
     model_name = data.get('model', "BAAI/bge-large-en-v1.5")  # Default model if not specified
 
@@ -320,7 +321,7 @@ def embeddings():
         "data": [
             {
                 "object": "embedding",
-                "embedding": emb,
+                "embedding": utils.convert_embedding(emb, encoding_format),
                 "index": idx
             } for idx, emb in enumerate(embeddings_result)
         ],

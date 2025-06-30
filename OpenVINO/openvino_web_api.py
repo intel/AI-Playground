@@ -6,10 +6,10 @@ from openvino_backend import OpenVino
 from openvino_adapter import LLM_SSE_Adapter
 from params import LLMParams
 from openvino_embeddings import OpenVINOEmbeddingModel
+import utils
 
 app = APIFlask(__name__)
 llm_backend = OpenVino()
-embedding_model = OpenVINOEmbeddingModel()
 
 @app.get("/health")
 def health():
@@ -49,7 +49,10 @@ def stop_llm_generate():
 @app.route('/v1/embeddings', methods=['POST'])
 def embeddings():
     data = request.json
+    
+    encoding_format = data.get('encoding_format', 'float')
     input_data = data.get('input', None)
+    model_name = data.get('model', "OpenVINO/bge-base-en-v1.5-fp16-ov")
 
     if not input_data:
         return jsonify({"error": "Input text is required"}), 400
@@ -61,6 +64,7 @@ def embeddings():
     else:
         return jsonify({"error": "Input should be a string or list of strings"}), 400
 
+    embedding_model = OpenVINOEmbeddingModel.get_instance(model_name)
     embeddings_result = embedding_model.embed_documents(input_texts)
 
     response = {
@@ -68,7 +72,7 @@ def embeddings():
         "data": [
             {
                 "object": "embedding",
-                "embedding": emb,
+                "embedding": utils.convert_embedding(emb, encoding_format),
                 "index": idx
             } for idx, emb in enumerate(embeddings_result)
         ],

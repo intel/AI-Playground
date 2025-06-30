@@ -7,7 +7,7 @@ import traceback
 import torch
 import logging
 
-from typing import Any, List, Dict
+from typing import List, Dict
 from os import path
 from transformers import (
     TextIteratorStreamer,
@@ -15,10 +15,9 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
-    AutoModelForCausalLM,
 )
 
-# from ipex_llm.transformers import AutoModelForCausalLM
+from ipex_llm.transformers import AutoModelForCausalLM
 from typing import Callable
 from transformers.generation.stopping_criteria import (
     StoppingCriteria,

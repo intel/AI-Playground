@@ -21,7 +21,7 @@ const envResourcesFiles = fs.readdirSync(envResourcesDir)
 const pythonEmbedZipFile = path.join(
   envResourcesDir,
   envResourcesFiles.find((fileName) => {
-    return fileName.startsWith('python') && fileName.endsWith('.zip')
+    return fileName.startsWith('python-3.12.10') && fileName.endsWith('.zip')
   }),
 )
 const condaDir = path.join(

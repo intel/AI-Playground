@@ -6,12 +6,13 @@ import path from 'node:path'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { existingFileOrError, spawnProcessAsync } from './osProcessHelper'
 import { assert } from 'node:console'
-import { Arch, getArchPriority, getDeviceArch } from './deviceArch'
 import { createHash } from 'crypto'
 
 import * as childProcess from 'node:child_process'
 import { promisify } from 'util'
+import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
+
 const exec = promisify(childProcess.exec)
 
 const aipgBaseDir = () =>
@@ -263,7 +264,11 @@ export class PipService extends ExecutableService {
   }
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    return this.python.run(['-m', 'pip', ...args], extraEnv, workDir)
+    return this.python.run(
+      ['-m', 'pip', ...args],
+      { ...extraEnv, PYTHONNOUSERSITE: 'true' },
+      workDir,
+    )
   }
 
   async check(): Promise<void> {
@@ -306,7 +311,7 @@ export class PipService extends ExecutableService {
 
   private async getPip(): Promise<void> {
     const getPipScript = existingFileOrError(path.join(this.dir, 'get-pip.py'))
-    await this.python.run([getPipScript])
+    await this.python.run([getPipScript], { PYTHONNOUSERSITE: 'true' })
   }
 
   async installRequirementsTxt(requirementsTxtPath: string): Promise<void> {
@@ -324,21 +329,6 @@ export class PipService extends ExecutableService {
       })
   }
 }
-
-type Device = { id: number; name: string; arch: Arch }
-const XpuSmiDiscoverySchema = z.object({
-  device_list: z.array(
-    z.object({
-      device_id: z.number(),
-      device_name: z.string(),
-      device_type: z.string(),
-      pci_bdf_address: z.string(),
-      pci_device_id: z.string(),
-      uuid: z.string(),
-      vendor_name: z.string(),
-    }),
-  ),
-})
 
 export class UvPipService extends PipService {
   readonly pip: PipService
@@ -358,7 +348,7 @@ export class UvPipService extends PipService {
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     return this.python.run(
       ['-m', 'uv', 'pip', ...args],
-      { ...extraEnv, UV_LINK_MODE: 'copy' },
+      { ...extraEnv, PYTHONNOUSERSITE: 'true', UV_LINK_MODE: 'copy' },
       workDir,
     )
   }
@@ -387,74 +377,6 @@ export class UvPipService extends PipService {
       await this.pip.repair(checkError)
     }
     await this.pip.run(['install', 'uv'])
-  }
-}
-
-export class DeviceService extends ExecutableService {
-  constructor() {
-    super('device-service', '')
-    this.dir = path.resolve(path.join(this.baseDir, 'device-service'))
-  }
-
-  getExePath(): string {
-    return path.resolve(path.join(this.dir, '/xpu-smi.exe'))
-  }
-
-  async run(_args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    // reset ONEAPI_DEVICE_SELECTOR to ensure full device discovery
-    const env = {
-      ...extraEnv,
-      ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
-    }
-    return super.run(['discovery', '-j'], env, workDir)
-  }
-
-  async check(): Promise<void> {}
-
-  async install(): Promise<void> {
-    this.log('start installing')
-  }
-
-  async repair(_checkError: ServiceCheckError): Promise<void> {}
-
-  private uuidToChipId(uuid: string): number {
-    return parseInt(uuid.slice(-8, -4), 16)
-  }
-
-  private async getDevices(): Promise<Device[]> {
-    const result = await this.run()
-    const devices: Device[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
-      (d) => {
-        return {
-          id: d.device_id,
-          name: d.device_name,
-          arch: getDeviceArch(this.uuidToChipId(d.uuid)),
-        }
-      },
-    )
-    devices.sort((a, b) => getArchPriority(b.arch) - getArchPriority(a.arch))
-    return devices
-  }
-
-  async getBestDeviceArch(): Promise<Arch> {
-    this.log('Detecting device')
-    try {
-      const devices = await this.getDevices()
-      return devices[0].arch ?? 'unknown'
-    } catch (e) {
-      this.logError(`Failed to detect device due to ${e}`)
-      return 'unknown'
-    }
-  }
-
-  async getDeviceSelectorEnv(): Promise<{ ONEAPI_DEVICE_SELECTOR: string }> {
-    const devices = await this.getDevices()
-    const bestDevice = devices[0]
-    if (!bestDevice) {
-      return { ONEAPI_DEVICE_SELECTOR: 'level_zero:*' }
-    }
-
-    return { ONEAPI_DEVICE_SELECTOR: `level_zero:${bestDevice.id}` }
   }
 }
 
@@ -572,6 +494,8 @@ export interface ApiService {
   currentStatus: BackendStatus
   isSetUp: boolean
 
+  selectDevice(deviceId: string): Promise<void>
+  detectDevices(): Promise<void>
   set_up(): AsyncIterable<SetupProgress>
   start(): Promise<BackendStatus>
   stop(): Promise<BackendStatus>
@@ -602,6 +526,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
   abstract readonly pythonEnvDir: string
   abstract readonly serviceDir: string
   abstract isSetUp: boolean
+  abstract devices: InferenceDevice[]
 
   desiredStatus: BackendStatus = 'uninitializedStatus'
   currentStatus: BackendStatus = 'uninitializedStatus'
@@ -617,6 +542,13 @@ export abstract class LongLivedPythonApiService implements ApiService {
   }
 
   abstract serviceIsSetUp(): boolean
+  abstract detectDevices(): Promise<void>
+
+  async selectDevice(deviceId: string): Promise<void> {
+    if (!this.devices.find((d) => d.id === deviceId)) return
+    this.devices = this.devices.map((d) => ({ ...d, selected: d.id === deviceId }))
+    this.updateStatus()
+  }
 
   updateSettings(settings: ServiceSettings): Promise<void> {
     this.appLogger.info(
@@ -651,6 +583,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
       port: this.port,
       isSetUp: this.isSetUp,
       isRequired: this.isRequired,
+      devices: this.devices,
     }
   }
 
@@ -793,5 +726,64 @@ export abstract class LongLivedPythonApiService implements ApiService {
     )
 
     return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
+  }
+}
+
+export type XpuDevice = { id: number; name: string; arch: Arch }
+const XpuSmiDiscoverySchema = z.object({
+  device_list: z.array(
+    z.object({
+      device_id: z.number(),
+      device_name: z.string(),
+      device_type: z.string(),
+      pci_bdf_address: z.string(),
+      pci_device_id: z.string(),
+      uuid: z.string(),
+      vendor_name: z.string(),
+    }),
+  ),
+})
+
+export class DeviceService extends ExecutableService {
+  constructor() {
+    super('device-service', '')
+    this.dir = path.resolve(path.join(this.baseDir, 'device-service'))
+  }
+
+  getExePath(): string {
+    return path.resolve(path.join(this.dir, '/xpu-smi.exe'))
+  }
+
+  async run(_args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
+    const env = {
+      ...extraEnv,
+      ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
+    }
+    return super.run(['discovery', '-j'], env, workDir)
+  }
+
+  async check(): Promise<void> {}
+
+  async install(): Promise<void> {}
+
+  async repair(_checkError: ServiceCheckError): Promise<void> {}
+
+  private uuidToChipId(uuid: string): number {
+    return parseInt(uuid.slice(-8, -4), 16)
+  }
+
+  async getDevices(): Promise<XpuDevice[]> {
+    const result = await this.run()
+    const devices: XpuDevice[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
+      (d) => {
+        return {
+          id: d.device_id,
+          name: d.device_name,
+          arch: getDeviceArch(this.uuidToChipId(d.uuid)),
+        }
+      },
+    )
+    devices.sort((a, b) => getArchPriority(b.arch) - getArchPriority(a.arch))
+    return devices
   }
 }

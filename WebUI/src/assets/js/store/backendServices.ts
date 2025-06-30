@@ -72,7 +72,12 @@ export const useBackendServices = defineStore(
 
     async function startAllSetUpServices(): Promise<{ allServicesStarted: boolean }> {
       const serverStartups = await Promise.all(
-        currentServiceInfo.value.filter((s) => s.isSetUp).map((s) => startService(s.serviceName)),
+        currentServiceInfo.value
+          .filter((s) => s.isSetUp)
+          .map(async (s) => {
+            await detectDevices(s.serviceName)
+            return startService(s.serviceName)
+          }),
       )
       const serverStartupsCompleted = {
         allServicesStarted: serverStartups.every((serverStatus) => serverStatus === 'running'),
@@ -112,7 +117,9 @@ export const useBackendServices = defineStore(
         console.warn(`service ${serviceName} was not running`)
       }
       window.electronAPI.sendSetUpSignal(serviceName)
-      return listener!.awaitFinalizationAndResetData()
+      const result = await listener!.awaitFinalizationAndResetData()
+      await detectDevices(serviceName)
+      return result
     }
 
     async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
@@ -123,6 +130,14 @@ export const useBackendServices = defineStore(
       serviceName: T,
     ): Promise<ServiceSettings[T]> {
       return window.electronAPI.getServiceSettings(serviceName)
+    }
+
+    function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
+      return window.electronAPI.selectDevice(serviceName, deviceId)
+    }
+
+    async function detectDevices(serviceName: BackendServiceName): Promise<void> {
+      return window.electronAPI.detectDevices(serviceName)
     }
 
     async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
@@ -172,6 +187,8 @@ export const useBackendServices = defineStore(
       startService,
       stopService,
       uninstallService,
+      detectDevices,
+      selectDevice,
     }
   },
   {

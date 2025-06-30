@@ -3,7 +3,7 @@
   "backend": "comfyui",
   "comfyUIRequirements": {
     "pythonPackages": [
-      "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl",
+      "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
       "onnxruntime"
     ],
     "customNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
@@ -51,7 +51,7 @@
       }
     ]
   },
-  "tags": ["SDXL", "Fast-LCM", "non-com"],
+  "tags": ["SDXL", "v2.5", "LCM", "non-com"],
   "requirements": ["high-vram"],
   "inputs": [
     {

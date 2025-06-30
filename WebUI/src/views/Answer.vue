@@ -429,7 +429,7 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-            title="Inference Backend"
+            :title=languages.SETTINGS_INFERENCE_BACKEND
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
@@ -440,24 +440,8 @@
               }))
             "
           ></drop-down-new>
-          <drop-down-new
-            title="Text Inference Model"
-            @change="(item) => textInference.selectModel(textInference.backend, item)"
-            :value="
-              textInference.llmModels
-                .filter((m) => m.type === textInference.backend)
-                .find((m) => m.active)?.name ?? ''
-            "
-            :items="
-              textInference.llmModels
-                .filter((m) => m.type === textInference.backend)
-                .map((item) => ({
-                  label: item.name.split('/').at(-1) ?? item.name,
-                  value: item.name,
-                  active: item.downloaded,
-                }))
-            "
-          ></drop-down-new>
+          <DeviceSelector :backend="backendToService[textInference.backend]" />
+          <ModelSelector />
           <button @click="addLLMModel">
             <PlusIcon class="size-6 text-purple-500"></PlusIcon>
           </button>
@@ -505,19 +489,6 @@
           </button>
         </div>
         <div class="flex items-center gap-2">
-          <!-- <div class="v-checkbox flex-none" type="button" :disabled="processing">
-            <button
-              v-show="!ragData.processEnable"
-              class="v-checkbox-control flex-none"
-              :class="{ 'v-checkbox-checked': ragData.enable }"
-              @click="toggleRag(!ragData.enable)"
-            ></button>
-            <span
-              v-show="ragData.processEnable"
-              class="w-4 h-4 svg-icon i-loading flex-none"
-            ></span>
-            <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
-          </div> -->
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
@@ -590,8 +561,14 @@ import { useModels } from '@/assets/js/store/models'
 import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import DropDownNew from '@/components/DropDownNew.vue'
+import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
-import { llmBackendTypes, LlmBackend, useTextInference, thinkingModels, textInferenceBackendDisplayName } from '@/assets/js/store/textInference'
+import {
+  llmBackendTypes,
+  LlmBackend,
+  useTextInference, thinkingModels, textInferenceBackendDisplayName,
+  backendToService,
+} from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
@@ -619,6 +596,7 @@ const customFetch = async (_: any, options: any) => {
 
 
 const chat = useChat({fetch: customFetch })
+import ModelSelector from '@/components/ModelSelector.vue'
 
 const conversations = useConversations()
 const models = useModels()
