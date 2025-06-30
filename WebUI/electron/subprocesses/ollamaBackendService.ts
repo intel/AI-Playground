@@ -3,9 +3,11 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import { ApiService } from './service.ts'
+import { ApiService, DeviceService, PythonService } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
+import { detectLevelZeroDevices } from './deviceDetection.ts'
+import { getBestDevice } from './deviceArch.ts'
 
 const execAsync = promisify(exec)
 
@@ -26,6 +28,9 @@ export class OllamaBackendService implements ApiService {
   // Download URL and file paths
   readonly downloadUrl = 'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/ollama-ipex-llm-2.2.0-win.zip';
   readonly zipPath: string;
+  readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
+  readonly deviceService = new DeviceService()
+  devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
   
   // Health endpoint
   healthEndpointUrl: string;
@@ -58,6 +63,32 @@ export class OllamaBackendService implements ApiService {
     // Check if already set up
     this.isSetUp = this.serviceIsSetUp();
   }
+
+  async detectDevices() {
+    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
+    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+
+    let bestDeviceId: string
+    try {
+      const bestDeviceName = (await this.deviceService.getDevices())[0].name
+      bestDeviceId = getBestDevice(availableDevices, bestDeviceName)
+      this.appLogger.info(
+        `Selected ${bestDeviceName} as best device by pci id via xpu-smi. Which should correspond to deviceId ${bestDeviceId}`,
+        this.name,
+      )
+    } catch (e: unknown) {
+      this.appLogger.error(`Couldn't detect best device, selecting first. Error: ${e}`, this.name)
+      bestDeviceId = availableDevices[0].name
+    }
+    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+  }
+  
+  async selectDevice(deviceId: string): Promise<void> {
+    if (!this.devices.find((d) => d.id === deviceId)) return
+    this.devices = this.devices.map((d) => ({ ...d, selected: d.id === deviceId }))
+    this.updateStatus()
+  }
+
   
   serviceIsSetUp(): boolean {
     return filesystem.existsSync(this.ollamaExePath);
@@ -74,6 +105,7 @@ export class OllamaBackendService implements ApiService {
       port: this.port,
       isSetUp: this.isSetUp,
       isRequired: this.isRequired,
+      devices: this.devices
     };
   }
 
