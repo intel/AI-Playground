@@ -87,15 +87,15 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         debugMessage: `dependencies installed`,
       }
 
-      // Download Ollama ZIP file
+      // Download Llamacpp ZIP file
       yield {
         serviceName: this.name,
         step: 'download',
         status: 'executing',
-        debugMessage: `downloading Ollama from ${this.downloadUrl}`,
+        debugMessage: `downloading Llamacpp from ${this.downloadUrl}`,
       };
 
-      await this.downloadOllama();
+      await this.downloadLlamacpp();
 
       yield {
         serviceName: this.name,
@@ -104,15 +104,15 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         debugMessage: 'download complete',
       };
 
-      // Extract Ollama ZIP file
+      // Extract Llamacpp ZIP file
       yield {
         serviceName: this.name,
         step: 'extract',
         status: 'executing',
-        debugMessage: 'extracting Ollama',
+        debugMessage: 'extracting Llamacpp',
       };
 
-      await this.extractOllama();
+      await this.extractLlamacpp();
 
       yield {
         serviceName: this.name,
@@ -141,37 +141,37 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
   }
   
-    private async downloadOllama(): Promise<void> {
-      this.appLogger.info(`Downloading Ollama from ${this.downloadUrl}`, this.name);
+    private async downloadLlamacpp(): Promise<void> {
+      this.appLogger.info(`Downloading Llamacpp from ${this.downloadUrl}`, this.name);
       
       // Delete existing zip if it exists
       if (filesystem.existsSync(this.zipPath)) {
-        this.appLogger.info(`Removing existing Ollama zip file`, this.name);
+        this.appLogger.info(`Removing existing Llamacpp zip file`, this.name);
         filesystem.removeSync(this.zipPath);
       }
   
       // Using electron net for better proxy support
       const response = await net.fetch(this.downloadUrl);
       if (!response.ok || response.status !== 200 || !response.body) {
-        throw new Error(`Failed to download Ollama: ${response.statusText}`);
+        throw new Error(`Failed to download Llamacpp: ${response.statusText}`);
       }
       
       const buffer = await response.arrayBuffer();
       await filesystem.writeFile(this.zipPath, Buffer.from(buffer));
       
-      this.appLogger.info(`Ollama zip file downloaded successfully`, this.name);
+      this.appLogger.info(`Llamacpp zip file downloaded successfully`, this.name);
     }
   
-    private async extractOllama(): Promise<void> {
-      this.appLogger.info(`Extracting Ollama to ${this.llamaCppRestDir}`, this.name);
+    private async extractLlamacpp(): Promise<void> {
+      this.appLogger.info(`Extracting Llamacpp to ${this.llamaCppRestDir}`, this.name);
       
-      // Delete existing ollama directory if it exists
+      // Delete existing llamacpp directory if it exists
       if (filesystem.existsSync(this.llamaCppRestDir)) {
-        this.appLogger.info(`Removing existing Ollama directory`, this.name);
+        this.appLogger.info(`Removing existing Llamacpp directory`, this.name);
         filesystem.removeSync(this.llamaCppRestDir);
       }
       
-      // Create ollama directory
+      // Create llamacpp directory
       filesystem.mkdirSync(this.llamaCppRestDir, { recursive: true });
       
       // Extract zip file using PowerShell's Expand-Archive
@@ -179,9 +179,9 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.llamaCppRestDir}' -Force"`;
         await execAsync(command);
         
-        this.appLogger.info(`Ollama extracted successfully`, this.name);
+        this.appLogger.info(`Llamacpp extracted successfully`, this.name);
       } catch (error) {
-        this.appLogger.error(`Failed to extract Ollama: ${error}`, this.name);
+        this.appLogger.error(`Failed to extract Llamacpp: ${error}`, this.name);
         throw error;
       }
     }

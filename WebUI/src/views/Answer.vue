@@ -150,7 +150,7 @@
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
                   >
-                    {{ chat.model }}
+                    {{ chat.model.endsWith('.gguf') ? chat.model.split('/').at(-1)?.split('.gguf')[0] ?? chat.model : chat.model }}
                   </span>
                   <!-- Display RAG source if available -->
                   <span
@@ -433,7 +433,7 @@
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
-              [...llmBackendTypes].map((item) => ({
+              [...llmBackendTypes].filter(isEnabled).map((item) => ({
                 label: textInferenceBackendDisplayName[item],
                 value: item,
                 active: isRunning(item),
@@ -681,6 +681,10 @@ function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
 function isRunning(name: LlmBackend) {
   const backendName = mapBackendNames(name)
   return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
+}
+function isEnabled(name: LlmBackend) {
+  const backendName = mapBackendNames(name)
+  return backendServices.info.find((item) => item.serviceName === backendName) !== undefined
 }
 
 const animatedReasoningText = ref('Reasoning.')

@@ -46,6 +46,8 @@ export type EmbedInquiry = {
 
 // Thinking model markers for different models
 export const thinkingModels: Record<string, string> = {
+  'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF---DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf_tmp/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf': '</think>\n\n',
+  'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF---DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf_tmp/DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
