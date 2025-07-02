@@ -3,9 +3,6 @@ from typing import List, Optional
 
 import requests
 
-import utils
-
-
 class LlamaCppEmbeddingModel:
     """LlamaCPP embedding model implementation using llama-server."""
     

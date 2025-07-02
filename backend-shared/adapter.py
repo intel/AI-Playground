@@ -1,7 +1,7 @@
 import threading
 from queue import Empty, Queue
 import json
-from typing import Dict, List, Callable
+from typing import Dict, List
 
 class BaseAdapter:
     """Base adapter class for all LLM backends."""

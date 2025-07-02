@@ -1,4 +1,3 @@
-import gc
 import json
 import os
 from typing import Callable, Dict, Iterator, List, Optional

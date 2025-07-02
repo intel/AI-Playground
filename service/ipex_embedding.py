@@ -66,7 +66,7 @@ class IpexEmbeddingModel(Embeddings):
             self.model = None
             gc.collect()
             torch.xpu.empty_cache()
-            print(f"******* unloaded embedding model to free VRAM")
+            print("******* unloaded embedding model to free VRAM")
 
     def to(self, device: str):
         """

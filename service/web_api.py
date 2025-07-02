@@ -43,7 +43,6 @@ from model_downloader import HFPlaygroundDownloader
 from psutil._common import bytes2human
 import traceback
 from ipex_embedding import IpexEmbeddingModel
-from pydantic import BaseModel
 import logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -310,7 +309,6 @@ def embeddings():
     else:
         return jsonify({"error": "Input should be a string or list of strings"}), 400
 
-    from ipex_embedding import IpexEmbeddingModel
     embedding_model = IpexEmbeddingModel.get_instance(model_name)
 
     # Dynamically load the model, compute embeddings, and then unload it
