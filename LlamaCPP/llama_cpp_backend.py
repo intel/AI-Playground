@@ -95,14 +95,12 @@ class LlamaCpp(LLMInterface):
         if max_tokens is None:
             max_tokens = self.DEFAULT_MAX_TOKENS
             
-        prompt = self._convert_messages_to_prompt(messages)
-
         try:
             response = requests.post(
-                f"{self.api_url}/completion",
+                f"{self.api_url}/v1/chat/completions",
                 json={
-                    "prompt": prompt, 
-                    "n_predict": max_tokens, 
+                    "messages": messages, 
+                    "max_completion_tokens": max_tokens, 
                     "stream": True, 
                     "stop": self.DEFAULT_STOP_SEQUENCES
                 },
@@ -118,7 +116,7 @@ class LlamaCpp(LLMInterface):
                 if line:
                     try:
                         json_line = json.loads(line.strip().removeprefix("data: "))
-                        content = json_line.get("content", "")
+                        content = json_line["choices"][0]["delta"].get("content", "")
                         if content:
                             yield content
                     except (json.JSONDecodeError, KeyError):
