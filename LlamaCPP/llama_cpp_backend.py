@@ -99,7 +99,7 @@ class LlamaCpp(LLMInterface):
                 f"{self.api_url}/v1/chat/completions",
                 json={
                     "messages": messages, 
-                    "max_completion_tokens": max_tokens, 
+                    "max_tokens": max_tokens, 
                     "stream": True, 
                     "stop": self.DEFAULT_STOP_SEQUENCES
                 },
