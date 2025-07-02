@@ -1009,6 +1009,9 @@ async function generate(chatContext: ChatItem[]) {
   }
 
   try {
+    // Ensure backend is ready before inference
+    await textInference.ensureBackendReadiness()
+
     const backendToInferenceService = {
       llamaCPP: 'llamacpp-backend',
       openVINO: 'openvino-backend',

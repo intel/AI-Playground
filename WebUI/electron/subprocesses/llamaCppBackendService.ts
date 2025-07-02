@@ -9,15 +9,34 @@ import { net } from 'electron'
 import getPort, { portNumbers } from 'get-port'
 const execAsync = promisify(exec)
 
+interface LlamaServerProcess {
+  process: ChildProcess
+  port: number
+  modelPath: string
+  modelRepoId: string
+  type: 'llm' | 'embedding'
+  isReady: boolean
+}
+
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`)) 
+  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
 
   healthEndpointUrl = `${this.baseUrl}/health`
+
+  // Direct llama-server process management
+  private llamaLlmProcess: LlamaServerProcess | null = null
+  private llamaEmbeddingProcess: LlamaServerProcess | null = null
+  private currentLlmModel: string | null = null
+  private currentEmbeddingModel: string | null = null
+
+  // Port tracking for Python wrapper synchronization
+  private lastPythonWrapperLlmPort: number | null = null
+  private lastPythonWrapperEmbeddingPort: number | null = null
 
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
@@ -171,19 +190,20 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
-
-    const llamaLlmPort = await getPort({ port: portNumbers(39100, 39199) })
-    const llamaEmbeddingPort = await getPort({ port: portNumbers(39200, 39299) })
+    const currentLlmPort = this.llamaLlmProcess?.port || 39150
+    const currentEmbeddingPort = this.llamaEmbeddingProcess?.port || 39250
 
     const additionalEnvVariables = {
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      LLAMA_LLM_PORT: llamaLlmPort,
-      LLAMA_EMBEDDING_PORT: llamaEmbeddingPort,
+      LLAMA_LLM_PORT: currentLlmPort.toString(),
+      LLAMA_EMBEDDING_PORT: currentEmbeddingPort.toString(),
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
+
+    this.appLogger.info(`Starting Python wrapper with LLM port: ${currentLlmPort}, Embedding port: ${currentEmbeddingPort}`, this.name)
 
     const apiProcess = spawn(
       this.python.getExePath(),
@@ -213,4 +233,434 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       didProcessExitEarlyTracker: didProcessExitEarlyTracker,
     }
   }
+
+  async stop(): Promise<BackendStatus> {
+    // Stop llama-server processes first
+    await this.stopLlamaLlmServer()
+    await this.stopLlamaEmbeddingServer()
+    
+    // Then stop the Python backend
+    return super.stop()
+  }
+
+  /**
+   * Override base class method to ensure llama-server is running with specified models
+   * This is called from the frontend before inference to ensure backend readiness
+   * Handles both LLM and embedding models when provided
+   */
+  async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
+    this.appLogger.info(`Ensuring llamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`, this.name)
+    
+    try {
+      let serversChanged = false
+      
+      // Handle LLM model
+      if (this.currentLlmModel !== llmModelName || !this.llamaLlmProcess?.isReady) {
+        await this.switchModel(llmModelName, 'llm')
+        serversChanged = true
+        this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
+      } else {
+        this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
+      }
+      
+      // Handle embedding model if provided
+      if (embeddingModelName) {
+        if (this.currentEmbeddingModel !== embeddingModelName || !this.llamaEmbeddingProcess?.isReady) {
+          await this.switchModel(embeddingModelName, 'embedding')
+          serversChanged = true
+          this.appLogger.info(`Embedding server ready with model: ${embeddingModelName}`, this.name)
+        } else {
+          this.appLogger.info(`Embedding server already running with model: ${embeddingModelName}`, this.name)
+        }
+      }
+      
+      // Restart Python wrapper if ports changed and we have an active process
+      if (serversChanged && this.encapsulatedProcess && this.needsPythonWrapperRestart()) {
+        this.appLogger.info('Server ports changed, restarting Python wrapper for synchronization', this.name)
+        await this.restartPythonWrapperWithNewPorts()
+      }
+      
+      this.appLogger.info(`LlamaCPP backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`, this.name)
+      
+    } catch (error) {
+      this.appLogger.error(`Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  /**
+   * Check if Python wrapper needs restart due to port changes
+   */
+  private needsPythonWrapperRestart(): boolean {
+    const currentLlmPort = this.llamaLlmProcess?.port || null
+    const currentEmbeddingPort = this.llamaEmbeddingProcess?.port || null
+    
+    return (
+      this.lastPythonWrapperLlmPort !== currentLlmPort ||
+      this.lastPythonWrapperEmbeddingPort !== currentEmbeddingPort
+    )
+  }
+
+  /**
+   * Update port tracking after Python wrapper restart
+   */
+  private updatePythonWrapperPortTracking(): void {
+    this.lastPythonWrapperLlmPort = this.llamaLlmProcess?.port || null
+    this.lastPythonWrapperEmbeddingPort = this.llamaEmbeddingProcess?.port || null
+    this.appLogger.info(`Updated Python wrapper port tracking - LLM: ${this.lastPythonWrapperLlmPort}, Embedding: ${this.lastPythonWrapperEmbeddingPort}`, this.name)
+  }
+
+  /**
+   * Restart Python wrapper with updated server ports
+   */
+  private async restartPythonWrapperWithNewPorts(): Promise<void> {
+    this.appLogger.info('Restarting Python wrapper with updated server ports', this.name)
+    
+    try {
+      // Stop current Python wrapper (but keep llama-servers running)
+      if (this.encapsulatedProcess) {
+        this.appLogger.info('Stopping Python wrapper process', this.name)
+        this.encapsulatedProcess.kill('SIGTERM')
+        
+        // Wait for graceful shutdown
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            if (this.encapsulatedProcess) {
+              this.appLogger.warn('Force killing Python wrapper process', this.name)
+              this.encapsulatedProcess.kill('SIGKILL')
+            }
+            resolve()
+          }, 3000)
+          
+          if (this.encapsulatedProcess) {
+            this.encapsulatedProcess.on('exit', () => {
+              clearTimeout(timeout)
+              resolve()
+            })
+          } else {
+            clearTimeout(timeout)
+            resolve()
+          }
+        })
+        
+        this.encapsulatedProcess = null
+      }
+      
+      // Start new Python wrapper with updated ports
+      const trackedProcess = await this.spawnAPIProcess()
+      this.encapsulatedProcess = trackedProcess.process
+      this.pipeProcessLogs(trackedProcess.process)
+      
+      // Wait for Python wrapper to be ready
+      if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
+        this.updatePythonWrapperPortTracking()
+        this.appLogger.info('Python wrapper restarted successfully with new ports', this.name)
+      } else {
+        throw new Error('Python wrapper failed to start after port update')
+      }
+      
+    } catch (error) {
+      this.appLogger.error(`Failed to restart Python wrapper: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  async switchModel(modelRepoId: string, type: 'llm' | 'embedding'): Promise<number> {
+    this.appLogger.info(`Switching ${type} model to: ${modelRepoId}`, this.name)
+    
+    try {
+      if (type === 'llm') {
+        if (this.currentLlmModel === modelRepoId && this.llamaLlmProcess?.isReady) {
+          this.appLogger.info(`LLM model ${modelRepoId} already loaded`, this.name)
+          return this.llamaLlmProcess.port
+        }
+        
+        const oldPort = this.llamaLlmProcess?.port
+        await this.stopLlamaLlmServer()
+        const process = await this.startLlamaLlmServer(modelRepoId)
+        
+        // Log port change for debugging
+        if (oldPort && oldPort !== process.port) {
+          this.appLogger.info(`LLM server port changed from ${oldPort} to ${process.port}`, this.name)
+        }
+        
+        return process.port
+      } else {
+        if (this.currentEmbeddingModel === modelRepoId && this.llamaEmbeddingProcess?.isReady) {
+          this.appLogger.info(`Embedding model ${modelRepoId} already loaded`, this.name)
+          return this.llamaEmbeddingProcess.port
+        }
+        
+        const oldPort = this.llamaEmbeddingProcess?.port
+        await this.stopLlamaEmbeddingServer()
+        const process = await this.startLlamaEmbeddingServer(modelRepoId)
+        
+        // Log port change for debugging
+        if (oldPort && oldPort !== process.port) {
+          this.appLogger.info(`Embedding server port changed from ${oldPort} to ${process.port}`, this.name)
+        }
+        
+        return process.port
+      }
+    } catch (error) {
+      this.appLogger.error(`Failed to switch ${type} model to ${modelRepoId}: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  private async startLlamaLlmServer(modelRepoId: string): Promise<LlamaServerProcess> {
+    try {
+      const modelPath = this.resolveModelPath(modelRepoId)
+      const port = await getPort({ port: portNumbers(39100, 39199) })
+      
+      this.appLogger.info(`Starting LLM server for model: ${modelRepoId} on port ${port}`, this.name)
+      
+      const args = [
+        '--model', modelPath,
+        '--port', port.toString(),
+        '-ngl', '999', // GPU layers
+      ]
+
+      const childProcess = spawn(this.llamaCppRestExePath, args, {
+        cwd: this.llamaCppRestDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
+          SYCL_CACHE_PERSISTENT: '1',
+          ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+        },
+      })
+
+      const llamaProcess: LlamaServerProcess = {
+        process: childProcess,
+        port,
+        modelPath,
+        modelRepoId,
+        type: 'llm',
+        isReady: false,
+      }
+
+      // Set up process event handlers
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`LLM server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`LLM server process exited with code: ${code}`, this.name)
+        if (this.llamaLlmProcess === llamaProcess) {
+          this.llamaLlmProcess = null
+          this.currentLlmModel = null
+        }
+      })
+
+      // Wait for server to be ready
+      await this.waitForServerReady(`http://127.0.0.1:${port}/health`)
+      llamaProcess.isReady = true
+      
+      this.llamaLlmProcess = llamaProcess
+      this.currentLlmModel = modelRepoId
+      
+      this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
+      return llamaProcess
+    } catch (error) {
+      this.appLogger.error(`Failed to start LLM server for model ${modelRepoId}: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  private async startLlamaEmbeddingServer(modelRepoId: string): Promise<LlamaServerProcess> {
+    try {
+      const modelPath = this.resolveEmbeddingModelPath(modelRepoId)
+      const port = await getPort({ port: portNumbers(39200, 39299) })
+      
+      this.appLogger.info(`Starting embedding server for model: ${modelRepoId} on port ${port}`, this.name)
+      
+      const args = [
+        '--embedding',
+        '--model', modelPath,
+        '--port', port.toString(),
+      ]
+
+      const childProcess = spawn(this.llamaCppRestExePath, args, {
+        cwd: this.llamaCppRestDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
+          SYCL_CACHE_PERSISTENT: '1',
+          ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+        },
+      })
+
+      const llamaProcess: LlamaServerProcess = {
+        process: childProcess,
+        port,
+        modelPath,
+        modelRepoId,
+        type: 'embedding',
+        isReady: false,
+      }
+
+      // Set up process event handlers
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`Embedding server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`Embedding server process exited with code: ${code}`, this.name)
+        if (this.llamaEmbeddingProcess === llamaProcess) {
+          this.llamaEmbeddingProcess = null
+          this.currentEmbeddingModel = null
+        }
+      })
+
+      // Wait for server to be ready
+      await this.waitForServerReady(`http://127.0.0.1:${port}/health`)
+      llamaProcess.isReady = true
+      
+      this.llamaEmbeddingProcess = llamaProcess
+      this.currentEmbeddingModel = modelRepoId
+      
+      this.appLogger.info(`Embedding server ready for model: ${modelRepoId}`, this.name)
+      return llamaProcess
+    } catch (error) {
+      this.appLogger.error(`Failed to start embedding server for model ${modelRepoId}: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  private async stopLlamaLlmServer(): Promise<void> {
+    if (this.llamaLlmProcess) {
+      this.appLogger.info(`Stopping LLM server for model: ${this.currentLlmModel}`, this.name)
+      this.llamaLlmProcess.process.kill('SIGTERM')
+      
+      // Wait a bit for graceful shutdown, then force kill if needed
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.llamaLlmProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing LLM server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+        
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+      
+      this.llamaLlmProcess = null
+      this.currentLlmModel = null
+    }
+  }
+
+  private async stopLlamaEmbeddingServer(): Promise<void> {
+    if (this.llamaEmbeddingProcess) {
+      this.appLogger.info(`Stopping embedding server for model: ${this.currentEmbeddingModel}`, this.name)
+      this.llamaEmbeddingProcess.process.kill('SIGTERM')
+      
+      // Wait a bit for graceful shutdown, then force kill if needed
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.llamaEmbeddingProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing embedding server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+        
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+      
+      this.llamaEmbeddingProcess = null
+      this.currentEmbeddingModel = null
+    }
+  }
+
+  private resolveModelPath(modelRepoId: string): string {
+    // Use the same logic as the Python backend
+    const modelBasePath = 'service/models/llm/ggufLLM'
+    const [namespace, repo, ...model] = modelRepoId.split('/')
+    const modelPath = path.resolve(path.join(
+      this.baseDir,
+      modelBasePath,
+      `${namespace}---${repo}`,
+      model.join('/')
+    ))
+    
+    if (!filesystem.existsSync(modelPath)) {
+      throw new Error(`Model file not found: ${modelPath}`)
+    }
+    
+    return modelPath
+  }
+
+  private resolveEmbeddingModelPath(modelRepoId: string): string {
+    // Use the same logic as the Python embedding backend
+    const modelBasePath = 'service/models/llm/embedding/llamaCPP'
+    const [namespace, repo, ...model] = modelRepoId.split('/')
+    const modelDir = path.resolve(path.join(
+      this.baseDir,
+      modelBasePath,
+      `${namespace}---${repo}`,
+      model.join('/')
+    ))
+    
+    if (!filesystem.existsSync(modelDir)) {
+      throw new Error(`Embedding model directory not found: ${modelDir}`)
+    }
+    
+    // Find the first .gguf file in the directory
+    const files = filesystem.readdirSync(modelDir)
+    const ggufFile = files.find(f => f.endsWith('.gguf'))
+    
+    if (!ggufFile) {
+      throw new Error(`No GGUF file found in embedding model directory: ${modelDir}`)
+    }
+    
+    return path.join(modelDir, ggufFile)
+  }
+
+  private async waitForServerReady(healthUrl: string): Promise<void> {
+    const maxAttempts = 5
+    const delayMs = 1000
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await fetch(healthUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(1000)
+        })
+        
+        if (response.ok) {
+          this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
+          return
+        }
+      } catch (_error) {
+        // Server not ready yet, continue waiting
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+    
+    throw new Error(`Server failed to start within ${maxAttempts * delayMs / 1000} seconds`)
+  }
+
 }

@@ -69,7 +69,7 @@ def embeddings():
                 "index": idx
             } for idx, emb in enumerate(embeddings_result)
         ],
-        "model": embedding_model.model_path, 
+        "model": model_name, 
         "usage": {
             "prompt_tokens": sum(len(text.split()) for text in input_texts),
             "total_tokens": sum(len(text.split()) for text in input_texts)

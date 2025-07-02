@@ -64,6 +64,10 @@ export class OllamaBackendService implements ApiService {
     this.isSetUp = this.serviceIsSetUp();
   }
 
+  async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
+    this.appLogger.info(`ensureBackendReadiness called for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`, this.name)
+  }
+
   async detectDevices() {
     const availableDevices = await detectLevelZeroDevices(this.aiBackend)
     this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)

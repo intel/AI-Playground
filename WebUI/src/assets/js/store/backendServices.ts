@@ -170,7 +170,19 @@ export const useBackendServices = defineStore(
         )
       }
     }
-
+  
+    async function ensureBackendReadiness(serviceName: BackendServiceName, llmModelName: string, embeddingModelName?: string): Promise<void> {
+      try {
+        const result = await window.electronAPI.ensureBackendReadiness(serviceName, llmModelName, embeddingModelName)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to ensure backend readiness')
+        }
+      } catch (error) {
+        console.error(`Failed to ensure backend readiness for ${serviceName}:`, error)
+        throw error
+      }
+    }
+  
     return {
       info: currentServiceInfo,
       serviceInfoUpdateReceived: serviceInfoUpdatePresent,
@@ -189,6 +201,7 @@ export const useBackendServices = defineStore(
       uninstallService,
       detectDevices,
       selectDevice,
+      ensureBackendReadiness,
     }
   },
   {

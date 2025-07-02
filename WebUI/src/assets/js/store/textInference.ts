@@ -525,6 +525,27 @@ export const useTextInference = defineStore(
       return formattedResults.join('\n')
     }
 
+    async function ensureBackendReadiness(): Promise<void> {
+      if (backend.value === 'llamaCPP') {
+        const serviceName = backendToService[backend.value]
+        const llmModelName = activeModel.value
+        const embeddingModelName = activeEmbeddingModel.value
+        
+        if (!llmModelName) {
+          throw new Error('No active LLM model selected')
+        }
+        
+        const ragDocumentsSelected = ragList.value.some(doc => doc.isChecked)
+        const embeddingModelToSend = ragDocumentsSelected ? embeddingModelName : undefined
+        
+        if (ragDocumentsSelected && !embeddingModelName) {
+          throw new Error('No embedding model selected but RAG documents are enabled')
+        }
+        
+        await backendServices.ensureBackendReadiness(serviceName, llmModelName, embeddingModelToSend)
+      }
+    }
+
     return {
       backend,
       activeModel,
@@ -556,6 +577,7 @@ export const useTextInference = defineStore(
       extractPreMarker,
       extractPostMarker,
       formatRagSources,
+      ensureBackendReadiness,
     }
   },
   {

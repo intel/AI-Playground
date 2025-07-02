@@ -1,14 +1,8 @@
 import gc
 import json
 import os
-import subprocess
-import time
-from os import path
 from typing import Callable, Dict, Iterator, List, Optional
-
 import requests
-
-import config
 from interface import LLMInterface
 from params import LLMParams
 
@@ -20,8 +14,6 @@ class LlamaCpp(LLMInterface):
     DEFAULT_PORT = "39150"
     DEFAULT_CONTEXT_LENGTH = 2048
     DEFAULT_MAX_TOKENS = 1024
-    DEFAULT_GPU_LAYERS = 999
-    SERVER_STARTUP_TIMEOUT = 30
     HEALTH_CHECK_TIMEOUT = 1
     
     # Default stop sequences
@@ -32,10 +24,10 @@ class LlamaCpp(LLMInterface):
         self._model = None  
         self.stop_generate = False
         self._last_repo_id: Optional[str] = None
-        self._model_path: Optional[str] = None
-        self._process: Optional[subprocess.Popen] = None
         self.port = os.environ.get("LLAMA_LLM_PORT", self.DEFAULT_PORT)
         self.api_url = f"http://127.0.0.1:{self.port}"
+        
+        print(f"LlamaCPP client initialized for port {self.port}")
 
     def _convert_messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
         """Convert chat messages to a single prompt string.
@@ -53,24 +45,19 @@ class LlamaCpp(LLMInterface):
                 lines.append(content)
         return "\n".join(lines) + "\n"
 
+    def unload_model(self):
+        pass
+
     def load_model(
         self, 
-        params: LLMParams, 
-        n_gpu_layers: int = -1, 
-        context_length: int = None, 
+        params: LLMParams,
         callback: Optional[Callable[[str], None]] = None
     ) -> None:
         """Load a model for inference.
         
         Args:
             params: Model parameters containing repo_id
-            n_gpu_layers: Number of GPU layers (-1 for auto)
-            context_length: Context window size
             callback: Optional callback for loading progress
-            
-        Raises:
-            FileNotFoundError: If model file doesn't exist
-            RuntimeError: If server fails to start
         """
         model_repo_id = params.model_repo_id
         if self._last_repo_id == model_repo_id:
@@ -79,91 +66,14 @@ class LlamaCpp(LLMInterface):
         if callback:
             callback("start")
 
-        self.unload_model()
-
-        # Resolve model path
-        self._model_path = self._resolve_model_path(model_repo_id)
-        
-        # Use provided parameters or defaults
-        gpu_layers = n_gpu_layers if n_gpu_layers != -1 else self.DEFAULT_GPU_LAYERS
-        
-        # Start llama server
-        self._start_server(gpu_layers)
-        
-        # Wait for server to be ready
-        self._wait_for_server_ready()
-
+        # Update internal state
         self._last_repo_id = model_repo_id
+        self._model = model_repo_id  # Store for reference
 
         if callback:
             callback("finish")
-
-    def _resolve_model_path(self, model_repo_id: str) -> str:
-        """Resolve model repository ID to local file path.
-        
-        Args:
-            model_repo_id: Repository ID in format namespace/repo/model
             
-        Returns:
-            Absolute path to model file
-            
-        Raises:
-            FileNotFoundError: If model file doesn't exist
-        """
-        model_base_path = config.llama_cpp_model_paths.get("ggufLLM")
-        namespace, repo, *model = model_repo_id.split("/")
-        model_path = path.abspath(
-            path.join(model_base_path, "---".join([namespace, repo]), "---".join(model))
-        )
-
-        if not path.exists(model_path):
-            raise FileNotFoundError(f"Model file not found: {model_path}")
-            
-        return model_path
-
-    def _start_server(self, gpu_layers: int) -> None:
-        """Start the llama-server subprocess.
-        
-        Args:
-            gpu_layers: Number of GPU layers to use
-        """
-        exe_path = path.normpath(path.join("llama-cpp-rest", "llama-server.exe"))
-        args = [
-            exe_path,
-            "--model", self._model_path,
-            "--port", self.port,
-            "-ngl", str(gpu_layers),
-        ]
-
-        self._process = subprocess.Popen(
-            args, 
-            stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL
-        )
-
-    def _wait_for_server_ready(self) -> None:
-        """Wait for the llama server to be ready for requests.
-        
-        Raises:
-            RuntimeError: If server doesn't start within timeout
-        """
-        for attempt in range(self.SERVER_STARTUP_TIMEOUT):
-            try:
-                response = requests.get(
-                    f"{self.api_url}/health", 
-                    timeout=self.HEALTH_CHECK_TIMEOUT
-                )
-                print(f"[{attempt}] Server status: {response.status_code}")
-                if response.status_code == 200:
-                    print("LlamaCPP server is ready")
-                    return
-            except requests.RequestException as e:
-                print(f"[{attempt}] Server not ready: {e}")
-            time.sleep(1)
-        
-        raise RuntimeError(
-            f"LlamaCPP server failed to start within {self.SERVER_STARTUP_TIMEOUT} seconds"
-        )
+        print(f"LlamaCPP client configured for model: {model_repo_id}")
 
     def create_chat_completion(
         self, 
@@ -217,24 +127,6 @@ class LlamaCpp(LLMInterface):
                         
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to create chat completion: {e}")
-
-    def unload_model(self) -> None:
-        """Unload the current model and clean up resources."""
-        if self._process:
-            try:
-                self._process.terminate()
-                self._process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                print("Force killing llama-server process")
-                self._process.kill()
-                self._process.wait()
-            finally:
-                self._process = None
-                
-        self._model = None
-        self._last_repo_id = None
-        self._model_path = None
-        gc.collect()
 
     def get_backend_type(self) -> str:
         """Get the backend type identifier.

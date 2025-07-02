@@ -744,6 +744,29 @@ function initEventHandle() {
     }
   })
 
+  ipcMain.handle('ensureBackendReadiness', async (_event: IpcMainInvokeEvent, serviceName: string, llmModelName: string, embeddingModelName?: string) => {
+    appLogger.info(`Ensuring backend readiness for service: ${serviceName}, LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`, 'electron-backend')
+    if (!serviceRegistry) {
+      appLogger.warn('received ensureBackendReadiness too early during aipg startup', 'electron-backend')
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      appLogger.warn(`Service ${serviceName} not found`, 'electron-backend')
+      return { success: false, error: `Service ${serviceName} not found` }
+    }
+    
+    try {
+      await service.ensureBackendReadiness(llmModelName, embeddingModelName)
+      appLogger.info(`Backend ${serviceName} ready for LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`, 'electron-backend')
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      appLogger.error(`Failed to ensure backend readiness for ${serviceName}: ${errorMessage}`, 'electron-backend')
+      return { success: false, error: errorMessage }
+    }
+  })
+
   ipcMain.handle('reloadImageWorkflows', () => {
     const files = fs.readdirSync(path.join(externalRes, 'workflows'))
     const workflows = files.map((file) =>
