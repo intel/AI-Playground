@@ -69,11 +69,6 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
     type: 'llamaCPP',
     default: false,
   },
-  {
-    name: 'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
   { name: 'OpenVINO/Phi-3.5-mini-instruct-int4-ov', type: 'openVINO', default: true },
   { name: 'OpenVINO/Phi-3-mini-4k-instruct-int4-ov', type: 'openVINO', default: false },
   { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov', type: 'openVINO', default: false },

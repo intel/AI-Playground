@@ -108,7 +108,8 @@ class LlamaCpp(LLMInterface):
             )
             response.raise_for_status()
 
-            for line in response.iter_lines(decode_unicode=True):
+            for line in response.iter_lines():
+                line = line.decode("utf-8")
                 if self.stop_generate:
                     self.stop_generate = False
                     break

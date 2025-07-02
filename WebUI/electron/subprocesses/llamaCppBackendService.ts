@@ -639,7 +639,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   }
 
   private async waitForServerReady(healthUrl: string): Promise<void> {
-    const maxAttempts = 5
+    const maxAttempts = 30
     const delayMs = 1000
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
