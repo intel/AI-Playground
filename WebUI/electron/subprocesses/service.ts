@@ -663,7 +663,10 @@ export abstract class LongLivedPythonApiService implements ApiService {
   }
 
   async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
-    this.appLogger.info(`ensureBackendReadiness called for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`, this.name)
+    this.appLogger.info(
+      `ensureBackendReadiness called for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
+      this.name,
+    )
   }
 
   abstract spawnAPIProcess(): Promise<{

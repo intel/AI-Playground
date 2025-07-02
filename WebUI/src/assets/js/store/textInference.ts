@@ -46,8 +46,10 @@ export type EmbedInquiry = {
 
 // Thinking model markers for different models
 export const thinkingModels: Record<string, string> = {
-  'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf': '</think>\n\n',
-  'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf': '</think>\n\n',
+  'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf':
+    '</think>\n\n',
+  'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf':
+    '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
@@ -101,7 +103,7 @@ export const useTextInference = defineStore(
             (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
         }
       })
-      
+
       // Add Ollama models
       if (backend.value === 'ollama') {
         newModels.push({
@@ -111,7 +113,7 @@ export const useTextInference = defineStore(
           active: true,
         })
       }
-      
+
       console.log('llmModels changed', newModels)
       return newModels
     })
@@ -131,7 +133,7 @@ export const useTextInference = defineStore(
               m.default),
         }
       })
-      
+
       // Add Ollama embedding models
       if (backend.value === 'ollama') {
         newEmbeddingModels.push({
@@ -141,7 +143,7 @@ export const useTextInference = defineStore(
           active: true,
         })
       }
-      
+
       console.log('llmEmbeddingModels changed', newEmbeddingModels)
       return newEmbeddingModels
     })
@@ -205,7 +207,7 @@ export const useTextInference = defineStore(
       if (backend.value === 'ollama') {
         return []
       }
-      
+
       let model: string | undefined
       if (type === 'llm') {
         model = activeModel.value
@@ -213,7 +215,7 @@ export const useTextInference = defineStore(
         model = activeEmbeddingModel.value
       }
       if (!model) return []
-      
+
       const checkList = {
         repo_id: model,
         type:
@@ -341,7 +343,7 @@ export const useTextInference = defineStore(
     function deleteAllFiles() {
       ragList.value.length = 0
     }
-    
+
     // Extract the thinking text from the model's output
     function extractPreMarker(fullAnswer: string, model?: string): string {
       const modelName = model || activeModel.value
@@ -363,18 +365,20 @@ export const useTextInference = defineStore(
       }
       return ''
     }
-    
+
     // Define a type for document location information
     type DocumentLocation = {
-      pageNumber?: number;
-      lines?: { 
-        from?: number; 
-        to?: number 
-      };
-    };
-    
+      pageNumber?: number
+      lines?: {
+        from?: number
+        to?: number
+      }
+    }
+
     // Format RAG sources for display
-    function formatRagSources(documents: Document[] | { metadata?: { source?: string; loc?: DocumentLocation } }[]): string {
+    function formatRagSources(
+      documents: Document[] | { metadata?: { source?: string; loc?: DocumentLocation } }[],
+    ): string {
       // Group documents by source file
       const fileGroups = new Map<
         string,
@@ -532,19 +536,23 @@ export const useTextInference = defineStore(
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
         const embeddingModelName = activeEmbeddingModel.value
-        
+
         if (!llmModelName) {
           throw new Error('No active LLM model selected')
         }
-        
-        const ragDocumentsSelected = ragList.value.some(doc => doc.isChecked)
+
+        const ragDocumentsSelected = ragList.value.some((doc) => doc.isChecked)
         const embeddingModelToSend = ragDocumentsSelected ? embeddingModelName : undefined
-        
+
         if (ragDocumentsSelected && !embeddingModelName) {
           throw new Error('No embedding model selected but RAG documents are enabled')
         }
-        
-        await backendServices.ensureBackendReadiness(serviceName, llmModelName, embeddingModelToSend)
+
+        await backendServices.ensureBackendReadiness(
+          serviceName,
+          llmModelName,
+          embeddingModelToSend,
+        )
       }
     }
 

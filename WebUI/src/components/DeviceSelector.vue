@@ -1,6 +1,6 @@
 <template>
   <drop-down-new
-    :title=languages.SETTINGS_INFERENCE_DEVICE
+    :title="languages.SETTINGS_INFERENCE_DEVICE"
     @change="selectInferenceDevice"
     :value="selectedDevice?.id"
     :items="items"
@@ -27,5 +27,9 @@ const devices = computed(
 )
 const selectedDevice = computed(() => devices.value.find((d) => d.selected) ?? devices.value[0])
 const items = computed(() => devices.value.map(deviceToItem))
-const deviceToItem = (d: InferenceDevice) => ({ label: `${d.id}: ${d.name}`, value: d.id, active: true })
+const deviceToItem = (d: InferenceDevice) => ({
+  label: `${d.id}: ${d.name}`,
+  value: d.id,
+  active: true,
+})
 </script>

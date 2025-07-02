@@ -96,19 +96,21 @@
           </div>
         </div>
       </div>
-      <div v-if="textInference.backend === 'ollama'"
+      <div
+        v-if="textInference.backend === 'ollama'"
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
         :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
-        <div v-for="(message) in chat.messages.value" :key="message.id">
-          {{message.role === 'user' ? 'User: ' : 'AI: '}}
-          {{message.content}}
+        <div v-for="message in chat.messages.value" :key="message.id">
+          {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
+          {{ message.content }}
           {{ message.parts }}
         </div>
-    </div>
-      <div v-else
+      </div>
+      <div
+        v-else
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
         :class="textInference.fontSizeClass"
@@ -150,7 +152,11 @@
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
                   >
-                    {{ chat.model.endsWith('.gguf') ? chat.model.split('/').at(-1)?.split('.gguf')[0] ?? chat.model : chat.model }}
+                    {{
+                      chat.model.endsWith('.gguf')
+                        ? (chat.model.split('/').at(-1)?.split('.gguf')[0] ?? chat.model)
+                        : chat.model
+                    }}
                   </span>
                   <!-- Display RAG source if available -->
                   <span
@@ -207,11 +213,15 @@
                   <div
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                    v-html="markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer))"
+                    v-html="
+                      markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer))
+                    "
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer))"
+                    v-html="
+                      markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer))
+                    "
                   ></div>
                 </template>
                 <template v-else>
@@ -429,7 +439,7 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-            :title=languages.SETTINGS_INFERENCE_BACKEND
+            :title="languages.SETTINGS_INFERENCE_BACKEND"
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
@@ -566,36 +576,38 @@ import { useConversations } from '@/assets/js/store/conversations'
 import {
   llmBackendTypes,
   LlmBackend,
-  useTextInference, thinkingModels, textInferenceBackendDisplayName,
+  useTextInference,
+  thinkingModels,
+  textInferenceBackendDisplayName,
   backendToService,
 } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useChat } from '@ai-sdk/vue'
-import { streamText } from 'ai';
+import { streamText } from 'ai'
 
-const getModel = () => createOpenAICompatible({
-  name: "model",
-  baseURL: `${textInference.currentBackendUrl}/v1/`
-}).chatModel('deepseek-r1:1.5b')
+const getModel = () =>
+  createOpenAICompatible({
+    name: 'model',
+    baseURL: `${textInference.currentBackendUrl}/v1/`,
+  }).chatModel('deepseek-r1:1.5b')
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const customFetch = async (_: any, options: any) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const m = JSON.parse(options.body) as any;
+  const m = JSON.parse(options.body) as any
   console.log(m)
   const result = await streamText({
     model: getModel(),
     messages: m.messages,
     abortSignal: options.signal,
-  });
+  })
   return result.toDataStreamResponse()
 }
 
-
-const chat = useChat({fetch: customFetch })
+const chat = useChat({ fetch: customFetch })
 import ModelSelector from '@/components/ModelSelector.vue'
 
 const conversations = useConversations()
@@ -626,7 +638,6 @@ let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
 
-
 const markerFound = ref(false)
 const thinkingText = ref('')
 const showThinkingText = ref(false)
@@ -634,8 +645,6 @@ const postMarkerText = ref('')
 
 let reasoningStartTime = 0
 let reasoningTotalTime = 0
-
-
 
 let sseMetrics: MetricsData | null = null
 let actualRagResults: LangchainDocument[] | null = null
@@ -668,7 +677,6 @@ onMounted(async () => {
 function finishGenerate() {
   textOutFinish = true
 }
-
 
 // Optional: if you want to show whether each backend is currently running
 function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
@@ -905,7 +913,9 @@ async function simulatedInput() {
 
     if (key !== null) {
       const ragSourceInfo =
-        actualRagResults && actualRagResults.length ? textInference.formatRagSources(actualRagResults) : null
+        actualRagResults && actualRagResults.length
+          ? textInference.formatRagSources(actualRagResults)
+          : null
 
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -995,7 +1005,6 @@ async function checkModelAvailability() {
 }
 
 async function generateWithAiSdk(chatContext: ChatItem[]) {
-  
   await chat.append({
     role: 'user',
     content: chatContext[chatContext.length - 1].question,

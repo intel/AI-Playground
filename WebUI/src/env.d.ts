@@ -88,7 +88,11 @@ type electronAPI = {
   sendSetUpSignal(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
-  ensureBackendReadiness(serviceName: string, llmModelName: string, embeddingModelName?: string): Promise<{ success: boolean; error?: string }>
+  ensureBackendReadiness(
+    serviceName: string,
+    llmModelName: string,
+    embeddingModelName?: string,
+  ): Promise<{ success: boolean; error?: string }>
 }
 
 type SetupProgress = {
@@ -362,7 +366,12 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend' | 'ollama-backend'
+type BackendServiceName =
+  | 'ai-backend'
+  | 'comfyui-backend'
+  | 'llamacpp-backend'
+  | 'openvino-backend'
+  | 'ollama-backend'
 
 type InferenceDevice = {
   id: string

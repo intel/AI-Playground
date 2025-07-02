@@ -39,16 +39,23 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   private lastPythonWrapperEmbeddingPort: number | null = null
 
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
-  readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
+  readonly aiBackend = new PythonService(
+    path.resolve(path.join(this.baseDir, `ai-backend-env`)),
+    path.resolve(path.join(this.baseDir, `service`)),
+  )
   readonly python = this.uvPip.python
-  readonly llamaCppRestDir = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-rest'));
-  readonly llamaCppRestExePath = path.resolve(path.join(this.llamaCppRestDir, 'llama-server.exe'));
-  readonly zipPath = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-ipex-llm.zip'));
+  readonly llamaCppRestDir = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-rest'))
+  readonly llamaCppRestExePath = path.resolve(path.join(this.llamaCppRestDir, 'llama-server.exe'))
+  readonly zipPath = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-ipex-llm.zip'))
   // Download URL and file paths
-  readonly downloadUrl = 'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/llama-cpp-ipex-llm-2.2.0-win.zip';
+  readonly downloadUrl =
+    'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/llama-cpp-ipex-llm-2.2.0-win.zip'
 
   serviceIsSetUp(): boolean {
-    return filesystem.existsSync(this.python.getExePath()) && filesystem.existsSync(this.llamaCppRestExePath)
+    return (
+      filesystem.existsSync(this.python.getExePath()) &&
+      filesystem.existsSync(this.llamaCppRestExePath)
+    )
   }
 
   isSetUp = this.serviceIsSetUp()
@@ -93,16 +100,16 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         step: 'download',
         status: 'executing',
         debugMessage: `downloading Llamacpp from ${this.downloadUrl}`,
-      };
+      }
 
-      await this.downloadLlamacpp();
+      await this.downloadLlamacpp()
 
       yield {
         serviceName: this.name,
         step: 'download',
         status: 'executing',
         debugMessage: 'download complete',
-      };
+      }
 
       // Extract Llamacpp ZIP file
       yield {
@@ -110,16 +117,16 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         step: 'extract',
         status: 'executing',
         debugMessage: 'extracting Llamacpp',
-      };
+      }
 
-      await this.extractLlamacpp();
+      await this.extractLlamacpp()
 
       yield {
         serviceName: this.name,
         step: 'extract',
         status: 'executing',
         debugMessage: 'extraction complete',
-      };
+      }
 
       this.setStatus('notYetStarted')
       yield {
@@ -140,51 +147,51 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       }
     }
   }
-  
-    private async downloadLlamacpp(): Promise<void> {
-      this.appLogger.info(`Downloading Llamacpp from ${this.downloadUrl}`, this.name);
-      
-      // Delete existing zip if it exists
-      if (filesystem.existsSync(this.zipPath)) {
-        this.appLogger.info(`Removing existing Llamacpp zip file`, this.name);
-        filesystem.removeSync(this.zipPath);
-      }
-  
-      // Using electron net for better proxy support
-      const response = await net.fetch(this.downloadUrl);
-      if (!response.ok || response.status !== 200 || !response.body) {
-        throw new Error(`Failed to download Llamacpp: ${response.statusText}`);
-      }
-      
-      const buffer = await response.arrayBuffer();
-      await filesystem.writeFile(this.zipPath, Buffer.from(buffer));
-      
-      this.appLogger.info(`Llamacpp zip file downloaded successfully`, this.name);
+
+  private async downloadLlamacpp(): Promise<void> {
+    this.appLogger.info(`Downloading Llamacpp from ${this.downloadUrl}`, this.name)
+
+    // Delete existing zip if it exists
+    if (filesystem.existsSync(this.zipPath)) {
+      this.appLogger.info(`Removing existing Llamacpp zip file`, this.name)
+      filesystem.removeSync(this.zipPath)
     }
-  
-    private async extractLlamacpp(): Promise<void> {
-      this.appLogger.info(`Extracting Llamacpp to ${this.llamaCppRestDir}`, this.name);
-      
-      // Delete existing llamacpp directory if it exists
-      if (filesystem.existsSync(this.llamaCppRestDir)) {
-        this.appLogger.info(`Removing existing Llamacpp directory`, this.name);
-        filesystem.removeSync(this.llamaCppRestDir);
-      }
-      
-      // Create llamacpp directory
-      filesystem.mkdirSync(this.llamaCppRestDir, { recursive: true });
-      
-      // Extract zip file using PowerShell's Expand-Archive
-      try {
-        const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.llamaCppRestDir}' -Force"`;
-        await execAsync(command);
-        
-        this.appLogger.info(`Llamacpp extracted successfully`, this.name);
-      } catch (error) {
-        this.appLogger.error(`Failed to extract Llamacpp: ${error}`, this.name);
-        throw error;
-      }
+
+    // Using electron net for better proxy support
+    const response = await net.fetch(this.downloadUrl)
+    if (!response.ok || response.status !== 200 || !response.body) {
+      throw new Error(`Failed to download Llamacpp: ${response.statusText}`)
     }
+
+    const buffer = await response.arrayBuffer()
+    await filesystem.writeFile(this.zipPath, Buffer.from(buffer))
+
+    this.appLogger.info(`Llamacpp zip file downloaded successfully`, this.name)
+  }
+
+  private async extractLlamacpp(): Promise<void> {
+    this.appLogger.info(`Extracting Llamacpp to ${this.llamaCppRestDir}`, this.name)
+
+    // Delete existing llamacpp directory if it exists
+    if (filesystem.existsSync(this.llamaCppRestDir)) {
+      this.appLogger.info(`Removing existing Llamacpp directory`, this.name)
+      filesystem.removeSync(this.llamaCppRestDir)
+    }
+
+    // Create llamacpp directory
+    filesystem.mkdirSync(this.llamaCppRestDir, { recursive: true })
+
+    // Extract zip file using PowerShell's Expand-Archive
+    try {
+      const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.llamaCppRestDir}' -Force"`
+      await execAsync(command)
+
+      this.appLogger.info(`Llamacpp extracted successfully`, this.name)
+    } catch (error) {
+      this.appLogger.error(`Failed to extract Llamacpp: ${error}`, this.name)
+      throw error
+    }
+  }
 
   async spawnAPIProcess(): Promise<{
     process: ChildProcess
@@ -203,7 +210,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
-    this.appLogger.info(`Starting Python wrapper with LLM port: ${currentLlmPort}, Embedding port: ${currentEmbeddingPort}`, this.name)
+    this.appLogger.info(
+      `Starting Python wrapper with LLM port: ${currentLlmPort}, Embedding port: ${currentEmbeddingPort}`,
+      this.name,
+    )
 
     const apiProcess = spawn(
       this.python.getExePath(),
@@ -238,7 +248,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     // Stop llama-server processes first
     await this.stopLlamaLlmServer()
     await this.stopLlamaEmbeddingServer()
-    
+
     // Then stop the Python backend
     return super.stop()
   }
@@ -249,11 +259,14 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
    * Handles both LLM and embedding models when provided
    */
   async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
-    this.appLogger.info(`Ensuring llamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`, this.name)
-    
+    this.appLogger.info(
+      `Ensuring llamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
+      this.name,
+    )
+
     try {
       let serversChanged = false
-      
+
       // Handle LLM model
       if (this.currentLlmModel !== llmModelName || !this.llamaLlmProcess?.isReady) {
         await this.switchModel(llmModelName, 'llm')
@@ -262,28 +275,42 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       } else {
         this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
       }
-      
+
       // Handle embedding model if provided
       if (embeddingModelName) {
-        if (this.currentEmbeddingModel !== embeddingModelName || !this.llamaEmbeddingProcess?.isReady) {
+        if (
+          this.currentEmbeddingModel !== embeddingModelName ||
+          !this.llamaEmbeddingProcess?.isReady
+        ) {
           await this.switchModel(embeddingModelName, 'embedding')
           serversChanged = true
           this.appLogger.info(`Embedding server ready with model: ${embeddingModelName}`, this.name)
         } else {
-          this.appLogger.info(`Embedding server already running with model: ${embeddingModelName}`, this.name)
+          this.appLogger.info(
+            `Embedding server already running with model: ${embeddingModelName}`,
+            this.name,
+          )
         }
       }
-      
+
       // Restart Python wrapper if ports changed and we have an active process
       if (serversChanged && this.encapsulatedProcess && this.needsPythonWrapperRestart()) {
-        this.appLogger.info('Server ports changed, restarting Python wrapper for synchronization', this.name)
+        this.appLogger.info(
+          'Server ports changed, restarting Python wrapper for synchronization',
+          this.name,
+        )
         await this.restartPythonWrapperWithNewPorts()
       }
-      
-      this.appLogger.info(`LlamaCPP backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`, this.name)
-      
+
+      this.appLogger.info(
+        `LlamaCPP backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
+        this.name,
+      )
     } catch (error) {
-      this.appLogger.error(`Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`, this.name)
+      this.appLogger.error(
+        `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`,
+        this.name,
+      )
       throw error
     }
   }
@@ -294,7 +321,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   private needsPythonWrapperRestart(): boolean {
     const currentLlmPort = this.llamaLlmProcess?.port || null
     const currentEmbeddingPort = this.llamaEmbeddingProcess?.port || null
-    
+
     return (
       this.lastPythonWrapperLlmPort !== currentLlmPort ||
       this.lastPythonWrapperEmbeddingPort !== currentEmbeddingPort
@@ -307,7 +334,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   private updatePythonWrapperPortTracking(): void {
     this.lastPythonWrapperLlmPort = this.llamaLlmProcess?.port || null
     this.lastPythonWrapperEmbeddingPort = this.llamaEmbeddingProcess?.port || null
-    this.appLogger.info(`Updated Python wrapper port tracking - LLM: ${this.lastPythonWrapperLlmPort}, Embedding: ${this.lastPythonWrapperEmbeddingPort}`, this.name)
+    this.appLogger.info(
+      `Updated Python wrapper port tracking - LLM: ${this.lastPythonWrapperLlmPort}, Embedding: ${this.lastPythonWrapperEmbeddingPort}`,
+      this.name,
+    )
   }
 
   /**
@@ -315,13 +345,13 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
    */
   private async restartPythonWrapperWithNewPorts(): Promise<void> {
     this.appLogger.info('Restarting Python wrapper with updated server ports', this.name)
-    
+
     try {
       // Stop current Python wrapper (but keep llama-servers running)
       if (this.encapsulatedProcess) {
         this.appLogger.info('Stopping Python wrapper process', this.name)
         this.encapsulatedProcess.kill('SIGTERM')
-        
+
         // Wait for graceful shutdown
         await new Promise<void>((resolve) => {
           const timeout = setTimeout(() => {
@@ -331,7 +361,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
             }
             resolve()
           }, 3000)
-          
+
           if (this.encapsulatedProcess) {
             this.encapsulatedProcess.on('exit', () => {
               clearTimeout(timeout)
@@ -342,15 +372,15 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
             resolve()
           }
         })
-        
+
         this.encapsulatedProcess = null
       }
-      
+
       // Start new Python wrapper with updated ports
       const trackedProcess = await this.spawnAPIProcess()
       this.encapsulatedProcess = trackedProcess.process
       this.pipeProcessLogs(trackedProcess.process)
-      
+
       // Wait for Python wrapper to be ready
       if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
         this.updatePythonWrapperPortTracking()
@@ -358,7 +388,6 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       } else {
         throw new Error('Python wrapper failed to start after port update')
       }
-      
     } catch (error) {
       this.appLogger.error(`Failed to restart Python wrapper: ${error}`, this.name)
       throw error
@@ -367,39 +396,45 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
   async switchModel(modelRepoId: string, type: 'llm' | 'embedding'): Promise<number> {
     this.appLogger.info(`Switching ${type} model to: ${modelRepoId}`, this.name)
-    
+
     try {
       if (type === 'llm') {
         if (this.currentLlmModel === modelRepoId && this.llamaLlmProcess?.isReady) {
           this.appLogger.info(`LLM model ${modelRepoId} already loaded`, this.name)
           return this.llamaLlmProcess.port
         }
-        
+
         const oldPort = this.llamaLlmProcess?.port
         await this.stopLlamaLlmServer()
         const process = await this.startLlamaLlmServer(modelRepoId)
-        
+
         // Log port change for debugging
         if (oldPort && oldPort !== process.port) {
-          this.appLogger.info(`LLM server port changed from ${oldPort} to ${process.port}`, this.name)
+          this.appLogger.info(
+            `LLM server port changed from ${oldPort} to ${process.port}`,
+            this.name,
+          )
         }
-        
+
         return process.port
       } else {
         if (this.currentEmbeddingModel === modelRepoId && this.llamaEmbeddingProcess?.isReady) {
           this.appLogger.info(`Embedding model ${modelRepoId} already loaded`, this.name)
           return this.llamaEmbeddingProcess.port
         }
-        
+
         const oldPort = this.llamaEmbeddingProcess?.port
         await this.stopLlamaEmbeddingServer()
         const process = await this.startLlamaEmbeddingServer(modelRepoId)
-        
+
         // Log port change for debugging
         if (oldPort && oldPort !== process.port) {
-          this.appLogger.info(`Embedding server port changed from ${oldPort} to ${process.port}`, this.name)
+          this.appLogger.info(
+            `Embedding server port changed from ${oldPort} to ${process.port}`,
+            this.name,
+          )
         }
-        
+
         return process.port
       }
     } catch (error) {
@@ -412,13 +447,19 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     try {
       const modelPath = this.resolveModelPath(modelRepoId)
       const port = await getPort({ port: portNumbers(39100, 39199) })
-      
-      this.appLogger.info(`Starting LLM server for model: ${modelRepoId} on port ${port}`, this.name)
-      
+
+      this.appLogger.info(
+        `Starting LLM server for model: ${modelRepoId} on port ${port}`,
+        this.name,
+      )
+
       const args = [
-        '--model', modelPath,
-        '--port', port.toString(),
-        '-ngl', '999', // GPU layers
+        '--model',
+        modelPath,
+        '--port',
+        port.toString(),
+        '-ngl',
+        '999', // GPU layers
       ]
 
       const childProcess = spawn(this.llamaCppRestExePath, args, {
@@ -457,14 +498,17 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       // Wait for server to be ready
       await this.waitForServerReady(`http://127.0.0.1:${port}/health`)
       llamaProcess.isReady = true
-      
+
       this.llamaLlmProcess = llamaProcess
       this.currentLlmModel = modelRepoId
-      
+
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
     } catch (error) {
-      this.appLogger.error(`Failed to start LLM server for model ${modelRepoId}: ${error}`, this.name)
+      this.appLogger.error(
+        `Failed to start LLM server for model ${modelRepoId}: ${error}`,
+        this.name,
+      )
       throw error
     }
   }
@@ -473,14 +517,13 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     try {
       const modelPath = this.resolveEmbeddingModelPath(modelRepoId)
       const port = await getPort({ port: portNumbers(39200, 39299) })
-      
-      this.appLogger.info(`Starting embedding server for model: ${modelRepoId} on port ${port}`, this.name)
-      
-      const args = [
-        '--embedding',
-        '--model', modelPath,
-        '--port', port.toString(),
-      ]
+
+      this.appLogger.info(
+        `Starting embedding server for model: ${modelRepoId} on port ${port}`,
+        this.name,
+      )
+
+      const args = ['--embedding', '--model', modelPath, '--port', port.toString()]
 
       const childProcess = spawn(this.llamaCppRestExePath, args, {
         cwd: this.llamaCppRestDir,
@@ -518,14 +561,17 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       // Wait for server to be ready
       await this.waitForServerReady(`http://127.0.0.1:${port}/health`)
       llamaProcess.isReady = true
-      
+
       this.llamaEmbeddingProcess = llamaProcess
       this.currentEmbeddingModel = modelRepoId
-      
+
       this.appLogger.info(`Embedding server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
     } catch (error) {
-      this.appLogger.error(`Failed to start embedding server for model ${modelRepoId}: ${error}`, this.name)
+      this.appLogger.error(
+        `Failed to start embedding server for model ${modelRepoId}: ${error}`,
+        this.name,
+      )
       throw error
     }
   }
@@ -534,7 +580,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     if (this.llamaLlmProcess) {
       this.appLogger.info(`Stopping LLM server for model: ${this.currentLlmModel}`, this.name)
       this.llamaLlmProcess.process.kill('SIGTERM')
-      
+
       // Wait a bit for graceful shutdown, then force kill if needed
       await new Promise<void>((resolve) => {
         const currentProcess = this.llamaLlmProcess
@@ -545,7 +591,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
           }
           resolve()
         }, 5000)
-        
+
         if (currentProcess) {
           currentProcess.process.on('exit', () => {
             clearTimeout(timeout)
@@ -556,7 +602,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
           resolve()
         }
       })
-      
+
       this.llamaLlmProcess = null
       this.currentLlmModel = null
     }
@@ -564,9 +610,12 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
   private async stopLlamaEmbeddingServer(): Promise<void> {
     if (this.llamaEmbeddingProcess) {
-      this.appLogger.info(`Stopping embedding server for model: ${this.currentEmbeddingModel}`, this.name)
+      this.appLogger.info(
+        `Stopping embedding server for model: ${this.currentEmbeddingModel}`,
+        this.name,
+      )
       this.llamaEmbeddingProcess.process.kill('SIGTERM')
-      
+
       // Wait a bit for graceful shutdown, then force kill if needed
       await new Promise<void>((resolve) => {
         const currentProcess = this.llamaEmbeddingProcess
@@ -577,7 +626,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
           }
           resolve()
         }, 5000)
-        
+
         if (currentProcess) {
           currentProcess.process.on('exit', () => {
             clearTimeout(timeout)
@@ -588,7 +637,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
           resolve()
         }
       })
-      
+
       this.llamaEmbeddingProcess = null
       this.currentEmbeddingModel = null
     }
@@ -598,17 +647,14 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     // Use the same logic as the Python backend
     const modelBasePath = 'service/models/llm/ggufLLM'
     const [namespace, repo, ...model] = modelRepoId.split('/')
-    const modelPath = path.resolve(path.join(
-      this.baseDir,
-      modelBasePath,
-      `${namespace}---${repo}`,
-      model.join('/')
-    ))
-    
+    const modelPath = path.resolve(
+      path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
+    )
+
     if (!filesystem.existsSync(modelPath)) {
       throw new Error(`Model file not found: ${modelPath}`)
     }
-    
+
     return modelPath
   }
 
@@ -616,39 +662,36 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     // Use the same logic as the Python embedding backend
     const modelBasePath = 'service/models/llm/embedding/llamaCPP'
     const [namespace, repo, ...model] = modelRepoId.split('/')
-    const modelDir = path.resolve(path.join(
-      this.baseDir,
-      modelBasePath,
-      `${namespace}---${repo}`,
-      model.join('/')
-    ))
-    
+    const modelDir = path.resolve(
+      path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
+    )
+
     if (!filesystem.existsSync(modelDir)) {
       throw new Error(`Embedding model directory not found: ${modelDir}`)
     }
-    
+
     // Find the first .gguf file in the directory
     const files = filesystem.readdirSync(modelDir)
-    const ggufFile = files.find(f => f.endsWith('.gguf'))
-    
+    const ggufFile = files.find((f) => f.endsWith('.gguf'))
+
     if (!ggufFile) {
       throw new Error(`No GGUF file found in embedding model directory: ${modelDir}`)
     }
-    
+
     return path.join(modelDir, ggufFile)
   }
 
   private async waitForServerReady(healthUrl: string): Promise<void> {
     const maxAttempts = 30
     const delayMs = 1000
-    
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const response = await fetch(healthUrl, {
           method: 'GET',
-          signal: AbortSignal.timeout(1000)
+          signal: AbortSignal.timeout(1000),
         })
-        
+
         if (response.ok) {
           this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
           return
@@ -656,11 +699,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       } catch (_error) {
         // Server not ready yet, continue waiting
       }
-      
-      await new Promise(resolve => setTimeout(resolve, delayMs))
-    }
-    
-    throw new Error(`Server failed to start within ${maxAttempts * delayMs / 1000} seconds`)
-  }
 
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+
+    throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
+  }
 }
