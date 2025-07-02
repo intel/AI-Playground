@@ -114,14 +114,16 @@ export async function aiplaygroundApiServiceRegistry(
         settings,
       ),
     )
-    instance.register(
-      new OllamaBackendService(
-        'ollama-backend',
-        await getPort({ port: portNumbers(40000, 41000) }),
-        win,
-        settings,
-      ),
-    )
+    if (settings.enablePreviewFeatures) {
+      instance.register(
+        new OllamaBackendService(
+          'ollama-backend',
+          await getPort({ port: portNumbers(40000, 41000) }),
+          win,
+          settings,
+        ),
+      )
+    }
   }
   return instance
 }

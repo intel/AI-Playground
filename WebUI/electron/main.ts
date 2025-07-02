@@ -96,6 +96,7 @@ export const settings: LocalSettings = {
   currentTheme: 'lnl',
   comfyUiParameters: [],
   deviceArchOverride: undefined,
+  enablePreviewFeatures: false,
 }
 
 async function loadSettings() {
