@@ -52,6 +52,8 @@ const selectedItem = computed(() => {
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent
+      :align="'start'"
+      :align-offset="-20"
       class="w-full rounded-lg p-[3px] border border-[#cdcdcd] bg-[#05010f] max-h-[188px] overflow-y-auto z-[100] ml-4"
     >
       <DropdownMenuLabel v-if="title" class="text-white px-3 py-2 text-sm font-medium">{{

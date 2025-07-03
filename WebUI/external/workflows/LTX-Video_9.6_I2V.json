@@ -1,5 +1,5 @@
 {
-  "name": "Video - Img2Vid",
+  "name": "Video-Img2Vid",
   "tags": ["LTX Video", "high-vram"],
   "backend": "comfyui",
   "comfyUIRequirements": {

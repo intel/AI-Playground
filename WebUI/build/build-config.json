@@ -34,12 +34,7 @@
     {
       "from": "external/OpenVINO",
       "to": "OpenVINO",
-      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/"]
-    },
-    {
-      "from": "external/OpenVINO",
-      "to": "OpenVINO",
-      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/"]
+      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/", "!emb_model_cache/"]
     },
     {
       "from": "external/llama_cpp_python-0.3.8-cp312-cp312-win_amd64.whl",
