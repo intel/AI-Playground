@@ -22,19 +22,16 @@ const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
-  // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  // Direct llama-server process management
   private llamaLlmProcess: LlamaServerProcess | null = null
   private llamaEmbeddingProcess: LlamaServerProcess | null = null
   private currentLlmModel: string | null = null
   private currentEmbeddingModel: string | null = null
 
-  // Port tracking for Python wrapper synchronization
   private lastPythonWrapperLlmPort: number | null = null
   private lastPythonWrapperEmbeddingPort: number | null = null
 
@@ -46,10 +43,9 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly python = this.uvPip.python
   readonly llamaCppRestDir = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-rest'))
   readonly llamaCppRestExePath = path.resolve(path.join(this.llamaCppRestDir, 'llama-server.exe'))
-  readonly zipPath = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-ipex-llm.zip'))
-  // Download URL and file paths
+  readonly zipPath = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-release.zip'))
   readonly downloadUrl =
-    'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/llama-cpp-ipex-llm-2.2.0-win.zip'
+    'https://github.com/ggml-org/llama.cpp/releases/download/b5836/llama-b5836-bin-win-vulkan-x64.zip'
 
   serviceIsSetUp(): boolean {
     return (
