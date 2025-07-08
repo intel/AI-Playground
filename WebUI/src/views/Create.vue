@@ -222,9 +222,11 @@ const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
 const showTooltip = ref(false)
+let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
-  if (true) {
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
+  if (isDemoModeEnabled) {
     setTimeout(() => {
       showTooltip.value = true
     }, 2200)

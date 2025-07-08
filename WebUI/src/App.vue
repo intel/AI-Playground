@@ -148,7 +148,7 @@
         {{ languages.TAB_LEARN_MORE }}
       </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
-      <button v-if="isDemoModeEnabled" class="help-button" @click="triggerHelp">{{ languages.DEMO_NEED_HELP }}</button>
+      <button v-if="!isDemoModeEnabled" class="help-button" @click="triggerHelp">{{ languages.DEMO_NEED_HELP }}</button>
     </div>
     <div class="main-content flex-auto rounded-t-lg relative">
       <create

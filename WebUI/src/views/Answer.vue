@@ -679,10 +679,12 @@ const isHistoryVisible = ref(false)
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
 const autoScrollEnabled = ref(true)
+let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
-  if (true) {
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
+  if (isDemoModeEnabled) {
     setTimeout(() => {
       showAnswerOverlay.value = true
     }, 2200)

@@ -531,9 +531,11 @@ const stopping = ref(false)
 const showParams = ref(false)
 const generateParams = new Array<KVObject>()
 const infoParams = ref<KVObject>({})
+let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
-  if (true) {
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
+  if (isDemoModeEnabled) {
     setTimeout(() => {
       showEnhanceTooltip.value = true
     }, 2200)
