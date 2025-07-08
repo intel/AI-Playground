@@ -309,7 +309,6 @@ onBeforeMount(async () => {
     }
   })
   const defaultPage = await window.electronAPI.getCmdParams();
-  console.log(defaultPage,'default');
   activeTabIdx.value = defaultPage;
 
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();  

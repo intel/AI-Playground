@@ -707,7 +707,6 @@ onMounted(async () => {
   if (true) {
     setTimeout(() => {
       showAnswerOverlay.value = true
-      console.log("timeout");
     }, 2200)
   }
 })
