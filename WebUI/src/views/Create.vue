@@ -185,8 +185,7 @@
     <div class="popup-box center-box">
     <div class="create-text">
       <p>
-        <strong>{{ languages.DEMO_CREATE_TITLE }} : </strong>{{ languages.DEMO_CREATE_CENTER_CONTENT }}
-        {{ languages.DEMO_CREATE_CENTER_CONTENT_2 }} <strong>{{ languages.DEMO_ENHANCE_TITLE}}</strong> {{ languages.DEMO_AND }} <strong>{{ languages.DEMO_ANSWER_TITLE }}</strong> {{ languages.DEMO_CREATE_CENTER_CONTENT_3 }}
+        {{ languages.DEMO_CREATE_CENTER_CONTENT }}
       </p>
       </div>
     </div>

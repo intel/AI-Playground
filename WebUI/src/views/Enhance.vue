@@ -60,7 +60,7 @@
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(0)"
               class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
-              :class="{ 'demo-mode-overlay-content': showInPaintTooltip }"
+              :class="{ 'demo-mode-overlay-content': showInPaintToolTip }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
             </button>
@@ -223,7 +223,7 @@
           v-model="prompt"
           :disabled="disabledPrompt"
           @keypress.enter.prevent="generate"
-          :class="{ 'demo-mode-overlay-content': showImagePromptToolTip || showOutPaintToolTip }"
+          :class="{ 'demo-mode-overlay-content': showImagePromptToolTip || showOutPaintToolTip || showInPaintToolTip}"
         ></textarea>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
@@ -312,7 +312,7 @@
         ></image-prompt-options>
         <inpaint-options
           v-else-if="mode == 3"
-          :show-image-prompt-tooltip="showInPaintTooltip"
+          :show-inpaint-tooltip="showInPaintToolTip"
           ref="inpaintCompt"
         ></inpaint-options>
         <outpaint-options
@@ -328,11 +328,7 @@
         <!-- Enhance Center Popup -->
         <div class="center-popup">
           <p>
-            <strong>{{ languages.DEMO_ENHANCE_TITLE }} : </strong>
-            {{ languages.DEMO_ENHANCE_HEADING }} {{ languages.DEMO_CREATE_CENTER_CONTENT_2 }}
-            <strong>{{ languages.DEMO_CREATE_TITLE }}</strong> {{ languages.DEMO_AND }}
-            <strong>{{ languages.DEMO_ANSWER_TITLE }}</strong>
-            {{ languages.DEMO_CREATE_CENTER_CONTENT_3 }}
+            {{ languages.DEMO_ENHANCE_HEADING }}
           </p>
         </div>
 
@@ -389,7 +385,7 @@
       </div>
     </transition>
     <transition name="fade">
-      <div class="demo-mode-Image-overlay" v-if="showInPaintTooltip">
+      <div class="demo-mode-Inpaint-overlay" v-if="showInPaintToolTip">
         <div class="tooltip-wrapper">
           <div class="tooltip-box">
             <div class="tooltip-row">
@@ -405,6 +401,14 @@
                 {{ languages.DEMO_ENHANCE_INPAINT_TWO }}
               </p>
             </div>
+
+            <div class="tooltip-row">
+              <div class="tooltip-circle">3</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_INPAINT_THREE }}
+              </p>
+            </div>
+            
 
             <div class="got-it-btn">
               <button class="tooltip-button" @click="onGotIt">
@@ -500,7 +504,7 @@ const maskData = reactive({
 const uploadFile = ref<HTMLInputElement>()
 const showEnhanceTooltip = ref(false)
 const showImagePromptToolTip = ref(false)
-const showInPaintTooltip = ref(false)
+const showInPaintToolTip = ref(false)
 const showOutPaintToolTip = ref(false)
 const disabledPrompt = ref(false)
 const maskBrush = reactive({
@@ -541,7 +545,7 @@ const startOverlay = () => {
   } else if (mode.value == 2) {
     showImagePromptToolTip.value = true
   } else if (mode.value == 3 && sourceImgFile) {
-    showInPaintTooltip.value = true
+    showInPaintToolTip.value = true
   } else if (mode.value == 4) {
     showOutPaintToolTip.value = true
   }
@@ -564,7 +568,7 @@ function updateMaskData(e: Event) {
 function onGotIt() {
   showEnhanceTooltip.value = false
   showImagePromptToolTip.value = false
-  showInPaintTooltip.value = false
+  showInPaintToolTip.value = false
   showOutPaintToolTip.value = false
 }
 
@@ -617,7 +621,7 @@ function switchFeature(value: number) {
     }, 1200)
   } else if (mode.value == 3 && sourceImgFile) {
     setTimeout(() => {
-      showInPaintTooltip.value = true
+      showInPaintToolTip.value = true
     }, 1200)
   } else if (value == 4) {
     setTimeout(() => {

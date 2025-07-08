@@ -469,7 +469,7 @@ footer {
     padding: 16px 20px;
     color: white;
     width: 41.458vw;
-    height: 9.667vh;
+    height: 7.111vh;
     text-align: center;
   }
 
@@ -584,7 +584,7 @@ footer {
     padding: 16px 20px;
     color: white;
     width: 41.458vw;
-    height: 9.556vh;
+    height: 7.111vh;
     text-align: center;
     font-size: 18px;
   }
@@ -694,7 +694,7 @@ footer {
     padding: 16px 20px;
     font-size: 18px;
     width: 41.458vw;
-    height: 9.556vh;
+    height: 7.111vh;
     position: absolute;
   }
 
@@ -989,6 +989,107 @@ footer {
     border-top: 14px solid #00bfff;
     z-index: 1;
   }
+}
+
+.demo-mode-Inpaint-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+
+  .got-it-btn {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .tooltip-wrapper {
+    position: absolute;
+    top: 28.583vh;
+    right: 19.444vw;
+  }
+
+  .tooltip-box {
+    background: #0A0622;
+    color: white;
+    border: 1.5px solid #00C4FA;
+    border-radius: 12px;
+    padding: 16px 20px;
+    width: 27.361vw;
+    height: 27.25vh;
+    font-family: 'IntelOne';
+    font-size: 16.5px;
+    position: relative;
+    line-height: 110%;
+  }
+
+  .tooltip-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .tooltip-circle {
+    width: 22.88px;
+    height: 22.88px;
+    border-radius: 50%;
+    background-color: transparent;
+    border: 1.5px solid #00C4FA;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .tooltip-button {
+    background: transparent;
+    border: none;
+    color: #00C4FA;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 18px;
+    margin-top: 8px;
+    float: right;
+  }
+
+  .tooltip-box::after {
+  content: "";
+  position: absolute;
+  right: -12px; /* Align to the right side */
+  bottom: 92px;    /* Adjust vertically as needed */
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 12px solid #0d0a2b; /* Inner arrow */
+  z-index: 2;
+}
+
+ .tooltip-box::before {
+  content: "";
+  position: absolute;
+  right: -14px;
+  bottom: 91px;
+  width: 0;
+  height: 0;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  border-left: 14px solid #00bfff; /* Outer border arrow */
+  z-index: 1;
+}
+}
+
+.demo-mode-inpaint-content {
+   border: 2px solid #00bfff;
+  z-index: 100;
+  pointer-events: none;
+  padding: 20px;
+  border-radius: 10.5px;
+  position: relative;
 }
 
 .demo-mode-outpaint-content {

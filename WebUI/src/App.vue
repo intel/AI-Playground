@@ -312,15 +312,7 @@ onBeforeMount(async () => {
   console.log(defaultPage,'default');
   activeTabIdx.value = defaultPage;
 
-  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
-  console.log(isDemoModeEnabled);
-  
-
-  // document.body.addEventListener('click', () => {
-  //   if(isDemoModeEnabled) {
-  //     isDemoModeEnabled = false;
-  //   }
-  // })
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();  
 
   document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {

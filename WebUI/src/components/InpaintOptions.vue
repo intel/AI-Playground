@@ -1,5 +1,5 @@
 <template>
-  <div class="flex justify-center gap-8 h-full text-white">
+  <div class="flex justify-center gap-8 h-full text-white" :class="{'demo-mode-inpaint-content': showInpaintTooltip}">
     <div class="flex items-center gap-5 flex-none">
       <span>{{ languages.ENHANCE_INPAINT_TYPE }}</span>
       <div class="flex items-center gap-2">
@@ -42,6 +42,10 @@ const emits = defineEmits<{
 onMounted(() => {
   emits('disablePrompt', paintType.value == 1)
 })
+
+defineProps<{
+  showInpaintTooltip: boolean
+}>()
 
 function getParams() {
   return {
