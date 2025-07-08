@@ -60,6 +60,7 @@
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(0)"
               class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
+              :class="{ 'demo-mode-overlay-content': showInPaintTooltip }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
             </button>
@@ -222,6 +223,7 @@
           v-model="prompt"
           :disabled="disabledPrompt"
           @keypress.enter.prevent="generate"
+          :class="{ 'demo-mode-overlay-content': showImagePromptToolTip || showOutPaintToolTip }"
         ></textarea>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
@@ -279,7 +281,10 @@
           <span>{{ languages.ENHANCE_OUTPAINT }}</span>
         </button>
       </div>
-      <div class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter">
+      <div
+        class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter"
+        :class="{ 'demo-mode-overlay-content': showEnhanceTooltip }"
+      >
         <div class="w-80 rounded-lg bg-color-control-bg relative h-full">
           <div class="flex flex-col items-center justify-center gap-2 text-white text-xs h-full">
             <p class="text-sm">{{ languages.COM_CLICK_UPLOAD }}</p>
@@ -303,15 +308,146 @@
           v-else-if="mode == 2"
           ref="imagePromptCompt"
           @disable-prompt="disablePrompt"
+          :show-image-prompt-tooltip="showImagePromptToolTip"
         ></image-prompt-options>
-        <inpaint-options v-else-if="mode == 3" ref="inpaintCompt"></inpaint-options>
+        <inpaint-options
+          v-else-if="mode == 3"
+          :show-image-prompt-tooltip="showInPaintTooltip"
+          ref="inpaintCompt"
+        ></inpaint-options>
         <outpaint-options
           v-else-if="mode == 4"
           ref="outpaintCompt"
           @disable-prompt="disablePrompt"
+          :show-outpaint-tooltip="showOutPaintToolTip"
         ></outpaint-options>
       </div>
     </div>
+    <transition name="fade">
+      <div class="demo-mode-enhance-overlay" v-if="showEnhanceTooltip">
+        <!-- Enhance Center Popup -->
+        <div class="center-popup">
+          <p>
+            <strong>{{ languages.DEMO_ENHANCE_TITLE }} : </strong>
+            {{ languages.DEMO_ENHANCE_HEADING }} {{ languages.DEMO_CREATE_CENTER_CONTENT_2 }}
+            <strong>{{ languages.DEMO_CREATE_TITLE }}</strong> {{ languages.DEMO_AND }}
+            <strong>{{ languages.DEMO_ANSWER_TITLE }}</strong>
+            {{ languages.DEMO_CREATE_CENTER_CONTENT_3 }}
+          </p>
+        </div>
+
+        <div class="tooltip-wrapper">
+          <div class="tooltip-box">
+            <div class="tooltip-row">
+              <div class="tooltip-circle">1</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_UPSCALE_TEXT }}
+              </p>
+            </div>
+
+            <div class="tooltip-row">
+              <div class="tooltip-circle">2</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_VARIATION_TEXT }}
+              </p>
+            </div>
+
+            <div class="got-it-btn">
+              <button class="tooltip-button" @click="onGotIt">
+                {{ languages.DEMO_OK_GOT_IT }} →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+    <transition name="fade">
+      <div class="demo-mode-Image-overlay" v-if="showImagePromptToolTip">
+        <div class="tooltip-wrapper">
+          <div class="tooltip-box">
+            <div class="tooltip-row">
+              <div class="tooltip-circle">1</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_IMAGE_TEXT }}
+              </p>
+            </div>
+
+            <div class="tooltip-row">
+              <div class="tooltip-circle">2</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_IMAGE_TEXT_2 }}
+              </p>
+            </div>
+
+            <div class="got-it-btn">
+              <button class="tooltip-button" @click="onGotIt">
+                {{ languages.DEMO_OK_GOT_IT }} →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+    <transition name="fade">
+      <div class="demo-mode-Image-overlay" v-if="showInPaintTooltip">
+        <div class="tooltip-wrapper">
+          <div class="tooltip-box">
+            <div class="tooltip-row">
+              <div class="tooltip-circle">1</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_INPAINT_ONE }}
+              </p>
+            </div>
+
+            <div class="tooltip-row">
+              <div class="tooltip-circle">2</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_INPAINT_TWO }}
+              </p>
+            </div>
+
+            <div class="got-it-btn">
+              <button class="tooltip-button" @click="onGotIt">
+                {{ languages.DEMO_OK_GOT_IT }} →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+    <transition name="fade">
+      <div class="demo-mode-outpaint-overlay" v-if="showOutPaintToolTip">
+        <div class="tooltip-wrapper">
+          <div class="tooltip-box">
+            <div class="tooltip-row">
+              <div class="tooltip-circle">1</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_OUTPAINT_TEXT }}
+              </p>
+            </div>
+
+            <div class="tooltip-row">
+              <div class="tooltip-circle">2</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_OUTPAINT_TEXT_2 }}
+              </p>
+            </div>
+
+            <div class="tooltip-row">
+              <div class="tooltip-circle">3</div>
+              <p class="tooltip-text">
+                {{ languages.DEMO_ENHANCE_OUTPAINT_TEXT_3 }}
+              </p>
+            </div>
+            <div class="got-it-btn">
+              <button class="tooltip-button" @click="onGotIt">
+                {{ languages.DEMO_OK_GOT_IT }} →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 <script setup lang="ts">
@@ -362,7 +498,10 @@ const maskData = reactive({
   mode: 0,
 })
 const uploadFile = ref<HTMLInputElement>()
-
+const showEnhanceTooltip = ref(false)
+const showImagePromptToolTip = ref(false)
+const showInPaintTooltip = ref(false)
+const showOutPaintToolTip = ref(false)
 const disabledPrompt = ref(false)
 const maskBrush = reactive({
   size: 32,
@@ -389,6 +528,24 @@ const showParams = ref(false)
 const generateParams = new Array<KVObject>()
 const infoParams = ref<KVObject>({})
 
+onMounted(async () => {
+  if (true) {
+    setTimeout(() => {
+      showEnhanceTooltip.value = true
+    }, 2200)
+  }
+})
+const startOverlay = () => {
+  if (mode.value == 1) {
+    showEnhanceTooltip.value = true
+  } else if (mode.value == 2) {
+    showImagePromptToolTip.value = true
+  } else if (mode.value == 3 && sourceImgFile) {
+    showInPaintTooltip.value = true
+  } else if (mode.value == 4) {
+    showOutPaintToolTip.value = true
+  }
+}
 watchEffect(() => {
   if (mode.value == 3 && previewIdx.value == -1) {
     nextTick(() => {
@@ -402,6 +559,13 @@ function updateMaskData(e: Event) {
   maskData.width = image.clientWidth
   maskData.height = image.clientHeight
   inpaintMaskCompt.value!.clearMaskImage()
+}
+
+function onGotIt() {
+  showEnhanceTooltip.value = false
+  showImagePromptToolTip.value = false
+  showInPaintTooltip.value = false
+  showOutPaintToolTip.value = false
 }
 
 function previewImage(image: File) {
@@ -447,6 +611,19 @@ function dropImageFile(e: DragEvent) {
 
 function switchFeature(value: number) {
   mode.value = value
+  if (value == 2) {
+    setTimeout(() => {
+      showImagePromptToolTip.value = true
+    }, 1200)
+  } else if (mode.value == 3 && sourceImgFile) {
+    setTimeout(() => {
+      showInPaintTooltip.value = true
+    }, 1200)
+  } else if (value == 4) {
+    setTimeout(() => {
+      showOutPaintToolTip.value = true
+    }, 1200)
+  }
 }
 
 function finishGenerate() {
@@ -784,5 +961,5 @@ function toggleParamsDialog() {
     infoParams.value = generateParams[previewIdx.value]
   }
 }
-defineExpose({ receiveImage })
+defineExpose({ receiveImage, startOverlay })
 </script>

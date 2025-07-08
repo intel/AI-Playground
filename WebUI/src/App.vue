@@ -148,10 +148,12 @@
         {{ languages.TAB_LEARN_MORE }}
       </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
+      <button v-if="isDemoModeEnabled" class="help-button" @click="triggerHelp">{{ languages.DEMO_NEED_HELP }}</button>
     </div>
     <div class="main-content flex-auto rounded-t-lg relative">
       <create
         v-show="activeTabIdx == 0"
+        ref="createCompt"
         @postImageToEnhance="postImageToEnhance"
         @show-download-model-confirm="showDownloadModelConfirm"
       ></create>
@@ -289,6 +291,8 @@ const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
 const debugToolsEnabled = window.envVars.debugToolsEnabled
 
+let isDemoModeEnabled : boolean = false;
+
 const mode = useColorMode()
 mode.value = 'dark'
 
@@ -304,6 +308,19 @@ onBeforeMount(async () => {
       console.log(`[${source}] ${message}`)
     }
   })
+  const defaultPage = await window.electronAPI.getCmdParams();
+  console.log(defaultPage,'default');
+  activeTabIdx.value = defaultPage;
+
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
+  console.log(isDemoModeEnabled);
+  
+
+  // document.body.addEventListener('click', () => {
+  //   if(isDemoModeEnabled) {
+  //     isDemoModeEnabled = false;
+  //   }
+  // })
 
   document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
@@ -338,6 +355,17 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
   if (backendServices.allRequiredSetUp) {
     await globalSetup.initSetup()
     globalSetup.loadingState = 'running'
+  }
+}
+
+const createCompt = ref()
+const triggerHelp = () => {
+  if (activeTabIdx.value === 0 && createCompt.value?.startOverlay) {
+    createCompt.value.startOverlay()
+  } else if (activeTabIdx.value === 1 && enhanceCompt.value?.startOverlay) {
+    enhanceCompt.value.startOverlay()
+  } else if (activeTabIdx.value === 2 && answer.value?.startOverlay) {
+    answer.value.startOverlay()
   }
 }
 
@@ -438,3 +466,6 @@ function showWarning(message: string, func: () => void) {
   })
 }
 </script>
+<!-- <style scoped>
+
+</style> -->

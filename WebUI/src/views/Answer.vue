@@ -417,7 +417,7 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-            :title=languages.SETTINGS_INFERENCE_BACKEND
+            title="Inference Backend"
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
@@ -428,8 +428,24 @@
               }))
             "
           ></drop-down-new>
-          <DeviceSelector :backend="backendToService[textInference.backend]" />
-          <ModelSelector />
+          <drop-down-new
+            title="Text Inference Model"
+            @change="(item) => textInference.selectModel(textInference.backend, item)"
+            :value="
+              textInference.llmModels
+                .filter((m) => m.type === textInference.backend)
+                .find((m) => m.active)?.name ?? ''
+            "
+            :items="
+              textInference.llmModels
+                .filter((m) => m.type === textInference.backend)
+                .map((item) => ({
+                  label: item.name.split('/').at(-1) ?? item.name,
+                  value: item.name,
+                  active: item.downloaded,
+                }))
+            "
+          ></drop-down-new>
           <button @click="addLLMModel">
             <PlusIcon class="size-6 text-purple-500"></PlusIcon>
           </button>
@@ -477,11 +493,25 @@
           </button>
         </div>
         <div class="flex items-center gap-2">
+          <!-- <div class="v-checkbox flex-none" type="button" :disabled="processing">
+            <button
+              v-show="!ragData.processEnable"
+              class="v-checkbox-control flex-none"
+              :class="{ 'v-checkbox-checked': ragData.enable }"
+              @click="toggleRag(!ragData.enable)"
+            ></button>
+            <span
+              v-show="ragData.processEnable"
+              class="w-4 h-4 svg-icon i-loading flex-none"
+            ></span>
+            <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
+          </div> -->
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
             :disabled="processing"
             :title="languages.ANSWER_RAG_OPEN_DIALOG"
+            :class="{ 'demo-mode-overlay-content': showAnswerOverlay }"
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
@@ -512,6 +542,7 @@
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
+          :class="{ 'demo-mode-overlay-content': showAnswerOverlay }"
         ></textarea>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
@@ -534,6 +565,34 @@
         </button>
       </div>
     </div>
+  <transition name="fade">
+    <div class="demo-mode-answer-overlay" v-if="showAnswerOverlay">
+    <!-- Enhance Center Popup -->
+    <div class="center-popup">
+      <p>
+        <strong>{{ languages.DEMO_ANSWER_TITLE }} : </strong>{{ languages.DEMO_ANSWER_HEADING }}
+         {{ languages.DEMO_CREATE_CENTER_CONTENT_2 }} <strong>{{ languages.DEMO_CREATE_TITLE}}</strong> {{ languages.DEMO_AND }} <strong>{{ languages.DEMO_ENHANCE_TITLE }}</strong> {{ languages.DEMO_CREATE_CENTER_CONTENT_3 }}
+      </p>
+    </div>
+
+    <div class="tooltip-wrapper">
+    <div class="tooltip-box">
+      <div class="tooltip-row">
+        <div class="tooltip-circle">1</div>
+        <div>
+         <p>{{ languages.DEMO_ANSWER_GENERATE_TEXT }}</p>
+          <p class="content-tooltip"><em>{{ languages.DEMO_YOU_COULD_TYPE }}</em> <span class="italic-blue">"{{ languages.DEMO_ANSWER_GENERATE_HELP_TEXT }}"</span></p>
+          </div>
+        </div>
+      <div class="got-it-btn">
+         <button class="tooltip-button" @click="hideOverlay">
+        {{ languages.DEMO_OK_GOT_IT }} →
+        </button>
+      </div>
+    </div>
+  </div>
+  </div>
+  </transition>
   </div>
 </template>
 <script setup lang="ts">
@@ -549,17 +608,10 @@ import { useModels } from '@/assets/js/store/models'
 import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import DropDownNew from '@/components/DropDownNew.vue'
-import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
-import {
-  llmBackendTypes,
-  LlmBackend,
-  useTextInference,
-  backendToService,
-} from '@/assets/js/store/textInference'
+import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
-import ModelSelector from '@/components/ModelSelector.vue'
 
 const conversations = useConversations()
 const models = useModels()
@@ -588,6 +640,7 @@ const showRagPreview = ref(true)
 let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
+const showAnswerOverlay = ref(false)
 
 const thinkingModels: Record<string, string> = {
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
@@ -652,7 +705,21 @@ const autoScrollEnabled = ref(true)
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
+  if (true) {
+    setTimeout(() => {
+      showAnswerOverlay.value = true
+      console.log("timeout");
+    }, 2200)
+  }
 })
+
+const startOverlay = () => {
+  showAnswerOverlay.value = true
+}
+
+function hideOverlay() {
+  showAnswerOverlay.value = false
+}
 
 function finishGenerate() {
   textOutFinish = true
@@ -1294,5 +1361,6 @@ function copyCode(e: MouseEvent) {
 
 defineExpose({
   checkModel: checkModelAvailability,
+  startOverlay 
 })
 </script>
