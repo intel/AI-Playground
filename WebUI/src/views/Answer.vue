@@ -417,7 +417,7 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-           :title=languages.SETTINGS_INFERENCE_BACKEND
+            :title=languages.SETTINGS_INFERENCE_BACKEND
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
