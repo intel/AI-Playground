@@ -56,6 +56,7 @@ onMounted(() => {
   emits('disablePrompt', false)
 })
 defineProps<{
+  /** Get status of tooltip to show from enhance compoent */
   showOutpaintTooltip: boolean
 }>()
 function toggleDirection(value: string) {

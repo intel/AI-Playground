@@ -556,7 +556,7 @@
         </div>
       <div class="got-it-btn">
          <button class="tooltip-button" @click="hideOverlay">
-        {{ languages.DEMO_OK_GOT_IT }} →
+        {{ languages.DEMO_OK_GOT_IT }} &#8594;
         </button>
       </div>
     </div>
@@ -683,6 +683,7 @@ let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
+  /** Get demo mode flag from settings file to show tooltip for answer page */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
   if (isDemoModeEnabled) {
     setTimeout(() => {
@@ -691,10 +692,12 @@ onMounted(async () => {
   }
 })
 
+/** start tooltip overlay for answer page */
 const startOverlay = () => {
   showAnswerOverlay.value = true
 }
 
+/** hide tooltip overlay for answer page */
 function hideOverlay() {
   showAnswerOverlay.value = false
 }

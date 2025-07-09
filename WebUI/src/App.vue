@@ -148,7 +148,7 @@
         {{ languages.TAB_LEARN_MORE }}
       </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
-      <button v-if="!isDemoModeEnabled" class="help-button" @click="triggerHelp">{{ languages.DEMO_NEED_HELP }}</button>
+      <button v-if="isDemoModeEnabled" class="demo-help-button" @click="triggerHelp">{{ languages.DEMO_NEED_HELP }}</button>
     </div>
     <div class="main-content flex-auto rounded-t-lg relative">
       <create
@@ -308,9 +308,11 @@ onBeforeMount(async () => {
       console.log(`[${source}] ${message}`)
     }
   })
+  /** Get command line parameters and load default page on AIPG screen  */
   const defaultPage = await window.electronAPI.getCmdParams();
   activeTabIdx.value = defaultPage;
 
+  /** To check whether demo mode is enabled or not for AIPG */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();  
 
   document.body.addEventListener('mousedown', autoHideAppSettings)
@@ -349,6 +351,7 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
   }
 }
 
+/** Get tooltips of AIPG demo mode on click of Help button */
 const createCompt = ref()
 const triggerHelp = () => {
   if (activeTabIdx.value === 0 && createCompt.value?.startOverlay) {
@@ -457,6 +460,3 @@ function showWarning(message: string, func: () => void) {
   })
 }
 </script>
-<!-- <style scoped>
-
-</style> -->

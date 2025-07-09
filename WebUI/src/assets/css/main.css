@@ -480,9 +480,9 @@ footer {
   }
 
   .tooltip-box {
-    background: #0A0622;
+    background: #0a0622;
     color: white;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -506,7 +506,7 @@ footer {
     height: 22.88px;
     border-radius: 50%;
     background-color: transparent;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
     font-size: 16px;
@@ -520,7 +520,7 @@ footer {
   .tooltip-button {
     background: transparent;
     border: none;
-    color: #00C4FA;
+    color: #00c4fa;
     font-weight: bold;
     cursor: pointer;
     font-size: 18px;
@@ -529,7 +529,7 @@ footer {
   }
 
   .tooltip-box::after {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -12px;
     left: 40px;
@@ -542,7 +542,7 @@ footer {
   }
 
   .tooltip-box::before {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -14px;
     left: 39px;
@@ -560,7 +560,7 @@ footer {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 10;
-  
+
   .got-it-btn {
     width: 100%;
     display: flex;
@@ -568,7 +568,7 @@ footer {
   }
 
   .overlay-textbox {
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     z-index: 9;
     pointer-events: none;
   }
@@ -578,8 +578,8 @@ footer {
     top: 20%;
     left: 50%;
     transform: translateX(-50%);
-    background-color: #0A0622;
-    border: 1.5px solid #00C4FA;
+    background-color: #0a0622;
+    border: 1.5px solid #00c4fa;
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
@@ -596,9 +596,9 @@ footer {
   }
 
   .tooltip-box {
-    background: #0A0622;
+    background: #0a0622;
     color: white;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -619,7 +619,7 @@ footer {
     height: 22.88px;
     border-radius: 50%;
     background-color: transparent;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
     font-size: 16px;
@@ -633,7 +633,7 @@ footer {
   .tooltip-button {
     background: transparent;
     border: none;
-    color: #00C4FA;
+    color: #00c4fa;
     font-weight: bold;
     cursor: pointer;
     font-size: 18px;
@@ -642,7 +642,7 @@ footer {
   }
 
   .tooltip-box::after {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -12px;
     left: 40px;
@@ -655,7 +655,7 @@ footer {
   }
 
   .tooltip-box::before {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -14px;
     left: 39px;
@@ -687,8 +687,8 @@ footer {
   }
 
   .popup-box {
-    border: 1.5px solid #00C4FA;
-    background: #0A0622;
+    border: 1.5px solid #00c4fa;
+    background: #0a0622;
     color: #fff;
     border-radius: 10px;
     padding: 16px 20px;
@@ -699,8 +699,8 @@ footer {
   }
 
   .prompt-popup-box {
-    border: 1.5px solid #00C4FA;
-    background: #0A0622;
+    border: 1.5px solid #00c4fa;
+    background: #0a0622;
     color: #fff;
     border-radius: 10px;
     font-size: 16.5px;
@@ -733,7 +733,7 @@ footer {
     height: 22.88px;
     border-radius: 50%;
     background-color: transparent;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
     font-size: 15px;
@@ -760,14 +760,14 @@ footer {
     font-weight: 500;
     background: none;
     border: none;
-    color: #3BC8FF;
+    color: #3bc8ff;
     font-weight: bold;
     cursor: pointer;
     justify-content: flex-end;
   }
 
   .prompt-popup-box::after {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -12px;
     left: 40px;
@@ -780,7 +780,7 @@ footer {
   }
 
   .prompt-popup-box::before {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -14px;
     left: 39px;
@@ -827,9 +827,9 @@ footer {
   }
 
   .tooltip-box {
-    background: #0A0622;
+    background: #0a0622;
     color: white;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -850,7 +850,7 @@ footer {
     height: 22.88px;
     border-radius: 50%;
     background-color: transparent;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
     font-size: 16px;
@@ -864,7 +864,7 @@ footer {
   .tooltip-button {
     background: transparent;
     border: none;
-    color: #00C4FA;
+    color: #00c4fa;
     font-weight: bold;
     cursor: pointer;
     font-size: 18px;
@@ -873,7 +873,7 @@ footer {
   }
 
   .tooltip-box::after {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -12px;
     left: 40px;
@@ -886,7 +886,7 @@ footer {
   }
 
   .tooltip-box::before {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -14px;
     left: 39px;
@@ -918,9 +918,9 @@ footer {
   }
 
   .tooltip-box {
-    background: #0A0622;
+    background: #0a0622;
     color: white;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -942,7 +942,7 @@ footer {
     height: 22.88px;
     border-radius: 50%;
     background-color: transparent;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
     font-size: 16px;
@@ -956,7 +956,7 @@ footer {
   .tooltip-button {
     background: transparent;
     border: none;
-    color: #00C4FA;
+    color: #00c4fa;
     font-weight: bold;
     cursor: pointer;
     font-size: 18px;
@@ -965,7 +965,7 @@ footer {
   }
 
   .tooltip-box::after {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -12px;
     left: 40px;
@@ -978,7 +978,7 @@ footer {
   }
 
   .tooltip-box::before {
-    content: "";
+    content: '';
     position: absolute;
     bottom: -14px;
     left: 39px;
@@ -991,7 +991,7 @@ footer {
   }
 }
 
-.demo-mode-Inpaint-overlay {
+.demo-mode-inpaint-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -1010,9 +1010,9 @@ footer {
   }
 
   .tooltip-box {
-    background: #0A0622;
+    background: #0a0622;
     color: white;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
     width: 27.361vw;
@@ -1034,7 +1034,7 @@ footer {
     height: 22.88px;
     border-radius: 50%;
     background-color: transparent;
-    border: 1.5px solid #00C4FA;
+    border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
     font-size: 16px;
@@ -1048,7 +1048,7 @@ footer {
   .tooltip-button {
     background: transparent;
     border: none;
-    color: #00C4FA;
+    color: #00c4fa;
     font-weight: bold;
     cursor: pointer;
     font-size: 18px;
@@ -1057,34 +1057,34 @@ footer {
   }
 
   .tooltip-box::after {
-  content: "";
-  position: absolute;
-  right: -12px; /* Align to the right side */
-  bottom: 92px;    /* Adjust vertically as needed */
-  width: 0;
-  height: 0;
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  border-left: 12px solid #0d0a2b; /* Inner arrow */
-  z-index: 2;
-}
+    content: '';
+    position: absolute;
+    right: -12px; /* Align to the right side */
+    bottom: 92px; /* Adjust vertically as needed */
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-left: 12px solid #0d0a2b; /* Inner arrow */
+    z-index: 2;
+  }
 
- .tooltip-box::before {
-  content: "";
-  position: absolute;
-  right: -14px;
-  bottom: 91px;
-  width: 0;
-  height: 0;
-  border-top: 11px solid transparent;
-  border-bottom: 11px solid transparent;
-  border-left: 14px solid #00bfff; /* Outer border arrow */
-  z-index: 1;
-}
+  .tooltip-box::before {
+    content: '';
+    position: absolute;
+    right: -14px;
+    bottom: 91px;
+    width: 0;
+    height: 0;
+    border-top: 11px solid transparent;
+    border-bottom: 11px solid transparent;
+    border-left: 14px solid #00bfff; /* Outer border arrow */
+    z-index: 1;
+  }
 }
 
 .demo-mode-inpaint-content {
-   border: 2px solid #00bfff;
+  border: 2px solid #00bfff;
   z-index: 100;
   pointer-events: none;
   padding: 20px;
@@ -1124,24 +1124,24 @@ footer {
 .fade-leave-from {
   opacity: 1;
 }
-.upscale-content { 
-    position: relative;
+.upscale-content {
+  position: relative;
+  height: 100%;
+  &::after {
+    position: absolute;
+    right: -25px;
+    top: 0px;
     height: 100%;
-    &::after {
-      position: absolute;
-      right: -25px;
-      top: 0px;
-      height: 100%;
-      content: '';
-      border-right: 1px solid var(--color-spilter);    
+    content: '';
+    border-right: 1px solid var(--color-spilter);
   }
 }
 
-.help-button {
+.demo-help-button {
   position: absolute;
   top: 12px;
   right: 20px;
-  background-color: #01AEF2;
+  background-color: #01aef2;
   color: #fff;
   font-weight: 400;
   padding: 6px 12px;
@@ -1151,11 +1151,6 @@ footer {
   font-size: 0.8vw;
   width: 7.042vw;
   height: 3.519vh;
-}
-
-.hide-help-button {
-  display: none;
-  pointer-events: none;
 }
 
 /* .main-content */

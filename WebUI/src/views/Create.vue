@@ -197,7 +197,7 @@
         <p>{{ languages.DEMO_CREATE_POPUP_CONTENT_1 }}</p>
         <p class="example">{{ languages.DEMO_YOU_COULD_TYPE }} <em>"{{ languages.DEMO_CREATE_POPUP_CONTENT_3 }}"</em>.</p>
         <div class="got-it-btn">
-        <button class="action" @click="onGotIt()">{{ languages.DEMO_OK_GOT_IT }} →</button>
+        <button class="action" @click="hideOverlay()">{{ languages.DEMO_OK_GOT_IT }} &#8594;</button>
         </div>
       </div>
     </div>
@@ -225,6 +225,7 @@ const showTooltip = ref(false)
 let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
+  /** Get demo mode flag from settings file to show tooltip for create page */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
   if (isDemoModeEnabled) {
     setTimeout(() => {
@@ -232,6 +233,7 @@ onMounted(async () => {
     }, 2200)
   }
 })
+/** start tooltip overlay for enhance page */
 const startOverlay = () => {
   showTooltip.value = true
 }
@@ -302,7 +304,8 @@ function deleteImage(image: MediaItem) {
   imageGeneration.deleteImage(image.id)
 }
 
-function onGotIt() {
+/** hide tooltip overlay for answer page */
+function hideOverlay() {
   showTooltip.value = false;
 }
 
@@ -329,9 +332,7 @@ function getMediaUrl(image: MediaItem) {
   return isVideo(image) ? image.videoUrl : image.imageUrl
 }
 
-/*
-* To restart overlay using Need Help Button
-*/
+/** To expose overlay to other files to show and hide tooltip from their (i.e. help button in App.vue file) */
 defineExpose({
   startOverlay
 })

@@ -349,8 +349,8 @@
             </div>
 
             <div class="got-it-btn">
-              <button class="tooltip-button" @click="onGotIt">
-                {{ languages.DEMO_OK_GOT_IT }} →
+              <button class="tooltip-button" @click="hideOverlay">
+                {{ languages.DEMO_OK_GOT_IT }} &#8594;
               </button>
             </div>
           </div>
@@ -376,8 +376,8 @@
             </div>
 
             <div class="got-it-btn">
-              <button class="tooltip-button" @click="onGotIt">
-                {{ languages.DEMO_OK_GOT_IT }} →
+              <button class="tooltip-button" @click="hideOverlay">
+                {{ languages.DEMO_OK_GOT_IT }} &#8594;
               </button>
             </div>
           </div>
@@ -385,7 +385,7 @@
       </div>
     </transition>
     <transition name="fade">
-      <div class="demo-mode-Inpaint-overlay" v-if="showInPaintToolTip">
+      <div class="demo-mode-inpaint-overlay" v-if="showInPaintToolTip">
         <div class="tooltip-wrapper">
           <div class="tooltip-box">
             <div class="tooltip-row">
@@ -411,8 +411,8 @@
             
 
             <div class="got-it-btn">
-              <button class="tooltip-button" @click="onGotIt">
-                {{ languages.DEMO_OK_GOT_IT }} →
+              <button class="tooltip-button" @click="hideOverlay">
+                {{ languages.DEMO_OK_GOT_IT }} &#8594;
               </button>
             </div>
           </div>
@@ -444,8 +444,8 @@
               </p>
             </div>
             <div class="got-it-btn">
-              <button class="tooltip-button" @click="onGotIt">
-                {{ languages.DEMO_OK_GOT_IT }} →
+              <button class="tooltip-button" @click="hideOverlay">
+                {{ languages.DEMO_OK_GOT_IT }} &#8594;
               </button>
             </div>
           </div>
@@ -534,6 +534,7 @@ const infoParams = ref<KVObject>({})
 let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
+  /** Get demo mode flag from settings file to show tooltip for enhance page */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
   if (isDemoModeEnabled) {
     setTimeout(() => {
@@ -541,6 +542,7 @@ onMounted(async () => {
     }, 2200)
   }
 })
+/** TO start tooltip overlay for all sub section of Enhance page */
 const startOverlay = () => {
   if (mode.value == 1) {
     showEnhanceTooltip.value = true
@@ -567,7 +569,8 @@ function updateMaskData(e: Event) {
   inpaintMaskCompt.value!.clearMaskImage()
 }
 
-function onGotIt() {
+/** hide tooltip overlay for answer page */
+function hideOverlay() {
   showEnhanceTooltip.value = false
   showImagePromptToolTip.value = false
   showInPaintToolTip.value = false

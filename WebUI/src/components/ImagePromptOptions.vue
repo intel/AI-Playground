@@ -15,6 +15,7 @@ const emits = defineEmits<{
   (e: 'disablePrompt', value: boolean): void
 }>()
 defineProps<{
+  /** Get status of tooltip to show from enhance compoent */
   showImagePromptTooltip: boolean
 }>()
 

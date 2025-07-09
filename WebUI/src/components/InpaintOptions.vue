@@ -44,6 +44,7 @@ onMounted(() => {
 })
 
 defineProps<{
+  /** Get status of tooltip to show from enhance compoent */
   showInpaintTooltip: boolean
 }>()
 
