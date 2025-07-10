@@ -216,7 +216,7 @@
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
-      <div class="flex justify-center items-center gap-3">
+      <div class="flex justify-center items-center gap-3" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showImagePromptToolTip) }">
         <textarea
           class="flex-auto h-20 resize-none"
           :placeholder="languages.COM_SD_PROMPT"
@@ -225,6 +225,7 @@
           @keypress.enter.prevent="generate"
           :class="{ 'demo-mode-overlay-content': showImagePromptToolTip || showOutPaintToolTip || showInPaintToolTip}"
         ></textarea>
+        <div v-if="isDemoModeEnabled && showImagePromptToolTip" class="demo-step-number">1</div>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-show="!processing"
@@ -283,7 +284,7 @@
       </div>
       <div
         class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter"
-        :class="{ 'demo-mode-overlay-content': showEnhanceTooltip }"
+        :class="{ 'demo-mode-overlay-content': showEnhanceTooltip, 'demo-number-overlay': (isDemoModeEnabled && showEnhanceTooltip) }"
       >
         <div class="w-80 rounded-lg bg-color-control-bg relative h-full">
           <div class="flex flex-col items-center justify-center gap-2 text-white text-xs h-full">
@@ -299,6 +300,7 @@
             @drop="dropImageFile"
           />
         </div>
+        <div v-if="isDemoModeEnabled" class="demo-step-number">1</div>
         <upscale-options
           v-if="mode == 1"
           ref="upscaleCompt"
@@ -309,6 +311,7 @@
           ref="imagePromptCompt"
           @disable-prompt="disablePrompt"
           :show-image-prompt-tooltip="showImagePromptToolTip"
+          :is-demo-mode-enabled="isDemoModeEnabled"
         ></image-prompt-options>
         <inpaint-options
           v-else-if="mode == 3"
@@ -531,27 +534,33 @@ const stopping = ref(false)
 const showParams = ref(false)
 const generateParams = new Array<KVObject>()
 const infoParams = ref<KVObject>({})
+
 let isDemoModeEnabled : boolean = false;
+const completedEnhanceDemos = {imagePrompt: false, inpaint: false, outpaint: false};
+let showTooltipTimeout : NodeJS.Timeout;
 
 onMounted(async () => {
-  /** Get demo mode flag from settings file to show tooltip for enhance page */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
-  if (isDemoModeEnabled) {
-    setTimeout(() => {
-      showEnhanceTooltip.value = true
-    }, 2200)
-  }
 })
-/** TO start tooltip overlay for all sub section of Enhance page */
+
+/** TO start tooltip overlay for Upscale tab when user first time visits enhance page */
 const startOverlay = () => {
-  if (mode.value == 1) {
-    showEnhanceTooltip.value = true
-  } else if (mode.value == 2) {
-    showImagePromptToolTip.value = true
-  } else if (mode.value == 3 && sourceImgFile) {
-    showInPaintToolTip.value = true
-  } else if (mode.value == 4) {
-    showOutPaintToolTip.value = true
+  switch (mode.value) {
+    case 1:
+      showEnhanceTooltip.value = true;
+      break;
+    case 2:
+      showImagePromptToolTip.value = true;
+      break;
+    case 3:
+      if(sourceImgFile) {
+        showInPaintToolTip.value = true;
+      }
+      break;
+    case 4:
+      showOutPaintToolTip.value = true;
+    default:
+      break;
   }
 }
 watchEffect(() => {
@@ -620,18 +629,20 @@ function dropImageFile(e: DragEvent) {
 
 function switchFeature(value: number) {
   mode.value = value
-  if (value == 2) {
-    setTimeout(() => {
-      showImagePromptToolTip.value = true
-    }, 1200)
-  } else if (mode.value == 3 && sourceImgFile) {
-    setTimeout(() => {
-      showInPaintToolTip.value = true
-    }, 1200)
-  } else if (value == 4) {
-    setTimeout(() => {
-      showOutPaintToolTip.value = true
-    }, 1200)
+  /** When demo mode is on and user visits any sub section of enhance first time, it should open tooltip by default */
+  if(isDemoModeEnabled) {
+    showTooltipTimeout = setTimeout(() => {
+      if(mode.value == 2 && !completedEnhanceDemos.imagePrompt) {
+        completedEnhanceDemos.imagePrompt = true;
+        showImagePromptToolTip.value = true
+      } else if(mode.value == 3 && sourceImgFile && !completedEnhanceDemos.inpaint) {
+        completedEnhanceDemos.inpaint = true;
+        showInPaintToolTip.value = true
+      } else if(mode.value == 4 && !completedEnhanceDemos.outpaint) {
+        completedEnhanceDemos.outpaint = true;
+        showOutPaintToolTip.value = true
+      }
+    }, 1200);
   }
 }
 
@@ -970,5 +981,10 @@ function toggleParamsDialog() {
     infoParams.value = generateParams[previewIdx.value]
   }
 }
-defineExpose({ receiveImage, startOverlay })
+
+onBeforeUnmount(() => {
+  clearTimeout(showTooltipTimeout) 
+})
+
+defineExpose({ receiveImage, startOverlay, hideOverlay })
 </script>

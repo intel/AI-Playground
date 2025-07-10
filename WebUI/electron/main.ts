@@ -146,6 +146,12 @@ async function createWindow() {
     win.webContents.openDevTools({ mode: 'detach', activate: true })
   }
 
+  if(settings.isDemoModeEnabled) {
+    win.setFullScreen(true);
+    win.maximize();
+    win.setKiosk(true);
+  }
+
   session.webRequest.onBeforeSendHeaders((details, callback) => {
     callback({
       requestHeaders: {

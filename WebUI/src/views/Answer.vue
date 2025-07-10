@@ -476,7 +476,7 @@
             <span class="svg-icon i-zoom-out w-4 h-4"></span>
           </button>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showAnswerOverlay) }">
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
@@ -486,6 +486,7 @@
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
+            <div v-if="isDemoModeEnabled && showAnswerOverlay" class="demo-step-number">1</div>
           </button>
           <drop-down-new
             :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
@@ -507,7 +508,7 @@
           ></drop-down-new>
         </div>
       </div>
-      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
+      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showAnswerOverlay) }">
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
@@ -515,6 +516,7 @@
           @keydown="fastGenerate"
           :class="{ 'demo-mode-overlay-content': showAnswerOverlay }"
         ></textarea>
+        <div v-if="isDemoModeEnabled && showAnswerOverlay" class="demo-step-number demo-step-number-answer">1</div>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-if="!processing"
@@ -683,13 +685,7 @@ let isDemoModeEnabled : boolean = false;
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
-  /** Get demo mode flag from settings file to show tooltip for answer page */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
-  if (isDemoModeEnabled) {
-    setTimeout(() => {
-      showAnswerOverlay.value = true
-    }, 2200)
-  }
 })
 
 /** start tooltip overlay for answer page */
@@ -1342,6 +1338,7 @@ function copyCode(e: MouseEvent) {
 
 defineExpose({
   checkModel: checkModelAvailability,
-  startOverlay 
+  startOverlay,
+  hideOverlay
 })
 </script>

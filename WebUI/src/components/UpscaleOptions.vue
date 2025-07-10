@@ -14,11 +14,13 @@
       ></radio>
     </div>
   </div>
-  <div>
+  <div :class="{'demo-number-overlay' : true}">
+    <span class="demo-vertical-line"></span>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
     <div class="gap-3 w-80">
       <slide-bar v-model:current="denoise" :min="0" :max="1" :step="0.01"></slide-bar>
     </div>
+    <div v-if="true" class="demo-step-number">2</div>
   </div>
 </template>
 <script setup lang="ts">

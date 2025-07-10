@@ -475,7 +475,7 @@ footer {
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 17.635vw;
+    bottom: 17vw;
     left: 3.646vw;
   }
 
@@ -1153,4 +1153,42 @@ footer {
   height: 3.519vh;
 }
 
+.demo-right-arrow {
+  content: '\2192';
+  cursor: pointer;
+}
+
+.demo-number-overlay {
+  position: relative;
+}
+
+.demo-vertical-line {
+  position: absolute;
+  width: 2vw;
+  height: 5vh;
+
+}
+
+.demo-step-number {
+  z-index: 101;
+  position: absolute;
+  background: #0a0622;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+  width: 22.88px;
+  height: 22.88px;
+  border-radius: 50%;
+  border: 1.5px solid #00c4fa;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.demo-step-number-answer {
+  transform: translate(-30%, -30%) !important;
+}
 /* .main-content */

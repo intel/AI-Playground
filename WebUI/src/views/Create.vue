@@ -146,17 +146,18 @@
           :generationParameters="currentImage?.settings ?? {}"
           :dynamicInputs="currentImage?.dynamicSettings"
           @close="showInfoParams = false"
-        ></info-table>
+          ></info-table>
+        </div>
       </div>
-    </div>
-    <div class="h-32 gap-3 flex-none flex items-center">
-      <textarea
-        class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
-        :placeholder="languages.COM_SD_PROMPT"
-        v-model="imageGeneration.prompt"
-        @keydown.enter.prevent="generateImage"
-        :class="{ 'demo-mode-overlay-content': showTooltip}"
-      ></textarea>
+      <div class="h-32 gap-3 flex-none flex items-center" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showTooltip) }">
+          <textarea
+          class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
+          :placeholder="languages.COM_SD_PROMPT"
+          v-model="imageGeneration.prompt"
+          @keydown.enter.prevent="generateImage"
+          :class="{ 'demo-mode-overlay-content': showTooltip}"
+        ></textarea>
+        <div v-if="isDemoModeEnabled && showTooltip" class="demo-step-number">1</div>
       <button
         class="gernate-btn self-stretch flex flex-col w-32 flex-none"
         v-show="!imageGeneration.processing"
@@ -224,15 +225,10 @@ const currentImage: ComputedRef<MediaItem | null> = computed(() => {
 const showTooltip = ref(false)
 let isDemoModeEnabled : boolean = false;
 
-onMounted(async () => {
-  /** Get demo mode flag from settings file to show tooltip for create page */
+onMounted(async() => {
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
-  if (isDemoModeEnabled) {
-    setTimeout(() => {
-      showTooltip.value = true
-    }, 2200)
-  }
 })
+
 /** start tooltip overlay for enhance page */
 const startOverlay = () => {
   showTooltip.value = true
@@ -334,6 +330,7 @@ function getMediaUrl(image: MediaItem) {
 
 /** To expose overlay to other files to show and hide tooltip from their (i.e. help button in App.vue file) */
 defineExpose({
-  startOverlay
+  startOverlay,
+  hideOverlay
 })
 </script>
