@@ -27,7 +27,7 @@
         ></slide-bar>
       </div>
     </div>
-    <div v-if="isDemoModeEnabled" class="demo-step-number">3</div>
+    <div v-if="isDemoModeEnabled && showInpaintTooltip" class="demo-step-number">3</div>
   </div>
 </template>
 <script setup lang="ts">

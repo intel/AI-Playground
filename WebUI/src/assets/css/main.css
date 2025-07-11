@@ -471,6 +471,7 @@ footer {
     transform: translateX(-50%);
     background-color: rgba(0, 0, 50, 0.85);
     border: 2px solid #00bfff;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
@@ -489,6 +490,7 @@ footer {
     background: #0a0622;
     color: white;
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -586,6 +588,7 @@ footer {
     transform: translateX(-50%);
     background-color: #0a0622;
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
@@ -605,6 +608,7 @@ footer {
     background: #0a0622;
     color: white;
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -694,6 +698,7 @@ footer {
 
   .popup-box {
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     background: #0a0622;
     color: #fff;
     border-radius: 10px;
@@ -706,6 +711,7 @@ footer {
 
   .prompt-popup-box {
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     background: #0a0622;
     color: #fff;
     border-radius: 10px;
@@ -805,21 +811,6 @@ footer {
   background: rgba(0, 0, 0, 0.5);
   z-index: 10;
 
-  .fade-enter-active,
-  .fade-leave-active {
-    transition: opacity 0.75s ease;
-  }
-
-  .fade-enter-from,
-  .fade-leave-to {
-    opacity: 0;
-  }
-
-  .fade-enter-to,
-  .fade-leave-from {
-    opacity: 1;
-  }
-
   .got-it-btn {
     width: 100%;
     display: flex;
@@ -836,6 +827,7 @@ footer {
     background: #0a0622;
     color: white;
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -927,6 +919,7 @@ footer {
     background: #0a0622;
     color: white;
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 12px;
     padding: 16px 20px;
     width: 26.51vw;
@@ -1019,6 +1012,7 @@ footer {
     background: #0a0622;
     color: white;
     border: 1.5px solid #00c4fa;
+    box-shadow: 0px 0.75px 4.95px #00C4FA;
     border-radius: 12px;
     padding: 16px 20px;
     width: 27.361vw;
