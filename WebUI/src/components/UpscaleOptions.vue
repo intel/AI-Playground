@@ -20,7 +20,6 @@
     <div class="gap-3 w-80">
       <slide-bar v-model:current="denoise" :min="0" :max="1" :step="0.01"></slide-bar>
     </div>
-    <div v-if="true" class="demo-step-number">2</div>
   </div>
 </template>
 <script setup lang="ts">

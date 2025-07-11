@@ -486,7 +486,6 @@
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
-            <div v-if="isDemoModeEnabled && showAnswerOverlay" class="demo-step-number">1</div>
           </button>
           <drop-down-new
             :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"

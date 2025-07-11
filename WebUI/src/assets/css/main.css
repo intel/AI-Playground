@@ -422,6 +422,12 @@ footer {
   border-radius: 10.5px;
 }
 
+.demo-mode-enhance-content {
+  border: 2px solid #00bfff;
+  pointer-events: none;
+  border-radius: 10.5px;
+}
+
 .demo-mode-image-content {
   border: 2px solid #00bfff;
   z-index: 100;
@@ -475,8 +481,8 @@ footer {
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 17vw;
-    left: 3.646vw;
+    bottom: 21vw;
+    left: 2vw;
   }
 
   .tooltip-box {
@@ -591,7 +597,7 @@ footer {
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 29.547vh;
+    bottom: 30.547vh;
     left: 3.646vw;
   }
 
@@ -822,7 +828,7 @@ footer {
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 43.743vh;
+    bottom: 44.743vh;
     left: 3.646vw;
   }
 
@@ -1186,6 +1192,9 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.demo-step-number-two {
+  left: 52%;
 }
 
 .demo-step-number-answer {

@@ -27,6 +27,7 @@
         ></button>
       </div>
     </div>
+    <div v-if="isDemoModeEnabled" class="demo-step-number">2</div>
   </div>
   <div class="flex flex-col gap-8 text-white" :class="{'demo-mode-denoise-content': showOutpaintTooltip}">
     <div class="flex gap-3 items-center">
@@ -41,6 +42,7 @@
         ></slide-bar>
       </div>
     </div>
+    <div v-if="isDemoModeEnabled" class="demo-step-number">3</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -57,7 +59,8 @@ onMounted(() => {
 })
 defineProps<{
   /** Get status of tooltip to show from enhance compoent */
-  showOutpaintTooltip: boolean
+  showOutpaintTooltip: boolean,
+  isDemoModeEnabled: boolean
 }>()
 function toggleDirection(value: string) {
   direction.value = value

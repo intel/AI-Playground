@@ -63,6 +63,7 @@
               :class="{ 'demo-mode-overlay-content': showInPaintToolTip }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
+               <div v-if="isDemoModeEnabled && showInPaintToolTip" class="demo-step-number">1</div>
             </button>
             <div
               v-show="
@@ -216,16 +217,20 @@
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
-      <div class="flex justify-center items-center gap-3" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showImagePromptToolTip) }">
+      <div class="flex justify-center items-center gap-3" :class="{ 'demo-number-overlay': (isDemoModeEnabled && (showImagePromptToolTip || showInPaintToolTip || showOutPaintToolTip)) }">
         <textarea
           class="flex-auto h-20 resize-none"
           :placeholder="languages.COM_SD_PROMPT"
           v-model="prompt"
           :disabled="disabledPrompt"
           @keypress.enter.prevent="generate"
-          :class="{ 'demo-mode-overlay-content': showImagePromptToolTip || showOutPaintToolTip || showInPaintToolTip}"
+          :class="{
+          'demo-mode-overlay-content': showImagePromptToolTip || showOutPaintToolTip || showInPaintToolTip,
+          'demo-mode-enhance-content': showEnhanceTooltip
+            }"
         ></textarea>
-        <div v-if="isDemoModeEnabled && showImagePromptToolTip" class="demo-step-number">1</div>
+        <div v-if="isDemoModeEnabled && (showImagePromptToolTip || showOutPaintToolTip)" class="demo-step-number">1</div>
+        <div v-if="isDemoModeEnabled && showInPaintToolTip" class="demo-step-number">2</div>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-show="!processing"
@@ -301,6 +306,7 @@
           />
         </div>
         <div v-if="isDemoModeEnabled" class="demo-step-number">1</div>
+        <div v-if="isDemoModeEnabled && showEnhanceTooltip" class="demo-step-number demo-step-number-two">2</div>
         <upscale-options
           v-if="mode == 1"
           ref="upscaleCompt"
@@ -317,12 +323,14 @@
           v-else-if="mode == 3"
           :show-inpaint-tooltip="showInPaintToolTip"
           ref="inpaintCompt"
+          :is-demo-mode-enabled="isDemoModeEnabled"
         ></inpaint-options>
         <outpaint-options
           v-else-if="mode == 4"
           ref="outpaintCompt"
           @disable-prompt="disablePrompt"
           :show-outpaint-tooltip="showOutPaintToolTip"
+          :is-demo-mode-enabled="isDemoModeEnabled"
         ></outpaint-options>
       </div>
     </div>
