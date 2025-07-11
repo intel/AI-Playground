@@ -1,5 +1,10 @@
 <template>
-  <div :class="{'demo-mode-image-content': showImagePromptTooltip , 'demo-number-overlay': (isDemoModeEnabled && showImagePromptTooltip)}">
+  <div
+    :class="{
+      'demo-mode-image-content': showImagePromptTooltip,
+      'demo-number-overlay': isDemoModeEnabled && showImagePromptTooltip,
+    }"
+  >
     <h3 class="text-white mb-3">{{ languages.ENHANCE_COM_DENOISE }}</h3>
     <div class="gap-3 w-80">
       <slide-bar v-model:current="denoise" :min="0.1" :max="1" :step="0.01"></slide-bar>

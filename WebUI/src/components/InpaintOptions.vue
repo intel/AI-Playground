@@ -1,5 +1,8 @@
 <template>
-  <div class="flex justify-center gap-8 h-full text-white" :class="{'demo-mode-inpaint-content': showInpaintTooltip}">
+  <div
+    class="flex justify-center gap-8 h-full text-white"
+    :class="{ 'demo-mode-inpaint-content': showInpaintTooltip }"
+  >
     <div class="flex items-center gap-5 flex-none">
       <span>{{ languages.ENHANCE_INPAINT_TYPE }}</span>
       <div class="flex items-center gap-2">
@@ -46,7 +49,7 @@ onMounted(() => {
 
 defineProps<{
   /** Get status of tooltip to show from enhance compoent */
-  showInpaintTooltip: boolean,
+  showInpaintTooltip: boolean
   isDemoModeEnabled: boolean
 }>()
 

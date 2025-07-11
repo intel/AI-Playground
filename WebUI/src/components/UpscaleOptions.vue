@@ -14,7 +14,7 @@
       ></radio>
     </div>
   </div>
-  <div :class="{'demo-number-overlay' : true}">
+  <div :class="{ 'demo-number-overlay': true }">
     <span class="demo-vertical-line"></span>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
     <div class="gap-3 w-80">
