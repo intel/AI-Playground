@@ -3,6 +3,7 @@
 @import 'tailwindcss/utilities';
 @import './theme.css';
 @import './main.css';
+@import './demo-mode.css';
 @import './pc.css';
 @import './compontents.css';
 @import './svg.css';

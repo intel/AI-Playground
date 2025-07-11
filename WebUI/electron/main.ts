@@ -491,26 +491,17 @@ function initEventHandle() {
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
-   ipcMain.handle('getCmdParams', () => {
-     appLogger.info(JSON.stringify(process.argv), 'cmdparams')
-     const args = process.argv.slice(1)
-     if (args[0]) {
-       const argsObj: any = { enhance: 1, answer: 2 }
-       if (argsObj[args[0]]) {
-         return argsObj[args[0]]
-       } else {
-         return 0
-       }
-     } else {
-       return 0
-     }
-   })
+  ipcMain.handle('getCmdParams', () => {
+    const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
+    const startPageName = startPageArg ? startPageArg.split('=')[1] : 'create'
+    return startPageName
+  })
 
   /** To check whether demo mode is enabled or not for AIPG */
-   ipcMain.handle('getDemoModeSettings', () => {
-     const isDemoModeEnabled = settings.isDemoModeEnabled
-     return isDemoModeEnabled
-   })
+  ipcMain.handle('getDemoModeSettings', () => {
+    const isDemoModeEnabled = settings.isDemoModeEnabled
+    return isDemoModeEnabled
+  })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {
     const win = BrowserWindow.fromWebContents(event.sender)!

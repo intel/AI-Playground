@@ -295,6 +295,8 @@ const debugToolsEnabled = window.envVars.debugToolsEnabled
 let isDemoModeEnabled : boolean = false;
 const completedDemo = {create: false, enhance: false, answer: false};
 
+let timeOutArray : NodeJS.Timeout[] = [];
+
 const mode = useColorMode()
 mode.value = 'dark'
 
@@ -311,15 +313,20 @@ onBeforeMount(async () => {
     }
   })
   /** Get command line parameters and load default page on AIPG screen  */
-  const defaultPage = await window.electronAPI.getCmdParams();
-  activeTabIdx.value = defaultPage;
+  const startPage = await window.electronAPI.getCmdParams();
+  const argsObj: any = { enhance: 1, answer: 2 }
+  if (argsObj[startPage]) {
+    activeTabIdx.value = argsObj[startPage];
+  } else {
+    activeTabIdx.value = 0;
+  }
 
   /** To check whether demo mode is enabled or not for AIPG */
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
-  if(isDemoModeEnabled) {
-    setTimeout(() => {
+  if (isDemoModeEnabled) {
+    timeOutArray.push(setTimeout(() => {
       triggerHelp();
-    }, 2200);
+    }, 2200));
   }
 
   document.body.addEventListener('click', (event) => {
@@ -423,9 +430,9 @@ function autoHideAppSettings(e: MouseEvent) {
 function switchTab(index: number) {
   activeTabIdx.value = index
   if (isDemoModeEnabled && ((index == 0 && !completedDemo.create) || (index == 1 && !completedDemo.enhance) || (index == 2 && !completedDemo.answer))) {
-    setTimeout(() => {
+    timeOutArray.push(setTimeout(() => {
       triggerHelp();
-    }, 1000);
+    }, 1000));
     switch (index) {
       case 0:
         completedDemo.create = true;
@@ -495,4 +502,9 @@ function showWarning(message: string, func: () => void) {
     warningCompt.value!.onShow()
   })
 }
+
+onBeforeUnmount(() => {
+  timeOutArray.forEach(timeOut => clearTimeout(timeOut))
+})
+
 </script>
