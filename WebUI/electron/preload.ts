@@ -43,7 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   miniWindow: () => ipcRenderer.send('miniWindow'),
   exitApp: () => ipcRenderer.send('exitApp'),
   getMediaUrlBase: () => ipcRenderer.invoke('getMediaUrlBase'),
-  getCmdParams: () => ipcRenderer.invoke('getCmdParams'),
+  getInitialPage: () => ipcRenderer.invoke('getInitialPage'),
   getDemoModeSettings: () => ipcRenderer.invoke('getDemoModeSettings'),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     ipcRenderer.invoke('showOpenDialog', options),

@@ -491,7 +491,7 @@ function initEventHandle() {
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
-  ipcMain.handle('getCmdParams', () => {
+  ipcMain.handle('getInitialPage', () => {
     const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
     const startPageName = startPageArg ? startPageArg.split('=')[1] : 'create'
     return startPageName

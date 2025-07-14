@@ -323,7 +323,7 @@ onBeforeMount(async () => {
     }
   })
   /** Get command line parameters and load default page on AIPG screen  */
-  const startPage = await window.electronAPI.getCmdParams()
+  const startPage = await window.electronAPI.getInitialPage()
   const argsObj: Record<string, number> = { enhance: 1, answer: 2 }
   if (argsObj[startPage]) {
     activeTabIdx.value = argsObj[startPage]
