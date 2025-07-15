@@ -44,6 +44,8 @@ type electronAPI = {
   miniWindow(): void
   exitApp(): void
   getMediaUrlBase(): Promise<string>
+  getInitialPage(): Promise<string>
+  getDemoModeSettings(): Promise<boolean>
   saveImage(url: string): void
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void

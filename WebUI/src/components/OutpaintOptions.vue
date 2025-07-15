@@ -1,5 +1,8 @@
 <template>
-  <div class="flex items-center gap-2 text-white">
+  <div
+    class="flex items-center gap-2 text-white"
+    :class="{ 'demo-mode-outpaint-content': showOutpaintTooltip }"
+  >
     <div class="flex flex-col gap-2 items-center text-center">
       <span>{{ languages.ENHANCE_OUTPAINT_DIRECTION }}</span>
     </div>
@@ -27,8 +30,12 @@
         ></button>
       </div>
     </div>
+    <div v-if="isDemoModeEnabled && showOutpaintTooltip" class="demo-step-number">2</div>
   </div>
-  <div class="flex flex-col gap-8 text-white">
+  <div
+    class="flex flex-col gap-8 text-white"
+    :class="{ 'demo-mode-denoise-content': showOutpaintTooltip }"
+  >
     <div class="flex gap-3 items-center">
       <span class="w-28 flex-none">{{ languages.ENHANCE_COM_DENOISE }}</span>
       <div class="w-80">
@@ -41,6 +48,7 @@
         ></slide-bar>
       </div>
     </div>
+    <div v-if="isDemoModeEnabled && showOutpaintTooltip" class="demo-step-number">3</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -55,6 +63,11 @@ const emits = defineEmits<{
 onMounted(() => {
   emits('disablePrompt', false)
 })
+defineProps<{
+  /** Get status of tooltip to show from enhance compoent */
+  showOutpaintTooltip: boolean
+  isDemoModeEnabled: boolean
+}>()
 function toggleDirection(value: string) {
   direction.value = value
 }

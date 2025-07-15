@@ -149,17 +149,23 @@
         ></info-table>
       </div>
     </div>
-    <div class="h-32 gap-3 flex-none flex items-center">
+    <div
+      class="h-32 gap-3 flex-none flex items-center"
+      :class="{ 'demo-number-overlay': isDemoModeEnabled && showTooltip }"
+    >
       <textarea
         class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
         :placeholder="languages.COM_SD_PROMPT"
         v-model="imageGeneration.prompt"
         @keydown.enter.prevent="generateImage"
+        :class="{ 'demo-mode-overlay-content': showTooltip }"
       ></textarea>
+      <div v-if="isDemoModeEnabled && showTooltip" class="demo-step-number">1</div>
       <button
         class="gernate-btn self-stretch flex flex-col w-32 flex-none"
         v-show="!imageGeneration.processing"
         @click="generateImage"
+        :class="{ 'demo-mode-overlay-content': showTooltip }"
       >
         <span class="svg-icon i-generate-add w-7 h-7"></span>
         <span>{{ languages.COM_GENERATE }}</span>
@@ -176,6 +182,36 @@
         <span>{{ languages.COM_STOP }}</span>
       </button>
     </div>
+    <!--To Introduce Demo Mode Overlay-->
+    <transition name="fade">
+      <div class="demo-mode-create-overlay" v-if="showTooltip">
+        <!-- Create Popup Centered -->
+        <div class="popup-box center-box">
+          <div class="create-text">
+            <p>
+              {{ languages.DEMO_CREATE_CENTER_CONTENT }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Tooltip Popup at Bottom Left -->
+        <div class="prompt-popup-box bottom-left-box">
+          <div class="step">1</div>
+          <div class="content">
+            <p>{{ languages.DEMO_CREATE_POPUP_CONTENT_1 }}</p>
+            <p class="example">
+              {{ languages.DEMO_YOU_COULD_TYPE }}
+              <em>"{{ languages.DEMO_CREATE_POPUP_CONTENT_3 }}"</em>.
+            </p>
+            <div class="got-it-btn">
+              <button class="action" @click="hideOverlay()">
+                {{ languages.DEMO_OK_GOT_IT }} &#8594;
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 <script setup lang="ts">
@@ -185,6 +221,7 @@ import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { defineExpose } from 'vue'
 
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
@@ -193,6 +230,17 @@ const selectedImageId = ref<string | null>(null)
 const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
+const showTooltip = ref(false)
+let isDemoModeEnabled: boolean = false
+
+onMounted(async () => {
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings()
+})
+
+/** start tooltip overlay for enhance page */
+const startOverlay = () => {
+  showTooltip.value = true
+}
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
@@ -260,6 +308,11 @@ function deleteImage(image: MediaItem) {
   imageGeneration.deleteImage(image.id)
 }
 
+/** hide tooltip overlay for answer page */
+function hideOverlay() {
+  showTooltip.value = false
+}
+
 function deleteAllImages() {
   imageGeneration.deleteAllImages()
 }
@@ -282,4 +335,10 @@ function loadingStateToText(state: string) {
 function getMediaUrl(image: MediaItem) {
   return isVideo(image) ? image.videoUrl : image.imageUrl
 }
+
+/** To expose overlay to other files to show and hide tooltip from their (i.e. help button in App.vue file) */
+defineExpose({
+  startOverlay,
+  hideOverlay,
+})
 </script>

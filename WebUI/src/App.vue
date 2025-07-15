@@ -43,17 +43,20 @@
         <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
       </button>
       <button
+        v-if="!isDemoModeEnabled"
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showAppSettings"
         ref="showSettingBtn"
       ></button>
       <button
+        v-if="!isDemoModeEnabled"
         :title="languages.COM_MINI"
         @click="miniWindow"
         class="svg-icon i-mini w-6 h-6"
       ></button>
       <button
+        v-if="!isDemoModeEnabled"
         :title="fullscreen ? languages.COM_FULLSCREEN_EXIT : languages.COM_FULLSCREEN"
         @click="toggleFullScreen"
         class="svg-icon w-6 h-6"
@@ -148,10 +151,19 @@
         {{ languages.TAB_LEARN_MORE }}
       </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
+      <button
+        v-if="isDemoModeEnabled"
+        class="demo-help-button"
+        ref="needHelpBtn"
+        @click="triggerHelp"
+      >
+        {{ languages.DEMO_NEED_HELP }}
+      </button>
     </div>
     <div class="main-content flex-auto rounded-t-lg relative">
       <create
         v-show="activeTabIdx == 0"
+        ref="createCompt"
         @postImageToEnhance="postImageToEnhance"
         @show-download-model-confirm="showDownloadModelConfirm"
       ></create>
@@ -276,6 +288,7 @@ const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
+const needHelpBtn = ref<HTMLButtonElement>()
 
 const isOpen = ref(false)
 const activeTabIdx = ref(0)
@@ -288,6 +301,11 @@ const fullscreen = ref(false)
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
 const debugToolsEnabled = window.envVars.debugToolsEnabled
+
+let isDemoModeEnabled: boolean = false
+const completedDemo = { create: false, enhance: false, answer: false }
+
+const timeOutArray: NodeJS.Timeout[] = []
 
 const mode = useColorMode()
 mode.value = 'dark'
@@ -302,6 +320,32 @@ onBeforeMount(async () => {
     }
     if (level == 'info') {
       console.log(`[${source}] ${message}`)
+    }
+  })
+  /** Get command line parameters and load default page on AIPG screen  */
+  const startPage = await window.electronAPI.getInitialPage()
+  const argsObj: Record<string, number> = { enhance: 1, answer: 2 }
+  if (argsObj[startPage]) {
+    activeTabIdx.value = argsObj[startPage]
+  } else {
+    activeTabIdx.value = 0
+  }
+
+  /** To check whether demo mode is enabled or not for AIPG */
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings()
+  if (isDemoModeEnabled) {
+    timeOutArray.push(
+      setTimeout(() => {
+        triggerHelp()
+      }, 2200),
+    )
+  }
+
+  document.body.addEventListener('click', (event) => {
+    if (isDemoModeEnabled && event.target != needHelpBtn.value) {
+      createCompt.value?.hideOverlay()
+      enhanceCompt.value?.hideOverlay()
+      answer.value?.hideOverlay()
     }
   })
 
@@ -338,6 +382,21 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
   if (backendServices.allRequiredSetUp) {
     await globalSetup.initSetup()
     globalSetup.loadingState = 'running'
+  }
+}
+
+/** Get tooltips of AIPG demo mode on click of Help button */
+const createCompt = ref()
+function triggerHelp() {
+  if (activeTabIdx.value === 0 && createCompt.value?.startOverlay) {
+    completedDemo.create = true
+    createCompt.value.startOverlay()
+  } else if (activeTabIdx.value === 1 && enhanceCompt.value?.startOverlay) {
+    completedDemo.enhance = true
+    enhanceCompt.value.startOverlay()
+  } else if (activeTabIdx.value === 2 && answer.value?.startOverlay) {
+    completedDemo.answer = true
+    answer.value.startOverlay()
   }
 }
 
@@ -382,6 +441,31 @@ function autoHideAppSettings(e: MouseEvent) {
 
 function switchTab(index: number) {
   activeTabIdx.value = index
+  if (
+    isDemoModeEnabled &&
+    ((index == 0 && !completedDemo.create) ||
+      (index == 1 && !completedDemo.enhance) ||
+      (index == 2 && !completedDemo.answer))
+  ) {
+    timeOutArray.push(
+      setTimeout(() => {
+        triggerHelp()
+      }, 1000),
+    )
+    switch (index) {
+      case 0:
+        completedDemo.create = true
+        break
+      case 1:
+        completedDemo.enhance = true
+        break
+      case 2:
+        completedDemo.answer = true
+        break
+      default:
+        break
+    }
+  }
 }
 
 function miniWindow() {
@@ -437,4 +521,8 @@ function showWarning(message: string, func: () => void) {
     warningCompt.value!.onShow()
   })
 }
+
+onBeforeUnmount(() => {
+  timeOutArray.forEach((timeOut) => clearTimeout(timeOut))
+})
 </script>

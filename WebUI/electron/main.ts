@@ -96,6 +96,7 @@ export const settings: LocalSettings = {
   currentTheme: 'lnl',
   comfyUiParameters: [],
   deviceArchOverride: undefined,
+  isDemoModeEnabled: false,
 }
 
 async function loadSettings() {
@@ -143,6 +144,12 @@ async function createWindow() {
   if (!app.isPackaged || settings.debug) {
     //Open devTool if the app is not packaged
     win.webContents.openDevTools({ mode: 'detach', activate: true })
+  }
+
+  if (settings.isDemoModeEnabled) {
+    win.setFullScreen(true)
+    win.maximize()
+    win.setKiosk(true)
   }
 
   session.webRequest.onBeforeSendHeaders((details, callback) => {
@@ -481,6 +488,19 @@ function initEventHandle() {
 
   ipcMain.handle('getMediaUrlBase', () => {
     return `http://127.0.0.1:${mediaServerPort}/`
+  })
+
+  /** Get command line parameters when launched from IPOS to decide the default home page */
+  ipcMain.handle('getInitialPage', () => {
+    const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
+    const startPageName = startPageArg ? startPageArg.split('=')[1] : 'create'
+    return startPageName
+  })
+
+  /** To check whether demo mode is enabled or not for AIPG */
+  ipcMain.handle('getDemoModeSettings', () => {
+    const isDemoModeEnabled = settings.isDemoModeEnabled
+    return isDemoModeEnabled
   })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {
