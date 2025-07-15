@@ -13,9 +13,9 @@
         @click="changeScale(1)"
       ></radio>
     </div>
+    <div v-if="isDemoModeEnabled && showEnhanceTooltip" class="demo-step-number demo-step-number-two">2</div>
   </div>
   <div>
-    <span class="demo-vertical-line"></span>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
     <div class="gap-3 w-80">
       <slide-bar v-model:current="denoise" :min="0" :max="1" :step="0.01"></slide-bar>

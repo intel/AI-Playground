@@ -734,13 +734,6 @@
   position: relative;
 }
 
-.demo-vertical-line {
-  position: absolute;
-  width: 2vw;
-  height: 5vh;
-
-}
-
 .demo-step-number {
   z-index: 101;
   position: absolute;
@@ -760,7 +753,8 @@
   justify-content: center;
 }
 .demo-step-number-two {
-  left: 52%;
+  left: 108%;
+  top: -8%;
 }
 
 .demo-step-number-answer {

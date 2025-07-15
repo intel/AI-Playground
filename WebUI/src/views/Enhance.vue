@@ -306,7 +306,6 @@
           />
         </div>
         <div v-if="isDemoModeEnabled && showEnhanceTooltip" class="demo-step-number">1</div>
-        <div v-if="isDemoModeEnabled && showEnhanceTooltip" class="demo-step-number demo-step-number-two">2</div>
         <upscale-options
           v-if="mode == 1"
           ref="upscaleCompt"
