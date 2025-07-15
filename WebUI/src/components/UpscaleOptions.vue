@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="{'demo-variation-splitter' : isDemoModeEnabled  && showEnhanceTooltip}">
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_SCALE }}</h3>
     <div class="gap-3 w-80 flex-wrap grid grid-cols-2">
       <radio
@@ -14,7 +14,7 @@
       ></radio>
     </div>
   </div>
-  <div :class="{'demo-number-overlay' : true}">
+  <div>
     <span class="demo-vertical-line"></span>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
     <div class="gap-3 w-80">
@@ -35,6 +35,10 @@ const emits = defineEmits<{
 onMounted(() => {
   emits('disablePrompt', false)
 })
+defineProps<{
+  isDemoModeEnabled: boolean,
+  showEnhanceTooltip: boolean
+}>()
 
 function changeScale(value: number) {
   scale.value = value

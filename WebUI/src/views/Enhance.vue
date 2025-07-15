@@ -311,6 +311,8 @@
           v-if="mode == 1"
           ref="upscaleCompt"
           @disable-prompt="disablePrompt"
+          :show-enhance-tooltip="showEnhanceTooltip"
+          :is-demo-mode-enabled="isDemoModeEnabled"
         ></upscale-options>
         <image-prompt-options
           v-else-if="mode == 2"
