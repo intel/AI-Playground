@@ -1,5 +1,8 @@
 <template>
-  <div class="flex items-center gap-2 text-white" :class="{'demo-mode-outpaint-content': showOutpaintTooltip}">
+  <div
+    class="flex items-center gap-2 text-white"
+    :class="{ 'demo-mode-outpaint-content': showOutpaintTooltip }"
+  >
     <div class="flex flex-col gap-2 items-center text-center">
       <span>{{ languages.ENHANCE_OUTPAINT_DIRECTION }}</span>
     </div>
@@ -29,7 +32,10 @@
     </div>
     <div v-if="isDemoModeEnabled && showOutpaintTooltip" class="demo-step-number">2</div>
   </div>
-  <div class="flex flex-col gap-8 text-white" :class="{'demo-mode-denoise-content': showOutpaintTooltip}">
+  <div
+    class="flex flex-col gap-8 text-white"
+    :class="{ 'demo-mode-denoise-content': showOutpaintTooltip }"
+  >
     <div class="flex gap-3 items-center">
       <span class="w-28 flex-none">{{ languages.ENHANCE_COM_DENOISE }}</span>
       <div class="w-80">
@@ -59,7 +65,7 @@ onMounted(() => {
 })
 defineProps<{
   /** Get status of tooltip to show from enhance compoent */
-  showOutpaintTooltip: boolean,
+  showOutpaintTooltip: boolean
   isDemoModeEnabled: boolean
 }>()
 function toggleDirection(value: string) {

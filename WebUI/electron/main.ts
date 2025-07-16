@@ -96,7 +96,7 @@ export const settings: LocalSettings = {
   currentTheme: 'lnl',
   comfyUiParameters: [],
   deviceArchOverride: undefined,
-  isDemoModeEnabled: false
+  isDemoModeEnabled: false,
 }
 
 async function loadSettings() {
@@ -146,10 +146,10 @@ async function createWindow() {
     win.webContents.openDevTools({ mode: 'detach', activate: true })
   }
 
-  if(settings.isDemoModeEnabled) {
-    win.setFullScreen(true);
-    win.maximize();
-    win.setKiosk(true);
+  if (settings.isDemoModeEnabled) {
+    win.setFullScreen(true)
+    win.maximize()
+    win.setKiosk(true)
   }
 
   session.webRequest.onBeforeSendHeaders((details, callback) => {
@@ -491,7 +491,7 @@ function initEventHandle() {
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
-  ipcMain.handle('getCmdParams', () => {
+  ipcMain.handle('getInitialPage', () => {
     const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
     const startPageName = startPageArg ? startPageArg.split('=')[1] : 'create'
     return startPageName

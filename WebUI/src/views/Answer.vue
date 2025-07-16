@@ -417,7 +417,7 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-            :title=languages.SETTINGS_INFERENCE_BACKEND
+            :title="languages.SETTINGS_INFERENCE_BACKEND"
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
@@ -476,7 +476,10 @@
             <span class="svg-icon i-zoom-out w-4 h-4"></span>
           </button>
         </div>
-        <div class="flex items-center gap-2" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showAnswerOverlay) }">
+        <div
+          class="flex items-center gap-2"
+          :class="{ 'demo-number-overlay': isDemoModeEnabled && showAnswerOverlay }"
+        >
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
@@ -507,7 +510,10 @@
           ></drop-down-new>
         </div>
       </div>
-      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2" :class="{ 'demo-number-overlay': (isDemoModeEnabled && showAnswerOverlay) }">
+      <div
+        class="w-full h-32 gap-3 flex-none flex items-center pt-2"
+        :class="{ 'demo-number-overlay': isDemoModeEnabled && showAnswerOverlay }"
+      >
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
@@ -515,7 +521,12 @@
           @keydown="fastGenerate"
           :class="{ 'demo-mode-overlay-content': showAnswerOverlay }"
         ></textarea>
-        <div v-if="isDemoModeEnabled && showAnswerOverlay" class="demo-step-number demo-step-number-answer">1</div>
+        <div
+          v-if="isDemoModeEnabled && showAnswerOverlay"
+          class="demo-step-number demo-step-number-answer"
+        >
+          1
+        </div>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-if="!processing"
@@ -537,33 +548,36 @@
         </button>
       </div>
     </div>
-  <transition name="fade">
-    <div class="demo-mode-answer-overlay" v-if="showAnswerOverlay">
-    <!-- Enhance Center Popup -->
-    <div class="center-popup">
-      <p>
-       {{ languages.DEMO_ANSWER_HEADING }}
-      </p>
-    </div>
+    <transition name="fade">
+      <div class="demo-mode-answer-overlay" v-if="showAnswerOverlay">
+        <!-- Enhance Center Popup -->
+        <div class="center-popup">
+          <p>
+            {{ languages.DEMO_ANSWER_HEADING }}
+          </p>
+        </div>
 
-    <div class="tooltip-wrapper">
-    <div class="tooltip-box">
-      <div class="tooltip-row">
-        <div class="tooltip-circle">1</div>
-        <div>
-         <p>{{ languages.DEMO_ANSWER_GENERATE_TEXT }}</p>
-          <p class="content-tooltip"><em>{{ languages.DEMO_YOU_COULD_TYPE }}</em> <span class="italic-blue">"{{ languages.DEMO_ANSWER_GENERATE_HELP_TEXT }}"</span></p>
+        <div class="tooltip-wrapper">
+          <div class="tooltip-box">
+            <div class="tooltip-row">
+              <div class="tooltip-circle">1</div>
+              <div>
+                <p>{{ languages.DEMO_ANSWER_GENERATE_TEXT }}</p>
+                <p class="content-tooltip">
+                  <em>{{ languages.DEMO_YOU_COULD_TYPE }}</em>
+                  <span class="italic-blue">"{{ languages.DEMO_ANSWER_GENERATE_HELP_TEXT }}"</span>
+                </p>
+              </div>
+            </div>
+            <div class="got-it-btn">
+              <button class="tooltip-button" @click="hideOverlay">
+                {{ languages.DEMO_OK_GOT_IT }} &#8594;
+              </button>
+            </div>
           </div>
         </div>
-      <div class="got-it-btn">
-         <button class="tooltip-button" @click="hideOverlay">
-        {{ languages.DEMO_OK_GOT_IT }} &#8594;
-        </button>
       </div>
-    </div>
-  </div>
-  </div>
-  </transition>
+    </transition>
   </div>
 </template>
 <script setup lang="ts">
@@ -680,11 +694,11 @@ const isHistoryVisible = ref(false)
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
 const autoScrollEnabled = ref(true)
-let isDemoModeEnabled : boolean = false;
+let isDemoModeEnabled: boolean = false
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
-  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings();
+  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings()
 })
 
 /** start tooltip overlay for answer page */
@@ -1338,6 +1352,6 @@ function copyCode(e: MouseEvent) {
 defineExpose({
   checkModel: checkModelAvailability,
   startOverlay,
-  hideOverlay
+  hideOverlay,
 })
 </script>
