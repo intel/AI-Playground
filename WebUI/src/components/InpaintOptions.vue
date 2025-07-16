@@ -1,7 +1,7 @@
 <template>
   <div
     class="flex justify-center gap-8 h-full text-white"
-    :class="{ 'demo-mode-inpaint-content': showInpaintTooltip }"
+    :class="{ 'demo-mode-inpaint-content': demoMode.enhance.showInpaint }"
   >
     <div class="flex items-center gap-5 flex-none">
       <span>{{ languages.ENHANCE_INPAINT_TYPE }}</span>
@@ -30,12 +30,15 @@
         ></slide-bar>
       </div>
     </div>
-    <div v-if="isDemoModeEnabled && showInpaintTooltip" class="demo-step-number">3</div>
+    <div v-if="demoMode.enhance.showInpaint" class="demo-step-number">3</div>
   </div>
 </template>
 <script setup lang="ts">
+import { useDemoMode } from '@/assets/js/store/demoMode'
 import RadioBlock from './RadioBlock.vue'
 import SlideBar from './SlideBar.vue'
+
+const demoMode = useDemoMode()
 
 const paintType = ref(1)
 const denoise = ref(0.35)
@@ -46,12 +49,6 @@ const emits = defineEmits<{
 onMounted(() => {
   emits('disablePrompt', paintType.value == 1)
 })
-
-defineProps<{
-  /** Get status of tooltip to show from enhance compoent */
-  showInpaintTooltip: boolean
-  isDemoModeEnabled: boolean
-}>()
 
 function getParams() {
   return {

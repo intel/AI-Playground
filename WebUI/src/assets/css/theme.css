@@ -142,19 +142,19 @@ textarea {
     rotateX(102deg) skewX(-5deg);
 }
 
-.pos-0 {
+.pos-create {
   --position-index: 0;
 }
 
-.pos-1 {
+.pos-enhance {
   --position-index: 1;
 }
 
-.pos-2 {
+.pos-answer {
   --position-index: 2;
 }
 
-.pos-3 {
+.pos-learn-more {
   --position-index: 3;
 }
 

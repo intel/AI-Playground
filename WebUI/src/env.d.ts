@@ -18,6 +18,8 @@ type ServiceSettings = {
   serviceName: BackendServiceName
 }
 
+type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+
 type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
@@ -44,7 +46,7 @@ type electronAPI = {
   miniWindow(): void
   exitApp(): void
   getMediaUrlBase(): Promise<string>
-  getInitialPage(): Promise<string>
+  getInitialPage(): Promise<AipgPage>
   getDemoModeSettings(): Promise<boolean>
   saveImage(url: string): void
   openImageWin(url: string, title: string, width: number, height: number): void
