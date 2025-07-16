@@ -761,14 +761,14 @@
 }
 
 .demo-variation-splitter {
-    position: relative;
-    height: 100%;
-    &::after {
-      position: absolute;
-      right: -25px;
-      top: 0px;
-      height: 108%;
-      content: '';
-      border-right: 2px solid #00c4fa;
-    }
+  position: relative;
+  height: 100%;
+  &::after {
+    position: absolute;
+    right: -25px;
+    top: 0px;
+    height: 108%;
+    content: '';
+    border-right: 2px solid #00c4fa;
+  }
 }

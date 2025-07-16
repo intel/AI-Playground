@@ -1,5 +1,5 @@
 <template>
-  <div :class="{'demo-variation-splitter' : isDemoModeEnabled  && showEnhanceTooltip}">
+  <div :class="{ 'demo-variation-splitter': isDemoModeEnabled && showEnhanceTooltip }">
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_SCALE }}</h3>
     <div class="gap-3 w-80 flex-wrap grid grid-cols-2">
       <radio
@@ -13,7 +13,12 @@
         @click="changeScale(1)"
       ></radio>
     </div>
-    <div v-if="isDemoModeEnabled && showEnhanceTooltip" class="demo-step-number demo-step-number-two">2</div>
+    <div
+      v-if="isDemoModeEnabled && showEnhanceTooltip"
+      class="demo-step-number demo-step-number-two"
+    >
+      2
+    </div>
   </div>
   <div>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
@@ -36,7 +41,7 @@ onMounted(() => {
   emits('disablePrompt', false)
 })
 defineProps<{
-  isDemoModeEnabled: boolean,
+  isDemoModeEnabled: boolean
   showEnhanceTooltip: boolean
 }>()
 
