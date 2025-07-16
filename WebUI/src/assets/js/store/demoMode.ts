@@ -25,6 +25,7 @@ export const useDemoMode = defineStore('demoMode', () => {
     finishedInpaint: boolean
     finishedOutpaint: boolean
     feature: EnhanceFeature
+    imageAvailable: boolean
     show: boolean
     finished: boolean
   }>({
@@ -37,6 +38,7 @@ export const useDemoMode = defineStore('demoMode', () => {
     finishedInpaint: false,
     finishedOutpaint: false,
     feature: 'upscale',
+    imageAvailable: false,
     show: false,
     finished: false,
   })
@@ -81,6 +83,7 @@ export const useDemoMode = defineStore('demoMode', () => {
           break
         case 'inpaint':
           if (enhance.value.finishedInpaint && !force) break
+          if (!enhance.value.imageAvailable) break
           enhance.value.showInpaint = true
           enhance.value.finishedInpaint = true
           pages[page].value.show = true

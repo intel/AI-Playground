@@ -30,11 +30,13 @@
         ></slide-bar>
       </div>
     </div>
-    <div v-if="demoMode.enhance.showInpaint" class="demo-step-number">3</div>
+
+    <DemoNumber :show="demoMode.enhance.showInpaint" :number="3"></DemoNumber>
   </div>
 </template>
 <script setup lang="ts">
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import DemoNumber from './demo-mode/DemoNumber.vue'
 import RadioBlock from './RadioBlock.vue'
 import SlideBar from './SlideBar.vue'
 

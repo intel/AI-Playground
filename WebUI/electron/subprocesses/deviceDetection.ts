@@ -25,7 +25,7 @@ except Exception as e:
 `
     let allDevices: Device[] = []
     let lastDeviceList: Device[] = []
-    let i = 0;
+    let i = 0
     while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
       // Execute the Python script
       const result = await pythonService.run(['-c', pythonScript], {

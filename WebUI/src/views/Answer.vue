@@ -199,7 +199,9 @@
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer, chat.model))"
+                    v-html="
+                      markdownParser.parseMarkdown(extractPostMarker(chat.answer, chat.model))
+                    "
                   ></div>
                 </template>
                 <template v-else>
@@ -521,12 +523,11 @@
           @keydown="fastGenerate"
           :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
         ></textarea>
-        <div
-          v-if="demoMode.answer.show"
-          class="demo-step-number demo-step-number-answer"
-        >
-          1
-        </div>
+        <DemoNumber
+          :show="demoMode.answer.show"
+          :number="1"
+          extraClass="demo-step-number-answer"
+        ></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-if="!processing"
@@ -554,6 +555,7 @@
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -1307,6 +1309,6 @@ function copyCode(e: MouseEvent) {
 }
 
 defineExpose({
-  checkModel: checkModelAvailability
+  checkModel: checkModelAvailability,
 })
 </script>

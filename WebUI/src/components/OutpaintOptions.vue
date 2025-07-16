@@ -30,7 +30,7 @@
         ></button>
       </div>
     </div>
-    <div v-if="demoMode.enhance.showOutpaint" class="demo-step-number">2</div>
+    <DemoNumber :show="demoMode.enhance.showOutpaint" :number="2"></DemoNumber>
   </div>
   <div
     class="flex flex-col gap-8 text-white"
@@ -48,11 +48,12 @@
         ></slide-bar>
       </div>
     </div>
-    <div v-if="demoMode.enhance.showOutpaint" class="demo-step-number">3</div>
+    <DemoNumber :show="demoMode.enhance.showOutpaint" :number="3"></DemoNumber>
   </div>
 </template>
 <script setup lang="ts">
-import { useDemoMode } from '@/assets/js/store/demoMode';
+import { useDemoMode } from '@/assets/js/store/demoMode'
+import DemoNumber from './demo-mode/DemoNumber.vue'
 import SlideBar from './SlideBar.vue'
 
 const demoMode = useDemoMode()

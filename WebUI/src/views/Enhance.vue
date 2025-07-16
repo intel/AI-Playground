@@ -63,7 +63,7 @@
               :class="{ 'demo-mode-overlay-content': demoMode.enhance.showInpaint }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
-              <div v-if="demoMode.enhance.showInpaint" class="demo-step-number">1</div>
+              <DemoNumber :show="demoMode.enhance.showInpaint" :number="1"></DemoNumber>
             </button>
             <div
               v-show="
@@ -220,8 +220,7 @@
       <div
         class="flex justify-center items-center gap-3"
         :class="{
-          'demo-number-overlay':
-            demoMode.enhance.show,
+          'demo-number-overlay': demoMode.enhance.show,
         }"
       >
         <textarea
@@ -232,17 +231,17 @@
           @keypress.enter.prevent="generate"
           :class="{
             'demo-mode-overlay-content':
-              demoMode.enhance.showInpaint || demoMode.enhance.showOutpaint || demoMode.enhance.showPrompt,
+              demoMode.enhance.showInpaint ||
+              demoMode.enhance.showOutpaint ||
+              demoMode.enhance.showPrompt,
             'demo-mode-enhance-content': demoMode.enhance.showUpscale,
           }"
         ></textarea>
-        <div
-          v-if="demoMode.enhance.showPrompt || demoMode.enhance.showOutpaint"
-          class="demo-step-number"
-        >
-          1
-        </div>
-        <div v-if="demoMode.enhance.showInpaint" class="demo-step-number">2</div>
+        <DemoNumber
+          :show="demoMode.enhance.showPrompt || demoMode.enhance.showOutpaint"
+          :number="1"
+        ></DemoNumber>
+        <DemoNumber :show="demoMode.enhance.showInpaint" :number="2"></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-show="!processing"
@@ -320,13 +319,12 @@
             @drop="dropImageFile"
           />
         </div>
-        <div v-if="demoMode.enhance.showUpscale" class="demo-step-number">1</div>
-        <div
-          v-if="demoMode.enhance.showUpscale"
-          class="demo-step-number demo-step-number-two"
-        >
-          2
-        </div>
+        <DemoNumber :show="demoMode.enhance.showUpscale" :number="1"></DemoNumber>
+        <DemoNumber
+          :show="demoMode.enhance.showUpscale"
+          :number="2"
+          extraClass="demo-step-number-two"
+        ></DemoNumber>
         <upscale-options
           v-if="mode == 1"
           ref="upscaleCompt"
@@ -337,10 +335,7 @@
           ref="imagePromptCompt"
           @disable-prompt="disablePrompt"
         ></image-prompt-options>
-        <inpaint-options
-          v-else-if="mode == 3"
-          ref="inpaintCompt"
-        ></inpaint-options>
+        <inpaint-options v-else-if="mode == 3" ref="inpaintCompt"></inpaint-options>
         <outpaint-options
           v-else-if="mode == 4"
           ref="outpaintCompt"
@@ -352,6 +347,7 @@
 </template>
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import UpscaleOptions from '../components/UpscaleOptions.vue'
 import OutpaintOptions from '../components/OutpaintOptions.vue'
 import InpaintOptions from '../components/InpaintOptions.vue'
@@ -486,8 +482,10 @@ function dropImageFile(e: DragEvent) {
 function switchFeature(value: number) {
   mode.value = value
   const features = ['upscale', 'prompt', 'inpaint', 'outpaint'] as const
-  demoMode.enhance.feature = features[value - 1] ?? 'upscale'
+  setTimeout(() => (demoMode.enhance.feature = features[value - 1] ?? 'upscale'))
 }
+
+watch(sourceImg, (i) => (demoMode.enhance.imageAvailable = i !== ''))
 
 function finishGenerate() {
   processing.value = false

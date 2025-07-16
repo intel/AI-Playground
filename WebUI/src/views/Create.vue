@@ -160,7 +160,7 @@
         @keydown.enter.prevent="generateImage"
         :class="{ 'demo-mode-overlay-content': demoMode.create.show }"
       ></textarea>
-      <div v-if="demoMode.create.show" class="demo-step-number">1</div>
+      <DemoNumber :show="demoMode.create.show" :number="1"></DemoNumber>
       <button
         class="gernate-btn self-stretch flex flex-col w-32 flex-none"
         v-show="!imageGeneration.processing"
@@ -188,6 +188,7 @@
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'

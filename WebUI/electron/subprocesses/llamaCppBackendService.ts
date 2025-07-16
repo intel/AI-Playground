@@ -9,7 +9,7 @@ import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDete
 const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`)) 
+  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
   // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
@@ -17,7 +17,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/health`
 
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
-  readonly aiBackend = new PythonService(path.resolve(path.join(this.baseDir, `ai-backend-env`)), path.resolve(path.join(this.baseDir, `service`)))
+  readonly aiBackend = new PythonService(
+    path.resolve(path.join(this.baseDir, `ai-backend-env`)),
+    path.resolve(path.join(this.baseDir, `service`)),
+  )
   readonly python = this.uvPip.python
 
   serviceIsSetUp(): boolean {
