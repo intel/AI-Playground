@@ -49,7 +49,7 @@
 
   .center-popup {
     position: absolute;
-    top: 26vh;
+    top: 200px;
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(0, 0, 50, 0.85);
@@ -58,15 +58,15 @@
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
-    width: 41.458vw;
-    height: 7.111vh;
+    width: 600px;
+    height: 60px;
     text-align: center;
   }
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 21vw;
-    left: 2vw;
+    bottom: 300px;
+    left: 25px;
   }
 
   .tooltip-box {
@@ -76,8 +76,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 24.59vh;
+    width: 400px;
+    height: 225px;
     font-family: 'Segoe UI', sans-serif;
     position: relative;
   }
@@ -166,7 +166,7 @@
 
   .center-popup {
     position: absolute;
-    top: 20%;
+    top: 200px;
     left: 50%;
     transform: translateX(-50%);
     background-color: #0a0622;
@@ -175,16 +175,16 @@
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
-    width: 41.458vw;
-    height: 7.111vh;
+    width: 600px;
+    height: 65px;
     text-align: center;
     font-size: 18px;
   }
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 30.547vh;
-    left: 3.646vw;
+    bottom: 267px;
+    left: 53px;
   }
 
   .tooltip-box {
@@ -194,8 +194,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 25.59vh;
+    width: 500px;
+    height: 200px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
@@ -287,8 +287,8 @@
     border-radius: 10px;
     padding: 16px 20px;
     font-size: 18px;
-    width: 41.458vw;
-    height: 7.111vh;
+    width: 600px;
+    height: 65px;
     position: absolute;
   }
 
@@ -300,14 +300,14 @@
     border-radius: 10px;
     font-size: 16.5px;
     font-weight: 400;
-    width: 26.493vw;
-    height: 20.257vh;
+    width: 500px;
+    height: 200px;
     position: absolute;
     padding: 23px 18px 23px 18px;
   }
 
   .center-box {
-    top: 26vh;
+    top: 200px;
   }
 
   .got-it-btn {
@@ -317,8 +317,8 @@
   }
 
   .bottom-left-box {
-    bottom: 29.16vh;
-    left: 3.49vw;
+    bottom: 270px;
+    left: 100px;
     display: flex;
     align-items: flex-start;
   }
@@ -402,8 +402,8 @@
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 44.743vh;
-    left: 3.646vw;
+    bottom: 400px;
+    left: 53px;
   }
 
   .tooltip-box {
@@ -413,8 +413,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 24.59vh;
+    width: 500px;
+    height: 200px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
@@ -494,8 +494,8 @@
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 43.864vh;
-    left: 3.646vw;
+    bottom: 400px;
+    left: 53px;
   }
 
   .tooltip-box {
@@ -505,12 +505,11 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 26.583vh;
+    width: 420px;
+    height: 250px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
-    line-height: 100%;
   }
 
   .tooltip-row {
@@ -587,8 +586,8 @@
 
   .tooltip-wrapper {
     position: absolute;
-    top: 28.583vh;
-    right: 19.444vw;
+    top: 415px;
+    right: 525px;
   }
 
   .tooltip-box {
@@ -598,8 +597,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 27.361vw;
-    height: 27.25vh;
+    width: 420px;
+    height: 235px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
@@ -642,13 +641,16 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    right: -12px; /* Align to the right side */
-    bottom: 92px; /* Adjust vertically as needed */
+    right: -12px;
+    /* Align to the right side */
+    bottom: 92px;
+    /* Adjust vertically as needed */
     width: 0;
     height: 0;
     border-top: 10px solid transparent;
     border-bottom: 10px solid transparent;
-    border-left: 12px solid #0d0a2b; /* Inner arrow */
+    border-left: 12px solid #0d0a2b;
+    /* Inner arrow */
     z-index: 2;
   }
 
@@ -661,7 +663,8 @@
     height: 0;
     border-top: 11px solid transparent;
     border-bottom: 11px solid transparent;
-    border-left: 14px solid #00bfff; /* Outer border arrow */
+    border-left: 14px solid #00bfff;
+    /* Outer border arrow */
     z-index: 1;
   }
 }
@@ -751,9 +754,10 @@
   align-items: center;
   justify-content: center;
 }
+
 .demo-step-number-two {
   left: 108%;
-  top: -8%;
+  top: -40%;
 }
 
 .demo-step-number-answer {
@@ -762,12 +766,13 @@
 
 .demo-variation-splitter {
   position: relative;
-  height: 100%;
+  /* height: 100%; */
+
   &::after {
     position: absolute;
     right: -25px;
-    top: 0px;
-    height: 108%;
+    top: -25px;
+    height: 175%;
     content: '';
     border-right: 2px solid #00c4fa;
   }
