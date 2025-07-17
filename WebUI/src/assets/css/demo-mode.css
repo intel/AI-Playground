@@ -93,8 +93,8 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
@@ -122,7 +122,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -208,8 +208,8 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
@@ -237,7 +237,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -324,8 +324,8 @@
   }
 
   .step {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
@@ -364,7 +364,7 @@
   .prompt-popup-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -427,8 +427,8 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
@@ -456,7 +456,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -519,8 +519,8 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
@@ -548,7 +548,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -610,8 +610,8 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
@@ -720,9 +720,9 @@
   border-radius: 6px;
   border: none;
   cursor: pointer;
-  font-size: 0.8vw;
-  width: 7.042vw;
-  height: 3.519vh;
+  font-size: 12px;
+  width: 90px;
+  height: 30px;
 }
 
 .demo-right-arrow {
@@ -741,8 +741,8 @@
   top: 0;
   left: 0;
   transform: translate(-50%, -50%);
-  width: 22.88px;
-  height: 22.88px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1.5px solid #00c4fa;
   color: white;
