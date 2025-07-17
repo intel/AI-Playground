@@ -56,6 +56,7 @@
           >
             <!--inpaint mask pen-->
             <button
+              ref="inpaintEditPen"
               id="mask-pen"
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(0)"
@@ -413,7 +414,7 @@
       </div>
     </transition>
     <transition name="fade">
-      <div class="demo-mode-inpaint-overlay" v-if="showInPaintToolTip">
+      <div ref="inpaintOverlayContent" class="demo-mode-inpaint-overlay" v-if="showInPaintToolTip">
         <div class="tooltip-wrapper">
           <div class="tooltip-box">
             <div class="tooltip-row">
@@ -562,6 +563,8 @@ const infoParams = ref<KVObject>({})
 let isDemoModeEnabled: boolean = false
 const completedEnhanceDemos = { imagePrompt: false, inpaint: false, outpaint: false }
 let showTooltipTimeout: NodeJS.Timeout
+const inpaintEditPen = ref<HTMLButtonElement | null>(null)
+const inpaintOverlayContent = ref<HTMLButtonElement | null>(null)
 
 onMounted(async () => {
   isDemoModeEnabled = await window.electronAPI.getDemoModeSettings()
@@ -579,6 +582,7 @@ const startOverlay = () => {
     case 3:
       if (sourceImgFile) {
         showInPaintToolTip.value = true
+        calculateMaskPenDim()
       }
       break
     case 4:
@@ -594,6 +598,19 @@ watchEffect(() => {
     })
   }
 })
+
+function calculateMaskPenDim() {
+  document.querySelector('')
+  const maskPenRef = inpaintEditPen.value?.getBoundingClientRect()
+  if (maskPenRef) {
+    setTimeout(() => {
+      if (inpaintOverlayContent && inpaintOverlayContent.value) {
+        inpaintOverlayContent.value.style.top = `${maskPenRef.bottom - 145}px`
+        inpaintOverlayContent.value.style.left = `${maskPenRef.left - 445}px`
+      }
+    }, 50)
+  }
+}
 
 function updateMaskData(e: Event) {
   const image = e.target as HTMLImageElement
@@ -662,6 +679,7 @@ function switchFeature(value: number) {
       } else if (mode.value == 3 && sourceImgFile && !completedEnhanceDemos.inpaint) {
         completedEnhanceDemos.inpaint = true
         showInPaintToolTip.value = true
+        calculateMaskPenDim()
       } else if (mode.value == 4 && !completedEnhanceDemos.outpaint) {
         completedEnhanceDemos.outpaint = true
         showOutPaintToolTip.value = true
