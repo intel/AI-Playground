@@ -564,7 +564,7 @@
               <div>
                 <p>{{ languages.DEMO_ANSWER_GENERATE_TEXT }}</p>
                 <p class="content-tooltip">
-                  <em>{{ languages.DEMO_YOU_COULD_TYPE }}</em>
+                  {{ languages.DEMO_YOU_COULD_TYPE }}
                   <span class="italic-blue">"{{ languages.DEMO_ANSWER_GENERATE_HELP_TEXT }}"</span>
                 </p>
               </div>
