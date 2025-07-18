@@ -2,7 +2,6 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 
 export const useDemoMode = defineStore('demoMode', () => {
   const enabled = ref(false)
-  const inpaintMaskPenVisible = ref(false)
   window.electronAPI.getDemoModeSettings().then((res) => {
     enabled.value = res
   })
