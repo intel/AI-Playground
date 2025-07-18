@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ 'demo-variation-splitter': isDemoModeEnabled && showEnhanceTooltip }">
+  <div :class="{ 'demo-variation-splitter': demoMode.enabled && demoMode.enhance.showUpscale }">
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_SCALE }}</h3>
     <div class="gap-3 w-80 flex-wrap grid grid-cols-2">
       <radio
@@ -14,7 +14,7 @@
       ></radio>
     </div>
     <div
-      v-if="isDemoModeEnabled && showEnhanceTooltip"
+      v-if="demoMode.enabled && demoMode.enhance.showUpscale"
       class="demo-step-number demo-step-number-two"
     >
       2
@@ -28,8 +28,11 @@
   </div>
 </template>
 <script setup lang="ts">
+import { useDemoMode } from '@/assets/js/store/demoMode'
 import Radio from './Radio.vue'
 import SlideBar from './SlideBar.vue'
+
+const demoMode = useDemoMode()
 
 const scale = ref(0)
 const denoise = ref(0)
@@ -40,10 +43,6 @@ const emits = defineEmits<{
 onMounted(() => {
   emits('disablePrompt', false)
 })
-defineProps<{
-  isDemoModeEnabled: boolean
-  showEnhanceTooltip: boolean
-}>()
 
 function changeScale(value: number) {
   scale.value = value

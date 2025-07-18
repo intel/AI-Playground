@@ -195,11 +195,13 @@
                   <div
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer))"
+                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer, chat.model))"
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer))"
+                    v-html="
+                      markdownParser.parseMarkdown(extractPostMarker(chat.answer, chat.model))
+                    "
                   ></div>
                 </template>
                 <template v-else>
@@ -213,7 +215,7 @@
                   @click="
                     copyText(
                       chat.model && thinkingModels[chat.model]
-                        ? extractPostMarker(chat.answer)
+                        ? extractPostMarker(chat.answer, chat.model)
                         : chat.answer,
                     )
                   "
@@ -478,14 +480,14 @@
         </div>
         <div
           class="flex items-center gap-2"
-          :class="{ 'demo-number-overlay': isDemoModeEnabled && showAnswerOverlay }"
+          :class="{ 'demo-number-overlay': demoMode.enabled && demoMode.answer.show }"
         >
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
             :disabled="processing"
             :title="languages.ANSWER_RAG_OPEN_DIALOG"
-            :class="{ 'demo-mode-overlay-content': showAnswerOverlay }"
+            :class="{ 'demo-mode-overlay-content': demoMode.enabled && demoMode.answer.show }"
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
@@ -512,17 +514,17 @@
       </div>
       <div
         class="w-full h-32 gap-3 flex-none flex items-center pt-2"
-        :class="{ 'demo-number-overlay': isDemoModeEnabled && showAnswerOverlay }"
+        :class="{ 'demo-number-overlay': demoMode.enabled && demoMode.answer.show }"
       >
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
-          :class="{ 'demo-mode-overlay-content': showAnswerOverlay }"
+          :class="{ 'demo-mode-overlay-content': demoMode.enabled && demoMode.answer.show }"
         ></textarea>
         <div
-          v-if="isDemoModeEnabled && showAnswerOverlay"
+          v-if="demoMode.enabled && demoMode.answer.show"
           class="demo-step-number demo-step-number-answer"
         >
           1
@@ -548,36 +550,6 @@
         </button>
       </div>
     </div>
-    <transition name="fade">
-      <div class="demo-mode-answer-overlay" v-if="showAnswerOverlay">
-        <!-- Enhance Center Popup -->
-        <div class="center-popup">
-          <p>
-            {{ languages.DEMO_ANSWER_HEADING }}
-          </p>
-        </div>
-
-        <div class="tooltip-wrapper">
-          <div class="tooltip-box">
-            <div class="tooltip-row">
-              <div class="tooltip-circle">1</div>
-              <div>
-                <p>{{ languages.DEMO_ANSWER_GENERATE_TEXT }}</p>
-                <p class="content-tooltip">
-                  {{ languages.DEMO_YOU_COULD_TYPE }}
-                  <span class="italic-blue">"{{ languages.DEMO_ANSWER_GENERATE_HELP_TEXT }}"</span>
-                </p>
-              </div>
-            </div>
-            <div class="got-it-btn">
-              <button class="tooltip-button" @click="hideOverlay">
-                {{ languages.DEMO_OK_GOT_IT }} &#8594;
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 <script setup lang="ts">
@@ -604,7 +576,9 @@ import {
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 import ModelSelector from '@/components/ModelSelector.vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
+const demoMode = useDemoMode()
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()
@@ -632,7 +606,6 @@ const showRagPreview = ref(true)
 let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
-const showAnswerOverlay = ref(false)
 
 const thinkingModels: Record<string, string> = {
   'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
@@ -651,8 +624,7 @@ const postMarkerText = ref('')
 let reasoningStartTime = 0
 let reasoningTotalTime = 0
 
-function extractPreMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
+function extractPreMarker(fullAnswer: string, model: string): string {
   if (model && thinkingModels[model]) {
     const marker = thinkingModels[model]
     const idx = fullAnswer.indexOf(marker)
@@ -661,8 +633,7 @@ function extractPreMarker(fullAnswer: string): string {
   return fullAnswer
 }
 
-function extractPostMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
+function extractPostMarker(fullAnswer: string, model: string): string {
   if (model && thinkingModels[model]) {
     const marker = thinkingModels[model]
     const idx = fullAnswer.indexOf(marker)
@@ -694,22 +665,10 @@ const isHistoryVisible = ref(false)
 const currentlyGeneratingKey = ref<string | null>(null)
 const showScrollButton = ref(false)
 const autoScrollEnabled = ref(true)
-let isDemoModeEnabled: boolean = false
 
 onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
-  isDemoModeEnabled = await window.electronAPI.getDemoModeSettings()
 })
-
-/** start tooltip overlay for answer page */
-const startOverlay = () => {
-  showAnswerOverlay.value = true
-}
-
-/** hide tooltip overlay for answer page */
-function hideOverlay() {
-  showAnswerOverlay.value = false
-}
 
 function finishGenerate() {
   textOutFinish = true
@@ -1351,7 +1310,5 @@ function copyCode(e: MouseEvent) {
 
 defineExpose({
   checkModel: checkModelAvailability,
-  startOverlay,
-  hideOverlay,
 })
 </script>

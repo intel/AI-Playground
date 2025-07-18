@@ -493,14 +493,12 @@ function initEventHandle() {
   /** Get command line parameters when launched from IPOS to decide the default home page */
   ipcMain.handle('getInitialPage', () => {
     const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
-    const startPageName = startPageArg ? startPageArg.split('=')[1] : 'create'
-    return startPageName
+    return startPageArg ? startPageArg.split('=')[1] : 'create'
   })
 
   /** To check whether demo mode is enabled or not for AIPG */
   ipcMain.handle('getDemoModeSettings', () => {
-    const isDemoModeEnabled = settings.isDemoModeEnabled
-    return isDemoModeEnabled
+    return settings.isDemoModeEnabled
   })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {

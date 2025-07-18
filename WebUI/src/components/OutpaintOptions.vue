@@ -1,7 +1,7 @@
 <template>
   <div
     class="flex items-center gap-2 text-white"
-    :class="{ 'demo-mode-outpaint-content': showOutpaintTooltip }"
+    :class="{ 'demo-mode-outpaint-content': demoMode.enabled && demoMode.enhance.showOutpaint }"
   >
     <div class="flex flex-col gap-2 items-center text-center">
       <span>{{ languages.ENHANCE_OUTPAINT_DIRECTION }}</span>
@@ -30,11 +30,11 @@
         ></button>
       </div>
     </div>
-    <div v-if="isDemoModeEnabled && showOutpaintTooltip" class="demo-step-number">2</div>
+    <div v-if="demoMode.enabled && demoMode.enhance.showOutpaint" class="demo-step-number">2</div>
   </div>
   <div
     class="flex flex-col gap-8 text-white"
-    :class="{ 'demo-mode-denoise-content': showOutpaintTooltip }"
+    :class="{ 'demo-mode-denoise-content': demoMode.enabled && demoMode.enhance.showOutpaint }"
   >
     <div class="flex gap-3 items-center">
       <span class="w-28 flex-none">{{ languages.ENHANCE_COM_DENOISE }}</span>
@@ -48,11 +48,14 @@
         ></slide-bar>
       </div>
     </div>
-    <div v-if="isDemoModeEnabled && showOutpaintTooltip" class="demo-step-number">3</div>
+    <div v-if="demoMode.enabled && demoMode.enhance.showOutpaint" class="demo-step-number">3</div>
   </div>
 </template>
 <script setup lang="ts">
+import { useDemoMode } from '@/assets/js/store/demoMode'
 import SlideBar from './SlideBar.vue'
+
+const demoMode = useDemoMode()
 
 const direction = ref<string>('right')
 const denoise = ref(0.99)
@@ -63,11 +66,6 @@ const emits = defineEmits<{
 onMounted(() => {
   emits('disablePrompt', false)
 })
-defineProps<{
-  /** Get status of tooltip to show from enhance compoent */
-  showOutpaintTooltip: boolean
-  isDemoModeEnabled: boolean
-}>()
 function toggleDirection(value: string) {
   direction.value = value
 }
