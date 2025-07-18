@@ -201,7 +201,7 @@
             <p>{{ languages.DEMO_CREATE_POPUP_CONTENT_1 }}</p>
             <p class="example">
               {{ languages.DEMO_YOU_COULD_TYPE }}
-              <em>"{{ languages.DEMO_CREATE_POPUP_CONTENT_3 }}"</em>.
+              "{{ languages.DEMO_CREATE_POPUP_CONTENT_3 }}".
             </p>
             <div class="got-it-btn">
               <button class="action" @click="hideOverlay()">

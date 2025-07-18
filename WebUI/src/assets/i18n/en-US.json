@@ -299,7 +299,7 @@
   "DEMO_ENHANCE_OUTPAINT_ONE": "Describe how you'd like to expand the image",
   "DEMO_ENHANCE_OUTPAINT_TWO": "Use the arrows below to choose the direction of the expression",
   "DEMO_EHNAHCE_OUTPAINT_THREE": "Move the slider left to preserve more of the original image, or right to align more closely with your text prompt.",
-  "DEMO_ANSWER_HEADING": "Generate intelligent AI-assisted answer for research and writing.",
+  "DEMO_ANSWER_HEADING": "Generate intelligent AI-assisted answers for research and writing.",
   "DEMO_ANSWER_GENERATE_TEXT": "Use the Answer Tab to search for specific information, or upload files to generate summarized insights tailored to your needs.",
   "DEMO_ANSWER_GENERATE_HELP_TEXT": "help me write a research paper on cats ...",
   "DEMO_NEED_HELP": "Need help?",
