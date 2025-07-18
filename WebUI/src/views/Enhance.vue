@@ -600,7 +600,6 @@ watchEffect(() => {
 })
 
 function calculateMaskPenDim() {
-  document.querySelector('')
   const maskPenRef = inpaintEditPen.value?.getBoundingClientRect()
   if (maskPenRef) {
     setTimeout(() => {

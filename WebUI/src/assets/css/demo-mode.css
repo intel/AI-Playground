@@ -639,7 +639,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    right: -12px;
+    right: -10px;
     /* Align to the right side */
     bottom: 92px;
     /* Adjust vertically as needed */
