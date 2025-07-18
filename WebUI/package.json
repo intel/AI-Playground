@@ -70,7 +70,7 @@
     "electron": "^33.4.10",
     "electron-builder": "^25.1.8",
     "electron-builder-squirrel-windows": "^25.1.8",
-    "eslint": "^9.25.1",
+    "eslint": "^9.31.0",
     "eslint-plugin-oxlint": "^0.15.15",
     "eslint-plugin-vue": "^9.33.0",
     "postcss": "^8.5.3",
