@@ -348,10 +348,13 @@ onBeforeMount(async () => {
   })
 
   /** Get command line parameters and load default page on AIPG screen  */
-  window.electronAPI.getInitialPage().then((res) => (activeTabIdx.value = res ?? 'create'))
-  watch([activeTabIdx], () => demoMode.triggerHelp(activeTabIdx.value), {
-    immediate: activeTabIdx.value === 'create',
+  window.electronAPI.getInitialPage().then((res) => {
+    activeTabIdx.value = res ?? 'create'
+    if (activeTabIdx.value == 'create') {
+      demoMode.triggerHelp(activeTabIdx.value)
+    }
   })
+  watch([activeTabIdx], () => demoMode.triggerHelp(activeTabIdx.value))
 
   document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
