@@ -71,11 +71,11 @@ export const useDemoMode = defineStore('demoMode', () => {
   }
 
   function triggerHelp(page: AipgPage, force = false) {
+    if (!enabled.value) return
     console.log('demo mode triggered for ', {
       page,
       force,
     })
-    if (!enabled) return
     if (page === 'learn-more') return
     if (!force && pages[page].value.finished) return
     if (page !== 'enhance') {
@@ -134,6 +134,7 @@ export const useDemoMode = defineStore('demoMode', () => {
   watch(
     () => enhance.value.feature,
     () => {
+      if (!enabled.value) return
       if (!enhance.value.show) triggerHelp('enhance')
     },
   )
