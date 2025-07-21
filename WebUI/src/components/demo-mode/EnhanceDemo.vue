@@ -62,7 +62,7 @@
   </transition>
   <transition name="fade">
     <div class="demo-mode-inpaint-overlay" v-if="demoMode.enhance.showInpaint">
-      <div class="tooltip-wrapper">
+      <div id="inpaintOverlayContent" class="tooltip-wrapper">
         <div class="tooltip-box">
           <div class="tooltip-row">
             <div class="tooltip-circle">1</div>
@@ -95,7 +95,10 @@
     </div>
   </transition>
   <transition name="fade">
-    <div class="demo-mode-outpaint-overlay" v-if="demoMode.enhance.showOutpaint">
+    <div
+      class="demo-mode-outpaint-overlay"
+      v-if="demoMode.enhance.showOutpaint"
+    >
       <div class="tooltip-wrapper">
         <div class="tooltip-box">
           <div class="tooltip-row">

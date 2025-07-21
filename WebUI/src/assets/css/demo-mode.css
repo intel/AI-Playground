@@ -45,7 +45,7 @@
 
   .center-popup {
     position: absolute;
-    top: 26vh;
+    top: 200px;
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(0, 0, 50, 0.85);
@@ -54,15 +54,15 @@
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
-    width: 41.458vw;
-    height: 7.111vh;
+    width: 600px;
+    height: 60px;
     text-align: center;
   }
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 21vw;
-    left: 2vw;
+    bottom: 300px;
+    left: 25px;
   }
 
   .tooltip-box {
@@ -72,8 +72,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 24.59vh;
+    width: 400px;
+    height: 225px;
     font-family: 'Segoe UI', sans-serif;
     position: relative;
   }
@@ -89,14 +89,14 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -118,7 +118,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -146,7 +146,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 10;
+  z-index: 11;
 
   .got-it-btn {
     width: 100%;
@@ -162,7 +162,7 @@
 
   .center-popup {
     position: absolute;
-    top: 20%;
+    top: 200px;
     left: 50%;
     transform: translateX(-50%);
     background-color: #0a0622;
@@ -171,16 +171,16 @@
     border-radius: 10px;
     padding: 16px 20px;
     color: white;
-    width: 41.458vw;
-    height: 7.111vh;
+    width: 600px;
+    height: 65px;
     text-align: center;
     font-size: 18px;
   }
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 30.547vh;
-    left: 3.646vw;
+    bottom: 267px;
+    left: 53px;
   }
 
   .tooltip-box {
@@ -190,8 +190,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 25.59vh;
+    width: 400px;
+    height: 220px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
@@ -204,14 +204,14 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -233,7 +233,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -283,8 +283,8 @@
     border-radius: 10px;
     padding: 16px 20px;
     font-size: 18px;
-    width: 41.458vw;
-    height: 7.111vh;
+    width: 600px;
+    height: 65px;
     position: absolute;
   }
 
@@ -296,14 +296,14 @@
     border-radius: 10px;
     font-size: 16.5px;
     font-weight: 400;
-    width: 26.493vw;
-    height: 20.257vh;
+    width: 400px;
+    height: 190px;
     position: absolute;
     padding: 23px 18px 23px 18px;
   }
 
   .center-box {
-    top: 26vh;
+    top: 200px;
   }
 
   .got-it-btn {
@@ -313,21 +313,21 @@
   }
 
   .bottom-left-box {
-    bottom: 29.16vh;
-    left: 3.49vw;
+    bottom: 270px;
+    left: 53px;
     display: flex;
     align-items: flex-start;
   }
 
   .step {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
-    font-size: 15px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -360,7 +360,7 @@
   .prompt-popup-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -398,8 +398,8 @@
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 44.743vh;
-    left: 3.646vw;
+    bottom: 400px;
+    left: 53px;
   }
 
   .tooltip-box {
@@ -409,8 +409,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 24.59vh;
+    width: 400px;
+    height: 220px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
@@ -423,14 +423,14 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -452,7 +452,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -490,8 +490,8 @@
 
   .tooltip-wrapper {
     position: absolute;
-    bottom: 43.864vh;
-    left: 3.646vw;
+    bottom: 400px;
+    left: 53px;
   }
 
   .tooltip-box {
@@ -501,12 +501,11 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 26.51vw;
-    height: 26.583vh;
+    width: 420px;
+    height: 250px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
-    line-height: 100%;
   }
 
   .tooltip-row {
@@ -516,14 +515,14 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -545,7 +544,7 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: -11px;
     left: 40px;
     width: 0;
     height: 0;
@@ -583,8 +582,6 @@
 
   .tooltip-wrapper {
     position: absolute;
-    top: 28.583vh;
-    right: 19.444vw;
   }
 
   .tooltip-box {
@@ -594,8 +591,8 @@
     box-shadow: 0px 0.75px 4.95px #00c4fa;
     border-radius: 12px;
     padding: 16px 20px;
-    width: 27.361vw;
-    height: 27.25vh;
+    width: 420px;
+    height: 235px;
     font-family: 'IntelOne';
     font-size: 16.5px;
     position: relative;
@@ -609,14 +606,14 @@
   }
 
   .tooltip-circle {
-    width: 22.88px;
-    height: 22.88px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background-color: transparent;
     border: 1.5px solid #00c4fa;
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -638,13 +635,16 @@
   .tooltip-box::after {
     content: '';
     position: absolute;
-    right: -12px; /* Align to the right side */
-    bottom: 92px; /* Adjust vertically as needed */
+    right: -10px;
+    /* Align to the right side */
+    bottom: 92px;
+    /* Adjust vertically as needed */
     width: 0;
     height: 0;
     border-top: 10px solid transparent;
     border-bottom: 10px solid transparent;
-    border-left: 12px solid #0d0a2b; /* Inner arrow */
+    border-left: 12px solid #0d0a2b;
+    /* Inner arrow */
     z-index: 2;
   }
 
@@ -657,7 +657,8 @@
     height: 0;
     border-top: 11px solid transparent;
     border-bottom: 11px solid transparent;
-    border-left: 14px solid #00bfff; /* Outer border arrow */
+    border-left: 14px solid #00bfff;
+    /* Outer border arrow */
     z-index: 1;
   }
 }
@@ -725,9 +726,9 @@
   border-radius: 6px;
   border: none;
   cursor: pointer;
-  font-size: 0.8vw;
-  width: 7.042vw;
-  height: 3.519vh;
+  font-size: 12px;
+  width: 90px;
+  height: 30px;
 }
 
 .demo-right-arrow {
@@ -739,12 +740,6 @@
   position: relative;
 }
 
-.demo-vertical-line {
-  position: absolute;
-  width: 2vw;
-  height: 5vh;
-}
-
 .demo-step-number {
   z-index: 101;
   position: absolute;
@@ -752,8 +747,8 @@
   top: 0;
   left: 0;
   transform: translate(-50%, -50%);
-  width: 22.88px;
-  height: 22.88px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1.5px solid #00c4fa;
   color: white;
@@ -765,10 +760,26 @@
   transition: opacity var(--demo-mode-transition-duration) ease;
   transition-delay: var(--demo-mode-transition-delay);
 }
+
 .demo-step-number-two {
-  left: 52%;
+  left: 108%;
+  top: -40%;
 }
 
 .demo-step-number-answer {
   transform: translate(-30%, -30%) !important;
+}
+
+.demo-variation-splitter {
+  position: relative;
+  /* height: 100%; */
+
+  &::after {
+    position: absolute;
+    right: -25px;
+    top: -25px;
+    height: 175%;
+    content: '';
+    border-right: 2px solid #00c4fa;
+  }
 }

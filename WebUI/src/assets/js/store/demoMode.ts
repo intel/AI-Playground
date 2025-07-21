@@ -56,6 +56,20 @@ export const useDemoMode = defineStore('demoMode', () => {
     answer.value.show = false
   }
 
+  function calculateMaskPenDim() {
+    const maskPenRef = document.getElementById('mask-pen')?.getBoundingClientRect()
+
+    if (maskPenRef) {
+      setTimeout(() => {
+        const inpaintOverlayContent = document.getElementById('inpaintOverlayContent')
+        if (inpaintOverlayContent && inpaintOverlayContent.style) {
+          inpaintOverlayContent.style.top = `${maskPenRef.bottom - 145}px`
+          inpaintOverlayContent.style.left = `${maskPenRef.left - 445}px`
+        }
+      }, 50)
+    }
+  }
+
   function triggerHelp(page: AipgPage, force = false) {
     console.log('demo mode triggered for ', {
       page,
@@ -82,11 +96,18 @@ export const useDemoMode = defineStore('demoMode', () => {
           pages[page].value.show = true
           break
         case 'inpaint':
-          if (enhance.value.finishedInpaint && !force) break
           if (!enhance.value.imageAvailable) break
-          enhance.value.showInpaint = true
-          enhance.value.finishedInpaint = true
-          pages[page].value.show = true
+          if (enhance.value.finishedInpaint && !force) return
+          setTimeout(() => {
+            const maskPenRef: HTMLElement = document.getElementById('mask-pen') as HTMLElement
+            const isMaskPenVisible = window.getComputedStyle(maskPenRef).display !== 'none'
+            if (isMaskPenVisible) {
+              enhance.value.showInpaint = true
+              enhance.value.finishedInpaint = true
+              pages[page].value.show = true
+              calculateMaskPenDim()
+            }
+          }, 100)
           break
         case 'outpaint':
           if (enhance.value.finishedOutpaint && !force) break

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="{ 'demo-variation-splitter': demoMode.enhance.showUpscale }">
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_SCALE }}</h3>
     <div class="gap-3 w-80 flex-wrap grid grid-cols-2">
       <radio
@@ -13,9 +13,14 @@
         @click="changeScale(1)"
       ></radio>
     </div>
+    <div
+      v-if="demoMode.enhance.showUpscale"
+      class="demo-step-number demo-step-number-two"
+    >
+      2
+    </div>
   </div>
-  <div :class="{ 'demo-number-overlay': true }">
-    <span class="demo-vertical-line"></span>
+  <div>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
     <div class="gap-3 w-80">
       <slide-bar v-model:current="denoise" :min="0" :max="1" :step="0.01"></slide-bar>
@@ -23,8 +28,11 @@
   </div>
 </template>
 <script setup lang="ts">
+import { useDemoMode } from '@/assets/js/store/demoMode'
 import Radio from './Radio.vue'
 import SlideBar from './SlideBar.vue'
+
+const demoMode = useDemoMode()
 
 const scale = ref(0)
 const denoise = ref(0)
