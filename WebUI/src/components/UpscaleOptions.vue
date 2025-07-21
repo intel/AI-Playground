@@ -13,12 +13,7 @@
         @click="changeScale(1)"
       ></radio>
     </div>
-    <div
-      v-if="demoMode.enhance.showUpscale"
-      class="demo-step-number demo-step-number-two"
-    >
-      2
-    </div>
+    <div v-if="demoMode.enhance.showUpscale" class="demo-step-number demo-step-number-two">2</div>
   </div>
   <div>
     <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
