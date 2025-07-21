@@ -500,7 +500,10 @@ function initEventHandle() {
 
   /** To check whether demo mode is enabled or not for AIPG */
   ipcMain.handle('getDemoModeSettings', () => {
-    return {isDemoModeEnabled: settings.isDemoModeEnabled, demoModeResetInSeconds: settings.demoModeResetInSeconds}
+    return {
+      isDemoModeEnabled: settings.isDemoModeEnabled,
+      demoModeResetInSeconds: settings.demoModeResetInSeconds,
+    }
   })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {

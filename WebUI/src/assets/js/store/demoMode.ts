@@ -8,7 +8,7 @@ const createInitial = {
   show: false,
   finished: false,
 }
-  type EnhanceFeature = 'upscale' | 'prompt' | 'inpaint' | 'outpaint'
+type EnhanceFeature = 'upscale' | 'prompt' | 'inpaint' | 'outpaint'
 const enhanceInitial = {
   showUpscale: false,
   showPrompt: false,
@@ -60,7 +60,9 @@ export const useDemoMode = defineStore('demoMode', () => {
         }
       } else {
         if (!resetTimer && resetInSeconds.value) {
-          console.log(`demo mode reset timer started, resetting after ${resetInSeconds.value} seconds`)
+          console.log(
+            `demo mode reset timer started, resetting after ${resetInSeconds.value} seconds`,
+          )
           resetTimer = setTimeout(() => {
             location.reload()
           }, resetInSeconds.value * 1000)
