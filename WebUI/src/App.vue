@@ -349,7 +349,6 @@ onBeforeMount(async () => {
 
   /** Get command line parameters and load default page on AIPG screen  */
   window.electronAPI.getInitialPage().then((res) => (activeTabIdx.value = res ?? 'create'))
-  watch([activeTabIdx], () => setTimeout(() => demoMode.triggerHelp(activeTabIdx.value)))
 
   document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
@@ -360,6 +359,11 @@ onBeforeMount(async () => {
   })
   await setInitalLoadingState()
 })
+
+onMounted(async () => {
+  watch([activeTabIdx], () => setTimeout(() => demoMode.triggerHelp(activeTabIdx.value)), {immediate: true})
+}
+)
 
 async function setInitalLoadingState() {
   console.log('setting loading state')
