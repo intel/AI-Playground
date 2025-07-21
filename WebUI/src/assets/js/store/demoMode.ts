@@ -1,52 +1,72 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
+const answerInitial = {
+  show: false,
+  finished: false,
+}
+const createInitial = {
+  show: false,
+  finished: false,
+}
+  type EnhanceFeature = 'upscale' | 'prompt' | 'inpaint' | 'outpaint'
+const enhanceInitial = {
+  showUpscale: false,
+  showPrompt: false,
+  showInpaint: false,
+  showOutpaint: false,
+  finishedUpscale: false,
+  finishedPrompt: false,
+  finishedInpaint: false,
+  finishedOutpaint: false,
+  feature: 'upscale' as EnhanceFeature,
+  imageAvailable: false,
+  show: false,
+  finished: false,
+}
 export const useDemoMode = defineStore('demoMode', () => {
   const enabled = ref(false)
+
+  let resetTimer: null | ReturnType<typeof setTimeout> = null
+  let trackUserInteractionInterval: null | ReturnType<typeof setInterval> = null
+
+  const resetInSeconds = ref<null | number>(null)
   window.electronAPI.getDemoModeSettings().then((res) => {
-    enabled.value = res
+    enabled.value = res.isDemoModeEnabled
+    resetInSeconds.value = res.demoModeResetInSeconds
+    if (res.isDemoModeEnabled && res.demoModeResetInSeconds) trackUserInteraction()
   })
 
-  const answer = ref({
-    show: false,
-    finished: false,
-  })
-  const create = ref({
-    show: false,
-    finished: false,
-  })
-  type EnhanceFeature = 'upscale' | 'prompt' | 'inpaint' | 'outpaint'
-  const enhance = ref<{
-    showUpscale: boolean
-    showPrompt: boolean
-    showInpaint: boolean
-    showOutpaint: boolean
-    finishedUpscale: boolean
-    finishedPrompt: boolean
-    finishedInpaint: boolean
-    finishedOutpaint: boolean
-    feature: EnhanceFeature
-    imageAvailable: boolean
-    show: boolean
-    finished: boolean
-  }>({
-    showUpscale: false,
-    showPrompt: false,
-    showInpaint: false,
-    showOutpaint: false,
-    finishedUpscale: false,
-    finishedPrompt: false,
-    finishedInpaint: false,
-    finishedOutpaint: false,
-    feature: 'upscale',
-    imageAvailable: false,
-    show: false,
-    finished: false,
-  })
+  const answer = ref(answerInitial)
+  const create = ref(createInitial)
+  const enhance = ref(enhanceInitial)
 
   const pages = {
     answer,
     create,
     enhance,
+  }
+
+  const trackUserInteraction = () => {
+    if (trackUserInteractionInterval) {
+      clearInterval(trackUserInteractionInterval)
+      trackUserInteractionInterval = null
+    }
+    trackUserInteractionInterval = setInterval(() => {
+      if (!navigator.userActivation.hasBeenActive) return
+      if (navigator.userActivation.isActive) {
+        if (resetTimer) {
+          clearTimeout(resetTimer)
+          resetTimer = null
+        }
+      } else {
+        if (!resetTimer && resetInSeconds.value) {
+          console.log(`demo mode reset timer started, resetting after ${resetInSeconds.value} seconds`)
+          resetTimer = setTimeout(() => {
+            location.reload()
+          }, resetInSeconds.value * 1000)
+        }
+      }
+    }, 1000)
   }
 
   const escapeDemo = (e: Event) => {

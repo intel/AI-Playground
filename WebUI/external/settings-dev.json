@@ -9,5 +9,6 @@
   ],
   "availableThemes": ["dark", "lnl", "bmg"],
   "currentTheme": "bmg",
-  "isDemoModeEnabled": false
+  "isDemoModeEnabled": false,
+  "demoModeResetInSeconds": null
 }

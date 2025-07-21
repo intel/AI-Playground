@@ -97,6 +97,7 @@ export const settings: LocalSettings = {
   comfyUiParameters: [],
   deviceArchOverride: undefined,
   isDemoModeEnabled: false,
+  demoModeResetInSeconds: null,
 }
 
 async function loadSettings() {
@@ -498,7 +499,7 @@ function initEventHandle() {
 
   /** To check whether demo mode is enabled or not for AIPG */
   ipcMain.handle('getDemoModeSettings', () => {
-    return settings.isDemoModeEnabled
+    return {isDemoModeEnabled: settings.isDemoModeEnabled, demoModeResetInSeconds: settings.demoModeResetInSeconds}
   })
 
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {

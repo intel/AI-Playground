@@ -333,6 +333,7 @@ const debugToolsEnabled = window.envVars.debugToolsEnabled
 
 const mode = useColorMode()
 mode.value = 'dark'
+let initialPage: AipgPage = 'create'
 
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message }) => {
@@ -348,7 +349,10 @@ onBeforeMount(async () => {
   })
 
   /** Get command line parameters and load default page on AIPG screen  */
-  window.electronAPI.getInitialPage().then((res) => (activeTabIdx.value = res ?? 'create'))
+  window.electronAPI.getInitialPage().then((res) => {
+    initialPage = res
+    activeTabIdx.value = initialPage
+  })
 
   document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
@@ -360,10 +364,11 @@ onBeforeMount(async () => {
   await setInitalLoadingState()
 })
 
-onMounted(async () => {
-  watch([activeTabIdx], () => setTimeout(() => demoMode.triggerHelp(activeTabIdx.value)), {immediate: true})
-}
-)
+onMounted(() => {
+  watch([() => globalSetup.loadingState, activeTabIdx] as const, ([loadingState, activeTabIdx]) => {
+    if (loadingState === 'running') setTimeout(() => demoMode.triggerHelp(activeTabIdx))
+  })
+})
 
 async function setInitalLoadingState() {
   console.log('setting loading state')
