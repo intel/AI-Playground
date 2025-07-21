@@ -214,13 +214,13 @@
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
                     v-html="
-                      markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer))
+                      markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer, chat.model))
                     "
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
                     v-html="
-                      markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer))
+                      markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer, chat.model))
                     "
                   ></div>
                 </template>
@@ -235,7 +235,7 @@
                   @click="
                     copyText(
                       chat.model && thinkingModels[chat.model]
-                        ? textInference.extractPostMarker(chat.answer)
+                        ? textInference.extractPostMarker(chat.answer, chat.model)
                         : chat.answer,
                     )
                   "
