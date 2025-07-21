@@ -148,6 +148,7 @@ async function createWindow() {
   }
 
   if (settings.isDemoModeEnabled) {
+    win.webContents.session.clearStorageData()
     win.setFullScreen(true)
     win.maximize()
     win.setKiosk(true)
