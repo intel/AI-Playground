@@ -498,12 +498,16 @@
             <span class="svg-icon i-zoom-out w-4 h-4"></span>
           </button>
         </div>
-        <div class="flex items-center gap-2">
+        <div
+          class="flex items-center gap-2"
+          :class="{ 'demo-number-overlay': demoMode.answer.show }"
+        >
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
             :disabled="processing"
             :title="languages.ANSWER_RAG_OPEN_DIALOG"
+            :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
@@ -528,13 +532,22 @@
           ></drop-down-new>
         </div>
       </div>
-      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
+      <div
+        class="w-full h-32 gap-3 flex-none flex items-center pt-2"
+        :class="{ 'demo-number-overlay': demoMode.answer.show }"
+      >
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
+          :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
         ></textarea>
+        <DemoNumber
+          :show="demoMode.answer.show"
+          :number="1"
+          extraClass="demo-step-number-answer"
+        ></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-if="!processing"
@@ -562,6 +575,7 @@
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -609,7 +623,9 @@ const customFetch = async (_: any, options: any) => {
 
 const chat = useChat({ fetch: customFetch })
 import ModelSelector from '@/components/ModelSelector.vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
+const demoMode = useDemoMode()
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()

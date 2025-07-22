@@ -22,6 +22,7 @@ const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
+  // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
 

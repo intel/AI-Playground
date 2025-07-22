@@ -60,8 +60,10 @@
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(0)"
               class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
+              :class="{ 'demo-mode-overlay-content': demoMode.enhance.showInpaint }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
+              <DemoNumber :show="demoMode.enhance.showInpaint" :number="1"></DemoNumber>
             </button>
             <div
               v-show="
@@ -215,14 +217,31 @@
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
-      <div class="flex justify-center items-center gap-3">
+      <div
+        class="flex justify-center items-center gap-3"
+        :class="{
+          'demo-number-overlay': demoMode.enhance.show,
+        }"
+      >
         <textarea
           class="flex-auto h-20 resize-none"
           :placeholder="languages.COM_SD_PROMPT"
           v-model="prompt"
           :disabled="disabledPrompt"
           @keypress.enter.prevent="generate"
+          :class="{
+            'demo-mode-overlay-content':
+              demoMode.enhance.showInpaint ||
+              demoMode.enhance.showOutpaint ||
+              demoMode.enhance.showPrompt,
+            'demo-mode-enhance-content': demoMode.enhance.showUpscale,
+          }"
         ></textarea>
+        <DemoNumber
+          :show="demoMode.enhance.showPrompt || demoMode.enhance.showOutpaint"
+          :number="1"
+        ></DemoNumber>
+        <DemoNumber :show="demoMode.enhance.showInpaint" :number="2"></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-show="!processing"
@@ -279,7 +298,13 @@
           <span>{{ languages.ENHANCE_OUTPAINT }}</span>
         </button>
       </div>
-      <div class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter">
+      <div
+        class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter"
+        :class="{
+          'demo-mode-overlay-content': demoMode.enhance.showUpscale,
+          'demo-number-overlay': demoMode.enhance.showUpscale,
+        }"
+      >
         <div class="w-80 rounded-lg bg-color-control-bg relative h-full">
           <div class="flex flex-col items-center justify-center gap-2 text-white text-xs h-full">
             <p class="text-sm">{{ languages.COM_CLICK_UPLOAD }}</p>
@@ -294,6 +319,12 @@
             @drop="dropImageFile"
           />
         </div>
+        <DemoNumber :show="demoMode.enhance.showUpscale" :number="1"></DemoNumber>
+        <DemoNumber
+          :show="demoMode.enhance.showUpscale"
+          :number="2"
+          extraClass="demo-step-number-two"
+        ></DemoNumber>
         <upscale-options
           v-if="mode == 1"
           ref="upscaleCompt"
@@ -316,6 +347,7 @@
 </template>
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import UpscaleOptions from '../components/UpscaleOptions.vue'
 import OutpaintOptions from '../components/OutpaintOptions.vue'
 import InpaintOptions from '../components/InpaintOptions.vue'
@@ -333,12 +365,15 @@ import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageG
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useModels } from '@/assets/js/store/models'
 import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
 const models = useModels()
 const imageGeneration = useImageGeneration()
+const demoMode = useDemoMode()
+
 const mode = ref(1)
 const sourceImage = ref<HTMLImageElement>()
 const sourceImg = ref<string>('')
@@ -362,7 +397,6 @@ const maskData = reactive({
   mode: 0,
 })
 const uploadFile = ref<HTMLInputElement>()
-
 const disabledPrompt = ref(false)
 const maskBrush = reactive({
   size: 32,
@@ -447,7 +481,11 @@ function dropImageFile(e: DragEvent) {
 
 function switchFeature(value: number) {
   mode.value = value
+  const features = ['upscale', 'prompt', 'inpaint', 'outpaint'] as const
+  setTimeout(() => (demoMode.enhance.feature = features[value - 1] ?? 'upscale'))
 }
+
+watch(sourceImg, (i) => (demoMode.enhance.imageAvailable = i !== ''))
 
 function finishGenerate() {
   processing.value = false
@@ -784,5 +822,6 @@ function toggleParamsDialog() {
     infoParams.value = generateParams[previewIdx.value]
   }
 }
+
 defineExpose({ receiveImage })
 </script>

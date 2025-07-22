@@ -149,32 +149,56 @@
         ></info-table>
       </div>
     </div>
-    <div class="h-32 gap-3 flex-none flex items-center">
-      <textarea
-        class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
-        :placeholder="languages.COM_SD_PROMPT"
-        v-model="imageGeneration.prompt"
-        @keydown.enter.prevent="generateImage"
-      ></textarea>
-      <button
-        class="gernate-btn self-stretch flex flex-col w-32 flex-none"
-        v-show="!imageGeneration.processing"
-        @click="generateImage"
+    <div class="pt-2 gap-y-2 flex flex-col border-t border-color-spilter">
+      <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
+        <div class="flex items-center gap-2">
+          <ModeSelector
+            v-if="imageGeneration.activeWorkflow.backend === 'default'"
+            :title="`${languages.SETTINGS_MODEL_IMAGE_RESOLUTION} & ${languages.SETTINGS_MODEL_QUALITY}`"
+            @change="(item) => (imageGeneration.activeWorkflowName = item)"
+            :value="imageGeneration.activeWorkflowName ?? 'Standard'"
+            :items="[
+              { label: 'Standard', value: 'Standard' },
+              { label: 'Standard - Fast', value: 'Standard - Fast' },
+              { label: 'HD', value: 'HD' },
+              { label: 'HD - Fast', value: 'HD - Fast' },
+            ]"
+          ></ModeSelector>
+        </div>
+      </div>
+      <div
+        class="h-32 gap-3 flex-none flex items-center"
+        :class="{ 'demo-number-overlay': demoMode.create.show }"
       >
-        <span class="svg-icon i-generate-add w-7 h-7"></span>
-        <span>{{ languages.COM_GENERATE }}</span>
-      </button>
-      <button
-        class="gernate-btn self-stretch flex flex-col w-32 flex-none"
-        v-show="imageGeneration.processing"
-        @click="imageGeneration.stopGeneration"
-      >
-        <span
-          class="svg-icon w-7 h-7"
-          :class="{ 'i-stop': !imageGeneration.stopping, 'i-loading': imageGeneration.stopping }"
-        ></span>
-        <span>{{ languages.COM_STOP }}</span>
-      </button>
+        <textarea
+          class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
+          :placeholder="languages.COM_SD_PROMPT"
+          v-model="imageGeneration.prompt"
+          @keydown.enter.prevent="generateImage"
+          :class="{ 'demo-mode-overlay-content': demoMode.create.show }"
+        ></textarea>
+        <DemoNumber :show="demoMode.create.show" :number="1"></DemoNumber>
+        <button
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-show="!imageGeneration.processing"
+          @click="generateImage"
+          :class="{ 'demo-mode-overlay-content': demoMode.create.show }"
+        >
+          <span class="svg-icon i-generate-add w-7 h-7"></span>
+          <span>{{ languages.COM_GENERATE }}</span>
+        </button>
+        <button
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-show="imageGeneration.processing"
+          @click="imageGeneration.stopGeneration"
+        >
+          <span
+            class="svg-icon w-7 h-7"
+            :class="{ 'i-stop': !imageGeneration.stopping, 'i-loading': imageGeneration.stopping }"
+          ></span>
+          <span>{{ languages.COM_STOP }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -182,10 +206,14 @@
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
+import ModeSelector from '@/components/ModeSelector.vue'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
+const demoMode = useDemoMode()
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
@@ -193,6 +221,7 @@ const selectedImageId = ref<string | null>(null)
 const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
+
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {

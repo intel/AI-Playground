@@ -43,17 +43,20 @@
         <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
       </button>
       <button
+        v-if="!demoMode.enabled"
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showAppSettings"
         ref="showSettingBtn"
       ></button>
       <button
+        v-if="!demoMode.enabled"
         :title="languages.COM_MINI"
         @click="miniWindow"
         class="svg-icon i-mini w-6 h-6"
       ></button>
       <button
+        v-if="!demoMode.enabled"
         :title="fullscreen ? languages.COM_FULLSCREEN_EXIT : languages.COM_FULLSCREEN"
         @click="toggleFullScreen"
         class="svg-icon w-6 h-6"
@@ -135,39 +138,72 @@
   </main>
   <main v-show="globalSetup.loadingState === 'running'" class="flex-auto flex flex-col relative">
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
-      <button class="tab" :class="{ active: activeTabIdx == 0 }" @click="switchTab(0)">
+      <button
+        class="tab"
+        :class="{ active: activeTabIdx === 'create' }"
+        @click="() => (activeTabIdx = 'create')"
+      >
         {{ languages.TAB_CREATE }}
       </button>
-      <button class="tab" :class="{ active: activeTabIdx == 1 }" @click="switchTab(1)">
+      <button
+        class="tab"
+        :class="{ active: activeTabIdx === 'enhance' }"
+        @click="() => (activeTabIdx = 'enhance')"
+      >
         {{ languages.TAB_ENHANCE }}
       </button>
-      <button class="tab" :class="{ active: activeTabIdx == 2 }" @click="switchTab(2)">
+      <button
+        class="tab"
+        :class="{ active: activeTabIdx === 'answer' }"
+        @click="() => (activeTabIdx = 'answer')"
+      >
         {{ languages.TAB_ANSWER }}
       </button>
-      <button class="tab" :class="{ active: activeTabIdx == 3 }" @click="switchTab(3)">
+      <button
+        class="tab"
+        :class="{ active: activeTabIdx === 'learn-more' }"
+        @click="() => (activeTabIdx = 'learn-more')"
+      >
         {{ languages.TAB_LEARN_MORE }}
       </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
+      <button
+        v-if="demoMode.enabled"
+        class="demo-help-button"
+        ref="needHelpBtn"
+        @click="
+          (event) => {
+            event.stopPropagation()
+            demoMode.triggerHelp(activeTabIdx, true)
+          }
+        "
+      >
+        {{ languages.DEMO_NEED_HELP }}
+      </button>
     </div>
     <div class="main-content flex-auto rounded-t-lg relative">
+      <CreateDemo></CreateDemo>
+      <AnswerDemo></AnswerDemo>
+      <EnhanceDemo></EnhanceDemo>
       <create
-        v-show="activeTabIdx == 0"
+        v-show="activeTabIdx === 'create'"
+        ref="createCompt"
         @postImageToEnhance="postImageToEnhance"
         @show-download-model-confirm="showDownloadModelConfirm"
       ></create>
       <enhance
-        v-show="activeTabIdx == 1"
+        v-show="activeTabIdx === 'enhance'"
         ref="enhanceCompt"
         @show-download-model-confirm="showDownloadModelConfirm"
       >
       </enhance>
       <answer
-        v-show="activeTabIdx == 2"
+        v-show="activeTabIdx === 'answer'"
         ref="answer"
         @show-download-model-confirm="showDownloadModelConfirm"
         @show-model-request="showModelRequest"
       ></answer>
-      <learn-more v-show="activeTabIdx == 3"></learn-more>
+      <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
       <app-settings
         v-show="showSetting"
         @close="hideAppSettings"
@@ -248,6 +284,9 @@
 </template>
 
 <script setup lang="ts">
+import CreateDemo from './components/demo-mode/CreateDemo.vue'
+import AnswerDemo from './components/demo-mode/AnswerDemo.vue'
+import EnhanceDemo from './components/demo-mode/EnhanceDemo.vue'
 import LoadingBar from './components/LoadingBar.vue'
 import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
@@ -265,10 +304,12 @@ import WarningDialog from '@/components/WarningDialog.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
+import { useDemoMode } from './assets/js/store/demoMode.ts'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
+const demoMode = useDemoMode()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<InstanceType<typeof Answer>>()
@@ -276,9 +317,10 @@ const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
+const needHelpBtn = ref<HTMLButtonElement>()
 
 const isOpen = ref(false)
-const activeTabIdx = ref(0)
+const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
 const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
@@ -291,6 +333,7 @@ const debugToolsEnabled = window.envVars.debugToolsEnabled
 
 const mode = useColorMode()
 mode.value = 'dark'
+let initialPage: AipgPage = 'create'
 
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message }) => {
@@ -305,6 +348,12 @@ onBeforeMount(async () => {
     }
   })
 
+  /** Get command line parameters and load default page on AIPG screen  */
+  window.electronAPI.getInitialPage().then((res) => {
+    initialPage = res
+    activeTabIdx.value = initialPage
+  })
+
   document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
     if (e.key == 'F11') {
@@ -313,6 +362,12 @@ onBeforeMount(async () => {
     }
   })
   await setInitalLoadingState()
+})
+
+onMounted(() => {
+  watch([() => globalSetup.loadingState, activeTabIdx] as const, ([loadingState, activeTabIdx]) => {
+    if (loadingState === 'running') setTimeout(() => demoMode.triggerHelp(activeTabIdx))
+  })
 })
 
 async function setInitalLoadingState() {
@@ -340,6 +395,9 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
     globalSetup.loadingState = 'running'
   }
 }
+
+/** Get tooltips of AIPG demo mode on click of Help button */
+const createCompt = ref()
 
 function showAppSettings() {
   if (showSetting.value === false) {
@@ -380,10 +438,6 @@ function autoHideAppSettings(e: MouseEvent) {
   }
 }
 
-function switchTab(index: number) {
-  activeTabIdx.value = index
-}
-
 function miniWindow() {
   window.electronAPI.miniWindow()
 }
@@ -403,7 +457,7 @@ function openDevTools() {
 
 function postImageToEnhance(imageUrl: string) {
   enhanceCompt.value?.receiveImage(imageUrl)
-  activeTabIdx.value = 1
+  activeTabIdx.value = 'enhance'
 }
 
 function showDownloadModelConfirm(

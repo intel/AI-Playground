@@ -1,5 +1,8 @@
 <template>
-  <div class="flex justify-center gap-8 h-full text-white">
+  <div
+    class="flex justify-center gap-8 h-full text-white"
+    :class="{ 'demo-mode-inpaint-content': demoMode.enhance.showInpaint }"
+  >
     <div class="flex items-center gap-5 flex-none">
       <span>{{ languages.ENHANCE_INPAINT_TYPE }}</span>
       <div class="flex items-center gap-2">
@@ -27,11 +30,17 @@
         ></slide-bar>
       </div>
     </div>
+
+    <DemoNumber :show="demoMode.enhance.showInpaint" :number="3"></DemoNumber>
   </div>
 </template>
 <script setup lang="ts">
+import { useDemoMode } from '@/assets/js/store/demoMode'
+import DemoNumber from './demo-mode/DemoNumber.vue'
 import RadioBlock from './RadioBlock.vue'
 import SlideBar from './SlideBar.vue'
+
+const demoMode = useDemoMode()
 
 const paintType = ref(1)
 const denoise = ref(0.35)
