@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import electron from 'vite-plugin-electron'
 import pkg from './package.json'
-import tailwind from 'tailwindcss'
+import tailwindcss from "@tailwindcss/vite";
 import autoprefixer from 'autoprefixer'
 
 // https://vitejs.dev/config/
@@ -16,7 +16,7 @@ export default defineConfig(({ command }) => {
   return {
     css: {
       postcss: {
-        plugins: [tailwind(), autoprefixer()],
+        plugins: [tailwindcss(), autoprefixer()],
       },
     },
     plugins: [
