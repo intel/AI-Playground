@@ -5,7 +5,7 @@
       <div
         id="chatHistoryPanel"
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
-        class="flex flex-shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
+        class="flex shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
         <div class="flex justify-end">
           <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
@@ -453,7 +453,7 @@
             min="0"
             max="4096"
             step="1"
-            class="rounded text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+            class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
           />
         </div>
 

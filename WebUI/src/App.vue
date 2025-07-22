@@ -15,7 +15,7 @@
     class="absolute -z-50 w-screen h-screen bg-cover bg-center bg-bmg"
   ></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black bg-opacity-20"
+    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black/20"
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-3 items-baseline">
@@ -99,7 +99,7 @@
     class="flex-auto flex items-start mt-[10vh] justify-center"
   >
     <div
-      class="dialog-container z-10 text-white w-[60vw] align-top bg-black bg-opacity-50 p-4 rounded-lg border border-gray-400"
+      class="dialog-container z-10 text-white w-[60vw] align-top bg-black/50 p-4 rounded-lg border border-gray-400"
     >
       <Collapsible v-model:open="isOpen" class="space-y-2">
         <div class="flex items-center justify-between gap-2">
@@ -195,8 +195,8 @@
   <footer
     class="flex-none px-4 flex justify-between items-center select-none"
     :class="{
-      'bg-black bg-opacity-50': theme.active === 'lnl',
-      'bg-black bg-opacity-80': theme.active === 'bmg',
+      'bg-black/50': theme.active === 'lnl',
+      'bg-black/80': theme.active === 'bmg',
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >

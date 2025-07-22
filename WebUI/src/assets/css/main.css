@@ -3,6 +3,11 @@
 }
 
 button,
+[role=\"button\"] {
+  cursor: pointer;
+}
+
+button,
 input,
 a,
 textarea {

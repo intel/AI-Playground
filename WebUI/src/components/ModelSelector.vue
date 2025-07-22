@@ -61,7 +61,7 @@ const selectedItem = computed(() => {
           class="w-full h-[30px] rounded-[15px] bg-[#05010f] border border-[#cdcdcd] text-white px-3 flex items-center justify-between"
         >
           <div
-            class="w-2 h-2 rounded-full flex-shrink-0"
+            class="w-2 h-2 rounded-full shrink-0"
             :class="selectedItem.active ? 'bg-green-500' : 'bg-gray-400'"
           ></div>
           <span class="text-xs flex-grow text-left px-3 text-nowrap">
@@ -101,7 +101,7 @@ const selectedItem = computed(() => {
           class="text-sm px-4 py-1 flex items-center text-left hover:bg-white/10 text-white"
         >
           <div
-            class="w-2 h-2 rounded-full mr-2 flex-shrink-0"
+            class="w-2 h-2 rounded-full mr-2 shrink-0"
             :class="item.active ? 'bg-green-500' : 'bg-gray-400'"
           ></div>
           {{ item.label }}
