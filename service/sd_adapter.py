@@ -92,7 +92,7 @@ class SD_SSE_Adapter:
         safe_check_pass: bool = True,
     ):
         now = datetime.now()
-        folder = now.strftime("%d_%m_%Y")
+        folder = now.strftime("%Y_%m_%d")
         base_name = now.strftime("%H%M%S")
         image_name = f"{base_name}.png"
         filename = os.path.join(self.save_image_path, folder, image_name)
