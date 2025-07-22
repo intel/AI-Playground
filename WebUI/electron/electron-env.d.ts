@@ -52,8 +52,8 @@ type SetupData = {
 }
 
 type UpdateWorkflowsFromIntelResult = {
-  success: boolean
-  backupDir: string
+  result: 'success' | 'error' | 'noUpdate'
+  backupDir?: string
 }
 
 type BackendStatus =

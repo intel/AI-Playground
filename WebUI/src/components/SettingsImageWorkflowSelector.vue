@@ -266,8 +266,10 @@ function onComfyUIDialogClose() {
 
 async function loadWorkflowsFromIntel() {
   const syncStatus = await imageGeneration.loadWorkflowsFromIntel()
-  if (syncStatus.success) {
-    toast.error(`Backed up models at ${syncStatus.backupDir}`)
+  if (syncStatus.result === 'success') {
+    toast.success(`Backed up models at ${syncStatus.backupDir}`)
+  } else if (syncStatus.result === 'noUpdate') {
+    toast.warning('No updated workflows available')
   } else {
     toast.error('Synchronisation failed')
   }
