@@ -20,7 +20,7 @@
       :for="id"
       :class="
         cn(
-          'text-base bg-color-active py-1 px-6 rounded hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
+          'text-base bg-color-active py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
           props.class,
         )
       "

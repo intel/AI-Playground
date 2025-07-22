@@ -11,9 +11,12 @@ export const useTheme = defineStore(
       const themesFromSettings = themeSettings.availableThemes.filter((t) =>
         knownThemes.includes(t),
       )
-      if (themesFromSettings.length > 0) availableThemes.value = themesFromSettings
-      if (knownThemes.includes(themeSettings.currentTheme))
+      if (themesFromSettings.length > 0) {
+        availableThemes.value = themesFromSettings
+      }
+      if (!selected.value && knownThemes.includes(themeSettings.currentTheme)) {
         selected.value = themeSettings.currentTheme
+      }
     })
 
     return {

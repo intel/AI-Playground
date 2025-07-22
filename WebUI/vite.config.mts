@@ -4,8 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import electron from 'vite-plugin-electron'
 import pkg from './package.json'
-import tailwind from 'tailwindcss'
-import autoprefixer from 'autoprefixer'
+import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
@@ -14,12 +13,8 @@ export default defineConfig(({ command }) => {
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
   const dependenciesToBeTranspiled = ['get-port']
   return {
-    css: {
-      postcss: {
-        plugins: [tailwind(), autoprefixer()],
-      },
-    },
     plugins: [
+      tailwindcss(),
       vue(),
       AutoImport({
         imports: ['vue'],

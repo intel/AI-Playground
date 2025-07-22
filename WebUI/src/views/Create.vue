@@ -25,7 +25,7 @@
             @click="deleteAllImages"
             :title="languages.COM_CLEAR_HISTORY"
             :disabled="imageGeneration.processing"
-            class="bg-color-image-tool-button rounded-sm w-6 h-6 ml-2 flex items-center justify-center"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 ml-2 flex items-center justify-center"
           >
             <span class="svg-icon text-white i-clear w-4 h-4"></span>
           </button>
@@ -95,7 +95,7 @@
               "
               @click="postImageToEnhance(currentImage)"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
@@ -103,7 +103,7 @@
               v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
@@ -111,7 +111,7 @@
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="openImage(currentImage)"
               :title="languages.COM_ZOOM_IN"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
@@ -119,7 +119,7 @@
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="copyImage(currentImage)"
               :title="languages.COM_COPY"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
@@ -127,7 +127,7 @@
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="openImageInFolder(currentImage)"
               :title="languages.COM_OPEN_LOCATION"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
@@ -135,7 +135,7 @@
               v-if="currentImage"
               @click="deleteImage(currentImage)"
               :title="languages.COM_DELETE"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-delete w-4 h-4"></span>
             </button>

@@ -458,7 +458,7 @@ def cache_input_image():
     elif file.content_type == "image/bmp":
         ext = ".bmp"
     now = datetime.now()
-    folder = now.strftime("%d_%m_%Y")
+    folder = now.strftime("%Y_%m_%d")
     base_name = now.strftime("%H%M%S")
     file_path = os.path.abspath(
         os.path.join("./static/sd_input/", folder, base_name + ext)
@@ -477,7 +477,7 @@ def cache_mask_image():
         request.files.get("mask_image").stream.read(), mask_width, mask_height
     )
     now = datetime.now()
-    folder = now.strftime("%d_%m_%Y")
+    folder = now.strftime("%Y_%m_%d")
     base_name = now.strftime("%H%M%S")
     file_path = os.path.abspath(
         os.path.join("static/sd_mask/", folder, base_name + ".png")
