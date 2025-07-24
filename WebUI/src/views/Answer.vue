@@ -611,7 +611,7 @@ import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useChat } from '@ai-sdk/vue'
 import { streamText } from 'ai'
-import { Ollama } from 'ollama'
+import { Ollama } from 'ollama/browser'
 
 const getModel = () =>
   createOpenAICompatible({
