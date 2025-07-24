@@ -27,7 +27,7 @@ export class OllamaBackendService implements ApiService {
 
   // Download URL and file paths
   readonly downloadUrl =
-    'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/ollama-ipex-llm-2.2.0-win.zip'
+    'https://github.com/ipex-llm/ipex-llm/releases/download/v2.3.0-nightly/ollama-ipex-llm-2.3.0b20250708-win.zip'
   readonly zipPath: string
   readonly aiBackend = new PythonService(
     path.resolve(path.join(this.baseDir, `ai-backend-env`)),

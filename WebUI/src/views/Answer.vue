@@ -103,6 +103,12 @@
         :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
+        <div v-if="ollamaDlProgress.status !== 'idle'">
+          Ollama DL:
+          {{
+            `${((ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
+          }}
+        </div>
         <div v-for="message in chat.messages.value" :key="message.id">
           {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
           {{ message.content }}
@@ -214,13 +220,17 @@
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
                     v-html="
-                      markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer, chat.model))
+                      markdownParser.parseMarkdown(
+                        textInference.extractPreMarker(chat.answer, chat.model),
+                      )
                     "
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
                     v-html="
-                      markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer, chat.model))
+                      markdownParser.parseMarkdown(
+                        textInference.extractPostMarker(chat.answer, chat.model),
+                      )
                     "
                   ></div>
                 </template>
@@ -601,12 +611,13 @@ import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useChat } from '@ai-sdk/vue'
 import { streamText } from 'ai'
+import { Ollama } from 'ollama'
 
 const getModel = () =>
   createOpenAICompatible({
     name: 'model',
     baseURL: `${textInference.currentBackendUrl}/v1/`,
-  }).chatModel('deepseek-r1:1.5b')
+  }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b')
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const customFetch = async (_: any, options: any) => {
@@ -622,6 +633,12 @@ const customFetch = async (_: any, options: any) => {
 }
 
 const chat = useChat({ fetch: customFetch })
+const ollamaDlProgress = ref<{
+  status: 'idle' | 'pulling'
+  totalBytes?: number
+  completedBytes?: number
+}>({ status: 'idle' })
+
 import ModelSelector from '@/components/ModelSelector.vue'
 import { useDemoMode } from '@/assets/js/store/demoMode'
 
@@ -1030,6 +1047,18 @@ async function generateWithAiSdk(chatContext: ChatItem[]) {
 async function generate(chatContext: ChatItem[]) {
   if (textInference.backend === 'ollama') {
     // For Ollama, we need to set the model name in the backend URL
+    const ollama = new Ollama({ host: textInference.currentBackendUrl })
+    const ollamaDl = await ollama.pull({ model: textInference.activeModel ?? 'asdf', stream: true })
+    for await (const progress of ollamaDl) {
+      ollamaDlProgress.value = {
+        status: 'pulling',
+        totalBytes: progress.total,
+        completedBytes: progress.completed,
+      }
+    }
+      ollamaDlProgress.value = {
+        status: 'idle'
+      }
     await generateWithAiSdk(chatContext)
     return
   }
