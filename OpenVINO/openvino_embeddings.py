@@ -66,7 +66,7 @@ class OpenVINOEmbeddingModel:
             del self.embedding
             self.embedding = None
             gc.collect()
-            print(f"******* unloaded OpenVINO embedding model to free VRAM")
+            print("******* unloaded OpenVINO embedding model to free VRAM")
 
     def embed_query(self, text: str):
         """

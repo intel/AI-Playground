@@ -37,6 +37,7 @@ type LocalSettings = {
   debug: number
   comfyUiParameters?: string[]
   deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
+  enablePreviewFeatures?: boolean
 } & KVObject
 
 type ThemeSettings = {

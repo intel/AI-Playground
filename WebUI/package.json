@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "2.5.5-beta",
+  "version": "2.6.0-beta",
   "scripts": {
     "dev": "cross-env VITE_DEBUG_TOOLS=\"true\" VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "preview": "vite preview",
@@ -20,6 +20,8 @@
     "format:ci": "prettier --check ."
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^0.2.13",
+    "@ai-sdk/vue": "^1.2.8",
     "@heroicons/vue": "^2.2.0",
     "@langchain/community": "^0.3.41",
     "@langchain/core": "^0.3.48",
@@ -27,6 +29,7 @@
     "@radix-icons/vue": "^1.0.0",
     "@vee-validate/zod": "^4.15.0",
     "@vueuse/core": "^11.3.0",
+    "ai": "^4.3.10",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

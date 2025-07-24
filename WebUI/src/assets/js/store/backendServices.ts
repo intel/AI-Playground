@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 
-const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
+const backends = [
+  'openvino-backend',
+  'ai-backend',
+  'comfyui-backend',
+  'llamacpp-backend',
+  'ollama-backend',
+] as const
 
 type ServiceSettings = {
   ['ai-backend']?: object
@@ -9,6 +15,7 @@ type ServiceSettings = {
   }
   ['llamacpp-backend']?: object
   ['openvino-backend']?: object
+  ['ollama-backend']?: object
 } & { serviceName: BackendServiceName }
 
 export type BackendServiceName = (typeof backends)[number]
@@ -170,6 +177,26 @@ export const useBackendServices = defineStore(
       }
     }
 
+    async function ensureBackendReadiness(
+      serviceName: BackendServiceName,
+      llmModelName: string,
+      embeddingModelName?: string,
+    ): Promise<void> {
+      try {
+        const result = await window.electronAPI.ensureBackendReadiness(
+          serviceName,
+          llmModelName,
+          embeddingModelName,
+        )
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to ensure backend readiness')
+        }
+      } catch (error) {
+        console.error(`Failed to ensure backend readiness for ${serviceName}:`, error)
+        throw error
+      }
+    }
+
     return {
       info: currentServiceInfo,
       serviceInfoUpdateReceived: serviceInfoUpdatePresent,
@@ -188,6 +215,7 @@ export const useBackendServices = defineStore(
       uninstallService,
       detectDevices,
       selectDevice,
+      ensureBackendReadiness,
     }
   },
   {
