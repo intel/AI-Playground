@@ -848,10 +848,13 @@ export const useImageGeneration = defineStore(
 
     loadWorkflowsFromJson()
 
-    watch(() => backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.isSetUp, (isSetUp) => {
-      console.log('comfyui backend set up trigger')
-      if (isSetUp) loadWorkflowsFromJson()
-    })
+    watch(
+      () => backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.isSetUp,
+      (isSetUp) => {
+        console.log('comfyui backend set up trigger')
+        if (isSetUp) loadWorkflowsFromJson()
+      },
+    )
 
     return {
       hdWarningDismissed,

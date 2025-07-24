@@ -114,7 +114,7 @@ const showMenuButton = computed(
         "
       >
         <AlertDialogTrigger asChild
-          ><DropdownMenuItem @select="(e) => e.preventDefault()">{{
+          ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
             i18nState.BACKEND_REINSTALL
           }}</DropdownMenuItem></AlertDialogTrigger
         >
@@ -163,7 +163,7 @@ const showMenuButton = computed(
           v-model:open="settingsDialogOpen"
         >
           <DialogTrigger asChild
-            ><DropdownMenuItem @select="(e) => e.preventDefault()">{{
+            ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
               i18nState.COM_SETTINGS
             }}</DropdownMenuItem></DialogTrigger
           >

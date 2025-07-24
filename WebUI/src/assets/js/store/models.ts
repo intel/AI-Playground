@@ -108,23 +108,23 @@ const predefinedModels: Omit<Model, 'downloaded'>[] = [
   {
     name: 'deepseek-r1:1.5b',
     type: 'ollama',
-    default: false
+    default: false,
   },
   {
     name: 'gemma3:4b',
     type: 'ollama',
-    default: false
+    default: false,
   },
   {
     name: 'gemma3n:e2b',
     type: 'ollama',
-    default: false
+    default: false,
   },
   {
     name: 'qwen3:8b',
     type: 'ollama',
-    default: false
-  }
+    default: false,
+  },
 ]
 
 export const useModels = defineStore(

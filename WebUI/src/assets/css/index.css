@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @config "../../../tailwind.config.cjs";
 @import './theme.css';
 @import './main.css';

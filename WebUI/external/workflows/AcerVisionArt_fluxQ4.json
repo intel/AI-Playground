@@ -45,190 +45,148 @@
   "modifiableSettings": ["seed"],
   "comfyUiApiWorkflow": {
     "169": {
-    "inputs": {
-      "noise": [
-        "184",
-        0
-      ],
-      "guider": [
-        "178",
-        0
-      ],
-      "sampler": [
-        "185",
-        0
-      ],
-      "sigmas": [
-        "181",
-        0
-      ],
-      "latent_image": [
-        "180",
-        0
-      ]
+      "inputs": {
+        "noise": ["184", 0],
+        "guider": ["178", 0],
+        "sampler": ["185", 0],
+        "sigmas": ["181", 0],
+        "latent_image": ["180", 0]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
     },
-    "class_type": "SamplerCustomAdvanced",
-    "_meta": {
-      "title": "SamplerCustomAdvanced"
-    }
-  },
-  "170": {
-    "inputs": {
-      "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q4_K_S.gguf"
+    "170": {
+      "inputs": {
+        "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q4_K_S.gguf"
+      },
+      "class_type": "UnetLoaderGGUF",
+      "_meta": {
+        "title": "Unet Loader (GGUF)"
+      }
     },
-    "class_type": "UnetLoaderGGUF",
-    "_meta": {
-      "title": "Unet Loader (GGUF)"
-    }
-  },
-  "171": {
-    "inputs": {
-      "vae_name": "black-forest-labs---FLUX.1-schnell\\ae.safetensors"
+    "171": {
+      "inputs": {
+        "vae_name": "black-forest-labs---FLUX.1-schnell\\ae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
     },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Load VAE"
-    }
-  },
-  "174": {
-    "inputs": {
-      "guidance": 1,
-      "conditioning": [
-        "177",
-        0
-      ]
+    "174": {
+      "inputs": {
+        "guidance": 1,
+        "conditioning": ["177", 0]
+      },
+      "class_type": "FluxGuidance",
+      "_meta": {
+        "title": "FluxGuidance"
+      }
     },
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "FluxGuidance"
-    }
-  },
-  "177": {
-    "inputs": {
-      "text": "A cool llama wearing a pair of sunglasses, holding a blue and purple neon sign that says \"Hello Intel\" in front, vibrant colors, blurry cyberpunk gaming background.",
-      "clip": [
-        "188",
-        0
-      ]
+    "177": {
+      "inputs": {
+        "text": "A cool llama wearing a pair of sunglasses, holding a blue and purple neon sign that says \"Hello Intel\" in front, vibrant colors, blurry cyberpunk gaming background.",
+        "clip": ["188", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
     },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "prompt"
-    }
-  },
-  "178": {
-    "inputs": {
-      "model": [
-        "170",
-        0
-      ],
-      "conditioning": [
-        "174",
-        0
-      ]
+    "178": {
+      "inputs": {
+        "model": ["170", 0],
+        "conditioning": ["174", 0]
+      },
+      "class_type": "BasicGuider",
+      "_meta": {
+        "title": "BasicGuider"
+      }
     },
-    "class_type": "BasicGuider",
-    "_meta": {
-      "title": "BasicGuider"
-    }
-  },
-  "179": {
-    "inputs": {
-      "samples": [
-        "169",
-        1
-      ],
-      "vae": [
-        "171",
-        0
-      ]
+    "179": {
+      "inputs": {
+        "samples": ["169", 1],
+        "vae": ["171", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
     },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "VAE Decode"
-    }
-  },
-  "180": {
-    "inputs": {
-      "width": 960,
-      "height": 512,
-      "batch_size": 1
+    "180": {
+      "inputs": {
+        "width": 960,
+        "height": 512,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage",
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
     },
-    "class_type": "EmptyLatentImage",
-    "_meta": {
-      "title": "Empty Latent Image"
-    }
-  },
-  "181": {
-    "inputs": {
-      "scheduler": "normal",
-      "steps": 1,
-      "denoise": 1,
-      "model": [
-        "170",
-        0
-      ]
+    "181": {
+      "inputs": {
+        "scheduler": "normal",
+        "steps": 1,
+        "denoise": 1,
+        "model": ["170", 0]
+      },
+      "class_type": "BasicScheduler",
+      "_meta": {
+        "title": "BasicScheduler"
+      }
     },
-    "class_type": "BasicScheduler",
-    "_meta": {
-      "title": "BasicScheduler"
-    }
-  },
-  "184": {
-    "inputs": {
-      "noise_seed": 847414638968036
+    "184": {
+      "inputs": {
+        "noise_seed": 847414638968036
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
     },
-    "class_type": "RandomNoise",
-    "_meta": {
-      "title": "RandomNoise"
-    }
-  },
-  "185": {
-    "inputs": {
-      "sampler_name": "euler"
+    "185": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
     },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "KSamplerSelect"
-    }
-  },
-  "188": {
-    "inputs": {
-      "clip_name1": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q3_K_M.gguf",
-      "clip_name2": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
-      "type": "flux"
+    "188": {
+      "inputs": {
+        "clip_name1": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q3_K_M.gguf",
+        "clip_name2": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
+        "type": "flux"
+      },
+      "class_type": "DualCLIPLoaderGGUF",
+      "_meta": {
+        "title": "DualCLIPLoader (GGUF)"
+      }
     },
-    "class_type": "DualCLIPLoaderGGUF",
-    "_meta": {
-      "title": "DualCLIPLoader (GGUF)"
-    }
-  },
-  "192": {
-    "inputs": {
-      "animation_mode": 1,
-      "performance_mode": 1,
-      "image": [
-        "179",
-        0
-      ]
+    "192": {
+      "inputs": {
+        "animation_mode": 1,
+        "performance_mode": 1,
+        "image": ["179", 0]
+      },
+      "class_type": "Acer",
+      "_meta": {
+        "title": "VisionArt Node"
+      }
     },
-    "class_type": "Acer",
-    "_meta": {
-      "title": "VisionArt Node"
+    "193": {
+      "inputs": {
+        "filename_prefix": "AcerVisionArt",
+        "images": ["192", 0]
+      },
+      "class_type": "AcerSaveImage",
+      "_meta": {
+        "title": "VisionArt SaveImage Node"
+      }
     }
-  },
-  "193": {
-    "inputs": {
-      "filename_prefix": "AcerVisionArt",
-      "images": [
-        "192",
-        0
-      ]
-    },
-    "class_type": "AcerSaveImage",
-    "_meta": {
-      "title": "VisionArt SaveImage Node"
-    }
-  }
   }
 }

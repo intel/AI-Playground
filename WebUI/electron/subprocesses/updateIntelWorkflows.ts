@@ -49,7 +49,7 @@ export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelRe
         true,
       )
       return {
-        result: 'noUpdate'
+        result: 'noUpdate',
       }
     }
 
@@ -64,7 +64,7 @@ export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelRe
       await copyFileWithDirs(intelWorkflowDirPath, workflowDirTargetPath)
     }
     return {
-      result: 'error'
+      result: 'error',
     }
   } finally {
     await filterPartnerWorkflows()
@@ -188,7 +188,10 @@ async function checkGitRefExists(gitExe: string, workDir: string, ref: string): 
 async function filterPartnerWorkflows() {
   const workflows = await fs.promises.readdir(workflowDirTargetPath, { withFileTypes: true })
   const acerWorkflows = workflows.filter((wf) => wf.name.startsWith('Acer'))
-  const acerVisionArtIsInstalled = await getFromRegistry('HKLM:\\SOFTWARE\\Acer\\AICO2', 'AICO2Installer')
+  const acerVisionArtIsInstalled = await getFromRegistry(
+    'HKLM:\\SOFTWARE\\Acer\\AICO2',
+    'AICO2Installer',
+  )
   if (!acerVisionArtIsInstalled) {
     for (const wf of acerWorkflows) {
       await fs.promises.rm(path.join(workflowDirTargetPath, wf.name))
@@ -215,7 +218,7 @@ async function getFromRegistry(path: string, key: string) {
   try {
     const version = execSync(script, { encoding: 'utf-8', shell: 'powershell.exe' })
     return version.length > 0
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     return false
   }
 }

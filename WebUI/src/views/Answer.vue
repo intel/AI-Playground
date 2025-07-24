@@ -1056,9 +1056,9 @@ async function generate(chatContext: ChatItem[]) {
         completedBytes: progress.completed,
       }
     }
-      ollamaDlProgress.value = {
-        status: 'idle'
-      }
+    ollamaDlProgress.value = {
+      status: 'idle',
+    }
     await generateWithAiSdk(chatContext)
     return
   }
