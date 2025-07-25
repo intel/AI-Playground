@@ -354,7 +354,7 @@ onBeforeMount(async () => {
     activeTabIdx.value = initialPage
   })
 
-  document.body.addEventListener('mousedown', autoHideAppSettings)
+  // document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
     if (e.key == 'F11') {
       toggleFullScreen()

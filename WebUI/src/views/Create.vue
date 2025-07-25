@@ -15,7 +15,9 @@
             @click="selectedImageId = image.id"
           >
             <!-- eslint-enable -->
-            <div class="image-preview-item-bg">
+            <div class="image-preview-item-bg"
+            draggable="true"
+            @dragstart="(e) => dragImage(image.imageUrl ?? '')(e)">
               <img :src="image.imageUrl" class="image-thumb" />
             </div>
           </div>
@@ -37,15 +39,16 @@
         >
           <!-- eslint-disable vue/require-v-for-key -->
           <div
-            v-for="image in imageGeneration.generatedImages"
-            v-show="selectedImageId === image.id"
+            v-show="imageGeneration.generatedImages.length > 0 && currentImage"
             class="flex justify-center items-center"
+            draggable="true"
+            @dragstart="(e) => dragImage(currentImage?.imageUrl ?? '')(e)"
           >
             <!-- eslint-enable -->
             <img
-              v-if="!isVideo(image)"
+              v-if="currentImage && !isVideo(currentImage)"
               class="max-w-768px max-h-512px object-contain p-2"
-              :src="image.imageUrl"
+              :src="currentImage?.imageUrl"
             />
             <video
               v-else
@@ -53,7 +56,7 @@
               controlsList="nodownload nofullscreen noremoteplayback"
               controls
             >
-              <source :src="image.videoUrl" />
+              <source :src="currentImage?.videoUrl" />
             </video>
           </div>
           <div
@@ -221,6 +224,11 @@ const selectedImageId = ref<string | null>(null)
 const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
+
+const dragImage = (image: string) => (event: Event) => {
+  event.preventDefault()
+  window.electronAPI.startDrag(image)
+}
 
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,

@@ -27,6 +27,7 @@ import {
   IpcMainInvokeEvent,
   MessageBoxOptions,
   MessageBoxSyncOptions,
+  nativeImage,
   OpenDialogSyncOptions,
   screen,
   shell,
@@ -810,6 +811,15 @@ function initEventHandle() {
       }
     },
   )
+
+  ipcMain.on('ondragstart', (event, filePath) => {
+    const imagePath = getImagePathFromUrl(filePath)
+    if (!imagePath) return;
+    event.sender.startDrag({
+      file: imagePath,
+      icon: nativeImage.createFromPath(imagePath)
+    })
+  })
 
   ipcMain.handle('reloadImageWorkflows', () => {
     const files = fs.readdirSync(path.join(externalRes, 'workflows'))

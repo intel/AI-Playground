@@ -26,6 +26,7 @@ type DemoModeSettings = {
 type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
 
 type electronAPI = {
+  startDrag: (fileName: string) => void
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
