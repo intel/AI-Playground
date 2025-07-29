@@ -1082,6 +1082,783 @@ Workflows are JSON files defining AI generation pipelines:
 - **Default Workflows**: Simple predefined workflows
 - **Intel Workflows**: Official Intel-provided workflows
 
+## ComfyUI Workflows Architecture
+
+This section provides comprehensive documentation of the ComfyUI workflow system architecture, focusing on the technical patterns and data flow that agents need to understand when working with ComfyUI workflows in AI Playground.
+
+### ComfyUI Workflow System Overview
+
+ComfyUI workflows in AI Playground represent a sophisticated node-based AI generation system that enables complex, multi-step AI processing pipelines. The system integrates ComfyUI's powerful workflow engine with AI Playground's multi-backend architecture through a carefully designed abstraction layer.
+
+```mermaid
+graph TB
+    subgraph "Workflow Execution Flow"
+        A[Workflow JSON Files] --> B[Frontend Validation]
+        B --> C[Dependency Resolution]
+        C --> D[Custom Node Installation]
+        D --> E[Model Validation]
+        E --> F[Workflow Execution]
+        F --> G[Real-time Updates]
+        G --> H[Result Processing]
+    end
+    
+    subgraph "Data Flow Architecture"
+        I[imageGeneration Store] --> J[comfyUi Store]
+        J --> K[Backend API]
+        K --> L[ComfyUI Service]
+        L --> M[WebSocket Stream]
+        M --> N[Frontend Updates]
+    end
+    
+    A --> I
+    H --> N
+    
+    style A fill:#e1f5fe
+    style I fill:#e8f5e8
+    style J fill:#f3e5f5
+    style L fill:#fff3e0
+    style M fill:#e8f5e8
+```
+
+### Workflow JSON Schema and TypeScript Interfaces
+
+ComfyUI workflows are defined using a complex JSON schema that includes metadata, dependencies, and the actual workflow definition. Understanding this schema is crucial for agents working with workflow processing.
+
+#### Core Workflow Interface
+
+```typescript
+interface ComfyUIWorkflow {
+  // Metadata and identification
+  name: string
+  description?: string
+  version?: string
+  author?: string
+  
+  // Dependency management
+  comfyUIRequirements?: {
+    customNodes?: string[]           // GitHub repos with commit hashes
+    pythonPackages?: string[]        // Additional Python dependencies
+    systemRequirements?: string[]    // System-level requirements
+  }
+  
+  // Model requirements with automatic downloading
+  requiredModels?: ModelRequirement[]
+  
+  // Input/output definitions for UI integration
+  inputs?: WorkflowInput[]
+  outputs?: WorkflowOutput[]
+  
+  // The actual ComfyUI workflow definition
+  comfyUiApiWorkflow: ComfyUIApiWorkflow
+  
+  // Execution metadata
+  executionSettings?: {
+    timeout?: number
+    memoryLimit?: number
+    gpuMemoryLimit?: number
+  }
+}
+```
+
+#### Model Requirement Schema
+
+```typescript
+interface ModelRequirement {
+  type: 'checkpoint' | 'lora' | 'vae' | 'controlnet' | 'embedding' | 'upscaler'
+  name: string
+  path?: string                    // Relative path in models directory
+  url?: string                     // Download URL (HuggingFace, etc.)
+  hash?: string                    // File hash for validation
+  size?: number                    // Expected file size in bytes
+  required: boolean                // Whether workflow can run without this model
+  fallback?: string                // Alternative model if primary unavailable
+}
+```
+
+#### Input/Output Definitions
+
+```typescript
+interface WorkflowInput {
+  id: string                       // Unique identifier
+  name: string                     // Display name in UI
+  type: 'text' | 'number' | 'boolean' | 'image' | 'select' | 'slider'
+  description?: string
+  defaultValue?: any
+  validation?: {
+    required?: boolean
+    min?: number
+    max?: number
+    pattern?: string
+    options?: string[]             // For select inputs
+  }
+  comfyUIMapping: {
+    nodeId: string                 // ComfyUI node ID
+    inputName: string              // Input field name in the node
+    transform?: string             // Optional value transformation
+  }
+}
+
+interface WorkflowOutput {
+  id: string
+  name: string
+  type: 'image' | 'text' | 'json' | 'file'
+  description?: string
+  comfyUIMapping: {
+    nodeId: string
+    outputName: string
+  }
+}
+```
+
+#### ComfyUI API Workflow Structure
+
+```typescript
+interface ComfyUIApiWorkflow {
+  [nodeId: string]: {
+    class_type: string             // ComfyUI node class name
+    inputs: Record<string, any>    // Node input values and connections
+    _meta?: {
+      title?: string               // Node display title
+      position?: [number, number]  // Node position in editor
+    }
+  }
+}
+```
+
+### Frontend Store Architecture and Data Flow
+
+The ComfyUI workflow system follows AI Playground's domain-driven store architecture, with clear separation between orchestration and implementation concerns.
+
+#### Store Hierarchy and Responsibilities
+
+```mermaid
+graph TB
+    subgraph "Domain Layer - Orchestration"
+        A[imageGeneration Store]
+        A1[Workflow Selection Logic]
+        A2[Backend Routing Logic]
+        A3[UI State Management]
+        A4[Error Handling]
+    end
+    
+    subgraph "Implementation Layer - ComfyUI Specific"
+        B[comfyUi Store]
+        B1[Workflow Validation]
+        B2[Dependency Management]
+        B3[WebSocket Communication]
+        B4[Progress Tracking]
+        B5[Custom Node Installation]
+    end
+    
+    subgraph "Backend Integration"
+        C[Backend API Calls]
+        D[WebSocket Streams]
+        E[File Operations]
+    end
+    
+    A --> A1
+    A --> A2
+    A --> A3
+    A --> A4
+    A1 --> B
+    A2 --> B
+    
+    B --> B1
+    B --> B2
+    B --> B3
+    B --> B4
+    B --> B5
+    
+    B1 --> C
+    B2 --> C
+    B3 --> D
+    B4 --> D
+    B5 --> C
+    
+    style A fill:#e8f5e8
+    style B fill:#f3e5f5
+    style C fill:#fff3e0
+```
+
+#### imageGeneration Store (Domain Store)
+
+The [`imageGeneration`](WebUI/src/assets/js/store/imageGeneration.ts) store orchestrates workflow execution across different backends:
+
+```typescript
+// Key patterns in imageGeneration store
+export const useImageGeneration = defineStore('imageGeneration', () => {
+  // Workflow selection and routing
+  const selectWorkflow = (workflowId: string, backend: BackendType) => {
+    if (backend === 'comfyui') {
+      return comfyUiStore.loadWorkflow(workflowId)
+    }
+    // Handle other backends...
+  }
+  
+  // Unified execution interface
+  const executeWorkflow = async (params: WorkflowExecutionParams) => {
+    const backend = determineBackend(params.workflowType)
+    
+    switch (backend) {
+      case 'comfyui':
+        return await comfyUiStore.executeWorkflow(params)
+      case 'stable-diffusion':
+        return await stableDiffusionStore.generate(params)
+      default:
+        throw new Error(`Unsupported backend: ${backend}`)
+    }
+  }
+  
+  // Cross-backend state management
+  const executionState = ref<ExecutionState>('idle')
+  const currentProgress = ref<ProgressInfo | null>(null)
+  
+  return {
+    selectWorkflow,
+    executeWorkflow,
+    executionState,
+    currentProgress
+  }
+})
+```
+
+#### comfyUi Store (Implementation Store)
+
+The [`comfyUi`](WebUI/src/assets/js/store/comfyUi.ts) store handles ComfyUI-specific workflow processing:
+
+```typescript
+// Key patterns in comfyUi store
+export const useComfyUi = defineStore('comfyUi', () => {
+  // Workflow management
+  const availableWorkflows = ref<ComfyUIWorkflow[]>([])
+  const currentWorkflow = ref<ComfyUIWorkflow | null>(null)
+  
+  // Dependency management
+  const installCustomNodes = async (nodeRepos: string[]) => {
+    for (const repo of nodeRepos) {
+      const [repoUrl, commitHash] = repo.split('@')
+      await window.electronAPI.installComfyUICustomNode({
+        repository: repoUrl,
+        commit: commitHash || 'main'
+      })
+    }
+  }
+  
+  // Model validation and downloading
+  const validateModels = async (workflow: ComfyUIWorkflow) => {
+    const missingModels = []
+    
+    for (const model of workflow.requiredModels || []) {
+      const exists = await window.electronAPI.checkModelExists(model.path)
+      if (!exists) {
+        if (model.url) {
+          await downloadModel(model)
+        } else if (model.required) {
+          missingModels.push(model)
+        }
+      }
+    }
+    
+    if (missingModels.length > 0) {
+      throw new Error(`Missing required models: ${missingModels.map(m => m.name).join(', ')}`)
+    }
+  }
+  
+  // WebSocket communication for real-time updates
+  const setupWebSocketConnection = () => {
+    const ws = new WebSocket(`ws://localhost:${comfyUIPort}/ws`)
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      handleWebSocketMessage(data)
+    }
+    
+    return ws
+  }
+  
+  // Workflow execution with progress tracking
+  const executeWorkflow = async (params: ComfyUIExecutionParams) => {
+    // 1. Validate workflow and dependencies
+    await validateModels(currentWorkflow.value!)
+    await installCustomNodes(currentWorkflow.value!.comfyUIRequirements?.customNodes || [])
+    
+    // 2. Setup real-time communication
+    const ws = setupWebSocketConnection()
+    
+    // 3. Submit workflow to ComfyUI backend
+    const response = await fetch(`http://localhost:${comfyUIPort}/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: processWorkflowInputs(currentWorkflow.value!.comfyUiApiWorkflow, params.inputs),
+        client_id: generateClientId()
+      })
+    })
+    
+    // 4. Track execution progress
+    return new Promise((resolve, reject) => {
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data)
+        handleExecutionProgress(message, resolve, reject)
+      }
+    })
+  }
+  
+  return {
+    availableWorkflows,
+    currentWorkflow,
+    installCustomNodes,
+    validateModels,
+    executeWorkflow
+  }
+})
+```
+
+### Backend API Integration Patterns
+
+The ComfyUI workflow system integrates with AI Playground's backend through a set of well-defined API endpoints and communication patterns.
+
+#### Primary Backend API Endpoints
+
+The primary backend service ([`service/web_api.py`](service/web_api.py)) provides these ComfyUI-related endpoints:
+
+```python
+# Workflow management endpoints
+@app.get("/api/comfyui/workflows")
+def list_comfyui_workflows():
+    """List all available ComfyUI workflows"""
+    workflows_dir = Path("WebUI/external/workflows")
+    workflows = []
+    
+    for workflow_file in workflows_dir.glob("*.json"):
+        with open(workflow_file, 'r') as f:
+            workflow_data = json.load(f)
+            workflows.append({
+                "id": workflow_file.stem,
+                "name": workflow_data.get("name", workflow_file.stem),
+                "description": workflow_data.get("description", ""),
+                "path": str(workflow_file)
+            })
+    
+    return jsonify({"code": 0, "data": workflows})
+
+@app.post("/api/comfyui/validate-workflow")
+@app.input(WorkflowValidationSchema, location='json')
+def validate_comfyui_workflow(json_data):
+    """Validate workflow dependencies and requirements"""
+    workflow = json_data['workflow']
+    
+    # Check custom nodes
+    missing_nodes = check_custom_nodes(workflow.get('comfyUIRequirements', {}).get('customNodes', []))
+    
+    # Check required models
+    missing_models = check_required_models(workflow.get('requiredModels', []))
+    
+    return jsonify({
+        "code": 0,
+        "data": {
+            "valid": len(missing_nodes) == 0 and len(missing_models) == 0,
+            "missingNodes": missing_nodes,
+            "missingModels": missing_models
+        }
+    })
+
+# Custom node management
+@app.post("/api/comfyui/install-custom-node")
+@app.input(CustomNodeInstallSchema, location='json')
+def install_custom_node(json_data):
+    """Install ComfyUI custom node from GitHub repository"""
+    repo_url = json_data['repository']
+    commit_hash = json_data.get('commit', 'main')
+    
+    def installation_generator():
+        try:
+            # Clone or update repository
+            yield f"data: {json.dumps({'status': 'cloning', 'message': f'Cloning {repo_url}'})}\n\n"
+            
+            repo_path = clone_or_update_repo(repo_url, commit_hash)
+            
+            # Install Python dependencies if requirements.txt exists
+            requirements_file = repo_path / "requirements.txt"
+            if requirements_file.exists():
+                yield f"data: {json.dumps({'status': 'installing_deps', 'message': 'Installing Python dependencies'})}\n\n"
+                install_python_requirements(requirements_file)
+            
+            # Register custom node
+            yield f"data: {json.dumps({'status': 'registering', 'message': 'Registering custom node'})}\n\n"
+            register_custom_node(repo_path)
+            
+            yield f"data: {json.dumps({'status': 'completed', 'message': 'Custom node installed successfully'})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+    
+    return Response(stream_with_context(installation_generator()),
+                   content_type="text/event-stream")
+
+# Model management integration
+@app.post("/api/comfyui/download-model")
+@app.input(ModelDownloadSchema, location='json')
+def download_comfyui_model(json_data):
+    """Download required model for ComfyUI workflow"""
+    model_info = json_data['model']
+    
+    def download_generator():
+        try:
+            # Determine download source and method
+            if model_info['url'].startswith('https://huggingface.co/'):
+                downloader = HuggingFaceModelDownloader()
+            else:
+                downloader = GenericModelDownloader()
+            
+            # Download with progress tracking
+            for progress in downloader.download(model_info):
+                yield f"data: {json.dumps(progress)}\n\n"
+                
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+    
+    return Response(stream_with_context(download_generator()),
+                   content_type="text/event-stream")
+```
+
+#### ComfyUI Service Integration
+
+The ComfyUI backend service is managed through the service registry and provides direct ComfyUI API access:
+
+```typescript
+// Service registry integration
+class ComfyUiBackendService implements ApiService {
+  readonly name = 'comfyui-backend'
+  readonly baseUrl: string
+  readonly port: number
+  readonly isRequired = false
+  
+  async start(): Promise<BackendStatus> {
+    // Start ComfyUI server process
+    const process = spawn('python', [
+      'main.py',
+      '--listen', '127.0.0.1',
+      '--port', this.port.toString(),
+      '--disable-auto-launch'
+    ], {
+      cwd: this.comfyUIPath,
+      env: { ...process.env, ...this.environmentVariables }
+    })
+    
+    // Wait for service to be ready
+    await this.waitForServiceReady()
+    
+    return BackendStatus.Running
+  }
+  
+  async executeWorkflow(workflow: ComfyUIApiWorkflow, clientId: string): Promise<ExecutionResult> {
+    const response = await fetch(`${this.baseUrl}/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: workflow,
+        client_id: clientId
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`ComfyUI execution failed: ${response.statusText}`)
+    }
+    
+    return await response.json()
+  }
+}
+```
+
+### WebSocket Communication Patterns and Message Schemas
+
+Real-time communication with ComfyUI workflows uses WebSocket connections for progress updates, intermediate results, and execution status.
+
+#### WebSocket Message Types
+
+```typescript
+// Base message interface
+interface ComfyUIWebSocketMessage {
+  type: string
+  data: any
+  timestamp?: number
+}
+
+// Execution progress messages
+interface ExecutionProgressMessage extends ComfyUIWebSocketMessage {
+  type: 'progress'
+  data: {
+    node: string                   // Current executing node ID
+    prompt_id: string              // Execution prompt ID
+    max: number                    // Total steps
+    value: number                  // Current step
+  }
+}
+
+// Node execution status
+interface ExecutionStatusMessage extends ComfyUIWebSocketMessage {
+  type: 'executing'
+  data: {
+    node: string | null            // null when execution starts/ends
+    prompt_id: string
+  }
+}
+
+// Execution completion
+interface ExecutionCompleteMessage extends ComfyUIWebSocketMessage {
+  type: 'executed'
+  data: {
+    node: string
+    prompt_id: string
+    output: Record<string, any>    // Node outputs
+  }
+}
+
+// Error messages
+interface ExecutionErrorMessage extends ComfyUIWebSocketMessage {
+  type: 'execution_error'
+  data: {
+    prompt_id: string
+    node_id: string
+    node_type: string
+    executed: string[]             // Successfully executed nodes
+    exception_message: string
+    exception_type: string
+    traceback: string[]
+  }
+}
+```
+
+#### WebSocket Handler Implementation
+
+```typescript
+// WebSocket message handling in comfyUi store
+const handleWebSocketMessage = (message: ComfyUIWebSocketMessage) => {
+  switch (message.type) {
+    case 'status':
+      updateServiceStatus(message.data)
+      break
+      
+    case 'progress':
+      updateExecutionProgress(message.data as ExecutionProgressMessage['data'])
+      break
+      
+    case 'executing':
+      updateCurrentNode(message.data as ExecutionStatusMessage['data'])
+      break
+      
+    case 'executed':
+      handleNodeCompletion(message.data as ExecutionCompleteMessage['data'])
+      break
+      
+    case 'execution_error':
+      handleExecutionError(message.data as ExecutionErrorMessage['data'])
+      break
+      
+    default:
+      console.warn('Unknown WebSocket message type:', message.type)
+  }
+}
+
+// Progress tracking implementation
+const updateExecutionProgress = (progressData: ExecutionProgressMessage['data']) => {
+  const progress = {
+    nodeId: progressData.node,
+    promptId: progressData.prompt_id,
+    currentStep: progressData.value,
+    totalSteps: progressData.max,
+    percentage: Math.round((progressData.value / progressData.max) * 100)
+  }
+  
+  // Update reactive state
+  currentExecutionProgress.value = progress
+  
+  // Emit progress event for UI components
+  eventBus.emit('workflow-progress', progress)
+}
+```
+
+### Troubleshooting ComfyUI Workflows
+
+This section provides architectural debugging approaches for common ComfyUI workflow issues.
+
+#### Common Architectural Issues
+
+**1. Workflow Validation Failures**
+```typescript
+// Debug workflow validation in comfyUi store
+const debugWorkflowValidation = async (workflow: ComfyUIWorkflow) => {
+  console.group('🔍 Workflow Validation Debug')
+  
+  // Check workflow structure
+  console.log('Workflow structure:', {
+    hasComfyUIRequirements: !!workflow.comfyUIRequirements,
+    customNodesCount: workflow.comfyUIRequirements?.customNodes?.length || 0,
+    requiredModelsCount: workflow.requiredModels?.length || 0,
+    workflowNodesCount: Object.keys(workflow.comfyUiApiWorkflow).length
+  })
+  
+  // Validate custom nodes
+  if (workflow.comfyUIRequirements?.customNodes) {
+    for (const nodeSpec of workflow.comfyUIRequirements.customNodes) {
+      const [repo, commit] = nodeSpec.split('@')
+      console.log(`Custom node: ${repo} @ ${commit || 'main'}`)
+    }
+  }
+  
+  // Validate models
+  if (workflow.requiredModels) {
+    for (const model of workflow.requiredModels) {
+      const exists = await window.electronAPI.checkModelExists(model.path)
+      console.log(`Model ${model.name}: ${exists ? '✅ Found' : '❌ Missing'}`)
+    }
+  }
+  
+  console.groupEnd()
+}
+```
+
+**2. WebSocket Connection Issues**
+```typescript
+// Debug WebSocket connectivity
+const debugWebSocketConnection = (ws: WebSocket) => {
+  ws.addEventListener('open', () => {
+    console.log('🔌 ComfyUI WebSocket connected')
+  })
+  
+  ws.addEventListener('close', (event) => {
+    console.warn('🔌 ComfyUI WebSocket disconnected:', {
+      code: event.code,
+      reason: event.reason,
+      wasClean: event.wasClean
+    })
+  })
+  
+  ws.addEventListener('error', (error) => {
+    console.error('🔌 ComfyUI WebSocket error:', error)
+  })
+  
+  ws.addEventListener('message', (event) => {
+    try {
+      const message = JSON.parse(event.data)
+      console.log('📨 ComfyUI WebSocket message:', message.type, message.data)
+    } catch (e) {
+      console.warn('📨 Invalid WebSocket message:', event.data)
+    }
+  })
+}
+```
+
+**3. Custom Node Installation Debugging**
+```python
+# Debug custom node installation in service/comfyui_downloader.py
+def debug_custom_node_installation(repo_url: str, commit_hash: str):
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"🔧 Installing custom node: {repo_url} @ {commit_hash}")
+    
+    # Check repository accessibility
+    try:
+        response = requests.head(repo_url)
+        logger.info(f"Repository accessible: {response.status_code}")
+    except Exception as e:
+        logger.error(f"Repository not accessible: {e}")
+        return
+    
+    # Check local ComfyUI installation
+    comfyui_path = Path("ComfyUI")
+    custom_nodes_path = comfyui_path / "custom_nodes"
+    
+    logger.info(f"ComfyUI path exists: {comfyui_path.exists()}")
+    logger.info(f"Custom nodes path exists: {custom_nodes_path.exists()}")
+    
+    # Check existing installations
+    repo_name = repo_url.split('/')[-1].replace('.git', '')
+    node_path = custom_nodes_path / repo_name
+    
+    if node_path.exists():
+        logger.info(f"Custom node already exists at: {node_path}")
+        # Check current commit
+        try:
+            current_commit = subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD'],
+                cwd=node_path,
+                text=True
+            ).strip()
+            logger.info(f"Current commit: {current_commit}")
+            logger.info(f"Target commit: {commit_hash}")
+        except Exception as e:
+            logger.error(f"Failed to check current commit: {e}")
+```
+
+**4. Model Download and Validation Issues**
+```typescript
+// Debug model management
+const debugModelManagement = async (workflow: ComfyUIWorkflow) => {
+  console.group('📦 Model Management Debug')
+  
+  const modelPaths = await window.electronAPI.getModelPaths()
+  console.log('Model directories:', modelPaths)
+  
+  for (const model of workflow.requiredModels || []) {
+    const fullPath = `${modelPaths[model.type]}/${model.path}`
+    console.log(`Checking model: ${model.name}`)
+    console.log(`  Type: ${model.type}`)
+    console.log(`  Path: ${fullPath}`)
+    console.log(`  Required: ${model.required}`)
+    console.log(`  Has URL: ${!!model.url}`)
+    console.log(`  Has fallback: ${!!model.fallback}`)
+    
+    const exists = await window.electronAPI.checkModelExists(fullPath)
+    if (!exists && model.url) {
+      console.log(`  🔄 Model can be downloaded from: ${model.url}`)
+    } else if (!exists && model.required) {
+      console.error(`  ❌ Required model missing and no download URL`)
+    }
+  }
+  
+  console.groupEnd()
+}
+```
+
+#### Performance Debugging
+
+**Monitor Workflow Execution Performance:**
+```typescript
+const monitorWorkflowPerformance = (workflow: ComfyUIWorkflow) => {
+  const startTime = performance.now()
+  const nodeTimings = new Map<string, number>()
+  
+  // Track node execution times
+  const originalHandler = handleWebSocketMessage
+  handleWebSocketMessage = (message: ComfyUIWebSocketMessage) => {
+    if (message.type === 'executing') {
+      const nodeId = message.data.node
+      if (nodeId) {
+        nodeTimings.set(nodeId, performance.now())
+      }
+    } else if (message.type === 'executed') {
+      const nodeId = message.data.node
+      const startTime = nodeTimings.get(nodeId)
+      if (startTime) {
+        const duration = performance.now() - startTime
+        console.log(`⏱️ Node ${nodeId} executed in ${duration.toFixed(2)}ms`)
+      }
+    }
+    
+    originalHandler(message)
+  }
+  
+  // Overall execution time
+  return () => {
+    const totalTime = performance.now() - startTime
+    console.log(`🏁 Workflow completed in ${totalTime.toFixed(2)}ms`)
+    handleWebSocketMessage = originalHandler
+  }
+}
+```
+
 ## Development Workflows
 
 ### Starting Development
