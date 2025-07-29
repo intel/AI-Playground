@@ -30,6 +30,7 @@ export type GenerationSettings = Partial<
 
 export type ComfyDynamicInputWithCurrent =
   | (ComfyImageInput & { current: string })
+  | (ComfyVideoInput & { current: string })
   | (ComfyNumberInput & { current: number })
   | (ComfyStringInput & { current: string })
   | (ComfyBooleanInput & { current: boolean })
@@ -144,6 +145,15 @@ const ComfyImageInputSchema = z.object({
 })
 export type ComfyImageInput = z.infer<typeof ComfyImageInputSchema>
 
+const ComfyVideoInputSchema = z.object({
+  nodeTitle: z.string(),
+  nodeInput: z.string(),
+  type: z.literal('video'),
+  defaultValue: z.string(),
+  label: z.string(),
+})
+export type ComfyVideoInput = z.infer<typeof ComfyVideoInputSchema>
+
 const ComfyStringInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
@@ -176,6 +186,7 @@ export type ComfyBooleanInput = z.infer<typeof ComfyBooleanInputSchema>
 const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
   ComfyNumberInputSchema,
   ComfyImageInputSchema,
+  ComfyVideoInputSchema,
   ComfyStringInputSchema,
   ComfyStringListInputSchema,
   ComfyBooleanInputSchema,

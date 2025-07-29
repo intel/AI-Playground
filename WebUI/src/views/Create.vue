@@ -12,13 +12,14 @@
             v-for="image in imageGeneration.generatedImages.filter((i) => i.state !== 'queued')"
             class="image-preview-item flex items-center justify-center"
             :class="{ active: selectedImageId === image.id }"
-            @click="selectedImageId = image.id"
+            @click="() => { selectedImageId = image.id }"
           >
             <!-- eslint-enable -->
             <div class="image-preview-item-bg"
             draggable="true"
             @dragstart="(e) => dragImage(image.imageUrl ?? '')(e)">
-              <img :src="image.imageUrl" class="image-thumb" />
+              <video v-if="isVideo(image)" :src="image.videoUrl" class="image-thumb" />
+              <img v-else="isVideo(image)" :src="image.imageUrl" class="image-thumb" />
             </div>
           </div>
         </div>
@@ -52,12 +53,11 @@
             />
             <video
               v-else
+              :src="currentImage?.videoUrl as string"
               class="max-w-768px max-h-512px object-contain p-2"
               controlsList="nodownload nofullscreen noremoteplayback"
               controls
-            >
-              <source :src="currentImage?.videoUrl" />
-            </video>
+            />
           </div>
           <div
             v-show="imageGeneration.processing"

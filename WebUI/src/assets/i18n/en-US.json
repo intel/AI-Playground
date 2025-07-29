@@ -24,6 +24,7 @@
   "COM_START": "Start",
   "COM_DELETE": "Delete",
   "COM_LOAD_IMAGE": "Load Image",
+  "COM_LOAD_VIDEO": "Load Video",
   "COM_DOWNLOAD_MODEL": "Downloading model",
   "COM_DOWNLOAD_SPEED": "Download speed",
   "COM_LOADING_MODEL": "Loading AI Model",
