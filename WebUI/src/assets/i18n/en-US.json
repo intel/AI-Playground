@@ -266,6 +266,13 @@
   "BACKEND_SETTINGS_DESCRIPTION": "Configure the settings for {backend} backend. Changes might require a restart or reinstall to take effect.",
   "BACKEND_VERSION": "Version",
   "BACKEND_VERSION_DESCRIPTION": "The Git reference to use for the backend. This can be a version tag or commit hash.",
+  "BACKEND_VERSION_DESCRIPTION_COMFYUI": "Enter a git commit hash or version tag (e.g. v1.2.3 or abc1234)",
+  "BACKEND_VERSION_DESCRIPTION_LLAMACPP": "Enter a build number (e.g. b6048)",
+  "BACKEND_VERSION_DESCRIPTION_OPENVINO": "Enter a version number (e.g. 2025.2.0)",
+  "BACKEND_VERSION_DESCRIPTION_OLLAMA": "Enter release tag and version",
+  "BACKEND_RELEASE_TAG": "Release Tag",
+  "BACKEND_RELEASE_TAG_DESCRIPTION": "Enter the release tag (e.g. v2.3.0-nightly)",
+  "BACKEND_VERSION_DESCRIPTION_OLLAMA_VERSION": "Enter the version number (e.g. 2.3.0b20250630)",
   "BACKEND_SAVE_CHANGES": "Save changes",
 
   "COM_ADD_FILE_TO_RAG": "Add file to the list of available documents",

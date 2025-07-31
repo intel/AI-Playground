@@ -14,8 +14,9 @@ interface ImportMeta {
 }
 
 type ServiceSettings = {
-  version?: string
   serviceName: BackendServiceName
+  version?: string
+  releaseTag?: string
 }
 
 type DemoModeSettings = {
