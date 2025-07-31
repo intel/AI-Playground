@@ -214,7 +214,7 @@
   },
   "136": {
     "inputs": {
-      "filename_prefix": "ComfyUI",
+      "filename_prefix": "AIPG_Image",
       "images": [
         "8",
         0
@@ -227,7 +227,7 @@
   },
   "142": {
     "inputs": {
-      "image": "ComfyUI_00169_.png [output]",
+      "image": "input_left.png",
       "upload": "image"
     },
     "class_type": "LoadImage",
@@ -257,7 +257,7 @@
   },
   "147": {
     "inputs": {
-      "image": "ComfyUI_00169_.png [output]",
+      "image": "input_right.png",
       "upload": "image"
     },
     "class_type": "LoadImage",

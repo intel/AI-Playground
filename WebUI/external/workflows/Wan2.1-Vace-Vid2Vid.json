@@ -157,9 +157,9 @@
   },
   "42": {
     "inputs": {
-      "filename_prefix": "video/ComfyUI",
+      "filename_prefix": "AIPG_Video",
       "format": "mp4",
-      "codec": "auto",
+      "codec": "h264",
       "video-preview": "",
       "video": [
         "43",

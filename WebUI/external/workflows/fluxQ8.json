@@ -3,7 +3,7 @@
   "displayPriority": 450,
   "backend": "comfyui",
   "comfyUIRequirements": {
-    "customNodes": ["city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"],
+    "customNodes": ["city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"],
     "requiredModels": [
       {
         "type": "unet",
@@ -41,7 +41,7 @@
   "comfyUiApiWorkflow": {
     "167": {
       "inputs": {
-        "filename_prefix": "ComfyUI",
+        "filename_prefix": "AIPG_Image",
         "images": ["179", 0]
       },
       "class_type": "SaveImage",

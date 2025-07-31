@@ -5,7 +5,7 @@
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [
-      "city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7",
+      "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
       "AcerPartner/VisionArt@AI-Playground"
     ],
     "requiredModels": [
@@ -169,8 +169,8 @@
     },
     "192": {
       "inputs": {
-        "animation_mode": 1,
-        "performance_mode": 1,
+        "animation_mode": 2,
+        "performance_mode": 0,
         "image": ["179", 0]
       },
       "class_type": "Acer",
