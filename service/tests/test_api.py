@@ -2,7 +2,6 @@ import sys
 import os
 import unittest
 import logging
-import json
 
 
 class TestAPI(unittest.TestCase):

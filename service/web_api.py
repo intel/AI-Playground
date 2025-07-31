@@ -32,8 +32,8 @@ from paint_biz import (
     InpaintParams,
     OutpaintParams,
     UpscaleImageParams,
+    stop_generate
 )
-import paint_biz
 import aipg_utils as utils
 import service_config
 from model_downloader import HFPlaygroundDownloader
@@ -114,9 +114,7 @@ def sd_generate():
 
 @app.get("/api/sd/stopGenerate")
 def stop_sd_generate():
-    import paint_biz
-
-    paint_biz.stop_generate()
+    stop_generate()
     return jsonify({"code": 0, "message": "success"})
 
 
