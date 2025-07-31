@@ -453,11 +453,14 @@
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
-              [...llmBackendTypes].filter(isEnabled).map((item) => ({
-                label: textInferenceBackendDisplayName[item],
-                value: item,
-                active: isRunning(item),
-              }))
+              [...llmBackendTypes]
+                .filter(isEnabled)
+                .filter((b) => b !== 'ipexLLM')
+                .map((item) => ({
+                  label: textInferenceBackendDisplayName[item],
+                  value: item,
+                  active: isRunning(item),
+                }))
             "
           ></drop-down-new>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
