@@ -6,8 +6,13 @@
     >
       {{ languages.COM_LOAD_VIDEO }}
     </div>
-    <video :src="videoUrlRef.value as string" alt="Video" class="w-64 py-4 object-scale-down" controls
-              controlsList="nodownload nofullscreen noremoteplayback"/>
+    <video
+      :src="videoUrlRef.value as string"
+      alt="Video"
+      class="w-64 py-4 object-scale-down"
+      controls
+      controlsList="nodownload nofullscreen noremoteplayback"
+    />
   </div>
   <div class="flex justify-center">
     <input

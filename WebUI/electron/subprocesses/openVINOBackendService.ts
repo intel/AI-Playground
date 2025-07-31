@@ -65,16 +65,10 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       const originalRequirements = await filesystem.readFile(requirementsFile, 'utf-8')
 
       // Replace openvino version in requirements
-      const modifiedRequirements = originalRequirements.replace(
-        /openvino[>=<~!]*[\d.]+/g,
-        `openvino==${this.version}`,
-      ).replace(
-        /openvino-genai[>=<~!]*[\d.]+/g,
-        `openvino-genai~=${this.version}`,
-      ).replace(
-        /openvino-tokenizers[>=<~!]*[\d.]+/g,
-        `openvino-tokenizers~=${this.version}`,
-      )
+      const modifiedRequirements = originalRequirements
+        .replace(/openvino[>=<~!]*[\d.]+/g, `openvino==${this.version}`)
+        .replace(/openvino-genai[>=<~!]*[\d.]+/g, `openvino-genai~=${this.version}`)
+        .replace(/openvino-tokenizers[>=<~!]*[\d.]+/g, `openvino-tokenizers~=${this.version}`)
 
       await filesystem.writeFile(tempRequirementsPath, modifiedRequirements)
       requirementsFile = tempRequirementsPath
@@ -131,7 +125,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     this.appLogger.info(`getting openvino settings`, this.name)
     return {
       version: this.version,
-      serviceName: this.name
+      serviceName: this.name,
     }
   }
 

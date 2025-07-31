@@ -12,12 +12,18 @@
             v-for="image in imageGeneration.generatedImages.filter((i) => i.state !== 'queued')"
             class="image-preview-item flex items-center justify-center"
             :class="{ active: selectedImageId === image.id }"
-            @click="() => { selectedImageId = image.id }"
+            @click="
+              () => {
+                selectedImageId = image.id
+              }
+            "
           >
             <!-- eslint-enable -->
-            <div class="image-preview-item-bg"
-            draggable="true"
-            @dragstart="(e) => dragImage(image)(e)">
+            <div
+              class="image-preview-item-bg"
+              draggable="true"
+              @dragstart="(e) => dragImage(image)(e)"
+            >
               <video v-if="isVideo(image)" :src="image.videoUrl" class="image-thumb" />
               <img v-else :src="image.imageUrl" class="image-thumb" />
             </div>
@@ -226,7 +232,7 @@ const currentImage: ComputedRef<MediaItem | null> = computed(() => {
 })
 
 const dragImage = (item: MediaItem | null) => (event: Event) => {
-  if (!item) return;
+  if (!item) return
   event.preventDefault()
   const url = isVideo(item) ? item.videoUrl : item.imageUrl
   window.electronAPI.startDrag(url)

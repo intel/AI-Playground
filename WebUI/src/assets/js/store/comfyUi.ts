@@ -78,9 +78,7 @@ const ComfyMessageSchema = z.discriminatedUnion('type', [
                 type: z.string(),
               }),
             ),
-            animated: z.array(
-              z.boolean()
-            ).optional(),
+            animated: z.array(z.boolean()).optional(),
           }),
           z.object({
             gifs: z.array(

@@ -25,7 +25,6 @@ export class OllamaBackendService implements ApiService {
   readonly ollamaDir: string
   readonly ollamaExePath: string
 
-  
   readonly zipPath: string
   readonly aiBackend = new PythonService(
     path.resolve(path.join(this.baseDir, `ai-backend-env`)),
@@ -145,7 +144,7 @@ export class OllamaBackendService implements ApiService {
     return {
       releaseTag: this.releaseTag,
       version: this.version,
-      serviceName: this.name
+      serviceName: this.name,
     }
   }
 

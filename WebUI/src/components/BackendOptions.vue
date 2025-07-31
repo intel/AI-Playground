@@ -199,10 +199,10 @@ const getVersionDescription = (backend: BackendServiceName) => {
 
 // Get initial form values based on backend type
 const getInitialFormValues = () => {
-    return {
-      releaseTag: currentReleaseTag.value,
-      version: currentVersion.value,
-    }
+  return {
+    releaseTag: currentReleaseTag.value,
+    version: currentVersion.value,
+  }
 }
 const showMenuButton = computed(
   () => showStart.value || showStop.value || showReinstall.value || showSettings.value,

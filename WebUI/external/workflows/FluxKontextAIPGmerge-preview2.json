@@ -3,9 +3,11 @@
   "displayPriority": 200,
   "backend": "comfyui",
   "comfyUIRequirements": {
-    "customNodes": ["BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb"],
+    "customNodes": [
+      "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb"
+    ],
     "requiredModels": [
-       {
+      {
         "type": "unet",
         "model": "Comfy-Org/flux1-kontext-dev_ComfyUI/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors"
       },
@@ -61,7 +63,7 @@
       "type": "image"
     }
   ],
- "defaultSettings": {
+  "defaultSettings": {
     "resolution": "512x512",
     "inferenceSteps": 20,
     "batchSize": 1
@@ -69,275 +71,208 @@
   "displayedSettings": [],
   "modifiableSettings": ["seed", "resolution"],
   "comfyUiApiWorkflow": {
-  "6": {
-    "inputs": {
-      "text": "Combine these images so the woman on the left is holding the small perfume bottle labled 'Optimum' on the right, presenting it in an elegant advertisment. Background is a beautiful art deco hotel ballroom. She has a wry smile",
-      "clip": [
-        "38",
-        0
-      ]
+    "6": {
+      "inputs": {
+        "text": "Combine these images so the woman on the left is holding the small perfume bottle labled 'Optimum' on the right, presenting it in an elegant advertisment. Background is a beautiful art deco hotel ballroom. She has a wry smile",
+        "clip": ["38", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
     },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "prompt"
-    }
-  },
-  "8": {
-    "inputs": {
-      "samples": [
-        "31",
-        0
-      ],
-      "vae": [
-        "39",
-        0
-      ]
+    "8": {
+      "inputs": {
+        "samples": ["31", 0],
+        "vae": ["39", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
     },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "VAE Decode"
-    }
-  },
-  "31": {
-    "inputs": {
-      "seed": 14861845450765,
-      "steps": 20,
-      "cfg": 1,
-      "sampler_name": "euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "model": [
-        "37",
-        0
-      ],
-      "positive": [
-        "35",
-        0
-      ],
-      "negative": [
-        "135",
-        0
-      ],
-      "latent_image": [
-        "191",
-        0
-      ]
+    "31": {
+      "inputs": {
+        "seed": 14861845450765,
+        "steps": 20,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": ["37", 0],
+        "positive": ["35", 0],
+        "negative": ["135", 0],
+        "latent_image": ["191", 0]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
     },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "KSampler"
-    }
-  },
-  "35": {
-    "inputs": {
-      "guidance": 2.5,
-      "conditioning": [
-        "177",
-        0
-      ]
+    "35": {
+      "inputs": {
+        "guidance": 2.5,
+        "conditioning": ["177", 0]
+      },
+      "class_type": "FluxGuidance",
+      "_meta": {
+        "title": "FluxGuidance"
+      }
     },
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "FluxGuidance"
-    }
-  },
-  "37": {
-    "inputs": {
-      "unet_name": "Comfy-Org---flux1-kontext-dev_ComfyUI\\split_files\\diffusion_models\\flux1-dev-kontext_fp8_scaled.safetensors",
-      "weight_dtype": "default"
+    "37": {
+      "inputs": {
+        "unet_name": "Comfy-Org---flux1-kontext-dev_ComfyUI\\split_files\\diffusion_models\\flux1-dev-kontext_fp8_scaled.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
     },
-    "class_type": "UNETLoader",
-    "_meta": {
-      "title": "Load Diffusion Model"
-    }
-  },
-  "38": {
-    "inputs": {
-      "clip_name1": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
-      "clip_name2": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors",
-      "type": "flux",
-      "device": "default"
+    "38": {
+      "inputs": {
+        "clip_name1": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
+        "clip_name2": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors",
+        "type": "flux",
+        "device": "default"
+      },
+      "class_type": "DualCLIPLoader",
+      "_meta": {
+        "title": "DualCLIPLoader"
+      }
     },
-    "class_type": "DualCLIPLoader",
-    "_meta": {
-      "title": "DualCLIPLoader"
-    }
-  },
-  "39": {
-    "inputs": {
-      "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
+    "39": {
+      "inputs": {
+        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
     },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Load VAE"
-    }
-  },
-  "42": {
-    "inputs": {
-      "image": [
-        "192",
-        0
-      ]
+    "42": {
+      "inputs": {
+        "image": ["192", 0]
+      },
+      "class_type": "FluxKontextImageScale",
+      "_meta": {
+        "title": "FluxKontextImageScale"
+      }
     },
-    "class_type": "FluxKontextImageScale",
-    "_meta": {
-      "title": "FluxKontextImageScale"
-    }
-  },
-  "124": {
-    "inputs": {
-      "pixels": [
-        "42",
-        0
-      ],
-      "vae": [
-        "39",
-        0
-      ]
+    "124": {
+      "inputs": {
+        "pixels": ["42", 0],
+        "vae": ["39", 0]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode"
+      }
     },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE Encode"
-    }
-  },
-  "135": {
-    "inputs": {
-      "conditioning": [
-        "6",
-        0
-      ]
+    "135": {
+      "inputs": {
+        "conditioning": ["6", 0]
+      },
+      "class_type": "ConditioningZeroOut",
+      "_meta": {
+        "title": "ConditioningZeroOut"
+      }
     },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "ConditioningZeroOut"
-    }
-  },
-  "136": {
-    "inputs": {
-      "filename_prefix": "AIPG_Image",
-      "images": [
-        "8",
-        0
-      ]
+    "136": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["8", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
     },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "142": {
-    "inputs": {
-      "image": "input_left.png",
-      "upload": "image"
+    "142": {
+      "inputs": {
+        "image": "input_left.png",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "left_image"
+      }
     },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "left_image"
-    }
-  },
-  "146": {
-    "inputs": {
-      "direction": "right",
-      "match_image_size": true,
-      "spacing_width": 0,
-      "spacing_color": "white",
-      "image1": [
-        "142",
-        0
-      ],
-      "image2": [
-        "147",
-        0
-      ]
+    "146": {
+      "inputs": {
+        "direction": "right",
+        "match_image_size": true,
+        "spacing_width": 0,
+        "spacing_color": "white",
+        "image1": ["142", 0],
+        "image2": ["147", 0]
+      },
+      "class_type": "ImageStitch",
+      "_meta": {
+        "title": "Image Stitch"
+      }
     },
-    "class_type": "ImageStitch",
-    "_meta": {
-      "title": "Image Stitch"
-    }
-  },
-  "147": {
-    "inputs": {
-      "image": "input_right.png",
-      "upload": "image"
+    "147": {
+      "inputs": {
+        "image": "input_right.png",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "right_image"
+      }
     },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "right_image"
-    }
-  },
-  "173": {
-    "inputs": {
-      "images": [
-        "42",
-        0
-      ]
+    "173": {
+      "inputs": {
+        "images": ["42", 0]
+      },
+      "class_type": "PreviewImage",
+      "_meta": {
+        "title": "Preview Image"
+      }
     },
-    "class_type": "PreviewImage",
-    "_meta": {
-      "title": "Preview Image"
-    }
-  },
-  "177": {
-    "inputs": {
-      "conditioning": [
-        "6",
-        0
-      ],
-      "latent": [
-        "124",
-        0
-      ]
+    "177": {
+      "inputs": {
+        "conditioning": ["6", 0],
+        "latent": ["124", 0]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent"
+      }
     },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "ReferenceLatent"
-    }
-  },
-  "190": {
-    "inputs": {
-      "width": 416,
-      "height": 624,
-      "batch_size": 1
+    "190": {
+      "inputs": {
+        "width": 416,
+        "height": 624,
+        "batch_size": 1
+      },
+      "class_type": "EmptySD3LatentImage",
+      "_meta": {
+        "title": "EmptySD3LatentImage"
+      }
     },
-    "class_type": "EmptySD3LatentImage",
-    "_meta": {
-      "title": "EmptySD3LatentImage"
-    }
-  },
-  "191": {
-    "inputs": {
-      "switch": false,
-      "on_false": [
-        "190",
-        0
-      ],
-      "on_true": [
-        "124",
-        0
-      ]
+    "191": {
+      "inputs": {
+        "switch": false,
+        "on_false": ["190", 0],
+        "on_true": ["124", 0]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_original_resolution"
+      }
     },
-    "class_type": "InversionDemoLazySwitch",
-    "_meta": {
-      "title": "use_original_resolution"
-    }
-  },
-  "192": {
-    "inputs": {
-      "switch": false,
-      "on_false": [
-        "142",
-        0
-      ],
-      "on_true": [
-        "146",
-        0
-      ]
-    },
-    "class_type": "InversionDemoLazySwitch",
-    "_meta": {
-      "title": "use_second_image"
+    "192": {
+      "inputs": {
+        "switch": false,
+        "on_false": ["142", 0],
+        "on_true": ["146", 0]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image"
+      }
     }
   }
 }
-}
-

@@ -814,16 +814,19 @@ function initEventHandle() {
 
   ipcMain.on('ondragstart', async (event, filePath) => {
     const imagePath = getAssetPathFromUrl(filePath)
-    if (!imagePath) return;
+    if (!imagePath) return
     let thumbnail: Electron.NativeImage
     try {
-      thumbnail = await nativeImage.createThumbnailFromPath(imagePath, {height: 128, width: 128})
+      thumbnail = await nativeImage.createThumbnailFromPath(imagePath, { height: 128, width: 128 })
     } catch (_e: unknown) {
-      thumbnail = await nativeImage.createThumbnailFromPath(path.join(externalRes, 'cam.png'), {height: 128, width: 128})
+      thumbnail = await nativeImage.createThumbnailFromPath(path.join(externalRes, 'cam.png'), {
+        height: 128,
+        width: 128,
+      })
     }
     event.sender.startDrag({
       file: imagePath,
-      icon: thumbnail
+      icon: thumbnail,
     })
   })
 
@@ -850,7 +853,12 @@ function initEventHandle() {
     const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
     const imageSubPath =
-      backend === 'comfyui' ? path.join(imageUrl.searchParams.get('subfolder') ?? '', imageUrl.searchParams.get('filename') ?? '') : imageUrl.pathname
+      backend === 'comfyui'
+        ? path.join(
+            imageUrl.searchParams.get('subfolder') ?? '',
+            imageUrl.searchParams.get('filename') ?? '',
+          )
+        : imageUrl.pathname
     return path.join(mediaDir, imageSubPath)
   }
 

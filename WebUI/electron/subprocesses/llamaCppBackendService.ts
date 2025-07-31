@@ -702,19 +702,19 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
 
     throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
-    }
-  
-    async getSettings(): Promise<ServiceSettings> {
-      return {
-        serviceName: this.name,
-        version: this.version,
-      }
-    }
-  
-    async updateSettings(settings: ServiceSettings): Promise<void> {
-      if (settings.version) {
-        this.version = settings.version
-        this.appLogger.info(`applied new LlamaCPP version ${this.version}`, this.name)
-      }
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    return {
+      serviceName: this.name,
+      version: this.version,
     }
   }
+
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.version = settings.version
+      this.appLogger.info(`applied new LlamaCPP version ${this.version}`, this.name)
+    }
+  }
+}

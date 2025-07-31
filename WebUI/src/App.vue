@@ -340,6 +340,7 @@ let initialPage: AipgPage = 'create'
 onBeforeMount(async () => {
   window.electronAPI.onDebugLog(({ level, source, message }) => {
     if (level == 'error') {
+      if (message.startsWith('onednn_verbose')) return
       console.error(`[${source}] ${message}`)
     }
     if (level == 'warn') {
@@ -411,33 +412,6 @@ function showAppSettings() {
 
 function hideAppSettings() {
   showSetting.value = false
-}
-
-function autoHideAppSettings(e: MouseEvent) {
-  if (
-    showSetting.value &&
-    e.target != showSettingBtn.value &&
-    !e.composedPath().find((item) => {
-      return item instanceof HTMLElement && item.classList.contains('v-drop-select-list')
-    })
-  ) {
-    const appSettingsPanel = document.getElementById('app-settings-panel')
-
-    if (appSettingsPanel != null) {
-      if (e.target instanceof HTMLElement && e.target.closest('#app-settings-panel') != null) {
-        return
-      }
-      const rect = appSettingsPanel.getBoundingClientRect()
-      if (
-        e.clientX < rect.left ||
-        e.clientX > rect.right ||
-        e.clientY < rect.top ||
-        e.clientY > rect.bottom
-      ) {
-        hideAppSettings()
-      }
-    }
-  }
 }
 
 function miniWindow() {
