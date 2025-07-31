@@ -97,20 +97,6 @@ export class AiBackendService extends LongLivedPythonApiService {
         'unsafe-best-match',
       ])
 
-      const ipexLlmRequirements = existingFileOrError(
-        path.join(this.serviceDir, `requirements-ipex-llm.txt`),
-      )
-      if (archToRequirements(deviceArch) !== 'unknown') {
-        await this.uvPip.run([
-          'install',
-          '-r',
-          ipexLlmRequirements,
-          '--index-strategy',
-          'unsafe-best-match',
-          '--prerelease=allow',
-        ])
-      }
-
       const deviceSpecificRequirements = existingFileOrError(
         path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
       )
