@@ -33,7 +33,7 @@ const items = computed(() =>
   textInference.llmModels
     .filter((m) => m.type === textInference.backend)
     .filter((m) =>
-      runningOnOpenvinoNpu.value && showOnlyCompatible.value ? m.name.includes('sym') : true,
+      runningOnOpenvinoNpu.value && showOnlyCompatible.value ? m.name.includes('cw-ov') : true,
     )
     .map((item) => ({
       label: item.name.split('/').at(-1) ?? item.name,
@@ -87,7 +87,7 @@ const selectedItem = computed(() => {
         />
         <label
           for="showOnlyCompatible"
-          class="px-2 text-xs font-light text-base leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          class="px-2 text-xs font-light leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
           {{ languages.SETTINGS_TEXT_INFERENCE_NPU_ONLY }}
         </label>
