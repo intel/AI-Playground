@@ -23,7 +23,7 @@
       },
       {
         "type": "vae",
-        "model": "black-forest-labs/FLUX.1-schnell/ae.safetensors"
+        "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
       }
     ]
   },
@@ -68,7 +68,7 @@
     },
     "171": {
       "inputs": {
-        "vae_name": "black-forest-labs---FLUX.1-schnell\\ae.safetensors"
+        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
       },
       "class_type": "VAELoader",
       "_meta": {

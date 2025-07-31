@@ -812,12 +812,18 @@ function initEventHandle() {
     },
   )
 
-  ipcMain.on('ondragstart', (event, filePath) => {
-    const imagePath = getImagePathFromUrl(filePath)
+  ipcMain.on('ondragstart', async (event, filePath) => {
+    const imagePath = getAssetPathFromUrl(filePath)
     if (!imagePath) return;
+    let thumbnail: Electron.NativeImage
+    try {
+      thumbnail = await nativeImage.createThumbnailFromPath(imagePath, {height: 128, width: 128})
+    } catch (_e: unknown) {
+      thumbnail = await nativeImage.createThumbnailFromPath(path.join(externalRes, 'cam.png'), {height: 128, width: 128})
+    }
     event.sender.startDrag({
       file: imagePath,
-      icon: nativeImage.createFromPath(imagePath)
+      icon: thumbnail
     })
   })
 
@@ -833,7 +839,7 @@ function initEventHandle() {
     return updateIntelWorkflows()
   })
 
-  const getImagePathFromUrl = (url: string) => {
+  const getAssetPathFromUrl = (url: string) => {
     const imageUrl = URL.parse(url)
     if (!imageUrl) {
       console.error('Could not find image for URL', { url })
@@ -844,18 +850,18 @@ function initEventHandle() {
     const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
     const imageSubPath =
-      backend === 'comfyui' ? `${imageUrl.searchParams.get('filename')}` : `${imageUrl.pathname}`
+      backend === 'comfyui' ? path.join(imageUrl.searchParams.get('subfolder') ?? '', imageUrl.searchParams.get('filename') ?? '') : imageUrl.pathname
     return path.join(mediaDir, imageSubPath)
   }
 
   ipcMain.on('openImageWithSystem', (_event, url: string) => {
-    const imagePath = getImagePathFromUrl(url)
+    const imagePath = getAssetPathFromUrl(url)
     if (!imagePath) return
     shell.openPath(imagePath)
   })
 
   ipcMain.on('openImageInFolder', (_event, url: string) => {
-    const imagePath = getImagePathFromUrl(url)
+    const imagePath = getAssetPathFromUrl(url)
     if (!imagePath) return
 
     // Open the image with the default system image viewer

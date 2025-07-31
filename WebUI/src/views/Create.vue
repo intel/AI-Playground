@@ -17,9 +17,9 @@
             <!-- eslint-enable -->
             <div class="image-preview-item-bg"
             draggable="true"
-            @dragstart="(e) => dragImage(image.imageUrl ?? '')(e)">
+            @dragstart="(e) => dragImage(image)(e)">
               <video v-if="isVideo(image)" :src="image.videoUrl" class="image-thumb" />
-              <img v-else="isVideo(image)" :src="image.imageUrl" class="image-thumb" />
+              <img v-else :src="image.imageUrl" class="image-thumb" />
             </div>
           </div>
         </div>
@@ -43,7 +43,7 @@
             v-show="imageGeneration.generatedImages.length > 0 && currentImage"
             class="flex justify-center items-center"
             draggable="true"
-            @dragstart="(e) => dragImage(currentImage?.imageUrl ?? '')(e)"
+            @dragstart="(e) => dragImage(currentImage)(e)"
           >
             <!-- eslint-enable -->
             <img
@@ -225,9 +225,11 @@ const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
 
-const dragImage = (image: string) => (event: Event) => {
+const dragImage = (item: MediaItem | null) => (event: Event) => {
+  if (!item) return;
   event.preventDefault()
-  window.electronAPI.startDrag(image)
+  const url = isVideo(item) ? item.videoUrl : item.imageUrl
+  window.electronAPI.startDrag(url)
 }
 
 watch(

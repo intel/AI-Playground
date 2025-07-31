@@ -26,7 +26,6 @@
   "tags": ["preview"],
   "requirements": ["high-vram"],
   "inputs": [
-
      {
       "nodeTitle": "WanVaceToVideo",
       "nodeInput": "length",
@@ -38,6 +37,13 @@
       "max": 257
     },
     {
+      "nodeTitle": "Load Video",
+      "nodeInput": "file",
+      "type": "video",
+      "label": "Reference Video",
+      "defaultValue": "vace_v2v.mp4"
+    },
+    {
       "nodeTitle": "Load Image",
       "nodeInput": "image",
       "type": "image",
@@ -46,10 +52,6 @@
    }
   ],
   "outputs": [
-    {
-      "name": "output_image",
-      "type": "image"
-    }
   ],
   "defaultSettings": {
     "resolution": "512x512",
@@ -61,7 +63,7 @@
   "comfyUiApiWorkflow":{
   "3": {
     "inputs": {
-      "seed": 232108618643021,
+      "seed": 610234116074567,
       "steps": 30,
       "cfg": 6,
       "sampler_name": "uni_pc",
@@ -129,6 +131,61 @@
     "class_type": "VAEDecode",
     "_meta": {
       "title": "VAE Decode"
+    }
+  },
+  "38": {
+    "inputs": {
+      "file": "input.mp4",
+      "video-preview": ""
+    },
+    "class_type": "LoadVideo",
+    "_meta": {
+      "title": "Load Video"
+    }
+  },
+  "41": {
+    "inputs": {
+      "video": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "GetVideoComponents",
+    "_meta": {
+      "title": "Get Video Components"
+    }
+  },
+  "42": {
+    "inputs": {
+      "filename_prefix": "video/ComfyUI",
+      "format": "mp4",
+      "codec": "auto",
+      "video-preview": "",
+      "video": [
+        "43",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video"
+    }
+  },
+  "43": {
+    "inputs": {
+      "fps": 16,
+      "images": [
+        "8",
+        0
+      ],
+      "audio": [
+        "41",
+        1
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video"
     }
   },
   "48": {
@@ -204,7 +261,7 @@
   },
   "134": {
     "inputs": {
-      "image": "1a435e3ff4fac11230f978d7879f1052ce21b975de900983753f9006fcf0e44f.png"
+      "image": "input.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -230,56 +287,18 @@
       "title": "CLIPLoader (GGUF)"
     }
   },
-  "152": {
-    "inputs": {
-      "video": "dance.mp4",
-      "force_rate": 16,
-      "custom_width": 0,
-      "custom_height": 0,
-      "frame_load_cap": 0,
-      "skip_first_frames": 0,
-      "select_every_nth": 1,
-      "format": "AnimateDiff"
-    },
-    "class_type": "VHS_LoadVideo",
-    "_meta": {
-      "title": "Load Video (Upload) 🎥🅥🅗🅢"
-    }
-  },
   "153": {
     "inputs": {
       "preprocessor": "DWPreprocessor",
       "resolution": 512,
       "image": [
-        "152",
+        "41",
         0
       ]
     },
     "class_type": "AIO_Preprocessor",
     "_meta": {
       "title": "AIO Aux Preprocessor"
-    }
-  },
-  "155": {
-    "inputs": {
-      "frame_rate": 16,
-      "loop_count": 0,
-      "filename_prefix": "AnimateDiff",
-      "format": "video/h264-mp4",
-      "pix_fmt": "yuv420p",
-      "crf": 19,
-      "save_metadata": true,
-      "trim_to_audio": false,
-      "pingpong": false,
-      "save_output": true,
-      "images": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "VHS_VideoCombine",
-    "_meta": {
-      "title": "Video Combine 🎥🅥🅗🅢"
     }
   }
 }
