@@ -181,31 +181,33 @@
         {{ languages.DEMO_NEED_HELP }}
       </button>
     </div>
-    <div class="main-content flex-auto rounded-t-lg relative">
-      <CreateDemo></CreateDemo>
-      <AnswerDemo></AnswerDemo>
-      <EnhanceDemo></EnhanceDemo>
-      <create
-        v-show="activeTabIdx === 'create'"
-        ref="createCompt"
-        @postImageToEnhance="postImageToEnhance"
-        @show-download-model-confirm="showDownloadModelConfirm"
-      ></create>
-      <enhance
-        v-show="activeTabIdx === 'enhance'"
-        ref="enhanceCompt"
-        @show-download-model-confirm="showDownloadModelConfirm"
-      >
-      </enhance>
-      <answer
-        v-show="activeTabIdx === 'answer'"
-        ref="answer"
-        @show-download-model-confirm="showDownloadModelConfirm"
-        @show-model-request="showModelRequest"
-      ></answer>
-      <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
+    <div class="main-content-container flex-auto rounded-t-lg flex">
+      <div class="main-content-area flex-auto">
+        <CreateDemo></CreateDemo>
+        <AnswerDemo></AnswerDemo>
+        <EnhanceDemo></EnhanceDemo>
+        <create
+          v-show="activeTabIdx === 'create'"
+          ref="createCompt"
+          @postImageToEnhance="postImageToEnhance"
+          @show-download-model-confirm="showDownloadModelConfirm"
+        ></create>
+        <enhance
+          v-show="activeTabIdx === 'enhance'"
+          ref="enhanceCompt"
+          @show-download-model-confirm="showDownloadModelConfirm"
+        >
+        </enhance>
+        <answer
+          v-show="activeTabIdx === 'answer'"
+          ref="answer"
+          @show-download-model-confirm="showDownloadModelConfirm"
+          @show-model-request="showModelRequest"
+        ></answer>
+        <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
+      </div>
       <app-settings
-        v-show="showSetting"
+        v-if="showSetting"
         @close="hideAppSettings"
         @show-download-model-confirm="showDownloadModelConfirm"
       ></app-settings>
