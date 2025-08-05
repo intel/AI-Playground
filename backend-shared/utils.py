@@ -138,7 +138,7 @@ def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
 def calculate_sha256(file_path: str):
     """Calculate the SHA256 hash of a file"""
     with open(file_path, "rb") as f:
-        file_hash = hashlib.md5()
+        file_hash = hashlib.sha256()
         while chunk := f.read(8192):
             file_hash.update(chunk)
     return file_hash.hexdigest()
