@@ -13,6 +13,8 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
   readonly isRequired = true
 
+  private version = '2025.2.0'
+
   healthEndpointUrl = `${this.baseUrl}/health`
 
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
@@ -53,8 +55,37 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
+
+      let requirementsFile = path.join(this.serviceDir, 'requirements.txt')
+
+      this.appLogger.info(`Using OpenVINO version override: ${this.version}`, this.name)
+
+      // Create a temporary requirements file with the specified version
+      const tempRequirementsPath = path.join(this.serviceDir, 'requirements-temp.txt')
+      const originalRequirements = await filesystem.readFile(requirementsFile, 'utf-8')
+
+      // Replace openvino version in requirements
+      const modifiedRequirements = originalRequirements
+        .replace(/openvino[>=<~!]*[\d.]+/g, `openvino==${this.version}`)
+        .replace(/openvino-genai[>=<~!]*[\d.]+/g, `openvino-genai~=${this.version}`)
+        .replace(/openvino-tokenizers[>=<~!]*[\d.]+/g, `openvino-tokenizers~=${this.version}`)
+
+      await filesystem.writeFile(tempRequirementsPath, modifiedRequirements)
+      requirementsFile = tempRequirementsPath
+
+      this.appLogger.info(
+        `Created temporary requirements file with OpenVINO ${this.version}`,
+        this.name,
+      )
+
+      const commonRequirements = existingFileOrError(requirementsFile)
       await this.uvPip.run(['install', '-r', commonRequirements])
+
+      // Clean up temporary requirements file if created
+      if (requirementsFile.includes('requirements-temp.txt')) {
+        await filesystem.remove(requirementsFile)
+        this.appLogger.info(`Cleaned up temporary requirements file`, this.name)
+      }
 
       yield {
         serviceName: this.name,
@@ -80,6 +111,21 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'failed',
         debugMessage: `Failed to setup python environment due to ${e}`,
       }
+    }
+  }
+
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.version = settings.version
+      this.appLogger.info(`applied new openvino version ${this.version}`, this.name)
+    }
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    this.appLogger.info(`getting openvino settings`, this.name)
+    return {
+      version: this.version,
+      serviceName: this.name,
     }
   }
 

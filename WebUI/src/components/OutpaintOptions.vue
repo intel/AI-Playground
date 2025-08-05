@@ -1,5 +1,8 @@
 <template>
-  <div class="flex items-center gap-2 text-white">
+  <div
+    class="flex items-center gap-2 text-white"
+    :class="{ 'demo-mode-outpaint-content': demoMode.enhance.showOutpaint }"
+  >
     <div class="flex flex-col gap-2 items-center text-center">
       <span>{{ languages.ENHANCE_OUTPAINT_DIRECTION }}</span>
     </div>
@@ -27,8 +30,12 @@
         ></button>
       </div>
     </div>
+    <DemoNumber :show="demoMode.enhance.showOutpaint" :number="2"></DemoNumber>
   </div>
-  <div class="flex flex-col gap-8 text-white">
+  <div
+    class="flex flex-col gap-8 text-white"
+    :class="{ 'demo-mode-denoise-content': demoMode.enhance.showOutpaint }"
+  >
     <div class="flex gap-3 items-center">
       <span class="w-28 flex-none">{{ languages.ENHANCE_COM_DENOISE }}</span>
       <div class="w-80">
@@ -41,10 +48,15 @@
         ></slide-bar>
       </div>
     </div>
+    <DemoNumber :show="demoMode.enhance.showOutpaint" :number="3"></DemoNumber>
   </div>
 </template>
 <script setup lang="ts">
+import { useDemoMode } from '@/assets/js/store/demoMode'
+import DemoNumber from './demo-mode/DemoNumber.vue'
 import SlideBar from './SlideBar.vue'
+
+const demoMode = useDemoMode()
 
 const direction = ref<string>('right')
 const denoise = ref(0.99)

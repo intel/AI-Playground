@@ -27,7 +27,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/queue`
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
-  private revision = 'v0.3.30'
+  private revision = 'v0.3.47'
 
   private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
     ? this.settings.comfyUiParameters

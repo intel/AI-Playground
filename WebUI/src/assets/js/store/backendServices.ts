@@ -13,9 +13,16 @@ type ServiceSettings = {
   ['comfyui-backend']?: {
     version: string
   }
-  ['llamacpp-backend']?: object
-  ['openvino-backend']?: object
-  ['ollama-backend']?: object
+  ['llamacpp-backend']?: {
+    version: string
+  }
+  ['openvino-backend']?: {
+    version: string
+  }
+  ['ollama-backend']?: {
+    releaseTag: string
+    version: string
+  }
 } & { serviceName: BackendServiceName }
 
 export type BackendServiceName = (typeof backends)[number]

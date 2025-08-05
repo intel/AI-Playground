@@ -27,6 +27,7 @@ import {
   IpcMainInvokeEvent,
   MessageBoxOptions,
   MessageBoxSyncOptions,
+  nativeImage,
   OpenDialogSyncOptions,
   screen,
   shell,
@@ -97,6 +98,8 @@ export const settings: LocalSettings = {
   comfyUiParameters: [],
   deviceArchOverride: undefined,
   enablePreviewFeatures: false,
+  isDemoModeEnabled: false,
+  demoModeResetInSeconds: null,
 }
 
 async function loadSettings() {
@@ -144,6 +147,13 @@ async function createWindow() {
   if (!app.isPackaged || settings.debug) {
     //Open devTool if the app is not packaged
     win.webContents.openDevTools({ mode: 'detach', activate: true })
+  }
+
+  if (settings.isDemoModeEnabled) {
+    win.webContents.session.clearStorageData()
+    win.setFullScreen(true)
+    win.maximize()
+    win.setKiosk(true)
   }
 
   session.webRequest.onBeforeSendHeaders((details, callback) => {
@@ -484,6 +494,20 @@ function initEventHandle() {
     return `http://127.0.0.1:${mediaServerPort}/`
   })
 
+  /** Get command line parameters when launched from IPOS to decide the default home page */
+  ipcMain.handle('getInitialPage', () => {
+    const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
+    return startPageArg ? startPageArg.split('=')[1] : 'create'
+  })
+
+  /** To check whether demo mode is enabled or not for AIPG */
+  ipcMain.handle('getDemoModeSettings', () => {
+    return {
+      isDemoModeEnabled: settings.isDemoModeEnabled,
+      demoModeResetInSeconds: settings.demoModeResetInSeconds,
+    }
+  })
+
   ipcMain.handle('showOpenDialog', async (event, options: OpenDialogSyncOptions) => {
     const win = BrowserWindow.fromWebContents(event.sender)!
     return await dialog.showOpenDialog(win, options)
@@ -788,6 +812,24 @@ function initEventHandle() {
     },
   )
 
+  ipcMain.on('ondragstart', async (event, filePath) => {
+    const imagePath = getAssetPathFromUrl(filePath)
+    if (!imagePath) return
+    let thumbnail: Electron.NativeImage
+    try {
+      thumbnail = await nativeImage.createThumbnailFromPath(imagePath, { height: 128, width: 128 })
+    } catch (_e: unknown) {
+      thumbnail = await nativeImage.createThumbnailFromPath(path.join(externalRes, 'cam.png'), {
+        height: 128,
+        width: 128,
+      })
+    }
+    event.sender.startDrag({
+      file: imagePath,
+      icon: thumbnail,
+    })
+  })
+
   ipcMain.handle('reloadImageWorkflows', () => {
     const files = fs.readdirSync(path.join(externalRes, 'workflows'))
     const workflows = files.map((file) =>
@@ -800,7 +842,7 @@ function initEventHandle() {
     return updateIntelWorkflows()
   })
 
-  const getImagePathFromUrl = (url: string) => {
+  const getAssetPathFromUrl = (url: string) => {
     const imageUrl = URL.parse(url)
     if (!imageUrl) {
       console.error('Could not find image for URL', { url })
@@ -811,18 +853,23 @@ function initEventHandle() {
     const backend = comfyBackendUrl && url.includes(comfyBackendUrl) ? 'comfyui' : 'service'
 
     const imageSubPath =
-      backend === 'comfyui' ? `${imageUrl.searchParams.get('filename')}` : `${imageUrl.pathname}`
+      backend === 'comfyui'
+        ? path.join(
+            imageUrl.searchParams.get('subfolder') ?? '',
+            imageUrl.searchParams.get('filename') ?? '',
+          )
+        : imageUrl.pathname
     return path.join(mediaDir, imageSubPath)
   }
 
   ipcMain.on('openImageWithSystem', (_event, url: string) => {
-    const imagePath = getImagePathFromUrl(url)
+    const imagePath = getAssetPathFromUrl(url)
     if (!imagePath) return
     shell.openPath(imagePath)
   })
 
   ipcMain.on('openImageInFolder', (_event, url: string) => {
-    const imagePath = getImagePathFromUrl(url)
+    const imagePath = getAssetPathFromUrl(url)
     if (!imagePath) return
 
     // Open the image with the default system image viewer

@@ -14,11 +14,20 @@ interface ImportMeta {
 }
 
 type ServiceSettings = {
-  version?: string
   serviceName: BackendServiceName
+  version?: string
+  releaseTag?: string
 }
 
+type DemoModeSettings = {
+  isDemoModeEnabled: boolean
+  demoModeResetInSeconds: null | number
+}
+
+type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+
 type electronAPI = {
+  startDrag: (fileName: string) => void
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
@@ -44,6 +53,8 @@ type electronAPI = {
   miniWindow(): void
   exitApp(): void
   getMediaUrlBase(): Promise<string>
+  getInitialPage(): Promise<AipgPage>
+  getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void

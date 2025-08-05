@@ -186,9 +186,8 @@ def get_basic_model(input_model_name: str) -> DiffusionPipeline | Any:
     else:
         _safety_checker = None
     # perf optimization
-    _basic_model_pipe.enable_model_cpu_offload()
+    _basic_model_pipe.enable_model_cpu_offload(device=service_config.device)
     _basic_model_pipe.enable_vae_tiling()
-    _basic_model_pipe.to(service_config.device)
 
     print(
         "load model {} finish. cost {}s".format(
@@ -246,7 +245,6 @@ def get_ext_pipe(params: TextImageParams, pipe_classes: List, init_class: any):
 
     basic_model_pipe = get_basic_model(params.model_name)
     _ext_model_pipe = init_class.from_pipe(basic_model_pipe)
-    _ext_model_pipe.to(service_config.device)
 
     assert_stop_generate()
 
@@ -468,21 +466,7 @@ def convet_compel_prompt(
 
     if hasattr(pipe, "text_encoder_2") and hasattr(pipe, "tokenizer_2"):
         custom_inputs.update({"prompt": prompt})
-        # compel_proc2 = Compel(
-        #     tokenizer=[pipe.tokenizer, pipe.tokenizer_2],
-        #     text_encoder=[pipe.text_encoder, pipe.text_encoder_2],
-        #     returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED,
-        #     requires_pooled=[False, True],
-        # )
-        # compel_prompt2 = convert_prompt_to_compel_format(prompt)
-        # pooled_prompt = [compel_prompt2, ""]
-        # prompt_embeds, pooled_prompt_embeds = compel_proc2(pooled_prompt)
-        # custom_inputs.update(
-        #     {
-        #         "prompt_embeds": prompt_embeds,
-        #         "pooled_prompt_embeds": pooled_prompt_embeds,
-        #     }
-        # )
+
     else:
         compel_proc = Compel(tokenizer=pipe.tokenizer, text_encoder=pipe.text_encoder)
         compel_prompt = convert_prompt_to_compel_format(prompt)
@@ -502,7 +486,6 @@ def text_to_image(
     global _generate_idx, image_out_callback
     pipe = get_basic_model(params.model_name)
     set_components(pipe, params)
-    pipe.to(service_config.device)
 
     custom_inputs = convet_compel_prompt(params.prompt, pipe)
     seed = params.seed
@@ -543,7 +526,6 @@ def image_to_image(params: ImageToImageParams):
     )
 
     set_components(pipe, params)
-    pipe.to(service_config.device)
     input_image = Image.open(params.image)
     input_image = (
         input_image.convert("RGB") if input_image.mode != "RGB" else input_image
@@ -606,7 +588,6 @@ def upscale(params: UpscaleImageParams):
             AutoPipelineForImage2Image,
         )
         set_components(pipe, params)
-        pipe.to(service_config.device)
 
         custom_inputs = convet_compel_prompt(params.prompt, pipe)
         seed = params.seed
@@ -651,7 +632,6 @@ def inpaint(params: InpaintParams):
     )
 
     set_components(pipe, params)
-    pipe.to(service_config.device)
 
     input_image = Image.open(params.image)
     mask_image = Image.open(params.mask_image)
@@ -735,7 +715,6 @@ def outpaint(params: OutpaintParams):
     )
     set_components(pipe, params)
 
-    pipe.to(service_config.device)
     if isinstance(pipe, StableDiffusionXLInpaintPipeline):
         max_size = 1536
     else:

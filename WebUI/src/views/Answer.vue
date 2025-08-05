@@ -5,7 +5,7 @@
       <div
         id="chatHistoryPanel"
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
-        class="flex flex-shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
+        class="flex shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
         <div class="flex justify-end">
           <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
@@ -103,6 +103,12 @@
         :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
+        <div v-if="ollamaDlProgress.status !== 'idle'">
+          Ollama DL:
+          {{
+            `${((ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
+          }}
+        </div>
         <div v-for="message in chat.messages.value" :key="message.id">
           {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
           {{ message.content }}
@@ -214,13 +220,17 @@
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
                     v-html="
-                      markdownParser.parseMarkdown(textInference.extractPreMarker(chat.answer, chat.model))
+                      markdownParser.parseMarkdown(
+                        textInference.extractPreMarker(chat.answer, chat.model),
+                      )
                     "
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
                     v-html="
-                      markdownParser.parseMarkdown(textInference.extractPostMarker(chat.answer, chat.model))
+                      markdownParser.parseMarkdown(
+                        textInference.extractPostMarker(chat.answer, chat.model),
+                      )
                     "
                   ></div>
                 </template>
@@ -443,11 +453,14 @@
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
-              [...llmBackendTypes].filter(isEnabled).map((item) => ({
-                label: textInferenceBackendDisplayName[item],
-                value: item,
-                active: isRunning(item),
-              }))
+              [...llmBackendTypes]
+                .filter(isEnabled)
+                .filter((b) => b !== 'ipexLLM')
+                .map((item) => ({
+                  label: textInferenceBackendDisplayName[item],
+                  value: item,
+                  active: isRunning(item),
+                }))
             "
           ></drop-down-new>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
@@ -475,7 +488,7 @@
             min="0"
             max="4096"
             step="1"
-            class="rounded text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+            class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
           />
         </div>
 
@@ -498,12 +511,16 @@
             <span class="svg-icon i-zoom-out w-4 h-4"></span>
           </button>
         </div>
-        <div class="flex items-center gap-2">
+        <div
+          class="flex items-center gap-2"
+          :class="{ 'demo-number-overlay': demoMode.answer.show }"
+        >
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
             :disabled="processing"
             :title="languages.ANSWER_RAG_OPEN_DIALOG"
+            :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
@@ -528,13 +545,22 @@
           ></drop-down-new>
         </div>
       </div>
-      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
+      <div
+        class="w-full h-32 gap-3 flex-none flex items-center pt-2"
+        :class="{ 'demo-number-overlay': demoMode.answer.show }"
+      >
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
+          :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
         ></textarea>
+        <DemoNumber
+          :show="demoMode.answer.show"
+          :number="1"
+          extraClass="demo-step-number-answer"
+        ></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-if="!processing"
@@ -562,6 +588,7 @@
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -587,12 +614,13 @@ import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useChat } from '@ai-sdk/vue'
 import { streamText } from 'ai'
+import { Ollama } from 'ollama/browser'
 
 const getModel = () =>
   createOpenAICompatible({
     name: 'model',
     baseURL: `${textInference.currentBackendUrl}/v1/`,
-  }).chatModel('deepseek-r1:1.5b')
+  }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b')
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const customFetch = async (_: any, options: any) => {
@@ -608,8 +636,16 @@ const customFetch = async (_: any, options: any) => {
 }
 
 const chat = useChat({ fetch: customFetch })
-import ModelSelector from '@/components/ModelSelector.vue'
+const ollamaDlProgress = ref<{
+  status: 'idle' | 'pulling'
+  totalBytes?: number
+  completedBytes?: number
+}>({ status: 'idle' })
 
+import ModelSelector from '@/components/ModelSelector.vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
+
+const demoMode = useDemoMode()
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()
@@ -1014,6 +1050,18 @@ async function generateWithAiSdk(chatContext: ChatItem[]) {
 async function generate(chatContext: ChatItem[]) {
   if (textInference.backend === 'ollama') {
     // For Ollama, we need to set the model name in the backend URL
+    const ollama = new Ollama({ host: textInference.currentBackendUrl })
+    const ollamaDl = await ollama.pull({ model: textInference.activeModel ?? 'asdf', stream: true })
+    for await (const progress of ollamaDl) {
+      ollamaDlProgress.value = {
+        status: 'pulling',
+        totalBytes: progress.total,
+        completedBytes: progress.completed,
+      }
+    }
+    ollamaDlProgress.value = {
+      status: 'idle',
+    }
     await generateWithAiSdk(chatContext)
     return
   }

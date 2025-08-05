@@ -24,7 +24,6 @@ import threading
 from flask import jsonify, request, Response, stream_with_context
 from apiflask import APIFlask
 
-from llm_adapter import LLM_SSE_Adapter
 from sd_adapter import SD_SSE_Adapter
 import model_download_adpater
 from paint_biz import (
@@ -33,16 +32,13 @@ from paint_biz import (
     InpaintParams,
     OutpaintParams,
     UpscaleImageParams,
+    stop_generate
 )
-import paint_biz
-import llm_biz
 import aipg_utils as utils
-import rag
 import service_config
 from model_downloader import HFPlaygroundDownloader
 from psutil._common import bytes2human
 import traceback
-from ipex_embedding import IpexEmbeddingModel
 import logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -55,27 +51,6 @@ def healthEndpoint():
     return jsonify({"health": "OK"})
 
 
-@app.post("/api/llm/chat")
-def llm_chat():
-    paint_biz.dispose_basic_model()
-    params = request.get_json()
-    
-    external_rag_context = params.pop("external_rag_context", None)
-    
-    llm_params = llm_biz.LLMParams(**params)
-    sse_invoker = LLM_SSE_Adapter(
-        external_rag_context=external_rag_context
-    )
-    it = sse_invoker.text_conversation(llm_params)
-    return Response(stream_with_context(it), content_type="text/event-stream")
-
-
-@app.get("/api/llm/stopGenerate")
-def stop_llm_generate():
-    import llm_biz
-
-    llm_biz.stop_generate()
-    return jsonify({"code": 0, "message": "success"})
 
 
 @app.post("/api/sd/generate")
@@ -90,7 +65,6 @@ def sd_generate():
         "mask?": file
     }
     """
-    llm_biz.dispose()
     mode = request.form.get("mode", default=0, type=int)
     if mode != 0:
         if mode == 1:
@@ -140,9 +114,7 @@ def sd_generate():
 
 @app.get("/api/sd/stopGenerate")
 def stop_sd_generate():
-    import paint_biz
-
-    paint_biz.stop_generate()
+    stop_generate()
     return jsonify({"code": 0, "message": "success"})
 
 
@@ -201,19 +173,6 @@ def check_if_huggingface_repo_exists():
         }
     )
 
-@app.get("/api/isLLM")
-def is_llm():
-    repo_id = request.args.get('repo_id')
-    downloader = HFPlaygroundDownloader()
-    try:
-        model_type_hf = downloader.probe_type(repo_id)
-    except Exception:
-        model_type_hf = "undefined"
-    return jsonify(
-        {
-            "isllm": model_type_hf == "text-generation"
-        }
-    )
 
 size_cache = dict()
 lock = threading.Lock()
@@ -292,45 +251,6 @@ def fill_size_execute(repo_id: str, type: int, result_dict: dict):
         result_dict.__setitem__(key, bytes2human(total_size, "%(value).2f%(symbol)s"))
 
 
-@app.route('/v1/embeddings', methods=['POST'])
-def embeddings():
-    data = request.json
-    encoding_format = data.get('encoding_format', 'float')
-    input_data = data.get('input', None)
-    model_name = data.get('model', "BAAI/bge-large-en-v1.5")  # Default model if not specified
-
-    if not input_data:
-        return jsonify({"error": "Input text is required"}), 400
-
-    if isinstance(input_data, str):
-        input_texts = [input_data]
-    elif isinstance(input_data, list):
-        input_texts = input_data
-    else:
-        return jsonify({"error": "Input should be a string or list of strings"}), 400
-
-    embedding_model = IpexEmbeddingModel.get_instance(model_name)
-
-    # Dynamically load the model, compute embeddings, and then unload it
-    embeddings_result = embedding_model.embed_documents(input_texts)
-
-    response = {
-        "object": "list",
-        "data": [
-            {
-                "object": "embedding",
-                "embedding": utils.convert_embedding(emb, encoding_format),
-                "index": idx
-            } for idx, emb in enumerate(embeddings_result)
-        ],
-        "model": embedding_model.embedding_model_path,
-        "usage": {
-            "prompt_tokens": sum(len(text.split()) for text in input_texts),
-            "total_tokens": sum(len(text.split()) for text in input_texts)
-        }
-    }
-
-    return jsonify(response)
 
 
 def get_bearer_token(request):
@@ -368,43 +288,6 @@ def stop_download_model():
     return jsonify({"code": 0, "message": "success"})
 
 
-@app.get("/api/llm/getRagFiles")
-def get_rag_files():
-    try:
-        result_list = list()
-        index_list = rag.get_index_list()
-        if list is not None:
-            for index in index_list:
-                result_list.append(
-                    {"filename": index.get("name"), "md5": index.get("md5")}
-                )
-
-        return jsonify({"code": 0, "message": "success", "data": result_list})
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"code": -1, "message": "failed"})
-
-
-@app.post("/api/llm/uploadRagFile")
-def upload_rag_file():
-    try:
-        path = request.form.get("path")
-        code, md5 = rag.add_index_file(path)
-        return jsonify({"code": code, "message": "success", "md5": md5})
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"code": -1, "message": "failed", path: path})
-
-
-@app.post("/api/llm/deleteRagIndex")
-def delete_rag_file():
-    try:
-        path = request.form.get("md5")
-        rag.delete_index(path)
-        return jsonify({"code": 0, "message": "success"})
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"code": -1, "message": "failed"})
 
 
 @app.post("/api/comfyUi/areCustomNodesLoaded")
@@ -458,7 +341,7 @@ def cache_input_image():
     elif file.content_type == "image/bmp":
         ext = ".bmp"
     now = datetime.now()
-    folder = now.strftime("%d_%m_%Y")
+    folder = now.strftime("%Y_%m_%d")
     base_name = now.strftime("%H%M%S")
     file_path = os.path.abspath(
         os.path.join("./static/sd_input/", folder, base_name + ext)
@@ -477,7 +360,7 @@ def cache_mask_image():
         request.files.get("mask_image").stream.read(), mask_width, mask_height
     )
     now = datetime.now()
-    folder = now.strftime("%d_%m_%Y")
+    folder = now.strftime("%Y_%m_%d")
     base_name = now.strftime("%H%M%S")
     file_path = os.path.abspath(
         os.path.join("static/sd_mask/", folder, base_name + ".png")

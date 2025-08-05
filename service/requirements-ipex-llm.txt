@@ -1,3 +1,0 @@
---extra-index-url https://download.pytorch.org/whl/xpu
-
-ipex-llm[xpu_2.7]==2.3.0b20250426.post0

@@ -30,7 +30,6 @@ calculate_md5_from_stream = utils.calculate_md5_from_stream
 cache_file = utils.cache_file
 is_single_file = utils.is_single_file
 remove_existing_filesystem_resource = utils.remove_existing_filesystem_resource
-convert_embedding = utils.convert_embedding
 
 # Import the convert_model_type function from the config module
 convert_model_type = config.convert_model_type

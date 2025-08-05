@@ -3,7 +3,7 @@
   "displayPriority": 450,
   "backend": "comfyui",
   "comfyUIRequirements": {
-    "customNodes": ["city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7"],
+    "customNodes": ["city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"],
     "requiredModels": [
       {
         "type": "unet",
@@ -19,7 +19,7 @@
       },
       {
         "type": "vae",
-        "model": "black-forest-labs/FLUX.1-schnell/ae.safetensors"
+        "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
       }
     ]
   },
@@ -41,7 +41,7 @@
   "comfyUiApiWorkflow": {
     "167": {
       "inputs": {
-        "filename_prefix": "ComfyUI",
+        "filename_prefix": "AIPG_Image",
         "images": ["179", 0]
       },
       "class_type": "SaveImage",
@@ -73,7 +73,7 @@
     },
     "171": {
       "inputs": {
-        "vae_name": "black-forest-labs---FLUX.1-schnell\\ae.safetensors"
+        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
       },
       "class_type": "VAELoader",
       "_meta": {

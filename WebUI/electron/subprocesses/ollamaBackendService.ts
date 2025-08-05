@@ -25,9 +25,6 @@ export class OllamaBackendService implements ApiService {
   readonly ollamaDir: string
   readonly ollamaExePath: string
 
-  // Download URL and file paths
-  readonly downloadUrl =
-    'https://github.com/ipex-llm/ipex-llm/releases/download/v2.2.0/ollama-ipex-llm-2.2.0-win.zip'
   readonly zipPath: string
   readonly aiBackend = new PythonService(
     path.resolve(path.join(this.baseDir, `ai-backend-env`)),
@@ -49,6 +46,9 @@ export class OllamaBackendService implements ApiService {
 
   // Logger
   readonly appLogger = appLoggerInstance
+
+  private releaseTag = 'v2.3.0-nightly'
+  private version = '2.3.0b20250630'
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.name = name
@@ -129,16 +129,23 @@ export class OllamaBackendService implements ApiService {
   }
 
   async updateSettings(settings: ServiceSettings): Promise<void> {
-    this.appLogger.info(
-      `updating settings with ${settings}, but settings are not implemented`,
-      this.name,
-    )
-    return Promise.resolve()
+    if (settings.releaseTag) {
+      this.releaseTag = settings.releaseTag
+      this.appLogger.info(`applied new Ollama release tag ${this.releaseTag}`, this.name)
+    }
+    if (settings.version) {
+      this.version = settings.version
+      this.appLogger.info(`applied new Ollama version ${this.version}`, this.name)
+    }
   }
 
   async getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`get settings called, but settings are not implemented`, this.name)
-    return Promise.resolve({ serviceName: this.name })
+    this.appLogger.info(`getting Ollama settings`, this.name)
+    return {
+      releaseTag: this.releaseTag,
+      version: this.version,
+      serviceName: this.name,
+    }
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -163,7 +170,7 @@ export class OllamaBackendService implements ApiService {
         serviceName: this.name,
         step: 'download',
         status: 'executing',
-        debugMessage: `downloading Ollama from ${this.downloadUrl}`,
+        debugMessage: `downloading Ollama`,
       }
 
       await this.downloadOllama()
@@ -215,7 +222,8 @@ export class OllamaBackendService implements ApiService {
   }
 
   private async downloadOllama(): Promise<void> {
-    this.appLogger.info(`Downloading Ollama from ${this.downloadUrl}`, this.name)
+    const downloadUrl = `https://github.com/ipex-llm/ipex-llm/releases/download/${this.releaseTag}/ollama-ipex-llm-${this.version}-win.zip`
+    this.appLogger.info(`Downloading Ollama from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
     if (filesystem.existsSync(this.zipPath)) {
@@ -224,7 +232,7 @@ export class OllamaBackendService implements ApiService {
     }
 
     // Using electron net for better proxy support
-    const response = await net.fetch(this.downloadUrl)
+    const response = await net.fetch(downloadUrl)
     if (!response.ok || response.status !== 200 || !response.body) {
       throw new Error(`Failed to download Ollama: ${response.statusText}`)
     }

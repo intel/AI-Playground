@@ -22,8 +22,11 @@ const serviceFolder = 'LlamaCPP'
 export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `llama-cpp-env`))
+  // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
+
+  private version = 'b6050'
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
@@ -44,8 +47,6 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   readonly llamaCppRestDir = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-rest'))
   readonly llamaCppRestExePath = path.resolve(path.join(this.llamaCppRestDir, 'llama-server.exe'))
   readonly zipPath = path.resolve(path.join(this.pythonEnvDir, 'llama-cpp-release.zip'))
-  readonly downloadUrl =
-    'https://github.com/ggml-org/llama.cpp/releases/download/b5836/llama-b5836-bin-win-vulkan-x64.zip'
 
   serviceIsSetUp(): boolean {
     return (
@@ -95,7 +96,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         serviceName: this.name,
         step: 'download',
         status: 'executing',
-        debugMessage: `downloading Llamacpp from ${this.downloadUrl}`,
+        debugMessage: `downloading Llamacpp`,
       }
 
       await this.downloadLlamacpp()
@@ -145,7 +146,8 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   }
 
   private async downloadLlamacpp(): Promise<void> {
-    this.appLogger.info(`Downloading Llamacpp from ${this.downloadUrl}`, this.name)
+    const downloadUrl = `https://github.com/ggml-org/llama.cpp/releases/download/${this.version}/llama-${this.version}-bin-win-vulkan-x64.zip`
+    this.appLogger.info(`Downloading Llamacpp from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
     if (filesystem.existsSync(this.zipPath)) {
@@ -154,7 +156,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
 
     // Using electron net for better proxy support
-    const response = await net.fetch(this.downloadUrl)
+    const response = await net.fetch(downloadUrl)
     if (!response.ok || response.status !== 200 || !response.body) {
       throw new Error(`Failed to download Llamacpp: ${response.statusText}`)
     }
@@ -700,5 +702,19 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
 
     throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    return {
+      serviceName: this.name,
+      version: this.version,
+    }
+  }
+
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.version = settings.version
+      this.appLogger.info(`applied new LlamaCPP version ${this.version}`, this.name)
+    }
   }
 }

@@ -56,6 +56,9 @@ export const thinkingModels: Record<string, string> = {
   'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
   'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
   'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-cw-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov': '</think>\n\n',
+  'OpenVINO/Qwen3-8B-int4-cw-ov': '</think>\n\n',
 }
 
 // A friendly display name for each backend
@@ -90,7 +93,7 @@ export const useTextInference = defineStore(
 
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
-        ['ipexLLM', 'llamaCPP', 'openVINO'].includes(m.type),
+        ['ipexLLM', 'llamaCPP', 'openVINO', 'ollama'].includes(m.type),
       )
       const newModels = llmTypeModels.map((m) => {
         const selectedModelForType = selectedModels.value[m.type as LlmBackend]
@@ -103,16 +106,6 @@ export const useTextInference = defineStore(
             (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
         }
       })
-
-      // Add Ollama models
-      if (backend.value === 'ollama') {
-        newModels.push({
-          name: 'ollama-default',
-          type: 'ollama',
-          downloaded: true,
-          active: true,
-        })
-      }
 
       console.log('llmModels changed', newModels)
       return newModels

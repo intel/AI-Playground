@@ -136,7 +136,7 @@
     },
     "9": {
       "inputs": {
-        "filename_prefix": "ComfyUI",
+        "filename_prefix": "AIPG_Image",
         "images": ["8", 0]
       },
       "class_type": "SaveImage",
@@ -146,7 +146,7 @@
     },
     "15": {
       "inputs": {
-        "image": "c3a08803d8bd3131c8369e5a79ab0ea0e603bd5fce624cfca0c2a6095e25f9a1.png",
+        "image": "input.png",
         "upload": "image"
       },
       "class_type": "LoadImage",

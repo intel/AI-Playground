@@ -45,7 +45,7 @@
         <!-- Delete Button (aligned right) -->
         <div class="w-[15%] flex justify-end pr-2">
           <button
-            class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
             :title="languages.COM_DELETE_FILE"
             @click="deleteFile(file.hash)"
           >
@@ -72,7 +72,7 @@
           <button
             @click="chooseUploadFiles"
             :title="languages.COM_ADD_FILE_TO_RAG"
-            class="bg-blue-500 rounded px-4 h-8 flex items-center justify-center hover:bg-blue-500/50 transition-colors duration-200"
+            class="bg-blue-500 rounded-sm px-4 h-8 flex items-center justify-center hover:bg-blue-500/50 transition-colors duration-200"
           >
             <span class="svg-icon text-white i-add w-5 h-5 mr-2"></span>
             <span>{{ languages.RAG_ADD_FILES }}</span>
@@ -84,7 +84,7 @@
           <button
             @click="deleteAllFiles"
             :title="languages.COM_DELETE_ALL_FILES"
-            class="bg-gray-600/50 rounded px-2 h-8 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
+            class="bg-gray-600/50 rounded-sm px-2 h-8 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
           >
             <span class="svg-icon text-white i-delete w-4 h-4 mr-1"></span>
             <span class="text-xs">{{ languages.RAG_CLEAR_ALL }}</span>
@@ -111,7 +111,7 @@
       <button
         @click="chooseUploadFiles"
         :title="languages.COM_ADD_FILE_TO_RAG"
-        class="bg-purple-600 py-2 px-6 rounded hover:bg-purple-600/50 transition-colors duration-200 flex items-center justify-center gap-2"
+        class="bg-purple-600 py-2 px-6 rounded-sm hover:bg-purple-600/50 transition-colors duration-200 flex items-center justify-center gap-2"
       >
         <span class="svg-icon text-white i-add w-5 h-5"></span>
         <span>{{ languages.RAG_ADD_FILES }}</span>

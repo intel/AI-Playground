@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('envVars', {
   productVersion: pkg.version,
 })
 contextBridge.exposeInMainWorld('electronAPI', {
+  startDrag: (fileName: string) => ipcRenderer.send('ondragstart', fileName),
   getFilePath: (file: File) => webUtils.getPathForFile(file),
   getServices: () => ipcRenderer.invoke('getServices'),
   updateServiceSettings: (settings: ServiceSettings) =>
@@ -43,6 +44,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   miniWindow: () => ipcRenderer.send('miniWindow'),
   exitApp: () => ipcRenderer.send('exitApp'),
   getMediaUrlBase: () => ipcRenderer.invoke('getMediaUrlBase'),
+  getInitialPage: () => ipcRenderer.invoke('getInitialPage'),
+  getDemoModeSettings: () => ipcRenderer.invoke('getDemoModeSettings'),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     ipcRenderer.invoke('showOpenDialog', options),
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
