@@ -44,7 +44,13 @@
   ></comfy-u-i-download-dialog>
   <div class="items-center flex-wrap grid grid-cols-1 gap-2">
     <div class="flex flex-col gap-2">
-      <p>{{ languages.SETTINGS_IMAGE_MODE }}</p>
+      <div class="flex flex-row justify-between">
+        <p>{{ languages.SETTINGS_IMAGE_MODE }}</p>
+        <a v-if="imageGeneration.backend === 'comfyui'" :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl" target="_blank" class="flex flex-row gap-1 items-center text-blue-500 cursor-pointer">
+          <p>Open ComfyUI</p>
+          <ArrowTopRightOnSquareIcon class="size-5" />
+        </a>
+      </div>
       <div class="grid grid-cols-2 items-center gap-2 flex-wrap">
         <radio-block
           :checked="imageGeneration.backend === 'default'"
@@ -208,6 +214,7 @@ import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import ComfyUIDownloadDialog from '@/components/ComfyUIDownloadDialog.vue'
 import * as toast from '@/assets/js/toast'
 import { useI18N } from '@/assets/js/store/i18n.ts'
+import { ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/solid'
 const i18nState = useI18N().state
 
 const imageGeneration = useImageGeneration()
