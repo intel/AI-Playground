@@ -135,35 +135,28 @@ def check_defaultbackend_mmodel_exist(type: int, repo_id: str) -> bool:
         )
 
 # File operations
-def calculate_md5(file_path: str):
-    """Calculate the MD5 hash of a file"""
+def calculate_sha256(file_path: str):
+    """Calculate the SHA256 hash of a file"""
     with open(file_path, "rb") as f:
         file_hash = hashlib.md5()
         while chunk := f.read(8192):
             file_hash.update(chunk)
     return file_hash.hexdigest()
 
-def calculate_md5_from_stream(file_stream: IO[bytes]):
-    """Calculate the MD5 hash of a file stream"""
-    file_hash = hashlib.md5()
-    for chunk in iter(lambda: file_stream.read(8192), b""):
-        file_hash.update(chunk)
-    return file_hash.hexdigest()
-
-def create_cache_path(md5: str, file_size: int):
-    """Create a cache path for a file based on its MD5 hash and size"""
+def create_cache_path(sha256: str, file_size: int):
+    """Create a cache path for a file based on its SHA256 hash and size"""
     cache_dir = "./cache"
-    sub_dirs = [md5[i : i + 4] for i in range(0, len(md5), 4)]
+    sub_dirs = [sha256[i : i + 4] for i in range(0, len(sha256), 4)]
     cache_path = os.path.abspath(
-        os.path.join(cache_dir, *sub_dirs, f"{md5}_{file_size}")
+        os.path.join(cache_dir, *sub_dirs, f"{sha256}_{file_size}")
     )
     return cache_path
 
 def cache_file(file_path: IO[bytes] | str, file_size: int):
-    """Cache a file using its MD5 hash and size"""
-    md5 = calculate_md5(file_path)
+    """Cache a file using its SHA256 hash and size"""
+    sha256 = calculate_sha256(file_path)
 
-    cache_path = create_cache_path(md5, file_size)
+    cache_path = create_cache_path(sha256, file_size)
 
     if not os.path.exists(cache_path):
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)

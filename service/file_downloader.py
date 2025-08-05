@@ -68,12 +68,11 @@ class FileDownloader:
             response = requests.get(
                 url,
                 stream=True,
-                verify=False,
                 headers={"Range": f"bytes={start_pos}-"},
             )
             fw = open(file_path, "ab")
         else:
-            response = requests.get(url, stream=True, verify=False)
+            response = requests.get(url, stream=True)
             fw = open(file_path, "wb")
 
         return response, fw
