@@ -13,7 +13,7 @@ Pillow==11.1.0
 psutil==7.0.0
 Requests==2.32.3
 sentence_transformers==2.3.1
-transformers==4.48.0
+transformers==4.53.0
 trl==0.9.3
 faiss-cpu==1.8.0
 docx2txt==0.8
