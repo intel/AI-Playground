@@ -2,6 +2,7 @@
   "name": "Line2Image-HD-Quality",
   "displayPriority": 150,
   "backend": "comfyui",
+  "category": "create-images",
   "comfyUIRequirements": {
     "customNodes": [],
     "requiredModels": [
