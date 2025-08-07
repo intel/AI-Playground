@@ -1,5 +1,6 @@
 {
   "name": "Wan2.1-VACE_Img2Video-20Steps",
+  "category": "create-videos",
   "displayPriority": 200,
   "backend": "comfyui",
   "comfyUIRequirements": {

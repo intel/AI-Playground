@@ -195,6 +195,7 @@ export type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
 
 const ComfyUiWorkflowSchema = z.object({
   name: z.string(),
+  category: z.enum(['create-images', 'edit-images', 'create-videos']).optional(),
   displayPriority: z.number().default(0),
   backend: z.literal('comfyui'),
   comfyUIRequirements: z.object({
