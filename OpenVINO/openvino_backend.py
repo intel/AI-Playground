@@ -35,12 +35,15 @@ class OpenVino(LLMInterface):
 
 
     def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None], max_tokens: int = 1024):
+     
         config = openvino_genai.GenerationConfig()
         config.max_new_tokens = max_tokens
-        #config.do_sample = False
 
         full_prompt = self._tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-        return self._model.generate(full_prompt, config, streamer)
+        text_streamer = openvino_genai.TextStreamer(self._tokenizer, streamer)
+        result = self._model.generate([full_prompt], config, text_streamer)
+
+        return result
 
 
     def unload_model(self):
