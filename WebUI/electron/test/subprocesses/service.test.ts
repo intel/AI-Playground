@@ -57,20 +57,4 @@ describe('DeviceService', () => {
       expect(exePath).toContain(path.join('device-service', 'xpu-smi.exe'))
     })
   })
-
-  describe('getBestDeviceArch', () => {
-    it('should return the architecture of the best device', async () => {
-      const arch = await deviceService.getBestDeviceArch()
-
-      expect(arch).toBe('bmg')
-    })
-
-    it('should return "unknown" if device detection fails', async () => {
-      vi.spyOn(deviceService, 'run').mockRejectedValue(new Error('Test error'))
-
-      const arch = await deviceService.getBestDeviceArch()
-
-      expect(arch).toBe('unknown')
-    })
-  })
 })

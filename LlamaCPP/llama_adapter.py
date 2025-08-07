@@ -41,7 +41,16 @@ class LLM_SSE_Adapter(InterfaceAdapter):
                 self.text_out_callback(output)
             else:
                 # openai style
-                self.text_out_callback(output["choices"][0]["delta"].get("content",""))
+                # Normalize output (works for raw strings or dicts)
+                if isinstance(output, str):
+                    content = output
+                elif isinstance(output, dict):
+                    content = output.get("content", "")
+                else:
+                    content = str(output)
+
+                self.text_out_callback(content)
+
                 self.num_tokens += 1
 
                 if self.is_first_token:

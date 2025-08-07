@@ -24,6 +24,13 @@
       :image-url-ref="input.current as WritableComputedRef<string>"
     ></LoadImage>
 
+    <!--    Video    -->
+    <LoadVideo
+      :id="`${input.nodeTitle}.${input.nodeInput}`"
+      v-if="input.type === 'video'"
+      :video-url-ref="input.current as WritableComputedRef<string>"
+    ></LoadVideo>
+
     <!--    String    -->
     <Input
       v-if="input.type === 'string'"
@@ -65,6 +72,7 @@
 import { useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { Input } from './ui/aipgInput'
 import { LoadImage } from '../components/ui/loadImage'
+import { LoadVideo } from '../components/ui/loadVideo'
 import SlideBar from '../components/SlideBar.vue'
 import { getTranslationLabel } from '@/lib/utils'
 import DropSelector from '@/components/DropSelector.vue'

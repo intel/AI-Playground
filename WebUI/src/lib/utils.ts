@@ -61,6 +61,8 @@ export function mapServiceNameToDisplayName(serviceName: string) {
       return 'Llama.cpp - GGUF'
     case 'openvino-backend':
       return 'OpenVINO'
+    case 'ollama-backend':
+      return 'Ollama'
     default:
       return serviceName
   }

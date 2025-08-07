@@ -14,11 +14,20 @@ interface ImportMeta {
 }
 
 type ServiceSettings = {
-  version?: string
   serviceName: BackendServiceName
+  version?: string
+  releaseTag?: string
 }
 
+type DemoModeSettings = {
+  isDemoModeEnabled: boolean
+  demoModeResetInSeconds: null | number
+}
+
+type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+
 type electronAPI = {
+  startDrag: (fileName: string) => void
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
@@ -44,6 +53,8 @@ type electronAPI = {
   miniWindow(): void
   exitApp(): void
   getMediaUrlBase(): Promise<string>
+  getInitialPage(): Promise<AipgPage>
+  getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void
@@ -81,11 +92,18 @@ type electronAPI = {
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
   getServiceSettings(serviceName: string): Promise<ServiceSettings[BackendServiceName]>
   uninstall(serviceName: string): Promise<void>
+  selectDevice(serviceName: string, deviceId: string): Promise<void>
+  detectDevices(serviceName: string): Promise<void>
   sendStartSignal(serviceName: string): Promise<BackendStatus>
   sendStopSignal(serviceName: string): Promise<BackendStatus>
   sendSetUpSignal(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
+  ensureBackendReadiness(
+    serviceName: string,
+    llmModelName: string,
+    embeddingModelName?: string,
+  ): Promise<{ success: boolean; error?: string }>
 }
 
 type SetupProgress = {
@@ -359,7 +377,18 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
+type BackendServiceName =
+  | 'ai-backend'
+  | 'comfyui-backend'
+  | 'llamacpp-backend'
+  | 'openvino-backend'
+  | 'ollama-backend'
+
+type InferenceDevice = {
+  id: string
+  name: string
+  selected: boolean
+}
 
 type ApiServiceInformation = {
   serviceName: BackendServiceName
@@ -368,4 +397,5 @@ type ApiServiceInformation = {
   port: number
   isSetUp: boolean
   isRequired: boolean
+  devices: InferenceDevice[]
 }

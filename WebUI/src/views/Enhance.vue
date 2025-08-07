@@ -59,15 +59,17 @@
               id="mask-pen"
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(0)"
-              class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
+              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
+              :class="{ 'demo-mode-overlay-content': demoMode.enhance.showInpaint }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
+              <DemoNumber :show="demoMode.enhance.showInpaint" :number="1"></DemoNumber>
             </button>
             <div
               v-show="
                 mode == 3 && previewIdx == -1 && generateState != 'no_start' && maskData.mode == 0
               "
-              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded border-color-control-bg w-5 py-1"
+              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded-sm border-color-control-bg w-5 py-1"
               :style="{ left: maskBrush.x, top: maskBrush.y }"
             >
               <div class="flex flex-col items-center justify-center gap-1 flex-auto">
@@ -84,7 +86,7 @@
                 </vertical-slide-bar>
                 <span class="w-2 h-2 bg-gray-400 rounded-full flex-none"></span>
               </div>
-              <span class="w-4 h-4 rounded flex justify-center items-center">
+              <span class="w-4 h-4 rounded-sm flex justify-center items-center">
                 <span class="svg-icon i-pen w-3 h-3"></span>
               </span>
             </div>
@@ -93,7 +95,7 @@
               id="mask-easer"
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(1)"
-              class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
+              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
             >
               <span class="svg-icon i-easer w-5 h-5"></span>
             </button>
@@ -101,7 +103,7 @@
               v-show="
                 mode == 3 && generateState != 'no_start' && previewIdx == -1 && maskData.mode == 1
               "
-              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded border-color-control-bg w-5 py-1"
+              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded-sm border-color-control-bg w-5 py-1"
               :style="{ left: maskEaser.x, top: maskEaser.y }"
             >
               <div class="flex flex-col items-center justify-center gap-1 flex-auto">
@@ -118,7 +120,7 @@
                 </vertical-slide-bar>
                 <span class="w-2 h-2 bg-gray-400 rounded-full flex-none"></span>
               </div>
-              <span class="w-4 h-4 rounded flex justify-center items-center">
+              <span class="w-4 h-4 rounded-sm flex justify-center items-center">
                 <span class="svg-icon i-easer w-3 h-3"></span>
               </span>
             </div>
@@ -126,7 +128,7 @@
             <button
               v-show="mode == 3 && generateState != 'no_start' && previewIdx == -1"
               @click="inpaintMaskCompt?.clearMaskImage"
-              class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
+              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
             >
               <span class="svg-icon i-broom w-5 h-5"></span>
             </button>
@@ -134,7 +136,7 @@
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="postImageToEnhance"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
@@ -142,7 +144,7 @@
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="toggleParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
@@ -150,7 +152,7 @@
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="openImage"
               :title="languages.COM_ZOOM_IN"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
@@ -158,7 +160,7 @@
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="copyImage"
               :title="languages.COM_COPY"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
@@ -166,13 +168,13 @@
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
             <button
               v-show="sourceImg && !processing"
-              class="bg-color-image-tool-button w-6 h-6 rounded-sm flex justify-center items-center"
+              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
             >
               <span class="svg-icon i-delete w-5 h-5" @click="removeImage"></span>
             </button>
@@ -215,14 +217,31 @@
       </div>
     </div>
     <div class="flex flex-col gap-2 flex-none">
-      <div class="flex justify-center items-center gap-3">
+      <div
+        class="flex justify-center items-center gap-3"
+        :class="{
+          'demo-number-overlay': demoMode.enhance.show,
+        }"
+      >
         <textarea
           class="flex-auto h-20 resize-none"
           :placeholder="languages.COM_SD_PROMPT"
           v-model="prompt"
           :disabled="disabledPrompt"
           @keypress.enter.prevent="generate"
+          :class="{
+            'demo-mode-overlay-content':
+              demoMode.enhance.showInpaint ||
+              demoMode.enhance.showOutpaint ||
+              demoMode.enhance.showPrompt,
+            'demo-mode-enhance-content': demoMode.enhance.showUpscale,
+          }"
         ></textarea>
+        <DemoNumber
+          :show="demoMode.enhance.showPrompt || demoMode.enhance.showOutpaint"
+          :number="1"
+        ></DemoNumber>
+        <DemoNumber :show="demoMode.enhance.showInpaint" :number="2"></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-show="!processing"
@@ -279,7 +298,13 @@
           <span>{{ languages.ENHANCE_OUTPAINT }}</span>
         </button>
       </div>
-      <div class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter">
+      <div
+        class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter"
+        :class="{
+          'demo-mode-overlay-content': demoMode.enhance.showUpscale,
+          'demo-number-overlay': demoMode.enhance.showUpscale,
+        }"
+      >
         <div class="w-80 rounded-lg bg-color-control-bg relative h-full">
           <div class="flex flex-col items-center justify-center gap-2 text-white text-xs h-full">
             <p class="text-sm">{{ languages.COM_CLICK_UPLOAD }}</p>
@@ -294,6 +319,12 @@
             @drop="dropImageFile"
           />
         </div>
+        <DemoNumber :show="demoMode.enhance.showUpscale" :number="1"></DemoNumber>
+        <DemoNumber
+          :show="demoMode.enhance.showUpscale"
+          :number="2"
+          extraClass="demo-step-number-two"
+        ></DemoNumber>
         <upscale-options
           v-if="mode == 1"
           ref="upscaleCompt"
@@ -316,6 +347,7 @@
 </template>
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import UpscaleOptions from '../components/UpscaleOptions.vue'
 import OutpaintOptions from '../components/OutpaintOptions.vue'
 import InpaintOptions from '../components/InpaintOptions.vue'
@@ -333,12 +365,15 @@ import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageG
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useModels } from '@/assets/js/store/models'
 import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
 const models = useModels()
 const imageGeneration = useImageGeneration()
+const demoMode = useDemoMode()
+
 const mode = ref(1)
 const sourceImage = ref<HTMLImageElement>()
 const sourceImg = ref<string>('')
@@ -362,7 +397,6 @@ const maskData = reactive({
   mode: 0,
 })
 const uploadFile = ref<HTMLInputElement>()
-
 const disabledPrompt = ref(false)
 const maskBrush = reactive({
   size: 32,
@@ -447,7 +481,11 @@ function dropImageFile(e: DragEvent) {
 
 function switchFeature(value: number) {
   mode.value = value
+  const features = ['upscale', 'prompt', 'inpaint', 'outpaint'] as const
+  setTimeout(() => (demoMode.enhance.feature = features[value - 1] ?? 'upscale'))
 }
+
+watch(sourceImg, (i) => (demoMode.enhance.imageAvailable = i !== ''))
 
 function finishGenerate() {
   processing.value = false
@@ -784,5 +822,6 @@ function toggleParamsDialog() {
     infoParams.value = generateParams[previewIdx.value]
   }
 }
+
 defineExpose({ receiveImage })
 </script>

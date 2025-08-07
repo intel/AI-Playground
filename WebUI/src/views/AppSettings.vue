@@ -1,7 +1,7 @@
 <template>
   <div
     id="app-settings-panel"
-    class="settings-panel absolute right-0 top-0 h-full bg-color-bg-main text-sm text-white py-4"
+    class="settings-panel flex-none bg-color-bg-main text-sm text-white py-4 border-l border-color-spilter"
   >
     <div class="flex justify-between px-3">
       <div class="flex items-stretch gap-2">

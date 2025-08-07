@@ -51,7 +51,7 @@
       }
     ]
   },
-  "tags": ["SDXL", "v2.5", "Fast-LCM", "non-com"],
+  "tags": ["SDXL", "v2.5", "LCM", "non-com"],
   "requirements": ["high-vram"],
   "inputs": [
     {
@@ -113,7 +113,7 @@
     },
     "6": {
       "inputs": {
-        "text": "a photograph of a dudde",
+        "text": "a photograph of a dude",
         "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
@@ -143,7 +143,7 @@
     },
     "9": {
       "inputs": {
-        "filename_prefix": "ComfyUI",
+        "filename_prefix": "AIPG_Image",
         "images": ["25", 0]
       },
       "class_type": "SaveImage",
@@ -153,7 +153,7 @@
     },
     "15": {
       "inputs": {
-        "image": "85fa6a8da7737ef1f7a4887155536862a1907b6e93c8f77db78dce70aab44c2b.png",
+        "image": "source.png",
         "upload": "image"
       },
       "class_type": "LoadImage",

@@ -12,11 +12,20 @@
             v-for="image in imageGeneration.generatedImages.filter((i) => i.state !== 'queued')"
             class="image-preview-item flex items-center justify-center"
             :class="{ active: selectedImageId === image.id }"
-            @click="selectedImageId = image.id"
+            @click="
+              () => {
+                selectedImageId = image.id
+              }
+            "
           >
             <!-- eslint-enable -->
-            <div class="image-preview-item-bg">
-              <img :src="image.imageUrl" class="image-thumb" />
+            <div
+              class="image-preview-item-bg"
+              draggable="true"
+              @dragstart="(e) => dragImage(image)(e)"
+            >
+              <video v-if="isVideo(image)" :src="image.videoUrl" class="image-thumb" />
+              <img v-else :src="image.imageUrl" class="image-thumb" />
             </div>
           </div>
         </div>
@@ -25,7 +34,7 @@
             @click="deleteAllImages"
             :title="languages.COM_CLEAR_HISTORY"
             :disabled="imageGeneration.processing"
-            class="bg-color-image-tool-button rounded-sm w-6 h-6 ml-2 flex items-center justify-center"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 ml-2 flex items-center justify-center"
           >
             <span class="svg-icon text-white i-clear w-4 h-4"></span>
           </button>
@@ -37,24 +46,24 @@
         >
           <!-- eslint-disable vue/require-v-for-key -->
           <div
-            v-for="image in imageGeneration.generatedImages"
-            v-show="selectedImageId === image.id"
+            v-show="imageGeneration.generatedImages.length > 0 && currentImage"
             class="flex justify-center items-center"
+            draggable="true"
+            @dragstart="(e) => dragImage(currentImage)(e)"
           >
             <!-- eslint-enable -->
             <img
-              v-if="!isVideo(image)"
+              v-if="currentImage && !isVideo(currentImage)"
               class="max-w-768px max-h-512px object-contain p-2"
-              :src="image.imageUrl"
+              :src="currentImage?.imageUrl"
             />
             <video
               v-else
+              :src="currentImage?.videoUrl as string"
               class="max-w-768px max-h-512px object-contain p-2"
               controlsList="nodownload nofullscreen noremoteplayback"
               controls
-            >
-              <source :src="image.videoUrl" />
-            </video>
+            />
           </div>
           <div
             v-show="imageGeneration.processing"
@@ -95,7 +104,7 @@
               "
               @click="postImageToEnhance(currentImage)"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-transfer w-4 h-4"></span>
             </button>
@@ -103,7 +112,7 @@
               v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-info w-4 h-4"></span>
             </button>
@@ -111,7 +120,7 @@
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="openImage(currentImage)"
               :title="languages.COM_ZOOM_IN"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
             </button>
@@ -119,7 +128,7 @@
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="copyImage(currentImage)"
               :title="languages.COM_COPY"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-copy w-4 h-4"></span>
             </button>
@@ -127,7 +136,7 @@
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="openImageInFolder(currentImage)"
               :title="languages.COM_OPEN_LOCATION"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-folder w-4 h-4"></span>
             </button>
@@ -135,7 +144,7 @@
               v-if="currentImage"
               @click="deleteImage(currentImage)"
               :title="languages.COM_DELETE"
-              class="bg-color-image-tool-button rounded-sm w-6 h-6 flex items-center justify-center"
+              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
             >
               <span class="svg-icon text-white i-delete w-4 h-4"></span>
             </button>
@@ -149,32 +158,56 @@
         ></info-table>
       </div>
     </div>
-    <div class="h-32 gap-3 flex-none flex items-center">
-      <textarea
-        class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
-        :placeholder="languages.COM_SD_PROMPT"
-        v-model="imageGeneration.prompt"
-        @keydown.enter.prevent="generateImage"
-      ></textarea>
-      <button
-        class="gernate-btn self-stretch flex flex-col w-32 flex-none"
-        v-show="!imageGeneration.processing"
-        @click="generateImage"
+    <div class="pt-2 gap-y-2 flex flex-col border-t border-color-spilter">
+      <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
+        <div class="flex items-center gap-2">
+          <ModeSelector
+            v-if="imageGeneration.activeWorkflow.backend === 'default'"
+            :title="`${languages.SETTINGS_MODEL_IMAGE_RESOLUTION} & ${languages.SETTINGS_MODEL_QUALITY}`"
+            @change="(item) => (imageGeneration.activeWorkflowName = item)"
+            :value="imageGeneration.activeWorkflowName ?? 'Standard'"
+            :items="[
+              { label: 'Standard', value: 'Standard' },
+              { label: 'Standard - Fast', value: 'Standard - Fast' },
+              { label: 'HD', value: 'HD' },
+              { label: 'HD - Fast', value: 'HD - Fast' },
+            ]"
+          ></ModeSelector>
+        </div>
+      </div>
+      <div
+        class="h-32 gap-3 flex-none flex items-center"
+        :class="{ 'demo-number-overlay': demoMode.create.show }"
       >
-        <span class="svg-icon i-generate-add w-7 h-7"></span>
-        <span>{{ languages.COM_GENERATE }}</span>
-      </button>
-      <button
-        class="gernate-btn self-stretch flex flex-col w-32 flex-none"
-        v-show="imageGeneration.processing"
-        @click="imageGeneration.stopGeneration"
-      >
-        <span
-          class="svg-icon w-7 h-7"
-          :class="{ 'i-stop': !imageGeneration.stopping, 'i-loading': imageGeneration.stopping }"
-        ></span>
-        <span>{{ languages.COM_STOP }}</span>
-      </button>
+        <textarea
+          class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
+          :placeholder="languages.COM_SD_PROMPT"
+          v-model="imageGeneration.prompt"
+          @keydown.enter.prevent="generateImage"
+          :class="{ 'demo-mode-overlay-content': demoMode.create.show }"
+        ></textarea>
+        <DemoNumber :show="demoMode.create.show" :number="1"></DemoNumber>
+        <button
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-show="!imageGeneration.processing"
+          @click="generateImage"
+          :class="{ 'demo-mode-overlay-content': demoMode.create.show }"
+        >
+          <span class="svg-icon i-generate-add w-7 h-7"></span>
+          <span>{{ languages.COM_GENERATE }}</span>
+        </button>
+        <button
+          class="gernate-btn self-stretch flex flex-col w-32 flex-none"
+          v-show="imageGeneration.processing"
+          @click="imageGeneration.stopGeneration"
+        >
+          <span
+            class="svg-icon w-7 h-7"
+            :class="{ 'i-stop': !imageGeneration.stopping, 'i-loading': imageGeneration.stopping }"
+          ></span>
+          <span>{{ languages.COM_STOP }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -182,10 +215,14 @@
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
+import ModeSelector from '@/components/ModeSelector.vue'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
+const demoMode = useDemoMode()
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
@@ -193,6 +230,14 @@ const selectedImageId = ref<string | null>(null)
 const currentImage: ComputedRef<MediaItem | null> = computed(() => {
   return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
 })
+
+const dragImage = (item: MediaItem | null) => (event: Event) => {
+  if (!item) return
+  event.preventDefault()
+  const url = isVideo(item) ? item.videoUrl : item.imageUrl
+  window.electronAPI.startDrag(url)
+}
+
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {

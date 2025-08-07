@@ -146,7 +146,7 @@ const sliderModel = computed({
       Megapixels
     </div>
     <span
-      class="w-[90px] text-center rounded-sm border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]"
+      class="w-[90px] text-center rounded-xs border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]"
       >{{ imageGeneration.width }} x {{ imageGeneration.height }}</span
     >
   </div>

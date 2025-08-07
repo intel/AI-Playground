@@ -45,7 +45,7 @@
   "comfyUiApiWorkflow": {
     "2": {
       "inputs": {
-        "image": "Marilyn-marilyn-monroe.jpg",
+        "image": "input.jpg",
         "upload": "image"
       },
       "class_type": "LoadImage",
@@ -55,7 +55,7 @@
     },
     "5": {
       "inputs": {
-        "filename_prefix": "ComfyUI",
+        "filename_prefix": "AIPG_Image",
         "images": ["6", 0]
       },
       "class_type": "SaveImage",

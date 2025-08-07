@@ -8,5 +8,8 @@
     "6.0"
   ],
   "availableThemes": ["dark", "lnl", "bmg"],
-  "currentTheme": "bmg"
+  "currentTheme": "bmg",
+  "enablePreviewFeatures": true,
+  "isDemoModeEnabled": false,
+  "demoModeResetInSeconds": null
 }

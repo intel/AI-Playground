@@ -102,20 +102,6 @@ def resize_by_max(image: Image.Image, max_size: int, multiple_of_8=True):
     return image, 1
 
 
-# def resize_by_max(image: Image.Image, max_size):
-#     if image.width > max_size or image.height > max_size:
-#         aspect_ratio = image.width / image.height
-#         if image.width > image.height:
-#             return image.resize(
-#                 (max_size, int(image.height / aspect_ratio))
-#             ), image.width / max_size
-#         else:
-#             return image.resize(
-#                 (int(image.width * aspect_ratio), max_size)
-#             ), image.height / max_size
-#     return image, 1
-
-
 def slice_image(image: np.ndarray | Image.Image):
     image = get_image_ndarray(image)
     height, width, _ = image.shape
@@ -188,74 +174,3 @@ class MatteMatting:
     @staticmethod
     def __image_to_opencv(image: Image.Image):
         return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
-
-
-# print(arr)
-# if __name__ == "__main__":
-#     input_image = Image.open("./test/images/women.png")
-#     mask_image = Image.open("./test/images/inapint_mask.png")
-#     (ori_width, ori_height) = input_image.size
-
-#     slice_image, mask_image, slice_box = pre_input_and_mask(
-#         input_image.convert("RGB"), mask_image
-#     )
-#     slice_image.save("inapint_slice.png")
-#     mask_image.save("inapint_mask.png")
-#     slice_w, slice_h = slice_image.size
-#     pipe = AutoPipelineForInpainting.from_pretrained(
-#         "./models/stable_diffusion/checkpoints/Lykon---DreamShaper",
-#         torch_type=torch.bfloat16,
-#     )
-#     pipe.to("xpu")
-#     out_width, out_height, out_radio = calc_out_size(
-#         slice_w, slice_h, isinstance(pipe, StableDiffusionXLInpaintPipeline)
-#     )
-#     is_scale_out = False
-#     if out_radio != 1:
-#         is_scale_out = True
-#         slice_image = slice_image.resize((out_width, out_height))
-#         mask_image = mask_image.resize((out_width, out_height))
-
-#     i = 0
-#     real_out_w = make_multiple_of_8(out_width)
-#     real_out_h = make_multiple_of_8(out_height)
-#     while i < 1:
-#         with torch.inference_mode():
-#             gen_image: Image.Image = pipe(
-#                 prompt="Beautiful female face",
-#                 image=slice_image,
-#                 mask_image=mask_image,
-#                 strength=0.4,
-#                 width=real_out_w,
-#                 height=real_out_h,
-#                 guidance_scale=7,
-#                 num_inference_steps=40,
-#             ).images[0]
-
-#         gen_image.save(f"./inapint_gen_{i}.png")
-
-#         if is_scale_out:
-#             scalce_radio = 1 // out_radio
-#             realESRGANer = RealESRGANer()
-#             gen_image = realESRGANer.enhance(gen_image, scalce_radio)
-
-#         if real_out_h != out_height or real_out_w != out_width:
-#             combine_mask_image = mask_image.resize((out_width, out_height))
-#             gen_image = gen_image.resize((out_width, out_height))
-
-#         else:
-#             combine_mask_image = mask_image
-
-#         combine_mask_image = Image.fromarray(
-#             cv2.bitwise_not(np.asarray(combine_mask_image))
-#         )
-#         combine_mask_image.show()
-#         mm = MatteMatting(gen_image, combine_mask_image)
-#         gen_image = mm.export_image()
-#         gen_image.save(f"./inapint_gen_mm_{i}.png")
-#         r, g, b, a = gen_image.split()
-#         input_image.paste(gen_image, slice_box, a)
-
-#         input_image.save(f"./inpaint_result_{i}.png")
-
-#         i += 1

@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('envVars', {
   productVersion: pkg.version,
 })
 contextBridge.exposeInMainWorld('electronAPI', {
+  startDrag: (fileName: string) => ipcRenderer.send('ondragstart', fileName),
   getFilePath: (file: File) => webUtils.getPathForFile(file),
   getServices: () => ipcRenderer.invoke('getServices'),
   updateServiceSettings: (settings: ServiceSettings) =>
@@ -16,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServiceSettings: (serviceName: string) =>
     ipcRenderer.invoke('getServiceSettings', serviceName),
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
+  selectDevice: (serviceName: string, deviceId: string) =>
+    ipcRenderer.invoke('selectDevice', serviceName, deviceId),
+  detectDevices: (serviceName: string) => ipcRenderer.invoke('detectDevices', serviceName),
   sendStartSignal: (serviceName: string) => ipcRenderer.invoke('sendStartSignal', serviceName),
   sendStopSignal: (serviceName: string) => ipcRenderer.invoke('sendStopSignal', serviceName),
   sendSetUpSignal: (serviceName: string) => ipcRenderer.invoke('sendSetUpSignal', serviceName),
@@ -40,6 +44,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   miniWindow: () => ipcRenderer.send('miniWindow'),
   exitApp: () => ipcRenderer.send('exitApp'),
   getMediaUrlBase: () => ipcRenderer.invoke('getMediaUrlBase'),
+  getInitialPage: () => ipcRenderer.invoke('getInitialPage'),
+  getDemoModeSettings: () => ipcRenderer.invoke('getDemoModeSettings'),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     ipcRenderer.invoke('showOpenDialog', options),
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
@@ -83,4 +89,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
     ipcRenderer.on('serviceInfoUpdate', (_event, value) => callback(value)),
+  ensureBackendReadiness: (
+    serviceName: string,
+    llmModelName: string,
+    embeddingModelName?: string,
+  ) => ipcRenderer.invoke('ensureBackendReadiness', serviceName, llmModelName, embeddingModelName),
 })

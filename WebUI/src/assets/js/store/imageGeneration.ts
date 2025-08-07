@@ -30,6 +30,7 @@ export type GenerationSettings = Partial<
 
 export type ComfyDynamicInputWithCurrent =
   | (ComfyImageInput & { current: string })
+  | (ComfyVideoInput & { current: string })
   | (ComfyNumberInput & { current: number })
   | (ComfyStringInput & { current: string })
   | (ComfyBooleanInput & { current: boolean })
@@ -144,6 +145,15 @@ const ComfyImageInputSchema = z.object({
 })
 export type ComfyImageInput = z.infer<typeof ComfyImageInputSchema>
 
+const ComfyVideoInputSchema = z.object({
+  nodeTitle: z.string(),
+  nodeInput: z.string(),
+  type: z.literal('video'),
+  defaultValue: z.string(),
+  label: z.string(),
+})
+export type ComfyVideoInput = z.infer<typeof ComfyVideoInputSchema>
+
 const ComfyStringInputSchema = z.object({
   nodeTitle: z.string(),
   nodeInput: z.string(),
@@ -176,6 +186,7 @@ export type ComfyBooleanInput = z.infer<typeof ComfyBooleanInputSchema>
 const ComfyDynamicInputSchema = z.discriminatedUnion('type', [
   ComfyNumberInputSchema,
   ComfyImageInputSchema,
+  ComfyVideoInputSchema,
   ComfyStringInputSchema,
   ComfyStringListInputSchema,
   ComfyBooleanInputSchema,
@@ -236,6 +247,11 @@ const generalDefaultSettings = {
   safetyCheck: true,
 }
 
+export const backendToService: Record<'comfyui' | 'default', BackendServiceName> = {
+  comfyui: 'comfyui-backend',
+  default: 'ai-backend',
+}
+
 export const useImageGeneration = defineStore(
   'imageGeneration',
   () => {
@@ -253,6 +269,7 @@ export const useImageGeneration = defineStore(
           resolution: '512x512',
           guidanceScale: 7,
           inferenceSteps: 20,
+          batchSize: 4,
           scheduler: 'DPM++ SDE Karras',
         },
         displayedSettings: [
@@ -285,6 +302,7 @@ export const useImageGeneration = defineStore(
           resolution: '512x512',
           guidanceScale: 7,
           inferenceSteps: 50,
+          batchSize: 1,
           scheduler: 'DPM++ SDE Karras',
         },
         displayedSettings: ['imageModel', 'inpaintModel', 'guidanceScale', 'scheduler'],
@@ -338,6 +356,7 @@ export const useImageGeneration = defineStore(
           resolution: '1024x1024',
           guidanceScale: 7,
           inferenceSteps: 20,
+          batchSize: 1,
           scheduler: 'DPM++ SDE',
           lora: 'None',
         },
@@ -364,6 +383,7 @@ export const useImageGeneration = defineStore(
           resolution: '1024x1024',
           guidanceScale: 7,
           inferenceSteps: 50,
+          batchSize: 1,
           scheduler: 'DPM++ SDE',
           lora: 'None',
         },
@@ -390,6 +410,7 @@ export const useImageGeneration = defineStore(
           resolution: '1024x1024',
           guidanceScale: 1,
           inferenceSteps: 6,
+          batchSize: 1,
           scheduler: 'LCM',
           lora: 'latent-consistency/lcm-lora-sdxl',
         },
@@ -813,8 +834,7 @@ export const useImageGeneration = defineStore(
       })
       currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
-      const inferenceBackendService: BackendServiceName =
-        backend.value === 'comfyui' ? 'comfyui-backend' : 'ai-backend'
+      const inferenceBackendService = backendToService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
@@ -838,6 +858,14 @@ export const useImageGeneration = defineStore(
     }
 
     loadWorkflowsFromJson()
+
+    watch(
+      () => backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.isSetUp,
+      (isSetUp) => {
+        console.log('comfyui backend set up trigger')
+        if (isSetUp) loadWorkflowsFromJson()
+      },
+    )
 
     return {
       hdWarningDismissed,

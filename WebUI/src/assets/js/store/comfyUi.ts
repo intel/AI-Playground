@@ -78,6 +78,7 @@ const ComfyMessageSchema = z.discriminatedUnion('type', [
                 type: z.string(),
               }),
             ),
+            animated: z.array(z.boolean()).optional(),
           }),
           z.object({
             gifs: z.array(
@@ -358,14 +359,24 @@ export const useComfyUi = defineStore(
               case 'executed':
                 const output = msg.data.output
                 if ('images' in output) {
-                  const image = output.images.find((i) => i.type === 'output')
+                  const imageIndex = output.images.findIndex((i) => i.type === 'output')
+                  const image = output.images[imageIndex]
                   if (image) {
-                    const newImage: MediaItem = {
-                      ...queuedImages[generateIdx],
-                      state: 'done',
-                      imageUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
+                    let newItem: MediaItem
+                    if (output?.animated?.[imageIndex]) {
+                      newItem = {
+                        ...queuedImages[generateIdx],
+                        state: 'done',
+                        videoUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
+                      }
+                    } else {
+                      newItem = {
+                        ...queuedImages[generateIdx],
+                        state: 'done',
+                        imageUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
+                      }
                     }
-                    imageGeneration.updateImage(newImage)
+                    imageGeneration.updateImage(newItem)
                     generateIdx++
                   }
                 }
@@ -472,6 +483,33 @@ export const useComfyUi = defineStore(
           }
           const data = new FormData()
           data.append('image', dataURItoBlob(input.current.value), uploadImageName)
+          await fetch(`${comfyBaseUrl.value}/upload/image`, {
+            method: 'POST',
+            body: data,
+          })
+        }
+        if (input.type === 'video') {
+          if (typeof input.current.value !== 'string') continue
+          const uploadVideoHash = Array.from(
+            new Uint8Array(
+              await window.crypto.subtle.digest(
+                'SHA-256',
+                new TextEncoder().encode(input.current.value),
+              ),
+            ),
+          )
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join('')
+          const uploadVideoExtension = input.current.value.match(
+            /data:video\/(mp4|h264|h265);base64,/,
+          )?.[1]
+          const uploadVideoName = `${uploadVideoHash}.${uploadVideoExtension}`
+          if (mutableWorkflow[keys[0]].inputs !== undefined) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadVideoName
+          }
+          const data = new FormData()
+          data.append('image', dataURItoBlob(input.current.value), uploadVideoName)
           await fetch(`${comfyBaseUrl.value}/upload/image`, {
             method: 'POST',
             body: data,

@@ -37,6 +37,7 @@ type LocalSettings = {
   debug: number
   comfyUiParameters?: string[]
   deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
+  enablePreviewFeatures?: boolean
 } & KVObject
 
 type ThemeSettings = {
@@ -52,8 +53,8 @@ type SetupData = {
 }
 
 type UpdateWorkflowsFromIntelResult = {
-  success: boolean
-  backupDir: string
+  result: 'success' | 'error' | 'noUpdate'
+  backupDir?: string
 }
 
 type BackendStatus =

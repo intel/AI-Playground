@@ -65,18 +65,23 @@ class InterfaceAdapter(BaseAdapter):
                 )
             
             full_prompt = convert_prompt(params.prompt)
-            self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.max_tokens)
+            result = self.llm_interface.create_chat_completion(full_prompt, self.stream_function, params.max_tokens)
             
-            # Calculate and send metrics
-            self.last_token_time = time.time()
+            perf = result.perf_metrics
+            ttft_ms, _   = perf.get_ttft()             
+            tpot_ms, _   = perf.get_tpot()             
+            gen_dur_ms, _= perf.get_generate_duration()
+            thrpt_tps, _ = perf.get_throughput()       
+            gen_tokens   = perf.get_num_generated_tokens() 
+
             metrics_data = {
                 "type": "metrics",
-                "num_tokens": self.num_tokens,
-                "total_time": self.last_token_time - self.start_time,
-                "overall_tokens_per_second": self.num_tokens / (self.last_token_time - self.start_time) if self.num_tokens > 0 else 0,
-                "second_plus_tokens_per_second": (self.num_tokens - 1) / (self.last_token_time - self.first_token_time) if self.num_tokens > 1 else None,
-                "first_token_latency": self.first_token_time - self.start_time if self.num_tokens > 0 else None,
-                "after_token_latency": (self.last_token_time - self.first_token_time) / (self.num_tokens - 1) if self.num_tokens > 1 else None
+                "num_tokens": gen_tokens,
+                "total_time": gen_dur_ms,
+                "overall_tokens_per_second": thrpt_tps,
+                "second_plus_tokens_per_second": 1000.0 / tpot_ms if tpot_ms > 0 else 0.0,
+                "first_token_latency": ttft_ms / 1000.0,
+                "after_token_latency": tpot_ms / 1000.0,
             }
             self.put_msg(metrics_data)
             self.put_msg({"type": "finish"})

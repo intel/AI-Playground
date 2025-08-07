@@ -4,9 +4,9 @@
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [
-      "city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7",
-      "Lightricks/ComfyUI-LTXVideo@4c5add5f4693e5bf55b58aad99326fab9e9b4a53",
-      "Kosinkadink/ComfyUI-VideoHelperSuite@c36626c6028faca912eafcedbc71f1d342fb4d2a",
+      "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+      "Lightricks/ComfyUI-LTXVideo@5d6b4abffe908186bda980a063f58c506fd58560",
+      "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
       "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
     ],
     "requiredModels": [
@@ -86,17 +86,6 @@
       "class_type": "VAEDecode",
       "_meta": {
         "title": "VAE Decode"
-      }
-    },
-    "38": {
-      "inputs": {
-        "clip_name": "t5xxl_fp16.safetensors",
-        "type": "ltxv",
-        "device": "default"
-      },
-      "class_type": "CLIPLoader",
-      "_meta": {
-        "title": "Load CLIP"
       }
     },
     "44": {
@@ -190,8 +179,9 @@
         "title": "frame_rate"
       }
     },
-    "81": {
+    "82": {
       "inputs": {
+<<<<<<< HEAD
         "frame_rate": ["80", 0],
         "loop_count": 0,
         "filename_prefix": "LTXVideo",
@@ -202,11 +192,26 @@
         "trim_to_audio": false,
         "pingpong": false,
         "save_output": true,
+=======
+        "fps": ["80", 0],
+>>>>>>> dev
         "images": ["8", 0]
       },
-      "class_type": "VHS_VideoCombine",
+      "class_type": "CreateVideo",
       "_meta": {
-        "title": "Video Combine 🎥🅥🅗🅢"
+        "title": "Create Video"
+      }
+    },
+    "84": {
+      "inputs": {
+        "filename_prefix": "video/ComfyUI",
+        "format": "mp4",
+        "codec": "h264",
+        "video": ["82", 0]
+      },
+      "class_type": "SaveVideo",
+      "_meta": {
+        "title": "Save Video"
       }
     }
   }

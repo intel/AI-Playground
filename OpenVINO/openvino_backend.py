@@ -1,5 +1,5 @@
 from typing import Dict, List, Callable
-from os import path
+from os import path, environ
 from interface import LLMInterface
 from params import LLMParams
 import config
@@ -26,7 +26,7 @@ class OpenVino(LLMInterface):
 
             enable_compile_cache = dict()
             enable_compile_cache["CACHE_DIR"] = "llm_cache"
-            self._model = openvino_genai.LLMPipeline(model_path, "AUTO", **enable_compile_cache)
+            self._model = openvino_genai.LLMPipeline(model_path, environ.get("OPENVINO_DEVICE", "AUTO"), **enable_compile_cache)
             self._tokenizer = self._model.get_tokenizer()
 
             self._last_repo_id = model_repo_id
@@ -35,11 +35,15 @@ class OpenVino(LLMInterface):
 
 
     def create_chat_completion(self, messages: List[Dict[str, str]], streamer: Callable[[str], None], max_tokens: int = 1024):
+     
         config = openvino_genai.GenerationConfig()
         config.max_new_tokens = max_tokens
 
         full_prompt = self._tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-        return self._model.generate(full_prompt, config, streamer)
+        text_streamer = openvino_genai.TextStreamer(self._tokenizer, streamer)
+        result = self._model.generate([full_prompt], config, text_streamer)
+
+        return result
 
 
     def unload_model(self):

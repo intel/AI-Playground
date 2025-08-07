@@ -2,7 +2,8 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { DeviceService, UvPipService, LongLivedPythonApiService } from './service.ts'
+import { UvPipService, LongLivedPythonApiService } from './service.ts'
+import { detectOpenVINODevices, openVinoDeviceSelectorEnv } from './deviceDetection.ts'
 
 const serviceFolder = 'openVINO'
 export class OpenVINOBackendService extends LongLivedPythonApiService {
@@ -12,17 +13,28 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
   readonly isRequired = true
 
+  private version = '2025.2.0'
+
   healthEndpointUrl = `${this.baseUrl}/health`
 
-  readonly deviceService = new DeviceService()
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
+  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Use best device', selected: true }]
 
   serviceIsSetUp(): boolean {
     return filesystem.existsSync(this.python.getExePath())
   }
 
   isSetUp = this.serviceIsSetUp()
+
+  async detectDevices() {
+    const availableDevices = await detectOpenVINODevices(this.python)
+    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+    this.devices = [
+      { id: 'AUTO', name: 'Auto select device', selected: true },
+      ...availableDevices.map((d) => ({ ...d, selected: d.id == '0' })),
+    ]
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
@@ -35,7 +47,6 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.deviceService.ensureInstalled()
       await this.uvPip.ensureInstalled()
 
       yield {
@@ -44,8 +55,37 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
+
+      let requirementsFile = path.join(this.serviceDir, 'requirements.txt')
+
+      this.appLogger.info(`Using OpenVINO version override: ${this.version}`, this.name)
+
+      // Create a temporary requirements file with the specified version
+      const tempRequirementsPath = path.join(this.serviceDir, 'requirements-temp.txt')
+      const originalRequirements = await filesystem.readFile(requirementsFile, 'utf-8')
+
+      // Replace openvino version in requirements
+      const modifiedRequirements = originalRequirements
+        .replace(/openvino[>=<~!]*[\d.]+/g, `openvino==${this.version}`)
+        .replace(/openvino-genai[>=<~!]*[\d.]+/g, `openvino-genai~=${this.version}`)
+        .replace(/openvino-tokenizers[>=<~!]*[\d.]+/g, `openvino-tokenizers~=${this.version}`)
+
+      await filesystem.writeFile(tempRequirementsPath, modifiedRequirements)
+      requirementsFile = tempRequirementsPath
+
+      this.appLogger.info(
+        `Created temporary requirements file with OpenVINO ${this.version}`,
+        this.name,
+      )
+
+      const commonRequirements = existingFileOrError(requirementsFile)
       await this.uvPip.run(['install', '-r', commonRequirements])
+
+      // Clean up temporary requirements file if created
+      if (requirementsFile.includes('requirements-temp.txt')) {
+        await filesystem.remove(requirementsFile)
+        this.appLogger.info(`Cleaned up temporary requirements file`, this.name)
+      }
 
       yield {
         serviceName: this.name,
@@ -74,6 +114,21 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     }
   }
 
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.version = settings.version
+      this.appLogger.info(`applied new openvino version ${this.version}`, this.name)
+    }
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    this.appLogger.info(`getting openvino settings`, this.name)
+    return {
+      version: this.version,
+      serviceName: this.name,
+    }
+  }
+
   async spawnAPIProcess(): Promise<{
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
@@ -83,7 +138,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
-      ...(await this.deviceService.getDeviceSelectorEnv()),
+      ...openVinoDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
     const apiProcess = spawn(

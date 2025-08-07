@@ -5,7 +5,7 @@
       <div
         id="chatHistoryPanel"
         :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
-        class="flex flex-shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
+        class="flex shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
       >
         <div class="flex justify-end">
           <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
@@ -97,6 +97,26 @@
         </div>
       </div>
       <div
+        v-if="textInference.backend === 'ollama'"
+        id="chatPanel"
+        class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
+        :class="textInference.fontSizeClass"
+        @scroll="handleScroll"
+      >
+        <div v-if="ollamaDlProgress.status !== 'idle'">
+          Ollama DL:
+          {{
+            `${((ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
+          }}
+        </div>
+        <div v-for="message in chat.messages.value" :key="message.id">
+          {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
+          {{ message.content }}
+          {{ message.parts }}
+        </div>
+      </div>
+      <div
+        v-else
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
         :class="textInference.fontSizeClass"
@@ -138,7 +158,11 @@
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
                   >
-                    {{ chat.model }}
+                    {{
+                      chat.model.endsWith('.gguf')
+                        ? (chat.model.split('/').at(-1)?.split('.gguf')[0] ?? chat.model)
+                        : chat.model
+                    }}
                   </span>
                   <!-- Display RAG source if available -->
                   <span
@@ -195,11 +219,19 @@
                   <div
                     v-if="chat.showThinkingText"
                     class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                    v-html="markdownParser.parseMarkdown(extractPreMarker(chat.answer))"
+                    v-html="
+                      markdownParser.parseMarkdown(
+                        textInference.extractPreMarker(chat.answer, chat.model),
+                      )
+                    "
                   ></div>
                   <div
                     class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="markdownParser.parseMarkdown(extractPostMarker(chat.answer))"
+                    v-html="
+                      markdownParser.parseMarkdown(
+                        textInference.extractPostMarker(chat.answer, chat.model),
+                      )
+                    "
                   ></div>
                 </template>
                 <template v-else>
@@ -213,7 +245,7 @@
                   @click="
                     copyText(
                       chat.model && thinkingModels[chat.model]
-                        ? extractPostMarker(chat.answer)
+                        ? textInference.extractPostMarker(chat.answer, chat.model)
                         : chat.answer,
                     )
                   "
@@ -324,7 +356,7 @@
                 Retrieving Documents...
               </div>
               <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
-                {{ getRagSources(actualRagResults) }}
+                {{ textInference.formatRagSources(actualRagResults) }}
               </div>
             </div>
             <div
@@ -417,35 +449,22 @@
       <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
         <div class="flex items-center gap-2">
           <drop-down-new
-            title="Inference Backend"
+            :title="languages.SETTINGS_INFERENCE_BACKEND"
             @change="(item) => (textInference.backend = item as LlmBackend)"
             :value="textInference.backend"
             :items="
-              [...llmBackendTypes].map((item) => ({
-                label: textInferenceBackendDisplayName[item],
-                value: item,
-                active: isRunning(item),
-              }))
-            "
-          ></drop-down-new>
-          <drop-down-new
-            title="Text Inference Model"
-            @change="(item) => textInference.selectModel(textInference.backend, item)"
-            :value="
-              textInference.llmModels
-                .filter((m) => m.type === textInference.backend)
-                .find((m) => m.active)?.name ?? ''
-            "
-            :items="
-              textInference.llmModels
-                .filter((m) => m.type === textInference.backend)
+              [...llmBackendTypes]
+                .filter(isEnabled)
+                .filter((b) => b !== 'ipexLLM')
                 .map((item) => ({
-                  label: item.name.split('/').at(-1) ?? item.name,
-                  value: item.name,
-                  active: item.downloaded,
+                  label: textInferenceBackendDisplayName[item],
+                  value: item,
+                  active: isRunning(item),
                 }))
             "
           ></drop-down-new>
+          <DeviceSelector :backend="backendToService[textInference.backend]" />
+          <ModelSelector />
           <button @click="addLLMModel">
             <PlusIcon class="size-6 text-purple-500"></PlusIcon>
           </button>
@@ -469,7 +488,7 @@
             min="0"
             max="4096"
             step="1"
-            class="rounded text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+            class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
           />
         </div>
 
@@ -492,25 +511,16 @@
             <span class="svg-icon i-zoom-out w-4 h-4"></span>
           </button>
         </div>
-        <div class="flex items-center gap-2">
-          <!-- <div class="v-checkbox flex-none" type="button" :disabled="processing">
-            <button
-              v-show="!ragData.processEnable"
-              class="v-checkbox-control flex-none"
-              :class="{ 'v-checkbox-checked': ragData.enable }"
-              @click="toggleRag(!ragData.enable)"
-            ></button>
-            <span
-              v-show="ragData.processEnable"
-              class="w-4 h-4 svg-icon i-loading flex-none"
-            ></span>
-            <label class="v-checkbox-label">{{ languages.ANSWER_RAG_ENABLE }}</label>
-          </div> -->
+        <div
+          class="flex items-center gap-2"
+          :class="{ 'demo-number-overlay': demoMode.answer.show }"
+        >
           <button
             class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
             @click="showUploader = !showUploader"
             :disabled="processing"
             :title="languages.ANSWER_RAG_OPEN_DIALOG"
+            :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
           >
             <span class="w-4 h-4 svg-icon i-rag flex-none"></span
             ><span>{{ documentButtonText }}</span>
@@ -535,13 +545,22 @@
           ></drop-down-new>
         </div>
       </div>
-      <div class="w-full h-32 gap-3 flex-none flex items-center pt-2">
+      <div
+        class="w-full h-32 gap-3 flex-none flex items-center pt-2"
+        :class="{ 'demo-number-overlay': demoMode.answer.show }"
+      >
         <textarea
           class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
           :placeholder="languages.COM_LLM_PROMPT"
           v-model="question"
           @keydown="fastGenerate"
+          :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
         ></textarea>
+        <DemoNumber
+          :show="demoMode.answer.show"
+          :number="1"
+          extraClass="demo-step-number-answer"
+        ></DemoNumber>
         <button
           class="gernate-btn self-stretch flex flex-col w-32 flex-none"
           v-if="!processing"
@@ -569,6 +588,7 @@
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
+import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -578,11 +598,54 @@ import { useModels } from '@/assets/js/store/models'
 import { MarkdownParser } from '@/assets/js/markdownParser'
 import 'highlight.js/styles/github-dark.min.css'
 import DropDownNew from '@/components/DropDownNew.vue'
+import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
-import { llmBackendTypes, LlmBackend, useTextInference } from '@/assets/js/store/textInference'
+import {
+  llmBackendTypes,
+  LlmBackend,
+  useTextInference,
+  thinkingModels,
+  textInferenceBackendDisplayName,
+  backendToService,
+} from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { useChat } from '@ai-sdk/vue'
+import { streamText } from 'ai'
+import { Ollama } from 'ollama/browser'
+
+const getModel = () =>
+  createOpenAICompatible({
+    name: 'model',
+    baseURL: `${textInference.currentBackendUrl}/v1/`,
+  }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b')
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const customFetch = async (_: any, options: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const m = JSON.parse(options.body) as any
+  console.log(m)
+  const result = await streamText({
+    model: getModel(),
+    messages: m.messages,
+    abortSignal: options.signal,
+  })
+  return result.toDataStreamResponse()
+}
+
+const chat = useChat({ fetch: customFetch })
+const ollamaDlProgress = ref<{
+  status: 'idle' | 'pulling'
+  totalBytes?: number
+  completedBytes?: number
+}>({ status: 'idle' })
+
+import ModelSelector from '@/components/ModelSelector.vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
+
+const demoMode = useDemoMode()
 const conversations = useConversations()
 const models = useModels()
 const globalSetup = useGlobalSetup()
@@ -611,15 +674,6 @@ let receiveOut = ''
 let chatPanel: HTMLElement
 const markdownParser = new MarkdownParser(i18nState.COM_COPY)
 
-const thinkingModels: Record<string, string> = {
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
-}
-
 const markerFound = ref(false)
 const thinkingText = ref('')
 const showThinkingText = ref(false)
@@ -627,26 +681,6 @@ const postMarkerText = ref('')
 
 let reasoningStartTime = 0
 let reasoningTotalTime = 0
-
-function extractPreMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
-  if (model && thinkingModels[model]) {
-    const marker = thinkingModels[model]
-    const idx = fullAnswer.indexOf(marker)
-    return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
-  }
-  return fullAnswer
-}
-
-function extractPostMarker(fullAnswer: string): string {
-  const model = textInference.activeModel
-  if (model && thinkingModels[model]) {
-    const marker = thinkingModels[model]
-    const idx = fullAnswer.indexOf(marker)
-    return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
-  }
-  return ''
-}
 
 let sseMetrics: MetricsData | null = null
 let actualRagResults: LangchainDocument[] | null = null
@@ -680,23 +714,21 @@ function finishGenerate() {
   textOutFinish = true
 }
 
-// A friendly display name for each backend
-const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
-  ipexLLM: 'IPEX-LLM',
-  llamaCPP: 'llamaCPP - GGUF',
-  openVINO: 'OpenVINO',
-}
-
 // Optional: if you want to show whether each backend is currently running
 function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
   if (name === 'ipexLLM') return 'ai-backend'
   if (name === 'llamaCPP') return 'llamacpp-backend'
   if (name === 'openVINO') return 'openvino-backend'
+  if (name === 'ollama') return 'ollama-backend' as BackendServiceName
   return undefined
 }
 function isRunning(name: LlmBackend) {
   const backendName = mapBackendNames(name)
   return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
+}
+function isEnabled(name: LlmBackend) {
+  const backendName = mapBackendNames(name)
+  return backendServices.info.find((item) => item.serviceName === backendName) !== undefined
 }
 
 const animatedReasoningText = ref('Reasoning.')
@@ -917,7 +949,9 @@ async function simulatedInput() {
 
     if (key !== null) {
       const ragSourceInfo =
-        actualRagResults && actualRagResults.length ? getRagSources(actualRagResults) : null
+        actualRagResults && actualRagResults.length
+          ? textInference.formatRagSources(actualRagResults)
+          : null
 
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -951,161 +985,6 @@ async function simulatedInput() {
       }
     })
   }
-}
-
-function getRagSources(actualRagResults: LangchainDocument[]): string {
-  // Group documents by source file
-  const fileGroups = new Map<
-    string,
-    Array<{
-      lines?: { from: number; to: number }
-      page?: number
-    }>
-  >()
-  const unknownSources: string[] = []
-
-  // Process each document
-  actualRagResults.forEach((doc) => {
-    const source = doc.metadata?.source
-    const location = doc.metadata.loc as
-      | { pageNumber?: number; lines?: { from?: number; to?: number } }
-      | undefined
-
-    // Handle unknown sources
-    if (!source) {
-      unknownSources.push('Unknown Source')
-      return
-    }
-
-    // Get or create array for this file
-    const entries = fileGroups.get(source) || []
-
-    // Create entry with available location information
-    const entry: { lines?: { from: number; to: number }; page?: number } = {}
-
-    // Add line information if available
-    if (location?.lines?.from && location?.lines?.to) {
-      entry.lines = {
-        from: location.lines.from,
-        to: location.lines.to,
-      }
-    }
-
-    // Add page information if available
-    if (location?.pageNumber !== undefined) {
-      entry.page = location.pageNumber
-    }
-
-    // Only add entry if it has some location information
-    if (Object.keys(entry).length > 0) {
-      entries.push(entry)
-      fileGroups.set(source, entries)
-    }
-  })
-
-  // Function to merge overlapping line ranges for the same page
-  const mergeRanges = (
-    entries: Array<{ lines?: { from: number; to: number }; page?: number }>,
-  ): Array<{ lines?: { from: number; to: number }; page?: number }> => {
-    if (entries.length <= 1) return entries
-
-    // Group entries by page number
-    const pageGroups = new Map<
-      number | undefined,
-      Array<{ lines?: { from: number; to: number }; page?: number }>
-    >()
-
-    entries.forEach((entry) => {
-      const pageKey = entry.page
-      const pageEntries = pageGroups.get(pageKey) || []
-      pageEntries.push(entry)
-      pageGroups.set(pageKey, pageEntries)
-    })
-
-    const result: Array<{ lines?: { from: number; to: number }; page?: number }> = []
-
-    // Process each page group
-    pageGroups.forEach((pageEntries, pageNumber) => {
-      // For entries with line information, merge overlapping ranges
-      const entriesWithLines = pageEntries.filter((e) => e.lines)
-
-      if (entriesWithLines.length > 0) {
-        // Sort by starting line
-        const sortedEntries = [...entriesWithLines].sort(
-          (a, b) => (a.lines?.from || 0) - (b.lines?.from || 0),
-        )
-
-        let current = sortedEntries[0]
-
-        // Merge overlapping line ranges
-        for (let i = 1; i < sortedEntries.length; i++) {
-          const next = sortedEntries[i]
-
-          // Check if ranges overlap or are adjacent
-          if ((current.lines?.to || 0) >= (next.lines?.from || 0) - 1) {
-            // Merge ranges
-            current = {
-              lines: {
-                from: current.lines?.from || 0,
-                to: Math.max(current.lines?.to || 0, next.lines?.to || 0),
-              },
-              page: pageNumber,
-            }
-          } else {
-            // No overlap, add current to result and move to next
-            result.push(current)
-            current = next
-          }
-        }
-
-        // Add the last range
-        result.push(current)
-      }
-
-      // For entries with only page information (no lines), add a single entry per page
-      if (pageEntries.some((e) => !e.lines)) {
-        // If we haven't already added an entry for this page from the line merging
-        if (!result.some((r) => r.page === pageNumber && !r.lines)) {
-          result.push({ page: pageNumber })
-        }
-      }
-    })
-
-    return result
-  }
-
-  // Format results
-  const formattedResults: string[] = []
-
-  // Process each file group
-  fileGroups.forEach((entries, source) => {
-    const filename = source.split(/[\/\\]/).pop() || source
-    const mergedEntries = mergeRanges(entries)
-
-    // Format each merged entry
-    mergedEntries.forEach((entry) => {
-      let locationInfo = ''
-
-      // Format based on available information
-      if (entry.page !== undefined && entry.lines) {
-        // Both page and line information
-        locationInfo = `Page ${entry.page}, Lines ${entry.lines.from}-${entry.lines.to}`
-      } else if (entry.page !== undefined) {
-        // Only page information
-        locationInfo = `Page ${entry.page}`
-      } else if (entry.lines) {
-        // Only line information
-        locationInfo = `Lines ${entry.lines.from}-${entry.lines.to}`
-      }
-
-      formattedResults.push(`${filename} (${locationInfo})`)
-    })
-  })
-
-  // Add unknown sources
-  formattedResults.push(...unknownSources)
-
-  return formattedResults.join('\n')
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -1161,17 +1040,45 @@ async function checkModelAvailability() {
   })
 }
 
+async function generateWithAiSdk(chatContext: ChatItem[]) {
+  await chat.append({
+    role: 'user',
+    content: chatContext[chatContext.length - 1].question,
+  })
+}
+
 async function generate(chatContext: ChatItem[]) {
+  if (textInference.backend === 'ollama') {
+    // For Ollama, we need to set the model name in the backend URL
+    const ollama = new Ollama({ host: textInference.currentBackendUrl })
+    const ollamaDl = await ollama.pull({ model: textInference.activeModel ?? 'asdf', stream: true })
+    for await (const progress of ollamaDl) {
+      ollamaDlProgress.value = {
+        status: 'pulling',
+        totalBytes: progress.total,
+        completedBytes: progress.completed,
+      }
+    }
+    ollamaDlProgress.value = {
+      status: 'idle',
+    }
+    await generateWithAiSdk(chatContext)
+    return
+  }
   if (processing.value || chatContext.length == 0) {
     return
   }
 
   try {
-    const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
+    // Ensure backend is ready before inference
+    await textInference.ensureBackendReadiness()
+
+    const backendToInferenceService = {
       llamaCPP: 'llamacpp-backend',
       openVINO: 'openvino-backend',
       ipexLLM: 'ai-backend',
-    }
+      ollama: 'ollama-backend' as BackendServiceName,
+    } as const
     const inferenceBackendService = backendToInferenceService[textInference.backend]
     await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
     backendServices.updateLastUsedBackend(inferenceBackendService)

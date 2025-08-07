@@ -4,6 +4,7 @@ import * as fs from 'fs-extra'
 import * as filesystem from 'fs-extra'
 import { copyFileWithDirs, existingFileOrError, spawnProcessAsync } from './osProcessHelper.ts'
 import { app } from 'electron'
+import { execSync } from 'node:child_process'
 
 const logger = appLoggerInstance
 const processLogHandler = (data: string) => {
@@ -28,7 +29,7 @@ const intelWorkflowDirPath = Path.join(
 const workflowDirBakTargetPath = Path.join(externalRes, 'workflows_bak')
 
 const intelRepoUrl = 'https://github.com/intel/AI-Playground'
-const gitRef = 'dev'
+const gitRef = 'v2.6.0-beta'
 
 export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelResult> {
   try {
@@ -36,10 +37,23 @@ export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelRe
     await backUpCurrentWorkflows()
     await replaceCurrentWorkflowsWithIntelWorkflows()
     return {
-      success: true,
+      result: 'success',
       backupDir: workflowDirBakTargetPath,
     }
   } catch (e) {
+    // Check if this is the expected case where git ref doesn't exist
+    if (e instanceof Error && e.message.startsWith('GitRefNotFound:')) {
+      logger.info(
+        `Workflow update skipped cleanly - git ref does not exist (expected for fresh releases)`,
+        logSourceName,
+        true,
+      )
+      return {
+        result: 'noUpdate',
+      }
+    }
+
+    // Handle other errors as before
     logger.error(`updating intel workflows failed due to ${e}`, logSourceName, true)
     if (!filesystem.existsSync(workflowDirTargetPath)) {
       logger.info(
@@ -50,9 +64,10 @@ export async function updateIntelWorkflows(): Promise<UpdateWorkflowsFromIntelRe
       await copyFileWithDirs(intelWorkflowDirPath, workflowDirTargetPath)
     }
     return {
-      success: false,
-      backupDir: workflowDirBakTargetPath,
+      result: 'error',
     }
+  } finally {
+    await filterPartnerWorkflows()
   }
 }
 
@@ -61,6 +76,18 @@ async function fetchNewIntelWorkflows() {
   const gitWorkDir = workflowDirSpareGitRepoPath
   await prepareSparseGitRepoDir(gitWorkDir)
   await prepareSparseGitCheckout(gitWorkDir, gitExe)
+
+  // Check if the git ref exists before attempting checkout
+  const refExists = await checkGitRefExists(gitExe, gitWorkDir, gitRef)
+  if (!refExists) {
+    logger.info(
+      `Git ref '${gitRef}' does not exist in remote repository. Skipping workflow update - this is expected for freshly released versions.`,
+      logSourceName,
+      true,
+    )
+    throw new Error(`GitRefNotFound: ${gitRef}`)
+  }
+
   await spawnProcessAsync(gitExe, ['checkout', gitRef], processLogHandler, {}, gitWorkDir)
   await spawnProcessAsync(gitExe, ['pull'], processLogHandler, {}, gitWorkDir)
   logger.info(
@@ -127,4 +154,71 @@ async function prepareSparseGitCheckout(workDir: string, gitExe: string) {
     })
   }
   logger.info(`using existing sparse checkout config`, logSourceName, true)
+}
+
+async function checkGitRefExists(gitExe: string, workDir: string, ref: string): Promise<boolean> {
+  try {
+    // Use git ls-remote to check if the ref exists on the remote repository
+    const output = await spawnProcessAsync(
+      gitExe,
+      ['ls-remote', '--heads', '--tags', 'origin', ref],
+      () => {}, // Silent log handler for this check
+      {},
+      workDir,
+    )
+
+    // If the output contains the ref, it exists
+    const refExists = output.trim().length > 0 && output.includes(ref)
+    logger.info(
+      `Git ref '${ref}' ${refExists ? 'exists' : 'does not exist'} in remote repository`,
+      logSourceName,
+      true,
+    )
+    return refExists
+  } catch (error) {
+    logger.warn(
+      `Failed to check if git ref '${ref}' exists: ${error}. Assuming it does not exist.`,
+      logSourceName,
+      true,
+    )
+    return false
+  }
+}
+
+async function filterPartnerWorkflows() {
+  const workflows = await fs.promises.readdir(workflowDirTargetPath, { withFileTypes: true })
+  const acerWorkflows = workflows.filter((wf) => wf.name.startsWith('Acer'))
+  const acerVisionArtIsInstalled = await getFromRegistry(
+    'HKLM:\\SOFTWARE\\Acer\\AICO2',
+    'AICO2Installer',
+  )
+  if (!acerVisionArtIsInstalled) {
+    for (const wf of acerWorkflows) {
+      await fs.promises.rm(path.join(workflowDirTargetPath, wf.name))
+    }
+  } else {
+    logger.info(`Acer Vision Art detected, keeping Acer workflows`, logSourceName, true)
+  }
+}
+
+async function getFromRegistry(path: string, key: string) {
+  const script = `
+  $ErrorActionPreference = 'Stop'
+  try {
+    $value = Get-ItemProperty -Path ${path} -Name ${key}
+    if ($value -ne $null) {
+      Write-Output $value.${key}
+    } else {
+      Write-Error "Value not found."
+    }
+  } catch {
+    Write-Error "Error: $_"
+  }
+`
+  try {
+    const version = execSync(script, { encoding: 'utf-8', shell: 'powershell.exe' })
+    return version.length > 0
+  } catch (_error: unknown) {
+    return false
+  }
 }

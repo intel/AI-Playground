@@ -3,6 +3,11 @@
 }
 
 button,
+[role=\"button\"] {
+  cursor: pointer;
+}
+
+button,
 input,
 a,
 textarea {
@@ -78,13 +83,18 @@ textarea {
 .break-word {
   word-break: break-word;
 }
-.main-content {
+.main-content-container {
   border-color: #3a3a40;
   margin-top: -1px;
   background-color: var(--color-panel-focus);
+  overflow: hidden;
+}
+
+.main-content-area {
+  background-color: var(--color-panel-focus);
   display: flex;
   overflow-y: auto;
-  height: 0px;
+  height: 100%;
   > * {
     width: 100%;
   }
@@ -326,7 +336,7 @@ textarea {
   width: 420px;
   height: 100%;
   overflow: hidden;
-  z-index: 99;
+  flex-shrink: 0;
 
   .panel-tab {
     padding: 3px;
@@ -414,3 +424,5 @@ footer {
   word-spacing: 2px;
   overflow-wrap: anywhere;
 }
+
+/* .main-content */

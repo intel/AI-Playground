@@ -11,7 +11,6 @@ import utils
 
 app = APIFlask(__name__)
 llm_backend = LlamaCpp()
-embedding_model = LlamaCppEmbeddingModel()
 
 @app.get("/health")
 def health():
@@ -46,6 +45,7 @@ def embeddings():
 
     encoding_format = data.get('encoding_format', 'float')
     input_data = data.get('input', None)
+    model_name = data.get('model', "ChristianAzinn/bge-small-en-v1.5-gguf")
 
     if not input_data:
         return jsonify({"error": "Input text is required"}), 400
@@ -57,6 +57,7 @@ def embeddings():
     else:
         return jsonify({"error": "Input should be a string or list of strings"}), 400
 
+    embedding_model = LlamaCppEmbeddingModel.get_instance(model_name)
     embeddings_result = embedding_model.embed_documents(input_texts)
 
     response = {
@@ -68,7 +69,7 @@ def embeddings():
                 "index": idx
             } for idx, emb in enumerate(embeddings_result)
         ],
-        "model": embedding_model.embedding_model_path,
+        "model": model_name, 
         "usage": {
             "prompt_tokens": sum(len(text.split()) for text in input_texts),
             "total_tokens": sum(len(text.split()) for text in input_texts)
@@ -76,7 +77,6 @@ def embeddings():
     }
 
     return jsonify(response)
-
 
 if __name__ == "__main__":
     import argparse

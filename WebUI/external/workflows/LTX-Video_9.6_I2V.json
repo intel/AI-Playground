@@ -1,13 +1,13 @@
 {
-  "name": "Video - Img2Vid",
+  "name": "Video-Img2Vid",
   "tags": ["LTX Video", "high-vram"],
   "backend": "comfyui",
   "comfyUIRequirements": {
     "customNodes": [
       "kijai/ComfyUI-KJNodes@086ac449a21e9f5e3b970313c2287713b67e8b95",
-      "city96/ComfyUI-GGUF@65a7c895bb0ac9547ba2f89d55fbdb609aa2bfe7",
+      "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
       "Lightricks/ComfyUI-LTXVideo@5d6b4abffe908186bda980a063f58c506fd58560",
-      "Kosinkadink/ComfyUI-VideoHelperSuite@598e181e97d50174cc18677dfcdaa7b9b6ec0cb2",
+      "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
       "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
     ],
     "requiredModels": [
@@ -21,7 +21,6 @@
       }
     ]
   },
-
   "requirements": ["high-vram"],
   "inputs": [
     {
@@ -118,7 +117,7 @@
     },
     "78": {
       "inputs": {
-        "image": "ComfyUI_00098_.png"
+        "image": "input.png"
       },
       "class_type": "LoadImage",
       "_meta": {
@@ -141,6 +140,7 @@
         "height": 576,
         "length": 97,
         "batch_size": 1,
+        "strength": 1,
         "positive": ["6", 0],
         "negative": ["7", 0],
         "vae": ["44", 2],
@@ -212,25 +212,6 @@
         "title": "RandomNoise"
       }
     },
-    "103": {
-      "inputs": {
-        "frame_rate": ["112", 0],
-        "loop_count": 0,
-        "filename_prefix": "ltxv",
-        "format": "video/h264-mp4",
-        "pix_fmt": "yuv420p",
-        "crf": 20,
-        "save_metadata": false,
-        "trim_to_audio": false,
-        "pingpong": false,
-        "save_output": true,
-        "images": ["8", 0]
-      },
-      "class_type": "VHS_VideoCombine",
-      "_meta": {
-        "title": "Video Combine 🎥🅥🅗🅢"
-      }
-    },
     "111": {
       "inputs": {
         "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
@@ -248,6 +229,28 @@
       "class_type": "CM_IntToFloat",
       "_meta": {
         "title": "frame_rate"
+      }
+    },
+    "113": {
+      "inputs": {
+        "fps": ["112", 0],
+        "images": ["8", 0]
+      },
+      "class_type": "CreateVideo",
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "114": {
+      "inputs": {
+        "filename_prefix": "AIPG_Video",
+        "format": "mp4",
+        "codec": "h264",
+        "video": ["113", 0]
+      },
+      "class_type": "SaveVideo",
+      "_meta": {
+        "title": "Save Video"
       }
     }
   }

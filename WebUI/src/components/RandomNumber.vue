@@ -3,14 +3,14 @@
     <input class="v-random-input" type="text" v-model="generatedNumber" @input="inputValidate" />
     <div class="v-random-btns">
       <button
-        class="w-6 h-6 rounded flex justify-center items-center bg-color-control-bg"
+        class="w-6 h-6 rounded-sm flex justify-center items-center bg-color-control-bg"
         @click="generateRandom"
         :title="languages.COM_REGENERATE"
       >
         <span class="svg-icon i-dice text-white w-4 h-4"></span>
       </button>
       <button
-        class="w-6 h-6 rounded flex justify-center items-center bg-color-control-bg"
+        class="w-6 h-6 rounded-sm flex justify-center items-center bg-color-control-bg"
         @click="resetToDefault"
         :title="languages.COM_RESET"
       >

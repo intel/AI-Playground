@@ -55,25 +55,97 @@ const backendStatus = computed(
       (backendService) => backendService.serviceName === props.backend,
     )[0]['status'],
 )
+
+// Initialize current version values for all supported backends
 const currentVersion = ref('')
-if (props.backend === 'comfyui-backend') {
-  backendServices.getServiceSettings(props.backend).then((settings) => {
+const currentReleaseTag = ref('')
+
+// Load current settings for supported backends
+const loadCurrentSettings = async () => {
+  const backend = props.backend
+  if (
+    backend === 'comfyui-backend' ||
+    backend === 'llamacpp-backend' ||
+    backend === 'openvino-backend'
+  ) {
+    const settings = await backendServices.getServiceSettings(backend)
     currentVersion.value = settings?.version ?? ''
-  })
+  } else if (backend === 'ollama-backend') {
+    const settings = await backendServices.getServiceSettings(backend)
+    currentVersion.value = settings?.version ?? ''
+    currentReleaseTag.value = settings?.releaseTag ?? ''
+  }
 }
+
+// Load settings on component mount
+onMounted(() => {
+  loadCurrentSettings()
+})
+
 const menuOpen = ref(false)
 const settingsDialogOpen = ref(false)
-const formSchema = toTypedSchema(
-  z
-    .object({
-      // git hash (long or short) or version tag (e.g. v1.0.0)
-      version: z
-        .string()
-        .regex(/^[0-9a-f]{7,40}$/)
-        .or(z.string().regex(/^v\d+\.\d+\.\d+$/)),
-    })
-    .passthrough(),
-)
+
+// Backend-specific validation schemas
+const getFormSchema = (backend: BackendServiceName) => {
+  switch (backend) {
+    case 'comfyui-backend':
+      // ComfyUI: git hash (7-40 chars) or version tag (e.g. v1.0.0)
+      return toTypedSchema(
+        z
+          .object({
+            version: z
+              .string()
+              .regex(/^[0-9a-f]{7,40}$/, 'Must be a valid git hash (7-40 characters)')
+              .or(
+                z.string().regex(/^v\d+\.\d+\.\d+$/, 'Must be a valid version tag (e.g. v1.0.0)'),
+              ),
+          })
+          .passthrough(),
+      )
+
+    case 'llamacpp-backend':
+      // LlamaCPP: build numbers like b6048
+      return toTypedSchema(
+        z
+          .object({
+            version: z.string().regex(/^b\d+$/, 'Must be a valid build number (e.g. b6048)'),
+          })
+          .passthrough(),
+      )
+
+    case 'openvino-backend':
+      // OpenVINO: package versions like 2025.2.0 or 2025.2.0.1
+      return toTypedSchema(
+        z
+          .object({
+            version: z
+              .string()
+              .regex(/^\d+\.\d+\.\d+(\.\d+)?$/, 'Must be a valid version number (e.g. 2025.2.0)'),
+          })
+          .passthrough(),
+      )
+
+    case 'ollama-backend':
+      // Ollama: two fields - release tag and version
+      return toTypedSchema(
+        z
+          .object({
+            releaseTag: z
+              .string()
+              .regex(/^v\d+\.\d+\.\d+-\w+$/, 'Must be a valid release tag (e.g. v2.3.0-nightly)'),
+            version: z
+              .string()
+              .regex(/^\d+\.\d+\.\d+[a-z]\d{8}$/, 'Must be a valid version (e.g. 2.3.0b20250630)'),
+          })
+          .passthrough(),
+      )
+
+    default:
+      return toTypedSchema(z.object({}).passthrough())
+  }
+}
+
+const formSchema = computed(() => getFormSchema(props.backend))
 
 const showStart = computed(() => {
   return backendStatus.value === 'stopped' || backendStatus.value === 'notYetStarted'
@@ -85,8 +157,53 @@ const showReinstall = computed(() => {
   return backendStatus.value !== 'installing' && backendStatus.value !== 'notInstalled'
 })
 const showSettings = computed(() => {
-  return props.backend === 'comfyui-backend'
+  return ['comfyui-backend', 'llamacpp-backend', 'openvino-backend', 'ollama-backend'].includes(
+    props.backend,
+  )
 })
+
+// Get backend-specific placeholders and descriptions
+const getVersionPlaceholder = (backend: BackendServiceName) => {
+  switch (backend) {
+    case 'comfyui-backend':
+      return 'v1.0.0 or abc1234'
+    case 'llamacpp-backend':
+      return 'b6048'
+    case 'openvino-backend':
+      return '2025.2.0'
+    case 'ollama-backend':
+      return 'v2.3.0-nightly'
+    default:
+      return ''
+  }
+}
+
+const getVersionDescription = (backend: BackendServiceName) => {
+  switch (backend) {
+    case 'comfyui-backend':
+      return (
+        i18nState.BACKEND_VERSION_DESCRIPTION_COMFYUI || 'Enter a git commit hash or version tag'
+      )
+    case 'llamacpp-backend':
+      return i18nState.BACKEND_VERSION_DESCRIPTION_LLAMACPP || 'Enter a build number (e.g. b6048)'
+    case 'openvino-backend':
+      return (
+        i18nState.BACKEND_VERSION_DESCRIPTION_OPENVINO || 'Enter a version number (e.g. 2025.2.0)'
+      )
+    case 'ollama-backend':
+      return i18nState.BACKEND_VERSION_DESCRIPTION_OLLAMA || 'Enter release tag and version'
+    default:
+      return i18nState.BACKEND_VERSION_DESCRIPTION || 'Enter version information'
+  }
+}
+
+// Get initial form values based on backend type
+const getInitialFormValues = () => {
+  return {
+    releaseTag: currentReleaseTag.value,
+    version: currentVersion.value,
+  }
+}
 const showMenuButton = computed(
   () => showStart.value || showStop.value || showReinstall.value || showSettings.value,
 )
@@ -114,7 +231,7 @@ const showMenuButton = computed(
         "
       >
         <AlertDialogTrigger asChild
-          ><DropdownMenuItem @select="(e) => e.preventDefault()">{{
+          ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
             i18nState.BACKEND_REINSTALL
           }}</DropdownMenuItem></AlertDialogTrigger
         >
@@ -150,7 +267,7 @@ const showMenuButton = computed(
         v-if="showSettings"
         v-slot="{ handleSubmit }"
         as=""
-        :initial-values="{ version: currentVersion }"
+        :initial-values="getInitialFormValues()"
         keep-values
         :validation-schema="formSchema"
       >
@@ -163,7 +280,7 @@ const showMenuButton = computed(
           v-model:open="settingsDialogOpen"
         >
           <DialogTrigger asChild
-            ><DropdownMenuItem @select="(e) => e.preventDefault()">{{
+            ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
               i18nState.COM_SETTINGS
             }}</DropdownMenuItem></DialogTrigger
           >
@@ -190,25 +307,79 @@ const showMenuButton = computed(
               @submit="
                 handleSubmit($event, (values) => {
                   console.log('Form submitted with values:', values)
-                  currentVersion = values.version
+
+                  // Update current values based on backend type
+                  if (backend === 'ollama-backend') {
+                    currentReleaseTag = values.releaseTag
+                    currentVersion = values.version
+                  } else {
+                    currentVersion = values.version
+                  }
+
                   backendServices.updateServiceSettings({ serviceName: props.backend, ...values })
                   settingsDialogOpen = false
                   menuOpen = false
                 })
               "
             >
-              <FormField v-slot="{ componentField }" name="version">
-                <FormItem>
-                  <FormLabel>{{ i18nState.BACKEND_VERSION }}</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="v1.0.0" v-bind="componentField" />
-                  </FormControl>
-                  <FormDescription>
-                    {{ i18nState.BACKEND_VERSION_DESCRIPTION }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
+              <!-- Ollama backend has two fields -->
+              <template v-if="backend === 'ollama-backend'">
+                <FormField v-slot="{ componentField }" name="releaseTag">
+                  <FormItem>
+                    <FormLabel>{{ i18nState.BACKEND_RELEASE_TAG || 'Release Tag' }}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        :placeholder="getVersionPlaceholder(backend)"
+                        v-bind="componentField"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {{
+                        i18nState.BACKEND_RELEASE_TAG_DESCRIPTION ||
+                        'Enter the release tag (e.g. v2.3.0-nightly)'
+                      }}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+
+                <FormField v-slot="{ componentField }" name="version" class="mt-4">
+                  <FormItem>
+                    <FormLabel>{{ i18nState.BACKEND_VERSION }}</FormLabel>
+                    <FormControl>
+                      <Input type="text" placeholder="2.3.0b20250630" v-bind="componentField" />
+                    </FormControl>
+                    <FormDescription>
+                      {{
+                        i18nState.BACKEND_VERSION_DESCRIPTION_OLLAMA_VERSION ||
+                        'Enter the version number (e.g. 2.3.0b20250630)'
+                      }}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+              </template>
+
+              <!-- Other backends have single version field -->
+              <template v-else>
+                <FormField v-slot="{ componentField }" name="version">
+                  <FormItem>
+                    <FormLabel>{{ i18nState.BACKEND_VERSION }}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        :placeholder="getVersionPlaceholder(backend)"
+                        v-bind="componentField"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {{ getVersionDescription(backend) }}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+              </template>
             </form>
 
             <DialogFooter>

@@ -85,4 +85,32 @@ export function getArchPriority(arch: Arch): number {
   }
 }
 
+const levenshteinDistance = (a: string, b: string): number => {
+  if (a.length < b.length) [a, b] = [b, a]
+
+  let prev = Array(b.length + 1).fill(0)
+  let curr = Array(b.length + 1).fill(0)
+
+  for (let j = 0; j <= b.length; j++) prev[j] = j
+
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
+    }
+    ;[prev, curr] = [curr, prev]
+  }
+
+  return prev[b.length]
+}
+
+export const getBestDevice = (
+  availableDevices: { id: string; name: string }[],
+  bestDeviceName: string,
+) =>
+  availableDevices
+    .map((d) => ({ id: d.id, distanceToBest: levenshteinDistance(d.name, bestDeviceName) }))
+    .toSorted((a, b) => a.distanceToBest - b.distanceToBest)[0].id
+
 export type Arch = 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | 'unknown'

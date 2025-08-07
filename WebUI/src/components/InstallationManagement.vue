@@ -1,7 +1,7 @@
 <template>
   <div class="z-10 text-white rounded-xl bg-black/70">
     <div class="px-20 py-5 max-w-5xl">
-      <h1 class="text-center py-1 px-4 rounded text-4xl">
+      <h1 class="text-center py-1 px-4 rounded-sm text-4xl">
         {{ languages.BACKEND_MANAGE }}
       </h1>
       <div class="">
