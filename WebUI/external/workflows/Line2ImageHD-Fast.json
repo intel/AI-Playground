@@ -1,8 +1,8 @@
 {
-  "name": "Line2Image-HD-Fast",
+  "name": "SketchToPhoto-HD-Draft",
   "displayPriority": 200,
   "backend": "comfyui",
-  "category": "create-images",
+  "category": "edit-images",
   "comfyUIRequirements": {
     "customNodes": [],
     "requiredModels": [
@@ -32,7 +32,7 @@
       }
     ]
   },
-  "tags": ["SDXL", "Fast-LCM"],
+  "tags": ["SDXL", "4-steps"],
   "requirements": ["high-vram"],
   "inputs": [
     {

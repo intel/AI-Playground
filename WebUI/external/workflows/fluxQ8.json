@@ -24,7 +24,7 @@
       }
     ]
   },
-  "tags": ["Q8", "Fast"],
+  "tags": ["Q8"],
   "requirements": ["high-vram"],
   "inputs": [],
   "outputs": [

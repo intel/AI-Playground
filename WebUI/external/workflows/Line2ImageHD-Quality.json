@@ -1,8 +1,8 @@
 {
-  "name": "Line2Image-HD-Quality",
+  "name": "SketchToPhoto-HD-Quality",
   "displayPriority": 150,
   "backend": "comfyui",
-  "category": "create-images",
+  "category": "edit-images",
   "comfyUIRequirements": {
     "customNodes": [],
     "requiredModels": [
