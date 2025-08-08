@@ -1,7 +1,7 @@
 {
   "name": "Flux.1-Schnell Med Quality",
   "displayPriority": 500,
-  "tags": ["Q4", "Fast"],
+  "tags": ["Q4"],
   "backend": "comfyui",
   "category": "create-images",
   "comfyUIRequirements": {

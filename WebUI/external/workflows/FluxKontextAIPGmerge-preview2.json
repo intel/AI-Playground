@@ -1,5 +1,5 @@
 {
-  "name": "Flux-Kontext",
+  "name": "Edit By Prompt",
   "displayPriority": 200,
   "backend": "comfyui",
   "category": "edit-images",
@@ -26,7 +26,7 @@
       }
     ]
   },
-  "tags": ["preview"],
+  "tags": ["Flux.1-Kontext"],
   "requirements": ["high-vram"],
   "inputs": [
     {
@@ -70,7 +70,7 @@
     "batchSize": 1
   },
   "displayedSettings": [],
-  "modifiableSettings": ["seed", "resolution"],
+  "modifiableSettings": ["seed", "inferenceSteps", "resolution"],
   "comfyUiApiWorkflow": {
     "6": {
       "inputs": {

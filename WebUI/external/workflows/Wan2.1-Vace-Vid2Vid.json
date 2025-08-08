@@ -24,7 +24,7 @@
       }
     ]
   },
-  "tags": ["preview"],
+  "tags": ["dGPU", "high vRAM"],
   "requirements": ["high-vram"],
   "inputs": [
     {
