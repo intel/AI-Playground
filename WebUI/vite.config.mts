@@ -13,6 +13,10 @@ export default defineConfig(({ command }) => {
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
   const dependenciesToBeTranspiled = ['get-port']
   return {
+    build: {
+      outDir: isServe ? 'dist' : '../build/dist', // Output Vue.js build to build/dist/renderer
+      emptyOutDir: true,
+    },
     plugins: [
       tailwindcss(),
       vue(),
@@ -35,7 +39,7 @@ export default defineConfig(({ command }) => {
             build: {
               sourcemap,
               minify: isBuild,
-              outDir: 'dist/main',
+              outDir: isServe ? 'dist/main' : '../build/dist/main',
               rollupOptions: {
                 external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}).filter(
                   (d) => !dependenciesToBeTranspiled.includes(d),
@@ -55,7 +59,7 @@ export default defineConfig(({ command }) => {
             build: {
               sourcemap: sourcemap ? 'inline' : undefined, // #332
               minify: isBuild,
-              outDir: 'dist/preload',
+              outDir: isServe ? 'dist/preload' : '../build/dist/preload',
               rollupOptions: {
                 external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
               },
@@ -68,7 +72,7 @@ export default defineConfig(({ command }) => {
             build: {
               sourcemap: sourcemap ? 'inline' : undefined,
               minify: isBuild,
-              outDir: 'dist/media',
+              outDir: isServe ? 'dist/media' : '../build/dist/media',
               rollupOptions: {
                 external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
               },
@@ -81,7 +85,7 @@ export default defineConfig(({ command }) => {
             build: {
               sourcemap: sourcemap ? 'inline' : undefined,
               minify: isBuild,
-              outDir: 'dist/langchain',
+              outDir: isServe ? 'dist/langchain' : '../build/dist/langchain',
               rollupOptions: {
                 external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
               },

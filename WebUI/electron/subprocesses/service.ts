@@ -198,7 +198,7 @@ export class PythonService extends ExecutableService {
 
   readonly prototypicalEnvDir = app.isPackaged
     ? path.join(this.baseDir, 'prototype-python-env')
-    : path.join(this.baseDir, 'build-envs/online/prototype-python-env')
+    : path.join(this.baseDir, 'build/python-env')
   private async clonePythonEnv(): Promise<void> {
     existingFileOrError(this.prototypicalEnvDir)
     if (filesystem.existsSync(this.dir)) {
