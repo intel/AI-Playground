@@ -206,6 +206,8 @@ async function createWindow() {
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https:')) shell.openExternal(url)
+    if (url.startsWith('http://localhost')) shell.openExternal(url)
+    if (url.startsWith('http://127.0.0.1')) shell.openExternal(url)
     return { action: 'deny' }
   })
   return win

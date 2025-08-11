@@ -44,7 +44,20 @@
   ></comfy-u-i-download-dialog>
   <div class="items-center flex-wrap grid grid-cols-1 gap-2">
     <div class="flex flex-col gap-2">
-      <p>{{ languages.SETTINGS_IMAGE_MODE }}</p>
+      <div class="flex flex-row justify-between">
+        <p>{{ languages.SETTINGS_IMAGE_MODE }}</p>
+        <a
+          v-if="imageGeneration.backend === 'comfyui'"
+          :href="
+            backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl
+          "
+          target="_blank"
+          class="flex flex-row gap-1 items-center text-blue-500 cursor-pointer"
+        >
+          <p>Open ComfyUI</p>
+          <ArrowTopRightOnSquareIcon class="size-5" />
+        </a>
+      </div>
       <div class="grid grid-cols-2 items-center gap-2 flex-wrap">
         <radio-block
           :checked="imageGeneration.backend === 'default'"
@@ -148,41 +161,13 @@
         </p>
       </div>
       <div class="flex gap-2 items-center">
-        <drop-selector
-          :array="
+        <DropDownWorkflow
+          @change="(workflowName) => (imageGeneration.activeWorkflowName = workflowName)"
+          :workflows="
             imageGeneration.workflows.filter((w) => w.backend === 'comfyui').sort(highToLowPrio)
           "
-          @change="(workflow) => (imageGeneration.activeWorkflowName = workflow.name)"
-        >
-          <template #selected>
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ imageGeneration.activeWorkflowName }}</span>
-              <span
-                class="rounded-lg h-4 px-1 text-xs"
-                :style="{ 'background-color': `${stringToColour(tag)}88` }"
-                v-for="tag in imageGeneration.activeWorkflow.tags"
-                :key="tag"
-              >
-                {{ tag }}</span
-              >
-            </div>
-          </template>
-          <template #list="slotItem">
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
-              <span>{{ slotItem.item.name }}</span>
-              <span
-                class="rounded-lg h-4 px-1 text-xs"
-                :style="{ 'background-color': `${stringToColour(tag)}88` }"
-                v-for="tag in slotItem.item.tags"
-                :key="tag"
-              >
-                {{ tag }}</span
-              >
-            </div>
-          </template>
-        </drop-selector>
+          :selectedWorkflowName="imageGeneration.activeWorkflowName"
+        ></DropDownWorkflow>
         <div :data-tooltip="i18nState.WORKFLOW_RELOAD_INFO">
           <button
             class="svg-icon i-refresh w-5 h-5 text-purple-500"
@@ -202,12 +187,14 @@
 
 <script setup lang="ts">
 import { ComfyUiWorkflow, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import DropDownWorkflow from '../components/DropDownWorkflow.vue'
 import DropSelector from '../components/DropSelector.vue'
 import RadioBlock from '../components/RadioBlock.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import ComfyUIDownloadDialog from '@/components/ComfyUIDownloadDialog.vue'
 import * as toast from '@/assets/js/toast'
 import { useI18N } from '@/assets/js/store/i18n.ts'
+import { ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/solid'
 const i18nState = useI18N().state
 
 const imageGeneration = useImageGeneration()
