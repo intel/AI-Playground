@@ -4,7 +4,7 @@ import { type SliderRootProps } from 'radix-vue'
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'radix-vue'
 import { cn } from '@/lib/utils'
 import { clsx } from 'clsx'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { findBestResolution, useImageGeneration } from '@/assets/js/store/imageGeneration'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
 
@@ -45,32 +45,6 @@ const megaPixelsOptions = computed(() => {
   }
 })
 
-function findBestResolution(totalPixels: number, aspectRatio: number) {
-  const MIN_SIZE = 256
-  const MAX_SIZE = 1536
-  let bestWidth = 0
-  let bestHeight = 0
-  let minDiff = Infinity
-
-  for (let h = MIN_SIZE; h <= MAX_SIZE; h += 64) {
-    let w = aspectRatio * h
-    w = Math.round(w / 64) * 64
-
-    if (w < MIN_SIZE || w > MAX_SIZE) continue
-
-    const actualPixels = w * h
-    const diff = Math.abs(actualPixels - totalPixels)
-
-    if (diff < minDiff) {
-      minDiff = diff
-      bestWidth = w
-      bestHeight = h
-    }
-  }
-
-  return { width: bestWidth, height: bestHeight, totalPixels: bestWidth * bestHeight }
-}
-
 const resolutionsPerMegaPixelsOption = computed(() =>
   megaPixelsOptions.value.map((megaPixels) =>
     aspectRatios.map((aspectRatio) => ({
@@ -101,17 +75,43 @@ const megaPixelsIndex = computed({
   },
 })
 
+const findClosestResolution = () => {
+  const currentAspectRatio = imageGeneration.width / imageGeneration.height
+  const availableResolutions = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value]
+  
+  let closestResolution = availableResolutions[0]
+  let minAspectRatioDiff = Infinity
+  
+  for (const resolution of availableResolutions) {
+    const resolutionAspectRatio = resolution.width / resolution.height
+    const aspectRatioDiff = Math.abs(currentAspectRatio - resolutionAspectRatio)
+    
+    if (aspectRatioDiff < minAspectRatioDiff) {
+      minAspectRatioDiff = aspectRatioDiff
+      closestResolution = resolution
+    }
+  }
+  
+  return { width: closestResolution.width, height: closestResolution.height }
+}
+
 const resolutionIndex = computed({
   get: () => {
-    const index = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
+    let index: number
+    index = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
       (res) => res.width === imageGeneration.width && res.height === imageGeneration.height,
     )
-    if (index === -1)
-      return [
-        resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
-          (res) => res.aspectRatio === '1/1',
-        ),
-      ]
+    if (index === -1) {
+      const { width, height } = findClosestResolution()
+      index = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
+        (res) => res.width === width && res.height === height,
+      )
+    }
+    if (index === -1) {
+      index = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value].findIndex(
+        (res) => res.aspectRatio === '1/1',
+      )
+    }
     return [index]
   },
   set: (resIndex) => {
