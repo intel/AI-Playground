@@ -110,6 +110,7 @@
   "SETTINGS_MODEL_SD_STANDARD_MODEL": "Standard Default Model",
   "SETTINGS_MODEL_SD_STANDARD_INPAINT_MODEL": "Standard Default Inpaint/OutPaint Model",
   "SETTINGS_MODEL_SD_HD_MODEL": "HD Default Model",
+  "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "HD Default Inpaint/OutPaint Model",
   "SETTINGS_MODEL_RAG_MODEL": "RAG Query Model",
   "SETTINGS_BACKEND_STATUS": "Backend Status",
   "SETTINGS_MODEL_MANAGE_BACKEND": "Manage Backend Components",

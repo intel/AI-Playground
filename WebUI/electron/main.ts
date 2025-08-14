@@ -100,6 +100,7 @@ export const settings: LocalSettings = {
   enablePreviewFeatures: false,
   isDemoModeEnabled: false,
   demoModeResetInSeconds: null,
+  languageOverride: null,
 }
 
 async function loadSettings() {
@@ -398,6 +399,7 @@ function initEventHandle() {
       showBenchmark: settings.showBenchmark,
       isAdminExec: isAdmin(),
       locale: app.getLocale(),
+      languageOverride: settings.languageOverride,
     }
   })
 
