@@ -52,7 +52,8 @@ export const GET_PIP_FILE = join(RESOURCES_DIR, 'get-pip.py')
 export const PYTHON_ENV_ARCHIVE = join(RESOURCES_DIR, 'prototype-python-env.7z')
 
 // Resource URLs
-export const EMBEDDABLE_PYTHON_URL = 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
+export const EMBEDDABLE_PYTHON_URL =
+  'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
 export const GET_PIP_SCRIPT_URL = 'https://bootstrap.pypa.io/get-pip.py'
 export const SEVEN_ZR_EXE_URL = 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe'
 

@@ -78,20 +78,20 @@ const megaPixelsIndex = computed({
 const findClosestResolution = () => {
   const currentAspectRatio = imageGeneration.width / imageGeneration.height
   const availableResolutions = resolutionsPerMegaPixelsOption.value[megaPixelsIndex.value]
-  
+
   let closestResolution = availableResolutions[0]
   let minAspectRatioDiff = Infinity
-  
+
   for (const resolution of availableResolutions) {
     const resolutionAspectRatio = resolution.width / resolution.height
     const aspectRatioDiff = Math.abs(currentAspectRatio - resolutionAspectRatio)
-    
+
     if (aspectRatioDiff < minAspectRatioDiff) {
       minAspectRatioDiff = aspectRatioDiff
       closestResolution = resolution
     }
   }
-  
+
   return { width: closestResolution.width, height: closestResolution.height }
 }
 

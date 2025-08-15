@@ -188,7 +188,6 @@
 <script setup lang="ts">
 import { ComfyUiWorkflow, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import DropDownWorkflow from '../components/DropDownWorkflow.vue'
-import DropSelector from '../components/DropSelector.vue'
 import RadioBlock from '../components/RadioBlock.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import ComfyUIDownloadDialog from '@/components/ComfyUIDownloadDialog.vue'
@@ -302,28 +301,6 @@ const classicQuality = computed({
 
 const highToLowPrio = (a: ComfyUiWorkflow, b: ComfyUiWorkflow) =>
   b.displayPriority - a.displayPriority
-
-const stringToColour = (str: string) => {
-  const colors = [
-    '#ff00ff', // Magenta
-    '#ff33cc', // Light Magenta
-    '#cc00ff', // Purple
-    '#9900ff', // Dark Purple
-    '#6600ff', // Indigo
-    '#3300ff', // Blue
-    '#00ccff', // Light Blue
-    '#00ffff', // Cyan
-  ]
-
-  let hash = 0
-  str.split('').forEach((char) => {
-    hash = char.charCodeAt(0) + ((hash << 5) - hash)
-  })
-
-  // Use the hash to select a color from the palette
-  const index = Math.abs(hash) % colors.length
-  return colors[index]
-}
 </script>
 
 <style>

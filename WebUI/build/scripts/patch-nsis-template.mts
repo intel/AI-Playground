@@ -27,14 +27,27 @@ function getTemplateConfigs(): TemplateConfig[] {
   return [
     {
       source: join(TEMPLATES_DIR, 'installSection.nsh'),
-      target: join(WEBUI_NODE_MODULES_DIR, 'app-builder-lib', 'templates', 'nsis', 'installSection.nsh'),
-      description: 'Main installation section template'
+      target: join(
+        WEBUI_NODE_MODULES_DIR,
+        'app-builder-lib',
+        'templates',
+        'nsis',
+        'installSection.nsh',
+      ),
+      description: 'Main installation section template',
     },
     {
       source: join(TEMPLATES_DIR, 'installUtil.nsh'),
-      target: join(WEBUI_NODE_MODULES_DIR, 'app-builder-lib', 'templates', 'nsis', 'include', 'installUtil.nsh'),
-      description: 'Installation utilities template with media backup warning'
-    }
+      target: join(
+        WEBUI_NODE_MODULES_DIR,
+        'app-builder-lib',
+        'templates',
+        'nsis',
+        'include',
+        'installUtil.nsh',
+      ),
+      description: 'Installation utilities template with media backup warning',
+    },
   ]
 }
 
@@ -125,7 +138,6 @@ async function main(): Promise<void> {
 
     console.log('✅ NSIS template patching completed successfully!')
     console.log('📦 Electron-builder will now use the customized NSIS templates')
-
   } catch (error) {
     console.error('❌ Fatal error during NSIS template patching:', error)
     process.exit(1)

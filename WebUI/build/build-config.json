@@ -83,15 +83,17 @@
     "output": "../build/electron",
     "buildResources": "build"
   },
-  "files": [{
-    "from": "../build/dist",
-    "to": "dist"
-  },
-  {
-    "from": ".",
-    "to": ".",
-    "filter": ["package.json"]
-  }],
+  "files": [
+    {
+      "from": "../build/dist",
+      "to": "dist"
+    },
+    {
+      "from": ".",
+      "to": ".",
+      "filter": ["package.json"]
+    }
+  ],
   "win": {
     "target": [
       {

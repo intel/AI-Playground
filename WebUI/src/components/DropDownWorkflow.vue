@@ -86,7 +86,7 @@ const stringToColour = (str: string) => {
       class="w-full rounded-lg p-[3px] border border-[#cdcdcd] bg-[#05010f] max-h-[320px] overflow-y-auto z-[100] ml-4"
     >
       <Accordion type="single" collapsible>
-        <AccordionItem :value="category" v-for="(category, i) in categories">
+        <AccordionItem :value="category" v-for="category in categories" :key="category">
           <AccordionTrigger>
             <DropdownMenuLabel class="text-white px-3 py-1 text-sm font-bold">{{
               category

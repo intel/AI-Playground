@@ -13,7 +13,13 @@ import { getBuildPaths } from './build-paths.mts'
 
 // Get build paths configuration
 const buildPaths = getBuildPaths()
-const { resourcesDir: RESOURCES_DIR, pythonEnvDir: PYTHON_ENV_DIR, buildDir, resourceFiles, pythonEnvDir} = buildPaths
+const {
+  resourcesDir: RESOURCES_DIR,
+  pythonEnvDir: PYTHON_ENV_DIR,
+  buildDir,
+  resourceFiles,
+  pythonEnvDir,
+} = buildPaths
 
 interface PythonEnvConfig {
   pythonEmbedZipFile: string
@@ -35,11 +41,12 @@ function verifyFilesExist(): PythonEnvConfig {
   const resourceFiles = readdirSync(RESOURCES_DIR)
 
   // Find Python embed zip file
-  const pythonEmbedZipFile = RESOURCES_DIR + '/' + (
-    resourceFiles.find((fileName) =>
-      fileName.startsWith('python-3.12.10') && fileName.endsWith('.zip')
-    ) || ''
-  )
+  const pythonEmbedZipFile =
+    RESOURCES_DIR +
+    '/' +
+    (resourceFiles.find(
+      (fileName) => fileName.startsWith('python-3.12.10') && fileName.endsWith('.zip'),
+    ) || '')
 
   if (!existsSync(pythonEmbedZipFile)) {
     console.error('❌ Python embeddable zip file not found in resources directory')
@@ -149,7 +156,7 @@ function installPip(getPipFile: string): void {
     console.log('⚙️  Running pip installation...')
     execSync(`"${pythonExe}" "${getPipDest}"`, {
       stdio: 'inherit',
-      cwd: PYTHON_ENV_DIR
+      cwd: PYTHON_ENV_DIR,
     })
     console.log('✅ Pip installed successfully')
 
@@ -157,10 +164,9 @@ function installPip(getPipFile: string): void {
     console.log('📦 Installing uv package manager...')
     execSync(`"${pythonExe}" -m pip install uv`, {
       stdio: 'inherit',
-      cwd: PYTHON_ENV_DIR
+      cwd: PYTHON_ENV_DIR,
     })
     console.log('✅ UV package manager installed successfully')
-
   } catch (error) {
     console.error(`❌ Failed to install pip: ${error}`)
     process.exit(1)
@@ -185,10 +191,14 @@ function compressPythonEnvironment(): void {
     }
 
     // Compress Python environment
-    const result = spawnSync(resourceFiles.sevenZipExe, ['a', targetArchive, join(pythonEnvDir, '*')], {
-      stdio: 'inherit',
-      cwd: buildDir
-    })
+    const result = spawnSync(
+      resourceFiles.sevenZipExe,
+      ['a', targetArchive, join(pythonEnvDir, '*')],
+      {
+        stdio: 'inherit',
+        cwd: buildDir,
+      },
+    )
 
     if (result.status !== 0) {
       console.error('❌ Failed to compress Python environment')
@@ -228,7 +238,6 @@ async function main(): Promise<void> {
 
     console.log('✅ Python environment prepared successfully!')
     console.log(`📂 Environment available at: ${buildPaths.pythonEnvDir}`)
-
   } catch (error) {
     console.error('❌ Fatal error during Python environment preparation:', error)
     process.exit(1)
