@@ -503,7 +503,11 @@ export interface ApiService {
   getSettings(): Promise<ServiceSettings>
   uninstall(): Promise<void>
   get_info(): ApiServiceInformation
-  ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void>
+  ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+  ): Promise<void>
 }
 
 export abstract class LongLivedPythonApiService implements ApiService {
@@ -662,9 +666,13 @@ export abstract class LongLivedPythonApiService implements ApiService {
     return 'stopped'
   }
 
-  async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
+  async ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+  ): Promise<void> {
     this.appLogger.info(
-      `ensureBackendReadiness called for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
+      `ensureBackendReadiness called for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context Size: ${contextSize} ?? 'undefined'`,
       this.name,
     )
   }

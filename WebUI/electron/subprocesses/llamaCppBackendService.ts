@@ -33,6 +33,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   private llamaLlmProcess: LlamaServerProcess | null = null
   private llamaEmbeddingProcess: LlamaServerProcess | null = null
   private currentLlmModel: string | null = null
+  private currentContextSize: number | null = null
   private currentEmbeddingModel: string | null = null
 
   private lastPythonWrapperLlmPort: number | null = null
@@ -256,7 +257,11 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
    * This is called from the frontend before inference to ensure backend readiness
    * Handles both LLM and embedding models when provided
    */
-  async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
+  async ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+  ): Promise<void> {
     this.appLogger.info(
       `Ensuring llamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
       this.name,
@@ -266,8 +271,12 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       let serversChanged = false
 
       // Handle LLM model
-      if (this.currentLlmModel !== llmModelName || !this.llamaLlmProcess?.isReady) {
-        await this.switchModel(llmModelName, 'llm')
+      if (
+        this.currentLlmModel !== llmModelName ||
+        (contextSize && contextSize !== this.currentContextSize) ||
+        !this.llamaLlmProcess?.isReady
+      ) {
+        await this.switchModel(llmModelName, 'llm', contextSize)
         serversChanged = true
         this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
@@ -392,19 +401,30 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
   }
 
-  async switchModel(modelRepoId: string, type: 'llm' | 'embedding'): Promise<number> {
+  async switchModel(
+    modelRepoId: string,
+    type: 'llm' | 'embedding',
+    contextSize?: number,
+  ): Promise<number> {
     this.appLogger.info(`Switching ${type} model to: ${modelRepoId}`, this.name)
 
     try {
       if (type === 'llm') {
-        if (this.currentLlmModel === modelRepoId && this.llamaLlmProcess?.isReady) {
-          this.appLogger.info(`LLM model ${modelRepoId} already loaded`, this.name)
+        if (
+          this.currentLlmModel === modelRepoId &&
+          (!contextSize || contextSize === this.currentContextSize) &&
+          this.llamaLlmProcess?.isReady
+        ) {
+          this.appLogger.info(
+            `LLM model ${modelRepoId} already loaded with context size ${this.currentContextSize}`,
+            this.name,
+          )
           return this.llamaLlmProcess.port
         }
 
         const oldPort = this.llamaLlmProcess?.port
         await this.stopLlamaLlmServer()
-        const process = await this.startLlamaLlmServer(modelRepoId)
+        const process = await this.startLlamaLlmServer(modelRepoId, contextSize)
 
         // Log port change for debugging
         if (oldPort && oldPort !== process.port) {
@@ -441,7 +461,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
   }
 
-  private async startLlamaLlmServer(modelRepoId: string): Promise<LlamaServerProcess> {
+  private async startLlamaLlmServer(
+    modelRepoId: string,
+    contextSize?: number,
+  ): Promise<LlamaServerProcess> {
     try {
       const modelPath = this.resolveModelPath(modelRepoId)
       const port = await getPort({ port: portNumbers(39100, 39199) })
@@ -456,8 +479,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         modelPath,
         '--port',
         port.toString(),
-        '-ngl',
-        '999', // GPU layers
+        '--gpu-layers',
+        '999',
+        '--ctx-size',
+        contextSize?.toFixed() ?? '8192',
       ]
 
       const childProcess = spawn(this.llamaCppRestExePath, args, {
@@ -480,6 +505,20 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         isReady: false,
       }
 
+      childProcess.stdout!.on('data', (message) => {
+        if (message.toString().startsWith('INFO')) {
+          this.appLogger.info(`${message}`, this.name)
+        } else if (message.toString().startsWith('WARN')) {
+          this.appLogger.warn(`${message}`, this.name)
+        } else {
+          this.appLogger.error(`${message}`, this.name)
+        }
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        this.appLogger.error(`${message}`, this.name)
+      })
+
       // Set up process event handlers
       childProcess.on('error', (error: Error) => {
         this.appLogger.error(`LLM server process error: ${error}`, this.name)
@@ -499,6 +538,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
       this.llamaLlmProcess = llamaProcess
       this.currentLlmModel = modelRepoId
+      this.currentContextSize = contextSize ?? null
 
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess

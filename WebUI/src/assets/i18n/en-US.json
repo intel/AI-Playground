@@ -283,6 +283,7 @@
   "COM_DELETE_FILE": "Remove file from the list of available documents",
   "COM_DELETE_ALL_FILES": "Clear the list of available documents",
   "ANSWER_MAX_TOKENS": "Max Tokens",
+  "ANSWER_CONTEXT_SIZE": "Context Size",
   "ANSWER_METRICS": "Metrics",
   "ANSWER_FONT_SIZE": "Font Size",
   "RAG_DOCUMENT_EMBEDDING_MODEL": "Document Embedding Model",

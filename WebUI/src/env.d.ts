@@ -103,6 +103,7 @@ type electronAPI = {
     serviceName: string,
     llmModelName: string,
     embeddingModelName?: string,
+    contextSize?: number,
   ): Promise<{ success: boolean; error?: string }>
 }
 

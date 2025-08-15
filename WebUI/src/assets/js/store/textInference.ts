@@ -188,6 +188,7 @@ export const useTextInference = defineStore(
     })
     const metricsEnabled = ref(false)
     const maxTokens = ref<number>(1024)
+    const contextSize = ref<number>(8192)
 
     const currentBackendUrl = computed(
       () =>
@@ -545,6 +546,7 @@ export const useTextInference = defineStore(
           serviceName,
           llmModelName,
           embeddingModelToSend,
+          contextSize.value,
         )
       }
     }
@@ -558,6 +560,7 @@ export const useTextInference = defineStore(
       currentBackendUrl,
       metricsEnabled,
       maxTokens,
+      contextSize,
       fontSizeClass,
       nameSizeClass,
       iconSizeClass,
@@ -585,7 +588,7 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels', 'maxTokens', 'ragList'],
+      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'ragList'],
     },
   },
 )
