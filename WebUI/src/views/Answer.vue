@@ -288,12 +288,12 @@
                 </div>
                 <div
                   v-if="showThinkingText"
-                  class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                  v-html="parser.parse(thinkingText)"
+                  class="border-l-2 border-gray-400 pl-4 text-gray-300"
+                  v-html="thinkOut"
                 ></div>
                 <div
-                  class="mt-2 text-white whitespace-pre-wrap hmpf"
-                  v-html="parser.parse(postMarkerText)"
+                  class="mt-2 text-white"
+                  v-html="textOut"
                 ></div>
               </template>
               <template v-else>
@@ -494,7 +494,7 @@ import * as util from '@/assets/js/util'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
-import { parser } from '@/assets/js/markdownParser'
+import { parse, parser } from '@/assets/js/markdownParser'
 import DropDownNew from '@/components/DropDownNew.vue'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
@@ -513,6 +513,7 @@ import { useDemoMode } from '@/assets/js/store/demoMode'
 import ConversationManager from '@/components/ConversationManager.vue'
 import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
+import { base64ToString } from 'uint8array-extras'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()
@@ -529,6 +530,7 @@ let abortController = new AbortController()
 const textOutQueue = new Array<string>()
 const textIn = ref('')
 const textOut = ref('')
+const thinkOut = ref('')
 let firstOutput = false
 const ragPanel = ref<InstanceType<typeof Rag>>()
 const showUploader = ref(false)
@@ -783,6 +785,33 @@ async function updateTitle(conversation: ChatItem[]) {
 
 async function generateTestConversation() {
   const testOutputs = [
+    `Below is a **minimal, self‑contained Elixir implementation of a very simple “Asteroids”‑style game** that runs entirely in the terminal.  
+It uses only the Elixir standard library – no external dependencies – so you can copy‑paste it into a file (e.g. \`asteroids.exs\`) and run it with \`elixir asteroids.exs\`.
+
+> **What this code does**  
+> * A 2‑D grid (30×15 characters) is drawn on the console.  
+> * A ship (\`A\`) sits at the bottom and can move left/right with \`← / →\` keys.  
+> * Asteroids (\`*\`) appear at the top and fall one row every tick.  
+> * The ship can fire a bullet (\`|\`) upward with the \`space\` bar.  
+> * Collisions destroy an asteroid (or the ship) and increment the score.  
+> * The game ends when the ship is hit.
+
+> **How to play**  
+> 1. Save the code below as \`asteroids.exs\`.  
+> 2. Run \`elixir asteroids.exs\`.  
+> 3. Control the ship with the left/right arrow keys and shoot with the space bar.  
+> 4. The game prints the score and ends when the ship is destroyed.
+
+---
+
+## 1️⃣  The Code
+
+\`\`\`elixir
+#!/usr/bin/env elixir
+# ---------------------------------------------------------------
+#  Simple Terminal Asteroids – El
+\`\`\`
+`,
     `Should I output <html></html> or
 \`\`\`java
 public class Main {
@@ -823,8 +852,8 @@ bla.map((s) => s.uppercase())
     if (response === '') response = output
 
     console.log('parsing', response)
-    const parsedThinkingText = await parser.parse(thinkResponse)
-    const parsedAnswer = await parser.parse(response)
+    const parsedThinkingText = await parse(thinkResponse)
+    const parsedAnswer = await parse(response)
     console.log('parsedAnswer', parsedAnswer)
     conversations.addToActiveConversation(key, {
       question: textIn.value,
@@ -852,7 +881,12 @@ async function simulatedInput() {
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
-    textOut.value = await parser.parse(receiveOut)
+    if (thinkingModels[textInference.activeModel ?? '']) {
+      textOut.value = await parse(textInference.extractPostMarker(receiveOut, textInference.activeModel))
+      thinkOut.value = await parse(textInference.extractPreMarker(receiveOut, textInference.activeModel))
+    } else {
+      textOut.value = await parse(receiveOut)
+    }
     await nextTick()
 
     if (autoScrollEnabled.value) {
@@ -879,7 +913,6 @@ async function simulatedInput() {
           ? textInference.formatRagSources(actualRagResults)
           : null
 
-      console.log('parsing answer', receiveOut)
 
       const thinkingOutput = thinkingModels[textInference.activeModel ?? '']
         ? textInference.extractPreMarker(receiveOut, textInference.activeModel)
@@ -889,8 +922,8 @@ async function simulatedInput() {
         ? textInference.extractPostMarker(receiveOut, textInference.activeModel)
         : receiveOut
 
-      const parsedAnswer = await parser.parse(nonThinkingOutput)
-      const parsedThinkingText = await parser.parse(thinkingOutput)
+      const parsedAnswer = await parse(nonThinkingOutput)
+      const parsedThinkingText = await parse(thinkingOutput)
 
       console.log('parsed answer', parsedAnswer)
 
@@ -1134,7 +1167,7 @@ function regenerateLastResponse(conversationKey: string) {
 function copyCode(e: MouseEvent) {
   if (!(e.target instanceof HTMLElement)) return
   if (!e.target?.dataset?.code) return
-  util.copyText(atob(e.target?.dataset?.code))
+  util.copyText(base64ToString(e.target?.dataset?.code))
   toast.success(i18nState.COM_COPY_SUCCESS_TIP)
 }
 

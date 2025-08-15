@@ -1,6 +1,7 @@
 import { Marked, Token } from 'marked'
 import markedShiki from 'marked-shiki'
 import { codeToHtml, bundledLanguagesAlias, bundledLanguages } from 'shiki'
+import { stringToBase64 } from 'uint8array-extras'
 
 const langs = Object.keys(bundledLanguages).concat(Object.keys(bundledLanguagesAlias))
 
@@ -25,26 +26,33 @@ const codeRenderer = markedShiki({
 
 const htmlEscaper = {
   walkTokens: (token: Token) => {
-    if (token.type === 'html') {
-      token.text = token.raw
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
+    try {
+      if (token.type === 'html') {
+        token.text = token.raw
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;')
+      }
+    } catch (error) {
+      console.error('error while html escaping', {error, token})
     }
   },
 }
 
 const dataCodeFixer = (input: string) => {
-  if (input.includes('===ORIGINALCODE') && input.includes('===')) {
-    console.log('postprocessing', input)
-    return input.replace(/===ORIGINALCODE(.*?)===>/gs, (match, data) => {
-      console.log({ match, data })
-      return `data-code="${btoa(data)}"`
-    })
+  try {
+    if (input.includes('===ORIGINALCODE') && input.includes('===')) {
+      return input.replace(/===ORIGINALCODE(.*?)===>/gs, (match, data) => {
+        return `data-code="${stringToBase64(data)}"`
+      })
+    }
+    return input
+  } catch (error) {
+    console.error('error while data code encoding', { error, input })
+    throw error
   }
-  return input
 }
 
 export const parser = new Marked({
@@ -60,3 +68,26 @@ export const parser = new Marked({
       postprocess: dataCodeFixer,
     },
   })
+
+
+export const plainParser = new Marked({
+  pedantic: false,
+  gfm: true,
+  breaks: true,
+  async: false,
+}).use(htmlEscaper)
+
+export const parse = async (input: string) => {
+  try {
+    return await parser.parse(input)
+  } catch (error) {
+    console.error('error while parsing', {error, input})
+  }
+  
+  try {
+    return await plainParser.parse(input)
+  } catch (error) {
+    console.error('error while plain parsing', {error, input})
+    return input
+  }
+}
