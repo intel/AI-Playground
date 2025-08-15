@@ -2,119 +2,12 @@
 <template>
   <div id="answerPanel" class="h-full flex flex-col pr-4 pb-4 relative bg-origin-padding">
     <div class="flex flex-row flex-auto overflow-y-auto">
-      <div
-        id="chatHistoryPanel"
-        :class="{ 'w-12': !isHistoryVisible, 'w-56': isHistoryVisible }"
-        class="flex shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
-      >
-        <div class="flex justify-end">
-          <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
-            <img
-              v-if="!isHistoryVisible"
-              :class="textInference.iconSizeClass"
-              src="@/assets/svg/expand.svg"
-              class="w-8 h-8"
-            />
-            <img
-              v-else
-              :class="textInference.iconSizeClass"
-              src="@/assets/svg/collapse.svg"
-              class="w-8 h-8"
-            />
-          </button>
-        </div>
-        <div class="flex flex-col-reverse">
-          <div
-            v-if="isHistoryVisible"
-            v-for="(conversation, conversationKey) in conversations.conversationList"
-            :key="'if' + conversationKey"
-            @click="onConversationClick(conversationKey)"
-            :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
-            class="group relative cursor-pointer text-gray-300"
-          >
-            <div class="flex justify-between items-center w-full h-10 px-3">
-              <div
-                v-if="conversations.activeKey === conversationKey"
-                class="absolute inset-1 bg-[#00c4fa]/50 rounded-lg"
-              ></div>
-              <div class="relative flex justify-between items-center w-full">
-                <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
-                  {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
-                </span>
-                <span
-                  v-if="!conversations.isNewConversation(conversationKey)"
-                  @click.stop="conversations.deleteConversation(conversationKey)"
-                  class="text-3xl opacity-0 group-hover:opacity-70 transition-opacity duration-200 cursor-pointer ml-3"
-                >
-                  ×
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-else
-            v-for="(conversation, conversationKey) in conversations.conversationList"
-            :key="'else' + conversationKey"
-            :inVisibleKey="conversationKey"
-            @click="onConversationClick(conversationKey)"
-            :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
-            class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
-            :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
-          >
-            <span
-              v-if="conversationKey === currentlyGeneratingKey && processing"
-              class="svg-icon i-loading w-8 h-8 animate-spin text-white flex items-center justify-center m-auto"
-            ></span>
-            <svg
-              v-else-if="conversations.isNewConversation(conversationKey)"
-              class="m-auto h-8 w-8 text-gray-300"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-              />
-            </svg>
-            <svg
-              v-else
-              class="m-auto h-8 w-8 text-gray-300"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1"
-                d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
-              />
-            </svg>
-          </div>
-        </div>
-      </div>
-      <div
-        v-if="textInference.backend === 'ollama'"
-        id="chatPanel"
-        class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
-        :class="textInference.fontSizeClass"
-        @scroll="handleScroll"
-      >
-        <div v-if="ollamaDlProgress.status !== 'idle'">
-          Ollama DL:
-          {{
-            `${((ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
-          }}
-        </div>
-        <div v-for="message in chat.messages.value" :key="message.id">
-          {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
-          {{ message.content }}
-          {{ message.parts }}
-        </div>
-      </div>
+      <ConversationManager
+        @conversation-click="onConversationSelected"
+        :currently-generating-key="currentlyGeneratingKey"
+        :processing="processing"
+      ></ConversationManager>
+      <OllamaPoC @scroll="handleScroll" v-if="textInference.backend === 'ollama'"></OllamaPoC>
       <div
         v-else
         id="chatPanel"
@@ -123,7 +16,7 @@
         @scroll="handleScroll"
       >
         <!-- eslint-disable vue/require-v-for-key -->
-        <template v-for="(chat, i) in conversations.activeConversation">
+        <template v-for="(chatItem, i) in conversations.activeConversation">
           <!-- eslint-enable -->
           <div class="flex items-start gap-3">
             <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
@@ -132,12 +25,12 @@
                 {{ languages.ANSWER_USER_NAME }}
               </p>
               <div class="chat-content" style="white-space: pre-wrap">
-                {{ chat.question }}
+                {{ chatItem.question }}
               </div>
               <button
                 class="flex items-center gap-1 text-xs text-gray-300 mt-1"
                 :title="languages.COM_COPY"
-                @click="copyText(chat.question)"
+                @click="copyText(chatItem.question)"
               >
                 <span class="svg-icon i-copy w-4 h-4"></span>
                 <span>{{ languages.COM_COPY }}</span>
@@ -153,28 +46,28 @@
                 <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
                   {{ languages.ANSWER_AI_NAME }}
                 </p>
-                <div v-if="chat.model" class="flex items-center gap-2">
+                <div v-if="chatItem.model" class="flex items-center gap-2">
                   <span
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
                   >
                     {{
-                      chat.model.endsWith('.gguf')
-                        ? (chat.model.split('/').at(-1)?.split('.gguf')[0] ?? chat.model)
-                        : chat.model
+                      chatItem.model.endsWith('.gguf')
+                        ? (chatItem.model.split('/').at(-1)?.split('.gguf')[0] ?? chatItem.model)
+                        : chatItem.model
                     }}
                   </span>
                   <!-- Display RAG source if available -->
                   <span
-                    v-if="chat.ragSource"
-                    @click="chat.showRagSource = !chat.showRagSource"
+                    v-if="chatItem.ragSource"
+                    @click="chatItem.showRagSource = !chatItem.showRagSource"
                     class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
                     :class="textInference.nameSizeClass"
                   >
                     Source Docs
                     <button class="ml-1">
                       <img
-                        v-if="chat.showRagSource"
+                        v-if="chatItem.showRagSource"
                         src="@/assets/svg/arrow-up.svg"
                         class="w-3 h-3"
                       />
@@ -186,30 +79,33 @@
 
               <!-- RAG Source Details (collapsible) -->
               <div
-                v-if="chat.ragSource && chat.showRagSource"
+                v-if="chatItem.ragSource && chatItem.showRagSource"
                 class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
                 :class="textInference.fontSizeClass"
               >
                 <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-                <div class="whitespace-pre-wrap">{{ chat.ragSource }}</div>
+                <div class="whitespace-pre-wrap">{{ chatItem.ragSource }}</div>
               </div>
               <div class="ai-answer chat-content">
-                <template v-if="chat.model && thinkingModels[chat.model]">
+                <template v-if="chatItem.model && thinkingModels[chatItem.model]">
                   <div class="mb-2 flex items-center">
                     <span class="italic text-gray-300">
                       {{
-                        chat.reasoningTime !== undefined && chat.reasoningTime !== null
+                        chatItem.reasoningTime !== undefined && chatItem.reasoningTime !== null
                           ? `Reasoned for ${
-                              (chat.reasoningTime / 1000).toFixed(1).endsWith('.0')
-                                ? (chat.reasoningTime / 1000).toFixed(0)
-                                : (chat.reasoningTime / 1000).toFixed(1)
+                              (chatItem.reasoningTime / 1000).toFixed(1).endsWith('.0')
+                                ? (chatItem.reasoningTime / 1000).toFixed(0)
+                                : (chatItem.reasoningTime / 1000).toFixed(1)
                             } seconds`
                           : 'Done Reasoning'
                       }}
                     </span>
-                    <button @click="chat.showThinkingText = !chat.showThinkingText" class="ml-1">
+                    <button
+                      @click="chatItem.showThinkingText = !chatItem.showThinkingText"
+                      class="ml-1"
+                    >
                       <img
-                        v-if="chat.showThinkingText"
+                        v-if="chatItem.showThinkingText"
                         src="@/assets/svg/arrow-up.svg"
                         class="w-4 h-4"
                       />
@@ -217,25 +113,14 @@
                     </button>
                   </div>
                   <div
-                    v-if="chat.showThinkingText"
-                    class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                    v-html="
-                      markdownParser.parseMarkdown(
-                        textInference.extractPreMarker(chat.answer, chat.model),
-                      )
-                    "
+                    v-if="chatItem.showThinkingText"
+                    class="border-l-2 border-gray-400 pl-4 text-gray-300"
+                    v-html="chatItem.parsedThinkingText"
                   ></div>
-                  <div
-                    class="mt-2 text-white whitespace-pre-wrap"
-                    v-html="
-                      markdownParser.parseMarkdown(
-                        textInference.extractPostMarker(chat.answer, chat.model),
-                      )
-                    "
-                  ></div>
+                  <div v-html="chatItem.parsedAnswer"></div>
                 </template>
                 <template v-else>
-                  <span v-html="markdownParser.parseMarkdown(chat.answer)"></span>
+                  <div v-html="chatItem.parsedAnswer"></div>
                 </template>
               </div>
               <div class="answer-tools flex gap-3 items-center text-gray-300">
@@ -244,9 +129,9 @@
                   :title="languages.COM_COPY"
                   @click="
                     copyText(
-                      chat.model && thinkingModels[chat.model]
-                        ? textInference.extractPostMarker(chat.answer, chat.model)
-                        : chat.answer,
+                      chatItem.model && thinkingModels[chatItem.model]
+                        ? textInference.extractPostMarker(chatItem.answer, chatItem.model)
+                        : chatItem.answer,
                     )
                   "
                 >
@@ -276,17 +161,17 @@
                 </button>
               </div>
               <div
-                v-if="textInference.metricsEnabled && chat.metrics"
+                v-if="textInference.metricsEnabled && chatItem.metrics"
                 class="metrics-info text-xs text-gray-400"
               >
-                <span class="mr-2">{{ chat.metrics.num_tokens }} Tokens</span>
+                <span class="mr-2">{{ chatItem.metrics.num_tokens }} Tokens</span>
                 <span class="mr-2">⋅</span>
                 <span class="mr-2"
-                  >{{ chat.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                  >{{ chatItem.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
                 >
                 <span class="mr-2">⋅</span>
                 <span class="mr-2"
-                  >1st Token Time: {{ chat.metrics.first_token_latency.toFixed(2) }}s</span
+                  >1st Token Time: {{ chatItem.metrics.first_token_latency.toFixed(2) }}s</span
                 >
               </div>
             </div>
@@ -404,11 +289,11 @@
                 <div
                   v-if="showThinkingText"
                   class="border-l-2 border-gray-400 pl-4 whitespace-pre-wrap text-gray-300"
-                  v-html="markdownParser.parseMarkdown(thinkingText)"
+                  v-html="parser.parse(thinkingText)"
                 ></div>
                 <div
-                  class="mt-2 text-white whitespace-pre-wrap"
-                  v-html="markdownParser.parseMarkdown(postMarkerText)"
+                  class="mt-2 text-white whitespace-pre-wrap hmpf"
+                  v-html="parser.parse(postMarkerText)"
                 ></div>
               </template>
               <template v-else>
@@ -544,6 +429,9 @@
             "
           ></drop-down-new>
         </div>
+        <div>
+          <button @click="generateTestConversation">AddTestOutput</button>
+        </div>
       </div>
       <div
         class="w-full h-32 gap-3 flex-none flex items-center pt-2"
@@ -595,8 +483,7 @@ import * as util from '@/assets/js/util'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
-import { MarkdownParser } from '@/assets/js/markdownParser'
-import 'highlight.js/styles/github-dark.min.css'
+import { parser } from '@/assets/js/markdownParser'
 import DropDownNew from '@/components/DropDownNew.vue'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
@@ -610,43 +497,15 @@ import {
 } from '@/assets/js/store/textInference'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
-
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { useChat } from '@ai-sdk/vue'
-import { streamText } from 'ai'
-import { Ollama } from 'ollama/browser'
-
-const getModel = () =>
-  createOpenAICompatible({
-    name: 'model',
-    baseURL: `${textInference.currentBackendUrl}/v1/`,
-  }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b')
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const customFetch = async (_: any, options: any) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const m = JSON.parse(options.body) as any
-  console.log(m)
-  const result = await streamText({
-    model: getModel(),
-    messages: m.messages,
-    abortSignal: options.signal,
-  })
-  return result.toDataStreamResponse()
-}
-
-const chat = useChat({ fetch: customFetch })
-const ollamaDlProgress = ref<{
-  status: 'idle' | 'pulling'
-  totalBytes?: number
-  completedBytes?: number
-}>({ status: 'idle' })
-
 import ModelSelector from '@/components/ModelSelector.vue'
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import ConversationManager from '@/components/ConversationManager.vue'
+import { useOllama } from '@/assets/js/store/ollama'
+import OllamaPoC from '@/components/OllamaPoC.vue'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()
+const ollama = useOllama()
 const models = useModels()
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
@@ -672,7 +531,6 @@ const ragRetrievalInProgress = ref(false)
 const showRagPreview = ref(true)
 let receiveOut = ''
 let chatPanel: HTMLElement
-const markdownParser = new MarkdownParser(i18nState.COM_COPY)
 
 const markerFound = ref(false)
 const thinkingText = ref('')
@@ -698,8 +556,6 @@ const emits = defineEmits<{
 
 let abortContooler: AbortController | null
 const stopping = ref(false)
-
-const isHistoryVisible = ref(false)
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
@@ -874,14 +730,6 @@ function scrollToBottom(smooth = true) {
   })
 }
 
-function onConversationClick(conversationKey: string) {
-  console.log('Switching to conversationKey:', conversationKey)
-  conversations.activeKey = conversationKey
-  nextTick(() => {
-    scrollToBottom(false)
-  })
-}
-
 async function updateTitle(conversation: ChatItem[]) {
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
@@ -922,11 +770,78 @@ async function updateTitle(conversation: ChatItem[]) {
   conversation[0].title = newTitle
 }
 
+async function generateTestConversation() {
+  const testOutputs = [
+    `Should I output <html></html> or
+\`\`\`java
+public class Main {
+  public static void main(String[] args) {
+    System.out.println("Hello World");
+  }
+}
+\`\`\`
+some delicious java?
+</think>
+
+Maybe neither 🙃
+`,
+    `---
+# Hi
+**this is html:**
+
+\`\`\`html
+<ul>
+    <li>one</li>
+    <li>two</li>
+</ul>
+\`\`\`
+Do you see the <ul> and </li> tags?`,
+    `
+This is code:
+\`\`\`typescript
+const bla = ['blubb']
+bla.map((s) => s.uppercase())
+\`\`\`
+`,
+  ]
+  for (const output of testOutputs) {
+    const key = conversations.activeKey
+
+    const thinkResponse = textInference.extractPreMarker(output, 'OpenVINO/Qwen3-8B-int4-cw-ov')
+    let response = textInference.extractPostMarker(output, 'OpenVINO/Qwen3-8B-int4-cw-ov')
+    if (response === '') response = output
+
+    console.log('parsing', response)
+    const parsedThinkingText = await parser.parse(thinkResponse)
+    const parsedAnswer = await parser.parse(response)
+    console.log('parsedAnswer', parsedAnswer)
+    conversations.addToActiveConversation(key, {
+      question: textIn.value,
+      answer: receiveOut, // No longer append source to answer
+      parsedAnswer,
+      parsedThinkingText,
+      metrics: {
+        first_token_latency: 100,
+        num_tokens: 200,
+        overall_tokens_per_second: 300,
+        second_plus_tokens_per_second: 400,
+        total_time: 500,
+      },
+      model: 'OpenVINO/Qwen3-8B-int4-cw-ov',
+      ragSource: undefined, // Store source separately
+      showRagSource: showRagPreview.value, // Initially collapsed
+      showThinkingText: false,
+      reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
+      createdAt: Date.now(),
+    })
+  }
+}
+
 async function simulatedInput() {
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
-    textOut.value = markdownParser.parseMarkdown(receiveOut)
+    textOut.value = await parser.parse(receiveOut)
     await nextTick()
 
     if (autoScrollEnabled.value) {
@@ -953,9 +868,26 @@ async function simulatedInput() {
           ? textInference.formatRagSources(actualRagResults)
           : null
 
+      console.log('parsing answer', receiveOut)
+
+      const thinkingOutput = thinkingModels[textInference.activeModel ?? '']
+        ? textInference.extractPreMarker(receiveOut, textInference.activeModel)
+        : ''
+
+      const nonThinkingOutput = thinkingModels[textInference.activeModel ?? '']
+        ? textInference.extractPostMarker(receiveOut, textInference.activeModel)
+        : receiveOut
+
+      const parsedAnswer = await parser.parse(nonThinkingOutput)
+      const parsedThinkingText = await parser.parse(thinkingOutput)
+
+      console.log('parsed answer', parsedAnswer)
+
       conversations.addToActiveConversation(key, {
         question: textIn.value,
         answer: receiveOut, // No longer append source to answer
+        parsedAnswer,
+        parsedThinkingText,
         metrics: finalMetrics,
         model: textInference.activeModel,
         ragSource: ragSourceInfo, // Store source separately
@@ -975,7 +907,8 @@ async function simulatedInput() {
     textIn.value = ''
     textOut.value = ''
     nextTick(() => {
-      chatPanel.querySelectorAll('copy-code').forEach((item) => {
+      chatPanel.querySelectorAll('.copy-code').forEach((item) => {
+        console.log('setting copycode listeners for', item)
         const el = item as HTMLElement
         el.removeEventListener('click', copyCode)
         el.addEventListener('click', copyCode)
@@ -1040,30 +973,9 @@ async function checkModelAvailability() {
   })
 }
 
-async function generateWithAiSdk(chatContext: ChatItem[]) {
-  await chat.append({
-    role: 'user',
-    content: chatContext[chatContext.length - 1].question,
-  })
-}
-
 async function generate(chatContext: ChatItem[]) {
   if (textInference.backend === 'ollama') {
-    // For Ollama, we need to set the model name in the backend URL
-    const ollama = new Ollama({ host: textInference.currentBackendUrl })
-    const ollamaDl = await ollama.pull({ model: textInference.activeModel ?? 'asdf', stream: true })
-    for await (const progress of ollamaDl) {
-      ollamaDlProgress.value = {
-        status: 'pulling',
-        totalBytes: progress.total,
-        completedBytes: progress.completed,
-      }
-    }
-    ollamaDlProgress.value = {
-      status: 'idle',
-    }
-    await generateWithAiSdk(chatContext)
-    return
+    ollama.generate(chatContext)
   }
   if (processing.value || chatContext.length == 0) {
     return
@@ -1199,6 +1111,8 @@ function regenerateLastResponse(conversationKey: string) {
   chatContext.push({
     question: prompt,
     answer: '',
+    parsedAnswer: '',
+    parsedThinkingText: '',
     metrics: finalMetrics,
     createdAt: Date.now(),
   })
@@ -1207,21 +1121,46 @@ function regenerateLastResponse(conversationKey: string) {
 }
 
 function copyCode(e: MouseEvent) {
-  let target: HTMLElement | null = e.target as HTMLElement
-  while (target && target != chatPanel) {
-    target = target.parentElement
-    if (target && target.classList.contains('code-section')) {
-      const codeHtmlEl = target.querySelector('.code-content>pre') as HTMLElement
-      if (codeHtmlEl) {
-        util.copyText(codeHtmlEl.innerText)
-        toast.success(i18nState.COM_COPY_SUCCESS_TIP)
-        return
-      }
-    }
-  }
+  if (!(e.target instanceof HTMLElement)) return
+  if (!e.target?.dataset?.code) return
+  util.copyText(atob(e.target?.dataset?.code))
+  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
+}
+
+function onConversationSelected() {
+  nextTick(() => {
+    scrollToBottom(false)
+  })
 }
 
 defineExpose({
   checkModel: checkModelAvailability,
 })
 </script>
+<style>
+.chat-content h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+}
+.chat-content h2 {
+  font-size: 1.3em;
+  font-weight: 700;
+}
+.chat-content h3 {
+  font-size: 1.1em;
+  font-weight: 700;
+}
+.chat-content h4 {
+  font-size: 1em;
+  font-weight: 600;
+}
+.chat-content h5 {
+  font-size: 0.9em;
+  font-weight: 600;
+}
+pre.shiki {
+  padding: 1rem 1rem;
+  border-bottom-left-radius: calc(var(--radius) - 2px);
+  border-bottom-right-radius: calc(var(--radius) - 2px);
+}
+</style>
