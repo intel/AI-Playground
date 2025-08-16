@@ -3,7 +3,7 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { UvPipService, LongLivedPythonApiService, PythonService } from './service.ts'
-import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { levelZeroDeviceSelectorEnv, vulkanDeviceSelectorEnv } from './deviceDetection.ts'
 import { promisify } from 'node:util'
 import { net } from 'electron'
 import getPort, { portNumbers } from 'get-port'
@@ -59,9 +59,82 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   isSetUp = this.serviceIsSetUp()
 
   async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
+    try {
+      // Check if llama-server.exe exists
+      if (!filesystem.existsSync(this.llamaCppRestExePath)) {
+        this.appLogger.warn('llama-server.exe not found, using default device', this.name)
+        this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+        return
+      }
+
+      this.appLogger.info('Detecting devices using llama-server.exe --list-devices', this.name)
+      
+      // Execute llama-server.exe --list-devices
+      const { stdout } = await execAsync(`"${this.llamaCppRestExePath}" --list-devices`, {
+        cwd: this.llamaCppRestDir,
+        env: {
+          ...process.env,
+        },
+        timeout: 10000 // 10 second timeout
+      })
+
+      // Parse the output
+      const availableDevices: Array<{ id: string; name: string }> = []
+      const lines = stdout.split('\n').map(line => line.trim()).filter(line => line !== '')
+      
+      let foundDevicesSection = false
+      for (const line of lines) {
+        if (line.startsWith('Available devices:')) {
+          foundDevicesSection = true
+          continue
+        }
+        
+        if (foundDevicesSection && line.includes(':')) {
+          // Parse lines like "Vulkan0: Intel(R) Arc(TM) A750 Graphics (7824 MiB, 7824 MiB free)"
+          const colonIndex = line.indexOf(':')
+          if (colonIndex > 0) {
+            let deviceId = line.substring(0, colonIndex).trim()
+            const deviceInfo = line.substring(colonIndex + 1).trim()
+            
+            // Strip "Vulkan" prefix from device ID (e.g., "Vulkan0" -> "0")
+            if (deviceId.startsWith('Vulkan')) {
+              deviceId = deviceId.substring(6) // Remove "Vulkan" prefix
+            }
+            
+            // Extract just the device name (before the memory info in parentheses)
+            // Look for the last parenthesis that contains memory info like "(7824 MiB, 7824 MiB free)"
+            const lastParenIndex = deviceInfo.lastIndexOf('(')
+            let deviceName = deviceInfo
+            
+            if (lastParenIndex > 0) {
+              const memoryInfo = deviceInfo.substring(lastParenIndex)
+              // Check if this parenthesis contains memory information (MiB, GiB, etc.)
+              if (memoryInfo.includes('MiB') || memoryInfo.includes('GiB') || memoryInfo.includes('free')) {
+                deviceName = deviceInfo.substring(0, lastParenIndex).trim()
+              }
+            }
+            
+            availableDevices.push({
+              id: deviceId,
+              name: deviceName
+            })
+          }
+        }
+      }
+
+      this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+      
+      // Add AUTO option and set selection (select first Vulkan device if available, otherwise AUTO)
+      this.devices = availableDevices.map((d, index) => ({
+          ...d,
+          selected: index === 0
+        }))
+      
+    } catch (error) {
+      this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
+      // Fallback to default device on error
+      this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+    }
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -201,12 +274,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
     const additionalEnvVariables = {
       PYTHONNOUSERSITE: 'true',
-      SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-      SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
       LLAMA_LLM_PORT: currentLlmPort.toString(),
       LLAMA_EMBEDDING_PORT: currentEmbeddingPort.toString(),
-      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
     this.appLogger.info(
@@ -483,6 +554,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         '999',
         '--ctx-size',
         contextSize?.toFixed() ?? '8192',
+        '--log-prefix',
       ]
 
       const childProcess = spawn(this.llamaCppRestExePath, args, {
@@ -506,17 +578,23 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       }
 
       childProcess.stdout!.on('data', (message) => {
-        if (message.toString().startsWith('INFO')) {
+        if (message.toString().startsWith('I ')) {
           this.appLogger.info(`${message}`, this.name)
-        } else if (message.toString().startsWith('WARN')) {
+        } else if (message.toString().startsWith('W ')) {
           this.appLogger.warn(`${message}`, this.name)
-        } else {
+        } else if (message.toString().startsWith('E '))  {
           this.appLogger.error(`${message}`, this.name)
         }
       })
 
       childProcess.stderr!.on('data', (message) => {
-        this.appLogger.error(`${message}`, this.name)
+        if (message.toString().startsWith('I ')) {
+          this.appLogger.info(`${message}`, this.name)
+        } else if (message.toString().startsWith('W ')) {
+          this.appLogger.warn(`${message}`, this.name)
+        } else if (message.toString().startsWith('E '))  {
+          this.appLogger.error(`${message}`, this.name)
+        }
       })
 
       // Set up process event handlers
