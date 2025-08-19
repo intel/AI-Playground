@@ -26,7 +26,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
 
-  private version = 'b6178'
+  private version = 'b6202'
 
   healthEndpointUrl = `${this.baseUrl}/health`
 

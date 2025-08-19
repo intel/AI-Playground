@@ -14,9 +14,9 @@ const codeRenderer = markedShiki({
     })
   },
   container: `<div class=" rounded-md my-4 code-section">
-        <div class="flex justify-between items-center relative text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
+        <div class="flex justify-between items-center sticky -top-4 text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
           <span>%l</span>
-          <button class="flex items-center justify-end copy-code" ===ORIGINALCODE%t===>
+          <button class="hidden flex items-center justify-end copy-code" ===ORIGINALCODE%t===>
             <span class="svg-icon i-copy w-4 h-4 mr-1 pointer-events-none"></span><span class="pointer-events-none">Copy</span>
           </button>
         </div>
@@ -36,7 +36,7 @@ const htmlEscaper = {
           .replace(/'/g, '&#39;')
       }
     } catch (error) {
-      console.error('error while html escaping', {error, token})
+      console.error('error while html escaping', { error, token })
     }
   },
 }
@@ -44,7 +44,7 @@ const htmlEscaper = {
 const dataCodeFixer = (input: string) => {
   try {
     if (input.includes('===ORIGINALCODE') && input.includes('===')) {
-      return input.replace(/===ORIGINALCODE(.*?)===>/gs, (match, data) => {
+      return input.replace(/===ORIGINALCODE(.*?)===/gs, (_, data) => {
         return `data-code="${stringToBase64(data)}"`
       })
     }
@@ -69,7 +69,6 @@ export const parser = new Marked({
     },
   })
 
-
 export const plainParser = new Marked({
   pedantic: false,
   gfm: true,
@@ -81,13 +80,13 @@ export const parse = async (input: string) => {
   try {
     return await parser.parse(input)
   } catch (error) {
-    console.error('error while parsing', {error, input})
+    console.error('error while parsing', { error, input })
   }
-  
+
   try {
     return await plainParser.parse(input)
   } catch (error) {
-    console.error('error while plain parsing', {error, input})
+    console.error('error while plain parsing', { error, input })
     return input
   }
 }

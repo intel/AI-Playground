@@ -291,10 +291,7 @@
                   class="border-l-2 border-gray-400 pl-4 text-gray-300"
                   v-html="thinkOut"
                 ></div>
-                <div
-                  class="mt-2 text-white"
-                  v-html="textOut"
-                ></div>
+                <div class="mt-2 text-white" v-html="textOut"></div>
               </template>
               <template v-else>
                 <span v-html="textOut"></span>
@@ -440,9 +437,6 @@
             "
           ></drop-down-new>
         </div>
-        <div>
-          <button @click="generateTestConversation">AddTestOutput</button>
-        </div>
       </div>
       <div
         class="w-full h-32 gap-3 flex-none flex items-center pt-2"
@@ -494,7 +488,7 @@ import * as util from '@/assets/js/util'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
-import { parse, parser } from '@/assets/js/markdownParser'
+import { parse } from '@/assets/js/markdownParser'
 import DropDownNew from '@/components/DropDownNew.vue'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
@@ -783,107 +777,17 @@ async function updateTitle(conversation: ChatItem[]) {
   conversation[0].title = newTitle
 }
 
-async function generateTestConversation() {
-  const testOutputs = [
-    `Below is a **minimal, self‑contained Elixir implementation of a very simple “Asteroids”‑style game** that runs entirely in the terminal.  
-It uses only the Elixir standard library – no external dependencies – so you can copy‑paste it into a file (e.g. \`asteroids.exs\`) and run it with \`elixir asteroids.exs\`.
-
-> **What this code does**  
-> * A 2‑D grid (30×15 characters) is drawn on the console.  
-> * A ship (\`A\`) sits at the bottom and can move left/right with \`← / →\` keys.  
-> * Asteroids (\`*\`) appear at the top and fall one row every tick.  
-> * The ship can fire a bullet (\`|\`) upward with the \`space\` bar.  
-> * Collisions destroy an asteroid (or the ship) and increment the score.  
-> * The game ends when the ship is hit.
-
-> **How to play**  
-> 1. Save the code below as \`asteroids.exs\`.  
-> 2. Run \`elixir asteroids.exs\`.  
-> 3. Control the ship with the left/right arrow keys and shoot with the space bar.  
-> 4. The game prints the score and ends when the ship is destroyed.
-
----
-
-## 1️⃣  The Code
-
-\`\`\`elixir
-#!/usr/bin/env elixir
-# ---------------------------------------------------------------
-#  Simple Terminal Asteroids – El
-\`\`\`
-`,
-    `Should I output <html></html> or
-\`\`\`java
-public class Main {
-  public static void main(String[] args) {
-    System.out.println("Hello World");
-  }
-}
-\`\`\`
-some delicious java?
-</think>
-
-Maybe neither 🙃
-`,
-    `---
-# Hi
-**this is html:**
-
-\`\`\`html
-<ul>
-    <li>one</li>
-    <li>two</li>
-</ul>
-\`\`\`
-Do you see the <ul> and </li> tags?`,
-    `
-This is code:
-\`\`\`typescript
-const bla = ['blubb']
-bla.map((s) => s.uppercase())
-\`\`\`
-`,
-  ]
-  for (const output of testOutputs) {
-    const key = conversations.activeKey
-
-    const thinkResponse = textInference.extractPreMarker(output, 'OpenVINO/Qwen3-8B-int4-cw-ov')
-    let response = textInference.extractPostMarker(output, 'OpenVINO/Qwen3-8B-int4-cw-ov')
-    if (response === '') response = output
-
-    console.log('parsing', response)
-    const parsedThinkingText = await parse(thinkResponse)
-    const parsedAnswer = await parse(response)
-    console.log('parsedAnswer', parsedAnswer)
-    conversations.addToActiveConversation(key, {
-      question: textIn.value,
-      answer: receiveOut, // No longer append source to answer
-      parsedAnswer,
-      parsedThinkingText,
-      metrics: {
-        first_token_latency: 100,
-        num_tokens: 200,
-        overall_tokens_per_second: 300,
-        second_plus_tokens_per_second: 400,
-        total_time: 500,
-      },
-      model: 'OpenVINO/Qwen3-8B-int4-cw-ov',
-      ragSource: undefined, // Store source separately
-      showRagSource: showRagPreview.value, // Initially collapsed
-      showThinkingText: false,
-      reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
-      createdAt: Date.now(),
-    })
-  }
-}
-
 async function simulatedInput() {
   while (textOutQueue.length > 0) {
     const newText = textOutQueue.shift()!
     receiveOut += newText
     if (thinkingModels[textInference.activeModel ?? '']) {
-      textOut.value = await parse(textInference.extractPostMarker(receiveOut, textInference.activeModel))
-      thinkOut.value = await parse(textInference.extractPreMarker(receiveOut, textInference.activeModel))
+      textOut.value = await parse(
+        textInference.extractPostMarker(receiveOut, textInference.activeModel),
+      )
+      thinkOut.value = await parse(
+        textInference.extractPreMarker(receiveOut, textInference.activeModel),
+      )
     } else {
       textOut.value = await parse(receiveOut)
     }
@@ -912,7 +816,6 @@ async function simulatedInput() {
         actualRagResults && actualRagResults.length
           ? textInference.formatRagSources(actualRagResults)
           : null
-
 
       const thinkingOutput = thinkingModels[textInference.activeModel ?? '']
         ? textInference.extractPreMarker(receiveOut, textInference.activeModel)
@@ -954,6 +857,7 @@ async function simulatedInput() {
       chatPanel.querySelectorAll('.copy-code').forEach((item) => {
         console.log('setting copycode listeners for', item)
         const el = item as HTMLElement
+        el.classList.remove('hidden')
         el.removeEventListener('click', copyCode)
         el.addEventListener('click', copyCode)
       })
@@ -1128,8 +1032,12 @@ async function stopGenerate() {
 }
 
 function copyText(text: string) {
-  util.copyText(text)
-  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      toast.success(i18nState.COM_COPY_SUCCESS_TIP)
+    })
+    .catch((e) => console.error('Error while copying text to clipboard', e))
 }
 
 async function addLLMModel() {
@@ -1167,8 +1075,7 @@ function regenerateLastResponse(conversationKey: string) {
 function copyCode(e: MouseEvent) {
   if (!(e.target instanceof HTMLElement)) return
   if (!e.target?.dataset?.code) return
-  util.copyText(base64ToString(e.target?.dataset?.code))
-  toast.success(i18nState.COM_COPY_SUCCESS_TIP)
+  copyText(base64ToString(e.target?.dataset?.code))
 }
 
 function onConversationSelected() {
