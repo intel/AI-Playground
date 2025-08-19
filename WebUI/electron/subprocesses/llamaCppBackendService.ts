@@ -68,68 +68,77 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       }
 
       this.appLogger.info('Detecting devices using llama-server.exe --list-devices', this.name)
-      
+
       // Execute llama-server.exe --list-devices
       const { stdout } = await execAsync(`"${this.llamaCppRestExePath}" --list-devices`, {
         cwd: this.llamaCppRestDir,
         env: {
           ...process.env,
         },
-        timeout: 10000 // 10 second timeout
+        timeout: 10000, // 10 second timeout
       })
 
       // Parse the output
       const availableDevices: Array<{ id: string; name: string }> = []
-      const lines = stdout.split('\n').map(line => line.trim()).filter(line => line !== '')
-      
+      const lines = stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+
       let foundDevicesSection = false
       for (const line of lines) {
         if (line.startsWith('Available devices:')) {
           foundDevicesSection = true
           continue
         }
-        
+
         if (foundDevicesSection && line.includes(':')) {
           // Parse lines like "Vulkan0: Intel(R) Arc(TM) A750 Graphics (7824 MiB, 7824 MiB free)"
           const colonIndex = line.indexOf(':')
           if (colonIndex > 0) {
             let deviceId = line.substring(0, colonIndex).trim()
             const deviceInfo = line.substring(colonIndex + 1).trim()
-            
+
             // Strip "Vulkan" prefix from device ID (e.g., "Vulkan0" -> "0")
             if (deviceId.startsWith('Vulkan')) {
               deviceId = deviceId.substring(6) // Remove "Vulkan" prefix
             }
-            
+
             // Extract just the device name (before the memory info in parentheses)
             // Look for the last parenthesis that contains memory info like "(7824 MiB, 7824 MiB free)"
             const lastParenIndex = deviceInfo.lastIndexOf('(')
             let deviceName = deviceInfo
-            
+
             if (lastParenIndex > 0) {
               const memoryInfo = deviceInfo.substring(lastParenIndex)
               // Check if this parenthesis contains memory information (MiB, GiB, etc.)
-              if (memoryInfo.includes('MiB') || memoryInfo.includes('GiB') || memoryInfo.includes('free')) {
+              if (
+                memoryInfo.includes('MiB') ||
+                memoryInfo.includes('GiB') ||
+                memoryInfo.includes('free')
+              ) {
                 deviceName = deviceInfo.substring(0, lastParenIndex).trim()
               }
             }
-            
+
             availableDevices.push({
               id: deviceId,
-              name: deviceName
+              name: deviceName,
             })
           }
         }
       }
 
-      this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-      
+      this.appLogger.info(
+        `detected devices: ${JSON.stringify(availableDevices, null, 2)}`,
+        this.name,
+      )
+
       // Add AUTO option and set selection (select first Vulkan device if available, otherwise AUTO)
       this.devices = availableDevices.map((d, index) => ({
-          ...d,
-          selected: index === 0
-        }))
-      
+        ...d,
+        selected: index === 0,
+      }))
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       // Fallback to default device on error
@@ -582,7 +591,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
           this.appLogger.info(`${message}`, this.name)
         } else if (message.toString().startsWith('W ')) {
           this.appLogger.warn(`${message}`, this.name)
-        } else if (message.toString().startsWith('E '))  {
+        } else if (message.toString().startsWith('E ')) {
           this.appLogger.error(`${message}`, this.name)
         }
       })
@@ -592,7 +601,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
           this.appLogger.info(`${message}`, this.name)
         } else if (message.toString().startsWith('W ')) {
           this.appLogger.warn(`${message}`, this.name)
-        } else if (message.toString().startsWith('E '))  {
+        } else if (message.toString().startsWith('E ')) {
           this.appLogger.error(`${message}`, this.name)
         }
       })

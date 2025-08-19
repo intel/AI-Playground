@@ -15,6 +15,12 @@
         :class="textInference.fontSizeClass"
         @scroll="handleScroll"
       >
+        <div
+          class="absolute inset-0 flex justify-center items-center bg-black/30 z-10"
+          v-if="textInference.isPreparingBackend"
+        >
+          <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
+        </div>
         <!-- eslint-disable vue/require-v-for-key -->
         <template v-for="(chatItem, i) in conversations.activeConversation">
           <!-- eslint-enable -->
@@ -648,6 +654,11 @@ function dataProcess(line: string) {
         const chunk = data.value
         textOutQueue.push(chunk)
 
+        // Complete backend preparation on first token
+        if (textInference.isPreparingBackend) {
+          textInference.completeBackendPreparation()
+        }
+
         const activeModel = textInference.activeModel
         if (activeModel && thinkingModels[activeModel]) {
           const currentMarker = thinkingModels[activeModel]
@@ -695,6 +706,7 @@ function dataProcess(line: string) {
       break
     case 'error':
       processing.value = false
+      textInference.completeBackendPreparation()
       switch (data.err_type) {
         case 'not_enough_disk_space':
           toast.error(
@@ -930,8 +942,22 @@ async function generate(chatContext: ChatItem[]) {
   }
 
   try {
-    // Ensure backend is ready before inference
-    await textInference.ensureBackendReadiness()
+    // Check if backend preparation is needed
+    if (textInference.needsBackendPreparation) {
+      textInference.startBackendPreparation()
+
+      try {
+        // Ensure backend is ready before inference
+        await textInference.ensureBackendReadiness()
+        // Note: completeBackendPreparation() will be called on first token
+      } catch (error) {
+        textInference.completeBackendPreparation() // Reset state on error
+        throw error
+      }
+    } else {
+      // Ensure backend is ready before inference (for non-preparation cases)
+      await textInference.ensureBackendReadiness()
+    }
 
     const backendToInferenceService = {
       llamaCPP: 'llamacpp-backend',

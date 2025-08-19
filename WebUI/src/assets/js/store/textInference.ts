@@ -92,6 +92,23 @@ export const useTextInference = defineStore(
       ollama: null,
     })
 
+    // Backend readiness state tracking
+    const backendReadinessState = reactive({
+      lastUsedModel: {
+        ipexLLM: null,
+        llamaCPP: null,
+        openVINO: null,
+        ollama: null,
+      } as LlmBackendKV,
+      lastUsedContextSize: {
+        ipexLLM: null,
+        llamaCPP: null,
+        openVINO: null,
+        ollama: null,
+      } as Record<LlmBackend, number | null>,
+      isPreparingBackend: false,
+    })
+
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
         ['ipexLLM', 'llamaCPP', 'openVINO', 'ollama'].includes(m.type),
@@ -187,6 +204,55 @@ export const useTextInference = defineStore(
       console.log('activeEmbeddingModel changed', newActiveEmbeddingModel)
       return newActiveEmbeddingModel
     })
+
+    // Backend preparation computed properties
+    const needsBackendPreparation = computed(() => {
+      const currentModel = activeModel.value
+      const currentContext = contextSize.value
+      const currentBackend = backend.value
+
+      const lastModel = backendReadinessState.lastUsedModel[currentBackend]
+      const lastContext = backendReadinessState.lastUsedContextSize[currentBackend]
+
+      return (
+        currentModel !== lastModel ||
+        (currentBackend === 'llamaCPP' && currentContext !== lastContext)
+      )
+    })
+
+    const preparationReason = computed(
+      (): 'model-change' | 'context-change' | 'backend-switch' | null => {
+        if (!backendReadinessState.isPreparingBackend) return null
+
+        const currentModel = activeModel.value
+        const currentContext = contextSize.value
+        const currentBackend = backend.value
+
+        const lastModel = backendReadinessState.lastUsedModel[currentBackend]
+        const lastContext = backendReadinessState.lastUsedContextSize[currentBackend]
+
+        if (currentModel !== lastModel) return 'model-change'
+        if (currentBackend === 'llamaCPP' && currentContext !== lastContext) return 'context-change'
+        return 'backend-switch'
+      },
+    )
+
+    const preparationMessage = computed(() => {
+      const reason = preparationReason.value
+      const currentBackend = backend.value
+
+      switch (reason) {
+        case 'model-change':
+          return `Loading ${activeModel.value} model...`
+        case 'context-change':
+          return `Adjusting context size to ${contextSize.value}...`
+        case 'backend-switch':
+          return `Preparing ${textInferenceBackendDisplayName[currentBackend]} backend...`
+        default:
+          return 'Preparing AI model...'
+      }
+    })
+
     const metricsEnabled = ref(false)
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
@@ -526,6 +592,22 @@ export const useTextInference = defineStore(
       return formattedResults.join('\n')
     }
 
+    // Backend preparation methods
+    function startBackendPreparation() {
+      backendReadinessState.isPreparingBackend = true
+    }
+
+    function completeBackendPreparation() {
+      backendReadinessState.isPreparingBackend = false
+      updateLastUsedConfig()
+    }
+
+    function updateLastUsedConfig() {
+      const currentBackend = backend.value
+      backendReadinessState.lastUsedModel[currentBackend] = activeModel.value ?? null
+      backendReadinessState.lastUsedContextSize[currentBackend] = contextSize.value
+    }
+
     async function ensureBackendReadiness(): Promise<void> {
       if (backend.value === 'llamaCPP') {
         const serviceName = backendToService[backend.value]
@@ -585,6 +667,15 @@ export const useTextInference = defineStore(
       extractPostMarker,
       formatRagSources,
       ensureBackendReadiness,
+
+      // Backend preparation state and methods
+      isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),
+      needsBackendPreparation,
+      preparationReason,
+      preparationMessage,
+      startBackendPreparation,
+      completeBackendPreparation,
+      updateLastUsedConfig,
     }
   },
   {
