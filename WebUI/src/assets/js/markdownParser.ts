@@ -5,6 +5,10 @@ import { stringToBase64 } from 'uint8array-extras'
 
 const langs = Object.keys(bundledLanguages).concat(Object.keys(bundledLanguagesAlias))
 
+const startMarker = '===ORIGINALCODE'
+const endMarker = 'ENDOFORIGINALCODE==='
+const replaceRegex = new RegExp(`${startMarker}(.*?)${endMarker}`, 'gs')
+
 const codeRenderer = markedShiki({
   highlight(code, lang, props) {
     return codeToHtml(code, {
@@ -16,7 +20,7 @@ const codeRenderer = markedShiki({
   container: `<div class=" rounded-md my-4 code-section">
         <div class="flex justify-between items-center sticky -top-4 text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
           <span>%l</span>
-          <button class="hidden flex items-center justify-end copy-code" ===ORIGINALCODE%t===>
+          <button class="hidden flex items-center justify-end copy-code" ${startMarker}%t${endMarker}>
             <span class="svg-icon i-copy w-4 h-4 mr-1 pointer-events-none"></span><span class="pointer-events-none">Copy</span>
           </button>
         </div>
@@ -43,8 +47,8 @@ const htmlEscaper = {
 
 const dataCodeFixer = (input: string) => {
   try {
-    if (input.includes('===ORIGINALCODE') && input.includes('===')) {
-      return input.replace(/===ORIGINALCODE(.*?)===/gs, (_, data) => {
+    if (input.includes(startMarker) && input.includes(endMarker)) {
+      return input.replace(replaceRegex, (_, data) => {
         return `data-code="${stringToBase64(data)}"`
       })
     }
