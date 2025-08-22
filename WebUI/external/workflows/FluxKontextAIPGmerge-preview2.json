@@ -1,7 +1,8 @@
 {
-  "name": "Flux-Kontext",
+  "name": "Edit By Prompt",
   "displayPriority": 200,
   "backend": "comfyui",
+  "category": "edit-images",
   "comfyUIRequirements": {
     "customNodes": [
       "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb"
@@ -25,7 +26,7 @@
       }
     ]
   },
-  "tags": ["preview"],
+  "tags": ["Flux.1-Kontext"],
   "requirements": ["high-vram"],
   "inputs": [
     {
@@ -69,7 +70,7 @@
     "batchSize": 1
   },
   "displayedSettings": [],
-  "modifiableSettings": ["seed", "resolution"],
+  "modifiableSettings": ["seed", "inferenceSteps", "resolution"],
   "comfyUiApiWorkflow": {
     "6": {
       "inputs": {

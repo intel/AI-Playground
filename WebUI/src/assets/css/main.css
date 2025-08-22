@@ -88,6 +88,7 @@ textarea {
   margin-top: -1px;
   background-color: var(--color-panel-focus);
   overflow: hidden;
+  height: 0;
 }
 
 .main-content-area {
