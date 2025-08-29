@@ -4,7 +4,7 @@ import * as filesystem from 'fs-extra'
 import fsPromises from 'fs/promises'
 import path from 'node:path'
 import { appLoggerInstance } from '../logging/logger.ts'
-import { existingFileOrError, spawnProcessAsync } from './osProcessHelper'
+import { existingFileOrError, spawnProcessAsync, ProcessError } from './osProcessHelper'
 import { assert } from 'node:console'
 import { createHash } from 'crypto'
 
@@ -14,6 +14,112 @@ import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
 
 const exec = promisify(childProcess.exec)
+
+// Type for error details that matches SetupProgress.errorDetails
+export interface ErrorDetails {
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timestamp?: string
+  duration?: number
+}
+
+export function createEnhancedErrorDetails(error: unknown, context?: string): ErrorDetails {
+  const timestamp = new Date().toISOString()
+
+  if (error instanceof ProcessError) {
+    return {
+      command: `${error.result.command} ${error.result.args.join(' ')}`,
+      exitCode: error.result.exitCode,
+      stdout: error.result.stdout,
+      stderr: error.result.stderr,
+      timestamp: error.result.timestamp,
+      duration: error.result.duration,
+    }
+  }
+
+  if (error instanceof Error) {
+    // Handle regular Error objects
+    const errorDetails: ErrorDetails = {
+      timestamp,
+    }
+
+    // Extract information based on error message patterns
+    const message = error.message
+
+    // Network/HTTP errors (e.g., "Failed to download Llamacpp: Not Found")
+    if (message.includes('Failed to download') || message.includes('fetch')) {
+      errorDetails.command = context ? `Download from ${context}` : 'Network request'
+
+      // Try to extract HTTP status from message
+      const statusMatch = message.match(
+        /(\d{3})\s*(Not Found|Forbidden|Internal Server Error|Bad Gateway|Service Unavailable)/i,
+      )
+      if (statusMatch) {
+        errorDetails.exitCode = parseInt(statusMatch[1])
+      }
+
+      errorDetails.stderr = message
+    }
+    // PowerShell/extraction errors
+    else if (
+      message.includes('powershell') ||
+      message.includes('Expand-Archive') ||
+      message.includes('extract')
+    ) {
+      errorDetails.command = context ? `PowerShell extraction: ${context}` : 'PowerShell command'
+      errorDetails.stderr = message
+
+      // Try to extract exit code if present
+      const exitCodeMatch = message.match(/exit code (\d+)/i)
+      if (exitCodeMatch) {
+        errorDetails.exitCode = parseInt(exitCodeMatch[1])
+      }
+    }
+    // File system errors
+    else if (
+      message.includes('ENOENT') ||
+      message.includes('EACCES') ||
+      message.includes('EPERM')
+    ) {
+      errorDetails.command = context ? `File operation: ${context}` : 'File system operation'
+      errorDetails.stderr = message
+
+      // Map common file system errors to exit codes
+      if (message.includes('ENOENT'))
+        errorDetails.exitCode = 2 // File not found
+      else if (message.includes('EACCES'))
+        errorDetails.exitCode = 13 // Permission denied
+      else if (message.includes('EPERM')) errorDetails.exitCode = 1 // Operation not permitted
+    }
+    // Git errors
+    else if (message.includes('git') || message.includes('clone') || message.includes('checkout')) {
+      errorDetails.command = context ? `Git operation: ${context}` : 'Git command'
+      errorDetails.stderr = message
+    }
+    // Generic error
+    else {
+      errorDetails.command = context || 'Unknown operation'
+      errorDetails.stderr = message
+    }
+
+    // Add stack trace if available (truncated for readability)
+    if (error.stack) {
+      const stackLines = error.stack.split('\n').slice(0, 5) // First 5 lines
+      errorDetails.stdout = `Stack trace:\n${stackLines.join('\n')}`
+    }
+
+    return errorDetails
+  }
+
+  // Handle non-Error objects (strings, etc.)
+  return {
+    command: context || 'Unknown operation',
+    stderr: String(error),
+    timestamp,
+  }
+}
 
 const aipgBaseDir = () =>
   app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
@@ -158,7 +264,23 @@ abstract class ExecutableService extends GenericServiceImpl {
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     const exePath = existingFileOrError(this.getExePath())
-    return spawnProcessAsync(exePath, args, (data) => this.log(data), extraEnv, workDir)
+    try {
+      return await spawnProcessAsync(exePath, args, (data) => this.log(data), extraEnv, workDir)
+    } catch (error) {
+      if (error instanceof ProcessError) {
+        // Log detailed error information
+        this.logError(`Command failed: ${error.result.command} ${error.result.args.join(' ')}`)
+        this.logError(`Exit code: ${error.result.exitCode}`)
+        this.logError(`Duration: ${error.result.duration}ms`)
+        if (error.result.stderr) {
+          this.logError(`STDERR: ${error.result.stderr}`)
+        }
+        if (error.result.stdout) {
+          this.log(`STDOUT: ${error.result.stdout}`)
+        }
+      }
+      throw error
+    }
   }
 }
 

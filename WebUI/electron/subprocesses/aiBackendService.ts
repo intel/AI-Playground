@@ -8,6 +8,7 @@ import {
   installHijacks,
   LongLivedPythonApiService,
   UvPipService,
+  createEnhancedErrorDetails,
 } from './service.ts'
 import { Arch, getBestDevice } from './deviceArch.ts'
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
@@ -51,10 +52,14 @@ export class AiBackendService extends LongLivedPythonApiService {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
 
+    // Track the current step being executed
+    let currentStep = 'start'
+
     try {
+      currentStep = 'start'
       yield {
         serviceName: this.name,
-        step: 'start',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'starting to set up environment',
       }
@@ -62,16 +67,11 @@ export class AiBackendService extends LongLivedPythonApiService {
       await this.uvPip.ensureInstalled()
 
       const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
-      yield {
-        serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `detected intel hardware ${deviceArch}`,
-      }
 
+      currentStep = 'install dependencies'
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
@@ -112,15 +112,16 @@ export class AiBackendService extends LongLivedPythonApiService {
 
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
 
       this.setStatus('notYetStarted')
+      currentStep = 'end'
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'success',
         debugMessage: `service set up completely`,
       }
@@ -128,11 +129,15 @@ export class AiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
+
+      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'failed',
         debugMessage: `Failed to setup python environment due to ${e}`,
+        errorDetails,
       }
     }
   }

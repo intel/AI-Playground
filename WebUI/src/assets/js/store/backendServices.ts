@@ -1,5 +1,14 @@
 import { defineStore } from 'pinia'
 
+interface ErrorDetails {
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timestamp?: string
+  duration?: number
+}
+
 const backends = [
   'openvino-backend',
   'ai-backend',
@@ -117,13 +126,16 @@ export const useBackendServices = defineStore(
 
     async function setUpService(
       serviceName: BackendServiceName,
-    ): Promise<{ success: boolean; logs: SetupProgress[] }> {
+    ): Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }> {
       console.log('starting setup')
       const listener = serviceListeners.get(serviceName)
       if (!listener) {
         throw new Error(`service name ${serviceName} not found.`)
       }
+
+      listener.clearErrorDetails()
       listener.isActive = true
+
       try {
         await stopService(serviceName)
       } catch {
@@ -131,8 +143,13 @@ export const useBackendServices = defineStore(
       }
       window.electronAPI.sendSetUpSignal(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
-      await detectDevices(serviceName)
+      if (result.success) await detectDevices(serviceName)
       return result
+    }
+
+    function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
+      const listener = serviceListeners.get(serviceName)
+      return listener?.getLastErrorDetails() || null
     }
 
     async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
@@ -225,6 +242,7 @@ export const useBackendServices = defineStore(
       detectDevices,
       selectDevice,
       ensureBackendReadiness,
+      getServiceErrorDetails,
     }
   },
   {
@@ -240,6 +258,7 @@ class BackendServiceSetupProgressListener {
   private collectedSetupProgress: SetupProgress[] = []
   private terminalUpdateReceived = false
   private installationSuccess: boolean = false
+  private lastErrorDetails: ErrorDetails | null = null
 
   constructor(associatedServiceName: string) {
     this.associatedServiceName = associatedServiceName
@@ -253,6 +272,10 @@ class BackendServiceSetupProgressListener {
 
     if (this.isActive && data.serviceName == this.associatedServiceName) {
       this.collectedSetupProgress.push(data)
+
+      if (data.status === 'failed' && data.errorDetails) {
+        this.lastErrorDetails = data.errorDetails
+      }
       if (data.status === 'success' || data.status == 'failed') {
         this.terminalUpdateReceived = true
         this.isActive = false
@@ -268,18 +291,44 @@ class BackendServiceSetupProgressListener {
       return await new Promise((resolve) => {
         setTimeout(() => {
           resolve(this.awaitFinalization())
-        }, 1000)
+        }, 200)
       })
     }
   }
 
-  async awaitFinalizationAndResetData(): Promise<{ success: boolean; logs: SetupProgress[] }> {
+  async awaitFinalizationAndResetData(): Promise<{
+    success: boolean
+    logs: SetupProgress[]
+    errorDetails?: ErrorDetails | null
+  }> {
     return this.awaitFinalization().then((collectedSetupProgress) => {
-      console.log(`server startup complete for ${this.associatedServiceName}`)
+      console.log(`server startup complete for ${this.associatedServiceName}`, {
+        collectedSetupProgress,
+        success: this.installationSuccess,
+        errorDetails: this.lastErrorDetails,
+      })
       const clonedSetupProgress = collectedSetupProgress.slice()
+      const clonedErrorDetails = this.lastErrorDetails
+
       this.collectedSetupProgress = []
       this.terminalUpdateReceived = false
-      return { success: this.installationSuccess, logs: clonedSetupProgress }
+      // Don't reset lastErrorDetails here - keep them for UI access
+
+      return {
+        success: this.installationSuccess,
+        logs: clonedSetupProgress,
+        errorDetails: clonedErrorDetails,
+      }
     })
+  }
+
+  // Clear error details when starting a new installation
+  clearErrorDetails() {
+    this.lastErrorDetails = null
+  }
+
+  // Getter for current error details (for UI to access)
+  getLastErrorDetails(): ErrorDetails | null {
+    return this.lastErrorDetails
   }
 }

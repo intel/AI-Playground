@@ -112,6 +112,14 @@ type SetupProgress = {
   step: string
   status: 'executing' | 'failed' | 'success'
   debugMessage: string
+  errorDetails?: {
+    command?: string
+    exitCode?: number
+    stdout?: string
+    stderr?: string
+    timestamp?: string
+    duration?: number
+  }
 }
 
 type Chrome = {

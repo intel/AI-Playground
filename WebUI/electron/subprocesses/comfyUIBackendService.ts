@@ -12,7 +12,9 @@ import {
   hijacksDir,
   installHijacks,
   patchFile,
+  createEnhancedErrorDetails,
 } from './service.ts'
+import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
 import { Arch } from './deviceArch.ts'
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
@@ -128,8 +130,19 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       )
       try {
         await this.uvPip.checkRequirementsTxt(requirementsTextPath)
-      } catch (_e) {
-        await this.uvPip.run(['install', '-r', requirementsTextPath])
+      } catch (_checkError) {
+        // If requirements check fails, attempt to install them
+        // Allow ProcessError instances to propagate to main error handler
+        try {
+          await this.uvPip.run(['install', '-r', requirementsTextPath])
+        } catch (installError) {
+          // Re-throw ProcessError instances to preserve enhanced error details
+          if (installError instanceof ProcessError) {
+            throw installError
+          }
+          // For other errors, wrap with context
+          throw new Error(`Failed to install requirements after check failed: ${installError}`)
+        }
       }
     }
 
@@ -159,16 +172,27 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           `Configured extra model paths for comfyUI at ${extraModelPathsYaml} as ${extraModelsYaml} `,
           this.name,
         )
-      } catch (_e) {
-        this.appLogger.error('Failed to configure extra model paths for comfyUI', this.name)
-        throw new Error('Failed to configure extra model paths for comfyUI')
+      } catch (configError) {
+        this.appLogger.error(
+          `Failed to configure extra model paths for comfyUI: ${configError}`,
+          this.name,
+        )
+        // Re-throw ProcessError instances to preserve enhanced error details
+        if (configError instanceof ProcessError) {
+          throw configError
+        }
+        // For other errors, wrap with context
+        throw new Error(`Failed to configure extra model paths for comfyUI: ${configError}`)
       }
     }
 
+    let currentStep = 'start'
+
     try {
+      currentStep = 'start'
       yield {
         serviceName: this.name,
-        step: 'start',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'starting to set up comfyUI environment',
       }
@@ -176,16 +200,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       await this.uvPip.ensureInstalled()
       await this.git.ensureInstalled()
 
+      currentStep = 'install dependencies'
       yield {
         serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `Trying to identify intel hardware`,
-      }
-
-      yield {
-        serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
@@ -208,44 +226,54 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
 
+      currentStep = 'install comfyUI'
       yield {
         serviceName: this.name,
-        step: `install comfyUI`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installing comfyUI base repo`,
       }
       await setupComfyUiBaseService()
       yield {
         serviceName: this.name,
-        step: `install comfyUI`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installation of comfyUI base repo complete`,
       }
 
+      currentStep = 'configure comfyUI'
       yield {
         serviceName: this.name,
-        step: `configure comfyUI`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `configuring comfyUI base repo`,
       }
       await configureComfyUI()
       yield {
         serviceName: this.name,
-        step: `configure comfyUI`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `configured comfyUI base repo`,
       }
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: `updating workflows from intel repository`,
+      }
+      currentStep = 'updating workflows'
       await updateIntelWorkflows()
 
       this.setStatus('notYetStarted')
+      currentStep = 'end'
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'success',
         debugMessage: `service set up completely`,
       }
@@ -253,11 +281,15 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
+
+      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'failed',
         debugMessage: `Failed to setup comfyUI service due to ${e}`,
+        errorDetails,
       }
     }
   }
