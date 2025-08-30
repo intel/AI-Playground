@@ -195,6 +195,7 @@ export type ComfyDynamicInput = z.infer<typeof ComfyDynamicInputSchema>
 
 const ComfyUiWorkflowSchema = z.object({
   name: z.string(),
+  category: z.enum(['create-images', 'edit-images', 'create-videos']).optional(),
   displayPriority: z.number().default(0),
   backend: z.literal('comfyui'),
   comfyUIRequirements: z.object({
@@ -250,6 +251,32 @@ const generalDefaultSettings = {
 export const backendToService: Record<'comfyui' | 'default', BackendServiceName> = {
   comfyui: 'comfyui-backend',
   default: 'ai-backend',
+}
+
+export function findBestResolution(totalPixels: number, aspectRatio: number) {
+  const MIN_SIZE = 256
+  const MAX_SIZE = 1536
+  let bestWidth = 0
+  let bestHeight = 0
+  let minDiff = Infinity
+
+  for (let h = MIN_SIZE; h <= MAX_SIZE; h += 64) {
+    let w = aspectRatio * h
+    w = Math.round(w / 64) * 64
+
+    if (w < MIN_SIZE || w > MAX_SIZE) continue
+
+    const actualPixels = w * h
+    const diff = Math.abs(actualPixels - totalPixels)
+
+    if (diff < minDiff) {
+      minDiff = diff
+      bestWidth = w
+      bestHeight = h
+    }
+  }
+
+  return { width: bestWidth, height: bestHeight, totalPixels: bestWidth * bestHeight }
 }
 
 export const useImageGeneration = defineStore(

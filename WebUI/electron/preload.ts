@@ -93,5 +93,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     serviceName: string,
     llmModelName: string,
     embeddingModelName?: string,
-  ) => ipcRenderer.invoke('ensureBackendReadiness', serviceName, llmModelName, embeddingModelName),
+    contextSize?: number,
+  ) =>
+    ipcRenderer.invoke(
+      'ensureBackendReadiness',
+      serviceName,
+      llmModelName,
+      embeddingModelName,
+      contextSize,
+    ),
 })

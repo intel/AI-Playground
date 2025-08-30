@@ -23,6 +23,9 @@ export const useConversations = defineStore(
 
     function deleteItemFromConversation(conversationKey: string, index: number) {
       conversationList.value[conversationKey].splice(index, 1)
+      if (conversationList.value[conversationKey].length === 0) {
+        deleteConversation(conversationKey)
+      }
     }
 
     const isNewConversation = (key: string) => conversationList.value[key].length === 0

@@ -23,7 +23,7 @@
 
     extracting:
         DetailPrint "Extracting python environment..."
-        nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\prototype-python-env.7z" -o"$INSTDIR\resources"'
+        nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\prototype-python-env.7z" -o"$INSTDIR\resources\prototype-python-env"'
         Delete "$INSTDIR\resources\prototype-python-env.7z"
 
     StrCpy $0 "$INSTDIR"

@@ -100,6 +100,7 @@ export const settings: LocalSettings = {
   enablePreviewFeatures: false,
   isDemoModeEnabled: false,
   demoModeResetInSeconds: null,
+  languageOverride: null,
 }
 
 async function loadSettings() {
@@ -206,6 +207,8 @@ async function createWindow() {
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https:')) shell.openExternal(url)
+    if (url.startsWith('http://localhost')) shell.openExternal(url)
+    if (url.startsWith('http://127.0.0.1')) shell.openExternal(url)
     return { action: 'deny' }
   })
   return win
@@ -396,6 +399,7 @@ function initEventHandle() {
       showBenchmark: settings.showBenchmark,
       isAdminExec: isAdmin(),
       locale: app.getLocale(),
+      languageOverride: settings.languageOverride,
     }
   })
 
@@ -776,9 +780,10 @@ function initEventHandle() {
       serviceName: string,
       llmModelName: string,
       embeddingModelName?: string,
+      contextSize?: number,
     ) => {
       appLogger.info(
-        `Ensuring backend readiness for service: ${serviceName}, LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`,
+        `Ensuring backend readiness for service: ${serviceName}, LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}, Context Size: ${contextSize ?? 'undefined'}`,
         'electron-backend',
       )
       if (!serviceRegistry) {
@@ -795,7 +800,7 @@ function initEventHandle() {
       }
 
       try {
-        await service.ensureBackendReadiness(llmModelName, embeddingModelName)
+        await service.ensureBackendReadiness(llmModelName, embeddingModelName, contextSize)
         appLogger.info(
           `Backend ${serviceName} ready for LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`,
           'electron-backend',

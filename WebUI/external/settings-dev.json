@@ -11,5 +11,6 @@
   "currentTheme": "bmg",
   "enablePreviewFeatures": true,
   "isDemoModeEnabled": false,
-  "demoModeResetInSeconds": null
+  "demoModeResetInSeconds": null,
+  "languageOverride": null
 }

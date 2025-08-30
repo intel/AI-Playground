@@ -3,6 +3,7 @@ env/
 package_res/
 build_resources/
 build_envs/
+/build/
 release/
 WebUI/external/device-service/
 WebUI/external/service/

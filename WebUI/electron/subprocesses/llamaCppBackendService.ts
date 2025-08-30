@@ -3,7 +3,7 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
 import { UvPipService, LongLivedPythonApiService, PythonService } from './service.ts'
-import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { levelZeroDeviceSelectorEnv, vulkanDeviceSelectorEnv } from './deviceDetection.ts'
 import { promisify } from 'node:util'
 import { net } from 'electron'
 import getPort, { portNumbers } from 'get-port'
@@ -26,13 +26,14 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
   readonly isRequired = false
 
-  private version = 'b6050'
+  private version = 'b6202'
 
   healthEndpointUrl = `${this.baseUrl}/health`
 
   private llamaLlmProcess: LlamaServerProcess | null = null
   private llamaEmbeddingProcess: LlamaServerProcess | null = null
   private currentLlmModel: string | null = null
+  private currentContextSize: number | null = null
   private currentEmbeddingModel: string | null = null
 
   private lastPythonWrapperLlmPort: number | null = null
@@ -58,9 +59,91 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   isSetUp = this.serviceIsSetUp()
 
   async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
+    try {
+      // Check if llama-server.exe exists
+      if (!filesystem.existsSync(this.llamaCppRestExePath)) {
+        this.appLogger.warn('llama-server.exe not found, using default device', this.name)
+        this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+        return
+      }
+
+      this.appLogger.info('Detecting devices using llama-server.exe --list-devices', this.name)
+
+      // Execute llama-server.exe --list-devices
+      const { stdout } = await execAsync(`"${this.llamaCppRestExePath}" --list-devices`, {
+        cwd: this.llamaCppRestDir,
+        env: {
+          ...process.env,
+        },
+        timeout: 10000, // 10 second timeout
+      })
+
+      // Parse the output
+      const availableDevices: Array<{ id: string; name: string }> = []
+      const lines = stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+
+      let foundDevicesSection = false
+      for (const line of lines) {
+        if (line.startsWith('Available devices:')) {
+          foundDevicesSection = true
+          continue
+        }
+
+        if (foundDevicesSection && line.includes(':')) {
+          // Parse lines like "Vulkan0: Intel(R) Arc(TM) A750 Graphics (7824 MiB, 7824 MiB free)"
+          const colonIndex = line.indexOf(':')
+          if (colonIndex > 0) {
+            let deviceId = line.substring(0, colonIndex).trim()
+            const deviceInfo = line.substring(colonIndex + 1).trim()
+
+            // Strip "Vulkan" prefix from device ID (e.g., "Vulkan0" -> "0")
+            if (deviceId.startsWith('Vulkan')) {
+              deviceId = deviceId.substring(6) // Remove "Vulkan" prefix
+            }
+
+            // Extract just the device name (before the memory info in parentheses)
+            // Look for the last parenthesis that contains memory info like "(7824 MiB, 7824 MiB free)"
+            const lastParenIndex = deviceInfo.lastIndexOf('(')
+            let deviceName = deviceInfo
+
+            if (lastParenIndex > 0) {
+              const memoryInfo = deviceInfo.substring(lastParenIndex)
+              // Check if this parenthesis contains memory information (MiB, GiB, etc.)
+              if (
+                memoryInfo.includes('MiB') ||
+                memoryInfo.includes('GiB') ||
+                memoryInfo.includes('free')
+              ) {
+                deviceName = deviceInfo.substring(0, lastParenIndex).trim()
+              }
+            }
+
+            availableDevices.push({
+              id: deviceId,
+              name: deviceName,
+            })
+          }
+        }
+      }
+
+      this.appLogger.info(
+        `detected devices: ${JSON.stringify(availableDevices, null, 2)}`,
+        this.name,
+      )
+
+      // Add AUTO option and set selection (select first Vulkan device if available, otherwise AUTO)
+      this.devices = availableDevices.map((d, index) => ({
+        ...d,
+        selected: index === 0,
+      }))
+    } catch (error) {
+      this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
+      // Fallback to default device on error
+      this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+    }
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -200,12 +283,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
     const additionalEnvVariables = {
       PYTHONNOUSERSITE: 'true',
-      SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-      SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
       LLAMA_LLM_PORT: currentLlmPort.toString(),
       LLAMA_EMBEDDING_PORT: currentEmbeddingPort.toString(),
-      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 
     this.appLogger.info(
@@ -256,7 +337,11 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
    * This is called from the frontend before inference to ensure backend readiness
    * Handles both LLM and embedding models when provided
    */
-  async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
+  async ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+  ): Promise<void> {
     this.appLogger.info(
       `Ensuring llamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
       this.name,
@@ -266,8 +351,12 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       let serversChanged = false
 
       // Handle LLM model
-      if (this.currentLlmModel !== llmModelName || !this.llamaLlmProcess?.isReady) {
-        await this.switchModel(llmModelName, 'llm')
+      if (
+        this.currentLlmModel !== llmModelName ||
+        (contextSize && contextSize !== this.currentContextSize) ||
+        !this.llamaLlmProcess?.isReady
+      ) {
+        await this.switchModel(llmModelName, 'llm', contextSize)
         serversChanged = true
         this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
@@ -392,19 +481,30 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
   }
 
-  async switchModel(modelRepoId: string, type: 'llm' | 'embedding'): Promise<number> {
+  async switchModel(
+    modelRepoId: string,
+    type: 'llm' | 'embedding',
+    contextSize?: number,
+  ): Promise<number> {
     this.appLogger.info(`Switching ${type} model to: ${modelRepoId}`, this.name)
 
     try {
       if (type === 'llm') {
-        if (this.currentLlmModel === modelRepoId && this.llamaLlmProcess?.isReady) {
-          this.appLogger.info(`LLM model ${modelRepoId} already loaded`, this.name)
+        if (
+          this.currentLlmModel === modelRepoId &&
+          (!contextSize || contextSize === this.currentContextSize) &&
+          this.llamaLlmProcess?.isReady
+        ) {
+          this.appLogger.info(
+            `LLM model ${modelRepoId} already loaded with context size ${this.currentContextSize}`,
+            this.name,
+          )
           return this.llamaLlmProcess.port
         }
 
         const oldPort = this.llamaLlmProcess?.port
         await this.stopLlamaLlmServer()
-        const process = await this.startLlamaLlmServer(modelRepoId)
+        const process = await this.startLlamaLlmServer(modelRepoId, contextSize)
 
         // Log port change for debugging
         if (oldPort && oldPort !== process.port) {
@@ -441,7 +541,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
   }
 
-  private async startLlamaLlmServer(modelRepoId: string): Promise<LlamaServerProcess> {
+  private async startLlamaLlmServer(
+    modelRepoId: string,
+    contextSize?: number,
+  ): Promise<LlamaServerProcess> {
     try {
       const modelPath = this.resolveModelPath(modelRepoId)
       const port = await getPort({ port: portNumbers(39100, 39199) })
@@ -456,8 +559,11 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         modelPath,
         '--port',
         port.toString(),
-        '-ngl',
-        '999', // GPU layers
+        '--gpu-layers',
+        '999',
+        '--ctx-size',
+        contextSize?.toFixed() ?? '8192',
+        '--log-prefix',
       ]
 
       const childProcess = spawn(this.llamaCppRestExePath, args, {
@@ -480,6 +586,26 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
         isReady: false,
       }
 
+      childProcess.stdout!.on('data', (message) => {
+        if (message.toString().startsWith('I ')) {
+          this.appLogger.info(`${message}`, this.name)
+        } else if (message.toString().startsWith('W ')) {
+          this.appLogger.warn(`${message}`, this.name)
+        } else if (message.toString().startsWith('E ')) {
+          this.appLogger.error(`${message}`, this.name)
+        }
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        if (message.toString().startsWith('I ')) {
+          this.appLogger.info(`${message}`, this.name)
+        } else if (message.toString().startsWith('W ')) {
+          this.appLogger.warn(`${message}`, this.name)
+        } else if (message.toString().startsWith('E ')) {
+          this.appLogger.error(`${message}`, this.name)
+        }
+      })
+
       // Set up process event handlers
       childProcess.on('error', (error: Error) => {
         this.appLogger.error(`LLM server process error: ${error}`, this.name)
@@ -499,6 +625,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
 
       this.llamaLlmProcess = llamaProcess
       this.currentLlmModel = modelRepoId
+      this.currentContextSize = contextSize ?? null
 
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
@@ -680,7 +807,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
   }
 
   private async waitForServerReady(healthUrl: string): Promise<void> {
-    const maxAttempts = 30
+    const maxAttempts = 120
     const delayMs = 1000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {

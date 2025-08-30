@@ -103,6 +103,7 @@ type electronAPI = {
     serviceName: string,
     llmModelName: string,
     embeddingModelName?: string,
+    contextSize?: number,
   ): Promise<{ success: boolean; error?: string }>
 }
 
@@ -208,6 +209,8 @@ type ChatItem = {
   metrics: MetricsData
   question: string
   answer: string
+  parsedAnswer: string
+  parsedThinkingText: string
   title?: string
   model?: string
   showThinkingText?: boolean
