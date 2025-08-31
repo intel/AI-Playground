@@ -24,7 +24,7 @@ export const useI18N = defineStore('i18n', () => {
     { value: 'zh-TW', name: '繁體中文' },
   ])
 
-  window.electronAPI.getLocalSettings().then((settings) => {
+  window.electronAPI.getLocaleSettings().then((settings) => {
     override = settings.languageOverride
     if (override && languageOptions.value.some((l) => l.value === override)) {
       langName.value = override

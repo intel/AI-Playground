@@ -53,6 +53,7 @@ import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
+import z from 'zod'
 
 // }
 // The built directory structure
@@ -91,20 +92,37 @@ const appSize = {
   height: 128,
   maxChatContentHeight: 0,
 }
-
-export const settings: LocalSettings = {
-  isAdminExec: false,
-  debug: 0,
-  availableThemes: ['dark', 'lnl'],
-  currentTheme: 'lnl',
-  comfyUiParameters: [],
-  deviceArchOverride: undefined,
-  enablePreviewFeatures: false,
-  isDemoModeEnabled: false,
-  demoModeResetInSeconds: null,
-  languageOverride: null,
-  remoteRepository: 'intel/ai-playground',
+/* 
+type LocalSettings = {
+  debug: number
+  comfyUiParameters?: string[]
+  deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
+  enablePreviewFeatures?: boolean
+  isAdminExec: boolean
+  availableThemes: Theme[],
+  currentTheme: Theme,
+  isDemoModeEnabled: boolean,
+  demoModeResetInSeconds: number | null,
+  languageOverride: string | null,
+  remoteRepository: string,
 }
+  **/
+const ThemeSchema = z.enum(['dark', 'lnl', 'bmg'])
+const LocalSettingsSchema = z.object({
+  debug: z.boolean().default(false),
+  comfyUiParameters: z.array(z.string()).default([]),
+  deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
+  enablePreviewFeatures: z.boolean().default(false),
+  isAdminExec: z.boolean().default(false),
+  availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg']),
+  currentTheme: ThemeSchema.default('bmg'),
+  isDemoModeEnabled: z.boolean().default(false),
+  demoModeResetInSeconds: z.number().min(1).nullable().default(null),
+  languageOverride: z.string().nullable().default(null),
+  remoteRepository: z.string().default('intel/ai-playground'),
+})
+
+let settings: LocalSettings = LocalSettingsSchema.parse({})
 
 async function loadSettings() {
   const settingPath = app.isPackaged
@@ -113,12 +131,11 @@ async function loadSettings() {
 
   appLogger.info(`loading settings from ${settingPath}`, 'electron-backend')
   if (fs.existsSync(settingPath)) {
-    const loadSettings = JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' }))
-    Object.keys(loadSettings).forEach((key) => {
-      if (key in settings) {
-        settings[key] = loadSettings[key]
-      }
-    })
+    try {
+      settings = LocalSettingsSchema.parse(JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' })))
+    } catch (e) {
+      appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+    }
   }
   appLogger.info(`settings loaded: ${JSON.stringify({ settings })}`, 'electron-backend')
 
@@ -396,11 +413,8 @@ function initEventHandle() {
     }
   })
 
-  ipcMain.handle('getLocalSettings', async () => {
+  ipcMain.handle('getLocaleSettings', async () => {
     return {
-      showIndex: settings.showIndex,
-      showBenchmark: settings.showBenchmark,
-      isAdminExec: isAdmin(),
       locale: app.getLocale(),
       languageOverride: settings.languageOverride,
     }
@@ -847,7 +861,7 @@ function initEventHandle() {
   })
 
   ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
-    return updateIntelWorkflows()
+    return updateIntelWorkflows(settings.remoteRepository)
   })
 
   // Version management IPC handlers for frontend store integration

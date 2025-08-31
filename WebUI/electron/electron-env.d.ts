@@ -34,11 +34,23 @@ type KVObject = {
 type Theme = 'dark' | 'lnl' | 'bmg'
 
 type LocalSettings = {
-  debug: number
-  comfyUiParameters?: string[]
-  deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
-  enablePreviewFeatures?: boolean
-} & KVObject
+  debug: boolean
+  comfyUiParameters: string[]
+  deviceArchOverride: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | null
+  enablePreviewFeatures: boolean
+  isAdminExec: boolean
+  availableThemes: Theme[],
+  currentTheme: Theme,
+  isDemoModeEnabled: boolean,
+  demoModeResetInSeconds: number | null,
+  languageOverride: string | null,
+  remoteRepository: string,
+}
+
+type LocaleSettings = {
+  locale: string
+  languageOverride: string | null
+}
 
 type ThemeSettings = {
   availableThemes: Theme[]

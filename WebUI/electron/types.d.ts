@@ -15,12 +15,6 @@ declare interface ServiceSettings {
   [key: string]: any
 }
 
-// Declare LocalSettings type
-declare interface LocalSettings {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any
-}
-
 // Declare BackendStatus type
 declare type BackendStatus =
   | 'notInstalled'

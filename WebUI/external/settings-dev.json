@@ -1,5 +1,5 @@
 {
-  "debug": 1,
+  "debug": true,
   "comfyUiParameters": [
     "--lowvram",
     "--disable-ipex-optimize",

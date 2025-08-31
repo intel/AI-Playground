@@ -40,7 +40,7 @@ type electronAPI = {
     height: number
     maxChatContentHeight: number
   }>
-  getLocalSettings(): Promise<LocalSettings>
+  getLocaleSettings(): Promise<LocaleSettings>
   getThemeSettings(): Promise<ThemeSettings>
   setWinSize(width: number, height: number): Promise<void>
   showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
