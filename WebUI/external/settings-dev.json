@@ -12,5 +12,6 @@
   "enablePreviewFeatures": true,
   "isDemoModeEnabled": false,
   "demoModeResetInSeconds": null,
-  "languageOverride": null
+  "languageOverride": null,
+  "remoteRepository": "intel/ai-playground"
 }

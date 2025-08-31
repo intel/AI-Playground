@@ -31,6 +31,7 @@ type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
+  resolveBackendVersion(serviceName: string): Promise<{ releaseTag: string; version: string } | undefined>
   openDevTools(): void
   openUrl(url: string): void
   changeWindowMessageFilter(): void
@@ -94,9 +95,9 @@ type electronAPI = {
   uninstall(serviceName: string): Promise<void>
   selectDevice(serviceName: string, deviceId: string): Promise<void>
   detectDevices(serviceName: string): Promise<void>
-  sendStartSignal(serviceName: string): Promise<BackendStatus>
-  sendStopSignal(serviceName: string): Promise<BackendStatus>
-  sendSetUpSignal(serviceName: string): void
+  startService(serviceName: string): Promise<BackendStatus>
+  stopService(serviceName: string): Promise<BackendStatus>
+  setUpService(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
   ensureBackendReadiness(

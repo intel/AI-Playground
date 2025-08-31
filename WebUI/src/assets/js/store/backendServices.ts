@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import z from 'zod'
 
 interface ErrorDetails {
   command?: string
@@ -36,6 +38,15 @@ type ServiceSettings = {
 
 export type BackendServiceName = (typeof backends)[number]
 
+export const BackendVersionSchema = z.object({ releaseTag: z.string().optional(), version: z.string() })
+type BackendVersion = z.infer<typeof BackendVersionSchema>
+
+type BackendVersionState = Record<BackendServiceName, {
+  installed?: BackendVersion
+  uiOverride?: BackendVersion
+  target?: BackendVersion
+}>
+
 export const useBackendServices = defineStore(
   'backendServices',
   () => {
@@ -44,6 +55,19 @@ export const useBackendServices = defineStore(
       backends.map((b) => [b, new BackendServiceSetupProgressListener(b)]),
     )
 
+    const versionState = ref<BackendVersionState>({
+      "ai-backend": {},
+      "comfyui-backend": {},
+      "llamacpp-backend": {},
+      "ollama-backend": {},
+      "openvino-backend": {},
+    })
+
+    backends.forEach((serviceName) => {
+      window.electronAPI.resolveBackendVersion(serviceName).then((version) => {
+        versionState.value[serviceName].target = version
+      })
+    })
     window.electronAPI
       .getServices()
       .catch(async (_reason: unknown) => {
@@ -141,7 +165,11 @@ export const useBackendServices = defineStore(
       } catch {
         console.warn(`service ${serviceName} was not running`)
       }
-      window.electronAPI.sendSetUpSignal(serviceName)
+
+      const versions = versionState.value[serviceName];
+      const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
+      await updateServiceSettings({ serviceName, ...targetVersionSettings })
+      window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
       if (result.success) await detectDevices(serviceName)
       return result
@@ -171,11 +199,11 @@ export const useBackendServices = defineStore(
     }
 
     async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
-      return window.electronAPI.sendStartSignal(serviceName)
+      return window.electronAPI.startService(serviceName)
     }
 
     async function stopService(serviceName: BackendServiceName): Promise<BackendStatus> {
-      return window.electronAPI.sendStopSignal(serviceName)
+      return window.electronAPI.stopService(serviceName)
     }
 
     const lastUsedBackend = ref<BackendServiceName | null>(null)
@@ -230,6 +258,7 @@ export const useBackendServices = defineStore(
       allRequiredRunning,
       initalStartupRequestComplete,
       lastUsedBackend,
+      versionState,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
@@ -247,7 +276,7 @@ export const useBackendServices = defineStore(
   },
   {
     persist: {
-      pick: [],
+      pick: ['versionState'],
     },
   },
 )

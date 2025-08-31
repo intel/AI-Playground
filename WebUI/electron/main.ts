@@ -47,10 +47,12 @@ import {
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
+import { resolveBackendVersion } from './subprocesses/backendVersionManager.ts'
 import getPort, { portNumbers } from 'get-port'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
+import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
 
 // }
 // The built directory structure
@@ -101,6 +103,7 @@ export const settings: LocalSettings = {
   isDemoModeEnabled: false,
   demoModeResetInSeconds: null,
   languageOverride: null,
+  remoteRepository: 'intel/ai-playground',
 }
 
 async function loadSettings() {
@@ -723,7 +726,7 @@ function initEventHandle() {
     },
   )
 
-  ipcMain.handle('sendStartSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {
+  ipcMain.handle('startService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received start signal too early during aipg startup', 'electron-backend')
       return
@@ -735,7 +738,7 @@ function initEventHandle() {
     }
     return service.start()
   })
-  ipcMain.handle('sendStopSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {
+  ipcMain.handle('stopService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received stop signal too early during aipg startup', 'electron-backend')
       return
@@ -747,7 +750,7 @@ function initEventHandle() {
     }
     return service.stop()
   })
-  ipcMain.handle('sendSetUpSignal', async (_event: IpcMainInvokeEvent, serviceName: string) => {
+  ipcMain.handle('setUpService', async (_event: IpcMainInvokeEvent, serviceName: BackendServiceName) => {
     if (!serviceRegistry || !win) {
       appLogger.warn('received setup signal too early during aipg startup', 'electron-backend')
       return
@@ -845,6 +848,11 @@ function initEventHandle() {
 
   ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
     return updateIntelWorkflows()
+  })
+
+  // Version management IPC handlers for frontend store integration
+  ipcMain.handle('resolveBackendVersion', async (_event, serviceName: BackendServiceName) => {
+    return await resolveBackendVersion(serviceName, settings)
   })
 
   const getAssetPathFromUrl = (url: string) => {

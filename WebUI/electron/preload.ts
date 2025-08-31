@@ -20,11 +20,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDevice: (serviceName: string, deviceId: string) =>
     ipcRenderer.invoke('selectDevice', serviceName, deviceId),
   detectDevices: (serviceName: string) => ipcRenderer.invoke('detectDevices', serviceName),
-  sendStartSignal: (serviceName: string) => ipcRenderer.invoke('sendStartSignal', serviceName),
-  sendStopSignal: (serviceName: string) => ipcRenderer.invoke('sendStopSignal', serviceName),
-  sendSetUpSignal: (serviceName: string) => ipcRenderer.invoke('sendSetUpSignal', serviceName),
+  startService: (serviceName: string) => ipcRenderer.invoke('startService', serviceName),
+  stopService: (serviceName: string) => ipcRenderer.invoke('stopService', serviceName),
+  setUpService: (serviceName: string) => ipcRenderer.invoke('setUpService', serviceName),
   updateWorkflowsFromIntelRepo: () => ipcRenderer.invoke('updateWorkflowsFromIntelRepo'),
   reloadImageWorkflows: () => ipcRenderer.invoke('reloadImageWorkflows'),
+  resolveBackendVersion: (serviceName: string) =>
+    ipcRenderer.invoke('resolveBackendVersion', serviceName),
   openDevTools: () => ipcRenderer.send('openDevTools'),
   openUrl: (url: string) => ipcRenderer.send('openUrl', url),
   getLocalSettings: () => ipcRenderer.invoke('getLocalSettings'),
