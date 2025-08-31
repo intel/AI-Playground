@@ -22,8 +22,7 @@ export class AiBackendService extends LongLivedPythonApiService {
 
   readonly isRequired = true
   readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
-  readonly pip = this.uvPip.pip
-  readonly python = this.pip.python
+  readonly python = this.uvPip.python
   healthEndpointUrl = `${this.baseUrl}/healthy`
   serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath())
   isSetUp = this.serviceIsSetUp()
@@ -63,8 +62,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up environment',
       }
-      await this.git.ensureInstalled()
-      await this.uvPip.ensureInstalled()
+      await this.python.ensureInstalled()
 
       const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
 

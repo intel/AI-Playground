@@ -50,7 +50,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.uvPip.ensureInstalled()
+      await this.python.ensureInstalled()
 
       currentStep = 'install dependencies'
       yield {

@@ -25,6 +25,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
   readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
+  readonly python = this.uvPip.python
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
@@ -197,8 +198,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await this.uvPip.ensureInstalled()
-      await this.git.ensureInstalled()
+      await this.python.ensureInstalled()
 
       currentStep = 'install dependencies'
       yield {

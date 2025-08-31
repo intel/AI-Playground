@@ -369,71 +369,28 @@ export class PythonService extends ExecutableService {
   }
 }
 
-export class PipService extends ExecutableService {
+export class UvPipService {
   readonly python: PythonService
+  readonly name = 'uvpip'
+
+  log(msg: string) {
+    appLoggerInstance.info(msg, this.name)
+  }
+
+  logError(msg: string) {
+    appLoggerInstance.error(msg, this.name, true)
+  }
 
   constructor(
-    readonly pythonEnvDir: string,
+    readonly dir: string,
     readonly serviceDir: string,
   ) {
-    super('pip', pythonEnvDir)
-    this.log(`setting up pip service at ${this.dir} for service ${this.serviceDir}`)
+    this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
     this.python = new PythonService(this.dir, this.serviceDir)
   }
 
   getExePath(): string {
     return this.python.getExePath()
-  }
-
-  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    return this.python.run(
-      ['-m', 'pip', ...args],
-      { ...extraEnv, PYTHONNOUSERSITE: 'true' },
-      workDir,
-    )
-  }
-
-  async check(): Promise<void> {
-    this.log('checking')
-    try {
-      await this.python.check()
-      await this.run(['--version'])
-      await this.run(['show', 'setuptools'])
-      return
-    } catch (e) {
-      this.log(`warning: ${e}`)
-      if (e instanceof ServiceCheckError) throw e
-      if (e instanceof Error && e.message.includes('setuptools'))
-        throw new ServiceCheckError(this.name, 'setuptools')
-      throw new ServiceCheckError(this.name)
-    }
-  }
-
-  async install(): Promise<void> {
-    this.log('start installing')
-    await this.python.ensureInstalled()
-    await this.getPip()
-    await this.run(['install', 'setuptools'])
-  }
-
-  async repair(checkError: ServiceCheckError): Promise<void> {
-    this.log('repairing')
-    if (checkError.component !== this.name) {
-      await this.python.repair(checkError)
-    }
-
-    switch (checkError.stage) {
-      default:
-        await this.getPip()
-      // fallthrough
-      case 'setuptools':
-        await this.run(['install', 'setuptools'])
-    }
-  }
-
-  private async getPip(): Promise<void> {
-    const getPipScript = existingFileOrError(path.join(this.dir, 'get-pip.py'))
-    await this.python.run([getPipScript], { PYTHONNOUSERSITE: 'true' })
   }
 
   async installRequirementsTxt(requirementsTxtPath: string): Promise<void> {
@@ -450,22 +407,6 @@ export class PipService extends ExecutableService {
         throw new Error(`requirements check failed: ${e}`)
       })
   }
-}
-
-export class UvPipService extends PipService {
-  readonly pip: PipService
-  readonly python: PythonService
-
-  constructor(
-    readonly pythonEnvDir: string,
-    readonly serviceDir: string,
-  ) {
-    super(pythonEnvDir, serviceDir)
-    this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
-    this.pip = new PipService(this.dir, this.serviceDir)
-    this.python = this.pip.python
-    this.name = 'uvpip'
-  }
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     return this.python.run(
@@ -475,31 +416,11 @@ export class UvPipService extends PipService {
     )
   }
 
-  async check(): Promise<void> {
-    this.log('checking')
-    try {
-      await this.pip.check()
-      await this.run(['--version'])
-    } catch (e) {
-      this.log(`warning: ${e}`)
-      if (e instanceof ServiceCheckError) throw e
-      throw new ServiceCheckError(this.name)
-    }
-  }
+  async check(): Promise<void> {}
 
-  async install(): Promise<void> {
-    this.log('start installing')
-    await this.pip.ensureInstalled()
-    await this.pip.run(['install', 'uv'])
-  }
+  async install(): Promise<void> {}
 
-  async repair(checkError: ServiceCheckError): Promise<void> {
-    this.log('repairing')
-    if (checkError.component !== this.name) {
-      await this.pip.repair(checkError)
-    }
-    await this.pip.run(['install', 'uv'])
-  }
+  async repair(checkError: ServiceCheckError): Promise<void> {}
 }
 
 export class GitService extends ExecutableService {
