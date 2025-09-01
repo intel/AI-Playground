@@ -12,6 +12,7 @@ import * as childProcess from 'node:child_process'
 import { promisify } from 'util'
 import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
+import { LocalSettings } from '../main.ts'
 
 const exec = promisify(childProcess.exec)
 

@@ -7,6 +7,7 @@ import getPort, { portNumbers } from 'get-port'
 import { LlamaCppBackendService } from './llamaCppBackendService.ts'
 import { OpenVINOBackendService } from './openVINOBackendService.ts'
 import { OllamaBackendService } from './ollamaBackendService.ts'
+import { LocalSettings } from '../main.ts'
 
 export type backend = 'ai-backend' | 'comfyui-backend' | 'ollama-backend'
 

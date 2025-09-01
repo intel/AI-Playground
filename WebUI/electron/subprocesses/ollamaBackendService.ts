@@ -8,6 +8,7 @@ import { promisify } from 'util'
 import { exec } from 'child_process'
 import { detectLevelZeroDevices } from './deviceDetection.ts'
 import { getBestDevice } from './deviceArch.ts'
+import { LocalSettings } from '../main.ts'
 
 const execAsync = promisify(exec)
 

@@ -93,21 +93,6 @@ const appSize = {
   height: 128,
   maxChatContentHeight: 0,
 }
-/* 
-type LocalSettings = {
-  debug: number
-  comfyUiParameters?: string[]
-  deviceArchOverride?: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl'
-  enablePreviewFeatures?: boolean
-  isAdminExec: boolean
-  availableThemes: Theme[],
-  currentTheme: Theme,
-  isDemoModeEnabled: boolean,
-  demoModeResetInSeconds: number | null,
-  languageOverride: string | null,
-  remoteRepository: string,
-}
-  **/
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
@@ -121,9 +106,11 @@ const LocalSettingsSchema = z.object({
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
+  huggingfaceEndpoint: z.string().default("https://huggingface.co"),
 })
+export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 
-let settings: LocalSettings = LocalSettingsSchema.parse({})
+let settings = LocalSettingsSchema.parse({})
 
 async function loadSettings() {
   const settingPath = app.isPackaged

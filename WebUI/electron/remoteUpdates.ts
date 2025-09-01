@@ -5,6 +5,7 @@ import { appLoggerInstance } from './logging/logger.ts'
 import { externalResourcesDir } from './util.ts'
 import z from 'zod'
 import { ModelSchema } from '../src/types/shared.ts'
+import { LocalSettings } from './main.ts'
 
 const BackendVersionSchema = z.object({ releaseTag: z.string().optional(), version: z.string() })
 type BackendVersion = z.infer<typeof BackendVersionSchema>
