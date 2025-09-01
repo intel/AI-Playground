@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshInpaintModles: () => ipcRenderer.invoke('refreshInpaintModles'),
   refreshLLMModles: () => ipcRenderer.invoke('refreshLLMModles'),
   refreshLora: () => ipcRenderer.invoke('refreshLora'),
+  loadModels: () => ipcRenderer.invoke('loadModels'),
   getDownloadedDiffusionModels: () => ipcRenderer.invoke('getDownloadedDiffusionModels'),
   getDownloadedInpaintModels: () => ipcRenderer.invoke('getDownloadedInpaintModels'),
   getDownloadedLoras: () => ipcRenderer.invoke('getDownloadedLoras'),

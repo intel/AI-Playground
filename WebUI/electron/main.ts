@@ -47,13 +47,14 @@ import {
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
-import { resolveBackendVersion } from './subprocesses/backendVersionManager.ts'
+import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import getPort, { portNumbers } from 'get-port'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
 import z from 'zod'
+import { ModelSchema } from '../src/types/shared.ts'
 
 // }
 // The built directory structure
@@ -455,7 +456,7 @@ function initEventHandle() {
           lora: '../service/models/stable_diffusion/lora',
           vae: '../service/models/stable_diffusion/vae',
         }
-    pathsManager.updateModelPahts(paths)
+    pathsManager.updateModelPaths(paths)
   })
 
   ipcMain.on('miniWindow', () => {
@@ -562,20 +563,24 @@ function initEventHandle() {
       return
     }
     return {
-      modelLists: pathsManager.sacanAll(),
+      modelLists: pathsManager.scanAll(),
       modelPaths: pathsManager.modelPaths,
       isAdminExec: settings.isAdminExec,
       version: app.getVersion(),
     }
   })
 
+  ipcMain.handle('loadModels', async (_event) => {
+    return resolveModels(settings)
+  })
+
   ipcMain.handle('updateModelPaths', (_event, modelPaths: ModelPaths) => {
-    pathsManager.updateModelPahts(modelPaths)
-    return pathsManager.sacanAll()
+    pathsManager.updateModelPaths(modelPaths)
+    return pathsManager.scanAll()
   })
 
   ipcMain.handle('refreshSDModles', (_event) => {
-    return pathsManager.scanSDModleLists()
+    return pathsManager.scanSDModelLists()
   })
 
   ipcMain.handle('refreshInpaintModles', (_event) => {
@@ -587,11 +592,11 @@ function initEventHandle() {
   })
 
   ipcMain.handle('refreshLLMModles', (_event) => {
-    return pathsManager.scanLLMModles()
+    return pathsManager.scanLLMModels()
   })
 
   ipcMain.handle('getDownloadedDiffusionModels', (_event) => {
-    return pathsManager.scanSDModleLists(false)
+    return pathsManager.scanSDModelLists(false)
   })
 
   ipcMain.handle('getDownloadedInpaintModels', (_event) => {
@@ -603,7 +608,7 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getDownloadedLLMs', (_event) => {
-    return pathsManager.scanLLMModles()
+    return pathsManager.scanLLMModels()
   })
 
   ipcMain.handle('getDownloadedGGUFLLMs', (_event) => {

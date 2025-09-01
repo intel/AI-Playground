@@ -498,8 +498,8 @@ import { parse } from '@/assets/js/markdownParser'
 import DropDownNew from '@/components/DropDownNew.vue'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import { useConversations } from '@/assets/js/store/conversations'
+import { llmBackendTypes } from '@/types/shared'
 import {
-  llmBackendTypes,
   LlmBackend,
   useTextInference,
   thinkingModels,

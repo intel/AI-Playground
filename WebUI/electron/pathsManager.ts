@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { ModelPaths, ModelLists, Model } from '@/assets/js/store/models'
+import type { ModelPaths, ModelLists } from '@/assets/js/store/models'
+import { llmBackendTypes } from '../src/types/shared'
 
-const llmBackendTypes = ['ipexLLM', 'llamaCPP', 'openVINO'] as const
 export class PathsManager {
   modelPaths: ModelPaths = {
     llm: '',
@@ -23,7 +23,7 @@ export class PathsManager {
   loadConfig() {
     this.initModelPaths(JSON.parse(fs.readFileSync(this.configPath).toString()) as ModelPaths)
   }
-  updateModelPahts(modelPaths: ModelPaths) {
+  updateModelPaths(modelPaths: ModelPaths) {
     this.initModelPaths(modelPaths)
     const workDir = process.cwd()
     const savePaths = Object.assign({}, this.modelPaths)
@@ -45,12 +45,12 @@ export class PathsManager {
       }
     })
   }
-  sacanAll(): ModelLists {
+  scanAll(): ModelLists {
     try {
       const model_settings: ModelLists = {
-        stableDiffusion: this.scanSDModleLists(),
+        stableDiffusion: this.scanSDModelLists(),
         inpaint: this.scanInpaint(),
-        llm: this.scanLLMModles(),
+        llm: this.scanLLMModels(),
         lora: this.scanLora(),
         vae: [],
         scheduler: [],
@@ -64,7 +64,7 @@ export class PathsManager {
       throw ex
     }
   }
-  scanSDModleLists(returnDefaults = true) {
+  scanSDModelLists(returnDefaults = true) {
     const models = returnDefaults ? ['Lykon/dreamshaper-8', 'RunDiffusion/Juggernaut-XL-v9'] : []
     const dir = this.modelPaths.stableDiffusion
     if (fs.existsSync(dir)) {
@@ -94,7 +94,7 @@ export class PathsManager {
     }
     return models
   }
-  scanLLMModles() {
+  scanLLMModels() {
     const dir = this.modelPaths.llm
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })

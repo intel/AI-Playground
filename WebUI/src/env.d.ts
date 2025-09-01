@@ -71,6 +71,7 @@ type electronAPI = {
   refreshLLMModles(): Promise<string[]>
   refreshLora(): Promise<string[]>
   refreshInpaintModles(): Promise<string[]>
+  loadModels(): Promise<Model[]>
   getDownloadedDiffusionModels(): Promise<string[]>
   getDownloadedInpaintModels(): Promise<string[]>
   getDownloadedLoras(): Promise<string[]>
@@ -410,4 +411,12 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+}
+
+type Model = {
+    name: string;
+    type: "undefined" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae" | "openVINO" | "ipexLLM" | "llamaCPP" | "ollama";
+    default: boolean;
+    downloaded?: boolean | undefined;
+    backend?: "openVINO" | "ipexLLM" | "llamaCPP" | "ollama" | undefined;
 }
