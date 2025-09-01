@@ -5,7 +5,7 @@
   "copyright": "Copyright © Intel. All rights reserved",
   "extraResources": [
     {
-      "from": "external/service",
+      "from": "../service",
       "to": "service",
       "filter": [
         "**/*",
@@ -22,17 +22,17 @@
       ]
     },
     {
-      "from": "external/backend-shared",
+      "from": "../backend-shared",
       "to": "backend-shared",
       "filter": ["!__pycache__/"]
     },
     {
-      "from": "external/LlamaCPP",
+      "from": "../LlamaCPP",
       "to": "LlamaCPP",
       "filter": ["!__pycache__/"]
     },
     {
-      "from": "external/OpenVINO",
+      "from": "../OpenVINO",
       "to": "OpenVINO",
       "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/", "!emb_model_cache/"]
     },
@@ -41,23 +41,23 @@
       "to": "workflows"
     },
     {
-      "from": "external/device-service",
+      "from": "../device-service",
       "to": "device-service"
     },
     {
-      "from": "external/service/models/stable_diffusion/ESRGAN",
+      "from": "../service/models/stable_diffusion/ESRGAN",
       "to": "service/models/stable_diffusion/ESRGAN"
     },
     {
-      "from": "external/service/models/stable_diffusion/preview",
+      "from": "../service/models/stable_diffusion/preview",
       "to": "service/models/stable_diffusion/preview"
     },
     {
-      "from": "external/7zr.exe",
+      "from": "../build/resources/7zr.exe",
       "to": "7zr.exe"
     },
     {
-      "from": "external/prototype-python-env.7z",
+      "from": "../build/resources/prototype-python-env.7z",
       "to": "prototype-python-env.7z"
     },
     {
@@ -69,11 +69,7 @@
       "to": "settings.json"
     },
     {
-      "from": "external/models",
-      "to": "service/models"
-    },
-    {
-      "from": "external/service/static/assets/",
+      "from": "../service/static/assets/",
       "to": "service/static/assets/"
     },
     {
@@ -83,9 +79,21 @@
   ],
   "productName": "AI Playground",
   "directories": {
-    "output": "../release"
+    "app": ".",
+    "output": "../build/electron",
+    "buildResources": "build"
   },
-  "files": ["dist", "dist-electron"],
+  "files": [
+    {
+      "from": "../build/dist",
+      "to": "dist"
+    },
+    {
+      "from": ".",
+      "to": ".",
+      "filter": ["package.json"]
+    }
+  ],
   "win": {
     "target": [
       {

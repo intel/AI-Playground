@@ -1,6 +1,7 @@
 {
   "name": "Colorize",
   "backend": "comfyui",
+  "category": "edit-images",
   "comfyUIRequirements": {
     "customNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
     "requiredModels": []

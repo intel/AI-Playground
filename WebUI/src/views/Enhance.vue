@@ -361,7 +361,11 @@ import InfoTable from '@/components/InfoTable.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import InpaintMask from '../components/InpaintMask.vue'
 import * as Const from '@/assets/js/const'
-import { useImageGeneration, type GenerateState } from '@/assets/js/store/imageGeneration'
+import {
+  findBestResolution,
+  useImageGeneration,
+  type GenerateState,
+} from '@/assets/js/store/imageGeneration'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useModels } from '@/assets/js/store/models'
 import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
@@ -431,6 +435,8 @@ watchEffect(() => {
   }
 })
 
+watch(() => imageGeneration.activeWorkflowName, setAspectRatioFromCurrentEnhanceImage)
+
 function updateMaskData(e: Event) {
   const image = e.target as HTMLImageElement
   maskData.width = image.clientWidth
@@ -455,6 +461,21 @@ function previewImage(image: File) {
     })
   })
   reader.readAsArrayBuffer(image)
+  setTimeout(setAspectRatioFromCurrentEnhanceImage, 10)
+}
+
+function setAspectRatioFromCurrentEnhanceImage() {
+  if (sourceImage.value?.width && sourceImage.value.height) {
+    const { width, height } = findBestResolution(
+      (imageGeneration.activeWorkflow.defaultSettings?.width ?? imageGeneration.width) *
+        (imageGeneration.activeWorkflow.defaultSettings?.height ?? imageGeneration.height),
+      sourceImage.value?.width / sourceImage.value?.height,
+    )
+    imageGeneration.width = width
+    imageGeneration.height = height
+  } else {
+    console.warn('Could not set aspect ratio based on current enhance image')
+  }
 }
 
 function chooseImage(e: Event) {

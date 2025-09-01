@@ -9,26 +9,6 @@ export async function copyImage(url: string) {
 }
 
 /**
- * Copy text to clipboard
- * @param text
- */
-export async function copyText(text: string) {
-  const textbox = document.createElement('textarea')
-  textbox.value = text
-  textbox.style.opacity = '0'
-  textbox.style.position = 'absolute'
-  textbox.style.left = '-9999px'
-  textbox.style.top = '-9999px'
-  document.body.append(textbox)
-  textbox.select()
-  try {
-    document.execCommand('copy')
-  } finally {
-    textbox.remove()
-  }
-}
-
-/**
  * Execute after X ms delay
  * @param ms millisecond
  * @returns
