@@ -30,6 +30,13 @@ export type ModelType =
   | 'undefined'
   | LlmBackend
 
+export type Model = {
+  name: string
+  downloaded: boolean
+  type: ModelType
+  default: boolean
+  backend?: LlmBackend
+}
 
 export const useModels = defineStore(
   'models',
@@ -37,7 +44,6 @@ export const useModels = defineStore(
     const hfToken = ref<string | undefined>(undefined)
     const models = ref<Model[]>([])
     const backendServices = useBackendServices()
-
 
     const downloadList = ref<DownloadModelParam[]>([])
 
