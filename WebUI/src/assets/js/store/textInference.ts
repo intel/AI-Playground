@@ -4,8 +4,7 @@ import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
-
-export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP', 'ollama'] as const
+import { llmBackendTypes } from '@/types/shared'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -118,7 +117,7 @@ export const useTextInference = defineStore(
         return {
           name: m.name,
           type: m.type as LlmBackend,
-          downloaded: m.downloaded,
+          downloaded: m.downloaded ?? false,
           active:
             m.name === selectedModelForType ||
             (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
@@ -137,7 +136,7 @@ export const useTextInference = defineStore(
         return {
           name: m.name,
           type: m.backend as LlmBackend,
-          downloaded: m.downloaded,
+          downloaded: m.downloaded ?? false,
           active:
             m.name === selectedEmbeddingModelForType ||
             (!llmEmbeddingTypeModels.some((m) => m.name === selectedEmbeddingModelForType) &&

@@ -61,6 +61,14 @@
       "to": "prototype-python-env.7z"
     },
     {
+      "from": "external/backend-versions.json",
+      "to": "backend-versions.json"
+    },
+    {
+      "from": "external/models.json",
+      "to": "models.json"
+    },
+    {
       "from": "external/model_config.json",
       "to": "model_config.json"
     },
@@ -75,6 +83,11 @@
     {
       "from": "../3rdpartynoticeslicenses.txt",
       "to": "3rdpartynoticeslicenses.txt"
+    },
+    {
+      "from": "external",
+      "to": ".",
+      "filter": ["*.whl"]
     }
   ],
   "productName": "AI Playground",

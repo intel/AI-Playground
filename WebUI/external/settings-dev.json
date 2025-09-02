@@ -1,5 +1,5 @@
 {
-  "debug": 1,
+  "debug": true,
   "comfyUiParameters": [
     "--lowvram",
     "--disable-ipex-optimize",
@@ -12,5 +12,7 @@
   "enablePreviewFeatures": true,
   "isDemoModeEnabled": false,
   "demoModeResetInSeconds": null,
-  "languageOverride": null
+  "languageOverride": null,
+  "remoteRepository": "intel/ai-playground",
+  "huggingfaceEndpoint": "https://huggingface.co"
 }

@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { UvPipService, LongLivedPythonApiService } from './service.ts'
+import { UvPipService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
 import { detectOpenVINODevices, openVinoDeviceSelectorEnv } from './deviceDetection.ts'
 
 const serviceFolder = 'openVINO'
@@ -40,18 +40,22 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
 
+    let currentStep = 'start'
+
     try {
+      currentStep = 'start'
       yield {
         serviceName: this.name,
-        step: 'start',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'starting to set up python environment',
       }
-      await this.uvPip.ensureInstalled()
+      await this.python.ensureInstalled()
 
+      currentStep = 'install dependencies'
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
@@ -89,15 +93,16 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
 
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
 
       this.setStatus('notYetStarted')
+      currentStep = 'end'
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'success',
         debugMessage: `service set up completely`,
       }
@@ -105,11 +110,15 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
+
+      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'failed',
         debugMessage: `Failed to setup python environment due to ${e}`,
+        errorDetails,
       }
     }
   }

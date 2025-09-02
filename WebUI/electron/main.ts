@@ -47,10 +47,14 @@ import {
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
+import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import getPort, { portNumbers } from 'get-port'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
+import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
+import z from 'zod'
+import { ModelSchema } from '../src/types/shared.ts'
 
 // }
 // The built directory structure
@@ -89,19 +93,24 @@ const appSize = {
   height: 128,
   maxChatContentHeight: 0,
 }
+const ThemeSchema = z.enum(['dark', 'lnl', 'bmg'])
+const LocalSettingsSchema = z.object({
+  debug: z.boolean().default(false),
+  comfyUiParameters: z.array(z.string()).default([]),
+  deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
+  enablePreviewFeatures: z.boolean().default(false),
+  isAdminExec: z.boolean().default(false),
+  availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg']),
+  currentTheme: ThemeSchema.default('bmg'),
+  isDemoModeEnabled: z.boolean().default(false),
+  demoModeResetInSeconds: z.number().min(1).nullable().default(null),
+  languageOverride: z.string().nullable().default(null),
+  remoteRepository: z.string().default('intel/ai-playground'),
+  huggingfaceEndpoint: z.string().default("https://huggingface.co"),
+})
+export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 
-export const settings: LocalSettings = {
-  isAdminExec: false,
-  debug: 0,
-  availableThemes: ['dark', 'lnl'],
-  currentTheme: 'lnl',
-  comfyUiParameters: [],
-  deviceArchOverride: undefined,
-  enablePreviewFeatures: false,
-  isDemoModeEnabled: false,
-  demoModeResetInSeconds: null,
-  languageOverride: null,
-}
+let settings = LocalSettingsSchema.parse({})
 
 async function loadSettings() {
   const settingPath = app.isPackaged
@@ -110,12 +119,11 @@ async function loadSettings() {
 
   appLogger.info(`loading settings from ${settingPath}`, 'electron-backend')
   if (fs.existsSync(settingPath)) {
-    const loadSettings = JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' }))
-    Object.keys(loadSettings).forEach((key) => {
-      if (key in settings) {
-        settings[key] = loadSettings[key]
-      }
-    })
+    try {
+      settings = LocalSettingsSchema.parse(JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' })))
+    } catch (e) {
+      appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+    }
   }
   appLogger.info(`settings loaded: ${JSON.stringify({ settings })}`, 'electron-backend')
 
@@ -393,11 +401,8 @@ function initEventHandle() {
     }
   })
 
-  ipcMain.handle('getLocalSettings', async () => {
+  ipcMain.handle('getLocaleSettings', async () => {
     return {
-      showIndex: settings.showIndex,
-      showBenchmark: settings.showBenchmark,
-      isAdminExec: isAdmin(),
       locale: app.getLocale(),
       languageOverride: settings.languageOverride,
     }
@@ -438,7 +443,7 @@ function initEventHandle() {
           lora: '../service/models/stable_diffusion/lora',
           vae: '../service/models/stable_diffusion/vae',
         }
-    pathsManager.updateModelPahts(paths)
+    pathsManager.updateModelPaths(paths)
   })
 
   ipcMain.on('miniWindow', () => {
@@ -545,20 +550,24 @@ function initEventHandle() {
       return
     }
     return {
-      modelLists: pathsManager.sacanAll(),
+      modelLists: pathsManager.scanAll(),
       modelPaths: pathsManager.modelPaths,
       isAdminExec: settings.isAdminExec,
       version: app.getVersion(),
     }
   })
 
+  ipcMain.handle('loadModels', async (_event) => {
+    return resolveModels(settings)
+  })
+
   ipcMain.handle('updateModelPaths', (_event, modelPaths: ModelPaths) => {
-    pathsManager.updateModelPahts(modelPaths)
-    return pathsManager.sacanAll()
+    pathsManager.updateModelPaths(modelPaths)
+    return pathsManager.scanAll()
   })
 
   ipcMain.handle('refreshSDModles', (_event) => {
-    return pathsManager.scanSDModleLists()
+    return pathsManager.scanSDModelLists()
   })
 
   ipcMain.handle('refreshInpaintModles', (_event) => {
@@ -570,11 +579,11 @@ function initEventHandle() {
   })
 
   ipcMain.handle('refreshLLMModles', (_event) => {
-    return pathsManager.scanLLMModles()
+    return pathsManager.scanLLMModels()
   })
 
   ipcMain.handle('getDownloadedDiffusionModels', (_event) => {
-    return pathsManager.scanSDModleLists(false)
+    return pathsManager.scanSDModelLists(false)
   })
 
   ipcMain.handle('getDownloadedInpaintModels', (_event) => {
@@ -586,7 +595,7 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getDownloadedLLMs', (_event) => {
-    return pathsManager.scanLLMModles()
+    return pathsManager.scanLLMModels()
   })
 
   ipcMain.handle('getDownloadedGGUFLLMs', (_event) => {
@@ -723,7 +732,7 @@ function initEventHandle() {
     },
   )
 
-  ipcMain.handle('sendStartSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {
+  ipcMain.handle('startService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received start signal too early during aipg startup', 'electron-backend')
       return
@@ -735,7 +744,7 @@ function initEventHandle() {
     }
     return service.start()
   })
-  ipcMain.handle('sendStopSignal', (_event: IpcMainInvokeEvent, serviceName: string) => {
+  ipcMain.handle('stopService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received stop signal too early during aipg startup', 'electron-backend')
       return
@@ -747,7 +756,7 @@ function initEventHandle() {
     }
     return service.stop()
   })
-  ipcMain.handle('sendSetUpSignal', async (_event: IpcMainInvokeEvent, serviceName: string) => {
+  ipcMain.handle('setUpService', async (_event: IpcMainInvokeEvent, serviceName: BackendServiceName) => {
     if (!serviceRegistry || !win) {
       appLogger.warn('received setup signal too early during aipg startup', 'electron-backend')
       return
@@ -844,7 +853,12 @@ function initEventHandle() {
   })
 
   ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
-    return updateIntelWorkflows()
+    return updateIntelWorkflows(settings.remoteRepository)
+  })
+
+  // Version management IPC handlers for frontend store integration
+  ipcMain.handle('resolveBackendVersion', async (_event, serviceName: BackendServiceName) => {
+    return await resolveBackendVersion(serviceName, settings)
   })
 
   const getAssetPathFromUrl = (url: string) => {

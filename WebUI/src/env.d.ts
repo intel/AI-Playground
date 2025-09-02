@@ -31,6 +31,7 @@ type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
+  resolveBackendVersion(serviceName: string): Promise<{ releaseTag: string; version: string } | undefined>
   openDevTools(): void
   openUrl(url: string): void
   changeWindowMessageFilter(): void
@@ -39,7 +40,7 @@ type electronAPI = {
     height: number
     maxChatContentHeight: number
   }>
-  getLocalSettings(): Promise<LocalSettings>
+  getLocaleSettings(): Promise<LocaleSettings>
   getThemeSettings(): Promise<ThemeSettings>
   setWinSize(width: number, height: number): Promise<void>
   showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
@@ -70,6 +71,7 @@ type electronAPI = {
   refreshLLMModles(): Promise<string[]>
   refreshLora(): Promise<string[]>
   refreshInpaintModles(): Promise<string[]>
+  loadModels(): Promise<Model[]>
   getDownloadedDiffusionModels(): Promise<string[]>
   getDownloadedInpaintModels(): Promise<string[]>
   getDownloadedLoras(): Promise<string[]>
@@ -94,9 +96,9 @@ type electronAPI = {
   uninstall(serviceName: string): Promise<void>
   selectDevice(serviceName: string, deviceId: string): Promise<void>
   detectDevices(serviceName: string): Promise<void>
-  sendStartSignal(serviceName: string): Promise<BackendStatus>
-  sendStopSignal(serviceName: string): Promise<BackendStatus>
-  sendSetUpSignal(serviceName: string): void
+  startService(serviceName: string): Promise<BackendStatus>
+  stopService(serviceName: string): Promise<BackendStatus>
+  setUpService(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
   ensureBackendReadiness(
@@ -112,6 +114,14 @@ type SetupProgress = {
   step: string
   status: 'executing' | 'failed' | 'success'
   debugMessage: string
+  errorDetails?: {
+    command?: string
+    exitCode?: number
+    stdout?: string
+    stderr?: string
+    timestamp?: string
+    duration?: number
+  }
 }
 
 type Chrome = {
@@ -401,4 +411,12 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+}
+
+type Model = {
+    name: string;
+    type: "undefined" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae" | "openVINO" | "ipexLLM" | "llamaCPP" | "ollama";
+    default: boolean;
+    downloaded?: boolean | undefined;
+    backend?: "openVINO" | "ipexLLM" | "llamaCPP" | "ollama" | undefined;
 }
