@@ -83,6 +83,11 @@
     {
       "from": "../3rdpartynoticeslicenses.txt",
       "to": "3rdpartynoticeslicenses.txt"
+    },
+    {
+      "from": "external",
+      "to": ".",
+      "filter": ["*.whl"]
     }
   ],
   "productName": "AI Playground",

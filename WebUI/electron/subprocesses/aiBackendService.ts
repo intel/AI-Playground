@@ -63,6 +63,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up environment',
       }
       await this.python.ensureInstalled()
+      await this.git.ensureInstalled()
 
       const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
 
@@ -107,6 +108,14 @@ export class AiBackendService extends LongLivedPythonApiService {
         '--prerelease=allow',
         // '--force-reinstall',
       ])
+      if (archToRequirements(deviceArch) === 'xpu') {
+        this.appLogger.info('scanning for extra wheels', this.name)
+        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter(e => e.endsWith('.whl'))
+        this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
+        for (const wheelFile of wheelFiles) {
+          await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
+        }
+      }
 
       yield {
         serviceName: this.name,

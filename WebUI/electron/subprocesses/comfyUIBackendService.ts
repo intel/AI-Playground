@@ -199,37 +199,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       }
 
       await this.python.ensureInstalled()
-
-      currentStep = 'install dependencies'
-      yield {
-        serviceName: this.name,
-        step: currentStep,
-        status: 'executing',
-        debugMessage: `installing dependencies`,
-      }
-      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
-      const archToRequirements = (deviceArch: Arch) => {
-        switch (deviceArch) {
-          case 'arl_h':
-          case 'acm':
-          case 'bmg':
-          case 'lnl':
-          case 'mtl':
-            return 'xpu'
-          default:
-            return 'unknown'
-        }
-      }
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(aiBackendServiceDir(), `requirements-${archToRequirements(deviceArch)}.txt`),
-      )
-      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
-      yield {
-        serviceName: this.name,
-        step: currentStep,
-        status: 'executing',
-        debugMessage: `dependencies installed`,
-      }
+      await this.git.ensureInstalled()
 
       currentStep = 'install comfyUI'
       yield {
@@ -260,6 +230,46 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `configured comfyUI base repo`,
       }
+      
+      currentStep = 'install dependencies'
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: `installing dependencies`,
+      }
+      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
+      const archToRequirements = (deviceArch: Arch) => {
+        switch (deviceArch) {
+          case 'arl_h':
+          case 'acm':
+          case 'bmg':
+          case 'lnl':
+          case 'mtl':
+            return 'xpu'
+          default:
+            return 'unknown'
+        }
+      }
+      const deviceSpecificRequirements = existingFileOrError(
+        path.join(aiBackendServiceDir(), `requirements-${archToRequirements(deviceArch)}.txt`),
+      )
+      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
+      if (archToRequirements(deviceArch) === 'xpu') {
+        this.appLogger.info('scanning for extra wheels', this.name)
+        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter(e => e.endsWith('.whl'))
+        this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
+        for (const wheelFile of wheelFiles) {
+          await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
+        }
+      }
+
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: `dependencies installed`,
+      }
       yield {
         serviceName: this.name,
         step: currentStep,
@@ -267,7 +277,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: `updating workflows from intel repository`,
       }
       currentStep = 'updating workflows'
-      await updateIntelWorkflows()
+      await updateIntelWorkflows(this.settings.remoteRepository)
 
       this.setStatus('notYetStarted')
       currentStep = 'end'
