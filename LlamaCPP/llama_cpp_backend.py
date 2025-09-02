@@ -119,7 +119,7 @@ class LlamaCpp(LLMInterface):
                         content = json_line["choices"][0]["delta"].get("content", "")
                         if content:
                             yield content
-                    except (json.JSONDecodeError, KeyError):
+                    except (json.JSONDecodeError, KeyError, IndexError):
                         # Skip malformed JSON lines
                         continue
                         
