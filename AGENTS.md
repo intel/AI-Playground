@@ -2,6 +2,12 @@
 
 This document serves as a comprehensive guide for AI agents working with the AI Playground codebase. It provides essential context, patterns, and conventions to help agents understand and effectively contribute to this project.
 
+## Instructions
+
+* You MUST use composition over inheritance.
+* You MUST NOT use classes, unless there is already an existing set of classes of the same type.
+* You MUST types instead of interfaces, unless interfaces are strictly necessary to implement functionality.
+
 ## Project Overview
 
 AI Playground is a standalone Electron application that enables users with Intel graphics cards to interact with generative AI via a graphical user interface. It supports image generation (Stable Diffusion, SDXL, Flux.1), LLM inference, and various AI workflows.

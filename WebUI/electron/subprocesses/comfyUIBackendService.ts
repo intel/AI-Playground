@@ -12,7 +12,9 @@ import {
   hijacksDir,
   installHijacks,
   patchFile,
+  createEnhancedErrorDetails,
 } from './service.ts'
+import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
 import { Arch } from './deviceArch.ts'
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
@@ -23,6 +25,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
   readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
+  readonly python = this.uvPip.python
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
@@ -128,8 +131,19 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       )
       try {
         await this.uvPip.checkRequirementsTxt(requirementsTextPath)
-      } catch (_e) {
-        await this.uvPip.run(['install', '-r', requirementsTextPath])
+      } catch (_checkError) {
+        // If requirements check fails, attempt to install them
+        // Allow ProcessError instances to propagate to main error handler
+        try {
+          await this.uvPip.run(['install', '-r', requirementsTextPath])
+        } catch (installError) {
+          // Re-throw ProcessError instances to preserve enhanced error details
+          if (installError instanceof ProcessError) {
+            throw installError
+          }
+          // For other errors, wrap with context
+          throw new Error(`Failed to install requirements after check failed: ${installError}`)
+        }
       }
     }
 
@@ -159,33 +173,68 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           `Configured extra model paths for comfyUI at ${extraModelPathsYaml} as ${extraModelsYaml} `,
           this.name,
         )
-      } catch (_e) {
-        this.appLogger.error('Failed to configure extra model paths for comfyUI', this.name)
-        throw new Error('Failed to configure extra model paths for comfyUI')
+      } catch (configError) {
+        this.appLogger.error(
+          `Failed to configure extra model paths for comfyUI: ${configError}`,
+          this.name,
+        )
+        // Re-throw ProcessError instances to preserve enhanced error details
+        if (configError instanceof ProcessError) {
+          throw configError
+        }
+        // For other errors, wrap with context
+        throw new Error(`Failed to configure extra model paths for comfyUI: ${configError}`)
       }
     }
 
+    let currentStep = 'start'
+
     try {
+      currentStep = 'start'
       yield {
         serviceName: this.name,
-        step: 'start',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await this.uvPip.ensureInstalled()
+      await this.python.ensureInstalled()
       await this.git.ensureInstalled()
 
+      currentStep = 'install comfyUI'
       yield {
         serviceName: this.name,
-        step: `Detecting intel device`,
+        step: currentStep,
         status: 'executing',
-        debugMessage: `Trying to identify intel hardware`,
+        debugMessage: `installing comfyUI base repo`,
+      }
+      await setupComfyUiBaseService()
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: `installation of comfyUI base repo complete`,
       }
 
+      currentStep = 'configure comfyUI'
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: `configuring comfyUI base repo`,
+      }
+      await configureComfyUI()
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: `configured comfyUI base repo`,
+      }
+      
+      currentStep = 'install dependencies'
+      yield {
+        serviceName: this.name,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
@@ -206,46 +255,35 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         path.join(aiBackendServiceDir(), `requirements-${archToRequirements(deviceArch)}.txt`),
       )
       await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
+      if (archToRequirements(deviceArch) === 'xpu') {
+        this.appLogger.info('scanning for extra wheels', this.name)
+        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter(e => e.endsWith('.whl'))
+        this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
+        for (const wheelFile of wheelFiles) {
+          await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
+        }
+      }
+
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
-
       yield {
         serviceName: this.name,
-        step: `install comfyUI`,
+        step: currentStep,
         status: 'executing',
-        debugMessage: `installing comfyUI base repo`,
+        debugMessage: `updating workflows from intel repository`,
       }
-      await setupComfyUiBaseService()
-      yield {
-        serviceName: this.name,
-        step: `install comfyUI`,
-        status: 'executing',
-        debugMessage: `installation of comfyUI base repo complete`,
-      }
-
-      yield {
-        serviceName: this.name,
-        step: `configure comfyUI`,
-        status: 'executing',
-        debugMessage: `configuring comfyUI base repo`,
-      }
-      await configureComfyUI()
-      yield {
-        serviceName: this.name,
-        step: `configure comfyUI`,
-        status: 'executing',
-        debugMessage: `configured comfyUI base repo`,
-      }
-      await updateIntelWorkflows()
+      currentStep = 'updating workflows'
+      await updateIntelWorkflows(this.settings.remoteRepository)
 
       this.setStatus('notYetStarted')
+      currentStep = 'end'
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'success',
         debugMessage: `service set up completely`,
       }
@@ -253,11 +291,15 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
+
+      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'failed',
         debugMessage: `Failed to setup comfyUI service due to ${e}`,
+        errorDetails,
       }
     }
   }
@@ -272,6 +314,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
+      HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
     const mediaDir = getMediaDir()

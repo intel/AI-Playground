@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBackendServices } from '@/assets/js/store/backendServices'
+import { BackendVersionSchema, useBackendServices } from '@/assets/js/store/backendServices'
 import { useI18N } from '@/assets/js/store/i18n'
 import {
   DropdownMenu,
@@ -55,32 +55,6 @@ const backendStatus = computed(
       (backendService) => backendService.serviceName === props.backend,
     )[0]['status'],
 )
-
-// Initialize current version values for all supported backends
-const currentVersion = ref('')
-const currentReleaseTag = ref('')
-
-// Load current settings for supported backends
-const loadCurrentSettings = async () => {
-  const backend = props.backend
-  if (
-    backend === 'comfyui-backend' ||
-    backend === 'llamacpp-backend' ||
-    backend === 'openvino-backend'
-  ) {
-    const settings = await backendServices.getServiceSettings(backend)
-    currentVersion.value = settings?.version ?? ''
-  } else if (backend === 'ollama-backend') {
-    const settings = await backendServices.getServiceSettings(backend)
-    currentVersion.value = settings?.version ?? ''
-    currentReleaseTag.value = settings?.releaseTag ?? ''
-  }
-}
-
-// Load settings on component mount
-onMounted(() => {
-  loadCurrentSettings()
-})
 
 const menuOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -199,10 +173,8 @@ const getVersionDescription = (backend: BackendServiceName) => {
 
 // Get initial form values based on backend type
 const getInitialFormValues = () => {
-  return {
-    releaseTag: currentReleaseTag.value,
-    version: currentVersion.value,
-  }
+  const backendVersionState = backendServices.versionState[props.backend]
+  return backendVersionState.uiOverride ?? backendVersionState.installed ?? backendVersionState.target ?? {}
 }
 const showMenuButton = computed(
   () => showStart.value || showStop.value || showReinstall.value || showSettings.value,
@@ -307,16 +279,9 @@ const showMenuButton = computed(
               @submit="
                 handleSubmit($event, (values) => {
                   console.log('Form submitted with values:', values)
+                  const override = BackendVersionSchema.parse(values)
 
-                  // Update current values based on backend type
-                  if (backend === 'ollama-backend') {
-                    currentReleaseTag = values.releaseTag
-                    currentVersion = values.version
-                  } else {
-                    currentVersion = values.version
-                  }
-
-                  backendServices.updateServiceSettings({ serviceName: props.backend, ...values })
+                  backendServices.versionState[props.backend].uiOverride = override
                   settingsDialogOpen = false
                   menuOpen = false
                 })

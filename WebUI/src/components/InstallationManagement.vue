@@ -57,8 +57,20 @@
                 ></button>
                 <p v-else>-</p>
               </td>
-              <td :style="{ color: mapStatusToColor(component.status) }">
-                {{ mapToDisplayStatus(component.status) }}
+              <td :style="{ color: mapStatusToColor(component.status) }" class="">
+                <div class="flex items-center gap-2">
+                  <span>{{ mapToDisplayStatus(component.status) }}</span>
+                  <button
+                    v-if="
+                      component.status === 'failed' || component.status === 'installationFailed'
+                    "
+                    @click="showErrorDetails(component.serviceName)"
+                    class="text-blue-400 hover:text-blue-300 transition-colors"
+                    title="View error details"
+                  >
+                    <span class="svg-icon i-info w-5 h-5 align-text-top"></span>
+                  </button>
+                </div>
               </td>
               <td>
                 <span
@@ -146,6 +158,14 @@
         <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
       </div>
     </div>
+
+    <!-- Error Details Modal -->
+    <ErrorDetailsModal
+      :is-open="errorModalOpen"
+      :service-name="selectedServiceName"
+      :error-details="selectedErrorDetails"
+      @close="closeErrorModal"
+    />
   </div>
 </template>
 
@@ -155,6 +175,8 @@ import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
+import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
+import type { ErrorDetails } from '../../electron/subprocesses/service'
 
 const emits = defineEmits<{
   (e: 'close'): void
@@ -170,8 +192,12 @@ const backendServices = useBackendServices()
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
 const loadingComponents = ref(new Set<string>())
-
 const somethingChanged = ref(false)
+
+// Error details modal state
+const errorModalOpen = ref(false)
+const selectedServiceName = ref('')
+const selectedErrorDetails = ref<ErrorDetails | null>(null)
 
 const alreadyInstalledOrRequiredComponents = computed(
   () =>
@@ -201,10 +227,14 @@ async function installBackend(name: BackendServiceName) {
   somethingChanged.value = true
   loadingComponents.value.add(name)
   const setupProgress = await backendServices.setUpService(name)
+  console.log('setup finished with', setupProgress)
   if (setupProgress.success) {
     await restartBackend(name)
   } else {
-    toast.error('Setup failed')
+    const errorMessage = setupProgress.errorDetails
+      ? 'Setup failed - Click the info icon for details'
+      : 'Setup failed'
+    toast.error(errorMessage)
     loadingComponents.value.delete(name)
   }
 }
@@ -297,6 +327,19 @@ function convertVisibility(shouldBeVisible: boolean) {
   } else {
     return 'hidden'
   }
+}
+
+function showErrorDetails(serviceName: BackendServiceName) {
+  const errorDetails = backendServices.getServiceErrorDetails(serviceName)
+  selectedServiceName.value = serviceName
+  selectedErrorDetails.value = errorDetails
+  errorModalOpen.value = true
+}
+
+function closeErrorModal() {
+  errorModalOpen.value = false
+  selectedServiceName.value = ''
+  selectedErrorDetails.value = null
 }
 </script>
 
