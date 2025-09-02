@@ -472,7 +472,7 @@ export class GitService extends ExecutableService {
 
   readonly remoteUrl =
     'https://github.com/git-for-windows/git/releases/download/v2.51.0.windows.1/PortableGit-2.51.0-64-bit.7z.exe'
-  readonly sha256 = 'a4335111b3363871cac632be93d7466154d8eb08782ff55103866b67d6722257'
+  readonly sha256 = 'a09b275d51ed3e829128e04cf4168fb54896cf6234bb30fecb8dc96a2bd321fa'
   readonly zipPath = path.resolve(path.join(this.baseDir, 'portable-git.7z.exe'))
   readonly unzipExePath = path.resolve(path.join(this.baseDir, '7zr.exe'))
 
