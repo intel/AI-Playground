@@ -3,11 +3,12 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import { ApiService, DeviceService, PythonService } from './service.ts'
+import { ApiService, DeviceService, PythonService, createEnhancedErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { detectLevelZeroDevices } from './deviceDetection.ts'
 import { getBestDevice } from './deviceArch.ts'
+import { LocalSettings } from '../main.ts'
 
 const execAsync = promisify(exec)
 
@@ -152,10 +153,13 @@ export class OllamaBackendService implements ApiService {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
 
+    let currentStep = 'start'
+
     try {
+      currentStep = 'start'
       yield {
         serviceName: this.name,
-        step: 'start',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'starting to set up Ollama service',
       }
@@ -166,9 +170,10 @@ export class OllamaBackendService implements ApiService {
       }
 
       // Download Ollama ZIP file
+      currentStep = 'download'
       yield {
         serviceName: this.name,
-        step: 'download',
+        step: currentStep,
         status: 'executing',
         debugMessage: `downloading Ollama`,
       }
@@ -177,15 +182,16 @@ export class OllamaBackendService implements ApiService {
 
       yield {
         serviceName: this.name,
-        step: 'download',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'download complete',
       }
 
       // Extract Ollama ZIP file
+      currentStep = 'extract'
       yield {
         serviceName: this.name,
-        step: 'extract',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'extracting Ollama',
       }
@@ -194,7 +200,7 @@ export class OllamaBackendService implements ApiService {
 
       yield {
         serviceName: this.name,
-        step: 'extract',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'extraction complete',
       }
@@ -202,9 +208,10 @@ export class OllamaBackendService implements ApiService {
       this.setStatus('notYetStarted')
       this.isSetUp = true
 
+      currentStep = 'end'
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'success',
         debugMessage: 'service set up completely',
       }
@@ -212,11 +219,15 @@ export class OllamaBackendService implements ApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.setStatus('installationFailed')
 
+      // Create detailed error information for any type of error
+      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'failed',
         debugMessage: `Failed to setup Ollama service due to ${e}`,
+        errorDetails,
       }
     }
   }

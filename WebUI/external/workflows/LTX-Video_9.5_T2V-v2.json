@@ -2,6 +2,7 @@
   "name": "Video-Txt2Vid",
   "tags": ["LTX Video", "high-vram"],
   "backend": "comfyui",
+  "category": "create-videos",
   "comfyUIRequirements": {
     "customNodes": [
       "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",

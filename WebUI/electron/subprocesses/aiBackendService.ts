@@ -8,6 +8,7 @@ import {
   installHijacks,
   LongLivedPythonApiService,
   UvPipService,
+  createEnhancedErrorDetails,
 } from './service.ts'
 import { Arch, getBestDevice } from './deviceArch.ts'
 import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
@@ -21,8 +22,7 @@ export class AiBackendService extends LongLivedPythonApiService {
 
   readonly isRequired = true
   readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
-  readonly pip = this.uvPip.pip
-  readonly python = this.pip.python
+  readonly python = this.uvPip.python
   healthEndpointUrl = `${this.baseUrl}/healthy`
   serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath())
   isSetUp = this.serviceIsSetUp()
@@ -51,27 +51,26 @@ export class AiBackendService extends LongLivedPythonApiService {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
 
+    // Track the current step being executed
+    let currentStep = 'start'
+
     try {
+      currentStep = 'start'
       yield {
         serviceName: this.name,
-        step: 'start',
+        step: currentStep,
         status: 'executing',
         debugMessage: 'starting to set up environment',
       }
+      await this.python.ensureInstalled()
       await this.git.ensureInstalled()
-      await this.uvPip.ensureInstalled()
 
       const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
-      yield {
-        serviceName: this.name,
-        step: `Detecting intel device`,
-        status: 'executing',
-        debugMessage: `detected intel hardware ${deviceArch}`,
-      }
 
+      currentStep = 'install dependencies'
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
@@ -109,18 +108,27 @@ export class AiBackendService extends LongLivedPythonApiService {
         '--prerelease=allow',
         // '--force-reinstall',
       ])
+      if (archToRequirements(deviceArch) === 'xpu') {
+        this.appLogger.info('scanning for extra wheels', this.name)
+        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter(e => e.endsWith('.whl'))
+        this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
+        for (const wheelFile of wheelFiles) {
+          await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
+        }
+      }
 
       yield {
         serviceName: this.name,
-        step: `install dependencies`,
+        step: currentStep,
         status: 'executing',
         debugMessage: `dependencies installed`,
       }
 
       this.setStatus('notYetStarted')
+      currentStep = 'end'
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'success',
         debugMessage: `service set up completely`,
       }
@@ -128,11 +136,15 @@ export class AiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
+
+      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+
       yield {
         serviceName: this.name,
-        step: 'end',
+        step: currentStep,
         status: 'failed',
         debugMessage: `Failed to setup python environment due to ${e}`,
+        errorDetails,
       }
     }
   }
@@ -147,6 +159,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
+      HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 

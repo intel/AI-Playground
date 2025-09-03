@@ -9,6 +9,28 @@ export function existingFileOrError(filePath: string) {
   }
   throw Error(`File at ${resolvedFilePath} does not exist`)
 }
+export interface ProcessResult {
+  stdout: string
+  stderr: string
+  exitCode: number
+  command: string
+  args: string[]
+  duration: number
+  timestamp: string
+}
+
+export class ProcessError extends Error {
+  readonly result: ProcessResult
+
+  constructor(result: ProcessResult) {
+    super(
+      `Command failed: ${result.command} ${result.args.join(' ')} (exit code: ${result.exitCode})`,
+    )
+    this.name = 'ProcessError'
+    this.result = result
+  }
+}
+
 export async function spawnProcessAsync(
   command: string,
   args: string[] = [],
@@ -16,10 +38,14 @@ export async function spawnProcessAsync(
   extraEnv?: object,
   workDir?: string,
 ): Promise<string> {
+  const startTime = Date.now()
+  const timestamp = new Date().toISOString()
+
   logHandler(`Spawning command ${command} ${args.join(' ')}`)
   if (extraEnv) {
     logHandler(`Extra env: ${JSON.stringify(extraEnv)}`)
   }
+
   const spawnedProcess = spawn(command, args, {
     windowsHide: true,
     cwd: workDir ?? process.cwd(),
@@ -30,25 +56,52 @@ export async function spawnProcessAsync(
   })
 
   const stdOut: string[] = []
+  const stdErr: string[] = []
 
   spawnedProcess.stdout.on('data', (data: string | Buffer) => {
-    logHandler(data.toString('utf8'))
-    stdOut.push(data.toString('utf8'))
+    const output = data.toString('utf8')
+    logHandler(output)
+    stdOut.push(output)
   })
-  spawnedProcess.stderr.on('data', (data) => {
-    logHandler(data.toString('utf8'))
+
+  spawnedProcess.stderr.on('data', (data: string | Buffer) => {
+    const output = data.toString('utf8')
+    logHandler(output)
+    stdErr.push(output)
   })
 
   return new Promise<string>((resolve, reject) => {
     spawnedProcess.on('exit', (code) => {
+      const duration = Date.now() - startTime
+      const result: ProcessResult = {
+        stdout: stdOut.join(''),
+        stderr: stdErr.join(''),
+        exitCode: code ?? -1,
+        command,
+        args,
+        duration,
+        timestamp,
+      }
+
       if (code === 0) {
-        resolve(stdOut.join('\n'))
+        resolve(result.stdout)
       } else {
-        reject(new Error(`command ${command} ${args} failed ${code}`))
+        reject(new ProcessError(result))
       }
     })
+
     spawnedProcess.on('error', (err) => {
-      reject(new Error(`command ${command} ${args} failed with error ${err}`))
+      const duration = Date.now() - startTime
+      const result: ProcessResult = {
+        stdout: stdOut.join(''),
+        stderr: stdErr.join('') + `\nProcess error: ${err.message}`,
+        exitCode: -1,
+        command,
+        args,
+        duration,
+        timestamp,
+      }
+      reject(new ProcessError(result))
     })
   })
 }

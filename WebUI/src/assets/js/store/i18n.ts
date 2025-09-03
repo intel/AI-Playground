@@ -4,6 +4,7 @@ export const useI18N = defineStore('i18n', () => {
   const langName = ref('en-US')
   const currentLanguageName = ref('English')
   const state = reactive<StringKV>({})
+  let override: string | null = null
 
   // locale naming reference:
   // https://source.chromium.org/chromium/chromium/src/+/main:ui/base/l10n/l10n_util.cc
@@ -23,7 +24,13 @@ export const useI18N = defineStore('i18n', () => {
     { value: 'zh-TW', name: '繁體中文' },
   ])
 
-  window.electronAPI.getLocalSettings().then((settings) => {
+  window.electronAPI.getLocaleSettings().then((settings) => {
+    override = settings.languageOverride
+    if (override && languageOptions.value.some((l) => l.value === override)) {
+      langName.value = override
+      switchLanguage(langName.value)
+      return
+    }
     const locale = settings.locale
     console.debug('system locale:', locale)
     if (locale) {
@@ -43,9 +50,13 @@ export const useI18N = defineStore('i18n', () => {
   })
 
   async function init() {
-    const locale = localStorage.getItem('locale')
-    if (locale) {
-      langName.value = locale
+    if (override && languageOptions.value.some((l) => l.value === override)) {
+      langName.value = override
+    } else {
+      const locale = localStorage.getItem('locale')
+      if (locale) {
+        langName.value = locale
+      }
     }
     console.debug('init i18n:', langName.value)
     await switchLanguage(langName.value)

@@ -1,4 +1,15 @@
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import z from 'zod'
+
+interface ErrorDetails {
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timestamp?: string
+  duration?: number
+}
 
 const backends = [
   'openvino-backend',
@@ -27,6 +38,15 @@ type ServiceSettings = {
 
 export type BackendServiceName = (typeof backends)[number]
 
+export const BackendVersionSchema = z.object({ releaseTag: z.string().optional(), version: z.string() })
+type BackendVersion = z.infer<typeof BackendVersionSchema>
+
+type BackendVersionState = Record<BackendServiceName, {
+  installed?: BackendVersion
+  uiOverride?: BackendVersion
+  target?: BackendVersion
+}>
+
 export const useBackendServices = defineStore(
   'backendServices',
   () => {
@@ -35,6 +55,19 @@ export const useBackendServices = defineStore(
       backends.map((b) => [b, new BackendServiceSetupProgressListener(b)]),
     )
 
+    const versionState = ref<BackendVersionState>({
+      "ai-backend": {},
+      "comfyui-backend": {},
+      "llamacpp-backend": {},
+      "ollama-backend": {},
+      "openvino-backend": {},
+    })
+
+    backends.forEach((serviceName) => {
+      window.electronAPI.resolveBackendVersion(serviceName).then((version) => {
+        versionState.value[serviceName].target = version
+      })
+    })
     window.electronAPI
       .getServices()
       .catch(async (_reason: unknown) => {
@@ -117,22 +150,34 @@ export const useBackendServices = defineStore(
 
     async function setUpService(
       serviceName: BackendServiceName,
-    ): Promise<{ success: boolean; logs: SetupProgress[] }> {
+    ): Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }> {
       console.log('starting setup')
       const listener = serviceListeners.get(serviceName)
       if (!listener) {
         throw new Error(`service name ${serviceName} not found.`)
       }
+
+      listener.clearErrorDetails()
       listener.isActive = true
+
       try {
         await stopService(serviceName)
       } catch {
         console.warn(`service ${serviceName} was not running`)
       }
-      window.electronAPI.sendSetUpSignal(serviceName)
+
+      const versions = versionState.value[serviceName];
+      const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
+      await updateServiceSettings({ serviceName, ...targetVersionSettings })
+      window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
-      await detectDevices(serviceName)
+      if (result.success) await detectDevices(serviceName)
       return result
+    }
+
+    function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
+      const listener = serviceListeners.get(serviceName)
+      return listener?.getLastErrorDetails() || null
     }
 
     async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
@@ -154,11 +199,11 @@ export const useBackendServices = defineStore(
     }
 
     async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
-      return window.electronAPI.sendStartSignal(serviceName)
+      return window.electronAPI.startService(serviceName)
     }
 
     async function stopService(serviceName: BackendServiceName): Promise<BackendStatus> {
-      return window.electronAPI.sendStopSignal(serviceName)
+      return window.electronAPI.stopService(serviceName)
     }
 
     const lastUsedBackend = ref<BackendServiceName | null>(null)
@@ -188,12 +233,14 @@ export const useBackendServices = defineStore(
       serviceName: BackendServiceName,
       llmModelName: string,
       embeddingModelName?: string,
+      contextSize?: number,
     ): Promise<void> {
       try {
         const result = await window.electronAPI.ensureBackendReadiness(
           serviceName,
           llmModelName,
           embeddingModelName,
+          contextSize,
         )
         if (!result.success) {
           throw new Error(result.error || 'Failed to ensure backend readiness')
@@ -211,6 +258,7 @@ export const useBackendServices = defineStore(
       allRequiredRunning,
       initalStartupRequestComplete,
       lastUsedBackend,
+      versionState,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
@@ -223,11 +271,12 @@ export const useBackendServices = defineStore(
       detectDevices,
       selectDevice,
       ensureBackendReadiness,
+      getServiceErrorDetails,
     }
   },
   {
     persist: {
-      pick: [],
+      pick: ['versionState'],
     },
   },
 )
@@ -238,6 +287,7 @@ class BackendServiceSetupProgressListener {
   private collectedSetupProgress: SetupProgress[] = []
   private terminalUpdateReceived = false
   private installationSuccess: boolean = false
+  private lastErrorDetails: ErrorDetails | null = null
 
   constructor(associatedServiceName: string) {
     this.associatedServiceName = associatedServiceName
@@ -251,6 +301,10 @@ class BackendServiceSetupProgressListener {
 
     if (this.isActive && data.serviceName == this.associatedServiceName) {
       this.collectedSetupProgress.push(data)
+
+      if (data.status === 'failed' && data.errorDetails) {
+        this.lastErrorDetails = data.errorDetails
+      }
       if (data.status === 'success' || data.status == 'failed') {
         this.terminalUpdateReceived = true
         this.isActive = false
@@ -266,18 +320,44 @@ class BackendServiceSetupProgressListener {
       return await new Promise((resolve) => {
         setTimeout(() => {
           resolve(this.awaitFinalization())
-        }, 1000)
+        }, 200)
       })
     }
   }
 
-  async awaitFinalizationAndResetData(): Promise<{ success: boolean; logs: SetupProgress[] }> {
+  async awaitFinalizationAndResetData(): Promise<{
+    success: boolean
+    logs: SetupProgress[]
+    errorDetails?: ErrorDetails | null
+  }> {
     return this.awaitFinalization().then((collectedSetupProgress) => {
-      console.log(`server startup complete for ${this.associatedServiceName}`)
+      console.log(`server startup complete for ${this.associatedServiceName}`, {
+        collectedSetupProgress,
+        success: this.installationSuccess,
+        errorDetails: this.lastErrorDetails,
+      })
       const clonedSetupProgress = collectedSetupProgress.slice()
+      const clonedErrorDetails = this.lastErrorDetails
+
       this.collectedSetupProgress = []
       this.terminalUpdateReceived = false
-      return { success: this.installationSuccess, logs: clonedSetupProgress }
+      // Don't reset lastErrorDetails here - keep them for UI access
+
+      return {
+        success: this.installationSuccess,
+        logs: clonedSetupProgress,
+        errorDetails: clonedErrorDetails,
+      }
     })
+  }
+
+  // Clear error details when starting a new installation
+  clearErrorDetails() {
+    this.lastErrorDetails = null
+  }
+
+  // Getter for current error details (for UI to access)
+  getLastErrorDetails(): ErrorDetails | null {
+    return this.lastErrorDetails
   }
 }

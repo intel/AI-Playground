@@ -38,99 +38,6 @@ export type Model = {
   backend?: LlmBackend
 }
 
-const predefinedModels: Omit<Model, 'downloaded'>[] = [
-  { name: 'Qwen/Qwen2-1.5B-Instruct', type: 'ipexLLM', default: false },
-  { name: 'microsoft/Phi-3-mini-4k-instruct', type: 'ipexLLM', default: true },
-  { name: 'mistralai/Mistral-7B-Instruct-v0.3', type: 'ipexLLM', default: false },
-  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', type: 'ipexLLM', default: false },
-  { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B', type: 'ipexLLM', default: false },
-  {
-    name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf',
-    type: 'llamaCPP',
-    default: true,
-  },
-  {
-    name: 'bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q8_0.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
-  {
-    name: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q5_K_S.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
-  {
-    name: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
-  {
-    name: 'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
-  {
-    name: 'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
-  {
-    name: 'bartowski/Mistral-7B-Instruct-v0.3-GGUF/Mistral-7B-Instruct-v0.3-Q4_K_S.gguf',
-    type: 'llamaCPP',
-    default: false,
-  },
-  { name: 'OpenVINO/Phi-3.5-mini-instruct-int4-ov', type: 'openVINO', default: true },
-  { name: 'OpenVINO/Phi-3-mini-4k-instruct-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/gpt-j-6b-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Qwen3-8B-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Phi-3.5-mini-instruct-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/falcon-7b-instruct-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Phi-3-mini-4k-instruct-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'OpenVINO/Mistral-7B-Instruct-v0.3-int4-cw-ov', type: 'openVINO', default: false },
-  { name: 'BAAI/bge-large-en-v1.5', type: 'embedding', default: true, backend: 'ipexLLM' },
-  { name: 'BAAI/bge-large-zh-v1.5', type: 'embedding', default: false, backend: 'ipexLLM' },
-  { name: 'intfloat/multilingual-e5-small', type: 'embedding', default: false, backend: 'ipexLLM' },
-  {
-    name: 'ChristianAzinn/bge-small-en-v1.5-gguf',
-    type: 'embedding',
-    default: true,
-    backend: 'llamaCPP',
-  },
-  {
-    name: 'OpenVINO/bge-base-en-v1.5-fp16-ov',
-    type: 'embedding',
-    default: true,
-    backend: 'openVINO',
-  },
-  {
-    name: 'deepseek-r1:1.5b',
-    type: 'ollama',
-    default: false,
-  },
-  {
-    name: 'gemma3:4b',
-    type: 'ollama',
-    default: false,
-  },
-  {
-    name: 'gemma3n:e2b',
-    type: 'ollama',
-    default: false,
-  },
-  {
-    name: 'qwen3:8b',
-    type: 'ollama',
-    default: false,
-  },
-]
-
 export const useModels = defineStore(
   'models',
   () => {
@@ -141,6 +48,7 @@ export const useModels = defineStore(
     const downloadList = ref<DownloadModelParam[]>([])
 
     async function refreshModels() {
+      const predefinedModels = await window.electronAPI.loadModels()
       const sdModels = await window.electronAPI.getDownloadedDiffusionModels()
       const llmModels = await window.electronAPI.getDownloadedLLMs()
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()

@@ -15,12 +15,6 @@ declare interface ServiceSettings {
   [key: string]: any
 }
 
-// Declare LocalSettings type
-declare interface LocalSettings {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any
-}
-
 // Declare BackendStatus type
 declare type BackendStatus =
   | 'notInstalled'
@@ -40,6 +34,14 @@ declare interface SetupProgress {
   step: string
   status: 'executing' | 'success' | 'failed'
   debugMessage: string
+  errorDetails?: {
+    command?: string
+    exitCode?: number
+    stdout?: string
+    stderr?: string
+    timestamp?: string
+    duration?: number
+  }
 }
 
 // Declare ApiServiceInformation type

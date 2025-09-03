@@ -9,6 +9,7 @@ from os import path, makedirs, rename
 from threading import Thread, Lock
 from time import sleep
 from typing import Any, Callable, Dict, List
+from hashlib import sha256
 
 import psutil
 import requests
@@ -62,6 +63,8 @@ class NotEnoughDiskSpaceException(Exception):
         super().__init__(message)
 
 
+def getTmpPath(repo_id: str):
+    return sha256(repo_id.encode('utf-8')).hexdigest()[0:16] + "_tmp"
 
 class HFPlaygroundDownloader:
     fs: HfFileSystem
@@ -115,7 +118,7 @@ class HFPlaygroundDownloader:
         self.save_path = path.join(utils.get_model_path(model_type, backend))
         logging.info(f"save_path: {self.save_path}")
         self.save_path_tmp = path.abspath(
-            path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
+            path.join(self.save_path, getTmpPath(self.repo_id))
         )
         if not path.exists(self.save_path_tmp):
             makedirs(self.save_path_tmp)
@@ -352,7 +355,7 @@ class HFPlaygroundDownloader:
         self.repo_id = repo_id
         self.save_path = path.join(utils.get_model_path(model_type,backend))
         self.save_path_tmp = path.abspath(
-            path.join(self.save_path, repo_id.replace("/", "---") + "_tmp")
+            path.join(self.save_path, getTmpPath(repo_id))
         )
 
         file_list = list()
