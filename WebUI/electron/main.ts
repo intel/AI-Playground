@@ -54,7 +54,6 @@ import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
 import z from 'zod'
-import { ModelSchema } from '../src/types/shared.ts'
 
 // }
 // The built directory structure
@@ -410,6 +409,18 @@ function initEventHandle() {
 
   ipcMain.handle('getWinSize', () => {
     return appSize
+  })
+
+  ipcMain.handle('zoomIn', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 1)
+  })
+
+  ipcMain.handle('zoomOut', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    win.webContents.setZoomLevel(win.webContents.getZoomLevel() - 1)
   })
 
   ipcMain.on('openUrl', (_event, url: string) => {

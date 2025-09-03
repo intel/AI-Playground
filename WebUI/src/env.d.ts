@@ -72,6 +72,8 @@ type electronAPI = {
   refreshLora(): Promise<string[]>
   refreshInpaintModles(): Promise<string[]>
   loadModels(): Promise<Model[]>
+  zoomIn(): Promise<void>
+  zoomOut(): Promise<void>
   getDownloadedDiffusionModels(): Promise<string[]>
   getDownloadedInpaintModels(): Promise<string[]>
   getDownloadedLoras(): Promise<string[]>
