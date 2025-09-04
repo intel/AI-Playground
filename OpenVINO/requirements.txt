@@ -1,7 +1,7 @@
-Flask==3.1.1
+Flask==3.1.2
 apiflask==2.4.0
-openvino==2025.2.0
-openvino-genai==2025.2.0.0
-openvino-tokenizers==2025.2.0.1
-langchain_community==0.3.27
+openvino==2025.3.0
+openvino-genai==2025.3.0.0
+openvino-tokenizers==2025.3.0.0
+langchain_community==0.3.29
 optimum[openvino]==1.27.0
