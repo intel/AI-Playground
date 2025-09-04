@@ -72,6 +72,14 @@
             </div>
           </div>
 
+          <!-- Pip Freeze Output -->
+          <div v-if="errorDetails.pipFreezeOutput" class="bg-gray-900 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-purple-400 mb-2">Python Environment (pip freeze)</h3>
+            <div class="bg-black rounded p-3 max-h-64 overflow-y-auto">
+              <pre class="text-purple-300 text-sm whitespace-pre-wrap">{{ errorDetails.pipFreezeOutput }}</pre>
+            </div>
+          </div>
+
           <!-- Troubleshooting Tips -->
           <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
             <h3 class="text-lg font-medium text-yellow-400 mb-2">💡 Troubleshooting Tips</h3>
@@ -113,6 +121,8 @@
 </template>
 
 <script setup lang="ts">
+import * as toast from '@/assets/js/toast.ts'
+
 interface ErrorDetails {
   command?: string
   exitCode?: number
@@ -120,6 +130,7 @@ interface ErrorDetails {
   stderr?: string
   timestamp?: string
   duration?: number
+  pipFreezeOutput?: string
 }
 
 interface Props {
@@ -169,13 +180,17 @@ const copyErrorDetails = async () => {
     '',
     'Standard Output:',
     props.errorDetails.stdout || 'No stdout output',
+    '',
+    'Python Environment (pip freeze):',
+    props.errorDetails.pipFreezeOutput || 'No pip freeze output available',
   ].join('\n')
 
   try {
     await navigator.clipboard.writeText(details)
-    // Could add a toast notification here
+    toast.success('Error details copied to clipboard!')
   } catch (err) {
     console.error('Failed to copy error details:', err)
+    toast.error('Failed to copy error details to clipboard.')
   }
 }
 </script>

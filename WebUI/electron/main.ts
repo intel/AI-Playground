@@ -746,24 +746,24 @@ function initEventHandle() {
   ipcMain.handle('startService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received start signal too early during aipg startup', 'electron-backend')
-      return
+      return 'failed'
     }
     const service = serviceRegistry.getService(serviceName)
     if (!service) {
       appLogger.warn(`Tried to start service ${serviceName} which is not known`, 'electron-backend')
-      return
+      return 'failed'
     }
     return service.start()
   })
   ipcMain.handle('stopService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received stop signal too early during aipg startup', 'electron-backend')
-      return
+      return 'failed'
     }
     const service = serviceRegistry.getService(serviceName)
     if (!service) {
       appLogger.warn(`Tried to stop service ${serviceName} which is not known`, 'electron-backend')
-      return
+      return 'failed'
     }
     return service.stop()
   })

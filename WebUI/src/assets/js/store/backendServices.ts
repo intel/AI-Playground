@@ -2,15 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import z from 'zod'
 
-interface ErrorDetails {
-  command?: string
-  exitCode?: number
-  stdout?: string
-  stderr?: string
-  timestamp?: string
-  duration?: number
-}
-
 const backends = [
   'openvino-backend',
   'ai-backend',
@@ -116,13 +107,21 @@ export const useBackendServices = defineStore(
         currentServiceInfo.value.filter((s) => s.isRequired).every((s) => s.status === 'running'),
     )
 
-    async function startAllSetUpServices(): Promise<{ allServicesStarted: boolean }> {
+    async function startAllSetUpServices(): Promise<{
+      allServicesStarted: boolean
+    }> {
       const serverStartups = await Promise.all(
         currentServiceInfo.value
           .filter((s) => s.isSetUp)
           .map(async (s) => {
-            await detectDevices(s.serviceName)
-            return startService(s.serviceName)
+            try {
+              // Try to detect devices first
+              await detectDevices(s.serviceName)
+              return await startService(s.serviceName)
+            } catch (error) {
+              console.error(`Service startup failed for ${s.serviceName}:`, error)
+              return 'failed'
+            }
           }),
       )
       const serverStartupsCompleted = {
@@ -131,6 +130,7 @@ export const useBackendServices = defineStore(
       if (!serverStartupsCompleted.allServicesStarted) {
         console.warn('Not all services started')
       }
+      
       return serverStartupsCompleted
     }
 
@@ -145,6 +145,9 @@ export const useBackendServices = defineStore(
       } catch {
         console.info(`service ${serviceName} was not running`)
       }
+      
+      // Clear error details when uninstalling
+      listener.clearErrorDetails()      
       return window.electronAPI.uninstall(serviceName)
     }
 
@@ -176,8 +179,7 @@ export const useBackendServices = defineStore(
     }
 
     function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
-      const listener = serviceListeners.get(serviceName)
-      return listener?.getLastErrorDetails() || null
+      return currentServiceInfo.value.filter((s) => s.serviceName === serviceName)[0]?.errorDetails
     }
 
     async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
@@ -288,6 +290,7 @@ class BackendServiceSetupProgressListener {
   private terminalUpdateReceived = false
   private installationSuccess: boolean = false
   private lastErrorDetails: ErrorDetails | null = null
+  private postInstallationErrorDetails: ErrorDetails | null = null
 
   constructor(associatedServiceName: string) {
     this.associatedServiceName = associatedServiceName
@@ -354,10 +357,21 @@ class BackendServiceSetupProgressListener {
   // Clear error details when starting a new installation
   clearErrorDetails() {
     this.lastErrorDetails = null
+    this.postInstallationErrorDetails = null
   }
 
   // Getter for current error details (for UI to access)
   getLastErrorDetails(): ErrorDetails | null {
-    return this.lastErrorDetails
+    return this.postInstallationErrorDetails || this.lastErrorDetails
+  }
+
+  // Set post-installation error details
+  setPostInstallationError(errorDetails: ErrorDetails) {
+    this.postInstallationErrorDetails = errorDetails
+  }
+
+  // Check if there are any errors (installation or post-installation)
+  hasErrors(): boolean {
+    return this.lastErrorDetails !== null || this.postInstallationErrorDetails !== null
   }
 }
