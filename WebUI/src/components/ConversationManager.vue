@@ -37,13 +37,41 @@
             <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
               {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
             </span>
-            <span
+            <div
               v-if="!conversations.isNewConversation(conversationKey)"
-              @click.stop="conversations.deleteConversation(conversationKey)"
-              class="text-3xl opacity-0 group-hover:opacity-70 transition-opacity duration-200 cursor-pointer ml-3"
+              @click.stop="() => {}"
+              @pointerdown.stop
             >
-              ×
-            </span>
+              <DropdownMenu
+                :open="menuOpenKey === conversationKey"
+                @update:open="open => onMenuOpenChange(conversationKey, open)"
+              >
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    :class="[
+                      'transition-opacity duration-200 ml-2 text-gray-300 hover:text-white hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
+                      menuOpenKey === conversationKey ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',
+                    ]"
+                    @click.stop="() => {}"
+                    @pointerdown.stop="() => {}"
+                    @mousedown.stop
+                  >
+                    <img src="@/assets/svg/ellipsis.svg" class="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  class="min-w-36"
+                  :onCloseAutoFocus="ev => { ev.preventDefault?.() }"
+                >
+                  <DropdownMenuItem @select="(e: Event) => { e.preventDefault(); conversations.deleteConversation(conversationKey) }">
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
@@ -98,10 +126,21 @@
 <script setup lang="ts">
 import { useConversations } from '@/assets/js/store/conversations'
 import { useTextInference } from '@/assets/js/store/textInference'
+import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
 const conversations = useConversations()
 const textInference = useTextInference()
 const isHistoryVisible = ref(false)
+
+const menuOpenKey = ref<string | null>(null)
+function onMenuOpenChange(conversationKey: string, open: boolean) {
+  menuOpenKey.value = open
+    ? conversationKey
+    : menuOpenKey.value === conversationKey
+      ? null
+      : menuOpenKey.value
+}
 
 const props = defineProps<{
   onConversationClick: () => void
