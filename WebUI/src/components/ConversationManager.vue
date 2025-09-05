@@ -109,33 +109,16 @@
           v-if="conversationKey === currentlyGeneratingKey && processing"
           class="svg-icon i-loading w-8 h-8 animate-spin text-white flex items-center justify-center m-auto"
         ></span>
-        <svg
+        <img
           v-else-if="conversations.isNewConversation(conversationKey)"
           class="m-auto h-8 w-8 text-gray-300"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-          />
-        </svg>
-        <svg
+          src="@/assets/svg/new-conversation.svg"
+        />
+        <img
           v-else
           class="m-auto h-8 w-8 text-gray-300"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1"
-            d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
-          />
-        </svg>
+          src="@/assets/svg/conversation.svg"
+        />
       </div>
     </div>
   </div>
