@@ -34,9 +34,19 @@
             class="absolute inset-1 bg-[#00c4fa]/50 rounded-lg"
           ></div>
           <div class="relative flex justify-between items-center w-full">
-            <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
-              {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
-            </span>
+            <template v-if="conversations.isNewConversation(conversationKey)">
+              <div
+                class="flex items-center gap-2 px-2 py-1 rounded-md ml-1 transition-colors duration-150"
+              >
+                <img src="@/assets/svg/new-conversation.svg" class="w-5 h-5" />
+                <span class="text-sm">{{ languages.ANSWER_NEW_CONVERSATION }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
+                {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+              </span>
+            </template>
             <div
               v-if="!conversations.isNewConversation(conversationKey)"
               @click.stop="() => {}"
