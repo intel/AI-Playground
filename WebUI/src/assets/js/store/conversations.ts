@@ -21,6 +21,12 @@ export const useConversations = defineStore(
       conversationList.value[conversationKey] = []
     }
 
+    function renameConversationTitle(conversationKey: string, newTitle: string) {
+      const list = conversationList.value[conversationKey]
+      if (!list || list.length === 0) return
+      list[0] = { ...list[0], title: newTitle }
+    }
+
     function deleteItemFromConversation(conversationKey: string, index: number) {
       conversationList.value[conversationKey].splice(index, 1)
       if (conversationList.value[conversationKey].length === 0) {
@@ -46,6 +52,7 @@ export const useConversations = defineStore(
       clearConversation,
       deleteItemFromConversation,
       isNewConversation,
+      renameConversationTitle,
     }
   },
   {
