@@ -66,9 +66,27 @@
                   class="min-w-36"
                   :onCloseAutoFocus="ev => { ev.preventDefault?.() }"
                 >
-                  <DropdownMenuItem @select="(e: Event) => { e.preventDefault(); conversations.deleteConversation(conversationKey) }">
-                    Delete
-                  </DropdownMenuItem>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
+                        Delete
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently remove this conversation and its messages.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction @click="() => conversations.deleteConversation(conversationKey)">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -128,6 +146,17 @@ import { useConversations } from '@/assets/js/store/conversations'
 import { useTextInference } from '@/assets/js/store/textInference'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 const conversations = useConversations()
 const textInference = useTextInference()
