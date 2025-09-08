@@ -8,7 +8,8 @@ import os
 import queue
 import threading
 import torch
-from basicsr.archs.rrdbnet_arch import RRDBNet
+from spandrel.architectures.ESRGAN import ESRGAN
+from spandrel import ModelLoader
 from torch.nn import functional as F
 import service_config
 
@@ -38,7 +39,7 @@ class RealESRGANer:
         half (float): Whether to use half precision during inference. Default: False.
     """
 
-    model: RRDBNet
+    model: ESRGAN
     deivce: torch.device
 
     def __init__(self, tile=0, tile_pad=10, pre_pad=10, half=False):
@@ -54,33 +55,7 @@ class RealESRGANer:
                 service_config.service_model_paths.get("ESRGAN"), ESRGAN_MODEL_URL.split("/")[-1]
             )
         )
-        if model_path.endswith("RealESRGAN_x2plus.pth"):
-            self.model = RRDBNet(
-                num_in_ch=3,
-                num_out_ch=3,
-                num_feat=64,
-                num_block=23,
-                num_grow_ch=32,
-                scale=2,
-            )
-        else:
-            self.model = RRDBNet(
-                num_in_ch=3,
-                num_out_ch=3,
-                num_feat=64,
-                num_block=23,
-                num_grow_ch=32,
-                scale=4,
-            )
-        state_dicts = torch.load(model_path, map_location=self.deivce)
-
-        # prefer to use params_ema
-        if "params_ema" in state_dicts:
-            keyname = "params_ema"
-        else:
-            keyname = "params"
-        self.model.load_state_dict(state_dicts[keyname], strict=True)
-
+        self.model = ModelLoader().load_from_file(model_path).model
         self.model.eval()
         self.model = self.model.to(self.deivce)
         if self.half:
