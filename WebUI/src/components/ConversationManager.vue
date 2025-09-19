@@ -38,7 +38,7 @@
               <div
                 class="flex items-center gap-2 px-2 py-1 rounded-md ml-1 transition-colors duration-150"
               >
-                <img src="@/assets/svg/new-conversation.svg" class="w-5 h-5" />
+                <PlusCircleIcon class="size-5" />
                 <span class="text-sm">{{ languages.ANSWER_NEW_CONVERSATION }}</span>
               </div>
             </template>
@@ -49,8 +49,6 @@
             </template>
             <div
               v-if="!conversations.isNewConversation(conversationKey)"
-              @click.stop="() => {}"
-              @pointerdown.stop
             >
               <DropdownMenu
                 :open="menuOpenKey === conversationKey"
@@ -61,14 +59,14 @@
                     variant="ghost"
                     size="icon"
                     :class="[
-                      'transition-opacity duration-200 ml-2 text-gray-300 hover:text-white hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
+                      'transition-opacity duration-100 ml-2 text-gray-300 hover:text-white hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
                       menuOpenKey === conversationKey ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',
                     ]"
                     @click.stop="() => {}"
                     @pointerdown.stop="() => {}"
                     @mousedown.stop
                   >
-                    <img src="@/assets/svg/ellipsis.svg" class="w-5 h-5" />
+                    <EllipsisHorizontalIcon class="size-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -148,15 +146,13 @@
           v-if="conversationKey === currentlyGeneratingKey && processing"
           class="svg-icon i-loading w-8 h-8 animate-spin text-white flex items-center justify-center m-auto"
         ></span>
-        <img
+        <PlusCircleIcon
           v-else-if="conversations.isNewConversation(conversationKey)"
-          class="m-auto h-8 w-8 text-gray-300"
-          src="@/assets/svg/new-conversation.svg"
+          class="m-auto size-8 text-gray-300"
         />
-        <img
+        <ChatBubbleLeftRightIcon
           v-else
-          class="m-auto h-8 w-8 text-gray-300"
-          src="@/assets/svg/conversation.svg"
+          class="m-auto size-8 text-gray-300"
         />
       </div>
     </div>
@@ -189,6 +185,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { PlusCircleIcon, ChatBubbleLeftRightIcon, EllipsisHorizontalIcon } from '@heroicons/vue/24/outline'
 
 const conversations = useConversations()
 const textInference = useTextInference()
