@@ -11,8 +11,8 @@
 This example is based on the xpu implementation of Intel® Arc™ GPU.
 
 Welcome to AI Playground open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU. AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
-- Image Diffusion: Stable Diffusion 1.5, SDXL, Flux.1-Schnell, LTX-Video
-- LLM: Safetensor PyTorch LLMs - DeepSeek R1 models, Phi3, Qwen2, Mistral, GGUF LLMs -  Llama 3.1, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini
+- Image Diffusion (PyTorch 2.8): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Wan2.1 VACE, LTX-Video
+- LLM: GGUF (Llama.cpp Vulknan) - GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
 
 ## README.md
 - English (readme.md)
@@ -27,7 +27,7 @@ AI Playground alpha and beta installers are currently available downloadable exe
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 2.5.5 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.5.5-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.5.5-beta/AI.Playground-2.5.5-beta.exe) :new:
+:new: **AI Playground 2.6.0 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.6.0-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.6.0-beta/AI.Playground-2.6.0-beta.exe) :new:
 
 ### Installation Process for v2.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
@@ -120,10 +120,12 @@ Models currently linked from the application
 | JuggernautXL v9 Model                      | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9)           |
 | Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
 | Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
-| LTX-Video                       | license [0.9.5](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.5.license.txt), [0.9.6 distilled](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltxv-2b-0.9.6-distilled-04-25.license.txt)                                              | [site](https://huggingface.co/Lightricks/LTX-Video)           |
-| Inswapper                     | [license](https://huggingface.co/datasets/Gourieff/ReActor) non-commercial                                             | [site](https://huggingface.co/Aitrepreneur/insightface) inswapper_128.onnx           |
+| Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
+| Flux.1 Kontext[dev]                       | [license](https://github.com/black-forest-labs/flux/blob/main/model_licenses/LICENSE-FLUX1-dev), | [site](https://huggingface.co/Comfy-Org/flux1-kontext-dev_ComfyUI/blob/main/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors)           |
+| Inswapper                     | [license](https://huggingface.co/datasets/Gourieff/ReActor)                                              | [site](https://huggingface.co/Aitrepreneur/insightface) inswapper_128.onnx           |
 | Latent Consistency Model (LCM) LoRA: SD1.5 | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdv1-5) |
 | Latent Consistency Model (LCM) LoRA:SDXL   | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdxl)     |
+| Wan 2.1 Vace 14 B | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site]() |
 |    |  |      |
 | CHAT IPEX-LLM  |  |      |
 | Phi3-mini-4k-instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
