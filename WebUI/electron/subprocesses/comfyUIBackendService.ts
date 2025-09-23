@@ -86,6 +86,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
   }
 
+  getServiceForPipFreeze(): UvPipService {
+    return this.uvPip
+  }
+
   async *set_up(): AsyncIterable<SetupProgress> {
     this.appLogger.info('setting up service', this.name)
     this.setStatus('installing')
@@ -292,7 +296,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.uvPip)
 
       yield {
         serviceName: this.name,

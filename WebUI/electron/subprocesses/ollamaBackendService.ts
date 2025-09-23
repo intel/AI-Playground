@@ -3,7 +3,7 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import { ApiService, DeviceService, PythonService, createEnhancedErrorDetails } from './service.ts'
+import { ApiService, DeviceService, PythonService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { detectLevelZeroDevices } from './deviceDetection.ts'
@@ -44,6 +44,9 @@ export class OllamaBackendService implements ApiService {
   // Process management
   encapsulatedProcess: ChildProcess | null = null
   desiredStatus: BackendStatus = 'uninitializedStatus'
+
+  // Store last startup error details for persistence
+  private lastStartupErrorDetails: ErrorDetails | null = null
 
   // Logger
   readonly appLogger = appLoggerInstance
@@ -117,6 +120,7 @@ export class OllamaBackendService implements ApiService {
       isSetUp: this.isSetUp,
       isRequired: this.isRequired,
       devices: this.devices,
+      errorDetails: this.lastStartupErrorDetails,
     }
   }
 
@@ -220,7 +224,7 @@ export class OllamaBackendService implements ApiService {
       this.setStatus('installationFailed')
 
       // Create detailed error information for any type of error
-      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.aiBackend)
 
       yield {
         serviceName: this.name,
@@ -326,6 +330,8 @@ export class OllamaBackendService implements ApiService {
       throw new Error('Server currently stopping. Cannot start it.')
     }
     if (this.currentStatus === 'running') {
+      // Clear error on successful running status
+      this.clearLastStartupError()
       return 'running'
     }
     if (this.desiredStatus === 'running') {
@@ -343,12 +349,23 @@ export class OllamaBackendService implements ApiService {
         this.currentStatus = 'running'
         this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
         this.isSetUp = true
+        // Clear error on successful startup
+        this.clearLastStartupError()
       } else {
         this.currentStatus = 'failed'
         this.desiredStatus = 'failed'
         this.isSetUp = false
         this.appLogger.error(`server ${this.name} failed to boot`, this.name)
         this.encapsulatedProcess?.kill()
+        
+        // Capture detailed error information for startup failure
+        const startupError = new Error(`Server ${this.name} failed to boot - health check timeout or early process exit`)
+        const errorDetails = await createEnhancedErrorDetails(
+          startupError,
+          'service startup',
+          this.aiBackend
+        )
+        this.setLastStartupError(errorDetails)
       }
     } catch (error) {
       this.appLogger.error(`failed to start server due to ${error}`, this.name)
@@ -357,6 +374,14 @@ export class OllamaBackendService implements ApiService {
       this.isSetUp = false
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
+      
+      // Capture detailed error information for startup exception
+      const errorDetails = await createEnhancedErrorDetails(
+        error,
+        'service startup',
+        this.aiBackend
+      )
+      this.setLastStartupError(errorDetails)
     } finally {
       this.win.webContents.send('serviceInfoUpdate', this.get_info())
     }
@@ -382,6 +407,19 @@ export class OllamaBackendService implements ApiService {
     return 'stopped'
   }
 
+  // Error management methods for startup failures
+  setLastStartupError(errorDetails: ErrorDetails): void {
+    this.lastStartupErrorDetails = errorDetails
+  }
+
+  getLastStartupError(): ErrorDetails | null {
+    return this.lastStartupErrorDetails
+  }
+
+  clearLastStartupError(): void {
+    this.lastStartupErrorDetails = null
+  }
+
   async uninstall(): Promise<void> {
     await this.stop()
     this.appLogger.info(`removing Ollama service directory`, this.name)
@@ -389,6 +427,8 @@ export class OllamaBackendService implements ApiService {
     this.appLogger.info(`removed Ollama service directory`, this.name)
     this.setStatus('notInstalled')
     this.isSetUp = false
+    // Clear startup errors when uninstalling
+    this.clearLastStartupError()
   }
 
   pipeProcessLogs(process: ChildProcess) {

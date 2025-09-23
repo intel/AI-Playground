@@ -20,6 +20,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
   readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
   readonly python = this.uvPip.python
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Use best device', selected: true }]
+  currentContextSize: number | null = null
 
   serviceIsSetUp(): boolean {
     return filesystem.existsSync(this.python.getExePath())
@@ -34,6 +35,10 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       { id: 'AUTO', name: 'Auto select device', selected: true },
       ...availableDevices.map((d) => ({ ...d, selected: d.id == '0' })),
     ]
+  }
+
+  getServiceForPipFreeze(): UvPipService {
+    return this.uvPip
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -111,7 +116,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.uvPip)
 
       yield {
         serviceName: this.name,
@@ -138,6 +143,35 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     }
   }
 
+  async ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+  ): Promise<void> {
+    this.appLogger.info(
+      `Ensuring openVINO backend readiness for contextSize: ${contextSize}`,
+      this.name,
+    )
+
+    try {
+      // Handle context size
+      if (contextSize && contextSize !== this.currentContextSize) {
+        this.currentContextSize = contextSize
+        await this.stop()
+        await this.start()
+        this.appLogger.info(`openVINO ready with context size: ${contextSize}`, this.name)
+      } else {
+        this.appLogger.info(`openVINO already running with context size: ${contextSize}`, this.name)
+      }
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
   async spawnAPIProcess(): Promise<{
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
@@ -147,6 +181,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
+      ...(this.currentContextSize ? { MAX_PROMPT_LEN: this.currentContextSize.toString() } : {}),
       ...openVinoDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
     }
 

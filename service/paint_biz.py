@@ -378,6 +378,9 @@ def set_components(
     if load_model_components_callback is not None:
         load_model_components_callback("finish")
 
+    # pipelines don't workout without this during first inference
+    pipe.to(service_config.device)
+
 
 def get_ESRGANer():
     global _realESRGANer

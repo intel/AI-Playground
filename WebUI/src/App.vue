@@ -337,7 +337,24 @@ const mode = useColorMode()
 mode.value = 'dark'
 let initialPage: AipgPage = 'create'
 
+const zoomIn = (event: KeyboardEvent) => {
+  if (event.ctrlKey && event.code === 'Equal') window.electronAPI.zoomIn()
+}
+
+const wheelZoom = (event: WheelEvent) => {
+  if (!event.ctrlKey) return
+  if (event.deltaY < 0) {
+    window.electronAPI.zoomIn()
+  } else {
+    window.electronAPI.zoomOut()
+  }
+}
+
 onBeforeMount(async () => {
+  window.removeEventListener('keydown', zoomIn)
+  window.addEventListener('keydown', zoomIn, true)
+  window.removeEventListener('wheel', wheelZoom)
+  window.addEventListener('wheel', wheelZoom, true)
   window.electronAPI.onDebugLog(({ level, source, message }) => {
     if (level == 'error') {
       if (message.startsWith('onednn_verbose')) return

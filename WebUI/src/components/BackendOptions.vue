@@ -176,6 +176,55 @@ const getInitialFormValues = () => {
   const backendVersionState = backendServices.versionState[props.backend]
   return backendVersionState.uiOverride ?? backendVersionState.installed ?? backendVersionState.target ?? {}
 }
+
+// Handler for starting a service with enhanced error handling
+const handleStartService = async () => {
+  try {
+    const status = await backendServices.startService(props.backend)
+    if (status !== 'running') {
+      // Service failed to start - check for detailed error information
+      const errorDetails = backendServices.getServiceErrorDetails(props.backend)
+      if (errorDetails) {
+        console.error(`Service ${props.backend} failed to start. Error details available.`)
+      } else {
+        console.error(`Service ${props.backend} failed to start.`)
+      }
+    }
+  } catch (error) {
+    // Exception during startup
+    console.error(`Service ${props.backend} startup failed:`, error)
+  }
+}
+
+// Handler for reinstalling a service with enhanced error handling
+const handleReinstall = async () => {
+  try {
+    await backendServices.uninstallService(props.backend)
+    const setupResult = await backendServices.setUpService(props.backend)
+    
+    if (setupResult.success) {
+      try {
+        const startStatus = await backendServices.startService(props.backend)
+        if (startStatus !== 'running') {
+          // Service failed to start after reinstall
+          const errorDetails = backendServices.getServiceErrorDetails(props.backend)
+          if (errorDetails) {
+            console.error(`Service ${props.backend} failed to start after reinstall. Error details available.`)
+          } else {
+            console.error(`Service ${props.backend} failed to start after reinstall.`)
+          }
+        }
+      } catch (startError) {
+        console.error(`Service ${props.backend} startup failed after reinstall:`, startError)
+      }
+    } else {
+      console.error(`Service ${props.backend} reinstallation failed.`)
+    }
+  } catch (error) {
+    console.error(`Service ${props.backend} reinstall process failed:`, error)
+  }
+}
+
 const showMenuButton = computed(
   () => showStart.value || showStop.value || showReinstall.value || showSettings.value,
 )
@@ -190,7 +239,7 @@ const showMenuButton = computed(
       <DropdownMenuItem v-if="showStop" @click="() => backendServices.stopService(backend)">{{
         i18nState.BACKEND_STOP
       }}</DropdownMenuItem>
-      <DropdownMenuItem v-if="showStart" @click="() => backendServices.startService(backend)">{{
+      <DropdownMenuItem v-if="showStart" @click="handleStartService">{{
         i18nState.BACKEND_START
       }}</DropdownMenuItem>
 
@@ -221,16 +270,7 @@ const showMenuButton = computed(
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
-            <AlertDialogAction
-              @click="
-                async () => {
-                  await backendServices.uninstallService(backend)
-                  await backendServices.setUpService(backend)
-                  await backendServices.startService(backend)
-                }
-              "
-              >{{ i18nState.COM_CONTINUE }}</AlertDialogAction
-            >
+            <AlertDialogAction @click="handleReinstall">{{ i18nState.COM_CONTINUE }}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

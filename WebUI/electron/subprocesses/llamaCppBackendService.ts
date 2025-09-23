@@ -151,6 +151,10 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
     }
   }
 
+  getServiceForPipFreeze(): UvPipService {
+    return this.uvPip
+  }
+
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
@@ -231,7 +235,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.uvPip)
 
       yield {
         serviceName: this.name,

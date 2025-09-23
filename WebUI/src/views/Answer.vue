@@ -379,7 +379,7 @@
             class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
           />
         </div>
-        <div v-if="textInference.backend === 'llamaCPP'" class="flex items-center gap-2">
+        <div v-if="textInference.contextSizeSettingSupported" class="flex items-center gap-2">
           <label class="text-white whitespace-nowrap">{{ languages.ANSWER_CONTEXT_SIZE }}</label>
           <input
             type="number"
