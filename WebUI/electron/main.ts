@@ -54,7 +54,6 @@ import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
 import z from 'zod'
-import { ModelSchema } from '../src/types/shared.ts'
 
 // }
 // The built directory structure
@@ -412,6 +411,18 @@ function initEventHandle() {
     return appSize
   })
 
+  ipcMain.handle('zoomIn', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 1)
+  })
+
+  ipcMain.handle('zoomOut', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    win.webContents.setZoomLevel(win.webContents.getZoomLevel() - 1)
+  })
+
   ipcMain.on('openUrl', (_event, url: string) => {
     return shell.openExternal(url)
   })
@@ -735,24 +746,24 @@ function initEventHandle() {
   ipcMain.handle('startService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received start signal too early during aipg startup', 'electron-backend')
-      return
+      return 'failed'
     }
     const service = serviceRegistry.getService(serviceName)
     if (!service) {
       appLogger.warn(`Tried to start service ${serviceName} which is not known`, 'electron-backend')
-      return
+      return 'failed'
     }
     return service.start()
   })
   ipcMain.handle('stopService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received stop signal too early during aipg startup', 'electron-backend')
-      return
+      return 'failed'
     }
     const service = serviceRegistry.getService(serviceName)
     if (!service) {
       appLogger.warn(`Tried to stop service ${serviceName} which is not known`, 'electron-backend')
-      return
+      return 'failed'
     }
     return service.stop()
   })

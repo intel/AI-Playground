@@ -5,6 +5,7 @@ import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
+import { ru } from 'zod/v4/locales'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -204,6 +205,12 @@ export const useTextInference = defineStore(
       return newActiveEmbeddingModel
     })
 
+    const contextSizeSettingSupported = computed(
+      () =>
+        backend.value === 'llamaCPP' ||
+        (backend.value === 'openVINO' && runningOnOpenvinoNpu.value),
+    )
+
     // Backend preparation computed properties
     const needsBackendPreparation = computed(() => {
       const currentModel = activeModel.value
@@ -215,7 +222,7 @@ export const useTextInference = defineStore(
 
       return (
         currentModel !== lastModel ||
-        (currentBackend === 'llamaCPP' && currentContext !== lastContext)
+        (contextSizeSettingSupported.value && currentContext !== lastContext)
       )
     })
 
@@ -231,7 +238,8 @@ export const useTextInference = defineStore(
         const lastContext = backendReadinessState.lastUsedContextSize[currentBackend]
 
         if (currentModel !== lastModel) return 'model-change'
-        if (currentBackend === 'llamaCPP' && currentContext !== lastContext) return 'context-change'
+        if (contextSizeSettingSupported.value && currentContext !== lastContext)
+          return 'context-change'
         return 'backend-switch'
       },
     )
@@ -608,7 +616,7 @@ export const useTextInference = defineStore(
     }
 
     async function ensureBackendReadiness(): Promise<void> {
-      if (backend.value === 'llamaCPP') {
+      if (backend.value === 'llamaCPP' || contextSizeSettingSupported.value) {
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
         const embeddingModelName = activeEmbeddingModel.value
@@ -649,6 +657,7 @@ export const useTextInference = defineStore(
       isMaxSize,
       isMinSize,
       ragList,
+      contextSizeSettingSupported,
       selectModel,
       selectEmbeddingModel,
       getDownloadParamsForCurrentModelIfRequired,

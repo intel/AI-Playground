@@ -258,9 +258,25 @@ async function restartBackend(name: BackendServiceName) {
     return
   }
 
-  const startStatus = await backendServices.startService(name)
-  if (startStatus !== 'running') {
-    toast.error('Service failed to restart')
+  try {
+    const startStatus = await backendServices.startService(name)
+    if (startStatus !== 'running') {
+      // Service failed to start - show detailed error message
+      const errorDetails = backendServices.getServiceErrorDetails(name)
+      const errorMessage = errorDetails
+        ? 'Service failed to start - Click the info icon for details'
+        : 'Service failed to start'
+      toast.error(errorMessage)
+      loadingComponents.value.delete(name)
+      return
+    }
+  } catch (error) {
+    // Exception during startup - show detailed error message
+    const errorDetails = backendServices.getServiceErrorDetails(name)
+    const errorMessage = errorDetails
+      ? 'Service startup failed - Click the info icon for details'
+      : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`
+    toast.error(errorMessage)
     loadingComponents.value.delete(name)
     return
   }

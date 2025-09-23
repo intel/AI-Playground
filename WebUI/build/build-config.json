@@ -34,7 +34,7 @@
     {
       "from": "../OpenVINO",
       "to": "OpenVINO",
-      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache/", "!emb_model_cache/"]
+      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache*/**", "!emb_model_cache/"]
     },
     {
       "from": "external/workflows",

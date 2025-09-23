@@ -23,5 +23,5 @@ llama-cpp-env/
 *-env/
 build-envs/
 portable-git/
-llm_cache/*
+llm_cache*/
 emb_model_cache/

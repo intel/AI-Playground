@@ -24,10 +24,45 @@ export interface ErrorDetails {
   stderr?: string
   timestamp?: string
   duration?: number
+  pipFreezeOutput?: string
 }
 
-export function createEnhancedErrorDetails(error: unknown, context?: string): ErrorDetails {
+// Helper function to capture pip freeze output using service-specific Python environment
+export async function capturePipFreezeOutput(service?: PythonService | UvPipService): Promise<string | undefined> {
+  try {
+    if (!service) {
+      return 'No service provided for pip freeze'
+    }
+
+    let result: string
+    
+    if (service instanceof UvPipService) {
+      // For UvPipService, use 'uv pip freeze'
+      result = await service.run(['freeze'])
+    } else if (service instanceof PythonService) {
+      // For PythonService, use 'python -m pip freeze'
+      result = await service.run(['-m', 'pip', 'freeze'])
+    } else {
+      return 'Unsupported service type for pip freeze'
+    }
+    
+    return result.trim()
+  } catch (error) {
+    if (error instanceof ProcessError) {
+      return `pip freeze failed (exit code ${error.result.exitCode}): ${error.result.stderr || error.result.stdout}`
+    }
+    return `Failed to execute pip freeze: ${error instanceof Error ? error.message : String(error)}`
+  }
+}
+
+export async function createEnhancedErrorDetails(error: unknown, context?: string, service?: PythonService | UvPipService): Promise<ErrorDetails> {
   const timestamp = new Date().toISOString()
+  
+  // Capture pip freeze output for installation-related errors
+  let pipFreezeOutput: string | undefined
+  if (service) {
+    pipFreezeOutput = await capturePipFreezeOutput(service)
+  }
 
   if (error instanceof ProcessError) {
     return {
@@ -37,6 +72,7 @@ export function createEnhancedErrorDetails(error: unknown, context?: string): Er
       stderr: error.result.stderr,
       timestamp: error.result.timestamp,
       duration: error.result.duration,
+      pipFreezeOutput,
     }
   }
 
@@ -44,6 +80,7 @@ export function createEnhancedErrorDetails(error: unknown, context?: string): Er
     // Handle regular Error objects
     const errorDetails: ErrorDetails = {
       timestamp,
+      pipFreezeOutput,
     }
 
     // Extract information based on error message patterns
@@ -119,6 +156,7 @@ export function createEnhancedErrorDetails(error: unknown, context?: string): Er
     command: context || 'Unknown operation',
     stderr: String(error),
     timestamp,
+    pipFreezeOutput,
   }
 }
 
@@ -580,6 +618,14 @@ export abstract class LongLivedPythonApiService implements ApiService {
   desiredStatus: BackendStatus = 'uninitializedStatus'
   currentStatus: BackendStatus = 'uninitializedStatus'
 
+  // Store last startup error details for persistence
+  private lastStartupErrorDetails: ErrorDetails | null = null
+
+  // Buffer for capturing startup logs
+  private startupLogBuffer: { stdout: string[]; stderr: string[] } = { stdout: [], stderr: [] }
+  private isCapturingStartupLogs: boolean = false
+  private startupStartTime: number = 0
+
   readonly appLogger = appLoggerInstance
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
@@ -633,10 +679,14 @@ export abstract class LongLivedPythonApiService implements ApiService {
       isSetUp: this.isSetUp,
       isRequired: this.isRequired,
       devices: this.devices,
+      errorDetails: this.lastStartupErrorDetails 
     }
   }
 
   abstract set_up(): AsyncIterable<SetupProgress>
+
+  // Abstract method to get the service instance for pip freeze
+  abstract getServiceForPipFreeze(): PythonService | UvPipService | null
 
   async uninstall(): Promise<void> {
     this.stop()
@@ -644,6 +694,8 @@ export abstract class LongLivedPythonApiService implements ApiService {
     await filesystem.remove(this.pythonEnvDir)
     this.appLogger.info(`removed python env of ${this.name} service`, this.name)
     this.setStatus('notInstalled')
+    // Clear startup errors when uninstalling
+    this.lastStartupErrorDetails = null
   }
 
   async start(): Promise<BackendStatus> {
@@ -654,6 +706,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
       throw new Error('Server currently stopping. Cannot start it.')
     }
     if (this.currentStatus === 'running') {
+      this.lastStartupErrorDetails = null
       return 'running'
     }
     if (this.desiredStatus === 'running') {
@@ -662,6 +715,12 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     this.desiredStatus = 'running'
     this.setStatus('starting')
+    
+    // Initialize startup log capture
+    this.startupLogBuffer = { stdout: [], stderr: [] }
+    this.isCapturingStartupLogs = true
+    this.startupStartTime = Date.now()
+    
     try {
       this.appLogger.info(` trying to start ${this.name} python API`, this.name)
       const trackedProcess = await this.spawnAPIProcess()
@@ -671,12 +730,22 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.currentStatus = 'running'
         this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
         this.isSetUp = true
+        this.lastStartupErrorDetails = null
+        // Stop capturing startup logs on success
+        this.isCapturingStartupLogs = false
       } else {
         this.currentStatus = 'failed'
         this.desiredStatus = 'failed'
         this.isSetUp = false
         this.appLogger.error(`server ${this.name} failed to boot`, this.name)
         this.encapsulatedProcess?.kill()
+        
+        // Stop capturing and create enhanced error details with buffered logs
+        this.isCapturingStartupLogs = false
+        const errorDetails = await this.createStartupErrorDetails(
+          `Server ${this.name} failed to boot - health check timeout or early process exit`
+        )
+        this.lastStartupErrorDetails = errorDetails
       }
     } catch (error) {
       this.appLogger.error(` failed to start server due to ${error}`, this.name)
@@ -685,6 +754,13 @@ export abstract class LongLivedPythonApiService implements ApiService {
       this.isSetUp = false
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
+      
+      // Stop capturing and create enhanced error details with buffered logs
+      this.isCapturingStartupLogs = false
+      const errorDetails = await this.createStartupErrorDetails(
+        error instanceof Error ? error.message : String(error)
+      )
+      this.lastStartupErrorDetails = errorDetails
     } finally {
       this.win.webContents.send('serviceInfoUpdate', this.get_info())
     }
@@ -721,6 +797,35 @@ export abstract class LongLivedPythonApiService implements ApiService {
     )
   }
 
+  /**
+   * Create enhanced error details for startup failures, including buffered logs
+   */
+  private async createStartupErrorDetails(errorMessage: string): Promise<ErrorDetails> {
+    const timestamp = new Date().toISOString()
+    const duration = Date.now() - this.startupStartTime
+    
+    // Get pip freeze output for additional context
+    const service = this.getServiceForPipFreeze()
+    let pipFreezeOutput: string | undefined
+    if (service) {
+      pipFreezeOutput = await capturePipFreezeOutput(service)
+    }
+
+    // Combine buffered stdout and stderr
+    const stdout = this.startupLogBuffer.stdout.join('').trim()
+    const stderr = this.startupLogBuffer.stderr.join('').trim()
+
+    return {
+      command: `${this.name} startup`,
+      exitCode: undefined, // Process may not have exited with a specific code
+      stdout: stdout || undefined,
+      stderr: stderr || errorMessage, // Include the error message if no stderr captured
+      timestamp,
+      duration,
+      pipFreezeOutput,
+    }
+  }
+
   abstract spawnAPIProcess(): Promise<{
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
@@ -728,23 +833,45 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
   pipeProcessLogs(process: ChildProcess) {
     process.stdout!.on('data', (message) => {
-      if (message.toString().startsWith('INFO')) {
-        this.appLogger.info(`${message}`, this.name)
-      } else if (message.toString().startsWith('WARN')) {
-        this.appLogger.warn(`${message}`, this.name)
+      const messageStr = message.toString()
+      
+      // Buffer startup logs if we're in startup phase
+      if (this.isCapturingStartupLogs) {
+        this.startupLogBuffer.stdout.push(messageStr)
+      }
+      
+      // Continue with normal logging to preserve real-time console output
+      if (messageStr.startsWith('INFO')) {
+        this.appLogger.info(`${messageStr}`, this.name)
+      } else if (messageStr.startsWith('WARN')) {
+        this.appLogger.warn(`${messageStr}`, this.name)
       } else {
-        this.appLogger.error(`${message}`, this.name)
+        this.appLogger.error(`${messageStr}`, this.name)
       }
     })
 
     process.stderr!.on('data', (message) => {
-      this.appLogger.error(`${message}`, this.name)
+      const messageStr = message.toString()
+      
+      // Buffer startup logs if we're in startup phase
+      if (this.isCapturingStartupLogs) {
+        this.startupLogBuffer.stderr.push(messageStr)
+      }
+      
+      // Continue with normal logging to preserve real-time console output
+      this.appLogger.error(`${messageStr}`, this.name)
     })
+    
     process.on('error', (message) => {
-      this.appLogger.error(
-        `backend process ${this.name} exited abruptly due to : ${message}`,
-        this.name,
-      )
+      const messageStr = `backend process ${this.name} exited abruptly due to : ${message}`
+      
+      // Buffer startup logs if we're in startup phase
+      if (this.isCapturingStartupLogs) {
+        this.startupLogBuffer.stderr.push(messageStr)
+      }
+      
+      // Continue with normal logging
+      this.appLogger.error(messageStr, this.name)
     })
   }
 

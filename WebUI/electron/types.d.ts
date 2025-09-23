@@ -41,6 +41,7 @@ declare interface SetupProgress {
     stderr?: string
     timestamp?: string
     duration?: number
+    pipFreezeOutput?: string
   }
 }
 

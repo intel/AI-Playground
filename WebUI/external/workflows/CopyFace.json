@@ -4,6 +4,7 @@
   "category": "edit-images",
   "comfyUIRequirements": {
     "pythonPackages": [
+      "stringzilla==3.12.6",
       "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
       "onnxruntime"
     ],

@@ -72,6 +72,8 @@ type electronAPI = {
   refreshLora(): Promise<string[]>
   refreshInpaintModles(): Promise<string[]>
   loadModels(): Promise<Model[]>
+  zoomIn(): Promise<void>
+  zoomOut(): Promise<void>
   getDownloadedDiffusionModels(): Promise<string[]>
   getDownloadedInpaintModels(): Promise<string[]>
   getDownloadedLoras(): Promise<string[]>
@@ -114,14 +116,7 @@ type SetupProgress = {
   step: string
   status: 'executing' | 'failed' | 'success'
   debugMessage: string
-  errorDetails?: {
-    command?: string
-    exitCode?: number
-    stdout?: string
-    stderr?: string
-    timestamp?: string
-    duration?: number
-  }
+  errorDetails?: ErrorDetails
 }
 
 type Chrome = {
@@ -403,6 +398,16 @@ type InferenceDevice = {
   selected: boolean
 }
 
+type ErrorDetails = {
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timestamp?: string
+  duration?: number
+  pipFreezeOutput?: string
+}
+
 type ApiServiceInformation = {
   serviceName: BackendServiceName
   status: BackendStatus
@@ -411,6 +416,7 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  errorDetails: ErrorDetails | null
 }
 
 type Model = {

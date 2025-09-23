@@ -31,6 +31,10 @@ export class AiBackendService extends LongLivedPythonApiService {
   async detectDevices() {
     const availableDevices = await detectLevelZeroDevices(this.python)
     this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
+    if (availableDevices.length === 0) {
+      this.appLogger.error(`No devices detected`, this.name)
+      return
+    }
 
     let bestDeviceId: string
     try {
@@ -45,6 +49,10 @@ export class AiBackendService extends LongLivedPythonApiService {
       bestDeviceId = availableDevices[0].name
     }
     this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+  }
+
+  getServiceForPipFreeze(): UvPipService {
+    return this.uvPip
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -137,7 +145,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = createEnhancedErrorDetails(e, `${currentStep} operation`)
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.uvPip)
 
       yield {
         serviceName: this.name,
