@@ -47,12 +47,10 @@
                 {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
               </span>
             </template>
-            <div
-              v-if="!conversations.isNewConversation(conversationKey)"
-            >
+            <div v-if="!conversations.isNewConversation(conversationKey)">
               <DropdownMenu
                 :open="menuOpenKey === conversationKey"
-                @update:open="open => onMenuOpenChange(conversationKey, open)"
+                @update:open="(open) => onMenuOpenChange(conversationKey, open)"
               >
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -60,7 +58,9 @@
                     size="icon"
                     :class="[
                       'transition-opacity duration-100 ml-2 text-gray-300 hover:text-white hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
-                      menuOpenKey === conversationKey ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',
+                      menuOpenKey === conversationKey
+                        ? 'opacity-70'
+                        : 'opacity-0 group-hover:opacity-70',
                     ]"
                     @click.stop="() => {}"
                     @pointerdown.stop="() => {}"
@@ -72,21 +72,38 @@
                 <DropdownMenuContent
                   align="end"
                   class="min-w-36"
-                  :onCloseAutoFocus="ev => { ev.preventDefault?.() }"
+                  :onCloseAutoFocus="
+                    (ev) => {
+                      ev.preventDefault?.()
+                    }
+                  "
                 >
                   <Dialog
                     v-model:open="renameDialogOpen"
-                    @update:open="open => { if (!open) menuOpenKey = null }"
+                    @update:open="
+                      (open) => {
+                        if (!open) menuOpenKey = null
+                      }
+                    "
                   >
                     <DialogTrigger asChild>
-                      <DropdownMenuItem @select="(e: Event) => { e.preventDefault(); openRenameDialog(conversationKey) }">
+                      <DropdownMenuItem
+                        @select="
+                          (e: Event) => {
+                            e.preventDefault()
+                            openRenameDialog(conversationKey)
+                          }
+                        "
+                      >
                         Rename
                       </DropdownMenuItem>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Rename conversation</DialogTitle>
-                        <DialogDescription>Set a new title for this conversation.</DialogDescription>
+                        <DialogDescription
+                          >Set a new title for this conversation.</DialogDescription
+                        >
                       </DialogHeader>
                       <div class="mt-2">
                         <Input
@@ -118,7 +135,9 @@
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction @click="() => conversations.deleteConversation(conversationKey)">
+                        <AlertDialogAction
+                          @click="() => conversations.deleteConversation(conversationKey)"
+                        >
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -150,10 +169,7 @@
           v-else-if="conversations.isNewConversation(conversationKey)"
           class="m-auto size-8 text-gray-300"
         />
-        <ChatBubbleLeftRightIcon
-          v-else
-          class="m-auto size-8 text-gray-300"
-        />
+        <ChatBubbleLeftRightIcon v-else class="m-auto size-8 text-gray-300" />
       </div>
     </div>
   </div>
@@ -163,7 +179,12 @@
 import { useConversations } from '@/assets/js/store/conversations'
 import { useTextInference } from '@/assets/js/store/textInference'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -185,7 +206,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { PlusCircleIcon, ChatBubbleLeftRightIcon, EllipsisHorizontalIcon } from '@heroicons/vue/24/outline'
+import {
+  PlusCircleIcon,
+  ChatBubbleLeftRightIcon,
+  EllipsisHorizontalIcon,
+} from '@heroicons/vue/24/outline'
 
 const conversations = useConversations()
 const textInference = useTextInference()

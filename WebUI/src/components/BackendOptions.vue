@@ -174,7 +174,12 @@ const getVersionDescription = (backend: BackendServiceName) => {
 // Get initial form values based on backend type
 const getInitialFormValues = () => {
   const backendVersionState = backendServices.versionState[props.backend]
-  return backendVersionState.uiOverride ?? backendVersionState.installed ?? backendVersionState.target ?? {}
+  return (
+    backendVersionState.uiOverride ??
+    backendVersionState.installed ??
+    backendVersionState.target ??
+    {}
+  )
 }
 
 // Handler for starting a service with enhanced error handling
@@ -201,7 +206,7 @@ const handleReinstall = async () => {
   try {
     await backendServices.uninstallService(props.backend)
     const setupResult = await backendServices.setUpService(props.backend)
-    
+
     if (setupResult.success) {
       try {
         const startStatus = await backendServices.startService(props.backend)
@@ -209,7 +214,9 @@ const handleReinstall = async () => {
           // Service failed to start after reinstall
           const errorDetails = backendServices.getServiceErrorDetails(props.backend)
           if (errorDetails) {
-            console.error(`Service ${props.backend} failed to start after reinstall. Error details available.`)
+            console.error(
+              `Service ${props.backend} failed to start after reinstall. Error details available.`,
+            )
           } else {
             console.error(`Service ${props.backend} failed to start after reinstall.`)
           }
@@ -270,7 +277,9 @@ const showMenuButton = computed(
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
-            <AlertDialogAction @click="handleReinstall">{{ i18nState.COM_CONTINUE }}</AlertDialogAction>
+            <AlertDialogAction @click="handleReinstall">{{
+              i18nState.COM_CONTINUE
+            }}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

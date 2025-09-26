@@ -14,7 +14,7 @@ const BackendVersionsSchema = z.object({
   'comfyui-backend': BackendVersionSchema,
   'llamacpp-backend': BackendVersionSchema,
   'openvino-backend': BackendVersionSchema,
-  'ollama-backend': BackendVersionSchema
+  'ollama-backend': BackendVersionSchema,
 })
 type BackendVersions = z.infer<typeof BackendVersionsSchema>
 
@@ -32,10 +32,9 @@ const getRemoteModelsUrl = (settings?: LocalSettings): string => {
   return `${getRemoteBaseUrl(settings)}models.json`
 }
 
-
 const loadLocalVersions = async (): Promise<BackendVersions> => {
   const versionsFilePath = path.join(externalResourcesDir(), 'backend-versions.json')
-  
+
   try {
     if (await fs.promises.stat(versionsFilePath)) {
       const versionsData = await fs.promises.readFile(versionsFilePath, 'utf-8')
@@ -43,7 +42,10 @@ const loadLocalVersions = async (): Promise<BackendVersions> => {
       appLoggerInstance.info(`Loaded backend versions from ${versionsFilePath}`, 'backend-version')
       return versions
     } else {
-      appLoggerInstance.warn(`Backend versions file not found at ${versionsFilePath}`, 'backend-version')
+      appLoggerInstance.warn(
+        `Backend versions file not found at ${versionsFilePath}`,
+        'backend-version',
+      )
       throw new Error('Backend versions file not found')
     }
   } catch (error) {
@@ -52,7 +54,7 @@ const loadLocalVersions = async (): Promise<BackendVersions> => {
   }
 }
 
-let cachedRemoteVersions = null as BackendVersions | null
+const cachedRemoteVersions = null as BackendVersions | null
 const fetchRemoteVersions = async (remoteUrl: string): Promise<BackendVersions | null> => {
   if (cachedRemoteVersions) {
     appLoggerInstance.info(`Using cached remote versions`, 'backend-version')
@@ -61,10 +63,13 @@ const fetchRemoteVersions = async (remoteUrl: string): Promise<BackendVersions |
 
   try {
     appLoggerInstance.info(`Fetching backend versions from ${remoteUrl}`, 'backend-version')
-    
+
     const response = await fetch(remoteUrl)
     if (!response.ok) {
-      appLoggerInstance.warn(`Failed to fetch remote versions: ${response.status} ${response.statusText}`, 'backend-version')
+      appLoggerInstance.warn(
+        `Failed to fetch remote versions: ${response.status} ${response.statusText}`,
+        'backend-version',
+      )
       return null
     }
 
@@ -83,9 +88,8 @@ let fetchRemotePromise: Promise<BackendVersions | null> | null = null
 let loadLocalPromise: Promise<BackendVersions> | null = null
 export const resolveBackendVersion = async (
   serviceName: BackendServiceName,
-  settings?: LocalSettings
+  settings?: LocalSettings,
 ): Promise<BackendVersion | undefined> => {
-
   try {
     const remoteUrl = getRemoteVersionsUrl(settings)
     if (!fetchRemotePromise) {
@@ -93,11 +97,17 @@ export const resolveBackendVersion = async (
     }
     const remoteVersions = await fetchRemotePromise
     if (remoteVersions && remoteVersions[serviceName]) {
-      appLoggerInstance.info(`Using remote version for ${serviceName}: ${JSON.stringify(remoteVersions[serviceName])}`, 'backend-version')
+      appLoggerInstance.info(
+        `Using remote version for ${serviceName}: ${JSON.stringify(remoteVersions[serviceName])}`,
+        'backend-version',
+      )
       return remoteVersions[serviceName]
     }
   } catch (error) {
-    appLoggerInstance.warn(`Failed to get remote version for ${serviceName}: ${error}`, 'backend-version')
+    appLoggerInstance.warn(
+      `Failed to get remote version for ${serviceName}: ${error}`,
+      'backend-version',
+    )
   }
 
   if (!loadLocalPromise) {
@@ -105,7 +115,10 @@ export const resolveBackendVersion = async (
   }
   const localVersion = (await loadLocalPromise)[serviceName]
   if (localVersion) {
-    appLoggerInstance.info(`Using local version for ${serviceName}: ${JSON.stringify(localVersion)}`, 'backend-version')
+    appLoggerInstance.info(
+      `Using local version for ${serviceName}: ${JSON.stringify(localVersion)}`,
+      'backend-version',
+    )
     return localVersion
   }
 
@@ -114,25 +127,27 @@ export const resolveBackendVersion = async (
 }
 
 const loadLocalModels = async () => {
-    const modelsFilePath = path.join(externalResourcesDir(), 'models.json')
-    try {
-        const modelsData = await fs.promises.readFile(modelsFilePath, 'utf-8')
-        const models = z.array(ModelSchema).parse(JSON.parse(modelsData))
-        appLoggerInstance.info(`Loaded backend models from ${modelsFilePath}`, 'models')
-        return models
-    } catch (error) {
-      // handle ENOENT
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        appLoggerInstance.warn(`Models file not found at ${modelsFilePath}`, 'models')
-        throw new Error('Models file not found')
-      }
-      appLoggerInstance.error(`Failed to load models: ${error}`, 'models')
-      throw new Error('Failed to load models')
+  const modelsFilePath = path.join(externalResourcesDir(), 'models.json')
+  try {
+    const modelsData = await fs.promises.readFile(modelsFilePath, 'utf-8')
+    const models = z.array(ModelSchema).parse(JSON.parse(modelsData))
+    appLoggerInstance.info(`Loaded backend models from ${modelsFilePath}`, 'models')
+    return models
+  } catch (error) {
+    // handle ENOENT
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      appLoggerInstance.warn(`Models file not found at ${modelsFilePath}`, 'models')
+      throw new Error('Models file not found')
     }
+    appLoggerInstance.error(`Failed to load models: ${error}`, 'models')
+    throw new Error('Failed to load models')
+  }
 }
 
 let cachedRemoteModels = null as z.infer<typeof ModelSchema>[] | null
-const fetchRemoteModels = async (remoteUrl: string): Promise<z.infer<typeof ModelSchema>[] | null> => {
+const fetchRemoteModels = async (
+  remoteUrl: string,
+): Promise<z.infer<typeof ModelSchema>[] | null> => {
   if (cachedRemoteModels) {
     appLoggerInstance.info(`Using cached remote models`, 'models')
     return cachedRemoteModels
@@ -140,10 +155,13 @@ const fetchRemoteModels = async (remoteUrl: string): Promise<z.infer<typeof Mode
 
   try {
     appLoggerInstance.info(`Fetching models from ${remoteUrl}`, 'models')
-    
+
     const response = await fetch(remoteUrl)
     if (!response.ok) {
-      appLoggerInstance.warn(`Failed to fetch remote models: ${response.status} ${response.statusText}`, 'models')
+      appLoggerInstance.warn(
+        `Failed to fetch remote models: ${response.status} ${response.statusText}`,
+        'models',
+      )
       return null
     }
 
@@ -162,9 +180,8 @@ const fetchRemoteModels = async (remoteUrl: string): Promise<z.infer<typeof Mode
 let fetchRemoteModelsPromise: Promise<z.infer<typeof ModelSchema>[] | null> | null = null
 let loadLocalModelsPromise: Promise<z.infer<typeof ModelSchema>[]> | null = null
 export const resolveModels = async (
-  settings?: LocalSettings
+  settings?: LocalSettings,
 ): Promise<z.infer<typeof ModelSchema>[]> => {
-
   try {
     const remoteUrl = getRemoteModelsUrl(settings)
     if (!fetchRemoteModelsPromise) {

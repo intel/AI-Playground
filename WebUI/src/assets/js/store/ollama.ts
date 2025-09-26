@@ -10,10 +10,12 @@ export const useOllama = defineStore(
   () => {
     const textInference = useTextInference()
 
-    const model = computed(() => createOpenAICompatible({
+    const model = computed(() =>
+      createOpenAICompatible({
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
-      }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b'))
+      }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b'),
+    )
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const customFetch = async (_: any, options: any) => {
@@ -37,7 +39,7 @@ export const useOllama = defineStore(
       transport: new DefaultChatTransport({ fetch: customFetch }),
     })
 
-const messages = computed(() => chat.messages);
+    const messages = computed(() => chat.messages)
     async function generateWithAiSdk(chatContext: ChatItem[]) {
       await chat.sendMessage({
         text: chatContext[chatContext.length - 1].question,
@@ -45,8 +47,8 @@ const messages = computed(() => chat.messages);
       console.log('after generate', messages.value)
     }
 
-      async function generate(chatContext: ChatItem[]) {
-        // For Ollama, we need to set the model name in the backend URL
+    async function generate(chatContext: ChatItem[]) {
+      // For Ollama, we need to set the model name in the backend URL
       const ollama = new Ollama({ host: textInference.currentBackendUrl })
       const ollamaDl = await ollama.pull({
         model: textInference.activeModel ?? 'asdf',

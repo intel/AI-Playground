@@ -116,7 +116,11 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.uvPip)
+      const errorDetails = await createEnhancedErrorDetails(
+        e,
+        `${currentStep} operation`,
+        this.uvPip,
+      )
 
       yield {
         serviceName: this.name,
