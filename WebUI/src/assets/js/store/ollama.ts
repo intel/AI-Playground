@@ -1,7 +1,7 @@
-import { defineStore } from 'pinia'
+import { acceptHMRUpdate, defineStore } from 'pinia'
 import { Ollama } from 'ollama/browser'
-import { useChat } from '@ai-sdk/vue'
-import { streamText } from 'ai'
+import { Chat } from '@ai-sdk/vue'
+import { convertToModelMessages, DefaultChatTransport, streamText } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 
@@ -10,40 +10,43 @@ export const useOllama = defineStore(
   () => {
     const textInference = useTextInference()
 
-    const getModel = () =>
-      createOpenAICompatible({
+    const model = computed(() => createOpenAICompatible({
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
-      }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b')
+      }).chatModel(textInference.activeModel ?? 'deepseek-r1:1.5b'))
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const customFetch = async (_: any, options: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const m = JSON.parse(options.body) as any
-      console.log(m)
       const result = await streamText({
-        model: getModel(),
-        messages: m.messages,
+        model: model.value,
+        messages: convertToModelMessages(m.messages),
         abortSignal: options.signal,
       })
-      return result.toDataStreamResponse()
+      return result.toUIMessageStreamResponse({
+        sendReasoning: true,
+      })
     }
     const ollamaDlProgress = ref<{
       status: 'idle' | 'pulling'
       totalBytes?: number
       completedBytes?: number
     }>({ status: 'idle' })
-    const chat = useChat({ fetch: customFetch })
+    const chat = new Chat({
+      transport: new DefaultChatTransport({ fetch: customFetch }),
+    })
 
+const messages = computed(() => chat.messages);
     async function generateWithAiSdk(chatContext: ChatItem[]) {
-      await chat.append({
-        role: 'user',
-        content: chatContext[chatContext.length - 1].question,
+      await chat.sendMessage({
+        text: chatContext[chatContext.length - 1].question,
       })
+      console.log('after generate', messages.value)
     }
 
-    async function generate(chatContext: ChatItem[]) {
-      // For Ollama, we need to set the model name in the backend URL
+      async function generate(chatContext: ChatItem[]) {
+        // For Ollama, we need to set the model name in the backend URL
       const ollama = new Ollama({ host: textInference.currentBackendUrl })
       const ollamaDl = await ollama.pull({
         model: textInference.activeModel ?? 'asdf',
@@ -65,7 +68,7 @@ export const useOllama = defineStore(
 
     return {
       ollamaDlProgress,
-      chat,
+      messages,
       generate,
     }
   },
@@ -75,3 +78,7 @@ export const useOllama = defineStore(
     },
   },
 )
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useOllama, import.meta.hot))
+}
