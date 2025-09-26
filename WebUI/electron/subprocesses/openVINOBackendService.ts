@@ -181,6 +181,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
+      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH}`,
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
