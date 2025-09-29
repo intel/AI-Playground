@@ -74,9 +74,13 @@
 
           <!-- Pip Freeze Output -->
           <div v-if="errorDetails.pipFreezeOutput" class="bg-gray-900 rounded-lg p-4">
-            <h3 class="text-lg font-medium text-purple-400 mb-2">Python Environment (pip freeze)</h3>
+            <h3 class="text-lg font-medium text-purple-400 mb-2">
+              Python Environment (pip freeze)
+            </h3>
             <div class="bg-black rounded p-3 max-h-64 overflow-y-auto">
-              <pre class="text-purple-300 text-sm whitespace-pre-wrap">{{ errorDetails.pipFreezeOutput }}</pre>
+              <pre class="text-purple-300 text-sm whitespace-pre-wrap">{{
+                errorDetails.pipFreezeOutput
+              }}</pre>
             </div>
           </div>
 

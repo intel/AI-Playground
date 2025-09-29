@@ -29,8 +29,9 @@ const workflowDirBakTargetPath = path.join(externalRes, 'workflows_bak')
 
 const gitRef = app.getVersion()
 
-export async function updateIntelWorkflows(remoteRepository: string): Promise<UpdateWorkflowsFromIntelResult> {
-  
+export async function updateIntelWorkflows(
+  remoteRepository: string,
+): Promise<UpdateWorkflowsFromIntelResult> {
   try {
     await fetchNewIntelWorkflows(remoteRepository)
     await backUpCurrentWorkflows()
@@ -72,7 +73,11 @@ export async function updateIntelWorkflows(remoteRepository: string): Promise<Up
 
 async function fetchNewIntelWorkflows(remoteRepository: string) {
   const remoteRepoUrl = `https://github.com/${remoteRepository}`
-  logger.info(`fetching intel workflows from ${remoteRepoUrl} and ref ${gitRef}`, logSourceName, true)
+  logger.info(
+    `fetching intel workflows from ${remoteRepoUrl} and ref ${gitRef}`,
+    logSourceName,
+    true,
+  )
   const gitExe = existingFileOrError(gitExePath)
   const gitWorkDir = workflowDirSpareGitRepoPath
   await prepareSparseGitRepoDir(gitWorkDir)
@@ -161,7 +166,7 @@ async function prepareSparseGitCheckout(workDir: string, gitExe: string, remoteR
       processLogHandler,
       {},
       workDir,
-    )    
+    )
   }
   logger.info(`using existing sparse checkout config`, logSourceName, true)
 }

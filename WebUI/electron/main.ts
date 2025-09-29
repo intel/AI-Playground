@@ -105,7 +105,7 @@ const LocalSettingsSchema = z.object({
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
-  huggingfaceEndpoint: z.string().default("https://huggingface.co"),
+  huggingfaceEndpoint: z.string().default('https://huggingface.co'),
 })
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 
@@ -119,7 +119,9 @@ async function loadSettings() {
   appLogger.info(`loading settings from ${settingPath}`, 'electron-backend')
   if (fs.existsSync(settingPath)) {
     try {
-      settings = LocalSettingsSchema.parse(JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' })))
+      settings = LocalSettingsSchema.parse(
+        JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' })),
+      )
     } catch (e) {
       appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
     }
@@ -767,31 +769,34 @@ function initEventHandle() {
     }
     return service.stop()
   })
-  ipcMain.handle('setUpService', async (_event: IpcMainInvokeEvent, serviceName: BackendServiceName) => {
-    if (!serviceRegistry || !win) {
-      appLogger.warn('received setup signal too early during aipg startup', 'electron-backend')
-      return
-    }
-    const service = serviceRegistry.getService(serviceName)
-    if (!service) {
-      appLogger.warn(
-        `Tried to set up service ${serviceName} which is not known`,
-        'electron-backend',
-      )
-      return
-    }
-
-    for await (const progressUpdate of service.set_up()) {
-      win.webContents.send('serviceSetUpProgress', progressUpdate)
-      if (progressUpdate.status === 'failed' || progressUpdate.status === 'success') {
-        appLogger.info(
-          `Received terminal progress update for set up request for ${serviceName}`,
+  ipcMain.handle(
+    'setUpService',
+    async (_event: IpcMainInvokeEvent, serviceName: BackendServiceName) => {
+      if (!serviceRegistry || !win) {
+        appLogger.warn('received setup signal too early during aipg startup', 'electron-backend')
+        return
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        appLogger.warn(
+          `Tried to set up service ${serviceName} which is not known`,
           'electron-backend',
         )
-        break
+        return
       }
-    }
-  })
+
+      for await (const progressUpdate of service.set_up()) {
+        win.webContents.send('serviceSetUpProgress', progressUpdate)
+        if (progressUpdate.status === 'failed' || progressUpdate.status === 'success') {
+          appLogger.info(
+            `Received terminal progress update for set up request for ${serviceName}`,
+            'electron-backend',
+          )
+          break
+        }
+      }
+    },
+  )
 
   ipcMain.handle(
     'ensureBackendReadiness',
