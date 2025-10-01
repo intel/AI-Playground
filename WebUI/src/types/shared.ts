@@ -1,4 +1,4 @@
-import z from "zod"
+import z from 'zod'
 
 export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP', 'ollama'] as const
 
@@ -12,7 +12,7 @@ export const ModelSchema = z.object({
     'lora',
     'vae',
     'undefined',
-    ...llmBackendTypes
+    ...llmBackendTypes,
   ]),
   default: z.boolean(),
   backend: z.enum(llmBackendTypes).optional(),

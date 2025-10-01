@@ -12,9 +12,8 @@
         `${((ollama.ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollama.ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
       }}
     </div>
-    <div v-for="message in ollama.chat.messages" :key="message.id">
+    <div v-for="message in ollama.messages" :key="message.id">
       {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
-      {{ message.content }}
       {{ message.parts }}
     </div>
   </div>

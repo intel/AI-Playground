@@ -29,14 +29,20 @@ type ServiceSettings = {
 
 export type BackendServiceName = (typeof backends)[number]
 
-export const BackendVersionSchema = z.object({ releaseTag: z.string().optional(), version: z.string() })
+export const BackendVersionSchema = z.object({
+  releaseTag: z.string().optional(),
+  version: z.string(),
+})
 type BackendVersion = z.infer<typeof BackendVersionSchema>
 
-type BackendVersionState = Record<BackendServiceName, {
-  installed?: BackendVersion
-  uiOverride?: BackendVersion
-  target?: BackendVersion
-}>
+type BackendVersionState = Record<
+  BackendServiceName,
+  {
+    installed?: BackendVersion
+    uiOverride?: BackendVersion
+    target?: BackendVersion
+  }
+>
 
 export const useBackendServices = defineStore(
   'backendServices',
@@ -47,11 +53,11 @@ export const useBackendServices = defineStore(
     )
 
     const versionState = ref<BackendVersionState>({
-      "ai-backend": {},
-      "comfyui-backend": {},
-      "llamacpp-backend": {},
-      "ollama-backend": {},
-      "openvino-backend": {},
+      'ai-backend': {},
+      'comfyui-backend': {},
+      'llamacpp-backend': {},
+      'ollama-backend': {},
+      'openvino-backend': {},
     })
 
     backends.forEach((serviceName) => {
@@ -130,7 +136,7 @@ export const useBackendServices = defineStore(
       if (!serverStartupsCompleted.allServicesStarted) {
         console.warn('Not all services started')
       }
-      
+
       return serverStartupsCompleted
     }
 
@@ -145,9 +151,8 @@ export const useBackendServices = defineStore(
       } catch {
         console.info(`service ${serviceName} was not running`)
       }
-      
       // Clear error details when uninstalling
-      listener.clearErrorDetails()      
+      listener.clearErrorDetails()
       return window.electronAPI.uninstall(serviceName)
     }
 
@@ -169,7 +174,7 @@ export const useBackendServices = defineStore(
         console.warn(`service ${serviceName} was not running`)
       }
 
-      const versions = versionState.value[serviceName];
+      const versions = versionState.value[serviceName]
       const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
       await updateServiceSettings({ serviceName, ...targetVersionSettings })
       window.electronAPI.setUpService(serviceName)

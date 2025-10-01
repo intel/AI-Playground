@@ -118,7 +118,9 @@ export class AiBackendService extends LongLivedPythonApiService {
       ])
       if (archToRequirements(deviceArch) === 'xpu') {
         this.appLogger.info('scanning for extra wheels', this.name)
-        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter(e => e.endsWith('.whl'))
+        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter((e) =>
+          e.endsWith('.whl'),
+        )
         this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
         for (const wheelFile of wheelFiles) {
           await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
@@ -145,7 +147,11 @@ export class AiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.uvPip)
+      const errorDetails = await createEnhancedErrorDetails(
+        e,
+        `${currentStep} operation`,
+        this.uvPip,
+      )
 
       yield {
         serviceName: this.name,
@@ -162,7 +168,7 @@ export class AiBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
-      PATH: `${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',

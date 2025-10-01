@@ -3,7 +3,13 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import { ApiService, DeviceService, PythonService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
+import {
+  ApiService,
+  DeviceService,
+  PythonService,
+  createEnhancedErrorDetails,
+  ErrorDetails,
+} from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { detectLevelZeroDevices } from './deviceDetection.ts'
@@ -224,7 +230,11 @@ export class OllamaBackendService implements ApiService {
       this.setStatus('installationFailed')
 
       // Create detailed error information for any type of error
-      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`, this.aiBackend)
+      const errorDetails = await createEnhancedErrorDetails(
+        e,
+        `${currentStep} operation`,
+        this.aiBackend,
+      )
 
       yield {
         serviceName: this.name,
@@ -357,13 +367,15 @@ export class OllamaBackendService implements ApiService {
         this.isSetUp = false
         this.appLogger.error(`server ${this.name} failed to boot`, this.name)
         this.encapsulatedProcess?.kill()
-        
+
         // Capture detailed error information for startup failure
-        const startupError = new Error(`Server ${this.name} failed to boot - health check timeout or early process exit`)
+        const startupError = new Error(
+          `Server ${this.name} failed to boot - health check timeout or early process exit`,
+        )
         const errorDetails = await createEnhancedErrorDetails(
           startupError,
           'service startup',
-          this.aiBackend
+          this.aiBackend,
         )
         this.setLastStartupError(errorDetails)
       }
@@ -374,12 +386,11 @@ export class OllamaBackendService implements ApiService {
       this.isSetUp = false
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
-      
       // Capture detailed error information for startup exception
       const errorDetails = await createEnhancedErrorDetails(
         error,
         'service startup',
-        this.aiBackend
+        this.aiBackend,
       )
       this.setLastStartupError(errorDetails)
     } finally {

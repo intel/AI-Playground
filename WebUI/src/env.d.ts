@@ -31,7 +31,9 @@ type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
-  resolveBackendVersion(serviceName: string): Promise<{ releaseTag: string; version: string } | undefined>
+  resolveBackendVersion(
+    serviceName: string,
+  ): Promise<{ releaseTag: string; version: string } | undefined>
   openDevTools(): void
   openUrl(url: string): void
   changeWindowMessageFilter(): void
@@ -420,9 +422,19 @@ type ApiServiceInformation = {
 }
 
 type Model = {
-    name: string;
-    type: "undefined" | "embedding" | "stableDiffusion" | "inpaint" | "lora" | "vae" | "openVINO" | "ipexLLM" | "llamaCPP" | "ollama";
-    default: boolean;
-    downloaded?: boolean | undefined;
-    backend?: "openVINO" | "ipexLLM" | "llamaCPP" | "ollama" | undefined;
+  name: string
+  type:
+    | 'undefined'
+    | 'embedding'
+    | 'stableDiffusion'
+    | 'inpaint'
+    | 'lora'
+    | 'vae'
+    | 'openVINO'
+    | 'ipexLLM'
+    | 'llamaCPP'
+    | 'ollama'
+  default: boolean
+  downloaded?: boolean | undefined
+  backend?: 'openVINO' | 'ipexLLM' | 'llamaCPP' | 'ollama' | undefined
 }
