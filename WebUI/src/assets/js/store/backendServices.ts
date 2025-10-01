@@ -151,7 +151,6 @@ export const useBackendServices = defineStore(
       } catch {
         console.info(`service ${serviceName} was not running`)
       }
-
       // Clear error details when uninstalling
       listener.clearErrorDetails()
       return window.electronAPI.uninstall(serviceName)

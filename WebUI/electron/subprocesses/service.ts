@@ -63,6 +63,12 @@ export async function createEnhancedErrorDetails(
   service?: PythonService | UvPipService,
 ): Promise<ErrorDetails> {
   const timestamp = new Date().toISOString()
+  
+  // Capture pip freeze output for installation-related errors
+  let pipFreezeOutput: string | undefined
+  if (service) {
+    pipFreezeOutput = await capturePipFreezeOutput(service)
+  }
 
   // Capture pip freeze output for installation-related errors
   let pipFreezeOutput: string | undefined
@@ -760,7 +766,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
       this.isSetUp = false
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
-
       // Stop capturing and create enhanced error details with buffered logs
       this.isCapturingStartupLogs = false
       const errorDetails = await this.createStartupErrorDetails(
@@ -870,7 +875,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     process.on('error', (message) => {
       const messageStr = `backend process ${this.name} exited abruptly due to : ${message}`
-
       // Buffer startup logs if we're in startup phase
       if (this.isCapturingStartupLogs) {
         this.startupLogBuffer.stderr.push(messageStr)

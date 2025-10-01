@@ -303,7 +303,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         `${currentStep} operation`,
         this.uvPip,
       )
-
       yield {
         serviceName: this.name,
         step: currentStep,

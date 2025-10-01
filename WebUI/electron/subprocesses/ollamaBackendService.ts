@@ -386,7 +386,6 @@ export class OllamaBackendService implements ApiService {
       this.isSetUp = false
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
-
       // Capture detailed error information for startup exception
       const errorDetails = await createEnhancedErrorDetails(
         error,
