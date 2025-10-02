@@ -69,13 +69,7 @@ export async function createEnhancedErrorDetails(
   if (service) {
     pipFreezeOutput = await capturePipFreezeOutput(service)
   }
-
-  // Capture pip freeze output for installation-related errors
-  let pipFreezeOutput: string | undefined
-  if (service) {
-    pipFreezeOutput = await capturePipFreezeOutput(service)
-  }
-
+  
   if (error instanceof ProcessError) {
     return {
       command: `${error.result.command} ${error.result.args.join(' ')}`,
