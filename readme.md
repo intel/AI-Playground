@@ -130,10 +130,10 @@ Models currently linked from the application
 | CHAT |  |      |
 | GPT-OSS 20B                      | [license]()                 | [site]()     |
 | DeepSeek R1 Distilled Qwen Models                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | site [1.5B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B) [7B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B)    |
-| Meta-Llama-3.1B-Instruct                     | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
-| Llama-3.2-3B Instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
+| Meta-Llama-3.1B-Instruct                     | [license]()                 | [site]()     |
+| Llama-3.2-3B Instruct                      | [license]()                 | [site]()     |
 | Phi3-mini-4k-instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
-| Phi3.5-mini-4k-instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
+| Phi3.5-mini-4k-instruct                      | [license]()                 | [site]()     |
 | Qwen/Qwen2-1.5B-Instruct                     | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                 | [site](https://huggingface.co/Qwen/Qwen2-1.5B-Instruct)     |
 | Mistral-7B-Instruct-v0.3                     | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                 | [site](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3)     |
 | bge-large-en-v1.5                          | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | [site](https://huggingface.co/BAAI/bge-large-en-v1.5)                         |
