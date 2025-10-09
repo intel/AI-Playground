@@ -158,6 +158,10 @@ textarea {
   --position-index: 3;
 }
 
+.pos-new-ui {
+    --position-index: 4;
+}
+
 .lnl-gradient {
   position: absolute;
   background: linear-gradient(
