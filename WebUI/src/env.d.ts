@@ -24,7 +24,7 @@ type DemoModeSettings = {
   demoModeResetInSeconds: null | number
 }
 
-type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more' | 'new-ui'
 
 type electronAPI = {
   startDrag: (fileName: string) => void

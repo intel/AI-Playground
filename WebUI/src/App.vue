@@ -166,6 +166,13 @@
       >
         {{ languages.TAB_LEARN_MORE }}
       </button>
+      <button
+        class="tab"
+        :class="{ active: activeTabIdx === 'new-ui' }"
+        @click="() => (activeTabIdx = 'new-ui')"
+      >
+        TMP_TAB_NEW_UI
+      </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
       <button
         v-if="demoMode.enabled"
@@ -205,6 +212,7 @@
           @show-model-request="showModelRequest"
         ></answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
+        <new-ui v-show="activeTabIdx === 'new-ui'"></new-ui>
       </div>
       <app-settings
         v-if="showSetting"
@@ -307,6 +315,7 @@ import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
+import NewUi from "@/views/NewUi.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
