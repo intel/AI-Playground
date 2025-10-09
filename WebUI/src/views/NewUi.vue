@@ -1,7 +1,10 @@
 <template>
-  <div id="new-ui" class="pt-10 text-white flex flex-col items-center gap-7 text-base">
+  <div id="new-ui" class="text-white flex flex-col items-center justify-center gap-7 text-base">
+    <p class="text-2xl font-bold">
+      Let's Generate
+    </p>
       <textarea
-        class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
+        class="rounded-2xl resize-none w-full max-w-3xl h-48"
         :placeholder="languages.COM_LLM_PROMPT"
         v-model="question"
         @keydown="fastGenerate"
