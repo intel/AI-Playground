@@ -6,7 +6,7 @@
     <div class="relative w-full max-w-3xl">
       <textarea
         class="rounded-2xl resize-none w-full h-48 pb-16"
-        :placeholder="languages.COM_LLM_PROMPT"
+        :placeholder="getTextAreaPlaceholder()"
         v-model="question"
         @keydown="fastGenerate"
       ></textarea>
@@ -55,9 +55,28 @@
 </template>
 
 <script setup lang="ts">
+import { getCurrentInstance } from 'vue'
+
+const instance = getCurrentInstance()
+const languages = instance?.appContext.config.globalProperties.languages
 
 const question = ref('')
 const currentMode = ref('chat')
+
+function getTextAreaPlaceholder() {
+  switch (currentMode.value) {
+    case 'chat':
+      return languages?.COM_LLM_PROMPT || ''
+    case 'imageGen':
+      return languages?.COM_IMAGE_GEN_PROMPT || ''
+    case 'imageEdit':
+      return languages?.COM_IMAGE_EDIT_PROMPT || ''
+    case 'video':
+      return languages?.COM_VIDEO_PROMPT || ''
+    default:
+      return languages?.COM_LLM_PROMPT || ''
+  }
+}
 
 function fastGenerate(e: KeyboardEvent) {
   console.log(e.key)
