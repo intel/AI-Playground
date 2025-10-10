@@ -3,12 +3,38 @@
     <p class="text-2xl font-bold">
       Let's Generate
     </p>
+    <div class="relative w-full max-w-3xl">
       <textarea
-        class="rounded-2xl resize-none w-full max-w-3xl h-48"
+        class="rounded-2xl resize-none w-full h-48 pb-16"
         :placeholder="languages.COM_LLM_PROMPT"
         v-model="question"
         @keydown="fastGenerate"
       ></textarea>
+      <div class="absolute bottom-3 left-3 flex gap-2">
+        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+          Chat
+        </button>
+        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+          Image Gen
+        </button>
+        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+          Image Edit
+        </button>
+        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+          Video
+        </button>
+      </div>
+
+      <div class="absolute bottom-3 right-3 flex gap-2">
+        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+          Button 5
+        </button>
+        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+          Button 6
+        </button>
+      </div>
+
+    </div>
   </div>
 </template>
 
