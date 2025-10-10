@@ -11,16 +11,32 @@
         @keydown="fastGenerate"
       ></textarea>
       <div class="absolute bottom-3 left-3 flex gap-2">
-        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+        <button
+          @click="currentMode = 'chat'"
+          :class="currentMode === 'chat' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
+          class="px-3 py-1.5 rounded-lg text-sm"
+        >
           Chat
         </button>
-        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+        <button
+          @click="currentMode = 'imageGen'"
+          :class="currentMode === 'imageGen' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
+          class="px-3 py-1.5 rounded-lg text-sm"
+        >
           Image Gen
         </button>
-        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+        <button
+          @click="currentMode = 'imageEdit'"
+          :class="currentMode === 'imageEdit' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
+          class="px-3 py-1.5 rounded-lg text-sm"
+        >
           Image Edit
         </button>
-        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+        <button
+          @click="currentMode = 'video'"
+          :class="currentMode === 'video' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
+          class="px-3 py-1.5 rounded-lg text-sm"
+        >
           Video
         </button>
       </div>
@@ -41,6 +57,7 @@
 <script setup lang="ts">
 
 const question = ref('')
+const currentMode = ref('chat')
 
 function fastGenerate(e: KeyboardEvent) {
   console.log(e.key)
