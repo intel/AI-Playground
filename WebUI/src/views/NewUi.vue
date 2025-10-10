@@ -45,8 +45,8 @@
         <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
           Button 5
         </button>
-        <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
-          Button 6
+        <button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm">
+          →
         </button>
       </div>
 
@@ -63,14 +63,16 @@ const languages = instance?.appContext.config.globalProperties.languages
 const question = ref('')
 const currentMode = ref('chat')
 
+// todo: New abbreviations are likely wrong
+// todo: Languages other than en-US need to be added
 function getTextAreaPlaceholder() {
   switch (currentMode.value) {
     case 'chat':
       return languages?.COM_LLM_PROMPT || ''
     case 'imageGen':
-      return languages?.COM_IMAGE_GEN_PROMPT || ''
+      return languages?.COM_SD_PROMPT || ''
     case 'imageEdit':
-      return languages?.COM_IMAGE_EDIT_PROMPT || ''
+      return languages?.COM_SD_ENHANCE_PROMPT || ''
     case 'video':
       return languages?.COM_VIDEO_PROMPT || ''
     default:
