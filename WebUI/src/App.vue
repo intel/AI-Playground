@@ -212,12 +212,12 @@
           @show-model-request="showModelRequest"
         ></answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
-        <new-ui
+        <new-app-view
           v-show="activeTabIdx === 'new-ui'"
-          ref="newUi"
+          ref="newAppView"
           @show-download-model-confirm="showDownloadModelConfirm"
           @show-model-request="showModelRequest"
-        ></new-ui>
+        ></new-app-view>
       </div>
       <app-settings
         v-if="showSetting"
@@ -307,7 +307,7 @@ import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
 import Enhance from './views/Enhance.vue'
 import Answer from './views/Answer.vue'
-import NewUi from './views/NewUi.vue'
+import NewAppView from "@/views/NewAppView.vue";
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
 import './assets/css/index.css'
@@ -329,7 +329,7 @@ const demoMode = useDemoMode()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<InstanceType<typeof Answer>>()
-const newUi = ref<InstanceType<typeof NewUi>>()
+const newAppView = ref<InstanceType<typeof NewAppView.vue>>()
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()

@@ -1,7 +1,4 @@
 <template>
-  <div id="new-ui" class="text-white flex flex-col h-full">
-
-    <!--todo: extract chat panel into dedicated component-->
     <div
       v-if="conversations.activeConversation && conversations.activeConversation.length > 0 || processing"
       id="chatPanel"
@@ -315,62 +312,6 @@
         </div>
       </div>
     </div>
-
-    <div class="flex flex-col items-center gap-7 text-base px-4"
-         :class="conversations.activeConversation && conversations.activeConversation.length > 0 || processing ? 'py-4' : 'flex-1 justify-center'">
-      <p class="text-2xl font-bold">
-        Let's Generate
-      </p>
-      <div class="relative w-full max-w-3xl">
-        <textarea
-          class="rounded-2xl resize-none w-full h-48 pb-16"
-          :placeholder="getTextAreaPlaceholder()"
-          v-model="question"
-          @keydown="fastGenerate"
-        ></textarea>
-        <div class="absolute bottom-3 left-3 flex gap-2">
-          <button
-            @click="currentMode = 'chat'"
-            :class="currentMode === 'chat' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Chat
-          </button>
-          <button
-            @click="currentMode = 'imageGen'"
-            :class="currentMode === 'imageGen' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Image Gen
-          </button>
-          <button
-            @click="currentMode = 'imageEdit'"
-            :class="currentMode === 'imageEdit' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Image Edit
-          </button>
-          <button
-            @click="currentMode = 'video'"
-            :class="currentMode === 'video' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Video
-          </button>
-        </div>
-        <div class="absolute bottom-3 right-3 flex gap-2">
-          <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
-            Button 5
-          </button>
-          <button
-            @click="handleSubmitPromptClick"
-            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm">
-            →
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -396,9 +337,7 @@ const conversations = useConversations()
 const backendServices = useBackendServices()
 const globalSetup = useGlobalSetup()
 const ollama = useOllama()
-const question = ref('')
 const processing = ref(false)
-const currentMode = ref('chat')
 const markerFound = ref(false)
 const thinkingText = ref('')
 const showThinkingText = ref(false)
@@ -444,6 +383,11 @@ const emits = defineEmits<{
   (e: 'showModelRequest', success?: () => void, fail?: () => void): void
 }>()
 
+defineExpose({
+  handleSubmitPromptClick
+})
+
+
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 
@@ -451,25 +395,9 @@ onMounted(async () => {
   chatPanel = document.getElementById('chatPanel')!
 })
 
-// todo: New abbreviations are likely wrong
-// todo: Languages other than en-US need to be added
-function getTextAreaPlaceholder() {
-  switch (currentMode.value) {
-    case 'chat':
-      return languages?.COM_LLM_PROMPT || ''
-    case 'imageGen':
-      return languages?.COM_SD_PROMPT || ''
-    case 'imageEdit':
-      return languages?.COM_SD_ENHANCE_PROMPT || ''
-    case 'video':
-      return languages?.COM_VIDEO_PROMPT || ''
-    default:
-      return languages?.COM_LLM_PROMPT || ''
-  }
-}
 
-async function handleSubmitPromptClick() {
-  const newPrompt = question.value.trim()
+async function handleSubmitPromptClick(prompt: string) {
+  const newPrompt = prompt.trim()
   if (newPrompt == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
     return
@@ -482,7 +410,6 @@ async function handleSubmitPromptClick() {
     const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation))
     chatContext.push({question: newPrompt, answer: ''})
     generate(chatContext)
-    question.value = ''
   } catch {
   }
 }
@@ -922,24 +849,5 @@ function copyText(text: string) {
       toast.success(i18nState.COM_COPY_SUCCESS_TIP)
     })
     .catch((e) => console.error('Error while copying text to clipboard', e))
-}
-
-function fastGenerate(e: KeyboardEvent) {
-  console.log(e.key)
-
-  // if (e.code == 'Enter') {
-  //   if (processing.value) {
-  //     return
-  //   }
-  //
-  //   if (e.ctrlKey || e.shiftKey || e.altKey) {
-  //     question.value += '\n'
-  //   } else {
-  //     e.preventDefault()
-  //     if (question.value !== '') {
-  //       newPromptGenerate()
-  //     }
-  //   }
-  // }
 }
 </script>
