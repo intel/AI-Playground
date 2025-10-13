@@ -212,7 +212,12 @@
           @show-model-request="showModelRequest"
         ></answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
-        <new-ui v-show="activeTabIdx === 'new-ui'"></new-ui>
+        <new-ui
+          v-show="activeTabIdx === 'new-ui'"
+          ref="newUi"
+          @show-download-model-confirm="showDownloadModelConfirm"
+          @show-model-request="showModelRequest"
+        ></new-ui>
       </div>
       <app-settings
         v-if="showSetting"
@@ -302,6 +307,7 @@ import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
 import Enhance from './views/Enhance.vue'
 import Answer from './views/Answer.vue'
+import NewUi from './views/NewUi.vue'
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
 import './assets/css/index.css'
@@ -315,7 +321,6 @@ import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
-import NewUi from "@/views/NewUi.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -324,6 +329,7 @@ const demoMode = useDemoMode()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<InstanceType<typeof Answer>>()
+const newUi = ref<InstanceType<typeof NewUi>>()
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()
