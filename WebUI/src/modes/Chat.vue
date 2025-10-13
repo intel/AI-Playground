@@ -368,11 +368,10 @@ let firstOutput = false
 let actualRagResults: LangchainDocument[] | null = null
 let chatPanel: HTMLElement
 let sseMetrics: MetricsData | null = null
-
-// todo: wtf is this?
-// let abortContooler: AbortController | null
 let abortController = new AbortController()
 
+// todo: Currently not being handled by parent
+// todo: showModelRequest not used. Either new component, or add into this one. Likely settings related
 const emits = defineEmits<{
   (
     e: 'showDownloadModelConfirm',
