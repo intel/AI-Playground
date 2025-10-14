@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, ref } from 'vue'
 import { useConversations } from "@/assets/js/store/conversations.ts";
-import Chat from "@/modes/Chat.vue";
+import Chat from "@/views/Chat.vue";
 import SettingsNewModal from "@/components/SettingsNewModal.vue";
 
 interface ModeComponent {

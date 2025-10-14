@@ -16,7 +16,7 @@
       <template v-for="(chatItem, i) in conversations.activeConversation">
         <!-- eslint-enable -->
         <div class="flex items-start gap-3">
-          <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
+          <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
             <p class="text-gray-300" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
@@ -35,7 +35,7 @@
           </div>
         </div>
         <div class="flex items-start gap-3">
-          <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+          <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
@@ -65,10 +65,10 @@
                     <button class="ml-1">
                       <img
                         v-if="chatItem.showRagSource"
-                        src="@/assets/svg/arrow-up.svg"
+                        src="../assets/svg/arrow-up.svg"
                         class="w-3 h-3"
                       />
-                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                      <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
                     </button>
                   </span>
               </div>
@@ -103,10 +103,10 @@
                   >
                     <img
                       v-if="chatItem.showThinkingText"
-                      src="@/assets/svg/arrow-up.svg"
+                      src="../assets/svg/arrow-up.svg"
                       class="w-4 h-4"
                     />
-                    <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                    <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4" />
                   </button>
                 </div>
                 <div
@@ -178,7 +178,7 @@
         class="flex items-start gap-3"
         v-show="processing && conversations.activeKey === currentlyGeneratingKey"
       >
-        <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
+        <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
         <div class="flex flex-col gap-3 max-w-3/4">
           <p class="text-gray-300" :class="textInference.nameSizeClass">
             {{ languages.ANSWER_USER_NAME }}
@@ -200,7 +200,7 @@
         class="flex items-start gap-3"
         v-show="processing && conversations.activeKey === currentlyGeneratingKey"
       >
-        <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+        <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
         <div
           class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
         >
@@ -222,8 +222,8 @@
             >
                 Source Docs
                 <button class="ml-1">
-                  <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
-                  <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
+                  <img v-if="showRagPreview" src="../assets/svg/arrow-up.svg" class="w-3 h-3" />
+                  <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
                 </button>
               </span>
           </div>
@@ -272,10 +272,10 @@
                       >
                         <img
                           v-if="showThinkingText"
-                          src="@/assets/svg/arrow-up.svg"
+                          src="../assets/svg/arrow-up.svg"
                           class="w-4 h-4"
                         />
-                        <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                        <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4" />
                       </button>
                     </template>
                     <template v-else>
