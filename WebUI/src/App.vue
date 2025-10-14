@@ -148,11 +148,10 @@
 
   <main v-if="useNewUI && globalSetup.loadingState === 'running'"
         class="flex-auto flex flex-col relative">
-    <new-app-view
-      ref="newAppView"
+    <PromptArea
       @show-download-model-confirm="showDownloadModelConfirm"
       @show-model-request="showModelRequest"
-    ></new-app-view>
+    ></PromptArea>
     <app-settings
       v-if="showSetting"
       @close="hideAppSettings"
@@ -338,7 +337,7 @@ import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
 import Enhance from './views/Enhance.vue'
 import Answer from './views/Answer.vue'
-import NewAppView from "@/views/NewAppView.vue";
+import PromptArea from "@/views/PromptArea.vue";
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
 import './assets/css/index.css'
@@ -360,7 +359,6 @@ const demoMode = useDemoMode()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<InstanceType<typeof Answer>>()
-const newAppView = ref<InstanceType<typeof NewAppView.vue>>()
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()

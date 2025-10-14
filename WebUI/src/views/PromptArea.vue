@@ -1,7 +1,11 @@
 <template>
-  <div id="new-app-view" class="text-white flex flex-col h-full">
+  <div id="prompt-area" class="text-white flex flex-col h-full">
 
-    <Chat v-show="currentMode === 'chat'" :ref="modeRefs.chat"/>
+    <!--todo: either change name of this component to something else, or move below components one layer up-->
+    <Chat v-show="currentMode === 'chat'" :ref="modeRefs.chat" />
+    <ImageGen v-show="currentMode === 'imageGen'" :ref="modeRefs.imageGen" />
+    <ImageEdit v-show="currentMode === 'imageEdit'" :ref="modeRefs.imageEdit" />
+    <Video v-show="currentMode === 'video'" :ref="modeRefs.video" />
 
     <div class="flex flex-col items-center gap-7 text-base px-4"
          :class="conversations.activeConversation && conversations.activeConversation.length > 0 || processing ? 'py-4' : 'flex-1 justify-center'">
@@ -45,7 +49,7 @@
       :isVisible="showSettings"
       :label="modeToLabel[currentMode]"
       :mode="currentMode"
-      @close="showSettings=false"/>
+      @close="showSettings=false" />
   </div>
 </template>
 
@@ -54,6 +58,9 @@ import { getCurrentInstance, ref } from 'vue'
 import { useConversations } from "@/assets/js/store/conversations.ts";
 import Chat from "@/views/Chat.vue";
 import SettingsNewModal from "@/components/SettingsNewModal.vue";
+import ImageGen from "@/views/ImageGen.vue";
+import ImageEdit from "@/views/ImageEdit.vue";
+import Video from "@/views/Video.vue";
 
 interface ModeComponent {
   handleSubmitPromptClick: (prompt: string) => void
