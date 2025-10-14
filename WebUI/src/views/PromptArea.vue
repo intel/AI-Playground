@@ -1,12 +1,5 @@
 <template>
   <div id="prompt-area" class="text-white flex flex-col h-full">
-
-    <!--todo: either change name of this component to something else, or move below components one layer up-->
-    <Chat v-show="currentMode === 'chat'" :ref="modeRefs.chat" />
-    <ImageGen v-show="currentMode === 'imageGen'" :ref="modeRefs.imageGen" />
-    <ImageEdit v-show="currentMode === 'imageEdit'" :ref="modeRefs.imageEdit" />
-    <Video v-show="currentMode === 'video'" :ref="modeRefs.video" />
-
     <div class="flex flex-col items-center gap-7 text-base px-4"
          :class="conversations.activeConversation && conversations.activeConversation.length > 0 || processing ? 'py-4' : 'flex-1 justify-center'">
       <p class="text-2xl font-bold">
@@ -23,7 +16,7 @@
           <button
             v-for="(label, mode) in modeToLabel"
             :key="mode"
-            @click="currentMode = mode as ModeType"
+            @click="emits('selectMode', mode as ModeType)"
             :class="currentMode === mode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
             class="px-3 py-1.5 rounded-lg text-sm"
           >
@@ -56,32 +49,23 @@
 <script setup lang="ts">
 import { getCurrentInstance, ref } from 'vue'
 import { useConversations } from "@/assets/js/store/conversations.ts";
-import Chat from "@/views/Chat.vue";
 import SettingsNewModal from "@/components/SettingsNewModal.vue";
-import ImageGen from "@/views/ImageGen.vue";
-import ImageEdit from "@/views/ImageEdit.vue";
-import Video from "@/views/Video.vue";
-
-interface ModeComponent {
-  handleSubmitPromptClick: (prompt: string) => void
-}
-
-type ModeType = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const conversations = useConversations()
 const question = ref('')
 const processing = ref(false)
-const currentMode = ref<ModeType>('chat')
 const showSettings = ref(false)
 
-const modeRefs: Record<ModeType, Ref<ModeComponent | null>> = {
-  chat: ref(null),
-  imageGen: ref(null),
-  imageEdit: ref(null),
-  video: ref(null),
-}
+const props = defineProps<{
+  currentMode: ModeType
+}>()
+
+const emits = defineEmits<{
+  (e: 'selectMode', value: ModeType): void,
+  (e: 'submitPrompt', prompt: string, mode: ModeType): void
+}>()
 
 const modeToLabel: Record<ModeType, string> = {
   chat: 'Chat',
@@ -93,7 +77,7 @@ const modeToLabel: Record<ModeType, string> = {
 // todo: New abbreviations are likely wrong
 // todo: Languages other than en-US need to be added
 function getTextAreaPlaceholder() {
-  switch (currentMode.value) {
+  switch (props.currentMode) {
     case 'chat':
       return languages?.COM_LLM_PROMPT || ''
     case 'imageGen':
@@ -108,8 +92,7 @@ function getTextAreaPlaceholder() {
 }
 
 function handleSubmitPromptClick() {
-  const refToUse = modeRefs[currentMode.value]
-  refToUse.value?.handleSubmitPromptClick(question.value)
+  emits('submitPrompt', question.value, props.currentMode)
   question.value = ''
 }
 

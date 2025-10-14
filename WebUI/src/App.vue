@@ -148,10 +148,29 @@
 
   <main v-if="useNewUI && globalSetup.loadingState === 'running'"
         class="flex-auto flex flex-col relative">
+    <Chat
+      v-show="currentMode === 'chat'"
+      ref="chatRef"
+    />
+    <ImageGen
+      v-show="currentMode === 'imageGen'"
+      ref="imageGenRef"
+    />
+    <ImageEdit
+      v-show="currentMode === 'imageEdit'"
+      ref="imageEditRef"
+    />
+    <Video
+      v-show="currentMode === 'video'"
+      ref="videoRef"
+    />
     <PromptArea
+      :currentMode="currentMode"
+      @select-mode="currentMode = $event"
+      @submit-prompt="handleSubmitPrompt"
       @show-download-model-confirm="showDownloadModelConfirm"
       @show-model-request="showModelRequest"
-    ></PromptArea>
+    />
     <app-settings
       v-if="showSetting"
       @close="hideAppSettings"
@@ -351,6 +370,11 @@ import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
+import ImageEdit from "@/views/ImageEdit.vue";
+import Video from "@/views/Video.vue";
+import ImageGen from "@/views/ImageGen.vue";
+import Chat from "@/views/Chat.vue";
+import { ref } from "vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -364,8 +388,13 @@ const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
+const chatRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 
 const isOpen = ref(false)
+const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
 const showDowloadDlg = ref(false)
@@ -530,5 +559,17 @@ function showWarning(message: string, func: () => void) {
   nextTick(() => {
     warningCompt.value!.onShow()
   })
+}
+
+function handleSubmitPrompt(prompt: string, mode: ModeType) {
+  const refMap = {
+    chat: chatRef,
+    imageGen: imageGenRef,
+    imageEdit: imageEditRef,
+    video: videoRef
+  }
+
+  const componentRef = refMap[mode]
+  componentRef.value?.handleSubmitPromptClick(prompt)
 }
 </script>
