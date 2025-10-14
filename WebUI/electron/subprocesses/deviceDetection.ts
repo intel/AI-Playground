@@ -1,4 +1,5 @@
 import { PythonService } from './service'
+import path from 'node:path'
 
 type Device = Omit<InferenceDevice, 'selected'>
 
@@ -29,6 +30,7 @@ except Exception as e:
     while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
       // Execute the Python script
       const result = await pythonService.run(['-c', pythonScript], {
+        PATH: `${path.join(pythonService.dir, 'Library', 'bin')};${process.env.PATH}`,
         PYTHONNOUSERSITE: 'true',
         ONEAPI_DEVICE_SELECTOR: `level_zero:${i}`,
       })
@@ -95,7 +97,10 @@ except Exception as e:
 `
 
     // Execute the Python script
-    const result = await pythonService.run(['-c', pythonScript], { PYTHONNOUSERSITE: 'true' })
+    const result = await pythonService.run(['-c', pythonScript], {
+      PATH: `${path.join(pythonService.dir, 'Library', 'bin')};${process.env.PATH}`,
+      PYTHONNOUSERSITE: 'true'
+    })
 
     // Parse the output
     const devices: Device[] = []
