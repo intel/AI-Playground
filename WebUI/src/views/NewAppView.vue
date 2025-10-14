@@ -17,37 +17,21 @@
         ></textarea>
         <div class="absolute bottom-3 left-3 flex gap-2">
           <button
-            @click="currentMode = 'chat'"
-            :class="currentMode === 'chat' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
+            v-for="(label, mode) in modeToLabel"
+            :key="mode"
+            @click="currentMode = mode as ModeType"
+            :class="currentMode === mode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
             class="px-3 py-1.5 rounded-lg text-sm"
           >
-            Chat
-          </button>
-          <button
-            @click="currentMode = 'imageGen'"
-            :class="currentMode === 'imageGen' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Image Gen
-          </button>
-          <button
-            @click="currentMode = 'imageEdit'"
-            :class="currentMode === 'imageEdit' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Image Edit
-          </button>
-          <button
-            @click="currentMode = 'video'"
-            :class="currentMode === 'video' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
-            class="px-3 py-1.5 rounded-lg text-sm"
-          >
-            Video
+            {{ label }}
           </button>
         </div>
         <div class="absolute bottom-3 right-3 flex gap-2">
-          <button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
-            Button 5
+          <button
+            class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+            @click="showSettings = true"
+          >
+            {{ modeToLabel[currentMode] }} Settings
           </button>
           <button
             @click="handleSubmitPromptClick"
@@ -57,13 +41,19 @@
         </div>
       </div>
     </div>
+    <SettingsNewModal
+      :isVisible="showSettings"
+      :label="modeToLabel[currentMode]"
+      :mode="currentMode"
+      @close="showSettings=false"/>
   </div>
 </template>
 
 <script setup lang="ts">
-import {getCurrentInstance} from 'vue'
-import {useConversations} from "@/assets/js/store/conversations.ts";
+import { getCurrentInstance, ref } from 'vue'
+import { useConversations } from "@/assets/js/store/conversations.ts";
 import Chat from "@/modes/Chat.vue";
+import SettingsNewModal from "@/components/SettingsNewModal.vue";
 
 interface ModeComponent {
   handleSubmitPromptClick: (prompt: string) => void
@@ -77,12 +67,20 @@ const conversations = useConversations()
 const question = ref('')
 const processing = ref(false)
 const currentMode = ref<ModeType>('chat')
+const showSettings = ref(false)
 
 const modeRefs: Record<ModeType, Ref<ModeComponent | null>> = {
   chat: ref(null),
   imageGen: ref(null),
   imageEdit: ref(null),
   video: ref(null),
+}
+
+const modeToLabel: Record<ModeType, string> = {
+  chat: 'Chat',
+  imageGen: 'Image Gen',
+  imageEdit: 'Image Edit',
+  video: 'Video',
 }
 
 // todo: New abbreviations are likely wrong
@@ -101,7 +99,6 @@ function getTextAreaPlaceholder() {
       return languages?.COM_LLM_PROMPT || ''
   }
 }
-
 
 function handleSubmitPromptClick() {
   const refToUse = modeRefs[currentMode.value]
