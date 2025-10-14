@@ -63,8 +63,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     SDHDInpaint: useI18N().state.ENHANCE_INPAINT_USE_IMAGE_MODEL,
   })
 
-  const graphicsList = ref(new Array<GraphicsItem>())
-
   const loadingState = ref<GlobalSetupState>('verifyBackend')
   const errorMessage = ref('')
   const hdPersistentConfirmation = ref(localStorage.getItem('HdPersistentConfirmation') === 'true')
@@ -99,15 +97,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
         await util.delay(delay)
       }
     }
-    await reloadGraphics()
-    if (graphicsList.value.length == 0) {
-      await window.electronAPI.showMessageBoxSync({
-        message: useI18N().state.ERROR_UNFOUND_GRAPHICS,
-        title: 'error',
-        icon: 'error',
-      })
-      window.electronAPI.exitApp()
-    }
     loadUserSettings()
   }
 
@@ -125,14 +114,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
       )
     }
     return (await response.json()) as string[]
-  }
-
-  async function reloadGraphics() {
-    const response = await fetch(`${defaultBackendBaseUrl.value}/api/getGraphics`, {
-      method: 'POST',
-    })
-    const graphics = (await response.json()) as GraphicsItem[]
-    graphicsList.value.splice(0, graphicsList.value.length, ...graphics)
   }
 
   async function refreshLLMModles() {
@@ -232,9 +213,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
       modelSettings.lora = models.value.lora[0]
       changeUserSetup = true
     }
-    if (!graphicsList.value.find((item) => item.index == modelSettings.graphics)) {
-      modelSettings.graphics = graphicsList.value[0].index
-    }
     if (changeUserSetup) {
       localStorage.setItem('ModelSettings', JSON.stringify(toRaw(modelSettings)))
     }
@@ -267,7 +245,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     models,
     paths,
     apiHost: defaultBackendBaseUrl,
-    graphicsList,
     loadingState,
     errorMessage,
     hdPersistentConfirmation,

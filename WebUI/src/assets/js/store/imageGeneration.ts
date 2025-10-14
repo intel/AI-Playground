@@ -536,7 +536,7 @@ export const useImageGeneration = defineStore(
     const getGenerationParameters = (): GenerationSettings => {
       const allSettings = {
         workflow: activeWorkflowName.value ?? 'unknown',
-        device: globalSetup.modelSettings.graphics,
+        device: 0, // TODO get correct device from backend service
         prompt: prompt.value,
         negativePrompt: negativePrompt.value,
         imageModel: imageModel.value,
