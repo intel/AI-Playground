@@ -1,49 +1,49 @@
 <template>
+  <div
+    v-if="conversations.activeConversation && conversations.activeConversation.length > 0 || processing"
+    id="chatPanel"
+    class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6"
+    @scroll="handleScroll"
+  >
     <div
-      v-if="conversations.activeConversation && conversations.activeConversation.length > 0 || processing"
-      id="chatPanel"
-      class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6"
-      @scroll="handleScroll"
+      class="absolute inset-0 flex justify-center items-center bg-black/30 z-10"
+      v-if="textInference.isPreparingBackend"
     >
-      <div
-        class="absolute inset-0 flex justify-center items-center bg-black/30 z-10"
-        v-if="textInference.isPreparingBackend"
-      >
-        <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
-      </div>
-      <!-- eslint-disable vue/require-v-for-key -->
-      <div class="w-full max-w-3xl mx-auto flex flex-col gap-6">
-        <template v-for="(chatItem, i) in conversations.activeConversation">
-          <!-- eslint-enable -->
-          <div class="flex items-start gap-3">
-            <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg"/>
-            <div class="flex flex-col gap-3 max-w-3/4">
-              <p class="text-gray-300" :class="textInference.nameSizeClass">
-                {{ languages.ANSWER_USER_NAME }}
-              </p>
-              <div class="chat-content" style="white-space: pre-wrap">
-                {{ chatItem.question }}
-              </div>
-              <button
-                class="flex items-center gap-1 text-xs text-gray-300 mt-1"
-                :title="languages.COM_COPY"
-                @click="copyText(chatItem.question)"
-              >
-                <span class="svg-icon i-copy w-4 h-4"></span>
-                <span>{{ languages.COM_COPY }}</span>
-              </button>
+      <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
+    </div>
+    <!-- eslint-disable vue/require-v-for-key -->
+    <div class="w-full max-w-3xl mx-auto flex flex-col gap-6">
+      <template v-for="(chatItem, i) in conversations.activeConversation">
+        <!-- eslint-enable -->
+        <div class="flex items-start gap-3">
+          <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
+          <div class="flex flex-col gap-3 max-w-3/4">
+            <p class="text-gray-300" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_USER_NAME }}
+            </p>
+            <div class="chat-content" style="white-space: pre-wrap">
+              {{ chatItem.question }}
             </div>
-          </div>
-          <div class="flex items-start gap-3">
-            <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg"/>
-            <div
-              class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+            <button
+              class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+              :title="languages.COM_COPY"
+              @click="copyText(chatItem.question)"
             >
-              <div class="flex items-center gap-2">
-                <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
-                  {{ languages.ANSWER_AI_NAME }}
-                </p>
-                <div v-if="chatItem.model" class="flex items-center gap-2">
+              <span class="svg-icon i-copy w-4 h-4"></span>
+              <span>{{ languages.COM_COPY }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="flex items-start gap-3">
+          <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+          <div
+            class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+          >
+            <div class="flex items-center gap-2">
+              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_AI_NAME }}
+              </p>
+              <div v-if="chatItem.model" class="flex items-center gap-2">
                   <span
                     class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                     :class="textInference.nameSizeClass"
@@ -54,13 +54,13 @@
                         : chatItem.model
                     }}
                   </span>
-                  <!-- Display RAG source if available -->
-                  <span
-                    v-if="chatItem.ragSource"
-                    @click="chatItem.showRagSource = !chatItem.showRagSource"
-                    class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
-                    :class="textInference.nameSizeClass"
-                  >
+                <!-- Display RAG source if available -->
+                <span
+                  v-if="chatItem.ragSource"
+                  @click="chatItem.showRagSource = !chatItem.showRagSource"
+                  class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                  :class="textInference.nameSizeClass"
+                >
                     Source Docs
                     <button class="ml-1">
                       <img
@@ -68,24 +68,24 @@
                         src="@/assets/svg/arrow-up.svg"
                         class="w-3 h-3"
                       />
-                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3"/>
+                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
                     </button>
                   </span>
-                </div>
               </div>
+            </div>
 
-              <!-- RAG Source Details (collapsible) -->
-              <div
-                v-if="chatItem.ragSource && chatItem.showRagSource"
-                class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
-                :class="textInference.fontSizeClass"
-              >
-                <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-                <div class="whitespace-pre-wrap">{{ chatItem.ragSource }}</div>
-              </div>
-              <div class="ai-answer chat-content">
-                <template v-if="chatItem.model && thinkingModels[chatItem.model]">
-                  <div class="mb-2 flex items-center">
+            <!-- RAG Source Details (collapsible) -->
+            <div
+              v-if="chatItem.ragSource && chatItem.showRagSource"
+              class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+              :class="textInference.fontSizeClass"
+            >
+              <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+              <div class="whitespace-pre-wrap">{{ chatItem.ragSource }}</div>
+            </div>
+            <div class="ai-answer chat-content">
+              <template v-if="chatItem.model && thinkingModels[chatItem.model]">
+                <div class="mb-2 flex items-center">
                     <span class="italic text-gray-300">
                       {{
                         chatItem.reasoningTime !== undefined && chatItem.reasoningTime !== null
@@ -97,153 +97,153 @@
                           : 'Done Reasoning'
                       }}
                     </span>
-                    <button
-                      @click="chatItem.showThinkingText = !chatItem.showThinkingText"
-                      class="ml-1"
-                    >
-                      <img
-                        v-if="chatItem.showThinkingText"
-                        src="@/assets/svg/arrow-up.svg"
-                        class="w-4 h-4"
-                      />
-                      <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4"/>
-                    </button>
-                  </div>
-                  <div
-                    v-if="chatItem.showThinkingText"
-                    class="border-l-2 border-gray-400 pl-4 text-gray-300"
-                    v-html="chatItem.parsedThinkingText"
-                  ></div>
-                  <div v-html="chatItem.parsedAnswer"></div>
-                </template>
-                <template v-else>
-                  <div v-html="chatItem.parsedAnswer"></div>
-                </template>
-              </div>
-              <div class="answer-tools flex gap-3 items-center text-gray-300">
-                <button
-                  class="flex items-end"
-                  :title="languages.COM_COPY"
-                  @click="
+                  <button
+                    @click="chatItem.showThinkingText = !chatItem.showThinkingText"
+                    class="ml-1"
+                  >
+                    <img
+                      v-if="chatItem.showThinkingText"
+                      src="@/assets/svg/arrow-up.svg"
+                      class="w-4 h-4"
+                    />
+                    <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
+                  </button>
+                </div>
+                <div
+                  v-if="chatItem.showThinkingText"
+                  class="border-l-2 border-gray-400 pl-4 text-gray-300"
+                  v-html="chatItem.parsedThinkingText"
+                ></div>
+                <div v-html="chatItem.parsedAnswer"></div>
+              </template>
+              <template v-else>
+                <div v-html="chatItem.parsedAnswer"></div>
+              </template>
+            </div>
+            <div class="answer-tools flex gap-3 items-center text-gray-300">
+              <button
+                class="flex items-end"
+                :title="languages.COM_COPY"
+                @click="
                     copyText(
                       chatItem.model && thinkingModels[chatItem.model]
                         ? textInference.extractPostMarker(chatItem.answer, chatItem.model)
                         : chatItem.answer,
                     )
                   "
-                >
-                  <span class="svg-icon i-copy w-4 h-4"></span>
-                  <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
-                </button>
-                <button
-                  class="flex items-end"
-                  :title="languages.COM_REGENERATE"
-                  @click="() => regenerateLastResponse(conversations.activeKey)"
-                  v-if="i + 1 == conversations.activeConversation.length"
-                  :disabled="processing"
-                  :class="{ 'opacity-50 cursor-not-allowed': processing }"
-                >
-                  <span class="svg-icon i-refresh w-4 h-4"></span>
-                  <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
-                </button>
-                <button
-                  class="flex items-end"
-                  :title="languages.COM_DELETE"
-                  @click="
+              >
+                <span class="svg-icon i-copy w-4 h-4"></span>
+                <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+              </button>
+              <button
+                class="flex items-end"
+                :title="languages.COM_REGENERATE"
+                @click="() => regenerateLastResponse(conversations.activeKey)"
+                v-if="i + 1 == conversations.activeConversation.length"
+                :disabled="processing"
+                :class="{ 'opacity-50 cursor-not-allowed': processing }"
+              >
+                <span class="svg-icon i-refresh w-4 h-4"></span>
+                <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
+              </button>
+              <button
+                class="flex items-end"
+                :title="languages.COM_DELETE"
+                @click="
                     () => conversations.deleteItemFromConversation(conversations.activeKey, i)
                   "
-                >
-                  <span class="svg-icon i-delete w-4 h-4"></span>
-                  <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
-                </button>
-              </div>
-              <div
-                v-if="textInference.metricsEnabled && chatItem.metrics"
-                class="metrics-info text-xs text-gray-400"
               >
-                <span class="mr-2">{{ chatItem.metrics.num_tokens }} Tokens</span>
-                <span class="mr-2">⋅</span>
-                <span class="mr-2"
-                >{{ chatItem.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
-                >
-                <span class="mr-2">⋅</span>
-                <span class="mr-2"
-                >1st Token Time: {{ chatItem.metrics.first_token_latency.toFixed(2) }}s</span
-                >
-              </div>
+                <span class="svg-icon i-delete w-4 h-4"></span>
+                <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
+              </button>
             </div>
-          </div>
-        </template>
-        <div
-          class="flex items-start gap-3"
-          v-show="processing && conversations.activeKey === currentlyGeneratingKey"
-        >
-          <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg"/>
-          <div class="flex flex-col gap-3 max-w-3/4">
-            <p class="text-gray-300" :class="textInference.nameSizeClass">
-              {{ languages.ANSWER_USER_NAME }}
-            </p>
-            <div class="chat-content" style="white-space: pre-wrap">
-              {{ textIn }}
-            </div>
-            <button
-              class="flex items-center gap-1 text-xs text-gray-300 mt-1"
-              :title="languages.COM_COPY"
-              @click="copyText(textIn)"
+            <div
+              v-if="textInference.metricsEnabled && chatItem.metrics"
+              class="metrics-info text-xs text-gray-400"
             >
-              <span class="svg-icon i-copy w-4 h-4"></span>
-              <span>{{ languages.COM_COPY }}</span>
-            </button>
+              <span class="mr-2">{{ chatItem.metrics.num_tokens }} Tokens</span>
+              <span class="mr-2">⋅</span>
+              <span class="mr-2"
+              >{{ chatItem.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+              >
+              <span class="mr-2">⋅</span>
+              <span class="mr-2"
+              >1st Token Time: {{ chatItem.metrics.first_token_latency.toFixed(2) }}s</span
+              >
+            </div>
           </div>
         </div>
-        <div
-          class="flex items-start gap-3"
-          v-show="processing && conversations.activeKey === currentlyGeneratingKey"
-        >
-          <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg"/>
-          <div
-            class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+      </template>
+      <div
+        class="flex items-start gap-3"
+        v-show="processing && conversations.activeKey === currentlyGeneratingKey"
+      >
+        <img :class="textInference.iconSizeClass" src="@/assets/svg/user-icon.svg" />
+        <div class="flex flex-col gap-3 max-w-3/4">
+          <p class="text-gray-300" :class="textInference.nameSizeClass">
+            {{ languages.ANSWER_USER_NAME }}
+          </p>
+          <div class="chat-content" style="white-space: pre-wrap">
+            {{ textIn }}
+          </div>
+          <button
+            class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+            :title="languages.COM_COPY"
+            @click="copyText(textIn)"
           >
-            <div class="flex items-center gap-2">
-              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
-                {{ languages.ANSWER_AI_NAME }}
-              </p>
-              <span
-                class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
-                :class="textInference.nameSizeClass"
-              >
+            <span class="svg-icon i-copy w-4 h-4"></span>
+            <span>{{ languages.COM_COPY }}</span>
+          </button>
+        </div>
+      </div>
+      <div
+        class="flex items-start gap-3"
+        v-show="processing && conversations.activeKey === currentlyGeneratingKey"
+      >
+        <img :class="textInference.iconSizeClass" src="@/assets/svg/ai-icon.svg" />
+        <div
+          class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+        >
+          <div class="flex items-center gap-2">
+            <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+              {{ languages.ANSWER_AI_NAME }}
+            </p>
+            <span
+              class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+              :class="textInference.nameSizeClass"
+            >
                 {{ textInference.activeModel }}
               </span>
-              <span
-                v-if="ragRetrievalInProgress || actualRagResults?.length"
-                class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
-                :class="textInference.nameSizeClass"
-                @click="showRagPreview = !showRagPreview"
-              >
+            <span
+              v-if="ragRetrievalInProgress || actualRagResults?.length"
+              class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+              :class="textInference.nameSizeClass"
+              @click="showRagPreview = !showRagPreview"
+            >
                 Source Docs
                 <button class="ml-1">
-                  <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3"/>
-                  <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3"/>
+                  <img v-if="showRagPreview" src="@/assets/svg/arrow-up.svg" class="w-3 h-3" />
+                  <img v-else src="@/assets/svg/arrow-down.svg" class="w-3 h-3" />
                 </button>
               </span>
-            </div>
+          </div>
 
-            <div
-              v-if="showRagPreview"
-              class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
-              :class="textInference.fontSizeClass"
-            >
-              <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-              <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">
-                Retrieving Documents...
-              </div>
-              <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
-                {{ textInference.formatRagSources(actualRagResults) }}
-              </div>
+          <div
+            v-if="showRagPreview"
+            class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+            :class="textInference.fontSizeClass"
+          >
+            <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+            <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">
+              Retrieving Documents...
             </div>
-            <div
-              v-if="!downloadModel.downloading && !loadingModel"
-              :class="[
+            <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
+              {{ textInference.formatRagSources(actualRagResults) }}
+            </div>
+          </div>
+          <div
+            v-if="!downloadModel.downloading && !loadingModel"
+            :class="[
                 'ai-answer',
                 {
                   'cursor-block': !(
@@ -252,11 +252,11 @@
                 },
                 'break-all',
               ]"
+          >
+            <template
+              v-if="textInference.activeModel && thinkingModels[textInference.activeModel]"
             >
-              <template
-                v-if="textInference.activeModel && thinkingModels[textInference.activeModel]"
-              >
-                <div class="mb-2 flex items-center">
+              <div class="mb-2 flex items-center">
                   <span class="italic text-gray-300 inline-flex items-center">
                     <template v-if="thinkingText || postMarkerText">
                       <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
@@ -275,58 +275,58 @@
                           src="@/assets/svg/arrow-up.svg"
                           class="w-4 h-4"
                         />
-                        <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4"/>
+                        <img v-else src="@/assets/svg/arrow-down.svg" class="w-4 h-4" />
                       </button>
                     </template>
                     <template v-else>
                       <span class="cursor-block"></span>
                     </template>
                   </span>
-                </div>
-                <div
-                  v-if="showThinkingText"
-                  class="border-l-2 border-gray-400 pl-4 text-gray-300"
-                  v-html="thinkOut"
-                ></div>
-                <div class="mt-2 text-white" v-html="textOut"></div>
-              </template>
-              <template v-else>
-                <span v-html="textOut"></span>
-              </template>
-            </div>
-            <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
-              <progress-bar
-                v-if="downloadModel.downloading"
-                :text="downloadModel.text"
-                :percent="downloadModel.percent"
-                class="w-512px"
-              ></progress-bar>
-              <loading-bar
-                v-else-if="loadingModel"
-                :text="languages.COM_LOADING_MODEL"
-                class="w-512px"
-              ></loading-bar>
+              </div>
+              <div
+                v-if="showThinkingText"
+                class="border-l-2 border-gray-400 pl-4 text-gray-300"
+                v-html="thinkOut"
+              ></div>
+              <div class="mt-2 text-white" v-html="textOut"></div>
+            </template>
+            <template v-else>
+              <span v-html="textOut"></span>
+            </template>
+          </div>
+          <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
+            <progress-bar
+              v-if="downloadModel.downloading"
+              :text="downloadModel.text"
+              :percent="downloadModel.percent"
+              class="w-512px"
+            ></progress-bar>
+            <loading-bar
+              v-else-if="loadingModel"
+              :text="languages.COM_LOADING_MODEL"
+              class="w-512px"
+            ></loading-bar>
 
-            </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import {getCurrentInstance} from 'vue'
+import { getCurrentInstance } from 'vue'
 import * as toast from "@/assets/js/toast.ts";
-import {useI18N} from "@/assets/js/store/i18n.ts";
-import {thinkingModels, useTextInference} from "@/assets/js/store/textInference.ts";
-import {useConversations} from "@/assets/js/store/conversations.ts";
+import { useI18N } from "@/assets/js/store/i18n.ts";
+import { thinkingModels, useTextInference } from "@/assets/js/store/textInference.ts";
+import { useConversations } from "@/assets/js/store/conversations.ts";
 import * as util from "@/assets/js/util.ts";
-import {SSEProcessor} from "@/assets/js/sseProcessor.ts";
-import {useOllama} from "@/assets/js/store/ollama.ts";
-import {useBackendServices} from "@/assets/js/store/backendServices.ts";
-import {useGlobalSetup} from "@/assets/js/store/globalSetup.ts";
-import {parse} from "@/assets/js/markdownParser.ts";
-import {base64ToString} from "uint8array-extras";
+import { SSEProcessor } from "@/assets/js/sseProcessor.ts";
+import { useOllama } from "@/assets/js/store/ollama.ts";
+import { useBackendServices } from "@/assets/js/store/backendServices.ts";
+import { useGlobalSetup } from "@/assets/js/store/globalSetup.ts";
+import { parse } from "@/assets/js/markdownParser.ts";
+import { base64ToString } from "uint8array-extras";
 import ProgressBar from "@/components/ProgressBar.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 
@@ -366,7 +366,7 @@ let receiveOut = ''
 let textOutFinish = false
 let firstOutput = false
 let actualRagResults: LangchainDocument[] | null = null
-let chatPanel: HTMLElement
+let chatPanel: HTMLElement | null = null
 let sseMetrics: MetricsData | null = null
 let abortController = new AbortController()
 
@@ -759,6 +759,10 @@ async function simulatedInput() {
     textIn.value = ''
     textOut.value = ''
     nextTick(() => {
+      if (!chatPanel) {
+        return
+      }
+
       chatPanel.querySelectorAll('.copy-code').forEach((item) => {
         console.log('setting copycode listeners for', item)
         const el = item as HTMLElement
@@ -829,10 +833,12 @@ function handleScroll(e: Event) {
 }
 
 function scrollToBottom(smooth = true) {
-  chatPanel.scrollTo({
-    top: chatPanel.scrollHeight,
-    behavior: smooth ? 'smooth' : 'auto',
-  })
+  if (chatPanel) {
+    chatPanel.scrollTo({
+      top: chatPanel.scrollHeight,
+      behavior: smooth ? 'smooth' : 'auto',
+    })
+  }
 }
 
 function copyCode(e: MouseEvent) {
