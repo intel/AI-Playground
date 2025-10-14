@@ -25,6 +25,15 @@
       </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
+      <label
+        class="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          v-model="useNewUI"
+          class="w-4 h-4 cursor-pointer"
+        />
+        <span class="text-sm">New UI</span>
+      </label>
       <button
         v-if="debugToolsEnabled"
         :title="languages.COM_SETTINGS"
@@ -136,7 +145,41 @@
       </Collapsible>
     </div>
   </main>
-  <main v-show="globalSetup.loadingState === 'running'" class="flex-auto flex flex-col relative">
+
+  <main v-if="useNewUI && globalSetup.loadingState === 'running'"
+        class="flex-auto flex flex-col relative">
+    <new-app-view
+      ref="newAppView"
+      @show-download-model-confirm="showDownloadModelConfirm"
+      @show-model-request="showModelRequest"
+    ></new-app-view>
+    <app-settings
+      v-if="showSetting"
+      @close="hideAppSettings"
+      @show-download-model-confirm="showDownloadModelConfirm"
+    ></app-settings>
+    <download-dialog
+      v-show="showDowloadDlg"
+      ref="downloadDigCompt"
+      @close="showDowloadDlg = false"
+    ></download-dialog>
+    <add-l-l-m-dialog
+      v-show="showModelRequestDialog"
+      ref="addLLMCompt"
+      @close="showModelRequestDialog = false"
+      @call-check-model="callCheckModel"
+      @show-warning="showWarning"
+    ></add-l-l-m-dialog>
+    <warning-dialog
+      v-show="showWarningDialog"
+      ref="warningCompt"
+      @close="showWarningDialog = false"
+    ></warning-dialog>
+  </main>
+
+  <!-- todo: Old UI only, we should eventually be able to remove this main block -->
+  <main v-else-if="!useNewUI && globalSetup.loadingState === 'running'"
+        class="flex-auto flex flex-col relative">
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
       <button
         class="tab"
@@ -165,13 +208,6 @@
         @click="() => (activeTabIdx = 'learn-more')"
       >
         {{ languages.TAB_LEARN_MORE }}
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTabIdx === 'new-ui' }"
-        @click="() => (activeTabIdx = 'new-ui')"
-      >
-        TMP_TAB_NEW_UI
       </button>
       <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
       <button
@@ -212,12 +248,6 @@
           @show-model-request="showModelRequest"
         ></answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
-        <new-app-view
-          v-show="activeTabIdx === 'new-ui'"
-          ref="newAppView"
-          @show-download-model-confirm="showDownloadModelConfirm"
-          @show-model-request="showModelRequest"
-        ></new-app-view>
       </div>
       <app-settings
         v-if="showSetting"
@@ -243,6 +273,7 @@
       @close="showWarningDialog = false"
     ></warning-dialog>
   </main>
+
   <footer
     class="flex-none px-4 flex justify-between items-center select-none"
     :class="{
@@ -255,7 +286,7 @@
       <p>
         Al Playground from Intel Corporation
         <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
-          >https://github.com/intel/ai-playground</a
+        >https://github.com/intel/ai-playground</a
         >
       </p>
       <p>
@@ -343,6 +374,7 @@ const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
 const showWarningDialog = ref(false)
 const fullscreen = ref(false)
+const useNewUI = ref(false)
 
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
@@ -370,7 +402,7 @@ onBeforeMount(async () => {
   window.addEventListener('keydown', zoomIn, true)
   window.removeEventListener('wheel', wheelZoom)
   window.addEventListener('wheel', wheelZoom, true)
-  window.electronAPI.onDebugLog(({ level, source, message }) => {
+  window.electronAPI.onDebugLog(({level, source, message}) => {
     if (level == 'error') {
       if (message.startsWith('onednn_verbose')) return
       console.error(`[${source}] ${message}`)
@@ -401,7 +433,9 @@ onBeforeMount(async () => {
 
 onMounted(() => {
   watch([() => globalSetup.loadingState, activeTabIdx] as const, ([loadingState, activeTabIdx]) => {
-    if (loadingState === 'running') setTimeout(() => demoMode.triggerHelp(activeTabIdx))
+    if (loadingState === 'running' && !useNewUI.value) {
+      setTimeout(() => demoMode.triggerHelp(activeTabIdx))
+    }
   })
 })
 
