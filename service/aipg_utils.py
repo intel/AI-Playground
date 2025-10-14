@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import logging
 import math
 import subprocess
@@ -76,7 +77,7 @@ def call_subprocess(process_command: str, cwd: Optional[str] = None) -> str:
     args = shlex.split(process_command)
     try:
         logging.info(f"calling cmd process: {args}")
-        output = subprocess.check_output(args, cwd=cwd)
+        output = subprocess.check_output(args, cwd=cwd, env={**os.environ, "PIP_CONFIG_FILE": os.devnull})
         return output.decode("utf-8").strip()
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to call subprocess {process_command} with error {e}")

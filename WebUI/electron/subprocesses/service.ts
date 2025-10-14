@@ -63,13 +63,13 @@ export async function createEnhancedErrorDetails(
   service?: PythonService | UvPipService,
 ): Promise<ErrorDetails> {
   const timestamp = new Date().toISOString()
-  
+
   // Capture pip freeze output for installation-related errors
   let pipFreezeOutput: string | undefined
   if (service) {
     pipFreezeOutput = await capturePipFreezeOutput(service)
   }
-  
+
   if (error instanceof ProcessError) {
     return {
       command: `${error.result.command} ${error.result.args.join(' ')}`,
@@ -310,7 +310,13 @@ abstract class ExecutableService extends GenericServiceImpl {
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     const exePath = existingFileOrError(this.getExePath())
     try {
-      return await spawnProcessAsync(exePath, args, (data) => this.log(data), extraEnv, workDir)
+      return await spawnProcessAsync(
+        exePath,
+        args,
+        (data) => this.log(data),
+        { ...extraEnv, PIP_CONFIG_FILE: 'nul' },
+        workDir,
+      )
     } catch (error) {
       if (error instanceof ProcessError) {
         // Log detailed error information

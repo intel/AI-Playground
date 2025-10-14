@@ -325,6 +325,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      PIP_CONFIG_FILE: 'nul',
     }
     const mediaDir = getMediaDir()
     const parameters = [

@@ -310,6 +310,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       LLAMA_LLM_PORT: currentLlmPort.toString(),
       LLAMA_EMBEDDING_PORT: currentEmbeddingPort.toString(),
       ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      PIP_CONFIG_FILE: 'nul',
     }
 
     this.appLogger.info(

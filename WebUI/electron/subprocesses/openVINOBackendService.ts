@@ -187,6 +187,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       ...(this.currentContextSize ? { MAX_PROMPT_LEN: this.currentContextSize.toString() } : {}),
       ...openVinoDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      PIP_CONFIG_FILE: 'nul',
     }
 
     const apiProcess = spawn(
