@@ -33,17 +33,13 @@
       <!-- Device Selection -->
       <div class="flex flex-col gap-2">
         <Label>Device</Label>
-        <select class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
-          <option>Intel Arc GPU</option>
-        </select>
+        <DeviceSelector :backend="backendToService[textInference.backend]" />
       </div>
 
       <!-- Model Selection -->
       <div class="flex flex-col gap-2">
         <Label>Models</Label>
-        <select class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
-          <option>Phi-3.5 mini Instruct</option>
-        </select>
+        <ModelSelector />
       </div>
 
       <!-- Add Model Button -->
@@ -92,6 +88,12 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { backendToService, useTextInference } from "@/assets/js/store/textInference.ts";
+import DeviceSelector from "@/components/DeviceSelector.vue";
+import ModelSelector from "@/components/ModelSelector.vue";
+
+const textInference = useTextInference()
+
 
 const presets = [
   {id: 1, name: 'OpenVINO', icon: '🔷', bgClass: 'bg-blue-900/30'},
