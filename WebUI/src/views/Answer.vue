@@ -734,11 +734,7 @@ function handleScroll(e: Event) {
   const target = e.target as HTMLElement
   const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
 
-  if (distanceFromBottom > 35) {
-    autoScrollEnabled.value = false
-  } else {
-    autoScrollEnabled.value = true
-  }
+  autoScrollEnabled.value = distanceFromBottom <= 35;
   showScrollButton.value = distanceFromBottom > 60
 }
 

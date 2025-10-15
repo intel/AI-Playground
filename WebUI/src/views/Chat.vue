@@ -2,6 +2,7 @@
   <div
     v-if="conversations.activeConversation && conversations.activeConversation.length > 0 || processing"
     id="chatPanel"
+    ref="chatPanel"
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6"
     @scroll="handleScroll"
   >
@@ -353,6 +354,7 @@ const showRagPreview = ref(true)
 const loadingModel = ref(false)
 const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
+const chatPanel = ref<HTMLElement | null>(null)
 
 const downloadModel = reactive({
   downloading: false,
@@ -366,7 +368,6 @@ let receiveOut = ''
 let textOutFinish = false
 let firstOutput = false
 let actualRagResults: LangchainDocument[] | null = null
-let chatPanel: HTMLElement | null = null
 let sseMetrics: MetricsData | null = null
 let abortController = new AbortController()
 
@@ -389,10 +390,6 @@ defineExpose({
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
-
-onMounted(async () => {
-  chatPanel = document.getElementById('chatPanel')!
-})
 
 
 async function handleSubmitPromptClick(prompt: string) {
@@ -759,11 +756,11 @@ async function simulatedInput() {
     textIn.value = ''
     textOut.value = ''
     nextTick(() => {
-      if (!chatPanel) {
+      if (!chatPanel.value) {
         return
       }
 
-      chatPanel.querySelectorAll('.copy-code').forEach((item) => {
+      chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
         console.log('setting copycode listeners for', item)
         const el = item as HTMLElement
         el.classList.remove('hidden')
@@ -833,9 +830,9 @@ function handleScroll(e: Event) {
 }
 
 function scrollToBottom(smooth = true) {
-  if (chatPanel) {
-    chatPanel.scrollTo({
-      top: chatPanel.scrollHeight,
+  if (chatPanel.value) {
+    chatPanel.value.scrollTo({
+      top: chatPanel.value.scrollHeight,
       behavior: smooth ? 'smooth' : 'auto',
     })
   }
