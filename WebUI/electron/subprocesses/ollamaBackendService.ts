@@ -102,6 +102,7 @@ export class OllamaBackendService implements ApiService {
       bestDeviceId = availableDevices[0].name
     }
     this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+    this.updateStatus()
   }
 
   async selectDevice(deviceId: string): Promise<void> {

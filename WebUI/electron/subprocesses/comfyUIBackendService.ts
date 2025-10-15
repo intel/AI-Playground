@@ -84,6 +84,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     const availableDevices = await detectLevelZeroDevices(this.uvPip.python)
     this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
     this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
+    this.updateStatus()
   }
 
   getServiceForPipFreeze(): UvPipService {

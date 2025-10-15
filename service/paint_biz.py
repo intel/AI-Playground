@@ -40,7 +40,6 @@ ipex_init()
 
 
 class TextImageParams:
-    device: int
     prompt: str
     model_name: str
     mode: int
@@ -813,7 +812,7 @@ def generate(params: TextImageParams):
 
     try:
         stop_generate()
-        torch.xpu.set_device(params.device)
+        # torch.xpu.set_device(params.device)
         # service_config.device = f"xpu:{params.device}"
         if _last_model_name != params.model_name:
             # hange model dispose basic model

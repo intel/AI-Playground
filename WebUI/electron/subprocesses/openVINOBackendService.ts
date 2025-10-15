@@ -35,6 +35,7 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
       { id: 'AUTO', name: 'Auto select device', selected: true },
       ...availableDevices.map((d) => ({ ...d, selected: d.id == '0' })),
     ]
+    this.updateStatus()
   }
 
   getServiceForPipFreeze(): UvPipService {

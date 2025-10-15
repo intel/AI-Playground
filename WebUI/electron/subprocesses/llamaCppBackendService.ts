@@ -149,6 +149,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       // Fallback to default device on error
       this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
     }
+    this.updateStatus()
   }
 
   getServiceForPipFreeze(): UvPipService {

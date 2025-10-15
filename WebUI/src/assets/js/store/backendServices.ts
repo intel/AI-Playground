@@ -51,6 +51,13 @@ export const useBackendServices = defineStore(
     const serviceListeners = new Map(
       backends.map((b) => [b, new BackendServiceSetupProgressListener(b)]),
     )
+    const lastSelectedDeviceIdPerBackend = ref<Record<BackendServiceName, string | null>>({
+      'ai-backend': null,
+      'comfyui-backend': null,
+      'llamacpp-backend': null,
+      'ollama-backend': null,
+      'openvino-backend': null,
+    })
 
     const versionState = ref<BackendVersionState>({
       'ai-backend': {},
@@ -122,7 +129,18 @@ export const useBackendServices = defineStore(
           .map(async (s) => {
             try {
               // Try to detect devices first
+              console.log(`Detecting devices for ${s.serviceName}`)
               await detectDevices(s.serviceName)
+              await new Promise((resolve) => setTimeout(resolve, 100)) // wait a second for device detection to settle
+              console.log(`Device detection complete for ${s.serviceName}`, JSON.stringify({ devices: s.devices, info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName) }))
+              const lastSelectedDeviceId = lastSelectedDeviceIdPerBackend.value[s.serviceName]
+              const availableDevicesIds = currentServiceInfo.value.find((info) => info.serviceName === s.serviceName)?.devices.map((d) => d.id)
+              const currentlySelectedDevice = currentServiceInfo.value.find((info) => info.serviceName === s.serviceName)?.devices.find((d) => d.selected)?.id
+              console.log(`Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`)
+              if (availableDevicesIds && lastSelectedDeviceId && availableDevicesIds.includes(lastSelectedDeviceId) && lastSelectedDeviceId !== currentlySelectedDevice) {
+                console.log(`Re-selecting device ${lastSelectedDeviceId} for ${s.serviceName}`)
+                await selectDevice(s.serviceName, lastSelectedDeviceId)
+              }
               return await startService(s.serviceName)
             } catch (error) {
               console.error(`Service startup failed for ${s.serviceName}:`, error)
@@ -198,6 +216,7 @@ export const useBackendServices = defineStore(
     }
 
     function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
+      lastSelectedDeviceIdPerBackend.value[serviceName] = deviceId
       return window.electronAPI.selectDevice(serviceName, deviceId)
     }
 
@@ -266,6 +285,7 @@ export const useBackendServices = defineStore(
       initalStartupRequestComplete,
       lastUsedBackend,
       versionState,
+      lastSelectedDeviceIdPerBackend,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
@@ -283,7 +303,7 @@ export const useBackendServices = defineStore(
   },
   {
     persist: {
-      pick: ['versionState'],
+      pick: ['versionState', 'lastSelectedDeviceIdPerBackend'],
     },
   },
 )

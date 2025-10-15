@@ -24,15 +24,15 @@ class OpenVino(LLMInterface):
             model_name = model_repo_id.replace("/", "---")
             model_path = path.abspath(path.join(model_base_path, model_name))
 
-            enable_compile_cache = dict()
+            options = dict()
             device = environ.get("OPENVINO_DEVICE", "AUTO")
             if device == "NPU":
-                enable_compile_cache["MAX_PROMPT_LEN"] = int(environ.get("MAX_PROMPT_LEN", 1024))
-                cache_postfix = f"NPU_{str(enable_compile_cache["MAX_PROMPT_LEN"])}"
+                options["MAX_PROMPT_LEN"] = int(environ.get("MAX_PROMPT_LEN", 1024))
+                cache_postfix = f"NPU_{str(options["MAX_PROMPT_LEN"])}"
             else:
-                cache_postfix = device
-            enable_compile_cache["CACHE_DIR"] = f"llm_cache_{cache_postfix}"
-            self._model = openvino_genai.LLMPipeline(model_path, device, **enable_compile_cache)
+                cache_postfix = device.replace(".", "_")
+            options["CACHE_DIR"] = f"llm_cache_{cache_postfix}"
+            self._model = openvino_genai.LLMPipeline(model_path, device, **options)
             self._tokenizer = self._model.get_tokenizer()
 
             self._last_repo_id = model_repo_id

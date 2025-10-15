@@ -627,7 +627,7 @@ async function generate() {
     lastPostParams = Object.assign(
       {
         mode: mode.value,
-        device: globalSetup.modelSettings.graphics,
+        device: 0,
         prompt: prompt.value,
         model_repo_id: model_repo_id,
         negative_prompt: imageGeneration.negativePrompt,
