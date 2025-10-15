@@ -30,15 +30,13 @@
         <span class="px-3 py-1 text-xs bg-green-600 rounded-full">Fast</span>
       </div>
 
-      <!-- Device Selection -->
       <div class="flex flex-col gap-2">
-        <Label>Device</Label>
+        <Label>{{ languages.DEVICE }}</Label>
         <DeviceSelector :backend="backendToService[textInference.backend]" />
       </div>
 
-      <!-- Model Selection -->
       <div class="flex flex-col gap-2">
-        <Label>Models</Label>
+        <Label>{{ languages.MODEL }}</Label>
         <ModelSelector />
       </div>
 
@@ -61,10 +59,9 @@
         />
       </div>
 
-      <!-- Metrics Checkbox -->
       <div class="flex items-center gap-2">
-        <Checkbox id="metrics" />
-        <Label for="metrics" class="cursor-pointer">Metrics</Label>
+        <Checkbox id="metrics" @click="textInference.toggleMetrics()"/>
+        <Label for="metrics" class="cursor-pointer">{{ languages.ANSWER_METRICS }}</Label>
       </div>
 
       <!-- Embeddings -->

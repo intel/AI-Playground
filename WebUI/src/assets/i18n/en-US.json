@@ -256,6 +256,7 @@
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
   "DEVICE": "Device",
+  "MODEL": "Model",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Checkpoint Model",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
   "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frames",
