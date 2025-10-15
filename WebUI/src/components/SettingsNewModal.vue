@@ -10,9 +10,9 @@
       </div>
       <div class="flex-1 p-4">
         <SettingsNewChat v-show="props.mode == 'chat'"/>
-        <SettingsNewChat v-show="props.mode == 'imageGen'"/>
-        <SettingsNewChat v-show="props.mode == 'imageEdit'"/>
-        <SettingsNewChat v-show="props.mode == 'video'"/>
+        <SettingsNewImageGen v-show="props.mode == 'imageGen'"/>
+        <SettingsNewImageEdit v-show="props.mode == 'imageEdit'"/>
+        <SettingsNewVideo v-show="props.mode == 'video'"/>
       </div>
     </div>
   </transition>
@@ -20,6 +20,9 @@
 <script setup lang="ts">
 
 import SettingsNewChat from "@/components/SettingsNewChat.vue";
+import SettingsNewImageGen from "@/components/SettingsNewImageGen.vue";
+import SettingsNewImageEdit from "@/components/SettingsNewImageEdit.vue";
+import SettingsNewVideo from "@/components/SettingsNewVideo.vue";
 
 const props = defineProps<{
   mode: string
