@@ -1,4 +1,12 @@
 <template>
+  <teleport to="body">
+    <add-l-l-m-dialog
+      v-show="showModelRequestDialog"
+      ref="addLLMCompt"
+      @close="showModelRequestDialog = false"
+      @show-warning="() => console.log('potato')"
+    />
+  </teleport>
   <div class="flex flex-col gap-6 p-4">
     <div class="flex flex-col gap-3">
       <h2 class="text-lg font-semibold text-center">Chat Presets</h2>
@@ -41,7 +49,9 @@
       </div>
 
       <!-- Add Model Button -->
-      <Button variant="outline" class="w-full">Add Model</Button>
+      <Button variant="outline" class="w-full" @click="() => showModelRequestDialog=true">
+        Add Model
+      </Button>
 
       <!-- Documents -->
       <Button variant="outline" class="w-full justify-start">
@@ -60,7 +70,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <Checkbox id="metrics" @click="textInference.toggleMetrics()"/>
+        <Checkbox id="metrics" @click="textInference.toggleMetrics()" />
         <Label for="metrics" class="cursor-pointer">{{ languages.ANSWER_METRICS }}</Label>
       </div>
 
@@ -88,8 +98,11 @@ import { Label } from '@/components/ui/label'
 import { backendToService, useTextInference } from "@/assets/js/store/textInference.ts";
 import DeviceSelector from "@/components/DeviceSelector.vue";
 import ModelSelector from "@/components/ModelSelector.vue";
+import AddLLMDialog from "@/components/AddLLMDialog.vue";
+import { ref } from "vue";
 
 const textInference = useTextInference()
+const showModelRequestDialog = ref(false)
 
 
 const presets = [

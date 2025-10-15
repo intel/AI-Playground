@@ -63,9 +63,10 @@ const addModelErrorMessage = ref('')
 const showInfo = ref(false)
 const addModelError = ref(false)
 const animate = ref(false)
+
+const checkModelAvailability = inject<() => void>('checkModelAvailability')
 const emits = defineEmits<{
   (e: 'close'): void
-  (e: 'callCheckModel'): void
   (e: 'showWarning', warning: string, func: () => void): void
 }>()
 
@@ -122,7 +123,7 @@ async function addModel() {
       default: false,
     })
     textInference.selectModel(textInference.backend, modelRequest.value)
-    emits('callCheckModel')
+    checkModelAvailability?.()
     closeAdd()
   }
 

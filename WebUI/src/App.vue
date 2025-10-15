@@ -153,6 +153,7 @@
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
+      @show-download-model-confirm="showDownloadModelConfirm"
     />
     <ImageGen
       v-show="currentMode === 'imageGen'"
@@ -170,8 +171,6 @@
       :currentMode="currentMode"
       @select-mode="currentMode = $event"
       @submit-prompt="handleSubmitPrompt"
-      @show-download-model-confirm="showDownloadModelConfirm"
-      @show-model-request="showModelRequest"
     />
     <app-settings
       v-if="showSetting"
@@ -183,13 +182,6 @@
       ref="downloadDigCompt"
       @close="showDowloadDlg = false"
     ></download-dialog>
-    <add-l-l-m-dialog
-      v-show="showModelRequestDialog"
-      ref="addLLMCompt"
-      @close="showModelRequestDialog = false"
-      @call-check-model="callCheckModel"
-      @show-warning="showWarning"
-    ></add-l-l-m-dialog>
     <warning-dialog
       v-show="showWarningDialog"
       ref="warningCompt"
@@ -261,12 +253,12 @@
           @show-download-model-confirm="showDownloadModelConfirm"
         >
         </enhance>
-        <answer
+        <Answer
           v-show="activeTabIdx === 'answer'"
           ref="answer"
           @show-download-model-confirm="showDownloadModelConfirm"
           @show-model-request="showModelRequest"
-        ></answer>
+        ></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
       </div>
       <app-settings
@@ -284,7 +276,6 @@
       v-show="showModelRequestDialog"
       ref="addLLMCompt"
       @close="showModelRequestDialog = false"
-      @call-check-model="callCheckModel"
       @show-warning="showWarning"
     ></add-l-l-m-dialog>
     <warning-dialog
@@ -357,7 +348,6 @@ import LoadingBar from './components/LoadingBar.vue'
 import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
 import Enhance from './views/Enhance.vue'
-import Answer from './views/Answer.vue'
 import PromptArea from "@/views/PromptArea.vue";
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
@@ -376,6 +366,7 @@ import ImageEdit from "@/views/ImageEdit.vue";
 import Video from "@/views/Video.vue";
 import ImageGen from "@/views/ImageGen.vue";
 import Chat from "@/views/Chat.vue";
+import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
 
 const backendServices = useBackendServices()
@@ -384,13 +375,16 @@ const globalSetup = useGlobalSetup()
 const demoMode = useDemoMode()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
-const answer = ref<InstanceType<typeof Answer>>()
+const answer = ref<{ checkModelAvailability: () => void }>()
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const warningCompt = ref<InstanceType<typeof WarningDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
-const chatRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const chatRef = ref<{
+  handleSubmitPromptClick: (prompt: string) => void
+  checkModelAvailability: () => void
+}>()
 const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
@@ -425,6 +419,14 @@ const wheelZoom = (event: WheelEvent) => {
     window.electronAPI.zoomOut()
   }
 }
+
+provide('checkModelAvailability', () => {
+  if (useNewUI.value) {
+    chatRef.value?.checkModelAvailability()
+  } else {
+    answer.value?.checkModelAvailability()
+  }
+})
 
 onBeforeMount(async () => {
   window.removeEventListener('keydown', zoomIn)
@@ -498,11 +500,7 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
 const createCompt = ref()
 
 function showAppSettings() {
-  if (showSetting.value === false) {
-    showSetting.value = true
-  } else {
-    showSetting.value = false
-  }
+  showSetting.value = showSetting.value === false;
 }
 
 function hideAppSettings() {
@@ -548,10 +546,6 @@ function showModelRequest() {
   nextTick(() => {
     addLLMCompt.value!.onShow()
   })
-}
-
-function callCheckModel() {
-  answer.value!.checkModel()
 }
 
 function showWarning(message: string, func: () => void) {

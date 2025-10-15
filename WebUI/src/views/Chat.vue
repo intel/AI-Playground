@@ -371,8 +371,6 @@ let actualRagResults: LangchainDocument[] | null = null
 let sseMetrics: MetricsData | null = null
 let abortController = new AbortController()
 
-// todo: Currently not being handled by parent
-// todo: showModelRequest not used. Either new component, or add into this one. Likely settings related
 const emits = defineEmits<{
   (
     e: 'showDownloadModelConfirm',
@@ -380,7 +378,6 @@ const emits = defineEmits<{
     success?: () => void,
     fail?: () => void,
   ): void
-  (e: 'showModelRequest', success?: () => void, fail?: () => void): void
 }>()
 
 defineExpose({
