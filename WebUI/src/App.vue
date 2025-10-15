@@ -15,7 +15,7 @@
     class="absolute -z-50 w-screen h-screen bg-cover bg-center bg-bmg"
   ></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black/20"
+    class="main-title text-2xl font-bold flex justify-between items-center px-4 border-b border-white/20 text-white bg-black/20"
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-3 items-baseline">
@@ -146,8 +146,10 @@
     </div>
   </main>
 
-  <main v-if="useNewUI && globalSetup.loadingState === 'running'"
-        class="flex-auto flex flex-col relative">
+  <main
+    v-if="useNewUI && globalSetup.loadingState === 'running'"
+    class="flex-1 flex flex-col relative justify-center min-h-0"
+  >
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
@@ -572,4 +574,5 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
   const componentRef = refMap[mode]
   componentRef.value?.handleSubmitPromptClick(prompt)
 }
+
 </script>

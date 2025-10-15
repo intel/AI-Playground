@@ -1,7 +1,6 @@
 <template>
-  <div id="prompt-area" class="text-white flex flex-col h-full">
-    <div class="flex flex-col items-center gap-7 text-base px-4"
-         :class="conversations.activeConversation && conversations.activeConversation.length > 0 || processing ? 'py-4' : 'flex-1 justify-center'">
+  <div id="prompt-area" class="text-white flex flex-col w-full py-4">
+    <div class="flex flex-col items-center gap-7 text-base px-4">
       <p class="text-2xl font-bold">
         Let's Generate
       </p>
@@ -48,14 +47,11 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, ref } from 'vue'
-import { useConversations } from "@/assets/js/store/conversations.ts";
 import SettingsNewModal from "@/components/SettingsNewModal.vue";
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
-const conversations = useConversations()
 const question = ref('')
-const processing = ref(false)
 const showSettings = ref(false)
 
 const props = defineProps<{
