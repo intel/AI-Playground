@@ -54,7 +54,7 @@
 
         <!-- todo: processing -->
         <Button
-          class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
+          variant="outline" class="w-full"
           @click="showUploader = !showUploader"
           :disabled="processing"
           :title="languages.ANSWER_RAG_OPEN_DIALOG"
@@ -91,7 +91,7 @@
         </div>
 
         <!-- Create New Preset Button -->
-        <Button class="w-full bg-blue-600 hover:bg-blue-700 mt-2">
+        <Button variant="outline" class="w-full">
           Create New Preset
         </Button>
       </div>
