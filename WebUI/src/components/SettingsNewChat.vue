@@ -1,6 +1,7 @@
 <template>
   <div>
     <teleport to="body">
+      <!--todo: potato-->
       <add-l-l-m-dialog
         v-show="showModelRequestDialog"
         ref="addLLMCompt"
@@ -54,9 +55,16 @@
           Add Model
         </Button>
 
-        <!-- Documents -->
-        <Button variant="outline" class="w-full justify-start">
-          Documents (0)
+        <!-- todo: processing -->
+        <Button
+          class="flex items-center justify-center flex-none gap-2 border border-white rounded-md text-sm px-4 py-1"
+          @click="showUploader = !showUploader"
+          :disabled="processing"
+          :title="languages.ANSWER_RAG_OPEN_DIALOG"
+          :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
+        >
+            <span class="w-4 h-4 svg-icon i-rag flex-none"></span
+            ><span>{{ documentButtonText }}</span>
         </Button>
 
         <!-- Token Size Input -->
@@ -90,6 +98,7 @@
           Create New Preset
         </Button>
       </div>
+      <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
   </div>
 </template>
@@ -97,17 +106,37 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { backendToService, useTextInference } from "@/assets/js/store/textInference.ts";
 import DeviceSelector from "@/components/DeviceSelector.vue";
 import ModelSelector from "@/components/ModelSelector.vue";
 import AddLLMDialog from "@/components/AddLLMDialog.vue";
 import { ref } from "vue";
+import { useI18N } from "@/assets/js/store/i18n.ts";
+import { useDemoMode } from "@/assets/js/store/demoMode.ts";
+import Rag from "@/components/Rag.vue";
 
-const textInference = useTextInference()
 const showModelRequestDialog = ref(false)
+const showUploader = ref(false)
+const processing = ref(false)
+const i18nState = useI18N().state
+const textInference = useTextInference()
+const demoMode = useDemoMode()
 
+const documentButtonText = computed(() => {
+  const stats = documentStats.value
+  if (stats.total === 0) {
+    return 'Add Documents'
+  } else {
+    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled}/${stats.total} ${i18nState.RAG_ENABLED})`
+  }
+})
+
+const documentStats = computed(() => {
+  const totalDocs = textInference.ragList.length
+  const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
+  return {total: totalDocs, enabled: enabledDocs}
+})
 
 const presets = [
   {id: 1, name: 'OpenVINO', icon: '🔷', bgClass: 'bg-blue-900/30'},
