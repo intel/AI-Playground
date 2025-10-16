@@ -276,7 +276,6 @@
       v-show="showModelRequestDialog"
       ref="addLLMCompt"
       @close="showModelRequestDialog = false"
-      @show-warning="showWarning"
     ></add-l-l-m-dialog>
     <warning-dialog
       v-show="showWarningDialog"
@@ -397,7 +396,7 @@ const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
 const showWarningDialog = ref(false)
 const fullscreen = ref(false)
-const useNewUI = ref(false)
+const useNewUI = ref(true)
 
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
@@ -426,6 +425,10 @@ provide('checkModelAvailability', () => {
   } else {
     answer.value?.checkModelAvailability()
   }
+})
+
+provide('showWarning', (message: string, confirmFunc: () => void) => {
+  showWarning(message, confirmFunc)
 })
 
 onBeforeMount(async () => {

@@ -65,9 +65,9 @@ const addModelError = ref(false)
 const animate = ref(false)
 
 const checkModelAvailability = inject<() => void>('checkModelAvailability')
+const showWarning = inject<((message: string, confirmFunc: () => void) => void)>('showWarning')
 const emits = defineEmits<{
   (e: 'close'): void
-  (e: 'showWarning', warning: string, func: () => void): void
 }>()
 
 const exampleModelName = computed(() =>
@@ -128,7 +128,7 @@ async function addModel() {
   }
 
   if (!isLlm) {
-    emits('showWarning', i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
+    showWarning?.(i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
   } else {
     downloadNewModel()
   }

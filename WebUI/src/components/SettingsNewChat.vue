@@ -1,12 +1,10 @@
 <template>
   <div>
     <teleport to="body">
-      <!--todo: potato-->
       <add-l-l-m-dialog
         v-show="showModelRequestDialog"
         ref="addLLMCompt"
         @close="showModelRequestDialog = false"
-        @show-warning="() => console.log('potato')"
       />
     </teleport>
     <div class="flex flex-col gap-6 p-4">
@@ -50,9 +48,8 @@
           <ModelSelector />
         </div>
 
-        <!-- Add Model Button -->
         <Button variant="outline" class="w-full" @click="() => showModelRequestDialog=true">
-          Add Model
+          {{ languages.COM_ADD + ' ' + languages.MODEL }}
         </Button>
 
         <!-- todo: processing -->
