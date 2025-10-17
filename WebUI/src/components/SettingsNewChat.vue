@@ -50,35 +50,30 @@
             {{ tag }}
           </span>
         </div>
-
-        <div class="flex flex-col gap-2">
-          <Label>{{ languages.DEVICE }}</Label>
+        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+          <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
         </div>
-
-        <div class="flex flex-col gap-2">
-          <Label>{{ languages.MODEL }}</Label>
+        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+          <Label class="whitespace-nowrap">{{ languages.MODEL }}</Label>
           <ModelSelector />
         </div>
-
-        <Button variant="outline" class="w-full" @click="() => showModelRequestDialog=true">
+        <Button variant="outline" class="self-start w-auto" @click="() => showModelRequestDialog=true">
           {{ languages.COM_ADD + ' ' + languages.MODEL }}
         </Button>
 
         <!-- todo: processing -->
         <Button
-          variant="outline" class="w-full"
+          variant="outline" class="self-start w-auto"
           @click="showUploader = !showUploader"
           :disabled="processing"
           :title="languages.ANSWER_RAG_OPEN_DIALOG"
           :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
         >
-            <span class="w-4 h-4 svg-icon i-rag flex-none"></span
-            ><span>{{ documentButtonText }}</span>
+          <span>{{ documentButtonText }}</span>
         </Button>
-
-        <div class="flex flex-col gap-2">
-          <label class="text-white whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
+        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+          <label class="whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
           <input
             type="number"
             v-model="textInference.maxTokens"
@@ -88,15 +83,13 @@
             class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
           />
         </div>
-
-        <div class="flex items-center gap-2">
+        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+          <Label class="whitespace-nowrap">{{ languages.ANSWER_METRICS }}</Label>
           <Checkbox id="metrics" @click="textInference.toggleMetrics()" />
-          <Label for="metrics" class="cursor-pointer">{{ languages.ANSWER_METRICS }}</Label>
         </div>
 
-        <!-- Embeddings -->
-        <div class="flex flex-col gap-2">
-          <Label>Embeddings</Label>
+        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+          <Label class="whitespace-nowrap">Embeddings</Label>
           <drop-down-new
             :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
             @change="(item) => textInference.selectEmbeddingModel(textInference.backend, item)"
@@ -116,9 +109,8 @@
             "
           ></drop-down-new>
         </div>
-
-        <!-- Create New Preset Button -->
-        <Button variant="outline" class="w-full">
+        <!-- todo: needs to actually do something-->
+        <Button variant="outline" class="max-w-md mx-auto">
           Create New Preset
         </Button>
       </div>
@@ -174,7 +166,7 @@ const documentButtonText = computed(() => {
   if (stats.total === 0) {
     return 'Add Documents'
   } else {
-    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled}/${stats.total} ${i18nState.RAG_ENABLED})`
+    return `${i18nState.RAG_DOCUMENTS} (${stats.enabled})`
   }
 })
 

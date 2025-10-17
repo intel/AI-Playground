@@ -77,10 +77,10 @@ export const textInferenceBackendDescription: Record<LlmBackend, string> = {
 }
 
 export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
-  ipexLLM: ['Intel','Optimized','Fast'],
+  ipexLLM: ['Intel','Legacy'],
   llamaCPP: ['Lightweight','Portable'],
-  openVINO: ['potato','potato','potato'],
-  ollama: ['potato','potato','potato'],
+  openVINO: ['Intel','Optimized','Fast'],
+  ollama: ['Integrated','CLI'],
 }
 
 export const useTextInference = defineStore(
