@@ -77,7 +77,6 @@
             ><span>{{ documentButtonText }}</span>
         </Button>
 
-        <!-- Token Size Input -->
         <div class="flex flex-col gap-2">
           <label class="text-white whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
           <input
@@ -98,9 +97,24 @@
         <!-- Embeddings -->
         <div class="flex flex-col gap-2">
           <Label>Embeddings</Label>
-          <select class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
-            <option>Select Embeddings</option>
-          </select>
+          <drop-down-new
+            :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
+            @change="(item) => textInference.selectEmbeddingModel(textInference.backend, item)"
+            :value="
+              textInference.llmEmbeddingModels
+                .filter((m) => m.type === textInference.backend)
+                .find((m) => m.active)?.name ?? ''
+            "
+            :items="
+              textInference.llmEmbeddingModels
+                .filter((m) => m.type === textInference.backend)
+                .map((item) => ({
+                  label: item.name.split('/').at(-1) ?? item.name,
+                  value: item.name,
+                  active: item.downloaded,
+                }))
+            "
+          ></drop-down-new>
         </div>
 
         <!-- Create New Preset Button -->
@@ -133,6 +147,7 @@ import Rag from "@/components/Rag.vue";
 import { llmBackendTypes } from "@/types/shared.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup.ts";
+import DropDownNew from "@/components/DropDownNew.vue";
 
 type BackendInfo = {
   displayName: string
