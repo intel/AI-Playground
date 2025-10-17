@@ -149,7 +149,26 @@
   <main
     v-if="useNewUI && globalSetup.loadingState === 'running'"
     class="flex-1 flex flex-col relative justify-center min-h-0"
+    :class="{
+      'bg-black/50': theme.active === 'lnl',
+      'bg-black/80': theme.active === 'bmg',
+      'border-t border-color-spilter': theme.active === 'dark',
+    }"
   >
+    <div class="absolute top-4 left-4">
+      <button
+        v-show="!showHistory"
+        @click="openHistory"
+        class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+      >
+        {{ languages.COM_SHOW_HISTORY }}
+      </button>
+    </div>
+    <HistoryNewModal
+      :isVisible="showHistory"
+      :label="'potato'"
+      :mode="currentMode"
+      @close="showHistory=false" />
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
@@ -367,6 +386,7 @@ import ImageGen from "@/views/ImageGen.vue";
 import Chat from "@/views/Chat.vue";
 import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
+import HistoryNewModal from "@/components/HistoryNewModal.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -392,6 +412,7 @@ const isOpen = ref(false)
 const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
+const showHistory = ref(false)
 const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
 const showWarningDialog = ref(false)
@@ -570,6 +591,10 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
 
   const componentRef = refMap[mode]
   componentRef.value?.handleSubmitPromptClick(prompt)
+}
+
+function openHistory() {
+  showHistory.value=true;
 }
 
 </script>
