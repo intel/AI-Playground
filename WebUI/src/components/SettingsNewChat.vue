@@ -10,24 +10,25 @@
     <div class="flex flex-col gap-6 p-1">
       <div class="grid grid-cols-3 gap-3">
         <div
-          v-for="backend in Object.values(backends)"
-          :key="backend.name"
+          v-for="backendInfo in Object.values(backendInfos)"
+          :key="backendInfo.name"
           class="relative rounded-l overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
           :class="[
-      textInference.backend === backend.name
-        ? 'border-blue-500 ring-2 ring-blue-400'
-        : 'border-transparent hover:border-blue-500'
-    ]"
-          @click="() => textInference.backend = backend.name as LlmBackend"
+            textInference.backend === backendInfo.name
+              ? 'border-blue-500 ring-2 ring-blue-400'
+              : 'border-transparent hover:border-blue-500',
+              !backendInfo.isRunning && 'grayscale'
+          ]"
+          @click="() => handlePresetSelectionClick(backendInfo)"
         >
           <img
             class="absolute inset-0 w-full h-full object-cover"
-            :src="`/src/assets/image/${backend.name}.png`"
-            :alt="backend.displayName"
+            :src="`/src/assets/image/${backendInfo.name}.png`"
+            :alt="backendInfo.displayName"
           />
           <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
       <span class="text-white text-sm font-semibold">
-        {{ backend.displayName }}
+        {{ backendInfo.displayName }}
       </span>
           </div>
         </div>
@@ -35,14 +36,14 @@
 
       <div class="flex flex-col gap-4">
         <h2 class="text-lg font-semibold">
-          {{ backends[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}</h2>
+          {{ backendInfos[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}</h2>
         <p class="text-sm text-gray-400">
-          {{ backends[textInference.backend]?.description }}
+          {{ backendInfos[textInference.backend]?.description }}
         </p>
 
         <div class="flex gap-2">
           <span
-            v-for="tag in backends[textInference.backend]?.tags"
+            v-for="tag in backendInfos[textInference.backend]?.tags"
             :key="tag"
             class="px-3 py-1 text-xs bg-purple-600 rounded-full">
             {{ tag }}
@@ -130,6 +131,16 @@ import { useDemoMode } from "@/assets/js/store/demoMode.ts";
 import Rag from "@/components/Rag.vue";
 import { llmBackendTypes } from "@/types/shared.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
+import { useGlobalSetup } from "@/assets/js/store/globalSetup.ts";
+
+type BackendInfo = {
+  displayName: string
+  description: string
+  tags: string[]
+  name: LlmBackend
+  isRunning: boolean
+  enabled: boolean
+}
 
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
@@ -138,7 +149,9 @@ const i18nState = useI18N().state
 const textInference = useTextInference()
 const demoMode = useDemoMode()
 const backendServices = useBackendServices()
-const backends = computed(() => backendTypesToBackends())
+const backendInfos = computed(() => backendTypesToBackends())
+const showWarning = inject<((message: string, confirmFunc: () => void) => void)>('showWarning')
+const globalSetup = useGlobalSetup()
 
 const documentButtonText = computed(() => {
   const stats = documentStats.value
@@ -154,6 +167,16 @@ const documentStats = computed(() => {
   const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
   return {total: totalDocs, enabled: enabledDocs}
 })
+
+function handlePresetSelectionClick(backendInfo: BackendInfo) {
+  if (backendInfo.isRunning) {
+    textInference.backend = backendInfo.name as LlmBackend
+  } else {
+    showWarning?.("Selected Backend is currently not running, open AI playground setup?", () => {
+      globalSetup.loadingState = 'manageInstallations'
+    })
+  }
+}
 
 function isEnabled(name: LlmBackend) {
   const backendName = mapBackendNames(name)
@@ -174,15 +197,6 @@ function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
 }
 
 function backendTypesToBackends() {
-  type BackendInfo = {
-    displayName: string
-    description: string
-    tags: string[]
-    name: LlmBackend
-    isRunning: boolean
-    enabled: boolean
-  }
-
   const result: Partial<Record<LlmBackend, BackendInfo>> = {}
 
   llmBackendTypes
