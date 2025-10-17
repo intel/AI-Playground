@@ -7,22 +7,29 @@
         @close="showModelRequestDialog = false"
       />
     </teleport>
-    <div class="flex flex-col gap-6 p-4">
-      <div class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold text-center">Presets</h2>
-        <div class="grid grid-cols-3 gap-3">
-          <button
-            v-for="backend in Object.values(backends)"
-            :key="backend.name"
-            class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-colors"
-            :class="[
-              backend.isRunning ? 'border-green-500 bg-green-900/20' : 'border-transparent bg-gray-800/30',
-              textInference.backend === backend.name ? 'ring-2 ring-blue-500' : 'hover:border-blue-500'
-            ]"
-            @click="() => textInference.backend = backend.name as LlmBackend"
-          >
-            <span class="text-xs font-medium">{{ backend.displayName }}</span>
-          </button>
+    <div class="flex flex-col gap-6 p-1">
+      <div class="grid grid-cols-3 gap-3">
+        <div
+          v-for="backend in Object.values(backends)"
+          :key="backend.name"
+          class="relative rounded-l overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
+          :class="[
+      textInference.backend === backend.name
+        ? 'border-blue-500 ring-2 ring-blue-400'
+        : 'border-transparent hover:border-blue-500'
+    ]"
+          @click="() => textInference.backend = backend.name as LlmBackend"
+        >
+          <img
+            class="absolute inset-0 w-full h-full object-cover"
+            :src="`/src/assets/image/${backend.name}.png`"
+            :alt="backend.displayName"
+          />
+          <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
+      <span class="text-white text-sm font-semibold">
+        {{ backend.displayName }}
+      </span>
+          </div>
         </div>
       </div>
 
