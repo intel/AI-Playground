@@ -8,6 +8,7 @@
       />
     </teleport>
     <div class="flex flex-col gap-6 p-1">
+      <h2 class="text-xl font-semibold text-center">Chat Presets</h2>
       <div class="grid grid-cols-3 gap-3">
         <div
           v-for="backendInfo in Object.values(backendInfos)"
@@ -17,7 +18,7 @@
             textInference.backend === backendInfo.name
               ? 'border-blue-500 ring-2 ring-blue-400'
               : 'border-transparent hover:border-blue-500',
-              !backendInfo.isRunning && 'grayscale'
+              !backendInfo.isRunning && 'grayscale opacity-80'
           ]"
           @click="() => handlePresetSelectionClick(backendInfo)"
         >
@@ -172,7 +173,7 @@ function handlePresetSelectionClick(backendInfo: BackendInfo) {
   if (backendInfo.isRunning) {
     textInference.backend = backendInfo.name as LlmBackend
   } else {
-    showWarning?.("Selected Backend is currently not running, open AI playground setup?", () => {
+    showWarning?.(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
       globalSetup.loadingState = 'manageInstallations'
     })
   }
