@@ -69,6 +69,20 @@ export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
   ollama: 'Ollama',
 }
 
+export const textInferenceBackendDescription: Record<LlmBackend, string> = {
+  ipexLLM: 'potato',
+  llamaCPP: 'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
+  openVINO: 'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  ollama: 'potato',
+}
+
+export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
+  ipexLLM: ['Intel','Optimized','Fast'],
+  llamaCPP: ['Lightweight','Portable'],
+  openVINO: ['potato','potato','potato'],
+  ollama: ['potato','potato','potato'],
+}
+
 export const useTextInference = defineStore(
   'textInference',
   () => {
