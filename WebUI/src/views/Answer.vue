@@ -493,7 +493,6 @@ import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { parse } from '@/assets/js/markdownParser'
 import DropDownNew from '@/components/DropDownNew.vue'
@@ -516,7 +515,7 @@ import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
 import { useLlamaCpp } from '@/assets/js/store/llamaCpp'
-import LlamaCppChat from '@/components/llamaCppChat.vue'
+import LlamaCppChat from '@/components/LlamaCppChat.vue'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()

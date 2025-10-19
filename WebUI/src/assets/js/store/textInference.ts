@@ -19,6 +19,7 @@ export const backendToService = {
 
 export type LlmModel = {
   name: string
+  mmproj?: string
   type: LlmBackend
   active: boolean
   downloaded: boolean
@@ -116,6 +117,7 @@ export const useTextInference = defineStore(
         const selectedModelForType = selectedModels.value[m.type as LlmBackend]
         return {
           name: m.name,
+          mmproj: m.mmproj,
           type: m.type as LlmBackend,
           downloaded: m.downloaded ?? false,
           active:
@@ -283,15 +285,24 @@ export const useTextInference = defineStore(
       }
       if (!model) return []
 
-      const checkList = {
+      const modelMetaData = llmModels.value
+        .filter((m) => m.type === backend.value).find((m) => m.active)
+      const checkList = [{
         repo_id: model,
         type:
           type === 'embedding'
             ? Const.MODEL_TYPE_EMBEDDING
             : backendToAipgModelTypeNumber[backend.value],
         backend: backendToAipgBackendName[backend.value],
+      }]
+      if (modelMetaData?.mmproj) {
+        checkList.push({
+          repo_id: modelMetaData.mmproj,
+          type: backendToAipgModelTypeNumber[backend.value],
+          backend: backendToAipgBackendName[backend.value],
+        })
       }
-      const checkedModels = await models.checkModelAlreadyLoaded([checkList])
+      const checkedModels = await models.checkModelAlreadyLoaded(checkList)
       const notYetDownloaded = checkedModels.filter((m) => !m.already_loaded)
       return notYetDownloaded
     }

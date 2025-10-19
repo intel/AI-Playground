@@ -8,8 +8,13 @@
   >
     Lllama CPP Chat:
     <div v-for="message in llamaCpp.messages" :key="message.id">
-      {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
-      {{ message.parts }}
+      <span class="text-xl font-extrabold">{{ message.role === 'user' ? 'User' : 'AI' }}</span>
+      <div v-for="part in message.parts" :key="part.type">
+        <span v-if="part.type === 'reasoning'">Reasoning: {{ part.text }}<br /></span>
+        <span v-else-if="part.type === 'text'">{{ part.text }}</span>
+        <img v-else-if="part.type === 'file' && part.mediaType.startsWith('image/')" :src="part.url" alt="Generated Image" />
+        <span v-else>Other parts: {{ JSON.stringify(part) }}</span>
+      </div>
     </div>
   </div>
 </template>

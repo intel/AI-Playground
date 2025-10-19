@@ -460,6 +460,7 @@ export class LlamaCppBackendService implements ApiService {
   ): Promise<LlamaServerProcess> {
     try {
       const modelPath = this.resolveModelPath(modelRepoId)
+
       const port = await getPort({ port: portNumbers(39100, 39199) })
       this.updatePort(port)
       this.updateStatus()
@@ -481,6 +482,20 @@ export class LlamaCppBackendService implements ApiService {
         ctxSize.toString(),
         '--log-prefix',
       ]
+
+      const modelFolder = path.dirname(modelPath)
+      // find mmproj*.gguf file in the same folder
+      const files = await filesystem.readdir(modelFolder)
+      const mmprojFiles = files.filter(file => file.startsWith('mmproj') && file.endsWith('.gguf'))
+      const mmprojFile = mmprojFiles.at(0)
+      if (mmprojFile) {
+        const mmprojPath = path.join(modelFolder, mmprojFile)
+        args.push('--mmproj', mmprojPath)
+        this.appLogger.info(
+          `Using mmproj file ${mmprojFile} for model ${modelRepoId}`,
+          this.name,
+        )
+      }
 
       const childProcess = spawn(this.llamaCppExePath, args, {
         cwd: this.llamaCppDir,

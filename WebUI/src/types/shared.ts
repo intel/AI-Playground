@@ -4,6 +4,7 @@ export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP', 'ollama'] as 
 
 export const ModelSchema = z.object({
   name: z.string(),
+  mmproj: z.string().optional(),
   downloaded: z.boolean().optional(),
   type: z.enum([
     'embedding',

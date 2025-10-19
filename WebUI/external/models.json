@@ -41,6 +41,7 @@
   },
   {
     "name": "unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q5_K_S.gguf",
+    "mmproj": "unsloth/gemma-3-4b-it-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",
     "default": false
   },
