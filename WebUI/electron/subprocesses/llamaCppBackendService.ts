@@ -149,6 +149,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       // Fallback to default device on error
       this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
     }
+    this.updateStatus()
   }
 
   getServiceForPipFreeze(): UvPipService {
@@ -310,6 +311,7 @@ export class LlamaCppBackendService extends LongLivedPythonApiService {
       LLAMA_LLM_PORT: currentLlmPort.toString(),
       LLAMA_EMBEDDING_PORT: currentEmbeddingPort.toString(),
       ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      PIP_CONFIG_FILE: 'nul',
     }
 
     this.appLogger.info(

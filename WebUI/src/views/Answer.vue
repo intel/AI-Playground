@@ -755,7 +755,6 @@ async function updateTitle(conversation: ChatItem[]) {
   console.log('prompt', prompt)
   const chatContext = [{ question: prompt, answer: '' }]
   const requestParams = {
-    device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
     max_tokens: 8,
     model_repo_id: textInference.activeModel,
@@ -1022,7 +1021,6 @@ async function generate(chatContext: ChatItem[]) {
     }
 
     const requestParams = {
-      device: globalSetup.modelSettings.graphics,
       prompt: chatContext,
       external_rag_context: externalRagContext,
       max_tokens: textInference.maxTokens,

@@ -49,6 +49,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       bestDeviceId = availableDevices[0].name
     }
     this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+    this.updateStatus()
   }
 
   getServiceForPipFreeze(): UvPipService {
@@ -175,6 +176,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      PIP_CONFIG_FILE: 'nul',
     }
 
     const apiProcess = spawn(

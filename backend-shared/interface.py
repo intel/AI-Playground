@@ -20,7 +20,7 @@ class LLMInterface(ABC):
         Load the model with the given parameters.
         
         Args:
-            params: LLM parameters including model_repo_id, device, etc.
+            params: LLM parameters including model_repo_id, etc.
             **kwargs: Additional backend-specific parameters
         """
         pass

@@ -82,7 +82,6 @@ try:
     def sd_generate():
         """
         {
-            "device": int,
             "prompt": str,
             "model_repo_id": str,
             "mode": int,
@@ -109,7 +108,6 @@ try:
         else:
             params = TextImageParams()
         base_params = params
-        base_params.device = request.form.get("device", default=0, type=int)
         base_params.prompt = request.form.get("prompt", default="", type=str)
         base_params.model_name = request.form["model_repo_id"]
         base_params.mode = mode
