@@ -1,4 +1,4 @@
-# AI Playground
+<img width="316" height="46" alt="image" src="https://github.com/user-attachments/assets/7dacde60-8230-42c3-8d5a-f0a262320a93" /># AI Playground
 
 <a href="https://scan.coverity.com/projects/ai-playground">
   <img alt="Coverity Scan Build Status"
@@ -115,11 +115,9 @@ Models currently linked from the application
 | Model                                      | License                                                                                                                                                                      | Background Information/Model Card                                                                                      |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | IMAGE GEN                        |                                            |                              |
-| Dreamshaper 8 Model                        | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8)                               |
-| Dreamshaper 8 Inpainting Model             | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8-inpainting)         |
-| JuggernautXL v9 Model                      | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9)           |
-| Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
-| Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
+| Dreamshaper 8 Model (SD1.5)                       | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8)                               |
+| Dreamshaper 8 Inpainting Model (SD1.5)             | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8-inpainting)         |
+| JuggernautXL v9 Model  (SDXL)                      | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9)           |
 | Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
 | Flux.1 Kontext[dev]                       | [license](https://github.com/black-forest-labs/flux/blob/main/model_licenses/LICENSE-FLUX1-dev), | [site](https://huggingface.co/Comfy-Org/flux1-kontext-dev_ComfyUI/blob/main/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors)           |
 | Inswapper                     | [license](https://huggingface.co/datasets/Gourieff/ReActor)                                              | [site](https://huggingface.co/Aitrepreneur/insightface) inswapper_128.onnx           |
@@ -127,11 +125,15 @@ Models currently linked from the application
 | Latent Consistency Model (LCM) LoRA:SDXL   | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdxl)     |
 | Wan 2.1 Vace 14 B | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site]() |
 |    |  |      |
-| CHAT IPEX-LLM  |  |      |
+| CHAT |  |      |
+| GPT-OSS 20B                      | [license]()                 | [site]()     |
+| DeepSeek R1 Distilled Qwen Models                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | site [1.5B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B) [7B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B)    |
+| Meta-Llama-3.1B-Instruct                     | [license]()                 | [site]()     |
+| Llama-3.2-3B Instruct                      | [license]()                 | [site]()     |
 | Phi3-mini-4k-instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
+| Phi3.5-mini-4k-instruct                      | [license]()                 | [site]()     |
 | Qwen/Qwen2-1.5B-Instruct                     | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                 | [site](https://huggingface.co/Qwen/Qwen2-1.5B-Instruct)     |
 | Mistral-7B-Instruct-v0.3                     | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                 | [site](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3)     |
-| DeepSeek R1 Distilled Qwen Models                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | site [1.5B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B) [7B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B)    |
 | bge-large-en-v1.5                          | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | [site](https://huggingface.co/BAAI/bge-large-en-v1.5)                         |
 
 
