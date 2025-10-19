@@ -18,6 +18,8 @@ ComfyUI/
 ollama-service/
 env
 llama-cpp-env/
+llama-cpp/
+llama-cpp.zip
 *env_tmp/
 *service_tmp/
 *-env/

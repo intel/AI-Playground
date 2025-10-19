@@ -8,6 +8,7 @@
         :processing="processing"
       ></ConversationManager>
       <OllamaPoC @scroll="handleScroll" v-if="textInference.backend === 'ollama'"></OllamaPoC>
+      <LlamaCppChat @scroll="handleScroll" v-if="textInference.backend === 'llamaCPP'"></LlamaCppChat>
       <div
         v-else
         id="chatPanel"
@@ -514,12 +515,14 @@ import ConversationManager from '@/components/ConversationManager.vue'
 import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
+import { useLlamaCpp } from '@/assets/js/store/llamaCpp'
+import LlamaCppChat from '@/components/llamaCppChat.vue'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()
 const ollama = useOllama()
+const llamaCpp = useLlamaCpp()
 const models = useModels()
-const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
 const textInference = useTextInference()
 const i18nState = useI18N().state
@@ -967,6 +970,10 @@ async function generate(chatContext: ChatItem[]) {
     const inferenceBackendService = backendToInferenceService[textInference.backend]
     await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
     backendServices.updateLastUsedBackend(inferenceBackendService)
+    if (textInference.backend === 'llamaCPP') {
+      await llamaCpp.generate(chatContext)
+      return
+    }
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
     markerFound.value = false

@@ -40,6 +40,11 @@
     "default": false
   },
   {
+    "name": "unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q5_K_S.gguf",
+    "type": "llamaCPP",
+    "default": false
+  },
+  {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "type": "openVINO",
     "default": true
