@@ -446,6 +446,7 @@
         </div>
       </div>
       <div
+        v-if="textInference.backend !== 'llamaCPP' && textInference.backend !== 'ollama'"
         class="w-full h-32 gap-3 flex-none flex items-center pt-2"
         :class="{ 'demo-number-overlay': demoMode.answer.show }"
       >
@@ -516,6 +517,7 @@ import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
 import { useLlamaCpp } from '@/assets/js/store/llamaCpp'
 import LlamaCppChat from '@/components/LlamaCppChat.vue'
+import LlamaCppChatInput from '@/components/LlamaCppChatInput.vue'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()
@@ -944,35 +946,7 @@ async function generate(chatContext: ChatItem[]) {
 
   try {
     // Check if backend preparation is needed
-    if (textInference.needsBackendPreparation) {
-      textInference.startBackendPreparation()
-
-      try {
-        // Ensure backend is ready before inference
-        await textInference.ensureBackendReadiness()
-        // Note: completeBackendPreparation() will be called on first token
-      } catch (error) {
-        textInference.completeBackendPreparation() // Reset state on error
-        throw error
-      }
-    } else {
-      // Ensure backend is ready before inference (for non-preparation cases)
-      await textInference.ensureBackendReadiness()
-    }
-
-    const backendToInferenceService = {
-      llamaCPP: 'llamacpp-backend',
-      openVINO: 'openvino-backend',
-      ipexLLM: 'ai-backend',
-      ollama: 'ollama-backend' as BackendServiceName,
-    } as const
-    const inferenceBackendService = backendToInferenceService[textInference.backend]
-    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-    backendServices.updateLastUsedBackend(inferenceBackendService)
-    if (textInference.backend === 'llamaCPP') {
-      await llamaCpp.generate(chatContext)
-      return
-    }
+    await textInference.prepareBackendIfNeeded()
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
     markerFound.value = false

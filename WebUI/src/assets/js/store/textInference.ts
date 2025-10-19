@@ -651,6 +651,35 @@ export const useTextInference = defineStore(
       }
     }
 
+    async function prepareBackendIfNeeded() {
+
+    if (needsBackendPreparation.value) {
+      startBackendPreparation()
+
+      try {
+        // Ensure backend is ready before inference
+        await ensureBackendReadiness()
+        // Note: completeBackendPreparation() will be called on first token
+      } catch (error) {
+        completeBackendPreparation() // Reset state on error
+        throw error
+      }
+    } else {
+      // Ensure backend is ready before inference (for non-preparation cases)
+      await ensureBackendReadiness()
+    }
+
+    const backendToInferenceService = {
+      llamaCPP: 'llamacpp-backend',
+      openVINO: 'openvino-backend',
+      ipexLLM: 'ai-backend',
+      ollama: 'ollama-backend' as BackendServiceName,
+    } as const
+    const inferenceBackendService = backendToInferenceService[backend.value]
+    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+    backendServices.updateLastUsedBackend(inferenceBackendService)
+    }
+
     return {
       backend,
       activeModel,
@@ -694,6 +723,7 @@ export const useTextInference = defineStore(
       startBackendPreparation,
       completeBackendPreparation,
       updateLastUsedConfig,
+      prepareBackendIfNeeded,
     }
   },
   {
