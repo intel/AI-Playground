@@ -13,20 +13,20 @@
         </div>
       </div>
       <div class="flex-1 p-4">
-        <HistoryNewChat v-show="props.mode == 'chat'" />
-        <HistoryNewImageGen v-show="props.mode == 'imageGen'" />
-        <HistoryNewImageEdit v-show="props.mode == 'imageEdit'" />
-        <HistoryNewVideo v-show="props.mode == 'video'" />
+        <HistoryChat v-show="props.mode == 'chat'" />
+        <HistoryImageGen v-show="props.mode == 'imageGen'" />
+        <HistoryImageEdit v-show="props.mode == 'imageEdit'" />
+        <HistoryVideo v-show="props.mode == 'video'" />
       </div>
     </div>
   </transition>
 </template>
 <script setup lang="ts">
 
-import HistoryNewChat from "@/components/HistoryNewChat.vue";
-import HistoryNewImageEdit from "@/components/HistoryNewImageEdit.vue";
-import HistoryNewVideo from "@/components/HistoryNewVideo.vue";
-import HistoryNewImageGen from "@/components/HistoryNewImageGen.vue";
+import HistoryChat from "@/components/HistoryChat.vue";
+import HistoryImageEdit from "@/components/HistoryImageEdit.vue";
+import HistoryVideo from "@/components/HistoryVideo.vue";
+import HistoryImageGen from "@/components/HistoryImageGen.vue";
 import { useConversations } from "@/assets/js/store/conversations.ts";
 import { mapModeToLabel } from "@/lib/utils.ts";
 

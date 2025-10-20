@@ -164,7 +164,7 @@
         {{ languages.COM_SHOW_HISTORY }}
       </button>
     </div>
-    <HistoryNewModal
+    <HistoryModal
       :isVisible="showHistory"
       :label="'potato'"
       :mode="currentMode"
@@ -386,7 +386,7 @@ import ImageGen from "@/views/ImageGen.vue";
 import Chat from "@/views/Chat.vue";
 import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
-import HistoryNewModal from "@/components/HistoryNewModal.vue";
+import HistoryModal from "@/components/HistoryModal.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
