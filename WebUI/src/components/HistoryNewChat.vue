@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-2">
+  <div class="space-y-2 overflow-y-auto max-h-[100vh]">
     <div
       v-for="key in reversedConversationKeys"
       :key="key"
@@ -43,7 +43,9 @@ const conversations = useConversations()
 
 const reversedConversationKeys = computed(() => {
   const list = conversations.conversationList ?? {}
-  return Object.keys(list).reverse()
+  const keys = Object.keys(list).reverse()
+  keys.shift()
+  return keys
 })
 
 const selectConversation = (key: string) => {

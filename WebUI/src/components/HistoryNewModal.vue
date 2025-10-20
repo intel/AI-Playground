@@ -7,7 +7,10 @@
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ label }} {{ languages.COM_HISTORY }}</h2>
         <!--todo: close button clicks getting captured by header drag region-->
-        <button @click="$emit('close')" class="svg-icon i-close w-6 h-6" />
+        <div class="flex gap-3">
+          <button v-show="mode== 'chat'" @click="selectNewConversation" class="svg-icon i-add w-6 h-6" />
+          <button @click="$emit('close')" class="svg-icon i-close w-6 h-6" />
+        </div>
       </div>
       <div class="flex-1 p-4">
         <HistoryNewChat v-show="props.mode == 'chat'" />
@@ -24,16 +27,23 @@ import HistoryNewChat from "@/components/HistoryNewChat.vue";
 import HistoryNewImageEdit from "@/components/HistoryNewImageEdit.vue";
 import HistoryNewVideo from "@/components/HistoryNewVideo.vue";
 import HistoryNewImageGen from "@/components/HistoryNewImageGen.vue";
+import { useConversations } from "@/assets/js/store/conversations.ts";
 
+const conversations = useConversations()
 const props = defineProps<{
   mode: string
   label: string
   isVisible: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
 }>()
+
+function selectNewConversation() {
+  conversations.activeKey = Object.keys(conversations).pop() ?? ""
+  emit('close')
+}
 
 </script>
 
