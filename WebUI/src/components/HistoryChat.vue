@@ -130,6 +130,9 @@ import { Button } from '@/components/ui/button'
 import { useConversations } from '@/assets/js/store/conversations'
 
 const conversations = useConversations()
+const emits = defineEmits<{
+  (e: 'conversationSelected'): void
+}>()
 
 const reversedConversationKeys = computed(() => {
   const list = conversations.conversationList ?? {}
@@ -179,6 +182,7 @@ function saveRename() {
 const selectConversation = (key: string) => {
   conversations.activeKey = key
   console.log('Selected conversation:', key)
+  emits('conversationSelected')
 }
 </script>
 

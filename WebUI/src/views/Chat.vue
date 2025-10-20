@@ -381,7 +381,9 @@ const emits = defineEmits<{
 }>()
 
 defineExpose({
-  handleSubmitPromptClick
+  handleSubmitPromptClick,
+  scrollToBottom,
+  checkModelAvailability
 })
 
 

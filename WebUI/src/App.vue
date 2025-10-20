@@ -167,7 +167,8 @@
     <HistoryModal
       :isVisible="showHistory"
       :mode="currentMode"
-      @close="showHistory=false" />
+      @close="showHistory=false"
+      @conversation-selected="chatRef?.scrollToBottom" />
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
@@ -401,6 +402,7 @@ const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
+  scrollToBottom: () => void,
   checkModelAvailability: () => void
 }>()
 const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
@@ -593,7 +595,7 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
 }
 
 function openHistory() {
-  showHistory.value=true;
+  showHistory.value = true;
 }
 
 </script>

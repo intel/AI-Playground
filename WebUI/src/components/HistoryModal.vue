@@ -13,7 +13,7 @@
         </div>
       </div>
       <div class="flex-1 p-4">
-        <HistoryChat v-show="props.mode == 'chat'" />
+        <HistoryChat v-show="props.mode == 'chat'" @conversation-selected="emit('conversationSelected')"/>
         <HistoryImageGen v-show="props.mode == 'imageGen'" />
         <HistoryImageEdit v-show="props.mode == 'imageEdit'" />
         <HistoryVideo v-show="props.mode == 'video'" />
@@ -37,7 +37,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: []
+  (e: 'close'): void
+  (e: 'conversationSelected'): void
 }>()
 
 function selectNewConversation() {
