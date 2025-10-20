@@ -166,7 +166,6 @@
     </div>
     <HistoryModal
       :isVisible="showHistory"
-      :label="'potato'"
       :mode="currentMode"
       @close="showHistory=false" />
     <Chat

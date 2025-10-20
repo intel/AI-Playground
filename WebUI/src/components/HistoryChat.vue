@@ -1,15 +1,15 @@
 <template>
-  <div class="space-y-2 overflow-y-auto max-h-[100vh]">
+  <div class="space-y-2 overflow-y-auto max-h-[100vh] pr-3">
     <div
       v-for="key in reversedConversationKeys"
       :key="key"
-      class="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 transition cursor-pointer"
+      class="flex items-center justify-between rounded-lg px-3 py-1 transition cursor-pointer"
+      :class="conversations.activeKey === key
+        ? 'bg-blue-600 hover:bg-blue-500 border-2 border-blue-400'
+        : 'bg-gray-700 hover:bg-gray-600 border-2 border-transparent'"
       @click="selectConversation(key)"
     >
-      <span
-        class="truncate text-sm text-foreground"
-        :class="{ 'font-semibold text-primary': conversations.activeKey === key }"
-      >
+      <span class="truncate text-sm text-foreground">
         {{ conversations.conversationList[key]?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
       </span>
       <DropdownMenu

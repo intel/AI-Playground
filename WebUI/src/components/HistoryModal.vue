@@ -7,8 +7,8 @@
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ mapModeToLabel(mode) }} {{ languages.COM_HISTORY }}</h2>
         <!--todo: close button clicks getting captured by header drag region-->
-        <div class="flex gap-3">
-          <button v-show="mode== 'chat'" @click="selectNewConversation" class="svg-icon i-add w-6 h-6" />
+        <div class="flex gap-3 items-center">
+          <button v-show="mode== 'chat'" @click="selectNewConversation" class="svg-icon i-add w-7 h-7" />
           <button @click="$emit('close')" class="svg-icon i-close w-6 h-6" />
         </div>
       </div>
