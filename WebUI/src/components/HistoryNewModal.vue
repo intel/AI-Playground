@@ -5,7 +5,7 @@
       class="fixed top-0 left-0 h-full w-100 bg-gray-800 shadow-lg border-l border-gray-700 flex flex-col z-[9999]"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
-        <h2 class="text-lg font-semibold">{{ label }} {{ languages.COM_HISTORY }}</h2>
+        <h2 class="text-lg font-semibold">{{ mapModeToLabel(mode) }} {{ languages.COM_HISTORY }}</h2>
         <!--todo: close button clicks getting captured by header drag region-->
         <div class="flex gap-3">
           <button v-show="mode== 'chat'" @click="selectNewConversation" class="svg-icon i-add w-6 h-6" />
@@ -28,11 +28,11 @@ import HistoryNewImageEdit from "@/components/HistoryNewImageEdit.vue";
 import HistoryNewVideo from "@/components/HistoryNewVideo.vue";
 import HistoryNewImageGen from "@/components/HistoryNewImageGen.vue";
 import { useConversations } from "@/assets/js/store/conversations.ts";
+import { mapModeToLabel } from "@/lib/utils.ts";
 
 const conversations = useConversations()
 const props = defineProps<{
-  mode: string
-  label: string
+  mode: ModeType
   isVisible: boolean
 }>()
 

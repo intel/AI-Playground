@@ -24,7 +24,7 @@ type DemoModeSettings = {
   demoModeResetInSeconds: null | number
 }
 
-type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more' | 'new-ui'
+type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
 type ModeType = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 
 type electronAPI = {

@@ -5,7 +5,7 @@
       class="fixed top-0 right-0 h-full w-130 bg-gray-800 shadow-lg border-l border-gray-700 flex flex-col"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
-        <h2 class="text-lg font-semibold">{{ label }} Settings</h2>
+        <h2 class="text-lg font-semibold">{{ mapModeToLabel(mode)  }} Settings</h2>
         <button @click="$emit('close')" class="svg-icon i-close w-6 h-6"/>
       </div>
       <div class="flex-1 p-4">
@@ -23,10 +23,10 @@ import SettingsNewChat from "@/components/SettingsNewChat.vue";
 import SettingsNewImageGen from "@/components/SettingsNewImageGen.vue";
 import SettingsNewImageEdit from "@/components/SettingsNewImageEdit.vue";
 import SettingsNewVideo from "@/components/SettingsNewVideo.vue";
+import { mapModeToLabel } from "@/lib/utils.ts";
 
 const props = defineProps<{
-  mode: string
-  label: string
+  mode: ModeType
   isVisible: boolean
 }>()
 
