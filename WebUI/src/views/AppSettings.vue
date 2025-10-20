@@ -43,7 +43,7 @@
       class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto"
     >
       <div class="px-3 flex-none flex flex-col gap-3">
-        <SettingsModel @show-download-model-confirm="showDownloadModelConfirm"></SettingsModel>
+        <SettingsPanel @show-download-model-confirm="showDownloadModelConfirm"></SettingsPanel>
       </div>
     </div>
   </div>
@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import SettingsImageGeneration from '@/components/SettingsImageGeneration.vue'
 import SettingsBasic from '@/components/SettingsBasic.vue'
-import SettingsModel from '@/components/SettingsModel.vue'
+import SettingsPanel from '@/components/SettingsPanel.vue'
 
 const tabIndex = ref(0)
 

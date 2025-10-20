@@ -9,20 +9,20 @@
         <button @click="$emit('close')" class="svg-icon i-close w-6 h-6"/>
       </div>
       <div class="flex-1 p-4">
-        <SettingsNewChat v-show="props.mode == 'chat'"/>
-        <SettingsNewImageGen v-show="props.mode == 'imageGen'"/>
-        <SettingsNewImageEdit v-show="props.mode == 'imageEdit'"/>
-        <SettingsNewVideo v-show="props.mode == 'video'"/>
+        <SettingsChat v-show="props.mode == 'chat'"/>
+        <SettingsImageGen v-show="props.mode == 'imageGen'"/>
+        <SettingsImageEdit v-show="props.mode == 'imageEdit'"/>
+        <SettingsVideo v-show="props.mode == 'video'"/>
       </div>
     </div>
   </transition>
 </template>
 <script setup lang="ts">
 
-import SettingsNewChat from "@/components/SettingsNewChat.vue";
-import SettingsNewImageGen from "@/components/SettingsNewImageGen.vue";
-import SettingsNewImageEdit from "@/components/SettingsNewImageEdit.vue";
-import SettingsNewVideo from "@/components/SettingsNewVideo.vue";
+import SettingsChat from "@/components/SettingsChat.vue";
+import SettingsImageGen from "@/components/SettingsImageGen.vue";
+import SettingsImageEdit from "@/components/SettingsImageEdit.vue";
+import SettingsVideo from "@/components/SettingsVideo.vue";
 import { mapModeToLabel } from "@/lib/utils.ts";
 
 const props = defineProps<{

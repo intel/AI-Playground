@@ -37,7 +37,7 @@
         </div>
       </div>
     </div>
-    <SettingsNewModal
+    <SettingsModal
       :isVisible="showSettings"
       :mode="currentMode"
       @close="showSettings=false" />
@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, ref } from 'vue'
-import SettingsNewModal from "@/components/SettingsNewModal.vue";
+import SettingsModal from "@/components/SettingsModal.vue";
 import { mapModeToLabel } from "@/lib/utils.ts";
 
 const instance = getCurrentInstance()
