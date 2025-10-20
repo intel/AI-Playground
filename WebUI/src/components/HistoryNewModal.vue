@@ -2,7 +2,7 @@
   <transition name="slide">
     <div
       v-if="isVisible"
-      class="fixed top-0 left-0 h-full w-130 bg-gray-800 shadow-lg border-l border-gray-700 flex flex-col z-[9999]"
+      class="fixed top-0 left-0 h-full w-100 bg-gray-800 shadow-lg border-l border-gray-700 flex flex-col z-[9999]"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ label }} {{ languages.COM_HISTORY }}</h2>

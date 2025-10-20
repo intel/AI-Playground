@@ -1,13 +1,17 @@
 <template>
   <div class="space-y-2">
-    <h2 class="text-lg font-semibold mb-2">Chat History</h2>
-
     <div
-      v-for="(item, i) in chatHistory"
-      :key="i"
-      class="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 transition"
+      v-for="key in reversedConversationKeys"
+      :key="key"
+      class="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 transition cursor-pointer"
+      @click="selectConversation(key)"
     >
-      <span class="truncate text-sm text-foreground">{{ item.title }}</span>
+      <span
+        class="truncate text-sm text-foreground"
+        :class="{ 'font-semibold text-primary': conversations.activeKey === key }"
+      >
+        {{ conversations.conversationList[key]?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+      </span>
 
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
@@ -16,12 +20,8 @@
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-28">
-          <DropdownMenuItem @click="editItem(item)">
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem @click="deleteItem(item)">
-            Delete
-          </DropdownMenuItem>
+          <DropdownMenuItem @click.stop="editItem(key)">Edit</DropdownMenuItem>
+          <DropdownMenuItem @click.stop="deleteItem(key)">Delete</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -29,30 +29,34 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { useConversations } from '@/assets/js/store/conversations'
 
-interface ChatItem {
-  title: string
+const conversations = useConversations()
+
+const reversedConversationKeys = computed(() => {
+  const list = conversations.conversationList ?? {}
+  return Object.keys(list).reverse()
+})
+
+const selectConversation = (key: string) => {
+  conversations.activeKey = key
+  console.log('Selected conversation:', key)
 }
 
-const chatHistory: ChatItem[] = [
-  { title: "What is Generative AI?" },
-  { title: "Write a story about AI" },
-  { title: "Explain quantum computing" }
-]
-
-const editItem = (item: ChatItem) => {
-  console.log("Edit", item)
+const editItem = (key: string) => {
+  console.log('Edit conversation:', key)
 }
 
-const deleteItem = (item: ChatItem) => {
-  console.log("Delete", item)
+const deleteItem = (key: string) => {
+  console.log('Delete conversation:', key)
 }
 </script>
 
