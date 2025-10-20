@@ -60,6 +60,10 @@
   --svg: url('@/assets/svg/refresh.svg');
 }
 
+.i-dots-vertical {
+    --svg: url('@/assets/svg/dots-vertical.svg');
+}
+
 .i-download-cloud {
   --svg: url('@/assets/svg/download-cloud.svg');
 }
