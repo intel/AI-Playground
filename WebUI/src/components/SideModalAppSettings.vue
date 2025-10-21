@@ -5,13 +5,13 @@
     side="left"
     @close="$emit('close')"
   >
-    <SettingsApp/>
+    <SettingsBasic/>
   </SideModalBase>
 </template>
 
 <script setup lang="ts">
 import SideModalBase from "@/components/SideModalBase.vue"
-import SettingsApp from "@/components/SettingsApp.vue";
+import SettingsBasic from "@/components/SettingsBasic.vue";
 
 defineProps<{
   isVisible: boolean
