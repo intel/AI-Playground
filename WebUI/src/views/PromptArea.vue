@@ -59,6 +59,7 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
+  (e: 'autoHideFooter'): void,
   (e: 'selectMode', value: ModeType): void,
   (e: 'submitPrompt', prompt: string, mode: ModeType): void
 }>()
@@ -81,6 +82,7 @@ function getTextAreaPlaceholder() {
 }
 
 function handleSubmitPromptClick() {
+  emits('autoHideFooter')
   emits('submitPrompt', question.value, props.currentMode)
   question.value = ''
 }

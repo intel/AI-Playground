@@ -204,6 +204,7 @@
       :currentMode="currentMode"
       @select-mode="currentMode = $event"
       @submit-prompt="handleSubmitPrompt"
+      @auto-hide-footer="handleAutoHideFooter"
     />
     <app-settings
       v-if="showSetting"
@@ -621,6 +622,10 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
 
   const componentRef = refMap[mode]
   componentRef.value?.handleSubmitPromptClick(prompt)
+}
+
+function handleAutoHideFooter() {
+  footerVisible.value = false
 }
 
 function openHistory() {
