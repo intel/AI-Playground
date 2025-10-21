@@ -164,17 +164,6 @@
         {{ languages.COM_SHOW_HISTORY }}
       </button>
     </div>
-    <div class="absolute bottom-0 left-4">
-      <button
-        @click="openAppSettings"
-        class="svg-icon i-setup w-6 h-6"
-      >
-      </button>
-      <button
-        @click="openDevTools"
-        class="svg-icon i-code w-6 h-6 px-5">
-      </button>
-    </div>
     <SideModalHistory
       :isVisible="showHistory"
       :mode="currentMode"
@@ -325,16 +314,29 @@
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >
-    <div class="w-full flex justify-center py-0">
+    <div class="w-full relative flex items-center justify-center pb-1">
+      <div class="absolute left-0 flex items-center gap-3 pb-4">
+        <button
+          @click="openAppSettings"
+          class="svg-icon i-setup w-6 h-6 text-white hover:text-white/80 transition-colors"
+          title="App Settings"
+        ></button>
+        <button
+          @click="openDevTools"
+          class="svg-icon i-code w-6 h-6 text-white hover:text-white/80 transition-colors"
+          title="Developer Tools"
+        ></button>
+      </div>
+
       <button
-        @click="footerVisible = !footerVisible"
+        @click="footerExpanded = !footerExpanded"
         class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
       >
-        {{ footerVisible ? 'HIDE FOOTER' : 'SHOW FOOTER' }}
+        {{ footerExpanded ? 'HIDE FOOTER' : 'SHOW FOOTER' }}
       </button>
     </div>
     <div
-      v-show="footerVisible"
+      v-show="footerExpanded"
       class="w-full flex justify-between items-center pb-2"
     >
       <div>
@@ -441,7 +443,7 @@ const isOpen = ref(false)
 const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
-const footerVisible = ref(true)
+const footerExpanded = ref(true)
 const showHistory = ref(false)
 const showAppSettings = ref(false)
 const showDowloadDlg = ref(false)
@@ -625,7 +627,7 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
 }
 
 function handleAutoHideFooter() {
-  footerVisible.value = false
+  footerExpanded.value = false
 }
 
 function openHistory() {
