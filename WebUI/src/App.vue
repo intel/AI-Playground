@@ -166,10 +166,13 @@
     </div>
     <div class="absolute bottom-4 left-4">
       <button
-        v-show="!showAppSettings"
         @click="openAppSettings"
         class="svg-icon i-setup w-6 h-6"
       >
+      </button>
+      <button
+        @click="openDevTools"
+        class="svg-icon i-code w-6 h-6 px-5">
       </button>
     </div>
     <SideModalHistory
@@ -179,7 +182,7 @@
       @conversation-selected="chatRef?.scrollToBottom" />
     <SideModalAppSettings
       :isVisible="showAppSettings"
-      @close="showAppSettings=false"/>
+      @close="showAppSettings=false" />
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
