@@ -68,4 +68,7 @@ const slideTransition = computed(() =>
 .slide-left-enter-from, .slide-left-leave-to {
   transform: translateX(-100%);
 }
+div, button {
+  -webkit-app-region: none;
+}
 </style>
