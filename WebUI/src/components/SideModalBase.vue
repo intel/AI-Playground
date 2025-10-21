@@ -2,7 +2,7 @@
   <transition name="fade">
     <div
       v-show="isVisible"
-      class="fixed inset-0 z-[9998]"
+      class="fixed inset-0 z-8"
       @click="$emit('close')"
     />
   </transition>
@@ -10,7 +10,7 @@
     <div
       v-if="isVisible"
       :class="[
-        'fixed top-0 h-full bg-gray-800 shadow-lg flex flex-col z-[9999]',
+        'fixed top-0 h-full bg-gray-800 shadow-lg flex flex-col z-9',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
         'border-gray-700'
       ]"
