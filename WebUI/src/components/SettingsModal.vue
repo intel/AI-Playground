@@ -1,7 +1,7 @@
 <template>
   <transition name="slide">
     <div
-      v-if="isVisible"
+      v-show="isVisible"
       class="fixed top-0 right-0 h-full w-130 bg-gray-800 shadow-lg border-l border-gray-700 flex flex-col"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
