@@ -55,7 +55,7 @@
         v-if="!demoMode.enabled"
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
-        @click="showAppSettings"
+        @click="showSettings"
         ref="showSettingBtn"
       ></button>
       <button
@@ -164,11 +164,22 @@
         {{ languages.COM_SHOW_HISTORY }}
       </button>
     </div>
+    <div class="absolute bottom-4 left-4">
+      <button
+        v-show="!showAppSettings"
+        @click="openAppSettings"
+        class="svg-icon i-setup w-6 h-6"
+      >
+      </button>
+    </div>
     <HistoryModal
       :isVisible="showHistory"
       :mode="currentMode"
       @close="showHistory=false"
       @conversation-selected="chatRef?.scrollToBottom" />
+    <SettingsAppModal
+      :isVisible="showAppSettings"
+      @close="showAppSettings=false"/>
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
@@ -387,6 +398,7 @@ import Chat from "@/views/Chat.vue";
 import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
 import HistoryModal from "@/components/HistoryModal.vue";
+import SettingsAppModal from "@/components/SettingsAppModal.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -414,6 +426,7 @@ const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
 const showHistory = ref(false)
+const showAppSettings = ref(false)
 const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
 const showWarningDialog = ref(false)
@@ -524,7 +537,7 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
 /** Get tooltips of AIPG demo mode on click of Help button */
 const createCompt = ref()
 
-function showAppSettings() {
+function showSettings() {
   showSetting.value = showSetting.value === false;
 }
 
@@ -596,6 +609,10 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
 
 function openHistory() {
   showHistory.value = true;
+}
+
+function openAppSettings() {
+  showAppSettings.value = true;
 }
 
 </script>
