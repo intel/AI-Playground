@@ -1,5 +1,5 @@
 <template>
-  <div id="prompt-area" class="text-white flex flex-col w-full py-4">
+  <div id="prompt-area" class="text-white flex flex-col w-full pt-4">
     <div class="flex flex-col items-center gap-7 text-base px-4">
       <p class="text-2xl font-bold">
         Let's Generate

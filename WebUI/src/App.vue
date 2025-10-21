@@ -35,7 +35,7 @@
         <span class="text-sm">New UI</span>
       </label>
       <button
-        v-if="debugToolsEnabled"
+        v-if="debugToolsEnabled && !useNewUI"
         :title="languages.COM_SETTINGS"
         @click="
           () => {
@@ -52,7 +52,7 @@
         <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
       </button>
       <button
-        v-if="!demoMode.enabled"
+        v-if="!demoMode.enabled && !useNewUI "
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showSettings"
@@ -164,7 +164,7 @@
         {{ languages.COM_SHOW_HISTORY }}
       </button>
     </div>
-    <div class="absolute bottom-4 left-4">
+    <div class="absolute bottom-0 left-4">
       <button
         @click="openAppSettings"
         class="svg-icon i-setup w-6 h-6"
@@ -316,59 +316,71 @@
       @close="showWarningDialog = false"
     ></warning-dialog>
   </main>
-
   <footer
-    class="flex-none px-4 flex justify-between items-center select-none"
+    class="flex-none px-4 flex flex-col justify-between items-center select-none transition-all duration-300"
     :class="{
       'bg-black/50': theme.active === 'lnl',
       'bg-black/80': theme.active === 'bmg',
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >
-    <div>
-      <p>
-        Al Playground from Intel Corporation
-        <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
-        >https://github.com/intel/ai-playground</a
-        >
-      </p>
-      <p>
-        AI Playground version: v{{ productVersion }}
-        <a
-          href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf"
-          target="_blank"
-          class="text-blue-500"
-        >
-          User Guide</a
-        >
+    <div class="w-full flex justify-center py-0">
+      <button
+        @click="footerVisible = !footerVisible"
+        class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
+      >
+        {{ footerVisible ? 'HIDE FOOTER' : 'SHOW FOOTER' }}
+      </button>
+    </div>
+    <div
+      v-show="footerVisible"
+      class="w-full flex justify-between items-center pb-2"
+    >
+      <div>
+        <p>
+          Al Playground from Intel Corporation
+          <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
+          >https://github.com/intel/ai-playground</a
+          >
+        </p>
+        <p>
+          AI Playground version: v{{ productVersion }}
+          <a
+            href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf"
+            target="_blank"
+            class="text-blue-500"
+          >
+            User Guide</a
+          >
 
-        <a
-          href="https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md"
-          target="_blank"
-          class="text-blue-500"
-        >
-          | Important Notices and Disclaimers</a
-        >
+          <a
+            href="https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md"
+            target="_blank"
+            class="text-blue-500"
+          >
+            | Important Notices and Disclaimers</a
+          >
 
-        <a
-          href="https://github.com/intel/ai-playground/blob/main/LICENSE"
-          target="_blank"
-          class="text-blue-500"
-        >
-          | Licenses</a
-        >
-      </p>
+          <a
+            href="https://github.com/intel/ai-playground/blob/main/LICENSE"
+            target="_blank"
+            class="text-blue-500"
+          >
+            | Licenses</a
+          >
+        </p>
+      </div>
+      <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
+        <p class="text-gray-300 text-lg mr-2">Powered by</p>
+        <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
+        <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+      </div>
+      <div v-if="theme.active === 'bmg'" class="flex gap-2 items-center">
+        <p class="text-gray-300 text-lg mr-2">Powered by</p>
+        <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+      </div>
+      <img v-else-if="theme.active === 'dark'" src="@/assets/svg/intel.svg" />
     </div>
-    <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
-      <p class="text-gray-300 text-lg mr-2">Powered by</p>
-      <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
-      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
-    </div>
-    <div v-if="theme.active === 'bmg'" class="flex gap-2 items-center">
-      <p class="text-gray-300 text-lg mr-2">Powered by</p>
-      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
-    </div>
-    <img v-else-if="theme.active === 'dark'" src="@/assets/svg/intel.svg" />
   </footer>
 </template>
 
@@ -428,6 +440,7 @@ const isOpen = ref(false)
 const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
+const footerVisible = ref(true)
 const showHistory = ref(false)
 const showAppSettings = ref(false)
 const showDowloadDlg = ref(false)
