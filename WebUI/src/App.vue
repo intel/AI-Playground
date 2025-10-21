@@ -172,12 +172,12 @@
       >
       </button>
     </div>
-    <HistoryModal
+    <SideModalHistory
       :isVisible="showHistory"
       :mode="currentMode"
       @close="showHistory=false"
       @conversation-selected="chatRef?.scrollToBottom" />
-    <SettingsAppModal
+    <SideModalAppSettings
       :isVisible="showAppSettings"
       @close="showAppSettings=false"/>
     <Chat
@@ -397,8 +397,8 @@ import ImageGen from "@/views/ImageGen.vue";
 import Chat from "@/views/Chat.vue";
 import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
-import HistoryModal from "@/components/HistoryModal.vue";
-import SettingsAppModal from "@/components/SettingsAppModal.vue";
+import SideModalHistory from "@/components/SideModalHistory.vue";
+import SideModalAppSettings from "@/components/SideModalAppSettings.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
