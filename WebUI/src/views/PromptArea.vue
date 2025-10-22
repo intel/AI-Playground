@@ -64,20 +64,18 @@ const emits = defineEmits<{
   (e: 'submitPrompt', prompt: string, mode: ModeType): void
 }>()
 
-// todo: New abbreviations are likely wrong
-// todo: Languages other than en-US need to be added
 function getTextAreaPlaceholder() {
   switch (props.currentMode) {
     case 'chat':
-      return languages?.COM_LLM_PROMPT || ''
+      return languages?.COM_PROMPT_CHAT || ''
     case 'imageGen':
-      return languages?.COM_SD_PROMPT || ''
+      return languages?.COM_PROMPT_IMAGE_GEN || ''
     case 'imageEdit':
-      return languages?.COM_SD_ENHANCE_PROMPT || ''
+      return languages?.COM_PROMPT_IMAGE_EDIT || ''
     case 'video':
-      return languages?.COM_VIDEO_PROMPT || ''
+      return languages?.COM_PROMPT_VIDEO || ''
     default:
-      return languages?.COM_LLM_PROMPT || ''
+      return languages?.COM_PROMPT_CHAT || ''
   }
 }
 
@@ -94,5 +92,3 @@ function fastGenerate(e: KeyboardEvent) {
   }
 }
 </script>
-
-<!-- todo: showModelRequest needs to be handled or re-emited-->
