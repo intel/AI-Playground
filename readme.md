@@ -1,5 +1,3 @@
-<img width="316" height="46" alt="image" src="https://github.com/user-attachments/assets/7dacde60-8230-42c3-8d5a-f0a262320a93" /># AI Playground
-
 <a href="https://scan.coverity.com/projects/ai-playground">
   <img alt="Coverity Scan Build Status"
        src="https://scan.coverity.com/projects/30694/badge.svg"/>
