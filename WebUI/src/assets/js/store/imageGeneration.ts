@@ -7,7 +7,6 @@ import * as Const from '../const'
 import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
 import { useBackendServices } from './backendServices'
-import { useGlobalSetup } from './globalSetup'
 
 export type GenerateState =
   | 'no_start'
@@ -473,7 +472,6 @@ export const useImageGeneration = defineStore(
     const comfyUi = useComfyUi()
     const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
-    const globalSetup = useGlobalSetup()
     const models = useModels()
     const i18nState = useI18N().state
 

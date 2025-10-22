@@ -492,7 +492,6 @@ import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { parse } from '@/assets/js/markdownParser'
 import DropDownNew from '@/components/DropDownNew.vue'
@@ -519,7 +518,6 @@ const demoMode = useDemoMode()
 const conversations = useConversations()
 const ollama = useOllama()
 const models = useModels()
-const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
 const textInference = useTextInference()
 const i18nState = useI18N().state
