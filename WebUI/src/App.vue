@@ -270,7 +270,6 @@
         </enhance>
         <Answer
           v-show="activeTabIdx === 'answer'"
-          ref="answer"
           @show-model-request="showModelRequest"
         ></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
@@ -413,14 +412,12 @@ const demoMode = useDemoMode()
 const dialogStore = useDialogStore()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
-const answer = ref<{ checkModelAvailability: () => void }>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
   scrollToBottom: () => void,
-  checkModelAvailability: () => void
 }>()
 const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
@@ -458,14 +455,6 @@ const wheelZoom = (event: WheelEvent) => {
     window.electronAPI.zoomOut()
   }
 }
-
-provide('checkModelAvailability', () => {
-  if (useNewUI.value) {
-    chatRef.value?.checkModelAvailability()
-  } else {
-    answer.value?.checkModelAvailability()
-  }
-})
 
 onBeforeMount(async () => {
   window.removeEventListener('keydown', zoomIn)

@@ -330,7 +330,6 @@ import { parse } from "@/assets/js/markdownParser.ts";
 import { base64ToString } from "uint8array-extras";
 import ProgressBar from "@/components/ProgressBar.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
@@ -339,7 +338,6 @@ const conversations = useConversations()
 const backendServices = useBackendServices()
 const globalSetup = useGlobalSetup()
 const ollama = useOllama()
-const dialogStore = useDialogStore()
 const processing = ref(false)
 const markerFound = ref(false)
 const thinkingText = ref('')
@@ -376,7 +374,6 @@ let abortController = new AbortController()
 defineExpose({
   handleSubmitPromptClick,
   scrollToBottom,
-  checkModelAvailability
 })
 
 
@@ -391,7 +388,7 @@ async function handleSubmitPromptClick(prompt: string) {
     return
   }
   try {
-    await checkModelAvailability()
+    await textInference.checkModelAvailability()
 
     currentlyGeneratingKey.value = conversations.activeKey
 
@@ -400,24 +397,6 @@ async function handleSubmitPromptClick(prompt: string) {
     generate(chatContext)
   } catch {
   }
-}
-
-async function checkModelAvailability() {
-  // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
-  return new Promise<void>(async (resolve, reject) => {
-    const requiredModelDownloads =
-      await textInference.getDownloadParamsForCurrentModelIfRequired('llm')
-    if (textInference.ragList.length > 0) {
-      const requiredEmbeddingModelDownloads =
-        await textInference.getDownloadParamsForCurrentModelIfRequired('embedding')
-      requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
-    }
-    if (requiredModelDownloads.length > 0) {
-      dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
-    } else {
-      resolve()
-    }
-  })
 }
 
 async function generate(chatContext: ChatItem[]) {

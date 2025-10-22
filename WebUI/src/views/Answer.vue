@@ -514,9 +514,7 @@ import ConversationManager from '@/components/ConversationManager.vue'
 import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
-const dialogStore = useDialogStore()
 const demoMode = useDemoMode()
 const conversations = useConversations()
 const ollama = useOllama()
@@ -895,7 +893,7 @@ async function newPromptGenerate() {
     return
   }
   try {
-    await checkModelAvailability()
+    await textInference.checkModelAvailability()
 
     currentlyGeneratingKey.value = conversations.activeKey
 
@@ -904,24 +902,6 @@ async function newPromptGenerate() {
     generate(chatContext)
     question.value = ''
   } catch {}
-}
-
-async function checkModelAvailability() {
-  // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
-  return new Promise<void>(async (resolve, reject) => {
-    const requiredModelDownloads =
-      await textInference.getDownloadParamsForCurrentModelIfRequired('llm')
-    if (textInference.ragList.length > 0) {
-      const requiredEmbeddingModelDownloads =
-        await textInference.getDownloadParamsForCurrentModelIfRequired('embedding')
-      requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
-    }
-    if (requiredModelDownloads.length > 0) {
-      dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
-    } else {
-      resolve()
-    }
-  })
 }
 
 async function generate(chatContext: ChatItem[]) {
@@ -1100,9 +1080,6 @@ function onConversationSelected() {
   })
 }
 
-defineExpose({
-  checkModel: checkModelAvailability,
-})
 </script>
 <style>
 .chat-content h1 {
