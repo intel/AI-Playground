@@ -221,7 +221,7 @@ import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useDemoMode } from '@/assets/js/store/demoMode'
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const dialogStore = useDialogStore()
 const demoMode = useDemoMode()

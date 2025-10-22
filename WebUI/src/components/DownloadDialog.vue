@@ -11,96 +11,97 @@
           <p>{{ i18nState.DOWNLOADER_CONFRIM_TIP }}</p>
           <table class="text-left w-full">
             <thead>
-            <tr class="text-center text-gray-300 font-bold">
-              <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
-              <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
-              <td>{{ languages.DOWNLOADER_GATED }}</td>
-              <td>{{ languages.DOWNLOADER_INFO }}</td>
-              <td>{{ languages.DOWNLOADER_LICENSE }}</td>
-              <td>{{ languages.DOWNLOADER_REASON }}</td>
-            </tr>
+              <tr class="text-center text-gray-300 font-bold">
+                <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
+                <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
+                <td>{{ languages.DOWNLOADER_GATED }}</td>
+                <td>{{ languages.DOWNLOADER_INFO }}</td>
+                <td>{{ languages.DOWNLOADER_LICENSE }}</td>
+                <td>{{ languages.DOWNLOADER_REASON }}</td>
+              </tr>
             </thead>
             <tbody>
-            <tr v-for="item in downloadModelRender" :key="item.repo_id">
-              <td>{{ item.repo_id }}</td>
-              <td>
-                <div class="flex flex-col items-center">
-                  <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
-                  <span v-else>{{ item.size }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="flex flex-col items-center">
-                  <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
-                  <div v-else>
-                    <svg
-                      v-if="item.gated"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1"
-                      stroke="currentColor"
-                      class="size-6 ml-2"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
-                      />
-                    </svg>
-                    <svg
-                      v-else
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1"
-                      stroke="currentColor"
-                      class="size-6 ml-2"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
-                      />
-                    </svg>
+              <tr v-for="item in downloadModelRender" :key="item.repo_id">
+                <td>{{ item.repo_id }}</td>
+                <td>
+                  <div class="flex flex-col items-center">
+                    <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
+                    <span v-else>{{ item.size }}</span>
                   </div>
-                </div>
-              </td>
-              <td>
-                <div class="flex flex-col items-center">
-                  <a
-                    :href="getInfoUrl(item.repo_id, item.type)"
-                    target="_blank"
-                    class="text-blue-500 text-sm"
+                </td>
+                <td>
+                  <div class="flex flex-col items-center">
+                    <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
+                    <div v-else>
+                      <svg
+                        v-if="item.gated"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1"
+                        stroke="currentColor"
+                        class="size-6 ml-2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                        />
+                      </svg>
+                      <svg
+                        v-else
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1"
+                        stroke="currentColor"
+                        class="size-6 ml-2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="flex flex-col items-center">
+                    <a
+                      :href="getInfoUrl(item.repo_id, item.type)"
+                      target="_blank"
+                      class="text-blue-500 text-sm"
+                    >
+                      {{ i18nState.DOWNLOADER_TERMS }}
+                    </a>
+                  </div>
+                </td>
+                <td>
+                  <div
+                    class="flex flex-col items-center"
+                    v-if="item.additionalLicenseLink !== undefined"
                   >
-                    {{ i18nState.DOWNLOADER_TERMS }}
-                  </a>
-                </div>
-              </td>
-              <td>
-                <div
-                  class="flex flex-col items-center"
-                  v-if="item.additionalLicenseLink !== undefined"
-                >
-                  <a
-                    :href="item.additionalLicenseLink"
-                    target="_blank"
-                    class="text-blue-500 text-sm"
-                  >
-                    {{ i18nState.DOWNLOADER_TERMS }}
-                  </a>
-                </div>
-                <div class="flex flex-col items-center" v-else>-</div>
-              </td>
-              <td class="items-center text-sm text-green-400">
-                {{ getFunctionTip(item.type) }}
-              </td>
-            </tr>
+                    <a
+                      :href="item.additionalLicenseLink"
+                      target="_blank"
+                      class="text-blue-500 text-sm"
+                    >
+                      {{ i18nState.DOWNLOADER_TERMS }}
+                    </a>
+                  </div>
+                  <div class="flex flex-col items-center" v-else>-</div>
+                </td>
+                <td class="items-center text-sm text-green-400">
+                  {{ getFunctionTip(item.type) }}
+                </td>
+              </tr>
             </tbody>
           </table>
           <div
             v-if="
-              downloadModelRender.some((i) => i.gated && !i.accessGranted) && downloadModelRender.length === 1
+              downloadModelRender.some((i) => i.gated && !i.accessGranted) &&
+              downloadModelRender.length === 1
             "
             class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg"
           >
@@ -108,7 +109,9 @@
             <span class="text-left">
               {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : '' }}
               {{
-                downloadModelRender.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE : ''
+                downloadModelRender.some((i) => i.gated)
+                  ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE
+                  : ''
               }}
               {{
                 downloadModelRender.some((i) => !i.accessGranted)
@@ -118,7 +121,10 @@
             </span>
           </div>
           <div
-            v-if="downloadModelRender.some((i) => i.gated && !i.accessGranted) && downloadModelRender.length > 1"
+            v-if="
+              downloadModelRender.some((i) => i.gated && !i.accessGranted) &&
+              downloadModelRender.length > 1
+            "
             class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg"
           >
             <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO }}</span>
@@ -128,7 +134,9 @@
                 downloadModelRender.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : ''
               }}
               {{
-                downloadModelRender.some((i) => !i.accessGranted) ? languages.DOWNLOADER_ACCESS_ACCEPT : ''
+                downloadModelRender.some((i) => !i.accessGranted)
+                  ? languages.DOWNLOADER_ACCESS_ACCEPT
+                  : ''
               }}
             </span>
           </div>
@@ -189,12 +197,8 @@ const globalSetup = useGlobalSetup()
 const models = useModels()
 const dialogStore = useDialogStore()
 
-const {
-  downloadDialogVisible,
-  downloadList,
-  downloadSuccessFunction,
-  downloadFailFunction,
-} = storeToRefs(dialogStore)
+const { downloadDialogVisible, downloadList, downloadSuccessFunction, downloadFailFunction } =
+  storeToRefs(dialogStore)
 
 let downloding = false
 const curDownloadTip = ref('')
@@ -261,7 +265,7 @@ function dataProcess(line: string) {
           break
       }
 
-      downloadFailFunction.value?.({type: 'error', error: errorText.value})
+      downloadFailFunction.value?.({ type: 'error', error: errorText.value })
       break
   }
 }
@@ -279,7 +283,7 @@ watch(downloadDialogVisible, async (isVisible) => {
 async function initializeDownloadDialog() {
   if (downloding) {
     toast.error(i18nState.DOWNLOADER_CONFLICT)
-    downloadFailFunction.value?.({type: 'conflict'})
+    downloadFailFunction.value?.({ type: 'conflict' })
     dialogStore.closeDownloadDialog()
     return
   }
@@ -291,7 +295,7 @@ async function initializeDownloadDialog() {
   percent.value = 0
   taskPercent.value = 0
   downloadModelRender.value = downloadList.value.map((item) => {
-    return {size: '???', ...item}
+    return { size: '???', ...item }
   })
   readTerms.value = false
 
@@ -331,7 +335,7 @@ async function initializeDownloadDialog() {
     }
     sizeRequesting.value = false
   } catch (ex) {
-    downloadFailFunction.value?.({type: 'error', error: ex})
+    downloadFailFunction.value?.({ type: 'error', error: ex })
     sizeRequesting.value = false
   }
 }
@@ -384,7 +388,9 @@ function getFunctionTip(type: number): string {
 
 function download() {
   downloding = true
-  const accessableDownloadList = downloadModelRender.value.filter((item) => item.accessGranted === true)
+  const accessableDownloadList = downloadModelRender.value.filter(
+    (item) => item.accessGranted === true,
+  )
   allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${accessableDownloadList.length}`
   percent.value = 0
   completeCount.value = 0
@@ -392,10 +398,10 @@ function download() {
   curDownloadTip.value = ''
   fetch(`${globalSetup.apiHost}/api/downloadModel`, {
     method: 'POST',
-    body: JSON.stringify(toRaw({data: accessableDownloadList})),
+    body: JSON.stringify(toRaw({ data: accessableDownloadList })),
     headers: {
       'Content-Type': 'application/json',
-      ...(models.hfTokenIsValid ? {Authorization: `Bearer ${models.hfToken}`} : {}),
+      ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {}),
     },
     signal: abortController.signal,
   })
@@ -404,13 +410,13 @@ function download() {
       return new SSEProcessor(reader, dataProcess, undefined).start()
     })
     .catch((ex) => {
-      downloadFailFunction.value?.({type: 'error', error: ex})
+      downloadFailFunction.value?.({ type: 'error', error: ex })
       downloding = false
     })
 }
 
 function cancelConfirm() {
-  downloadFailFunction.value?.({type: 'cancelConfrim'})
+  downloadFailFunction.value?.({ type: 'cancelConfrim' })
   dialogStore.closeDownloadDialog()
 }
 
@@ -423,7 +429,7 @@ function confirmDownload() {
 function cancelDownload() {
   abortController?.abort()
   fetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-  downloadFailFunction.value?.({type: 'cancelDownload'})
+  downloadFailFunction.value?.({ type: 'cancelDownload' })
   dialogStore.closeDownloadDialog()
 }
 

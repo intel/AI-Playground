@@ -1,8 +1,4 @@
 <template>
-  <div>
-    Image Edit Settings
-  </div>
+  <div>Image Edit Settings</div>
 </template>
-<script setup lang="ts">
-</script>
-
+<script setup lang="ts"></script>

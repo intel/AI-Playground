@@ -99,7 +99,7 @@ except Exception as e:
     // Execute the Python script
     const result = await pythonService.run(['-c', pythonScript], {
       PATH: `${path.join(pythonService.dir, 'Library', 'bin')};${process.env.PATH}`,
-      PYTHONNOUSERSITE: 'true'
+      PYTHONNOUSERSITE: 'true',
     })
 
     // Parse the output

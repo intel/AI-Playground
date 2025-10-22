@@ -370,7 +370,7 @@ import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useModels } from '@/assets/js/store/models'
 import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
 import { useDemoMode } from '@/assets/js/store/demoMode'
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()

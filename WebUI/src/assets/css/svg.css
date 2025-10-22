@@ -65,7 +65,7 @@
 }
 
 .i-dots-vertical {
-    --svg: url('@/assets/svg/dots-vertical.svg');
+  --svg: url('@/assets/svg/dots-vertical.svg');
 }
 
 .i-download-cloud {

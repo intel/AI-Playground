@@ -13,7 +13,10 @@
       />
     </template>
 
-    <HistoryChat v-show="props.mode == 'chat'" @conversation-selected="emit('conversationSelected')"/>
+    <HistoryChat
+      v-show="props.mode == 'chat'"
+      @conversation-selected="emit('conversationSelected')"
+    />
     <HistoryImageGen v-show="props.mode == 'imageGen'" />
     <HistoryImageEdit v-show="props.mode == 'imageEdit'" />
     <HistoryVideo v-show="props.mode == 'video'" />
@@ -21,13 +24,13 @@
 </template>
 
 <script setup lang="ts">
-import HistoryChat from "@/components/HistoryChat.vue"
-import HistoryImageEdit from "@/components/HistoryImageEdit.vue"
-import HistoryVideo from "@/components/HistoryVideo.vue"
-import HistoryImageGen from "@/components/HistoryImageGen.vue"
-import { useConversations } from "@/assets/js/store/conversations.ts"
-import { mapModeToLabel } from "@/lib/utils.ts"
-import SideModalBase from "@/components/SideModalBase.vue";
+import HistoryChat from '@/components/HistoryChat.vue'
+import HistoryImageEdit from '@/components/HistoryImageEdit.vue'
+import HistoryVideo from '@/components/HistoryVideo.vue'
+import HistoryImageGen from '@/components/HistoryImageGen.vue'
+import { useConversations } from '@/assets/js/store/conversations.ts'
+import { mapModeToLabel } from '@/lib/utils.ts'
+import SideModalBase from '@/components/SideModalBase.vue'
 
 const conversations = useConversations()
 const props = defineProps<{
@@ -41,7 +44,7 @@ const emit = defineEmits<{
 }>()
 
 function selectNewConversation() {
-  conversations.activeKey = Object.keys(conversations).pop() ?? ""
+  conversations.activeKey = Object.keys(conversations).pop() ?? ''
   emit('close')
 }
 </script>

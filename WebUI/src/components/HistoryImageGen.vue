@@ -1,8 +1,4 @@
 <template>
-  <div>
-    Image Gen History
-  </div>
+  <div>Image Gen History</div>
 </template>
-<script setup lang="ts">
-</script>
-
+<script setup lang="ts"></script>

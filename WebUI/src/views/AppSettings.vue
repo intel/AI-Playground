@@ -43,7 +43,7 @@
       class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto"
     >
       <div class="px-3 flex-none flex flex-col gap-3">
-        <SettingsPanel/>
+        <SettingsPanel />
       </div>
     </div>
   </div>

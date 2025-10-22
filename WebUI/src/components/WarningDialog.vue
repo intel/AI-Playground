@@ -25,7 +25,7 @@
 import { ref, watch } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
-import { storeToRefs } from "pinia";
+import { storeToRefs } from 'pinia'
 
 const i18nState = useI18N().state
 const dialogStore = useDialogStore()

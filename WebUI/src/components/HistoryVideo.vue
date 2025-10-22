@@ -1,8 +1,4 @@
 <template>
-  <div>
-    Video History
-  </div>
+  <div>Video History</div>
 </template>
-<script setup lang="ts">
-</script>
-
+<script setup lang="ts"></script>

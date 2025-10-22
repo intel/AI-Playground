@@ -331,7 +331,7 @@ import * as toast from '@/assets/js/toast'
 import * as Const from '@/assets/js/const'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { ModelPaths } from '@/assets/js/store/models'
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const i18n = useI18N()
 const models = useModels()

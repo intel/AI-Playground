@@ -1,9 +1,7 @@
 <template>
   <div id="prompt-area" class="text-white flex flex-col w-full pt-4">
     <div class="flex flex-col items-center gap-7 text-base px-4">
-      <p class="text-2xl font-bold">
-        Let's Generate
-      </p>
+      <p class="text-2xl font-bold">Let's Generate</p>
       <div class="relative w-full max-w-3xl">
         <textarea
           class="rounded-2xl resize-none w-full h-48 pb-16"
@@ -16,7 +14,11 @@
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
             :key="mode"
             @click="emits('selectMode', mode as ModeType)"
-            :class="currentMode === mode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'"
+            :class="
+              currentMode === mode
+                ? 'bg-blue-600 hover:bg-blue-500'
+                : 'bg-gray-700 hover:bg-gray-600'
+            "
             class="px-3 py-1.5 rounded-lg text-sm"
           >
             {{ mapModeToLabel(mode) }}
@@ -31,7 +33,8 @@
           </button>
           <button
             @click="handleSubmitPromptClick"
-            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm">
+            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm"
+          >
             →
           </button>
         </div>
@@ -40,14 +43,15 @@
     <SideModalSpecificSettings
       :isVisible="showSettings"
       :mode="currentMode"
-      @close="showSettings=false" />
+      @close="showSettings = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { getCurrentInstance, ref } from 'vue'
-import SideModalSpecificSettings from "@/components/SideModalSpecificSettings.vue";
-import { mapModeToLabel } from "@/lib/utils.ts";
+import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
+import { mapModeToLabel } from '@/lib/utils.ts'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
@@ -59,8 +63,8 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (e: 'autoHideFooter'): void,
-  (e: 'selectMode', value: ModeType): void,
+  (e: 'autoHideFooter'): void
+  (e: 'selectMode', value: ModeType): void
   (e: 'submitPrompt', prompt: string, mode: ModeType): void
 }>()
 

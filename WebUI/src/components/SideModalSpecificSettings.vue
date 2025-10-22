@@ -13,12 +13,12 @@
 </template>
 
 <script setup lang="ts">
-import SideModalBase from "@/components/SideModalBase.vue"
-import SettingsChat from "@/components/SettingsChat.vue"
-import SettingsImageGen from "@/components/SettingsImageGen.vue"
-import SettingsImageEdit from "@/components/SettingsImageEdit.vue"
-import SettingsVideo from "@/components/SettingsVideo.vue"
-import { mapModeToLabel } from "@/lib/utils.ts"
+import SideModalBase from '@/components/SideModalBase.vue'
+import SettingsChat from '@/components/SettingsChat.vue'
+import SettingsImageGen from '@/components/SettingsImageGen.vue'
+import SettingsImageEdit from '@/components/SettingsImageEdit.vue'
+import SettingsVideo from '@/components/SettingsVideo.vue'
+import { mapModeToLabel } from '@/lib/utils.ts'
 
 const props = defineProps<{
   mode: ModeType

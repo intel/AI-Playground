@@ -25,13 +25,8 @@
       </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
-      <label
-        class="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          v-model="useNewUI"
-          class="w-4 h-4 cursor-pointer"
-        />
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" v-model="useNewUI" class="w-4 h-4 cursor-pointer" />
         <span class="text-sm">New UI</span>
       </label>
       <button
@@ -52,7 +47,7 @@
         <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
       </button>
       <button
-        v-if="!demoMode.enabled && !useNewUI "
+        v-if="!demoMode.enabled && !useNewUI"
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
         @click="showSettings"
@@ -167,48 +162,30 @@
     <SideModalHistory
       :isVisible="showHistory"
       :mode="currentMode"
-      @close="showHistory=false"
-      @conversation-selected="chatRef?.scrollToBottom" />
-    <SideModalAppSettings
-      :isVisible="showAppSettings"
-      @close="showAppSettings=false" />
-    <Chat
-      v-show="currentMode === 'chat'"
-      ref="chatRef"
+      @close="showHistory = false"
+      @conversation-selected="chatRef?.scrollToBottom"
     />
-    <ImageGen
-      v-show="currentMode === 'imageGen'"
-      ref="imageGenRef"
-    />
-    <ImageEdit
-      v-show="currentMode === 'imageEdit'"
-      ref="imageEditRef"
-    />
-    <Video
-      v-show="currentMode === 'video'"
-      ref="videoRef"
-    />
+    <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
+    <Chat v-show="currentMode === 'chat'" ref="chatRef" />
+    <ImageGen v-show="currentMode === 'imageGen'" ref="imageGenRef" />
+    <ImageEdit v-show="currentMode === 'imageEdit'" ref="imageEditRef" />
+    <Video v-show="currentMode === 'video'" ref="videoRef" />
     <PromptArea
       :currentMode="currentMode"
       @select-mode="currentMode = $event"
       @submit-prompt="handleSubmitPrompt"
       @auto-hide-footer="handleAutoHideFooter"
     />
-    <app-settings
-      v-if="showSetting"
-      @close="hideAppSettings"
-    ></app-settings>
-    <download-dialog
-      v-show="dialogStore.downloadDialogVisible"
-    ></download-dialog>
-    <warning-dialog
-      v-show="dialogStore.warningDialogVisible"
-    ></warning-dialog>
+    <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
+    <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
+    <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
   </main>
 
   <!-- todo: Old UI only, we should eventually be able to remove this main block -->
-  <main v-else-if="!useNewUI && globalSetup.loadingState === 'running'"
-        class="flex-auto flex flex-col relative">
+  <main
+    v-else-if="!useNewUI && globalSetup.loadingState === 'running'"
+    class="flex-auto flex flex-col relative"
+  >
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
       <button
         class="tab"
@@ -263,34 +240,19 @@
           ref="createCompt"
           @postImageToEnhance="postImageToEnhance"
         ></create>
-        <enhance
-          v-show="activeTabIdx === 'enhance'"
-          ref="enhanceCompt"
-        >
-        </enhance>
-        <Answer
-          v-show="activeTabIdx === 'answer'"
-          @show-model-request="showModelRequest"
-        ></Answer>
+        <enhance v-show="activeTabIdx === 'enhance'" ref="enhanceCompt"> </enhance>
+        <Answer v-show="activeTabIdx === 'answer'" @show-model-request="showModelRequest"></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
       </div>
-      <app-settings
-        v-if="showSetting"
-        @close="hideAppSettings"
-      ></app-settings>
+      <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
     </div>
-    <download-dialog
-      v-show="showDowloadDlg"
-      @close="showDowloadDlg = false"
-    ></download-dialog>
+    <download-dialog v-show="showDowloadDlg" @close="showDowloadDlg = false"></download-dialog>
     <add-l-l-m-dialog
       v-show="showModelRequestDialog"
       ref="addLLMCompt"
       @close="showModelRequestDialog = false"
     ></add-l-l-m-dialog>
-    <warning-dialog
-      v-show="dialogStore.warningDialogVisible"
-    ></warning-dialog>
+    <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
   </main>
   <footer
     class="flex-none px-4 flex flex-col justify-between items-center select-none transition-all duration-300"
@@ -321,15 +283,12 @@
         {{ footerExpanded ? 'HIDE FOOTER' : 'SHOW FOOTER' }}
       </button>
     </div>
-    <div
-      v-show="footerExpanded"
-      class="w-full flex justify-between items-center pb-2"
-    >
+    <div v-show="footerExpanded" class="w-full flex justify-between items-center pb-2">
       <div>
         <p>
           Al Playground from Intel Corporation
           <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
-          >https://github.com/intel/ai-playground</a
+            >https://github.com/intel/ai-playground</a
           >
         </p>
         <p>
@@ -381,7 +340,7 @@ import LoadingBar from './components/LoadingBar.vue'
 import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
 import Enhance from './views/Enhance.vue'
-import PromptArea from "@/views/PromptArea.vue";
+import PromptArea from '@/views/PromptArea.vue'
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
 import './assets/css/index.css'
@@ -395,15 +354,15 @@ import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
-import ImageEdit from "@/views/ImageEdit.vue";
-import Video from "@/views/Video.vue";
-import ImageGen from "@/views/ImageGen.vue";
-import Chat from "@/views/Chat.vue";
+import ImageEdit from '@/views/ImageEdit.vue'
+import Video from '@/views/Video.vue'
+import ImageGen from '@/views/ImageGen.vue'
+import Chat from '@/views/Chat.vue'
 import Answer from '@/views/Answer.vue'
-import { ref } from "vue";
-import SideModalHistory from "@/components/SideModalHistory.vue";
-import SideModalAppSettings from "@/components/SideModalAppSettings.vue";
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
+import { ref } from 'vue'
+import SideModalHistory from '@/components/SideModalHistory.vue'
+import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -417,7 +376,7 @@ const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
-  scrollToBottom: () => void,
+  scrollToBottom: () => void
 }>()
 const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
@@ -461,7 +420,7 @@ onBeforeMount(async () => {
   window.addEventListener('keydown', zoomIn, true)
   window.removeEventListener('wheel', wheelZoom)
   window.addEventListener('wheel', wheelZoom, true)
-  window.electronAPI.onDebugLog(({level, source, message}) => {
+  window.electronAPI.onDebugLog(({ level, source, message }) => {
     if (level == 'error') {
       if (message.startsWith('onednn_verbose')) return
       console.error(`[${source}] ${message}`)
@@ -528,7 +487,7 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
 const createCompt = ref()
 
 function showSettings() {
-  showSetting.value = showSetting.value === false;
+  showSetting.value = showSetting.value === false
 }
 
 function hideAppSettings() {
@@ -569,7 +528,7 @@ function handleSubmitPrompt(prompt: string, mode: ModeType) {
     chat: chatRef,
     imageGen: imageGenRef,
     imageEdit: imageEditRef,
-    video: videoRef
+    video: videoRef,
   }
 
   const componentRef = refMap[mode]
@@ -581,11 +540,10 @@ function handleAutoHideFooter() {
 }
 
 function openHistory() {
-  showHistory.value = true;
+  showHistory.value = true
 }
 
 function openAppSettings() {
-  showAppSettings.value = true;
+  showAppSettings.value = true
 }
-
 </script>

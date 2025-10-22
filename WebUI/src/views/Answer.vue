@@ -728,7 +728,7 @@ function handleScroll(e: Event) {
   const target = e.target as HTMLElement
   const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
 
-  autoScrollEnabled.value = distanceFromBottom <= 35;
+  autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
 }
 
@@ -1079,7 +1079,6 @@ function onConversationSelected() {
     scrollToBottom(false)
   })
 }
-
 </script>
 <style>
 .chat-content h1 {

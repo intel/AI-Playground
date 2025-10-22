@@ -4,9 +4,11 @@
       v-for="key in reversedConversationKeys"
       :key="key"
       class="flex items-center justify-between rounded-lg px-3 py-1 transition cursor-pointer border-2"
-      :class="conversations.activeKey === key
-    ? 'border-blue-500 bg-gray-700 hover:bg-gray-600'
-    : 'border-transparent bg-gray-700 hover:bg-gray-600'"
+      :class="
+        conversations.activeKey === key
+          ? 'border-blue-500 bg-gray-700 hover:bg-gray-600'
+          : 'border-transparent bg-gray-700 hover:bg-gray-600'
+      "
       @click="selectConversation(key)"
     >
       <span class="truncate text-sm text-foreground">
@@ -186,5 +188,4 @@ const selectConversation = (key: string) => {
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

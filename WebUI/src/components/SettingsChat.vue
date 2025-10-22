@@ -18,7 +18,7 @@
             textInference.backend === backendInfo.name
               ? 'border-blue-500 ring-2 ring-blue-400'
               : 'border-transparent hover:border-blue-500',
-              !backendInfo.isRunning && 'grayscale opacity-80'
+            !backendInfo.isRunning && 'grayscale opacity-80',
           ]"
           @click="() => handlePresetSelectionClick(backendInfo)"
         >
@@ -28,16 +28,17 @@
             :alt="backendInfo.displayName"
           />
           <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
-      <span class="text-white text-sm font-semibold">
-        {{ backendInfo.displayName }}
-      </span>
+            <span class="text-white text-sm font-semibold">
+              {{ backendInfo.displayName }}
+            </span>
           </div>
         </div>
       </div>
 
       <div class="flex flex-col gap-4">
         <h2 class="text-lg font-semibold">
-          {{ backendInfos[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}</h2>
+          {{ backendInfos[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}
+        </h2>
         <p class="text-sm text-gray-400">
           {{ backendInfos[textInference.backend]?.description }}
         </p>
@@ -46,7 +47,8 @@
           <span
             v-for="tag in backendInfos[textInference.backend]?.tags"
             :key="tag"
-            class="px-3 py-1 text-xs bg-purple-600 rounded-full">
+            class="px-3 py-1 text-xs bg-purple-600 rounded-full"
+          >
             {{ tag }}
           </span>
         </div>
@@ -58,13 +60,18 @@
           <Label class="whitespace-nowrap">{{ languages.MODEL }}</Label>
           <ModelSelector />
         </div>
-        <Button variant="outline" class="self-start w-auto" @click="() => showModelRequestDialog=true">
+        <Button
+          variant="outline"
+          class="self-start w-auto"
+          @click="() => (showModelRequestDialog = true)"
+        >
           {{ languages.COM_ADD + ' ' + languages.MODEL }}
         </Button>
 
         <!-- todo: processing -->
         <Button
-          variant="outline" class="self-start w-auto"
+          variant="outline"
+          class="self-start w-auto"
           @click="showUploader = !showUploader"
           :disabled="processing"
           :title="languages.ANSWER_RAG_OPEN_DIALOG"
@@ -110,9 +117,7 @@
           ></drop-down-new>
         </div>
         <!-- todo: needs to actually do something-->
-        <Button variant="outline" class="max-w-md mx-auto">
-          Create New Preset
-        </Button>
+        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset </Button>
       </div>
       <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
@@ -125,22 +130,24 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import {
   backendToService,
-  LlmBackend, textInferenceBackendDescription,
-  textInferenceBackendDisplayName, textInferenceBackendTags,
-  useTextInference
-} from "@/assets/js/store/textInference.ts";
-import DeviceSelector from "@/components/DeviceSelector.vue";
-import ModelSelector from "@/components/ModelSelector.vue";
-import AddLLMDialog from "@/components/AddLLMDialog.vue";
-import { ref } from "vue";
-import { useI18N } from "@/assets/js/store/i18n.ts";
-import { useDemoMode } from "@/assets/js/store/demoMode.ts";
-import Rag from "@/components/Rag.vue";
-import { llmBackendTypes } from "@/types/shared.ts";
-import { useBackendServices } from "@/assets/js/store/backendServices.ts";
-import { useGlobalSetup } from "@/assets/js/store/globalSetup.ts";
-import DropDownNew from "@/components/DropDownNew.vue";
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
+  LlmBackend,
+  textInferenceBackendDescription,
+  textInferenceBackendDisplayName,
+  textInferenceBackendTags,
+  useTextInference,
+} from '@/assets/js/store/textInference.ts'
+import DeviceSelector from '@/components/DeviceSelector.vue'
+import ModelSelector from '@/components/ModelSelector.vue'
+import AddLLMDialog from '@/components/AddLLMDialog.vue'
+import { ref } from 'vue'
+import { useI18N } from '@/assets/js/store/i18n.ts'
+import { useDemoMode } from '@/assets/js/store/demoMode.ts'
+import Rag from '@/components/Rag.vue'
+import { llmBackendTypes } from '@/types/shared.ts'
+import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
+import DropDownNew from '@/components/DropDownNew.vue'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 type BackendInfo = {
   displayName: string
@@ -174,7 +181,7 @@ const documentButtonText = computed(() => {
 const documentStats = computed(() => {
   const totalDocs = textInference.ragList.length
   const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
-  return {total: totalDocs, enabled: enabledDocs}
+  return { total: totalDocs, enabled: enabledDocs }
 })
 
 function handlePresetSelectionClick(backendInfo: BackendInfo) {
@@ -210,7 +217,7 @@ function backendTypesToBackends() {
 
   llmBackendTypes
     .filter((b) => b !== 'ipexLLM')
-    .forEach(llmBackend => {
+    .forEach((llmBackend) => {
       result[llmBackend] = {
         displayName: textInferenceBackendDisplayName[llmBackend],
         description: textInferenceBackendDescription[llmBackend],

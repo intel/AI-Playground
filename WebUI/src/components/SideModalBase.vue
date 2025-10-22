@@ -5,14 +5,14 @@
       :class="[
         'fixed top-14 h-full bg-gray-800 shadow-lg flex flex-col z-9',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
-        'border-gray-700'
+        'border-gray-700',
       ]"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ title }}</h2>
         <div class="flex gap-3 items-center">
           <slot name="header-buttons" />
-          <button @click="$emit('close')" class="svg-icon i-close w-6 h-6"/>
+          <button @click="$emit('close')" class="svg-icon i-close w-6 h-6" />
         </div>
       </div>
       <div class="flex-1 p-4">
@@ -35,23 +35,25 @@ defineEmits<{
   close: []
 }>()
 
-const slideTransition = computed(() =>
-  props.side === 'left' ? 'slide-left' : 'slide-right'
-)
+const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : 'slide-right'))
 </script>
 
 <style scoped>
-.slide-right-enter-active, .slide-right-leave-active {
+.slide-right-enter-active,
+.slide-right-leave-active {
   transition: transform 0.3s ease;
 }
-.slide-right-enter-from, .slide-right-leave-to {
+.slide-right-enter-from,
+.slide-right-leave-to {
   transform: translateX(100%);
 }
 
-.slide-left-enter-active, .slide-left-leave-active {
+.slide-left-enter-active,
+.slide-left-leave-active {
   transition: transform 0.3s ease;
 }
-.slide-left-enter-from, .slide-left-leave-to {
+.slide-left-enter-from,
+.slide-left-leave-to {
   transform: translateX(-100%);
 }
 </style>

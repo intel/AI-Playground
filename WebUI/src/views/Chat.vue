@@ -1,6 +1,9 @@
 <template>
   <div
-    v-if="conversations.activeConversation && conversations.activeConversation.length > 0 || processing"
+    v-if="
+      (conversations.activeConversation && conversations.activeConversation.length > 0) ||
+      processing
+    "
     id="chatPanel"
     ref="chatPanel"
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6"
@@ -45,16 +48,16 @@
                 {{ languages.ANSWER_AI_NAME }}
               </p>
               <div v-if="chatItem.model" class="flex items-center gap-2">
-                  <span
-                    class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
-                    :class="textInference.nameSizeClass"
-                  >
-                    {{
-                      chatItem.model.endsWith('.gguf')
-                        ? (chatItem.model.split('/').at(-1)?.split('.gguf')[0] ?? chatItem.model)
-                        : chatItem.model
-                    }}
-                  </span>
+                <span
+                  class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                  :class="textInference.nameSizeClass"
+                >
+                  {{
+                    chatItem.model.endsWith('.gguf')
+                      ? (chatItem.model.split('/').at(-1)?.split('.gguf')[0] ?? chatItem.model)
+                      : chatItem.model
+                  }}
+                </span>
                 <!-- Display RAG source if available -->
                 <span
                   v-if="chatItem.ragSource"
@@ -62,16 +65,16 @@
                   class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
                   :class="textInference.nameSizeClass"
                 >
-                    Source Docs
-                    <button class="ml-1">
-                      <img
-                        v-if="chatItem.showRagSource"
-                        src="../assets/svg/arrow-up.svg"
-                        class="w-3 h-3"
-                      />
-                      <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
-                    </button>
-                  </span>
+                  Source Docs
+                  <button class="ml-1">
+                    <img
+                      v-if="chatItem.showRagSource"
+                      src="../assets/svg/arrow-up.svg"
+                      class="w-3 h-3"
+                    />
+                    <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
+                  </button>
+                </span>
               </div>
             </div>
 
@@ -87,17 +90,17 @@
             <div class="ai-answer chat-content">
               <template v-if="chatItem.model && thinkingModels[chatItem.model]">
                 <div class="mb-2 flex items-center">
-                    <span class="italic text-gray-300">
-                      {{
-                        chatItem.reasoningTime !== undefined && chatItem.reasoningTime !== null
-                          ? `Reasoned for ${
+                  <span class="italic text-gray-300">
+                    {{
+                      chatItem.reasoningTime !== undefined && chatItem.reasoningTime !== null
+                        ? `Reasoned for ${
                             (chatItem.reasoningTime / 1000).toFixed(1).endsWith('.0')
                               ? (chatItem.reasoningTime / 1000).toFixed(0)
                               : (chatItem.reasoningTime / 1000).toFixed(1)
                           } seconds`
-                          : 'Done Reasoning'
-                      }}
-                    </span>
+                        : 'Done Reasoning'
+                    }}
+                  </span>
                   <button
                     @click="chatItem.showThinkingText = !chatItem.showThinkingText"
                     class="ml-1"
@@ -126,12 +129,12 @@
                 class="flex items-end"
                 :title="languages.COM_COPY"
                 @click="
-                    copyText(
-                      chatItem.model && thinkingModels[chatItem.model]
-                        ? textInference.extractPostMarker(chatItem.answer, chatItem.model)
-                        : chatItem.answer,
-                    )
-                  "
+                  copyText(
+                    chatItem.model && thinkingModels[chatItem.model]
+                      ? textInference.extractPostMarker(chatItem.answer, chatItem.model)
+                      : chatItem.answer,
+                  )
+                "
               >
                 <span class="svg-icon i-copy w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
@@ -150,9 +153,7 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_DELETE"
-                @click="
-                    () => conversations.deleteItemFromConversation(conversations.activeKey, i)
-                  "
+                @click="() => conversations.deleteItemFromConversation(conversations.activeKey, i)"
               >
                 <span class="svg-icon i-delete w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
@@ -165,11 +166,11 @@
               <span class="mr-2">{{ chatItem.metrics.num_tokens }} Tokens</span>
               <span class="mr-2">⋅</span>
               <span class="mr-2"
-              >{{ chatItem.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                >{{ chatItem.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
               >
               <span class="mr-2">⋅</span>
               <span class="mr-2"
-              >1st Token Time: {{ chatItem.metrics.first_token_latency.toFixed(2) }}s</span
+                >1st Token Time: {{ chatItem.metrics.first_token_latency.toFixed(2) }}s</span
               >
             </div>
           </div>
@@ -213,20 +214,20 @@
               class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
               :class="textInference.nameSizeClass"
             >
-                {{ textInference.activeModel }}
-              </span>
+              {{ textInference.activeModel }}
+            </span>
             <span
               v-if="ragRetrievalInProgress || actualRagResults?.length"
               class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
               :class="textInference.nameSizeClass"
               @click="showRagPreview = !showRagPreview"
             >
-                Source Docs
-                <button class="ml-1">
-                  <img v-if="showRagPreview" src="../assets/svg/arrow-up.svg" class="w-3 h-3" />
-                  <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
-                </button>
-              </span>
+              Source Docs
+              <button class="ml-1">
+                <img v-if="showRagPreview" src="../assets/svg/arrow-up.svg" class="w-3 h-3" />
+                <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
+              </button>
+            </span>
           </div>
 
           <div
@@ -245,44 +246,39 @@
           <div
             v-if="!downloadModel.downloading && !loadingModel"
             :class="[
-                'ai-answer',
-                {
-                  'cursor-block': !(
-                    textInference.activeModel && thinkingModels[textInference.activeModel]
-                  ),
-                },
-                'break-all',
-              ]"
+              'ai-answer',
+              {
+                'cursor-block': !(
+                  textInference.activeModel && thinkingModels[textInference.activeModel]
+                ),
+              },
+              'break-all',
+            ]"
           >
-            <template
-              v-if="textInference.activeModel && thinkingModels[textInference.activeModel]"
-            >
+            <template v-if="textInference.activeModel && thinkingModels[textInference.activeModel]">
               <div class="mb-2 flex items-center">
-                  <span class="italic text-gray-300 inline-flex items-center">
-                    <template v-if="thinkingText || postMarkerText">
-                      <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
-                        {{ `Reasoned for ${(reasoningTotalTime / 1000).toFixed(1)} seconds` }}
-                      </span>
-                      <span v-else class="inline-block w-[9ch] truncate">
-                        {{ animatedReasoningText }}
-                      </span>
+                <span class="italic text-gray-300 inline-flex items-center">
+                  <template v-if="thinkingText || postMarkerText">
+                    <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
+                      {{ `Reasoned for ${(reasoningTotalTime / 1000).toFixed(1)} seconds` }}
+                    </span>
+                    <span v-else class="inline-block w-[9ch] truncate">
+                      {{ animatedReasoningText }}
+                    </span>
 
-                      <button
-                        @click="showThinkingText = !showThinkingText"
-                        class="flex items-center"
-                      >
-                        <img
-                          v-if="showThinkingText"
-                          src="../assets/svg/arrow-up.svg"
-                          class="w-4 h-4"
-                        />
-                        <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4" />
-                      </button>
-                    </template>
-                    <template v-else>
-                      <span class="cursor-block"></span>
-                    </template>
-                  </span>
+                    <button @click="showThinkingText = !showThinkingText" class="flex items-center">
+                      <img
+                        v-if="showThinkingText"
+                        src="../assets/svg/arrow-up.svg"
+                        class="w-4 h-4"
+                      />
+                      <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4" />
+                    </button>
+                  </template>
+                  <template v-else>
+                    <span class="cursor-block"></span>
+                  </template>
+                </span>
               </div>
               <div
                 v-if="showThinkingText"
@@ -307,7 +303,6 @@
               :text="languages.COM_LOADING_MODEL"
               class="w-512px"
             ></loading-bar>
-
           </div>
         </div>
       </div>
@@ -317,19 +312,19 @@
 
 <script setup lang="ts">
 import { getCurrentInstance } from 'vue'
-import * as toast from "@/assets/js/toast.ts";
-import { useI18N } from "@/assets/js/store/i18n.ts";
-import { thinkingModels, useTextInference } from "@/assets/js/store/textInference.ts";
-import { useConversations } from "@/assets/js/store/conversations.ts";
-import * as util from "@/assets/js/util.ts";
-import { SSEProcessor } from "@/assets/js/sseProcessor.ts";
-import { useOllama } from "@/assets/js/store/ollama.ts";
-import { useBackendServices } from "@/assets/js/store/backendServices.ts";
-import { useGlobalSetup } from "@/assets/js/store/globalSetup.ts";
-import { parse } from "@/assets/js/markdownParser.ts";
-import { base64ToString } from "uint8array-extras";
-import ProgressBar from "@/components/ProgressBar.vue";
-import LoadingBar from "@/components/LoadingBar.vue";
+import * as toast from '@/assets/js/toast.ts'
+import { useI18N } from '@/assets/js/store/i18n.ts'
+import { thinkingModels, useTextInference } from '@/assets/js/store/textInference.ts'
+import { useConversations } from '@/assets/js/store/conversations.ts'
+import * as util from '@/assets/js/util.ts'
+import { SSEProcessor } from '@/assets/js/sseProcessor.ts'
+import { useOllama } from '@/assets/js/store/ollama.ts'
+import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
+import { parse } from '@/assets/js/markdownParser.ts'
+import { base64ToString } from 'uint8array-extras'
+import ProgressBar from '@/components/ProgressBar.vue'
+import LoadingBar from '@/components/LoadingBar.vue'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
@@ -376,10 +371,8 @@ defineExpose({
   scrollToBottom,
 })
 
-
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
-
 
 async function handleSubmitPromptClick(prompt: string) {
   const newPrompt = prompt.trim()
@@ -393,10 +386,9 @@ async function handleSubmitPromptClick(prompt: string) {
     currentlyGeneratingKey.value = conversations.activeKey
 
     const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation))
-    chatContext.push({question: newPrompt, answer: ''})
+    chatContext.push({ question: newPrompt, answer: '' })
     generate(chatContext)
-  } catch {
-  }
+  } catch {}
 }
 
 async function generate(chatContext: ChatItem[]) {
@@ -747,12 +739,14 @@ async function simulatedInput() {
 
 async function updateTitle(conversation: ChatItem[]) {
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
-  const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({
-    question: item.question,
-    answer: item.answer
-  })))}\`\`\``
+  const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(
+    conversation.slice(0, 3).map((item) => ({
+      question: item.question,
+      answer: item.answer,
+    })),
+  )}\`\`\``
   console.log('prompt', prompt)
-  const chatContext = [{question: prompt, answer: ''}]
+  const chatContext = [{ question: prompt, answer: '' }]
   const requestParams = {
     device: globalSetup.modelSettings.graphics,
     prompt: chatContext,
@@ -796,7 +790,7 @@ function handleScroll(e: Event) {
   const target = e.target as HTMLElement
   const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
 
-  autoScrollEnabled.value = distanceFromBottom <= 35;
+  autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
 }
 

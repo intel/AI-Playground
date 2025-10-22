@@ -5,7 +5,7 @@ import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
-import { useDialogStore } from "@/assets/js/store/dialogs.ts";
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -72,8 +72,10 @@ export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
 
 export const textInferenceBackendDescription: Record<LlmBackend, string> = {
   ipexLLM: 'potato',
-  llamaCPP: 'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
-  openVINO: 'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  llamaCPP:
+    'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
+  openVINO:
+    'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
   ollama: 'potato',
 }
 
@@ -397,7 +399,7 @@ export const useTextInference = defineStore(
         embeddingModel: activeEmbeddingModel.value,
         maxResults: runningOnOpenvinoNpu.value ? 2 : 8,
       }
-      console.log('trying to request rag for', {newEmbedInquiry, ragList: ragList.value})
+      console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
       const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)
       return response
     }
@@ -573,7 +575,7 @@ export const useTextInference = defineStore(
           if (pageEntries.some((e) => !e.lines)) {
             // If we haven't already added an entry for this page from the line merging
             if (!result.some((r) => r.page === pageNumber && !r.lines)) {
-              result.push({page: pageNumber})
+              result.push({ page: pageNumber })
             }
           }
         })
@@ -660,8 +662,7 @@ export const useTextInference = defineStore(
     async function checkModelAvailability() {
       // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
       return new Promise<void>(async (resolve, reject) => {
-        const requiredModelDownloads =
-          await getDownloadParamsForCurrentModelIfRequired('llm')
+        const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
         if (ragList.value.length > 0) {
           const requiredEmbeddingModelDownloads =
             await getDownloadParamsForCurrentModelIfRequired('embedding')

@@ -132,12 +132,29 @@ export const useBackendServices = defineStore(
               console.log(`Detecting devices for ${s.serviceName}`)
               await detectDevices(s.serviceName)
               await new Promise((resolve) => setTimeout(resolve, 100)) // wait a second for device detection to settle
-              console.log(`Device detection complete for ${s.serviceName}`, JSON.stringify({ devices: s.devices, info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName) }))
+              console.log(
+                `Device detection complete for ${s.serviceName}`,
+                JSON.stringify({
+                  devices: s.devices,
+                  info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName),
+                }),
+              )
               const lastSelectedDeviceId = lastSelectedDeviceIdPerBackend.value[s.serviceName]
-              const availableDevicesIds = currentServiceInfo.value.find((info) => info.serviceName === s.serviceName)?.devices.map((d) => d.id)
-              const currentlySelectedDevice = currentServiceInfo.value.find((info) => info.serviceName === s.serviceName)?.devices.find((d) => d.selected)?.id
-              console.log(`Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`)
-              if (availableDevicesIds && lastSelectedDeviceId && availableDevicesIds.includes(lastSelectedDeviceId) && lastSelectedDeviceId !== currentlySelectedDevice) {
+              const availableDevicesIds = currentServiceInfo.value
+                .find((info) => info.serviceName === s.serviceName)
+                ?.devices.map((d) => d.id)
+              const currentlySelectedDevice = currentServiceInfo.value
+                .find((info) => info.serviceName === s.serviceName)
+                ?.devices.find((d) => d.selected)?.id
+              console.log(
+                `Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`,
+              )
+              if (
+                availableDevicesIds &&
+                lastSelectedDeviceId &&
+                availableDevicesIds.includes(lastSelectedDeviceId) &&
+                lastSelectedDeviceId !== currentlySelectedDevice
+              ) {
                 console.log(`Re-selecting device ${lastSelectedDeviceId} for ${s.serviceName}`)
                 await selectDevice(s.serviceName, lastSelectedDeviceId)
               }
