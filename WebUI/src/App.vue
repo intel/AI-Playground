@@ -262,7 +262,7 @@
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >
-    <div class="w-full relative flex items-center justify-center pb-1">
+    <div v-if="useNewUI" class="w-full relative flex items-center justify-center pb-1">
       <div class="absolute left-0 flex items-center gap-3 pb-4">
         <button
           @click="openAppSettings"
