@@ -1,16 +1,9 @@
 <template>
-  <transition name="fade">
-    <div
-      v-show="isVisible"
-      class="fixed inset-0 z-8"
-      @click="$emit('close')"
-    />
-  </transition>
   <transition :name="slideTransition">
     <div
       v-if="isVisible"
       :class="[
-        'fixed top-0 h-full bg-gray-800 shadow-lg flex flex-col z-9',
+        'fixed top-14 h-full bg-gray-800 shadow-lg flex flex-col z-9',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
         'border-gray-700'
       ]"
@@ -48,13 +41,6 @@ const slideTransition = computed(() =>
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-
 .slide-right-enter-active, .slide-right-leave-active {
   transition: transform 0.3s ease;
 }
@@ -67,8 +53,5 @@ const slideTransition = computed(() =>
 }
 .slide-left-enter-from, .slide-left-leave-to {
   transform: translateX(-100%);
-}
-div, button {
-  -webkit-app-region: none;
 }
 </style>
