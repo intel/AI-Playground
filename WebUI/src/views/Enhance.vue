@@ -370,6 +370,7 @@ import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useModels } from '@/assets/js/store/models'
 import { type SDOutCallback } from '@/assets/js/store/stableDiffusion'
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
@@ -377,6 +378,7 @@ const backendServices = useBackendServices()
 const models = useModels()
 const imageGeneration = useImageGeneration()
 const demoMode = useDemoMode()
+const dialogStore = useDialogStore()
 
 const mode = ref(1)
 const sourceImage = ref<HTMLImageElement>()
@@ -413,14 +415,6 @@ const maskEaser = reactive({
   y: '0px',
 })
 let lastPostParams: KVObject = {}
-const emits = defineEmits<{
-  (
-    e: 'showDownloadModelConfirm',
-    downloadList: DownloadModelParam[],
-    success?: () => void,
-    fail?: () => void,
-  ): void
-}>()
 let abortContooler: AbortController | null
 const stopping = ref(false)
 const showParams = ref(false)
@@ -711,7 +705,7 @@ async function checkModel() {
       }
     }
     if (downloadList.length > 0) {
-      emits('showDownloadModelConfirm', downloadList, resolve, reject)
+      dialogStore.showDownloadDialog(downloadList, resolve, reject)
     } else {
       resolve()
     }

@@ -140,7 +140,7 @@ import { llmBackendTypes } from "@/types/shared.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import { useGlobalSetup } from "@/assets/js/store/globalSetup.ts";
 import DropDownNew from "@/components/DropDownNew.vue";
-import { useWarningDialogStore } from "@/assets/js/store/warningDialog.ts";
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
 type BackendInfo = {
   displayName: string
@@ -160,7 +160,7 @@ const demoMode = useDemoMode()
 const backendServices = useBackendServices()
 const backendInfos = computed(() => backendTypesToBackends())
 const globalSetup = useGlobalSetup()
-const warningDialogStore = useWarningDialogStore()
+const warningDialogStore = useDialogStore()
 
 const documentButtonText = computed(() => {
   const stats = documentStats.value
@@ -181,7 +181,7 @@ function handlePresetSelectionClick(backendInfo: BackendInfo) {
   if (backendInfo.isRunning) {
     textInference.backend = backendInfo.name as LlmBackend
   } else {
-    warningDialogStore.showWarning(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
+    warningDialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
       globalSetup.loadingState = 'manageInstallations'
     })
   }

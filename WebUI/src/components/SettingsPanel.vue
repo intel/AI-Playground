@@ -331,25 +331,18 @@ import * as toast from '@/assets/js/toast'
 import * as Const from '@/assets/js/const'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { ModelPaths } from '@/assets/js/store/models'
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
 const i18n = useI18N()
 const models = useModels()
 const globalSetup = useGlobalSetup()
+const dialogStore = useDialogStore()
 
 const presetModel = reactive<StringKV>(Object.assign({}, toRaw(globalSetup.presetModel)))
 const presetModelChange = ref(false)
 
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)))
 const pathsChange = ref(false)
-
-const emits = defineEmits<{
-  (
-    e: 'showDownloadModelConfirm',
-    downloadList: DownloadModelParam[],
-    success?: () => void,
-    fail?: () => void,
-  ): void
-}>()
 
 onMounted(() => {
   cancelPathsSettings()
@@ -422,7 +415,7 @@ function downloadModel(model_repo_id: string, type: number) {
     if (exits[0].already_loaded) {
       toast.show(i18n.state.SETTINGS_MODEL_EXIST)
     } else {
-      emits('showDownloadModelConfirm', params)
+      showDownloadDialog(params)
     }
   })
 }
@@ -440,5 +433,13 @@ function cancelPathsSettings() {
     paths[key] = globalSetup.paths[key]
   })
   pathsChange.value = false
+}
+
+function showDownloadDialog(
+  downList: DownloadModelParam[],
+  _success?: () => void,
+  _fail?: () => void,
+) {
+  dialogStore.showDownloadDialog(downList)
 }
 </script>

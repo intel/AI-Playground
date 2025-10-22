@@ -514,7 +514,9 @@ import ConversationManager from '@/components/ConversationManager.vue'
 import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
+const dialogStore = useDialogStore()
 const demoMode = useDemoMode()
 const conversations = useConversations()
 const ollama = useOllama()
@@ -558,12 +560,6 @@ let actualRagResults: LangchainDocument[] | null = null
 
 const source = ref('')
 const emits = defineEmits<{
-  (
-    e: 'showDownloadModelConfirm',
-    downloadList: DownloadModelParam[],
-    success?: () => void,
-    fail?: () => void,
-  ): void
   (e: 'showModelRequest', success?: () => void, fail?: () => void): void
 }>()
 
@@ -921,7 +917,7 @@ async function checkModelAvailability() {
       requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
     }
     if (requiredModelDownloads.length > 0) {
-      emits('showDownloadModelConfirm', requiredModelDownloads, resolve, reject)
+      dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
     } else {
       resolve()
     }

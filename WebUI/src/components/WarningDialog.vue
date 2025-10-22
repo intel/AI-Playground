@@ -24,16 +24,16 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
-import { useWarningDialogStore } from '@/assets/js/store/warningDialog.ts'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { storeToRefs } from "pinia";
 
 const i18nState = useI18N().state
-const dialogStore = useWarningDialogStore()
+const dialogStore = useDialogStore()
 const animate = ref(false)
 
-const { warningMessage, confirmFunction, showWarningDialog } = storeToRefs(dialogStore)
+const { warningMessage, warningConfirmFunction, warningDialogVisible } = storeToRefs(dialogStore)
 
-watch(showWarningDialog, (newValue) => {
+watch(warningDialogVisible, (newValue) => {
   if (newValue) {
     animate.value = false
     nextTick(() => {
@@ -45,11 +45,11 @@ watch(showWarningDialog, (newValue) => {
 })
 
 function confirmAdd() {
-  confirmFunction.value()
-  dialogStore.closeWarning()
+  warningConfirmFunction.value()
+  dialogStore.closeWarningDialog()
 }
 
 function cancelConfirm() {
-  dialogStore.closeWarning()
+  dialogStore.closeWarningDialog()
 }
 </script>

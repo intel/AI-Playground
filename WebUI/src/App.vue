@@ -175,7 +175,6 @@
     <Chat
       v-show="currentMode === 'chat'"
       ref="chatRef"
-      @show-download-model-confirm="showDownloadModelConfirm"
     />
     <ImageGen
       v-show="currentMode === 'imageGen'"
@@ -198,16 +197,12 @@
     <app-settings
       v-if="showSetting"
       @close="hideAppSettings"
-      @show-download-model-confirm="showDownloadModelConfirm"
     ></app-settings>
     <download-dialog
-      v-show="showDowloadDlg"
-      ref="downloadDigCompt"
-      @close="showDowloadDlg = false"
+      v-show="dialogStore.downloadDialogVisible"
     ></download-dialog>
     <warning-dialog
-      v-show="warningDialogStore.showWarningDialog"
-      @close="warningDialogStore.showWarningDialog = false"
+      v-show="dialogStore.warningDialogVisible"
     ></warning-dialog>
   </main>
 
@@ -267,18 +262,15 @@
           v-show="activeTabIdx === 'create'"
           ref="createCompt"
           @postImageToEnhance="postImageToEnhance"
-          @show-download-model-confirm="showDownloadModelConfirm"
         ></create>
         <enhance
           v-show="activeTabIdx === 'enhance'"
           ref="enhanceCompt"
-          @show-download-model-confirm="showDownloadModelConfirm"
         >
         </enhance>
         <Answer
           v-show="activeTabIdx === 'answer'"
           ref="answer"
-          @show-download-model-confirm="showDownloadModelConfirm"
           @show-model-request="showModelRequest"
         ></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
@@ -286,12 +278,10 @@
       <app-settings
         v-if="showSetting"
         @close="hideAppSettings"
-        @show-download-model-confirm="showDownloadModelConfirm"
       ></app-settings>
     </div>
     <download-dialog
       v-show="showDowloadDlg"
-      ref="downloadDigCompt"
       @close="showDowloadDlg = false"
     ></download-dialog>
     <add-l-l-m-dialog
@@ -300,8 +290,7 @@
       @close="showModelRequestDialog = false"
     ></add-l-l-m-dialog>
     <warning-dialog
-      v-show="warningDialogStore.showWarningDialog"
-      @close="warningDialogStore.showWarningDialog = false"
+      v-show="dialogStore.warningDialogVisible"
     ></warning-dialog>
   </main>
   <footer
@@ -415,17 +404,16 @@ import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
 import SideModalHistory from "@/components/SideModalHistory.vue";
 import SideModalAppSettings from "@/components/SideModalAppSettings.vue";
-import { useWarningDialogStore } from "@/assets/js/store/warningDialog.ts";
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
 const demoMode = useDemoMode()
-const warningDialogStore = useWarningDialogStore()
+const dialogStore = useDialogStore()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<{ checkModelAvailability: () => void }>()
-const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
@@ -578,18 +566,6 @@ function openDevTools() {
 function postImageToEnhance(imageUrl: string) {
   enhanceCompt.value?.receiveImage(imageUrl)
   activeTabIdx.value = 'enhance'
-}
-
-function showDownloadModelConfirm(
-  downList: DownloadModelParam[],
-  success?: () => void,
-  fail?: () => void,
-) {
-  showDowloadDlg.value = true
-  showSetting.value = false
-  nextTick(() => {
-    downloadDigCompt.value!.showConfirmDialog(downList, success, fail)
-  })
 }
 
 function showModelRequest() {

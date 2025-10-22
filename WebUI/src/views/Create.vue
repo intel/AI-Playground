@@ -221,7 +221,9 @@ import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
+const dialogStore = useDialogStore()
 const demoMode = useDemoMode()
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
@@ -254,12 +256,6 @@ watch(
 )
 
 const emits = defineEmits<{
-  (
-    e: 'showDownloadModelConfirm',
-    downloadList: DownloadModelParam[],
-    success?: () => void,
-    fail?: () => void,
-  ): void
   (e: 'postImageToEnhance', url: string): void
 }>()
 
@@ -272,7 +268,7 @@ async function ensureModelsAreAvailable() {
   return new Promise<void>(async (resolve, reject) => {
     const downloadList = await imageGeneration.getMissingModels()
     if (downloadList.length > 0) {
-      emits('showDownloadModelConfirm', downloadList, resolve, reject)
+      dialogStore.showDownloadDialog(downloadList, resolve, reject)
     } else {
       resolve()
     }

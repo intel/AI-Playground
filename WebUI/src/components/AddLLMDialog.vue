@@ -53,11 +53,11 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
-import { useWarningDialogStore } from "@/assets/js/store/warningDialog.ts";
+import { useDialogStore } from "@/assets/js/store/dialogs.ts";
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
-const warningDialogStore = useWarningDialogStore()
+const warningDialogStore = useDialogStore()
 const textInference = useTextInference()
 const models = useModels()
 const modelRequest = ref('')
@@ -129,7 +129,7 @@ async function addModel() {
   }
 
   if (!isLlm) {
-    warningDialogStore.showWarning(i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
+    warningDialogStore.showWarningDialog(i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
   } else {
     downloadNewModel()
   }

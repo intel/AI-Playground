@@ -95,5 +95,4 @@ function fastGenerate(e: KeyboardEvent) {
 }
 </script>
 
-<!-- todo: showDownloadModelConfirm needs to be handled or re-emited-->
 <!-- todo: showModelRequest needs to be handled or re-emited-->
