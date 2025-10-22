@@ -206,9 +206,8 @@
       @close="showDowloadDlg = false"
     ></download-dialog>
     <warning-dialog
-      v-show="showWarningDialog"
-      ref="warningCompt"
-      @close="showWarningDialog = false"
+      v-show="warningDialogStore.showWarningDialog"
+      @close="warningDialogStore.showWarningDialog = false"
     ></warning-dialog>
   </main>
 
@@ -301,9 +300,8 @@
       @close="showModelRequestDialog = false"
     ></add-l-l-m-dialog>
     <warning-dialog
-      v-show="showWarningDialog"
-      ref="warningCompt"
-      @close="showWarningDialog = false"
+      v-show="warningDialogStore.showWarningDialog"
+      @close="warningDialogStore.showWarningDialog = false"
     ></warning-dialog>
   </main>
   <footer
@@ -417,17 +415,18 @@ import Answer from '@/views/Answer.vue'
 import { ref } from "vue";
 import SideModalHistory from "@/components/SideModalHistory.vue";
 import SideModalAppSettings from "@/components/SideModalAppSettings.vue";
+import { useWarningDialogStore } from "@/assets/js/store/warningDialog.ts";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
 const demoMode = useDemoMode()
+const warningDialogStore = useWarningDialogStore()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const answer = ref<{ checkModelAvailability: () => void }>()
 const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
-const warningCompt = ref<InstanceType<typeof WarningDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
@@ -448,7 +447,6 @@ const showHistory = ref(false)
 const showAppSettings = ref(false)
 const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
-const showWarningDialog = ref(false)
 const fullscreen = ref(false)
 const useNewUI = ref(true)
 
@@ -479,10 +477,6 @@ provide('checkModelAvailability', () => {
   } else {
     answer.value?.checkModelAvailability()
   }
-})
-
-provide('showWarning', (message: string, confirmFunc: () => void) => {
-  showWarning(message, confirmFunc)
 })
 
 onBeforeMount(async () => {
@@ -602,15 +596,6 @@ function showModelRequest() {
   showModelRequestDialog.value = true
   nextTick(() => {
     addLLMCompt.value!.onShow()
-  })
-}
-
-function showWarning(message: string, func: () => void) {
-  warningCompt.value!.warningMessage = message
-  showWarningDialog.value = true
-  warningCompt.value!.confirmFunction = func
-  nextTick(() => {
-    warningCompt.value!.onShow()
   })
 }
 
