@@ -1,45 +1,6 @@
 <template>
   <div id="createPanel" class="h-full flex flex-col p-4">
     <div class="image-panel justify-center items-center flex-auto flex">
-      <div
-        v-show="imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length > 0"
-        class="flex flex-row justify-center items-end h-full"
-        style="height: 550px !important"
-      >
-        <div class="image-preview-panel">
-          <!-- eslint-disable vue/require-v-for-key -->
-          <div
-            v-for="image in imageGeneration.generatedImages.filter((i) => i.state !== 'queued')"
-            class="image-preview-item flex items-center justify-center"
-            :class="{ active: selectedImageId === image.id }"
-            @click="
-              () => {
-                selectedImageId = image.id
-              }
-            "
-          >
-            <!-- eslint-enable -->
-            <div
-              class="image-preview-item-bg"
-              draggable="true"
-              @dragstart="(e) => dragImage(image)(e)"
-            >
-              <video v-if="isVideo(image)" :src="image.videoUrl" class="image-thumb" />
-              <img v-else :src="image.imageUrl" class="image-thumb" />
-            </div>
-          </div>
-        </div>
-        <div class="items-end justify-end">
-          <button
-            @click="deleteAllImages"
-            :title="languages.COM_CLEAR_HISTORY"
-            :disabled="imageGeneration.processing"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 ml-2 flex items-center justify-center"
-          >
-            <span class="svg-icon text-white i-clear w-4 h-4"></span>
-          </button>
-        </div>
-      </div>
       <div class="flex-auto relative flex items-center justify-center">
         <div
           class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
@@ -160,6 +121,7 @@
     </div>
   </div>
 </template>
+
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
@@ -168,16 +130,18 @@ import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
-import { usePromptStore } from "@/assets/js/store/promptArea.ts";
+import { usePromptStore } from "@/assets/js/store/promptArea.ts"
 
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
-const selectedImageId = ref<string | null>(null)
-const currentImage: ComputedRef<MediaItem | null> = computed(() => {
-  return imageGeneration.generatedImages.find((image) => image.id === selectedImageId.value) ?? null
+
+const currentImage = computed<MediaItem | null>(() => {
+  return imageGeneration.generatedImages.find(
+    (image) => image.id === imageGeneration.selectedGeneratedImageId
+  ) ?? null
 })
 
 const dragImage = (item: MediaItem | null) => (event: Event) => {
@@ -200,13 +164,11 @@ onUnmounted(() => {
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
-    const numberOfImages = imageGeneration.generatedImages.filter(
-      (i) => i.state !== 'queued',
-    ).length
-    if (numberOfImages > 0) {
-      selectedImageId.value = imageGeneration.generatedImages[numberOfImages - 1].id
+    const nonQueuedImages = imageGeneration.generatedImages.filter((i) => i.state !== 'queued')
+    if (nonQueuedImages.length > 0) {
+      imageGeneration.selectedGeneratedImageId = nonQueuedImages[nonQueuedImages.length - 1].id
     } else {
-      selectedImageId.value = null
+      imageGeneration.selectedGeneratedImageId = null
     }
     showInfoParams.value = false
   },

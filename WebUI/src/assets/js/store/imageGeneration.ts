@@ -488,6 +488,9 @@ export const useImageGeneration = defineStore(
     const processing = ref(false)
     const stopping = ref(false)
 
+    const selectedGeneratedImageId = ref<string | null>(null)
+    const selectedEnhancedImageId = ref<string | null>(null)
+
     // general settings
     const prompt = ref<string>(generalDefaultSettings.prompt)
     const seed = ref<number>(generalDefaultSettings.seed)
@@ -931,6 +934,8 @@ export const useImageGeneration = defineStore(
       deleteImage,
       deleteAllImages,
       getGenerationParameters,
+      selectedGeneratedImageId,
+      selectedEnhancedImageId,
     }
   },
   {
