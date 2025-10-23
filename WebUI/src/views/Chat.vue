@@ -325,15 +325,18 @@ import { parse } from '@/assets/js/markdownParser.ts'
 import { base64ToString } from 'uint8array-extras'
 import ProgressBar from '@/components/ProgressBar.vue'
 import LoadingBar from '@/components/LoadingBar.vue'
+import { usePromptStore } from "@/assets/js/store/promptArea.ts";
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const textInference = useTextInference()
 const conversations = useConversations()
 const backendServices = useBackendServices()
+const promptStore = usePromptStore()
 const globalSetup = useGlobalSetup()
 const ollama = useOllama()
 const processing = ref(false)
+const stopping = ref(false)
 const markerFound = ref(false)
 const thinkingText = ref('')
 const showThinkingText = ref(false)
@@ -364,17 +367,26 @@ let textOutFinish = false
 let firstOutput = false
 let actualRagResults: LangchainDocument[] | null = null
 let sseMetrics: MetricsData | null = null
-let abortController = new AbortController()
+let abortController: AbortController | null = null
 
 defineExpose({
-  handleSubmitPromptClick,
   scrollToBottom,
+})
+
+onMounted(() => {
+  promptStore.registerSubmitCallback('chat', handlePromptSubmit)
+  promptStore.registerCancelCallback('chat', handleCancel)
+})
+
+onUnmounted(() => {
+  promptStore.unregisterSubmitCallback('chat')
+  promptStore.unregisterCancelCallback('chat')
 })
 
 // Keep track of which conversation is receiving the in-progress text
 const currentlyGeneratingKey = ref<string | null>(null)
 
-async function handleSubmitPromptClick(prompt: string) {
+async function handlePromptSubmit(prompt: string) {
   const newPrompt = prompt.trim()
   if (newPrompt == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
@@ -390,6 +402,23 @@ async function handleSubmitPromptClick(prompt: string) {
     generate(chatContext)
   } catch {}
 }
+
+async function handleCancel() {
+  if (processing.value && !stopping.value) {
+    stopping.value = true
+    await fetch(`${textInference.currentBackendUrl}/api/llm/stopGenerate`)
+    if (abortController) {
+      abortController.abort()
+      abortController = null
+    }
+
+    finishGenerate()
+    processing.value = false
+    promptStore.processing = false
+    stopping.value = false
+  }
+}
+
 
 async function generate(chatContext: ChatItem[]) {
   if (textInference.backend === 'ollama') {
@@ -443,6 +472,7 @@ async function generate(chatContext: ChatItem[]) {
     }
     textOutFinish = false
     processing.value = true
+    promptStore.processing = true
     nextTick(scrollToBottom)
 
     let externalRagContext = null
@@ -499,6 +529,7 @@ async function generate(chatContext: ChatItem[]) {
     await new SSEProcessor(reader, dataProcess, finishGenerate).start()
   } finally {
     processing.value = false
+    promptStore.processing = false
   }
 }
 
@@ -592,6 +623,7 @@ function dataProcess(line: string) {
       break
     case 'error':
       processing.value = false
+      promptStore.processing = false
       textInference.completeBackendPreparation()
       switch (data.err_type) {
         case 'not_enough_disk_space':
@@ -716,6 +748,7 @@ async function simulatedInput() {
 
     sseMetrics = null
     processing.value = false
+    promptStore.processing = false
     textIn.value = ''
     textOut.value = ''
     nextTick(() => {
@@ -754,13 +787,16 @@ async function updateTitle(conversation: ChatItem[]) {
     model_repo_id: textInference.activeModel,
     print_metrics: false,
   }
+
+  const titleAbortController = new AbortController()
+
   const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(requestParams),
-    signal: abortController.signal,
+    signal: titleAbortController.signal,
   })
   if (!response.body) {
     return

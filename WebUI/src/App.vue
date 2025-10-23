@@ -161,21 +161,16 @@
     </div>
     <SideModalHistory
       :isVisible="showHistory"
-      :mode="currentMode"
+      :mode="promptStore.currentMode"
       @close="showHistory = false"
       @conversation-selected="chatRef?.scrollToBottom"
     />
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
-    <Chat v-show="currentMode === 'chat'" ref="chatRef" />
-    <ImageGen v-show="currentMode === 'imageGen'" ref="imageGenRef" />
-    <ImageEdit v-show="currentMode === 'imageEdit'" ref="imageEditRef" />
-    <Video v-show="currentMode === 'video'" ref="videoRef" />
-    <PromptArea
-      :currentMode="currentMode"
-      @select-mode="currentMode = $event"
-      @submit-prompt="handleSubmitPrompt"
-      @auto-hide-footer="handleAutoHideFooter"
-    />
+    <Chat v-show="promptStore.currentMode === 'chat'" ref="chatRef" />
+    <ImageGen v-show="promptStore.currentMode === 'imageGen'" ref="imageGenRef" />
+    <ImageEdit v-show="promptStore.currentMode === 'imageEdit'" ref="imageEditRef" />
+    <Video v-show="promptStore.currentMode === 'video'" ref="videoRef" />
+    <PromptArea @auto-hide-footer="handleAutoHideFooter" />
     <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
@@ -240,7 +235,7 @@
           ref="createCompt"
           @postImageToEnhance="postImageToEnhance"
         ></create>
-        <enhance v-show="activeTabIdx === 'enhance'" ref="enhanceCompt"> </enhance>
+        <enhance v-show="activeTabIdx === 'enhance'" ref="enhanceCompt"></enhance>
         <Answer v-show="activeTabIdx === 'answer'" @show-model-request="showModelRequest"></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
       </div>
@@ -288,7 +283,7 @@
         <p>
           Al Playground from Intel Corporation
           <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
-            >https://github.com/intel/ai-playground</a
+          >https://github.com/intel/ai-playground</a
           >
         </p>
         <p>
@@ -363,12 +358,14 @@ import { ref } from 'vue'
 import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
+import { usePromptStore } from "@/assets/js/store/promptArea.ts";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
 const demoMode = useDemoMode()
 const dialogStore = useDialogStore()
+const promptStore = usePromptStore()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
@@ -383,7 +380,6 @@ const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>(
 const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 
 const isOpen = ref(false)
-const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
 const footerExpanded = ref(true)
@@ -420,7 +416,7 @@ onBeforeMount(async () => {
   window.addEventListener('keydown', zoomIn, true)
   window.removeEventListener('wheel', wheelZoom)
   window.addEventListener('wheel', wheelZoom, true)
-  window.electronAPI.onDebugLog(({ level, source, message }) => {
+  window.electronAPI.onDebugLog(({level, source, message}) => {
     if (level == 'error') {
       if (message.startsWith('onednn_verbose')) return
       console.error(`[${source}] ${message}`)
@@ -521,18 +517,6 @@ function showModelRequest() {
   nextTick(() => {
     addLLMCompt.value!.onShow()
   })
-}
-
-function handleSubmitPrompt(prompt: string, mode: ModeType) {
-  const refMap = {
-    chat: chatRef,
-    imageGen: imageGenRef,
-    imageEdit: imageEditRef,
-    video: videoRef,
-  }
-
-  const componentRef = refMap[mode]
-  componentRef.value?.handleSubmitPromptClick(prompt)
 }
 
 function handleAutoHideFooter() {

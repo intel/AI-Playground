@@ -6,16 +6,16 @@
         <textarea
           class="rounded-2xl resize-none w-full h-48 pb-16"
           :placeholder="getTextAreaPlaceholder()"
-          v-model="question"
+          v-model="prompt"
           @keydown="fastGenerate"
         ></textarea>
         <div class="absolute bottom-3 left-3 flex gap-2">
           <button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
             :key="mode"
-            @click="emits('selectMode', mode as ModeType)"
+            @click="promptStore.setMode(mode)"
             :class="
-              currentMode === mode
+              promptStore.currentMode === mode
                 ? 'bg-blue-600 hover:bg-blue-500'
                 : 'bg-gray-700 hover:bg-gray-600'
             "
@@ -29,20 +29,28 @@
             class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
             @click="showSettings = true"
           >
-            {{ mapModeToLabel(currentMode) }} Settings
+            {{ mapModeToLabel(promptStore.currentMode) }} Settings
           </button>
           <button
+            v-if="!promptStore.processing"
             @click="handleSubmitPromptClick"
             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm"
           >
             →
+          </button>
+          <button
+            v-else
+            @click="handleCancelClick"
+            class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm"
+          >
+            Cancel
           </button>
         </div>
       </div>
     </div>
     <SideModalSpecificSettings
       :isVisible="showSettings"
-      :mode="currentMode"
+      :mode="promptStore.currentMode"
       @close="showSettings = false"
     />
   </div>
@@ -52,24 +60,20 @@
 import { getCurrentInstance, ref } from 'vue'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
+import { usePromptStore } from '@/assets/js/store/promptArea'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
-const question = ref('')
+const prompt = ref('')
 const showSettings = ref(false)
-
-const props = defineProps<{
-  currentMode: ModeType
-}>()
+const promptStore = usePromptStore()
 
 const emits = defineEmits<{
   (e: 'autoHideFooter'): void
-  (e: 'selectMode', value: ModeType): void
-  (e: 'submitPrompt', prompt: string, mode: ModeType): void
 }>()
 
 function getTextAreaPlaceholder() {
-  switch (props.currentMode) {
+  switch (promptStore.currentMode) {
     case 'chat':
       return languages?.COM_PROMPT_CHAT || ''
     case 'imageGen':
@@ -85,8 +89,12 @@ function getTextAreaPlaceholder() {
 
 function handleSubmitPromptClick() {
   emits('autoHideFooter')
-  emits('submitPrompt', question.value, props.currentMode)
-  question.value = ''
+  promptStore.submitPrompt(prompt.value, promptStore.currentMode)
+  prompt.value = ''
+}
+
+function handleCancelClick() {
+  promptStore.cancelProcessing()
 }
 
 function fastGenerate(e: KeyboardEvent) {
