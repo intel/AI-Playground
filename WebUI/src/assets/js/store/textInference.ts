@@ -626,7 +626,7 @@ export const useTextInference = defineStore(
     }
 
     async function ensureBackendReadiness(): Promise<void> {
-      if (backend.value === 'llamaCPP' || contextSizeSettingSupported.value) {
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
         const embeddingModelName = activeEmbeddingModel.value
@@ -652,12 +652,15 @@ export const useTextInference = defineStore(
     }
 
     async function prepareBackendIfNeeded() {
+      console.log('in prepareBackendIfNeeded')
 
     if (needsBackendPreparation.value) {
+      console.log('preparing backend due to', preparationReason.value)
       startBackendPreparation()
 
       try {
         // Ensure backend is ready before inference
+        console.log('ensuring backend readiness')
         await ensureBackendReadiness()
         // Note: completeBackendPreparation() will be called on first token
       } catch (error) {

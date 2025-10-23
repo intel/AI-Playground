@@ -182,8 +182,9 @@ async function createWindow() {
       //   return callback(details);
       // }
 
+      appLogger.info(`got request with ${JSON.stringify(details.responseHeaders)}`, 'electron-backend')
       details.responseHeaders = {
-        ...details.responseHeaders,
+        ...details.responseHeaders, // TODO: merge headers properly (i.e. case insensitive)
         'Access-Control-Allow-Origin': ['*'],
         'Access-Control-Allow-Methods': ['GET,POST'],
         'Access-Control-Allow-Headers': ['x-requested-with,Content-Type,Authorization'],

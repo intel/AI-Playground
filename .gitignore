@@ -27,3 +27,4 @@ build-envs/
 portable-git/
 llm_cache*/
 emb_model_cache/
+ovms/
