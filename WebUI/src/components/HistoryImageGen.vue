@@ -1,12 +1,12 @@
 <template>
   <div
-    v-show="nonQueuedImages.length > 0"
-    class="flex flex-col space-y-2 p-4 bg-neutral-900 h-full overflow-y-auto"
+    v-if="nonQueuedImages.length > 0"
+    class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto"
   >
     <div
       v-for="image in nonQueuedImages"
       :key="image.id"
-      class="flex items-center gap-2 bg-gray-700 rounded p-1 cursor-pointer relative border-2 transition-colors hover:bg-gray-600"
+      class="flex items-center gap-2 bg-gray-700 rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-gray-600"
       :class="imageGeneration.selectedGeneratedImageId === image.id ? 'border-blue-500' : 'border-transparent'"
       @click="imageGeneration.selectedGeneratedImageId = image.id"
     >

@@ -150,7 +150,7 @@
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >
-    <div class="absolute top-4 left-4">
+    <div class="absolute top-4 left-4 z-5">
       <button
         v-show="!showHistory"
         @click="openHistory"

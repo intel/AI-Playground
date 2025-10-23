@@ -1,37 +1,40 @@
 <template>
-  <div id="createPanel" class="h-full flex flex-col p-4">
-    <div class="image-panel justify-center items-center flex-auto flex">
-      <div class="flex-auto relative flex items-center justify-center">
+  <div
+    v-if="imageGeneration.processing || currentImage"
+    id="createPanel"
+    class="h-full flex flex-col p-4"
+  >
+    <div class="image-panel justify-center items-center flex-auto flex relative">
+      <div
+        class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
+      >
+        <!-- eslint-disable vue/require-v-for-key -->
         <div
-          class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
+          v-show="imageGeneration.generatedImages.length > 0 && currentImage"
+          class="flex justify-center items-center"
+          draggable="true"
+          @dragstart="(e) => dragImage(currentImage)(e)"
         >
-          <!-- eslint-disable vue/require-v-for-key -->
-          <div
-            v-show="imageGeneration.generatedImages.length > 0 && currentImage"
-            class="flex justify-center items-center"
-            draggable="true"
-            @dragstart="(e) => dragImage(currentImage)(e)"
-          >
-            <!-- eslint-enable -->
-            <img
-              v-if="currentImage && !isVideo(currentImage)"
-              class="max-w-768px max-h-512px object-contain p-2"
-              :src="currentImage?.imageUrl"
-            />
-            <video
-              v-else
-              :src="currentImage?.videoUrl as string"
-              class="max-w-768px max-h-512px object-contain p-2"
-              controlsList="nodownload nofullscreen noremoteplayback"
-              controls
-            />
-          </div>
-          <div
-            v-show="imageGeneration.processing"
-            class="absolute left-0 top-0 w-full h-full flex justify-center items-center"
-          >
-            <loading-bar
-              v-if="
+          <!-- eslint-enable -->
+          <img
+            v-if="currentImage && !isVideo(currentImage)"
+            class="max-w-768px max-h-512px object-contain p-2"
+            :src="currentImage?.imageUrl"
+          />
+          <video
+            v-else
+            :src="currentImage?.videoUrl as string"
+            class="max-w-768px max-h-512px object-contain p-2"
+            controlsList="nodownload nofullscreen noremoteplayback"
+            controls
+          />
+        </div>
+        <div
+          v-show="imageGeneration.processing"
+          class="absolute left-0 top-0 w-full h-full flex justify-center items-center"
+        >
+          <loading-bar
+            v-if="
                 [
                   'load_model',
                   'load_model_components',
@@ -39,85 +42,84 @@
                   'load_workflow_components',
                 ].includes(imageGeneration.currentState)
               "
-              :text="loadingStateToText(imageGeneration.currentState)"
-              class="w-3/4"
-            ></loading-bar>
-            <div
-              v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
-              class="flex gap-2 items-center justify-center text-white bg-black/50 py-6 px-12 rounded-lg"
-            >
-              <span class="svg-icon i-loading w-8 h-8"></span>
-              <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-                  imageGeneration.stepText
-                }}</span>
-            </div>
-          </div>
+            :text="loadingStateToText(imageGeneration.currentState)"
+            class="w-3/4"
+          ></loading-bar>
           <div
-            v-show="
+            v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
+            class="flex gap-2 items-center justify-center text-white bg-black/50 py-6 px-12 rounded-lg"
+          >
+            <span class="svg-icon i-loading w-8 h-8"></span>
+            <span class="text-2xl tabular-nums" style="min-width: 200px">{{
+                imageGeneration.stepText
+              }}</span>
+          </div>
+        </div>
+        <div
+          v-show="
               currentImage &&
               (!(currentImage?.state === 'generating') || !imageGeneration.processing)
             "
-            class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
-          >
-            <button
-              v-if="
+          class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
+        >
+          <button
+            v-if="
                 currentImage && !(currentImage?.state === 'generating') && !isVideo(currentImage)
               "
-              @click="postImageToEnhance(currentImage)"
-              :title="languages.COM_POST_TO_ENHANCE_PROCESS"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-transfer w-4 h-4"></span>
-            </button>
-            <button
-              v-show="currentImage && !(currentImage?.state === 'generating')"
-              @click="showParamsDialog"
-              :title="languages.COM_OPEN_PARAMS"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-info w-4 h-4"></span>
-            </button>
-            <button
-              v-if="currentImage && !(currentImage?.state === 'generating')"
-              @click="openImage(currentImage)"
-              :title="languages.COM_ZOOM_IN"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
-            </button>
-            <button
-              v-if="currentImage && !(currentImage?.state === 'generating')"
-              @click="copyImage(currentImage)"
-              :title="languages.COM_COPY"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-copy w-4 h-4"></span>
-            </button>
-            <button
-              v-if="currentImage && !(currentImage?.state === 'generating')"
-              @click="openImageInFolder(currentImage)"
-              :title="languages.COM_OPEN_LOCATION"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-folder w-4 h-4"></span>
-            </button>
-            <button
-              v-if="currentImage"
-              @click="deleteImage(currentImage)"
-              :title="languages.COM_DELETE"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
-            >
-              <span class="svg-icon text-white i-delete w-4 h-4"></span>
-            </button>
-          </div>
+            @click="postImageToEnhance(currentImage)"
+            :title="languages.COM_POST_TO_ENHANCE_PROCESS"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-transfer w-4 h-4"></span>
+          </button>
+          <button
+            v-show="currentImage && !(currentImage?.state === 'generating')"
+            @click="showParamsDialog"
+            :title="languages.COM_OPEN_PARAMS"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-info w-4 h-4"></span>
+          </button>
+          <button
+            v-if="currentImage && !(currentImage?.state === 'generating')"
+            @click="openImage(currentImage)"
+            :title="languages.COM_ZOOM_IN"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
+          </button>
+          <button
+            v-if="currentImage && !(currentImage?.state === 'generating')"
+            @click="copyImage(currentImage)"
+            :title="languages.COM_COPY"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-copy w-4 h-4"></span>
+          </button>
+          <button
+            v-if="currentImage && !(currentImage?.state === 'generating')"
+            @click="openImageInFolder(currentImage)"
+            :title="languages.COM_OPEN_LOCATION"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-folder w-4 h-4"></span>
+          </button>
+          <button
+            v-if="currentImage"
+            @click="deleteImage(currentImage)"
+            :title="languages.COM_DELETE"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-delete w-4 h-4"></span>
+          </button>
         </div>
-        <info-table
-          v-show="showInfoParams"
-          :generationParameters="currentImage?.settings ?? {}"
-          :dynamicInputs="currentImage?.dynamicSettings"
-          @close="showInfoParams = false"
-        ></info-table>
       </div>
+      <info-table
+        v-show="showInfoParams"
+        :generationParameters="currentImage?.settings ?? {}"
+        :dynamicInputs="currentImage?.dynamicSettings"
+        @close="showInfoParams = false"
+      ></info-table>
     </div>
   </div>
 </template>
