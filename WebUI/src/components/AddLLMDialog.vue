@@ -53,9 +53,11 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
+const warningDialogStore = useDialogStore()
 const textInference = useTextInference()
 const models = useModels()
 const modelRequest = ref('')
@@ -63,10 +65,9 @@ const addModelErrorMessage = ref('')
 const showInfo = ref(false)
 const addModelError = ref(false)
 const animate = ref(false)
+
 const emits = defineEmits<{
   (e: 'close'): void
-  (e: 'callCheckModel'): void
-  (e: 'showWarning', warning: string, func: () => void): void
 }>()
 
 const exampleModelName = computed(() =>
@@ -122,12 +123,12 @@ async function addModel() {
       default: false,
     })
     textInference.selectModel(textInference.backend, modelRequest.value)
-    emits('callCheckModel')
+    await textInference.checkModelAvailability()
     closeAdd()
   }
 
   if (!isLlm) {
-    emits('showWarning', i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
+    warningDialogStore.showWarningDialog(i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
   } else {
     downloadNewModel()
   }

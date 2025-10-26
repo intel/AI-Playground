@@ -5,6 +5,7 @@ import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -69,10 +70,27 @@ export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
   ollama: 'Ollama',
 }
 
+export const textInferenceBackendDescription: Record<LlmBackend, string> = {
+  ipexLLM: 'potato',
+  llamaCPP:
+    'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
+  openVINO:
+    'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  ollama: 'potato',
+}
+
+export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
+  ipexLLM: ['Intel', 'Legacy'],
+  llamaCPP: ['Lightweight', 'Portable'],
+  openVINO: ['Intel', 'Optimized', 'Fast'],
+  ollama: ['Integrated', 'CLI'],
+}
+
 export const useTextInference = defineStore(
   'textInference',
   () => {
     const backendServices = useBackendServices()
+    const dialogStore = useDialogStore()
     const models = useModels()
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
@@ -343,6 +361,7 @@ export const useTextInference = defineStore(
         fontSizeIndex.value++
       }
     }
+
     function decreaseFontSize() {
       if (!isMinSize.value) {
         fontSizeIndex.value--
@@ -640,6 +659,23 @@ export const useTextInference = defineStore(
       }
     }
 
+    async function checkModelAvailability() {
+      // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
+      return new Promise<void>(async (resolve, reject) => {
+        const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
+        if (ragList.value.length > 0) {
+          const requiredEmbeddingModelDownloads =
+            await getDownloadParamsForCurrentModelIfRequired('embedding')
+          requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
+        }
+        if (requiredModelDownloads.length > 0) {
+          dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
+        } else {
+          resolve()
+        }
+      })
+    }
+
     return {
       backend,
       activeModel,
@@ -674,6 +710,7 @@ export const useTextInference = defineStore(
       extractPostMarker,
       formatRagSources,
       ensureBackendReadiness,
+      checkModelAvailability,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

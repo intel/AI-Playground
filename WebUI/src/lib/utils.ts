@@ -86,6 +86,22 @@ export function mapModeToText(value: number | undefined) {
   }
 }
 
+export function mapModeToLabel(mode: ModeType) {
+  const i18nState = useI18N().state
+  switch (mode) {
+    case 'chat':
+      return i18nState.MODE_CHAT
+    case 'imageGen':
+      return i18nState.MODE_IMAGE_GEN
+    case 'imageEdit':
+      return i18nState.MODE_IMAGE_EDIT
+    case 'video':
+      return i18nState.MODE_VIDEO
+    default:
+      return 'unknown'
+  }
+}
+
 export function getTranslationLabel(prefix: string, label: string) {
   return prefix + label.replace(/ - /g, '_').replace(/-/g, '_').replace(/ /g, '_').toUpperCase()
 }

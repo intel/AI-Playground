@@ -15,7 +15,7 @@
       <span class="v-drop-toggle"></span>
     </p>
   </button>
-  <Teleport to="#app">
+  <Teleport to="body">
     <ul
       ref="list"
       v-if="show"

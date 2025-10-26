@@ -25,6 +25,7 @@ type DemoModeSettings = {
 }
 
 type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+type ModeType = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 
 type electronAPI = {
   startDrag: (fileName: string) => void
