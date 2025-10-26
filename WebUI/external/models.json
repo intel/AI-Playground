@@ -96,6 +96,11 @@
     "default": false
   },
   {
+    "name": "OpenVINO/InternVL2-4B-int4-ov",
+    "type": "openVINO",
+    "default": false
+  },
+  {
     "name": "ChristianAzinn/bge-small-en-v1.5-gguf",
     "type": "embedding",
     "default": true,

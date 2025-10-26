@@ -405,7 +405,7 @@ export class OpenVINOBackendService implements ApiService {
         '--target_device',
         selectedDevice,
         '--cache_size',
-        cacheSize.toString(),
+        2,
         '--task',
         'text_generation',
       ]
