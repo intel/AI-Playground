@@ -27,16 +27,6 @@
       "filter": ["!__pycache__/"]
     },
     {
-      "from": "../LlamaCPP",
-      "to": "LlamaCPP",
-      "filter": ["!__pycache__/"]
-    },
-    {
-      "from": "../OpenVINO",
-      "to": "OpenVINO",
-      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache*/**", "!emb_model_cache/"]
-    },
-    {
       "from": "external/workflows",
       "to": "workflows"
     },

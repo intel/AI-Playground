@@ -41,8 +41,6 @@ export const WEBUI_EXTERNAL_DIR = join(REPO_ROOT, 'WebUI', 'external')
 
 // Backend service directories (all relative to repo root)
 export const SERVICE_DIR = join(REPO_ROOT, 'service')
-export const LLAMACPP_DIR = join(REPO_ROOT, 'LlamaCPP')
-export const OPENVINO_DIR = join(REPO_ROOT, 'OpenVINO')
 export const DEVICE_SERVICE_DIR = join(REPO_ROOT, 'device-service')
 export const SHARED_BACKEND_DIR = join(REPO_ROOT, 'backend-shared')
 
@@ -71,8 +69,6 @@ export interface BuildPaths {
   webUINodeModulesDir: string
   backendDirs: {
     service: string
-    llamaCpp: string
-    openVINO: string
     deviceService: string
     sharedBackend: string
   }
@@ -103,8 +99,6 @@ export function getBuildPaths(): BuildPaths {
     webUINodeModulesDir: WEBUI_NODE_MODULES_DIR,
     backendDirs: {
       service: SERVICE_DIR,
-      llamaCpp: LLAMACPP_DIR,
-      openVINO: OPENVINO_DIR,
       deviceService: DEVICE_SERVICE_DIR,
       sharedBackend: SHARED_BACKEND_DIR,
     },
