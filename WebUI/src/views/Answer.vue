@@ -515,14 +515,11 @@ import ConversationManager from '@/components/ConversationManager.vue'
 import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
-import { useLlamaCpp } from '@/assets/js/store/llamaCpp'
 import LlamaCppChat from '@/components/LlamaCppChat.vue'
-import LlamaCppChatInput from '@/components/LlamaCppChatInput.vue'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()
 const ollama = useOllama()
-const llamaCpp = useLlamaCpp()
 const models = useModels()
 const backendServices = useBackendServices()
 const textInference = useTextInference()
