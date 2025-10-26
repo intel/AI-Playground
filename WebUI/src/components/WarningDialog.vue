@@ -20,28 +20,36 @@
     </div>
   </div>
 </template>
-<script setup lang="ts">
-import { useI18N } from '@/assets/js/store/i18n.ts'
-const i18nState = useI18N().state
-const confirmFunction = ref(() => {})
-const warningMessage = ref('')
-const animate = ref(false)
-const emits = defineEmits<{
-  (e: 'close'): void
-}>()
 
-async function confirmAdd() {
-  confirmFunction.value()
-  emits('close')
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import { useI18N } from '@/assets/js/store/i18n.ts'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
+import { storeToRefs } from 'pinia'
+
+const i18nState = useI18N().state
+const dialogStore = useDialogStore()
+const animate = ref(false)
+
+const { warningMessage, warningConfirmFunction, warningDialogVisible } = storeToRefs(dialogStore)
+
+watch(warningDialogVisible, (newValue) => {
+  if (newValue) {
+    animate.value = false
+    nextTick(() => {
+      animate.value = true
+    })
+  } else {
+    animate.value = false
+  }
+})
+
+function confirmAdd() {
+  warningConfirmFunction.value()
+  dialogStore.closeWarningDialog()
 }
 
 function cancelConfirm() {
-  emits('close')
+  dialogStore.closeWarningDialog()
 }
-
-function onShow() {
-  animate.value = true
-}
-
-defineExpose({ warningMessage, confirmFunction, onShow })
 </script>

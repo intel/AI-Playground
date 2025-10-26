@@ -562,12 +562,6 @@ let actualRagResults: LangchainDocument[] | null = null
 
 const source = ref('')
 const emits = defineEmits<{
-  (
-    e: 'showDownloadModelConfirm',
-    downloadList: DownloadModelParam[],
-    success?: () => void,
-    fail?: () => void,
-  ): void
   (e: 'showModelRequest', success?: () => void, fail?: () => void): void
 }>()
 
@@ -738,11 +732,7 @@ function handleScroll(e: Event) {
   const target = e.target as HTMLElement
   const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
 
-  if (distanceFromBottom > 35) {
-    autoScrollEnabled.value = false
-  } else {
-    autoScrollEnabled.value = true
-  }
+  autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
 }
 
@@ -907,7 +897,7 @@ async function newPromptGenerate() {
     return
   }
   try {
-    await checkModelAvailability()
+    await textInference.checkModelAvailability()
 
     currentlyGeneratingKey.value = conversations.activeKey
 
@@ -916,24 +906,6 @@ async function newPromptGenerate() {
     generate(chatContext)
     question.value = ''
   } catch {}
-}
-
-async function checkModelAvailability() {
-  // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
-  return new Promise<void>(async (resolve, reject) => {
-    const requiredModelDownloads =
-      await textInference.getDownloadParamsForCurrentModelIfRequired('llm')
-    if (textInference.ragList.length > 0) {
-      const requiredEmbeddingModelDownloads =
-        await textInference.getDownloadParamsForCurrentModelIfRequired('embedding')
-      requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
-    }
-    if (requiredModelDownloads.length > 0) {
-      emits('showDownloadModelConfirm', requiredModelDownloads, resolve, reject)
-    } else {
-      resolve()
-    }
-  })
 }
 
 async function generate(chatContext: ChatItem[]) {
@@ -1087,10 +1059,6 @@ function onConversationSelected() {
     scrollToBottom(false)
   })
 }
-
-defineExpose({
-  checkModel: checkModelAvailability,
-})
 </script>
 <style>
 .chat-content h1 {
