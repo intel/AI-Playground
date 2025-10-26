@@ -232,7 +232,6 @@ const handleReinstall = async () => {
   }
 }
 
-
 const showMenuButton = computed(
   () => showStart.value || showStop.value || showReinstall.value || showSettings.value,
 )

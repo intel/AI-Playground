@@ -3,14 +3,9 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import {
-  ApiService,
-  createEnhancedErrorDetails,
-  ErrorDetails,
-} from './service.ts'
+import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { detectOpenVINODevices, openVinoDeviceSelectorEnv } from './deviceDetection.ts'
 import { LocalSettings } from '../main.ts'
 
 const execAsync = promisify(exec)
@@ -107,13 +102,13 @@ export class OpenVINOBackendService implements ApiService {
         await this.startOvmsServer(llmModelName, contextSize)
         this.appLogger.info(`OpenVINO server ready with model: ${llmModelName}`, this.name)
       } else {
-        this.appLogger.info(`OpenVINO server already running with model: ${llmModelName}`, this.name)
+        this.appLogger.info(
+          `OpenVINO server already running with model: ${llmModelName}`,
+          this.name,
+        )
       }
 
-      this.appLogger.info(
-        `OpenVINO backend fully ready - LLM: ${llmModelName}`,
-        this.name,
-      )
+      this.appLogger.info(`OpenVINO backend fully ready - LLM: ${llmModelName}`, this.name)
     } catch (error) {
       this.appLogger.error(
         `Failed to ensure backend readiness - LLM: ${llmModelName}: ${error}`,
@@ -134,14 +129,11 @@ export class OpenVINOBackendService implements ApiService {
       // For now, we use a simple device list. Could enhance later with ovms device detection
       this.appLogger.info('Setting up OpenVINO device options', this.name)
       this.devices = [
-        { id: 'AUTO', name: 'Auto select device', selected: true },
-        { id: 'GPU', name: 'GPU (Intel)', selected: false },
+        { id: 'AUTO', name: 'Auto select device', selected: false },
+        { id: 'GPU', name: 'GPU (Intel)', selected: true },
         { id: 'CPU', name: 'CPU', selected: false },
       ]
-      this.appLogger.info(
-        `Available devices: ${JSON.stringify(this.devices, null, 2)}`,
-        this.name,
-      )
+      this.appLogger.info(`Available devices: ${JSON.stringify(this.devices, null, 2)}`, this.name)
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       // Fallback to default device on error
@@ -259,10 +251,7 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
 
       yield {
         serviceName: this.name,
@@ -320,20 +309,23 @@ export class OpenVINOBackendService implements ApiService {
       if (items.length === 1) {
         const singleItem = path.join(this.ovmsDir, items[0])
         const stats = filesystem.statSync(singleItem)
-        
+
         if (stats.isDirectory()) {
-          this.appLogger.info(`Found single top-level folder '${items[0]}', moving contents up`, this.name)
-          
+          this.appLogger.info(
+            `Found single top-level folder '${items[0]}', moving contents up`,
+            this.name,
+          )
+
           // Move contents to temp directory first
           const tempDir = path.join(this.serviceDir, 'ovms-temp')
           filesystem.moveSync(singleItem, tempDir)
-          
+
           // Remove the now-empty ovms directory
           filesystem.removeSync(this.ovmsDir)
-          
+
           // Rename temp directory to ovms
           filesystem.moveSync(tempDir, this.ovmsDir)
-          
+
           this.appLogger.info(`Moved contents of '${items[0]}' up to ovms directory`, this.name)
         }
       }
@@ -351,10 +343,7 @@ export class OpenVINOBackendService implements ApiService {
       return 'running'
     }
 
-    this.appLogger.info(
-      `${this.name} service ready - model server will start on-demand`,
-      this.name,
-    )
+    this.appLogger.info(`${this.name} service ready - model server will start on-demand`, this.name)
     this.desiredStatus = 'running'
     this.currentStatus = 'running'
     this.clearLastStartupError()
@@ -384,7 +373,6 @@ export class OpenVINOBackendService implements ApiService {
   ): Promise<OvmsServerProcess> {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
-      const cacheSize = contextSize ? Math.ceil(contextSize / 1024) : 2 // Convert to approximate cache size in GB
 
       this.appLogger.info(
         `Starting OVMS server for model: ${modelRepoId} on port ${this.port} with device ${selectedDevice}`,
@@ -410,24 +398,21 @@ export class OpenVINOBackendService implements ApiService {
         'text_generation',
       ]
 
-this.appLogger.info(
-        `OVMS launch args: ${args.join(' ')}`,
-        this.name,
-      )
+      this.appLogger.info(`OVMS launch args: ${args.join(' ')}`, this.name)
 
       // Set up environment variables as per setupvars.ps1
       const pythonDir = path.join(this.ovmsDir, 'python')
       const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-      
+
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
         windowsHide: true,
         env: {
-        ...process.env,
-        OVMS_DIR: this.ovmsDir,
-        PYTHONHOME: pythonDir,
-        PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-      },
+          ...process.env,
+          OVMS_DIR: this.ovmsDir,
+          PYTHONHOME: pythonDir,
+          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+        },
       })
 
       const ovmsProcess: OvmsServerProcess = {

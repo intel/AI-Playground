@@ -176,7 +176,6 @@ async function createWindow() {
   })
   session.webRequest.onHeadersReceived((details, callback) => {
     if (details.url.match(/^http:\/\/(localhost|127.0.0.1)/)) {
-
       const headers = new Headers()
       if (details.responseHeaders) {
         for (const [headerName, values] of Object.entries(details.responseHeaders)) {

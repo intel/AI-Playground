@@ -286,15 +286,18 @@ export const useTextInference = defineStore(
       if (!model) return []
 
       const modelMetaData = llmModels.value
-        .filter((m) => m.type === backend.value).find((m) => m.active)
-      const checkList = [{
-        repo_id: model,
-        type:
-          type === 'embedding'
-            ? Const.MODEL_TYPE_EMBEDDING
-            : backendToAipgModelTypeNumber[backend.value],
-        backend: backendToAipgBackendName[backend.value],
-      }]
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      const checkList = [
+        {
+          repo_id: model,
+          type:
+            type === 'embedding'
+              ? Const.MODEL_TYPE_EMBEDDING
+              : backendToAipgModelTypeNumber[backend.value],
+          backend: backendToAipgBackendName[backend.value],
+        },
+      ]
       if (modelMetaData?.mmproj) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
@@ -654,33 +657,33 @@ export const useTextInference = defineStore(
     async function prepareBackendIfNeeded() {
       console.log('in prepareBackendIfNeeded')
 
-    if (needsBackendPreparation.value) {
-      console.log('preparing backend due to', preparationReason.value)
-      startBackendPreparation()
+      if (needsBackendPreparation.value) {
+        console.log('preparing backend due to', preparationReason.value)
+        startBackendPreparation()
 
-      try {
-        // Ensure backend is ready before inference
-        console.log('ensuring backend readiness')
+        try {
+          // Ensure backend is ready before inference
+          console.log('ensuring backend readiness')
+          await ensureBackendReadiness()
+          // Note: completeBackendPreparation() will be called on first token
+        } catch (error) {
+          completeBackendPreparation() // Reset state on error
+          throw error
+        }
+      } else {
+        // Ensure backend is ready before inference (for non-preparation cases)
         await ensureBackendReadiness()
-        // Note: completeBackendPreparation() will be called on first token
-      } catch (error) {
-        completeBackendPreparation() // Reset state on error
-        throw error
       }
-    } else {
-      // Ensure backend is ready before inference (for non-preparation cases)
-      await ensureBackendReadiness()
-    }
 
-    const backendToInferenceService = {
-      llamaCPP: 'llamacpp-backend',
-      openVINO: 'openvino-backend',
-      ipexLLM: 'ai-backend',
-      ollama: 'ollama-backend' as BackendServiceName,
-    } as const
-    const inferenceBackendService = backendToInferenceService[backend.value]
-    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-    backendServices.updateLastUsedBackend(inferenceBackendService)
+      const backendToInferenceService = {
+        llamaCPP: 'llamacpp-backend',
+        openVINO: 'openvino-backend',
+        ipexLLM: 'ai-backend',
+        ollama: 'ollama-backend' as BackendServiceName,
+      } as const
+      const inferenceBackendService = backendToInferenceService[backend.value]
+      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+      backendServices.updateLastUsedBackend(inferenceBackendService)
     }
 
     return {

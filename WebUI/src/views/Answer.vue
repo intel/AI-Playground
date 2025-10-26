@@ -8,7 +8,10 @@
         :processing="processing"
       ></ConversationManager>
       <OllamaPoC @scroll="handleScroll" v-if="textInference.backend === 'ollama'"></OllamaPoC>
-      <LlamaCppChat @scroll="handleScroll" v-if="textInference.backend === 'llamaCPP' || textInference.backend === 'openVINO'"></LlamaCppChat>
+      <LlamaCppChat
+        @scroll="handleScroll"
+        v-if="textInference.backend === 'llamaCPP' || textInference.backend === 'openVINO'"
+      ></LlamaCppChat>
       <div
         v-else
         id="chatPanel"

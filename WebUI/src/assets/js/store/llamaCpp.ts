@@ -1,6 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { Chat } from '@ai-sdk/vue'
-import { convertToModelMessages, DefaultChatTransport, streamText, UIMessage } from 'ai'
+import { convertToModelMessages, DefaultChatTransport, streamText } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 
@@ -35,13 +35,16 @@ export const useLlamaCpp = defineStore(
 
     const messages = computed(() => chat.messages)
 
-    const messageInput = ref("")
+    const messageInput = ref('')
     const fileInput = ref<FileList | null>(null)
 
     async function generate() {
       await textInference.prepareBackendIfNeeded()
-      await chat.sendMessage({ text: messageInput.value, files: fileInput.value ? fileInput.value : undefined })
-      messageInput.value = ""
+      await chat.sendMessage({
+        text: messageInput.value,
+        files: fileInput.value ? fileInput.value : undefined,
+      })
+      messageInput.value = ''
       fileInput.value = null
       console.log('after generate', messages.value)
       return

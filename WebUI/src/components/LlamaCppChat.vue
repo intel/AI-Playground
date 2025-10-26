@@ -59,7 +59,6 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupText,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
 import { PlusIcon, ArrowUpIcon } from '@heroicons/vue/24/outline'
