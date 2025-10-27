@@ -134,10 +134,17 @@
         ></random-number>
       </div>
 
-      <!-- Open ComfyUI Button -->
-      <Button variant="outline" class="max-w-md mx-auto"> Open ComfyUI</Button>
+      <a v-if="imageGeneration.backend === 'comfyui'"
+         :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
+         target="_blank"
+         class="max-w-md mx-auto"
+      >
+        <Button variant="outline" class="w-full">
+          Open ComfyUI
+        </Button>
+      </a>
 
-      <!-- Create New Preset Button -->
+      <!-- todo: needs to actually do something -->
       <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
     </div>
   </div>
@@ -156,8 +163,10 @@ import {
   Setting,
   useImageGeneration
 } from "@/assets/js/store/imageGeneration.ts";
+import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 
 const imageGeneration = useImageGeneration()
+const backendServices = useBackendServices()
 const fastMode = ref(true)
 
 const presets = ref([
