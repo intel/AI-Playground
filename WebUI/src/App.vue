@@ -241,7 +241,7 @@
       </div>
       <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
     </div>
-    <download-dialog v-show="showDowloadDlg" @close="showDowloadDlg = false"></download-dialog>
+    <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <add-l-l-m-dialog
       v-show="showModelRequestDialog"
       ref="addLLMCompt"
@@ -385,7 +385,6 @@ const showSetting = ref(false)
 const footerExpanded = ref(true)
 const showHistory = ref(false)
 const showAppSettings = ref(false)
-const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
 const fullscreen = ref(false)
 const useNewUI = ref(true)
