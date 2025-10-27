@@ -86,21 +86,20 @@
         />
       </div>
 
-      <!-- CFG -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">CFG: {{ cfg }}</Label>
+        <Label class="whitespace-nowrap">CFG: {{ imageGeneration.guidanceScale }}</Label>
         <Slider
-          v-model="cfg"
+          v-model="imageGeneration.guidanceScale"
           :min="0"
           :max="10"
           :step="1"
         />
       </div>
-      <!-- Batch Count -->
+
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Batch Count: {{ batchCount }}</Label>
+        <Label class="whitespace-nowrap">Batch Count: {{ imageGeneration.batchSize }}</Label>
         <Slider
-          v-model="batchCount"
+          v-model="imageGeneration.batchSize"
           :min="1"
           :max="20"
           :step="1"
