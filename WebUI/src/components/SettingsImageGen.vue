@@ -105,21 +105,19 @@
           :step="1"
         />
       </div>
-      <!-- Negative Prompt -->
+
       <div class="flex flex-col gap-2">
         <Label>Negative Prompt:</Label>
         <textarea
           class="h-24 rounded-lg resize-none bg-gray-800 border border-gray-700 text-white p-2"
-          v-model="negativePrompt"
-          placeholder="bad image, nsfw, ..."
+          v-model="imageGeneration.negativePrompt"
         ></textarea>
       </div>
 
-      <!-- Seed -->
       <div class="flex flex-col gap-2">
-        <Label>Seed: {{ seed }}</Label>
+        <Label>Seed: {{ imageGeneration.seed }}</Label>
         <random-number
-          v-model:value="seed"
+          v-model:value="imageGeneration.seed"
           :default="-1"
           :min="0"
           :max="4294967295"
@@ -152,10 +150,6 @@ import {
 
 const imageGeneration = useImageGeneration()
 const fastMode = ref(true)
-const cfg = ref(1)
-const batchCount = ref(4)
-const negativePrompt = ref('bad image, nsfw, ')
-const seed = ref(-1)
 
 const presets = ref([
   {
