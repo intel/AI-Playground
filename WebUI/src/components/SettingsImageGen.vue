@@ -51,12 +51,19 @@
 
       <div class="flex flex-col gap-2">
         <Label>Width: {{ imageGeneration.width }}</Label>
-        <slide-bar v-model:current="imageGeneration.width" :min="256" :max="2048" :step="64"></slide-bar>
+        <slide-bar
+          v-model:current="imageGeneration.width"
+          :min="256" :max="2048"
+          :step="64"></slide-bar>
       </div>
 
       <div class="flex flex-col gap-2">
         <Label>Height: {{ imageGeneration.height }}</Label>
-        <slide-bar v-model:current="imageGeneration.height" :min="256" :max="2048" :step="64"></slide-bar>
+        <slide-bar
+          v-model:current="imageGeneration.height"
+          :min="256"
+          :max="2048"
+          :step="64"></slide-bar>
       </div>
 
       <!-- Fast Mode -->
@@ -65,10 +72,15 @@
         <Checkbox id="fast-mode" :checked="fastMode" />
       </div>
 
-      <!-- Steps -->
       <div class="flex flex-col gap-2">
-        <Label>Steps: {{ steps }}</Label>
-        <slide-bar v-model:current="steps" :min="1" :max="50" :step="1"></slide-bar>
+        <Label>Steps: {{ imageGeneration.inferenceSteps }}</Label>
+        <slide-bar
+          v-model:current="imageGeneration.inferenceSteps"
+          :min="1"
+          :max="50"
+          :step="1"
+          :disabled="!modifiable('inferenceSteps')"
+        ></slide-bar>
       </div>
 
       <!-- CFG -->
@@ -122,36 +134,29 @@ import { Label } from '@/components/ui/label'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import SlideBar from '@/components/SlideBar.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
-import DropDownWorkflow from "@/components/DropDownWorkflow.vue";
 import {
   backendToService,
-  ComfyUiWorkflow,
+  Setting,
   useImageGeneration
 } from "@/assets/js/store/imageGeneration.ts";
-import { useI18N } from "@/assets/js/store/i18n.ts";
-import * as toast from "@/assets/js/toast.ts";
 
-const i18nState = useI18N().state
 const imageGeneration = useImageGeneration()
 
-const width = ref(512)
-const height = ref(512)
 const fastMode = ref(true)
-const steps = ref(4)
 const cfg = ref(1)
 const batchCount = ref(4)
 const negativePrompt = ref('bad image, nsfw, ')
 const seed = ref(-1)
 const presets = ref([
   {
-    workflowName:'Flux.1-Schnell Med Quality',
+    workflowName: 'Flux.1-Schnell Med Quality',
     displayName: 'Flux Schnell',
     description: 'Fast and efficient image generation with Flux models. Balances speed and quality.',
     image: '/src/assets/image/flux_schnell.png',
     tags: ['Flux', 'Efficient'],
   },
   {
-    workflowName:'Flux.1-Schnell High Quality',
+    workflowName: 'Flux.1-Schnell High Quality',
     displayName: 'Flux Schnell HD',
     description: 'Fast and efficient image generation with Flux models. Favors quality over speed.',
     image: '/src/assets/image/flux_schnell.png',
@@ -176,4 +181,12 @@ const presets = ref([
 const currentPreset = computed(() => {
   return presets.value.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
 })
+
+const modifiableOrDisplayed = (setting: Setting) =>
+  imageGeneration.activeWorkflow.modifiableSettings.includes(setting) ||
+  imageGeneration.activeWorkflow.displayedSettings.includes(setting)
+
+const modifiable = (setting: Setting) =>
+  imageGeneration.activeWorkflow.modifiableSettings.includes(setting)
+
 </script>
