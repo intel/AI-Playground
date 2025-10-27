@@ -317,22 +317,21 @@ import { useI18N } from '@/assets/js/store/i18n.ts'
 import { thinkingModels, useTextInference } from '@/assets/js/store/textInference.ts'
 import { useConversations } from '@/assets/js/store/conversations.ts'
 import * as util from '@/assets/js/util.ts'
-import { SSEProcessor } from '@/assets/js/sseProcessor.ts'
-import { useOllama } from '@/assets/js/store/ollama.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { parse } from '@/assets/js/markdownParser.ts'
 import { base64ToString } from 'uint8array-extras'
 import ProgressBar from '@/components/ProgressBar.vue'
 import LoadingBar from '@/components/LoadingBar.vue'
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 
+const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const textInference = useTextInference()
 const conversations = useConversations()
 const backendServices = useBackendServices()
 const globalSetup = useGlobalSetup()
-const ollama = useOllama()
 const processing = ref(false)
 const markerFound = ref(false)
 const thinkingText = ref('')
@@ -343,7 +342,6 @@ const textOut = ref('')
 const source = ref('')
 const thinkOut = ref('')
 const i18nState = useI18N().state
-const textOutQueue = new Array<string>()
 const ragRetrievalInProgress = ref(false)
 const showRagPreview = ref(true)
 const loadingModel = ref(false)
@@ -360,11 +358,8 @@ const downloadModel = reactive({
 let reasoningStartTime = 0
 let reasoningTotalTime = 0
 let receiveOut = ''
-let textOutFinish = false
-let firstOutput = false
 let actualRagResults: LangchainDocument[] | null = null
 let sseMetrics: MetricsData | null = null
-let abortController = new AbortController()
 
 defineExpose({
   handleSubmitPromptClick,
@@ -392,13 +387,6 @@ async function handleSubmitPromptClick(prompt: string) {
 }
 
 async function generate(chatContext: ChatItem[]) {
-  if (textInference.backend === 'ollama') {
-    ollama.generate(chatContext)
-  }
-  if (processing.value || chatContext.length == 0) {
-    return
-  }
-
   try {
     // Check if backend preparation is needed
     if (textInference.needsBackendPreparation) {
@@ -427,26 +415,9 @@ async function generate(chatContext: ChatItem[]) {
     await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
     backendServices.updateLastUsedBackend(inferenceBackendService)
 
-    textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
-    markerFound.value = false
-    thinkingText.value = ''
-    showThinkingText.value = false
-    postMarkerText.value = ''
-    reasoningStartTime = 0
-    reasoningTotalTime = 0
-    textOut.value = ''
-    receiveOut = ''
-    firstOutput = true
-    textOutQueue.splice(0, textOutQueue.length)
-    if (!abortController) {
-      abortController = new AbortController()
-    }
-    textOutFinish = false
-    processing.value = true
     nextTick(scrollToBottom)
 
     let externalRagContext = null
-    // Reset the global actualRagResults
     actualRagResults = null
 
     if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
@@ -467,154 +438,16 @@ async function generate(chatContext: ChatItem[]) {
           actualRagResults = ragResults
         }
       } catch (error) {
-        // // Reset RAG retrieval status in case of error
-        // ragRetrievalInProgress.value = false;
-
-        // // Remove the temporary chat item if it exists
-        // if (conversations.conversationList[currentlyGeneratingKey.value!]?.length > 0) {
-        //   conversations.conversationList[currentlyGeneratingKey.value!].pop();
-        // }
-
         console.error('Error retrieving RAG documents:', error)
       }
     }
-
-    const requestParams = {
-      device: globalSetup.modelSettings.graphics,
-      prompt: chatContext,
-      external_rag_context: externalRagContext,
-      max_tokens: textInference.maxTokens,
-      model_repo_id: textInference.activeModel,
-    }
-
-    const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestParams),
-      signal: abortController.signal,
-    })
-    const reader = response.body!.getReader()
-    await new SSEProcessor(reader, dataProcess, finishGenerate).start()
+    openAiCompatibleChat.messageInput = chatContext[chatContext.length - 1].question
+    await openAiCompatibleChat.generate()
+    
   } finally {
-    processing.value = false
   }
 }
 
-const animatedReasoningText = ref('Reasoning.')
-const reasoningDots = ['Reasoning.  ', 'Reasoning.. ', 'Reasoning...']
-let reasoningInterval: number | null = null
-
-watch(
-  () => processing.value,
-  (isProcessing) => {
-    if (isProcessing && textInference.activeModel && thinkingModels[textInference.activeModel]) {
-      let i = 0
-      reasoningInterval = window.setInterval(() => {
-        animatedReasoningText.value = reasoningDots[i % 3]
-        i++
-      }, 500)
-    } else {
-      if (reasoningInterval !== null) {
-        clearInterval(reasoningInterval)
-        reasoningInterval = null
-      }
-      animatedReasoningText.value = 'Done Reasoning'
-    }
-  },
-)
-
-function dataProcess(line: string) {
-  console.debug(`[${util.dateFormat(new Date(), 'hh:mm:ss:fff')}] LLM data: ${line}`)
-
-  const dataJson = line.slice(5)
-  const data = JSON.parse(dataJson) as LLMOutCallback
-  switch (data.type) {
-    case 'text_out':
-      if (reasoningStartTime === 0) {
-        reasoningStartTime = performance.now()
-      }
-
-      if (data.dtype === 1) {
-        const chunk = data.value
-        textOutQueue.push(chunk)
-
-        // Complete backend preparation on first token
-        if (textInference.isPreparingBackend) {
-          textInference.completeBackendPreparation()
-        }
-
-        const activeModel = textInference.activeModel
-        if (activeModel && thinkingModels[activeModel]) {
-          const currentMarker = thinkingModels[activeModel]
-          if (!markerFound.value) {
-            const idx = chunk.indexOf(currentMarker)
-            if (idx === -1) {
-              thinkingText.value += chunk
-            } else {
-              reasoningTotalTime = performance.now() - reasoningStartTime
-              thinkingText.value += chunk.slice(0, idx)
-              markerFound.value = true
-              postMarkerText.value += chunk.slice(idx + currentMarker.length)
-            }
-          } else {
-            postMarkerText.value += chunk
-          }
-        }
-        if (firstOutput) {
-          firstOutput = false
-          simulatedInput()
-        }
-      } else {
-        source.value = data.value
-      }
-      break
-    case 'download_model_progress':
-      downloadModel.downloading = true
-      downloadModel.text = `${i18nState.COM_DOWNLOAD_MODEL} ${data.repo_id}\r\n${data.download_size}/${data.total_size} ${data.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${data.speed}`
-      downloadModel.percent = data.percent
-      break
-    case 'download_model_completed':
-      downloadModel.downloading = false
-      break
-    case 'load_model':
-      loadingModel.value = data.event == 'start'
-      break
-    case 'metrics':
-      sseMetrics = {
-        num_tokens: data.num_tokens ?? 0,
-        total_time: data.total_time ?? 0,
-        first_token_latency: data.first_token_latency ?? 0,
-        overall_tokens_per_second: data.overall_tokens_per_second ?? 0,
-        second_plus_tokens_per_second: data.second_plus_tokens_per_second ?? 0,
-      }
-      break
-    case 'error':
-      processing.value = false
-      textInference.completeBackendPreparation()
-      switch (data.err_type) {
-        case 'not_enough_disk_space':
-          toast.error(
-            i18nState.ERR_NOT_ENOUGH_DISK_SPACE.replace(
-              '{requires_space}',
-              data.requires_space,
-            ).replace('{free_space}', data.free_space),
-          )
-          break
-        case 'download_exception':
-          toast.error(i18nState.ERR_DOWNLOAD_FAILED)
-          break
-        case 'runtime_error':
-          toast.error(i18nState.ERROR_RUNTIME_ERROR)
-          break
-        case 'unknown_exception':
-          toast.error(i18nState.ERROR_GENERATE_UNKONW_EXCEPTION)
-          break
-      }
-      break
-  }
-}
 
 function regenerateLastResponse(conversationKey: string) {
   const item = conversations.conversationList[conversationKey].pop()
@@ -642,33 +475,10 @@ function regenerateLastResponse(conversationKey: string) {
   generate(chatContext)
 }
 
-async function simulatedInput() {
-  while (textOutQueue.length > 0) {
-    const newText = textOutQueue.shift()!
-    receiveOut += newText
-    if (thinkingModels[textInference.activeModel ?? '']) {
-      textOut.value = await parse(
-        textInference.extractPostMarker(receiveOut, textInference.activeModel),
-      )
-      thinkOut.value = await parse(
-        textInference.extractPreMarker(receiveOut, textInference.activeModel),
-      )
-    } else {
-      textOut.value = await parse(receiveOut)
-    }
-    await nextTick()
-
-    if (autoScrollEnabled.value) {
-      scrollToBottom()
-    }
-  }
-  if (!textOutFinish) {
-    await util.delay(20)
-    await simulatedInput()
-  } else {
+async function postGenerate() {
     const key = currentlyGeneratingKey.value
 
-    const finalMetrics: MetricsData = sseMetrics ?? {
+    const finalMetrics: MetricsData = {
       num_tokens: 0,
       total_time: 0,
       first_token_latency: 0,
@@ -682,18 +492,6 @@ async function simulatedInput() {
           ? textInference.formatRagSources(actualRagResults)
           : null
 
-      const thinkingOutput = thinkingModels[textInference.activeModel ?? '']
-        ? textInference.extractPreMarker(receiveOut, textInference.activeModel)
-        : ''
-
-      const nonThinkingOutput = thinkingModels[textInference.activeModel ?? '']
-        ? textInference.extractPostMarker(receiveOut, textInference.activeModel)
-        : receiveOut
-
-      const parsedAnswer = await parse(nonThinkingOutput)
-      const parsedThinkingText = await parse(thinkingOutput)
-
-      console.log('parsed answer', parsedAnswer)
 
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -714,10 +512,6 @@ async function simulatedInput() {
       }
     }
 
-    sseMetrics = null
-    processing.value = false
-    textIn.value = ''
-    textOut.value = ''
     nextTick(() => {
       if (!chatPanel.value) {
         return
@@ -735,55 +529,12 @@ async function simulatedInput() {
       }
     })
   }
-}
 
+
+// implement with openai
 async function updateTitle(conversation: ChatItem[]) {
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
-  const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(
-    conversation.slice(0, 3).map((item) => ({
-      question: item.question,
-      answer: item.answer,
-    })),
-  )}\`\`\``
-  console.log('prompt', prompt)
-  const chatContext = [{ question: prompt, answer: '' }]
-  const requestParams = {
-    device: globalSetup.modelSettings.graphics,
-    prompt: chatContext,
-    max_tokens: 8,
-    model_repo_id: textInference.activeModel,
-    print_metrics: false,
-  }
-  const response = await fetch(`${textInference.currentBackendUrl}/api/llm/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestParams),
-    signal: abortController.signal,
-  })
-  if (!response.body) {
-    return
-  }
-  const reader = response.body.getReader()
-  const responses: LLMOutCallback[] = []
-  const getResponse = (line: string) => {
-    responses.push(JSON.parse(line.slice(5)))
-  }
-
-  await new SSEProcessor(reader, getResponse, finishGenerate).start() // is finishGenerate needed here? Cannot use it because of void input
-
-  const isTextCallback = (item: LLMOutCallback): item is LLMOutTextCallback =>
-    item.type == 'text_out' && item.dtype == 1
-
-  conversation[0].title = responses
-    .filter(isTextCallback)
-    .reduce((acc, item) => acc + item.value, '')
-    .replace(/"/g, '')
-}
-
-function finishGenerate() {
-  textOutFinish = true
+  
 }
 
 function handleScroll(e: Event) {

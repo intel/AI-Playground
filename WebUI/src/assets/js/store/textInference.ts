@@ -95,6 +95,8 @@ export const useTextInference = defineStore(
     const models = useModels()
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
+    const systemPrompt = ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
+      You assist users by answering questions and providing information based on your training data and any additional context provided.`)
 
     const selectedModels = ref<LlmBackendKV>({
       ipexLLM: null,
@@ -739,6 +741,7 @@ export const useTextInference = defineStore(
       isMinSize,
       ragList,
       contextSizeSettingSupported,
+      systemPrompt,
       selectModel,
       selectEmbeddingModel,
       getDownloadParamsForCurrentModelIfRequired,

@@ -4,8 +4,8 @@ import { convertToModelMessages, DefaultChatTransport, streamText } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 
-export const useLlamaCpp = defineStore(
-  'llamaCpp',
+export const useOpenAiCompatibleChat = defineStore(
+  'openAiCompatibleChat',
   () => {
     const textInference = useTextInference()
 
@@ -24,15 +24,18 @@ export const useLlamaCpp = defineStore(
         model: model.value,
         messages: convertToModelMessages(m.messages),
         abortSignal: options.signal,
+        system: textInference.systemPrompt,
+        maxOutputTokens: textInference.maxTokens,
       })
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
       })
     }
+
     const chat = new Chat({
       transport: new DefaultChatTransport({ fetch: customFetch }),
     })
-
+    
     const messages = computed(() => chat.messages)
 
     const messageInput = ref('')
@@ -51,6 +54,7 @@ export const useLlamaCpp = defineStore(
     }
 
     return {
+      chat,
       messages,
       messageInput,
       fileInput,
@@ -65,5 +69,5 @@ export const useLlamaCpp = defineStore(
 )
 
 if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useLlamaCpp, import.meta.hot))
+  import.meta.hot.accept(acceptHMRUpdate(useOpenAiCompatibleChat, import.meta.hot))
 }
