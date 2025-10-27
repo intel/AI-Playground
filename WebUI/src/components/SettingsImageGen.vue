@@ -17,11 +17,11 @@
         <img
           class="absolute inset-0 w-full h-full object-cover"
           :src="preset.image"
-          :alt="preset.name"
+          :alt="preset.displayName"
         />
         <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
           <span class="text-white text-sm font-semibold">
-            {{ preset.name }}
+            {{ preset.displayName }}
           </span>
         </div>
       </div>
@@ -46,7 +46,7 @@
       <!-- Device -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Device</Label>
-        <DeviceSelector :backend="'sd-backend'" />
+        <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
       <!-- Width -->
@@ -124,15 +124,17 @@ import { Label } from '@/components/ui/label'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import SlideBar from '@/components/SlideBar.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
+import DropDownWorkflow from "@/components/DropDownWorkflow.vue";
+import {
+  backendToService,
+  ComfyUiWorkflow,
+  useImageGeneration
+} from "@/assets/js/store/imageGeneration.ts";
+import { useI18N } from "@/assets/js/store/i18n.ts";
+import * as toast from "@/assets/js/toast.ts";
 
-const presets = ref([
-  {id: 'draft', name: 'Draft', image: '/src/assets/image/draft.png'},
-  {id: 'hd', name: 'HD', image: '/src/assets/image/hd.png'},
-  {id: 'flux', name: 'Flux Schnell', image: '/src/assets/image/flux.png'},
-  {id: 'faceswap', name: 'FaceSwap', image: '/src/assets/image/faceswap.png'},
-  {id: 'acer', name: 'Acer VisionArt', image: '/src/assets/image/acer.png'},
-  {id: 'manual', name: 'Manual', image: '/src/assets/image/manual.png'},
-])
+const i18nState = useI18N().state
+const imageGeneration = useImageGeneration()
 
 const selectedPreset = ref('draft')
 const width = ref(512)
@@ -143,4 +145,38 @@ const cfg = ref(1)
 const batchCount = ref(4)
 const negativePrompt = ref('bad image, nsfw, ')
 const seed = ref(-1)
+const presets = ref([
+  {
+    id: 'flux',
+    displayName: 'Flux Schnell',
+    description: 'Fast and efficient image generation with Flux models. Balances speed and quality.',
+    image: '/src/assets/image/flux_schnell.png',
+    tags: ['Flux', 'Efficent'],
+    workflowName:'Flux.1-Schnell Med Quality',
+  },
+  {
+    id: 'flux-hd',
+    displayName: 'Flux Schnell HD',
+    description: 'Fast and efficient image generation with Flux models. Favors quality over speed.',
+    image: '/src/assets/image/flux_schnell.png',
+    tags: ['Flux', 'Efficent', 'High Quality'],
+    workflowName:'Flux.1-Schnell High Quality',
+  },
+  {
+    id: 'faceswap',
+    displayName: 'FaceSwap',
+    description: 'Specialized for swapping faces in images. Ensures realistic results.',
+    image: '/src/assets/image/faceswap.png',
+    tags: ['FaceSwap', 'Realistic'],
+    workflowName: 'FaceSwap-HD',
+  },
+  {
+    id: 'acer',
+    displayName: 'Acer VisionArt',
+    description: 'Artistic image generation with Acer’s vision models. Creates unique visual styles.',
+    image: '/src/assets/image/acer_visionart.png',
+    tags: ['Artistic', 'Acer'],
+    workflowName: 'Acer VisionArt',
+  },
+])
 </script>
