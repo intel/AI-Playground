@@ -5,14 +5,14 @@
     <div class="grid grid-cols-3 gap-3">
       <div
         v-for="preset in presets"
-        :key="preset.id"
+        :key="preset.workflowName"
         class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
         :class="[
-          selectedPreset === preset.id
+          imageGeneration.activeWorkflowName === preset.workflowName
             ? 'border-blue-500 ring-2 ring-blue-400'
             : 'border-transparent hover:border-blue-500',
         ]"
-        @click="() => (selectedPreset = preset.id)"
+        @click="() => (imageGeneration.activeWorkflowName = preset.workflowName)"
       >
         <img
           class="absolute inset-0 w-full h-full object-cover"
@@ -136,7 +136,6 @@ import * as toast from "@/assets/js/toast.ts";
 const i18nState = useI18N().state
 const imageGeneration = useImageGeneration()
 
-const selectedPreset = ref('draft')
 const width = ref(512)
 const height = ref(512)
 const fastMode = ref(true)
@@ -147,31 +146,27 @@ const negativePrompt = ref('bad image, nsfw, ')
 const seed = ref(-1)
 const presets = ref([
   {
-    id: 'flux',
+    workflowName:'Flux.1-Schnell Med Quality',
     displayName: 'Flux Schnell',
     description: 'Fast and efficient image generation with Flux models. Balances speed and quality.',
     image: '/src/assets/image/flux_schnell.png',
     tags: ['Flux', 'Efficent'],
-    workflowName:'Flux.1-Schnell Med Quality',
   },
   {
-    id: 'flux-hd',
+    workflowName:'Flux.1-Schnell High Quality',
     displayName: 'Flux Schnell HD',
     description: 'Fast and efficient image generation with Flux models. Favors quality over speed.',
     image: '/src/assets/image/flux_schnell.png',
     tags: ['Flux', 'Efficent', 'High Quality'],
-    workflowName:'Flux.1-Schnell High Quality',
   },
   {
-    id: 'faceswap',
+    workflowName: 'FaceSwap-HD',
     displayName: 'FaceSwap',
     description: 'Specialized for swapping faces in images. Ensures realistic results.',
     image: '/src/assets/image/faceswap.png',
     tags: ['FaceSwap', 'Realistic'],
-    workflowName: 'FaceSwap-HD',
   },
   {
-    id: 'acer',
     displayName: 'Acer VisionArt',
     description: 'Artistic image generation with Acer’s vision models. Creates unique visual styles.',
     image: '/src/assets/image/acer_visionart.png',
