@@ -15,7 +15,7 @@
           <button @click="$emit('close')" class="svg-icon i-close w-6 h-6" />
         </div>
       </div>
-      <div class="flex-1 p-4">
+      <div class="flex-1 p-4 overflow-y-auto">
         <slot />
       </div>
     </div>
@@ -43,6 +43,7 @@ const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : '
 .slide-right-leave-active {
   transition: transform 0.3s ease;
 }
+
 .slide-right-enter-from,
 .slide-right-leave-to {
   transform: translateX(100%);
@@ -52,6 +53,7 @@ const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : '
 .slide-left-leave-active {
   transition: transform 0.3s ease;
 }
+
 .slide-left-enter-from,
 .slide-left-leave-to {
   transform: translateX(-100%);
