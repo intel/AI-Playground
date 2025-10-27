@@ -29,13 +29,13 @@
 
     <!-- Draft Settings -->
     <div class="flex flex-col gap-4">
-      <h2 class="text-lg font-semibold">Draft Settings</h2>
+      <h2 class="text-lg font-semibold">{{ currentPreset?.displayName }}</h2>
       <p class="text-sm text-gray-400">
-        Quick generation of low-resolution images. Ideal for fast prototyping.
+        {{ currentPreset?.description }}
       </p>
       <div class="flex gap-2">
         <span
-          v-for="tag in ['Fast', 'Draft']"
+          v-for="tag in currentPreset?.tags"
           :key="tag"
           class="px-3 py-1 text-xs bg-purple-600 rounded-full"
         >
@@ -51,13 +51,13 @@
 
       <!-- Width -->
       <div class="flex flex-col gap-2">
-        <Label>Width: 512</Label>
+        <Label>Width: {{ width }}</Label>
         <slide-bar v-model:current="width" :min="256" :max="2048" :step="64"></slide-bar>
       </div>
 
       <!-- Height -->
       <div class="flex flex-col gap-2">
-        <Label>Height: 512</Label>
+        <Label>Height: {{ height }}</Label>
         <slide-bar v-model:current="height" :min="256" :max="2048" :step="64"></slide-bar>
       </div>
 
@@ -69,19 +69,19 @@
 
       <!-- Steps -->
       <div class="flex flex-col gap-2">
-        <Label>Steps: 4</Label>
+        <Label>Steps: {{ steps }}</Label>
         <slide-bar v-model:current="steps" :min="1" :max="50" :step="1"></slide-bar>
       </div>
 
       <!-- CFG -->
       <div class="flex flex-col gap-2">
-        <Label>CFG: 1</Label>
+        <Label>CFG: {{ cfg }}</Label>
         <slide-bar v-model:current="cfg" :min="0" :max="10" :step="1"></slide-bar>
       </div>
 
       <!-- Batch Count -->
       <div class="flex flex-col gap-2">
-        <Label>Batch Count: 4</Label>
+        <Label>Batch Count: {{ batchCount }}</Label>
         <slide-bar v-model:current="batchCount" :min="1" :max="20" :step="1"></slide-bar>
       </div>
 
@@ -97,7 +97,7 @@
 
       <!-- Seed -->
       <div class="flex flex-col gap-2">
-        <Label>Seed: -1</Label>
+        <Label>Seed: {{ seed }}</Label>
         <random-number
           v-model:value="seed"
           :default="-1"
@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -150,14 +150,14 @@ const presets = ref([
     displayName: 'Flux Schnell',
     description: 'Fast and efficient image generation with Flux models. Balances speed and quality.',
     image: '/src/assets/image/flux_schnell.png',
-    tags: ['Flux', 'Efficent'],
+    tags: ['Flux', 'Efficient'],
   },
   {
     workflowName:'Flux.1-Schnell High Quality',
     displayName: 'Flux Schnell HD',
     description: 'Fast and efficient image generation with Flux models. Favors quality over speed.',
     image: '/src/assets/image/flux_schnell.png',
-    tags: ['Flux', 'Efficent', 'High Quality'],
+    tags: ['Flux', 'Efficient', 'High Quality'],
   },
   {
     workflowName: 'FaceSwap-HD',
@@ -167,11 +167,15 @@ const presets = ref([
     tags: ['FaceSwap', 'Realistic'],
   },
   {
+    workflowName: 'Acer VisionArt',
     displayName: 'Acer VisionArt',
-    description: 'Artistic image generation with Acer’s vision models. Creates unique visual styles.',
+    description: 'Artistic image generation with Acer\'s vision models. Creates unique visual styles.',
     image: '/src/assets/image/acer_visionart.png',
     tags: ['Artistic', 'Acer'],
-    workflowName: 'Acer VisionArt',
   },
 ])
+
+const currentPreset = computed(() => {
+  return presets.value.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
+})
 </script>
