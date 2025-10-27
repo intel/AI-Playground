@@ -49,16 +49,16 @@
         <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
-      <div class="flex flex-col gap-2">
-        <Label>Width: {{ imageGeneration.width }}</Label>
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <Label class="whitespace-nowrap">Width: {{ imageGeneration.width }}</Label>
         <slide-bar
           v-model:current="imageGeneration.width"
           :min="256" :max="2048"
           :step="64"></slide-bar>
       </div>
 
-      <div class="flex flex-col gap-2">
-        <Label>Height: {{ imageGeneration.height }}</Label>
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <Label class="whitespace-nowrap">Height: {{ imageGeneration.height }}</Label>
         <slide-bar
           v-model:current="imageGeneration.height"
           :min="256"
@@ -72,8 +72,8 @@
         <Checkbox id="fast-mode" :checked="fastMode" />
       </div>
 
-      <div class="flex flex-col gap-2">
-        <Label>Steps: {{ imageGeneration.inferenceSteps }}</Label>
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <Label class="whitespace-nowrap">Steps: {{ imageGeneration.inferenceSteps }}</Label>
         <slide-bar
           v-model:current="imageGeneration.inferenceSteps"
           :min="1"
@@ -84,14 +84,14 @@
       </div>
 
       <!-- CFG -->
-      <div class="flex flex-col gap-2">
-        <Label>CFG: {{ cfg }}</Label>
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <Label class="whitespace-nowrap">CFG: {{ cfg }}</Label>
         <slide-bar v-model:current="cfg" :min="0" :max="10" :step="1"></slide-bar>
       </div>
 
       <!-- Batch Count -->
-      <div class="flex flex-col gap-2">
-        <Label>Batch Count: {{ batchCount }}</Label>
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <Label class="whitespace-nowrap">Batch Count: {{ batchCount }}</Label>
         <slide-bar v-model:current="batchCount" :min="1" :max="20" :step="1"></slide-bar>
       </div>
 
