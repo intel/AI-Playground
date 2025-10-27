@@ -27,7 +27,6 @@
       </div>
     </div>
 
-    <!-- Draft Settings -->
     <div class="flex flex-col gap-4">
       <h2 class="text-lg font-semibold">{{ currentPreset?.displayName }}</h2>
       <p class="text-sm text-gray-400">
@@ -43,39 +42,43 @@
         </span>
       </div>
 
-      <!-- Device -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Device</Label>
         <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+      <div v-if="modifiableOrDisplayed('resolution')"
+           class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Width: {{ imageGeneration.width }}</Label>
         <Slider
           v-model="imageGeneration.width"
           :min="256"
           :max="2048"
           :step="64"
+          :disabled="!modifiable('resolution')"
         />
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+      <div v-if="modifiableOrDisplayed('resolution')"
+           class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Height: {{ imageGeneration.height }}</Label>
         <Slider
           v-model="imageGeneration.height"
           :min="256"
           :max="2048"
           :step="64"
+          :disabled="!modifiable('resolution')"
         />
       </div>
 
-      <!-- Fast Mode -->
+      <!-- todo: What is this supposed to do?  -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Fast Mode</Label>
         <Checkbox id="fast-mode" :checked="fastMode" />
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+      <div v-if="modifiableOrDisplayed('inferenceSteps')"
+           class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Steps: {{ imageGeneration.inferenceSteps }}</Label>
         <Slider
           v-model="imageGeneration.inferenceSteps"
@@ -86,35 +89,40 @@
         />
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+      <div v-if="modifiableOrDisplayed('guidanceScale')"
+           class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">CFG: {{ imageGeneration.guidanceScale }}</Label>
         <Slider
           v-model="imageGeneration.guidanceScale"
           :min="0"
           :max="10"
           :step="1"
+          :disabled="!modifiable('guidanceScale')"
         />
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+      <div v-if="modifiableOrDisplayed('batchSize')"
+           class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Batch Count: {{ imageGeneration.batchSize }}</Label>
         <Slider
           v-model="imageGeneration.batchSize"
           :min="1"
           :max="20"
           :step="1"
+          :disabled="!modifiable('batchSize')"
         />
       </div>
 
-      <div class="flex flex-col gap-2">
+      <div v-if="modifiableOrDisplayed('negativePrompt')" class="flex flex-col gap-2">
         <Label>Negative Prompt:</Label>
         <textarea
           class="h-24 rounded-lg resize-none bg-gray-800 border border-gray-700 text-white p-2"
           v-model="imageGeneration.negativePrompt"
+          :disabled="!modifiable('negativePrompt')"
         ></textarea>
       </div>
 
-      <div class="flex flex-col gap-2">
+      <div v-if="modifiableOrDisplayed('seed')" class="flex flex-col gap-2">
         <Label>Seed: {{ imageGeneration.seed }}</Label>
         <random-number
           v-model:value="imageGeneration.seed"
@@ -122,6 +130,7 @@
           :min="0"
           :max="4294967295"
           :scale="1"
+          :disabled="!modifiable('seed')"
         ></random-number>
       </div>
 
