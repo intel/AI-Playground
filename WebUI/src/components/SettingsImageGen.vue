@@ -49,16 +49,14 @@
         <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
-      <!-- Width -->
       <div class="flex flex-col gap-2">
-        <Label>Width: {{ width }}</Label>
-        <slide-bar v-model:current="width" :min="256" :max="2048" :step="64"></slide-bar>
+        <Label>Width: {{ imageGeneration.width }}</Label>
+        <slide-bar v-model:current="imageGeneration.width" :min="256" :max="2048" :step="64"></slide-bar>
       </div>
 
-      <!-- Height -->
       <div class="flex flex-col gap-2">
-        <Label>Height: {{ height }}</Label>
-        <slide-bar v-model:current="height" :min="256" :max="2048" :step="64"></slide-bar>
+        <Label>Height: {{ imageGeneration.height }}</Label>
+        <slide-bar v-model:current="imageGeneration.height" :min="256" :max="2048" :step="64"></slide-bar>
       </div>
 
       <!-- Fast Mode -->
