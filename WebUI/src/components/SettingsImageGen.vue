@@ -51,19 +51,22 @@
 
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Width: {{ imageGeneration.width }}</Label>
-        <slide-bar
-          v-model:current="imageGeneration.width"
-          :min="256" :max="2048"
-          :step="64"></slide-bar>
+        <Slider
+          v-model="imageGeneration.width"
+          :min="256"
+          :max="2048"
+          :step="64"
+        />
       </div>
 
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Height: {{ imageGeneration.height }}</Label>
-        <slide-bar
-          v-model:current="imageGeneration.height"
+        <Slider
+          v-model="imageGeneration.height"
           :min="256"
           :max="2048"
-          :step="64"></slide-bar>
+          :step="64"
+        />
       </div>
 
       <!-- Fast Mode -->
@@ -74,27 +77,35 @@
 
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Steps: {{ imageGeneration.inferenceSteps }}</Label>
-        <slide-bar
-          v-model:current="imageGeneration.inferenceSteps"
+        <Slider
+          v-model="imageGeneration.inferenceSteps"
           :min="1"
           :max="50"
           :step="1"
           :disabled="!modifiable('inferenceSteps')"
-        ></slide-bar>
+        />
       </div>
 
       <!-- CFG -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">CFG: {{ cfg }}</Label>
-        <slide-bar v-model:current="cfg" :min="0" :max="10" :step="1"></slide-bar>
+        <Slider
+          v-model="cfg"
+          :min="0"
+          :max="10"
+          :step="1"
+        />
       </div>
-
       <!-- Batch Count -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Batch Count: {{ batchCount }}</Label>
-        <slide-bar v-model:current="batchCount" :min="1" :max="20" :step="1"></slide-bar>
+        <Slider
+          v-model="batchCount"
+          :min="1"
+          :max="20"
+          :step="1"
+        />
       </div>
-
       <!-- Negative Prompt -->
       <div class="flex flex-col gap-2">
         <Label>Negative Prompt:</Label>
@@ -131,8 +142,8 @@ import { ref, computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
 import DeviceSelector from '@/components/DeviceSelector.vue'
-import SlideBar from '@/components/SlideBar.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
 import {
   backendToService,
@@ -141,12 +152,12 @@ import {
 } from "@/assets/js/store/imageGeneration.ts";
 
 const imageGeneration = useImageGeneration()
-
 const fastMode = ref(true)
 const cfg = ref(1)
 const batchCount = ref(4)
 const negativePrompt = ref('bad image, nsfw, ')
 const seed = ref(-1)
+
 const presets = ref([
   {
     workflowName: 'Flux.1-Schnell Med Quality',
@@ -188,5 +199,4 @@ const modifiableOrDisplayed = (setting: Setting) =>
 
 const modifiable = (setting: Setting) =>
   imageGeneration.activeWorkflow.modifiableSettings.includes(setting)
-
 </script>
