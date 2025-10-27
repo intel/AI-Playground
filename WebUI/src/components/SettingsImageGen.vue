@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-6 p-1">
-    <!-- Image Gen Presets -->
     <h2 class="text-xl font-semibold text-center">Image Gen Presets</h2>
     <div class="grid grid-cols-3 gap-3">
       <div
@@ -43,13 +42,19 @@
       </div>
 
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Device</Label>
+        <Label class="whitespace-nowrap">
+          {{ languages.DEVICE }}
+        </Label>
         <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
-      <div v-if="modifiableOrDisplayed('resolution')"
-           class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Width: {{ imageGeneration.width }}</Label>
+      <div
+        v-if="modifiableOrDisplayed('resolution')"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label class="whitespace-nowrap">
+          {{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}: {{ imageGeneration.width }}
+        </Label>
         <Slider
           v-model="imageGeneration.width"
           :min="256"
@@ -59,9 +64,13 @@
         />
       </div>
 
-      <div v-if="modifiableOrDisplayed('resolution')"
-           class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Height: {{ imageGeneration.height }}</Label>
+      <div
+        v-if="modifiableOrDisplayed('resolution')"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label class="whitespace-nowrap">
+          {{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}: {{ imageGeneration.height }}
+        </Label>
         <Slider
           v-model="imageGeneration.height"
           :min="256"
@@ -77,9 +86,13 @@
         <Checkbox id="fast-mode" :checked="fastMode" />
       </div>
 
-      <div v-if="modifiableOrDisplayed('inferenceSteps')"
-           class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Steps: {{ imageGeneration.inferenceSteps }}</Label>
+      <div
+        v-if="modifiableOrDisplayed('inferenceSteps')"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label class="whitespace-nowrap">
+          {{ languages.SETTINGS_MODEL_IMAGE_STEPS }}: {{ imageGeneration.inferenceSteps }}
+        </Label>
         <Slider
           v-model="imageGeneration.inferenceSteps"
           :min="1"
@@ -89,9 +102,13 @@
         />
       </div>
 
-      <div v-if="modifiableOrDisplayed('guidanceScale')"
-           class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">CFG: {{ imageGeneration.guidanceScale }}</Label>
+      <div
+        v-if="modifiableOrDisplayed('guidanceScale')"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label class="whitespace-nowrap">
+          {{ languages.SETTINGS_MODEL_IMAGE_CFG }}: {{ imageGeneration.guidanceScale }}
+        </Label>
         <Slider
           v-model="imageGeneration.guidanceScale"
           :min="0"
@@ -101,9 +118,13 @@
         />
       </div>
 
-      <div v-if="modifiableOrDisplayed('batchSize')"
-           class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Batch Count: {{ imageGeneration.batchSize }}</Label>
+      <div
+        v-if="modifiableOrDisplayed('batchSize')"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label class="whitespace-nowrap">
+          {{ languages.SETTINGS_MODEL_BATCH_COUNT }}: {{ imageGeneration.batchSize }}
+        </Label>
         <Slider
           v-model="imageGeneration.batchSize"
           :min="1"
@@ -114,7 +135,9 @@
       </div>
 
       <div v-if="modifiableOrDisplayed('negativePrompt')" class="flex flex-col gap-2">
-        <Label>Negative Prompt:</Label>
+        <Label>
+          {{ languages.SETTINGS_MODEL_NEGATIVE_PROMPT }}
+        </Label>
         <textarea
           class="h-24 rounded-lg resize-none bg-gray-800 border border-gray-700 text-white p-2"
           v-model="imageGeneration.negativePrompt"
@@ -123,7 +146,9 @@
       </div>
 
       <div v-if="modifiableOrDisplayed('seed')" class="flex flex-col gap-2">
-        <Label>Seed: {{ imageGeneration.seed }}</Label>
+        <Label>
+          {{ languages.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }}
+        </Label>
         <random-number
           v-model:value="imageGeneration.seed"
           :default="-1"

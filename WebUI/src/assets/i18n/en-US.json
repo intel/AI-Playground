@@ -86,6 +86,7 @@
   "SETTINGS_MODEL_NEGATIVE_PROMPT": "Negative Prompt",
   "SETTINGS_MODEL_SEED": "Seed",
   "SETTINGS_MODEL_GENERATE_NUMBER": "Generate Image Number",
+  "SETTINGS_MODEL_BATCH_COUNT": "Batch Count",
   "SETTINGS_MODEL_LLM_MODEL": "Large Language Model",
   "SETTINGS_MODEL_IMAGE_PREVIEW": "Image Preview",
   "SETTINGS_MODEL_SAFE_CHECK": "Safe Check",
