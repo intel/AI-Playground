@@ -5,6 +5,7 @@ import { useModels } from './models'
 import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -70,13 +71,32 @@ export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
   ollama: 'Ollama',
 }
 
+export const textInferenceBackendDescription: Record<LlmBackend, string> = {
+  ipexLLM: 'potato',
+  llamaCPP:
+    'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
+  openVINO:
+    'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  ollama: 'potato',
+}
+
+export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
+  ipexLLM: ['Intel', 'Legacy'],
+  llamaCPP: ['Lightweight', 'Portable'],
+  openVINO: ['Intel', 'Optimized', 'Fast'],
+  ollama: ['Integrated', 'CLI'],
+}
+
 export const useTextInference = defineStore(
   'textInference',
   () => {
     const backendServices = useBackendServices()
+    const dialogStore = useDialogStore()
     const models = useModels()
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
+    const systemPrompt = ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
+      You assist users by answering questions and providing information based on your training data and any additional context provided.`)
 
     const selectedModels = ref<LlmBackendKV>({
       ipexLLM: null,
@@ -286,15 +306,18 @@ export const useTextInference = defineStore(
       if (!model) return []
 
       const modelMetaData = llmModels.value
-        .filter((m) => m.type === backend.value).find((m) => m.active)
-      const checkList = [{
-        repo_id: model,
-        type:
-          type === 'embedding'
-            ? Const.MODEL_TYPE_EMBEDDING
-            : backendToAipgModelTypeNumber[backend.value],
-        backend: backendToAipgBackendName[backend.value],
-      }]
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      const checkList = [
+        {
+          repo_id: model,
+          type:
+            type === 'embedding'
+              ? Const.MODEL_TYPE_EMBEDDING
+              : backendToAipgModelTypeNumber[backend.value],
+          backend: backendToAipgBackendName[backend.value],
+        },
+      ]
       if (modelMetaData?.mmproj) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
@@ -354,6 +377,7 @@ export const useTextInference = defineStore(
         fontSizeIndex.value++
       }
     }
+
     function decreaseFontSize() {
       if (!isMinSize.value) {
         fontSizeIndex.value--
@@ -651,36 +675,53 @@ export const useTextInference = defineStore(
       }
     }
 
+    async function checkModelAvailability() {
+      // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
+      return new Promise<void>(async (resolve, reject) => {
+        const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
+        if (ragList.value.length > 0) {
+          const requiredEmbeddingModelDownloads =
+            await getDownloadParamsForCurrentModelIfRequired('embedding')
+          requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
+        }
+        if (requiredModelDownloads.length > 0) {
+          dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
+        } else {
+          resolve()
+        }
+      })
+    }
+
     async function prepareBackendIfNeeded() {
       console.log('in prepareBackendIfNeeded')
 
-    if (needsBackendPreparation.value) {
-      console.log('preparing backend due to', preparationReason.value)
-      startBackendPreparation()
+      if (needsBackendPreparation.value) {
+        console.log('preparing backend due to', preparationReason.value)
+        startBackendPreparation()
 
-      try {
-        // Ensure backend is ready before inference
-        console.log('ensuring backend readiness')
+        try {
+          // Ensure backend is ready before inference
+          console.log('ensuring backend readiness')
+          await ensureBackendReadiness()
+          // Note: completeBackendPreparation() will be called on first token
+        } catch (error) {
+          completeBackendPreparation() // Reset state on error
+          throw error
+        }
+      } else {
+        // Ensure backend is ready before inference (for non-preparation cases)
         await ensureBackendReadiness()
-        // Note: completeBackendPreparation() will be called on first token
-      } catch (error) {
-        completeBackendPreparation() // Reset state on error
-        throw error
       }
-    } else {
-      // Ensure backend is ready before inference (for non-preparation cases)
-      await ensureBackendReadiness()
-    }
 
-    const backendToInferenceService = {
-      llamaCPP: 'llamacpp-backend',
-      openVINO: 'openvino-backend',
-      ipexLLM: 'ai-backend',
-      ollama: 'ollama-backend' as BackendServiceName,
-    } as const
-    const inferenceBackendService = backendToInferenceService[backend.value]
-    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-    backendServices.updateLastUsedBackend(inferenceBackendService)
+      const backendToInferenceService = {
+        llamaCPP: 'llamacpp-backend',
+        openVINO: 'openvino-backend',
+        ipexLLM: 'ai-backend',
+        ollama: 'ollama-backend' as BackendServiceName,
+      } as const
+      const inferenceBackendService = backendToInferenceService[backend.value]
+      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+      backendServices.updateLastUsedBackend(inferenceBackendService)
     }
 
     return {
@@ -700,6 +741,7 @@ export const useTextInference = defineStore(
       isMinSize,
       ragList,
       contextSizeSettingSupported,
+      systemPrompt,
       selectModel,
       selectEmbeddingModel,
       getDownloadParamsForCurrentModelIfRequired,
@@ -717,6 +759,7 @@ export const useTextInference = defineStore(
       extractPostMarker,
       formatRagSources,
       ensureBackendReadiness,
+      checkModelAvailability,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

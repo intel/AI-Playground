@@ -6,7 +6,7 @@
       :class="textInference.fontSizeClass"
       @scroll="props.onScroll"
     >
-      <div class="max-w-512px" v-for="message in llamaCpp.messages" :key="message.id">
+      <div class="max-w-512px" v-for="message in openAiCompatibleChat.messages" :key="message.id">
         <span class="text-xl font-extrabold">{{ message.role === 'user' ? 'User' : 'AI' }}</span>
         <div v-for="part in message.parts" :key="part.type">
           <span v-if="part.type === 'reasoning'">Reasoning: {{ part.text }}<br /></span>
@@ -21,7 +21,7 @@
     </div>
     <div class="min-w-512px px-4 pb-4">
       <InputGroup>
-        <InputGroupTextarea v-model="llamaCpp.messageInput" placeholder="Ask, Search or Chat..." />
+        <InputGroupTextarea v-model="openAiCompatibleChat.messageInput" placeholder="Ask, Search or Chat..." />
         <InputGroupAddon align="block-end">
           <img
             v-for="preview in imagePreview"
@@ -36,14 +36,14 @@
               type="file"
               class="hidden"
               id="image"
-              @change="llamaCpp.fileInput = $event.target.files"
+              @change="openAiCompatibleChat.fileInput = $event.target.files"
             />
           </InputGroupButton>
           <InputGroupButton
             variant="default"
             class="rounded-full ml-auto"
             size="icon-xs"
-            @click="llamaCpp.generate()"
+            @click="openAiCompatibleChat.generate()"
           >
             <ArrowUpIcon class="size-4" />
             <span class="sr-only">Send</span>
@@ -59,24 +59,23 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupText,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
 import { PlusIcon, ArrowUpIcon } from '@heroicons/vue/24/outline'
-import { useLlamaCpp } from '@/assets/js/store/llamaCpp'
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { useTextInference } from '@/assets/js/store/textInference'
 
 const props = defineProps<{
   onScroll: (e: Event) => void
 }>()
 const textInference = useTextInference()
-const llamaCpp = useLlamaCpp()
+const openAiCompatibleChat = useOpenAiCompatibleChat()
 
 const imagePreview = computed(() => {
-  if (llamaCpp.fileInput) {
+  if (openAiCompatibleChat.fileInput) {
     const urls = []
     let id = 0
-    for (const file of llamaCpp.fileInput) {
+    for (const file of openAiCompatibleChat.fileInput) {
       const url = URL.createObjectURL(file)
       urls.push({ id, url })
       id++

@@ -35,6 +35,7 @@
       </button>
     </div>
   </div>
+  <!--  todo: delete this div after migrating fully to new UI-->
   <div class="text-right my-5">
     <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
   </div>

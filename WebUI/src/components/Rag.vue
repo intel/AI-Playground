@@ -1,6 +1,6 @@
 <template>
   <div
-    class="rag-panel flex flex-col text-white bg-black/70 rounded-xl p-4"
+    class="rag-panel flex flex-col text-white bg-black rounded-xl p-4"
     :class="{ 'border-2 border-dashed border-purple-500 bg-purple-900/10': isOverDropZone }"
     ref="dropZoneRef"
   >

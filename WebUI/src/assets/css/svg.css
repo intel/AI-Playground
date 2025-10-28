@@ -21,6 +21,10 @@
   --svg: url('@/assets/svg/setup.svg');
 }
 
+.i-code {
+  --svg: url('@/assets/svg/code.svg');
+}
+
 .i-mini {
   --svg: url('@/assets/svg/mini.svg');
 }
@@ -58,6 +62,10 @@
 
 .i-refresh {
   --svg: url('@/assets/svg/refresh.svg');
+}
+
+.i-dots-vertical {
+  --svg: url('@/assets/svg/dots-vertical.svg');
 }
 
 .i-download-cloud {

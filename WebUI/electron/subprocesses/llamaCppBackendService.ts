@@ -3,11 +3,7 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import {
-  ApiService,
-  createEnhancedErrorDetails,
-  ErrorDetails,
-} from './service.ts'
+import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
@@ -119,16 +115,12 @@ export class LlamaCppBackendService implements ApiService {
       // Handle embedding model if provided
       if (embeddingModelName) {
         const needsEmbeddingRestart =
-          this.currentEmbeddingModel !== embeddingModelName ||
-          !this.llamaEmbeddingProcess?.isReady
+          this.currentEmbeddingModel !== embeddingModelName || !this.llamaEmbeddingProcess?.isReady
 
         if (needsEmbeddingRestart) {
           await this.stopLlamaEmbeddingServer()
           await this.startLlamaEmbeddingServer(embeddingModelName)
-          this.appLogger.info(
-            `Embedding server ready with model: ${embeddingModelName}`,
-            this.name,
-          )
+          this.appLogger.info(`Embedding server ready with model: ${embeddingModelName}`, this.name)
         } else {
           this.appLogger.info(
             `Embedding server already running with model: ${embeddingModelName}`,
@@ -358,10 +350,7 @@ export class LlamaCppBackendService implements ApiService {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
 
       yield {
         serviceName: this.name,
@@ -492,15 +481,14 @@ export class LlamaCppBackendService implements ApiService {
       const modelFolder = path.dirname(modelPath)
       // find mmproj*.gguf file in the same folder
       const files = await filesystem.readdir(modelFolder)
-      const mmprojFiles = files.filter(file => file.startsWith('mmproj') && file.endsWith('.gguf'))
+      const mmprojFiles = files.filter(
+        (file) => file.startsWith('mmproj') && file.endsWith('.gguf'),
+      )
       const mmprojFile = mmprojFiles.at(0)
       if (mmprojFile) {
         const mmprojPath = path.join(modelFolder, mmprojFile)
         args.push('--mmproj', mmprojPath)
-        this.appLogger.info(
-          `Using mmproj file ${mmprojFile} for model ${modelRepoId}`,
-          this.name,
-        )
+        this.appLogger.info(`Using mmproj file ${mmprojFile} for model ${modelRepoId}`, this.name)
       }
 
       const childProcess = spawn(this.llamaCppExePath, args, {

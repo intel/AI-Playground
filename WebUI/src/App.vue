@@ -15,7 +15,7 @@
     class="absolute -z-50 w-screen h-screen bg-cover bg-center bg-bmg"
   ></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-csssenter px-4 border-b border-white/20 text-white bg-black/20"
+    class="main-title text-2xl font-bold flex justify-between items-center px-4 border-b border-white/20 text-white bg-black/20"
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-3 items-baseline">
@@ -25,8 +25,12 @@
       </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" v-model="useNewUI" class="w-4 h-4 cursor-pointer" />
+        <span class="text-sm">New UI</span>
+      </label>
       <button
-        v-if="debugToolsEnabled"
+        v-if="debugToolsEnabled && !useNewUI"
         :title="languages.COM_SETTINGS"
         @click="
           () => {
@@ -43,10 +47,10 @@
         <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
       </button>
       <button
-        v-if="!demoMode.enabled"
+        v-if="!demoMode.enabled && !useNewUI"
         :title="languages.COM_SETTINGS"
         class="svg-icon i-setup w-6 h-6"
-        @click="showAppSettings"
+        @click="showSettings"
         ref="showSettingBtn"
       ></button>
       <button
@@ -136,7 +140,52 @@
       </Collapsible>
     </div>
   </main>
-  <main v-show="globalSetup.loadingState === 'running'" class="flex-auto flex flex-col relative">
+
+  <main
+    v-if="useNewUI && globalSetup.loadingState === 'running'"
+    class="flex-1 flex flex-col relative justify-center min-h-0"
+    :class="{
+      'bg-black/50': theme.active === 'lnl',
+      'bg-black/80': theme.active === 'bmg',
+      'border-t border-color-spilter': theme.active === 'dark',
+    }"
+  >
+    <div class="absolute top-4 left-4">
+      <button
+        v-show="!showHistory"
+        @click="openHistory"
+        class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+      >
+        {{ languages.COM_SHOW_HISTORY }}
+      </button>
+    </div>
+    <SideModalHistory
+      :isVisible="showHistory"
+      :mode="currentMode"
+      @close="showHistory = false"
+      @conversation-selected="chatRef?.scrollToBottom"
+    />
+    <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
+    <Chat v-show="currentMode === 'chat'" ref="chatRef" />
+    <ImageGen v-show="currentMode === 'imageGen'" ref="imageGenRef" />
+    <ImageEdit v-show="currentMode === 'imageEdit'" ref="imageEditRef" />
+    <Video v-show="currentMode === 'video'" ref="videoRef" />
+    <PromptArea
+      :currentMode="currentMode"
+      @select-mode="currentMode = $event"
+      @submit-prompt="handleSubmitPrompt"
+      @auto-hide-footer="handleAutoHideFooter"
+    />
+    <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
+    <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
+    <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
+  </main>
+
+  <!-- todo: Old UI only, we should eventually be able to remove this main block -->
+  <main
+    v-else-if="!useNewUI && globalSetup.loadingState === 'running'"
+    class="flex-auto flex flex-col relative"
+  >
     <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
       <button
         class="tab"
@@ -190,98 +239,96 @@
           v-show="activeTabIdx === 'create'"
           ref="createCompt"
           @postImageToEnhance="postImageToEnhance"
-          @show-download-model-confirm="showDownloadModelConfirm"
         ></create>
-        <enhance
-          v-show="activeTabIdx === 'enhance'"
-          ref="enhanceCompt"
-          @show-download-model-confirm="showDownloadModelConfirm"
-        >
-        </enhance>
-        <answer
-          v-show="activeTabIdx === 'answer'"
-          ref="answer"
-          @show-download-model-confirm="showDownloadModelConfirm"
-          @show-model-request="showModelRequest"
-        ></answer>
+        <enhance v-show="activeTabIdx === 'enhance'" ref="enhanceCompt"> </enhance>
+        <Answer v-show="activeTabIdx === 'answer'" @show-model-request="showModelRequest"></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
       </div>
-      <app-settings
-        v-if="showSetting"
-        @close="hideAppSettings"
-        @show-download-model-confirm="showDownloadModelConfirm"
-      ></app-settings>
+      <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
     </div>
-    <download-dialog
-      v-show="showDowloadDlg"
-      ref="downloadDigCompt"
-      @close="showDowloadDlg = false"
-    ></download-dialog>
+    <download-dialog v-show="showDowloadDlg" @close="showDowloadDlg = false"></download-dialog>
     <add-l-l-m-dialog
       v-show="showModelRequestDialog"
       ref="addLLMCompt"
       @close="showModelRequestDialog = false"
-      @call-check-model="callCheckModel"
-      @show-warning="showWarning"
     ></add-l-l-m-dialog>
-    <warning-dialog
-      v-show="showWarningDialog"
-      ref="warningCompt"
-      @close="showWarningDialog = false"
-    ></warning-dialog>
+    <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
   </main>
   <footer
-    class="flex-none px-4 flex justify-between items-center select-none"
+    class="flex-none px-4 flex flex-col justify-between items-center select-none transition-all duration-300"
     :class="{
       'bg-black/50': theme.active === 'lnl',
       'bg-black/80': theme.active === 'bmg',
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >
-    <div>
-      <p>
-        Al Playground from Intel Corporation
-        <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
-          >https://github.com/intel/ai-playground</a
-        >
-      </p>
-      <p>
-        AI Playground version: v{{ productVersion }}
-        <a
-          href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf"
-          target="_blank"
-          class="text-blue-500"
-        >
-          User Guide</a
-        >
+    <div v-if="useNewUI" class="w-full relative flex items-center justify-center pb-1">
+      <div class="absolute left-0 flex items-center gap-3 pb-4">
+        <button
+          @click="openAppSettings"
+          class="svg-icon i-setup w-6 h-6 text-white hover:text-white/80 transition-colors"
+          title="App Settings"
+        ></button>
+        <button
+          @click="openDevTools"
+          class="svg-icon i-code w-6 h-6 text-white hover:text-white/80 transition-colors"
+          title="Developer Tools"
+        ></button>
+      </div>
 
-        <a
-          href="https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md"
-          target="_blank"
-          class="text-blue-500"
-        >
-          | Important Notices and Disclaimers</a
-        >
+      <button
+        @click="footerExpanded = !footerExpanded"
+        class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
+      >
+        {{ footerExpanded ? 'HIDE FOOTER' : 'SHOW FOOTER' }}
+      </button>
+    </div>
+    <div v-show="footerExpanded" class="w-full flex justify-between items-center pb-2">
+      <div>
+        <p>
+          Al Playground from Intel Corporation
+          <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
+            >https://github.com/intel/ai-playground</a
+          >
+        </p>
+        <p>
+          AI Playground version: v{{ productVersion }}
+          <a
+            href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf"
+            target="_blank"
+            class="text-blue-500"
+          >
+            User Guide</a
+          >
 
-        <a
-          href="https://github.com/intel/ai-playground/blob/main/LICENSE"
-          target="_blank"
-          class="text-blue-500"
-        >
-          | Licenses</a
-        >
-      </p>
+          <a
+            href="https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md"
+            target="_blank"
+            class="text-blue-500"
+          >
+            | Important Notices and Disclaimers</a
+          >
+
+          <a
+            href="https://github.com/intel/ai-playground/blob/main/LICENSE"
+            target="_blank"
+            class="text-blue-500"
+          >
+            | Licenses</a
+          >
+        </p>
+      </div>
+      <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
+        <p class="text-gray-300 text-lg mr-2">Powered by</p>
+        <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
+        <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+      </div>
+      <div v-if="theme.active === 'bmg'" class="flex gap-2 items-center">
+        <p class="text-gray-300 text-lg mr-2">Powered by</p>
+        <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+      </div>
+      <img v-else-if="theme.active === 'dark'" src="@/assets/svg/intel.svg" />
     </div>
-    <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
-      <p class="text-gray-300 text-lg mr-2">Powered by</p>
-      <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
-      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
-    </div>
-    <div v-if="theme.active === 'bmg'" class="flex gap-2 items-center">
-      <p class="text-gray-300 text-lg mr-2">Powered by</p>
-      <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
-    </div>
-    <img v-else-if="theme.active === 'dark'" src="@/assets/svg/intel.svg" />
   </footer>
 </template>
 
@@ -293,7 +340,7 @@ import LoadingBar from './components/LoadingBar.vue'
 import InstallationManagement from './components/InstallationManagement.vue'
 import Create from './views/Create.vue'
 import Enhance from './views/Enhance.vue'
-import Answer from './views/Answer.vue'
+import PromptArea from '@/views/PromptArea.vue'
 import LearnMore from './views/LearnMore.vue'
 import AppSettings from './views/AppSettings.vue'
 import './assets/css/index.css'
@@ -307,27 +354,45 @@ import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
+import ImageEdit from '@/views/ImageEdit.vue'
+import Video from '@/views/Video.vue'
+import ImageGen from '@/views/ImageGen.vue'
+import Chat from '@/views/Chat.vue'
+import Answer from '@/views/Answer.vue'
+import { ref } from 'vue'
+import SideModalHistory from '@/components/SideModalHistory.vue'
+import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
 const demoMode = useDemoMode()
+const dialogStore = useDialogStore()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
-const answer = ref<InstanceType<typeof Answer>>()
-const downloadDigCompt = ref<InstanceType<typeof DownloadDialog>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
-const warningCompt = ref<InstanceType<typeof WarningDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const needHelpBtn = ref<HTMLButtonElement>()
+const chatRef = ref<{
+  handleSubmitPromptClick: (prompt: string) => void
+  scrollToBottom: () => void
+}>()
+const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 
 const isOpen = ref(false)
+const currentMode = ref<ModeType>('chat')
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
+const footerExpanded = ref(true)
+const showHistory = ref(false)
+const showAppSettings = ref(false)
 const showDowloadDlg = ref(false)
 const showModelRequestDialog = ref(false)
-const showWarningDialog = ref(false)
 const fullscreen = ref(false)
+const useNewUI = ref(true)
 
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
@@ -386,7 +451,9 @@ onBeforeMount(async () => {
 
 onMounted(() => {
   watch([() => globalSetup.loadingState, activeTabIdx] as const, ([loadingState, activeTabIdx]) => {
-    if (loadingState === 'running') setTimeout(() => demoMode.triggerHelp(activeTabIdx))
+    if (loadingState === 'running' && !useNewUI.value) {
+      setTimeout(() => demoMode.triggerHelp(activeTabIdx))
+    }
   })
 })
 
@@ -419,12 +486,8 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
 /** Get tooltips of AIPG demo mode on click of Help button */
 const createCompt = ref()
 
-function showAppSettings() {
-  if (showSetting.value === false) {
-    showSetting.value = true
-  } else {
-    showSetting.value = false
-  }
+function showSettings() {
+  showSetting.value = showSetting.value === false
 }
 
 function hideAppSettings() {
@@ -453,18 +516,6 @@ function postImageToEnhance(imageUrl: string) {
   activeTabIdx.value = 'enhance'
 }
 
-function showDownloadModelConfirm(
-  downList: DownloadModelParam[],
-  success?: () => void,
-  fail?: () => void,
-) {
-  showDowloadDlg.value = true
-  showSetting.value = false
-  nextTick(() => {
-    downloadDigCompt.value!.showConfirmDialog(downList, success, fail)
-  })
-}
-
 function showModelRequest() {
   showModelRequestDialog.value = true
   nextTick(() => {
@@ -472,16 +523,27 @@ function showModelRequest() {
   })
 }
 
-function callCheckModel() {
-  answer.value!.checkModel()
+function handleSubmitPrompt(prompt: string, mode: ModeType) {
+  const refMap = {
+    chat: chatRef,
+    imageGen: imageGenRef,
+    imageEdit: imageEditRef,
+    video: videoRef,
+  }
+
+  const componentRef = refMap[mode]
+  componentRef.value?.handleSubmitPromptClick(prompt)
 }
 
-function showWarning(message: string, func: () => void) {
-  warningCompt.value!.warningMessage = message
-  showWarningDialog.value = true
-  warningCompt.value!.confirmFunction = func
-  nextTick(() => {
-    warningCompt.value!.onShow()
-  })
+function handleAutoHideFooter() {
+  footerExpanded.value = false
+}
+
+function openHistory() {
+  showHistory.value = true
+}
+
+function openAppSettings() {
+  showAppSettings.value = true
 }
 </script>
