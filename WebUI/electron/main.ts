@@ -991,6 +991,9 @@ function needAdminPermission() {
 }
 
 function isAdmin(): boolean {
+  if (process.platform !== 'win32') {
+    return false
+  }
   const lib = koffi.load('Shell32.dll')
   try {
     const IsUserAnAdmin = lib.func('IsUserAnAdmin', 'bool', [])

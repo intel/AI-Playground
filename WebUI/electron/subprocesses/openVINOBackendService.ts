@@ -27,7 +27,7 @@ export class OpenVINOBackendService implements ApiService {
   readonly name = 'openvino-backend' as BackendServiceName
   readonly baseUrl: string
   readonly port: number
-  readonly isRequired: boolean = true
+  readonly isRequired: boolean = false
   readonly win: BrowserWindow
   readonly settings: LocalSettings
 

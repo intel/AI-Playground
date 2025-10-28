@@ -36,7 +36,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     ? this.settings.comfyUiParameters
     : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
-  serviceIsSetUp(): boolean {
+  async serviceIsSetUp(): Promise<boolean> {
     const dirsExist =
       filesystem.existsSync(this.pythonEnvDir) &&
       filesystem.existsSync(this.serviceDir) &&
@@ -53,7 +53,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     return dirsExist
   }
 
-  isSetUp = this.serviceIsSetUp()
+  isSetUp = false
 
   async updateSettings(settings: ServiceSettings): Promise<void> {
     if (settings.version) {

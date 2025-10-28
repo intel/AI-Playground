@@ -13,6 +13,7 @@ import { exec } from 'child_process'
 import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
+import { binary, extract } from './tools.ts'
 
 const execAsync = promisify(exec)
 
@@ -83,7 +84,7 @@ export class LlamaCppBackendService implements ApiService {
     // Set up paths
     this.serviceDir = path.resolve(path.join(this.baseDir, 'LlamaCPP'))
     this.llamaCppDir = path.resolve(path.join(this.serviceDir, 'llama-cpp'))
-    this.llamaCppExePath = path.resolve(path.join(this.llamaCppDir, 'llama-server.exe'))
+    this.llamaCppExePath = path.resolve(path.join(this.llamaCppDir, binary('llama-server')))
     this.zipPath = path.resolve(path.join(this.serviceDir, 'llama-cpp.zip'))
 
     // Check if already set up
@@ -168,7 +169,7 @@ export class LlamaCppBackendService implements ApiService {
         return
       }
 
-      this.appLogger.info('Detecting devices using llama-server.exe --list-devices', this.name)
+      this.appLogger.info('Detecting devices using llama-server --list-devices', this.name)
 
       // Execute llama-server.exe --list-devices
       const { stdout } = await execAsync(`"${this.llamaCppExePath}" --list-devices`, {
@@ -373,7 +374,8 @@ export class LlamaCppBackendService implements ApiService {
   }
 
   private async downloadLlamacpp(): Promise<void> {
-    const downloadUrl = `https://github.com/ggml-org/llama.cpp/releases/download/${this.version}/llama-${this.version}-bin-win-vulkan-x64.zip`
+    const platformArch = process.platform === 'darwin' ? 'macos-arm64' : 'win-vulkan-x64'
+    const downloadUrl = `https://github.com/ggml-org/llama.cpp/releases/download/${this.version}/llama-${this.version}-bin-${platformArch}.zip`
     this.appLogger.info(`Downloading Llamacpp from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
@@ -408,8 +410,12 @@ export class LlamaCppBackendService implements ApiService {
 
     // Extract zip file using PowerShell's Expand-Archive
     try {
-      const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.llamaCppDir}' -Force"`
-      await execAsync(command)
+      await extract(this.zipPath, this.llamaCppDir)
+      if (process.platform !== 'win32') {
+        filesystem.readdirSync(path.join(this.llamaCppDir, 'build/bin')).forEach(file => {
+          filesystem.renameSync(path.join(this.llamaCppDir, 'build/bin', file), path.join(this.llamaCppDir, file))
+        })
+      }
 
       this.appLogger.info(`LlamaCPP extracted successfully`, this.name)
     } catch (error) {

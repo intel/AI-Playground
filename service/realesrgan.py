@@ -13,10 +13,6 @@ from spandrel import ModelLoader
 from torch.nn import functional as F
 import service_config
 
-from ipex_to_cuda import ipex_init
-
-ipex_init()
-
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

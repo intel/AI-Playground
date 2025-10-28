@@ -31,10 +31,6 @@ import schedulers_util
 from compel import Compel
 from threading import Event
 
-from ipex_to_cuda import ipex_init
-
-ipex_init()
-
 
 # region class define
 
