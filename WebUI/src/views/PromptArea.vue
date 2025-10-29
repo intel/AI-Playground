@@ -32,18 +32,25 @@
             {{ mapModeToLabel(promptStore.currentMode) }} Settings
           </button>
           <button
-            v-if="!promptStore.processing"
+            v-if="!isProcessing"
             @click="handleSubmitPromptClick"
-            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm"
+            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm min-w-[44px]"
           >
             →
           </button>
           <button
-            v-else
+            v-if="isProcessing && !isStopping"
             @click="handleCancelClick"
-            class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm"
+            class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
           >
-            ⏹
+            <i class="svg-icon w-4 h-4 i-stop"></i>
+          </button>
+          <button
+            v-if="isProcessing && isStopping"
+            disabled
+            class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+          >
+            <i class="svg-icon w-4 h-4 i-loading"></i>
           </button>
         </div>
       </div>
@@ -57,20 +64,31 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, ref } from 'vue'
+import { getCurrentInstance, ref, computed } from 'vue'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
+import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const prompt = ref('')
 const showSettings = ref(false)
 const promptStore = usePromptStore()
+const imageGeneration = useImageGeneration()
 
 const emits = defineEmits<{
   (e: 'autoHideFooter'): void
 }>()
+
+const isProcessing = computed(() =>
+  promptStore.processing || imageGeneration.processing
+)
+
+const isStopping = computed(() =>
+  imageGeneration.stopping
+)
+
 
 function getTextAreaPlaceholder() {
   switch (promptStore.currentMode) {

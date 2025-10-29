@@ -3,6 +3,8 @@ import { ref } from 'vue'
 
 export const usePromptStore = defineStore('prompt', () => {
   const currentMode = ref<ModeType>('chat')
+
+  // todo: Remove this after cleaning up text inference. The text inference store should know its processing state directly, no need to track it here
   const processing = ref(false)
 
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
