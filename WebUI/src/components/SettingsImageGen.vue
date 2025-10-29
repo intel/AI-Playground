@@ -33,7 +33,7 @@
       </p>
       <div class="flex gap-2">
         <span
-          v-for="tag in currentPreset?.tags"
+          v-for="tag in tags"
           :key="tag"
           class="px-3 py-1 text-xs bg-purple-600 rounded-full"
         >
@@ -207,33 +207,33 @@ const presets = ref([
     displayName: 'Flux Schnell',
     description: 'Fast and efficient image generation with Flux models. Balances speed and quality.',
     image: '/src/assets/image/flux_schnell.png',
-    tags: ['Flux', 'Efficient'],
   },
   {
     workflowName: 'Flux.1-Schnell High Quality',
     displayName: 'Flux Schnell HD',
     description: 'Fast and efficient image generation with Flux models. Favors quality over speed.',
     image: '/src/assets/image/flux_schnell.png',
-    tags: ['Flux', 'Efficient', 'High Quality'],
   },
   {
     workflowName: 'FaceSwap-HD',
     displayName: 'FaceSwap',
     description: 'Specialized for swapping faces in images. Ensures realistic results.',
     image: '/src/assets/image/faceswap.png',
-    tags: ['FaceSwap', 'Realistic'],
   },
   {
     workflowName: 'Acer VisionArt',
     displayName: 'Acer VisionArt',
     description: 'Artistic image generation with Acer\'s vision models. Creates unique visual styles.',
     image: '/src/assets/image/acer_visionart.png',
-    tags: ['Artistic', 'Acer'],
   },
 ])
 
 const currentPreset = computed(() => {
   return presets.value.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
+})
+
+const tags = computed(() => {
+  return imageGeneration.workflows.find(wf => wf.name === imageGeneration.activeWorkflowName)?.tags
 })
 
 const modifiableOrDisplayed = (setting: Setting) =>

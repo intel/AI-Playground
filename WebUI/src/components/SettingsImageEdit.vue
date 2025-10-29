@@ -33,7 +33,7 @@
       </p>
       <div class="flex gap-2">
         <span
-          v-for="tag in currentPreset?.tags"
+          v-for="tag in tags"
           :key="tag"
           class="px-3 py-1 text-xs bg-purple-600 rounded-full"
         >
@@ -207,40 +207,39 @@ const presets = ref([
     displayName: 'Edit By Prompt',
     description: 'Modify images based on text prompts. Allows precise editing control.',
     image: '/src/assets/image/faceswap.png',
-    tags: ['FaceSwap', 'Realistic'],
   },
   {
     workflowName: 'Colorize',
     displayName: 'Colorize',
     description: 'Adds color to black-and-white images. Enhances visual appeal automatically.',
     image: '/src/assets/image/colorize.png',
-    tags: ['Flux', 'Efficient'],
   },
   {
     workflowName: 'CopyFace',
     displayName: 'Copy Face',
     description: 'Copies faces between images seamlessly. Maintains facial details accurately.',
     image: '/src/assets/image/copyface.png',
-    tags: ['Flux', 'Efficient', 'High Quality'],
   },
   {
     workflowName: 'SketchToPhoto-HD-Draft',
     displayName: 'Sketch To Photo Draft',
     description: 'Converts sketches into photorealistic images. Ideal for creative workflows.',
     image: '/src/assets/image/acer_visionart.png',
-    tags: ['Artistic', 'Acer'],
   },
   {
     workflowName: 'SketchToPhoto-HD-Quality',
     displayName: 'Sketch To Photo HD',
     description: 'Converts sketches into photorealistic images. Ideal for creative workflows.',
     image: '/src/assets/image/acer_visionart.png',
-    tags: ['Artistic', 'Acer'],
   },
 ])
 
 const currentPreset = computed(() => {
   return presets.value.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
+})
+
+const tags = computed(() => {
+  return imageGeneration.workflows.find(wf => wf.name === imageGeneration.activeWorkflowName)?.tags
 })
 
 const modifiableOrDisplayed = (setting: Setting) =>
