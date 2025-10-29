@@ -33,7 +33,7 @@
       </p>
       <div class="flex gap-2">
         <span
-          v-for="tag in tags"
+          v-for="tag in imageGeneration.activeWorkflow.tags"
           :key="tag"
           class="px-3 py-1 text-xs bg-purple-600 rounded-full"
         >
@@ -183,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -196,17 +196,25 @@ import {
   useImageGeneration
 } from "@/assets/js/store/imageGeneration.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
+import { usePromptStore } from "@/assets/js/store/promptArea.ts";
 
 const imageGeneration = useImageGeneration()
 const backendServices = useBackendServices()
+const promptstore = usePromptStore()
 const fastMode = ref(true)
+
+watch(() => promptstore.currentMode, (newValue) => {
+  if (newValue === 'imageEdit') {
+    imageGeneration.activeWorkflowName = presets.value[0].workflowName
+  }
+})
 
 const presets = ref([
   {
     workflowName: 'Edit By Prompt',
     displayName: 'Edit By Prompt',
     description: 'Modify images based on text prompts. Allows precise editing control.',
-    image: '/src/assets/image/faceswap.png',
+    image: '/src/assets/image/editbyprompt.png',
   },
   {
     workflowName: 'Colorize',
@@ -236,10 +244,6 @@ const presets = ref([
 
 const currentPreset = computed(() => {
   return presets.value.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
-})
-
-const tags = computed(() => {
-  return imageGeneration.workflows.find(wf => wf.name === imageGeneration.activeWorkflowName)?.tags
 })
 
 const modifiableOrDisplayed = (setting: Setting) =>
