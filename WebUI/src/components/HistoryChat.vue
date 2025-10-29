@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-2 overflow-y-auto max-h-[100vh] pr-3">
+  <div class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto">
     <div
       v-for="key in reversedConversationKeys"
       :key="key"

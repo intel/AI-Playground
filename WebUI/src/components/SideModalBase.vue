@@ -3,10 +3,11 @@
     <div
       v-if="isVisible"
       :class="[
-        'fixed top-14 h-full bg-gray-800 shadow-lg flex flex-col z-9',
+        'fixed top-14 bg-gray-800 shadow-lg flex flex-col z-9',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
         'border-gray-700',
       ]"
+      style="height: calc(100vh - 3.5rem)"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ title }}</h2>
