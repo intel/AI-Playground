@@ -43,7 +43,7 @@
             @click="handleCancelClick"
             class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm"
           >
-            Cancel
+            ⏹
           </button>
         </div>
       </div>
