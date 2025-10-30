@@ -158,6 +158,7 @@
           :disabled="!modifiable('seed')"
         ></random-number>
       </div>
+      <ComfyDynamic></ComfyDynamic>
 
       <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
         <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings">
@@ -197,6 +198,7 @@ import {
 } from "@/assets/js/store/imageGeneration.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import { usePromptStore } from "@/assets/js/store/promptArea.ts";
+import ComfyDynamic from "@/components/SettingsImageComfyDynamic.vue";
 
 const imageGeneration = useImageGeneration()
 const backendServices = useBackendServices()
