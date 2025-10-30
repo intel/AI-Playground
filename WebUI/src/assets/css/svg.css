@@ -116,6 +116,10 @@
   --svg: url('@/assets/svg/arrow-right.svg');
 }
 
+.i-arrow-left {
+    --svg: url('@/assets/svg/arrow-left.svg');
+}
+
 .i-loading {
   --svg: url('@/assets/svg/loading.svg');
 }
