@@ -142,7 +142,7 @@ const showInfoParams = ref(false)
 
 const currentImage = computed<MediaItem | null>(() => {
   return imageGeneration.generatedImages.find(
-    (image) => image.id === imageGeneration.selectedGeneratedImageId
+    (image) => image.id === imageGeneration.selectedEditedImageId
   ) ?? null
 })
 
@@ -166,11 +166,11 @@ onUnmounted(() => {
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
-    const nonQueuedImages = imageGeneration.generatedImages.filter((i) => i.state !== 'queued')
+    const nonQueuedImages = imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === 'imageEdit')
     if (nonQueuedImages.length > 0) {
-      imageGeneration.selectedGeneratedImageId = nonQueuedImages[nonQueuedImages.length - 1].id
+      imageGeneration.selectedEditedImageId = nonQueuedImages[nonQueuedImages.length - 1].id
     } else {
-      imageGeneration.selectedGeneratedImageId = null
+      imageGeneration.selectedEditedImageId = null
     }
     showInfoParams.value = false
   },
@@ -183,7 +183,7 @@ const emits = defineEmits<{
 async function generateImage(prompt: string) {
   imageGeneration.prompt = prompt
   await ensureModelsAreAvailable()
-  await imageGeneration.generate()
+  await imageGeneration.generate('imageEdit')
 }
 
 function stopGeneration() {

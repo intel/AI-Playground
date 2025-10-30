@@ -38,6 +38,8 @@ export type ComfyDynamicInputWithCurrent =
 export type Image = {
   id: string
   state: 'queued' | 'generating' | 'done' | 'stopped'
+  mode: 'imageGen' | 'imageEdit'
+  sourceImageUrl?: string
   settings: GenerationSettings
   dynamicSettings?: ComfyDynamicInputWithCurrent[]
   imageUrl: string
@@ -489,7 +491,7 @@ export const useImageGeneration = defineStore(
     const stopping = ref(false)
 
     const selectedGeneratedImageId = ref<string | null>(null)
-    const selectedEnhancedImageId = ref<string | null>(null)
+    const selectedEditedImageId = ref<string | null>(null)
 
     // general settings
     const prompt = ref<string>(generalDefaultSettings.prompt)
@@ -849,12 +851,14 @@ export const useImageGeneration = defineStore(
       return result.filter((checkModelExistsResult) => !checkModelExistsResult.already_loaded)
     }
 
-    async function generate() {
+    async function generate(mode: 'imageGen' | 'imageEdit' = 'imageGen', sourceImage?: string) {
       generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
       const imageIds: string[] = Array.from({ length: batchSize.value }, () => crypto.randomUUID())
       imageIds.forEach((imageId) => {
         updateImage({
           id: imageId,
+          mode: mode,
+          sourceImageUrl: sourceImage,
           state: 'queued',
           settings: {},
           imageUrl: '',
@@ -866,9 +870,9 @@ export const useImageGeneration = defineStore(
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
       if (activeWorkflow.value.backend === 'default') {
-        await stableDiffusion.generate(imageIds)
+        await stableDiffusion.generate(imageIds, mode, sourceImage)
       } else {
-        await comfyUi.generate(imageIds)
+        await comfyUi.generate(imageIds, mode, sourceImage)
       }
     }
 
@@ -935,7 +939,7 @@ export const useImageGeneration = defineStore(
       deleteAllImages,
       getGenerationParameters,
       selectedGeneratedImageId,
-      selectedEnhancedImageId,
+      selectedEditedImageId,
     }
   },
   {

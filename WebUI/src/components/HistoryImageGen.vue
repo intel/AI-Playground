@@ -88,7 +88,7 @@ const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 
 const nonQueuedImages = computed(() =>
-  imageGeneration.generatedImages.filter((i) => i.state !== 'queued')
+  imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === 'imageGen')
 )
 
 const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
@@ -98,6 +98,7 @@ const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   window.electronAPI.startDrag(url)
 }
 
+// todo: not used
 function reloadImage(image: MediaItem) {
   console.log('Reloading image:', image.id)
   toast.info(`Reloading image ${image.id}... (dummy)`)

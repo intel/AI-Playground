@@ -166,7 +166,7 @@ onUnmounted(() => {
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
-    const nonQueuedImages = imageGeneration.generatedImages.filter((i) => i.state !== 'queued')
+    const nonQueuedImages = imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === 'imageGen')
     if (nonQueuedImages.length > 0) {
       imageGeneration.selectedGeneratedImageId = nonQueuedImages[nonQueuedImages.length - 1].id
     } else {
@@ -183,7 +183,7 @@ const emits = defineEmits<{
 async function generateImage(prompt: string) {
   imageGeneration.prompt = prompt
   await ensureModelsAreAvailable()
-  await imageGeneration.generate()
+  await imageGeneration.generate('imageGen')
 }
 
 function stopGeneration() {
