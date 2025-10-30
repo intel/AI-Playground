@@ -183,7 +183,6 @@ const emits = defineEmits<{
 async function generateImage(prompt: string) {
   imageGeneration.prompt = prompt
   await ensureModelsAreAvailable()
-  promptStore.processing = true
   await imageGeneration.generate()
 }
 
