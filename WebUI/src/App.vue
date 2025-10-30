@@ -143,22 +143,13 @@
 
   <main
     v-if="useNewUI && globalSetup.loadingState === 'running'"
-    class="flex-1 flex flex-col relative justify-center min-h-0"
+    class="flex-1 flex relative min-h-0"
     :class="{
-      'bg-black/50': theme.active === 'lnl',
-      'bg-black/80': theme.active === 'bmg',
-      'border-t border-color-spilter': theme.active === 'dark',
-    }"
+    'bg-black/50': theme.active === 'lnl',
+    'bg-black/80': theme.active === 'bmg',
+    'border-t border-color-spilter': theme.active === 'dark',
+  }"
   >
-    <div class="absolute top-4 left-4 z-5">
-      <button
-        v-show="!showHistory"
-        @click="openHistory"
-        class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
-      >
-        {{ languages.COM_SHOW_HISTORY }}
-      </button>
-    </div>
     <SideModalHistory
       :isVisible="showHistory"
       :mode="promptStore.currentMode"
@@ -166,11 +157,29 @@
       @conversation-selected="chatRef?.scrollToBottom"
     />
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
-    <Chat v-show="promptStore.currentMode === 'chat'" ref="chatRef" />
-    <ImageGen v-show="promptStore.currentMode === 'imageGen'" ref="imageGenRef" />
-    <ImageEdit v-show="promptStore.currentMode === 'imageEdit'" ref="imageEditRef" />
-    <Video v-show="promptStore.currentMode === 'video'" ref="videoRef" />
-    <PromptArea @auto-hide-footer="handleAutoHideFooter" />
+
+    <div class="flex-1 flex flex-col relative justify-center min-h-0">
+      <div class="absolute top-4 left-4 z-5">
+        <button
+          v-show="!showHistory"
+          @click="openHistory"
+          class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+        >
+          {{ languages.COM_SHOW_HISTORY }}
+        </button>
+      </div>
+      <Chat v-show="promptStore.currentMode === 'chat'" ref="chatRef" />
+      <ImageGen v-show="promptStore.currentMode === 'imageGen'" ref="imageGenRef" />
+      <ImageEdit v-show="promptStore.currentMode === 'imageEdit'" ref="imageEditRef" />
+      <Video v-show="promptStore.currentMode === 'video'" ref="videoRef" />
+      <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
+    </div>
+
+    <SideModalSpecificSettings
+      :isVisible="showSpecificSettings"
+      :mode="promptStore.currentMode"
+      @close="showSpecificSettings = false"
+    />
     <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
@@ -359,6 +368,7 @@ import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts";
+import SideModalSpecificSettings from "@/components/SideModalSpecificSettings.vue";
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -388,6 +398,7 @@ const showAppSettings = ref(false)
 const showModelRequestDialog = ref(false)
 const fullscreen = ref(false)
 const useNewUI = ref(true)
+const showSpecificSettings = ref(false)
 
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
@@ -524,6 +535,10 @@ function handleAutoHideFooter() {
 
 function openHistory() {
   showHistory.value = true
+}
+
+function openSpecificSettings() {
+  showSpecificSettings.value = true
 }
 
 function openAppSettings() {

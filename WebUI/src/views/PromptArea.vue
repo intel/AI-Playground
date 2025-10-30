@@ -27,7 +27,7 @@
         <div class="absolute bottom-3 right-3 flex gap-2">
           <button
             class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
-            @click="showSettings = true"
+            @click="$emit('openSettings')"
           >
             {{ mapModeToLabel(promptStore.currentMode) }} Settings
           </button>
@@ -55,17 +55,11 @@
         </div>
       </div>
     </div>
-    <SideModalSpecificSettings
-      :isVisible="showSettings"
-      :mode="promptStore.currentMode"
-      @close="showSettings = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed } from 'vue'
-import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
@@ -73,12 +67,12 @@ import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const prompt = ref('')
-const showSettings = ref(false)
 const promptStore = usePromptStore()
 const imageGeneration = useImageGeneration()
 
 const emits = defineEmits<{
-  (e: 'autoHideFooter'): void
+  (e: 'autoHideFooter'): void,
+  (e: 'openSettings'): void
 }>()
 
 const isProcessing = computed(() =>

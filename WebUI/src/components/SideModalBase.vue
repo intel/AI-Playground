@@ -3,11 +3,11 @@
     <div
       v-if="isVisible"
       :class="[
-        'fixed top-14 bg-gray-800 shadow-lg flex flex-col z-9',
+        'bg-gray-800 shadow-lg flex flex-col z-9 border-gray-700',
+        'fixed top-14 lg:relative lg:top-0',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
-        'border-gray-700',
       ]"
-      style="height: calc(100vh - 3.5rem)"
+      :style="modalStyle"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ title }}</h2>
@@ -37,26 +37,46 @@ defineEmits<{
 }>()
 
 const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : 'slide-right'))
+
+const modalStyle = computed(() => ({
+  height: 'calc(100vh - 3.5rem)'
+}))
 </script>
 
 <style scoped>
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.3s ease;
+@media (max-width: 1023px) {
+  .slide-right-enter-active,
+  .slide-right-leave-active,
+  .slide-left-enter-active,
+  .slide-left-leave-active {
+    transition: transform 0.3s ease;
+  }
+
+  .slide-right-enter-from,
+  .slide-right-leave-to {
+    transform: translateX(100%);
+  }
+
+  .slide-left-enter-from,
+  .slide-left-leave-to {
+    transform: translateX(-100%);
+  }
 }
 
-.slide-right-enter-from,
-.slide-right-leave-to {
-  transform: translateX(100%);
-}
+@media (min-width: 1024px) {
+  .slide-right-enter-active,
+  .slide-right-leave-active,
+  .slide-left-enter-active,
+  .slide-left-leave-active {
+    transition: opacity 0.2s ease;
+  }
 
-.slide-left-enter-active,
-.slide-left-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-left-enter-from,
-.slide-left-leave-to {
-  transform: translateX(-100%);
+  .slide-right-enter-from,
+  .slide-right-leave-to,
+  .slide-left-enter-from,
+  .slide-left-leave-to {
+    opacity: 0;
+    transform: none;
+  }
 }
 </style>
