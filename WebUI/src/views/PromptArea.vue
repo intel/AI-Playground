@@ -13,7 +13,7 @@
           <button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
             :key="mode"
-            @click="promptStore.setMode(mode)"
+            @click="setMode(mode)"
             :class="
               promptStore.currentMode === mode
                 ? 'bg-blue-600 hover:bg-blue-500'
@@ -96,6 +96,15 @@ function getTextAreaPlaceholder() {
       return languages?.COM_PROMPT_VIDEO || ''
     default:
       return languages?.COM_PROMPT_CHAT || ''
+  }
+}
+
+function setMode(mode: ModeType) {
+  promptStore.currentMode = mode
+  if (mode === 'imageGen') {
+    imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageGenWorkflowName
+  } else if (mode === 'imageEdit') {
+    imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
   }
 }
 

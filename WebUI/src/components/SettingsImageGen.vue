@@ -196,18 +196,11 @@ import {
   useImageGeneration
 } from "@/assets/js/store/imageGeneration.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
-import { usePromptStore } from "@/assets/js/store/promptArea.ts";
 
 const imageGeneration = useImageGeneration()
 const backendServices = useBackendServices()
-const promptstore = usePromptStore()
 const fastMode = ref(true)
 
-watch(() => promptstore.currentMode, (newValue) => {
-  if (newValue === 'imageGen') {
-    imageGeneration.activeWorkflowName = presets.value[0].workflowName
-  }
-})
 
 const presets = ref([
   {

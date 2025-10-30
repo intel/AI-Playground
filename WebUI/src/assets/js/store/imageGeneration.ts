@@ -481,6 +481,9 @@ export const useImageGeneration = defineStore(
 
     const workflows = ref<Workflow[]>(predefinedWorkflows)
     const activeWorkflowName = ref<string | null>('Standard - Fast')
+    const lastUsedImageGenWorkflowName = ref<string>('Flux.1-Schnell Med Quality')
+    const lastUsedImageEditWorkflowName = ref<string>('Edit By Prompt')
+
     const activeWorkflow = computed(() => {
       console.log('### activeWorkflowName', activeWorkflowName.value)
       return (
@@ -661,6 +664,13 @@ export const useImageGeneration = defineStore(
             (lastWorkflowPerBackend.value[activeWorkflow.value.backend] = activeWorkflowName.value),
         )
         loadSettingsForActiveWorkflow()
+        if (activeWorkflow.value.backend === 'comfyui' && activeWorkflowName.value) {
+          if (activeWorkflow.value.category === 'create-images') {
+            lastUsedImageGenWorkflowName.value = activeWorkflowName.value
+          } else if (activeWorkflow.value.category === 'edit-images') {
+            lastUsedImageEditWorkflowName.value = activeWorkflowName.value
+          }
+        }
       },
       {},
     )
@@ -940,6 +950,8 @@ export const useImageGeneration = defineStore(
       getGenerationParameters,
       selectedGeneratedImageId,
       selectedEditedImageId,
+      lastUsedImageGenWorkflowName,
+      lastUsedImageEditWorkflowName
     }
   },
   {
@@ -952,6 +964,8 @@ export const useImageGeneration = defineStore(
         'comfyInputsPerWorkflow',
         'hdWarningDismissed',
         'lastWorkflowPerBackend',
+        'lastUsedImageGenWorkflowName',
+        'lastUsedImageEditWorkflowName',
       ],
     },
   },

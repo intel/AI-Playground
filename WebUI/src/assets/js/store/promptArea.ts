@@ -10,10 +10,6 @@ export const usePromptStore = defineStore('prompt', () => {
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
   const cancelCallbacks = ref<Partial<Record<ModeType, () => void>>>({})
 
-  function setMode(mode: ModeType) {
-    currentMode.value = mode
-  }
-
   function submitPrompt(promptText: string, mode: ModeType) {
     const callback = submitCallbacks.value[mode]
     if (callback) {
@@ -51,7 +47,6 @@ export const usePromptStore = defineStore('prompt', () => {
     processing,
 
     // Actions
-    setMode,
     submitPrompt,
     cancelProcessing,
     registerSubmitCallback,
