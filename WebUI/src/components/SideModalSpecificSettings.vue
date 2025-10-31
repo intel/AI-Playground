@@ -6,19 +6,30 @@
     @close="$emit('close')"
   >
     <SettingsChat v-show="props.mode == 'chat'" />
-    <SettingsImageGen v-show="props.mode == 'imageGen'" />
-    <SettingsImageEdit v-show="props.mode == 'imageEdit'" />
-    <SettingsVideo v-show="props.mode == 'video'" />
+    <SettingsWorkflow
+      v-show="props.mode == 'imageGen'"
+      :presets="imageGenPresets"
+      :title="`${mapModeToLabel(mode)} Presets`"
+    />
+    <SettingsWorkflow
+      v-show="props.mode == 'imageEdit'"
+      :presets="imageEditPresets"
+      :title="`${mapModeToLabel(mode)} Presets`"
+    />
+    <SettingsWorkflow
+      v-show="props.mode == 'video'"
+      :presets="videoPresets"
+      :title="`${mapModeToLabel(mode)} Presets`"
+    />
   </SideModalBase>
 </template>
 
 <script setup lang="ts">
 import SideModalBase from '@/components/SideModalBase.vue'
 import SettingsChat from '@/components/SettingsChat.vue'
-import SettingsImageGen from '@/components/SettingsImageGen.vue'
-import SettingsImageEdit from '@/components/SettingsImageEdit.vue'
-import SettingsVideo from '@/components/SettingsVideo.vue'
+import SettingsWorkflow from '@/components/SettingsWorkflow.vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
+import { imageGenPresets, imageEditPresets, videoPresets } from "../assets/js/presets";
 
 const props = defineProps<{
   mode: ModeType

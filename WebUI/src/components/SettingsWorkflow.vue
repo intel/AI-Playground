@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-6 p-1">
-    <h2 class="text-xl font-semibold text-center">Image Gen Presets</h2>
+    <h2 class="text-xl font-semibold text-center">{{ title }}</h2>
     <div class="grid grid-cols-3 gap-3">
       <div
         v-for="preset in presets"
@@ -184,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -198,41 +198,21 @@ import {
 } from "@/assets/js/store/imageGeneration.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import ComfyDynamic from "@/components/SettingsImageComfyDynamic.vue";
+import { Preset } from "../assets/js/presets";
+
+interface Props {
+  presets: Preset[]
+  title: string
+}
+
+const props = defineProps<Props>()
 
 const imageGeneration = useImageGeneration()
 const backendServices = useBackendServices()
 const fastMode = ref(true)
 
-
-const presets = ref([
-  {
-    workflowName: 'Flux.1-Schnell Med Quality',
-    displayName: 'Flux Schnell',
-    description: 'Fast and efficient image generation with Flux models. Balances speed and quality.',
-    image: '/src/assets/image/flux_schnell.png',
-  },
-  {
-    workflowName: 'Flux.1-Schnell High Quality',
-    displayName: 'Flux Schnell HD',
-    description: 'Fast and efficient image generation with Flux models. Favors quality over speed.',
-    image: '/src/assets/image/flux_schnell.png',
-  },
-  {
-    workflowName: 'FaceSwap-HD',
-    displayName: 'FaceSwap',
-    description: 'Specialized for swapping faces in images. Ensures realistic results.',
-    image: '/src/assets/image/faceswap.png',
-  },
-  {
-    workflowName: 'Acer VisionArt',
-    displayName: 'Acer VisionArt',
-    description: 'Artistic image generation with Acer\'s vision models. Creates unique visual styles.',
-    image: '/src/assets/image/acer_visionart.png',
-  },
-])
-
 const currentPreset = computed(() => {
-  return presets.value.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
+  return props.presets.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
 })
 
 const modifiableOrDisplayed = (setting: Setting) =>
