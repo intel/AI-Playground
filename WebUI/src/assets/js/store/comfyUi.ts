@@ -520,7 +520,7 @@ export const useComfyUi = defineStore(
 
     async function generate(
       imageIds: string[],
-      mode: 'imageGen' | 'imageEdit',
+      mode: 'imageGen' | 'imageEdit' | 'video',
       sourceImage?: string,
     ) {
       console.log('generateWithComfy')
