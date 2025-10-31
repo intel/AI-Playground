@@ -7,8 +7,8 @@
       v-for="image in nonQueuedImages"
       :key="image.id"
       class="flex items-center gap-2 bg-gray-700 rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-gray-600"
-      :class="imageGeneration.selectedGeneratedImageId === image.id ? 'border-blue-500' : 'border-transparent'"
-      @click="imageGeneration.selectedGeneratedImageId = image.id"
+      :class="isSelected(image.id) ? 'border-blue-500' : 'border-transparent'"
+      @click="selectImage(image.id)"
     >
       <div
         class="w-[100px] h-[60px] overflow-hidden rounded-sm flex items-center justify-center bg-black"
@@ -18,6 +18,7 @@
         <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
         <img v-else :src="image.imageUrl" class="w-full h-full object-cover" />
       </div>
+
       <div class="absolute top-1 right-1 flex items-center">
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
@@ -63,7 +64,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n'
-import * as toast from '@/assets/js/toast'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import {
   DropdownMenu,
@@ -84,11 +84,17 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 
+const props = defineProps<{
+  mode: 'imageGen' | 'imageEdit' | 'video'
+}>()
+
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 
 const nonQueuedImages = computed(() =>
-  imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === 'imageGen')
+  imageGeneration.generatedImages.filter(
+    (i) => i.state !== 'queued' && i.mode === props.mode
+  )
 )
 
 const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
@@ -98,16 +104,34 @@ const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   window.electronAPI.startDrag(url)
 }
 
+
 // todo: not used
 function reloadImage(image: MediaItem) {
   console.log('Reloading image:', image.id)
-  toast.info(`Reloading image ${image.id}... (dummy)`)
 }
 
 function deleteImage(image: MediaItem) {
   console.log('Deleting image:', image.id)
   imageGeneration.deleteImage(image.id)
-  toast.success(i18nState.COM_DELETE_SUCCESS_TIP || 'Image deleted.')
+}
+
+function isSelected(id: string) {
+  if (props.mode === 'imageGen')
+    return imageGeneration.selectedGeneratedImageId === id
+  if (props.mode === 'imageEdit')
+    return imageGeneration.selectedEditedImageId === id
+  if (props.mode === 'video')
+    return imageGeneration.selectedVideoId === id
+  return false
+}
+
+function selectImage(id: string) {
+  if (props.mode === 'imageGen')
+    imageGeneration.selectedGeneratedImageId = id
+  else if (props.mode === 'imageEdit')
+    imageGeneration.selectedEditedImageId = id
+  else if (props.mode === 'video')
+    imageGeneration.selectedVideoId = id
 }
 </script>
 

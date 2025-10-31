@@ -17,17 +17,15 @@
       v-show="props.mode == 'chat'"
       @conversation-selected="emit('conversationSelected')"
     />
-    <HistoryImageGen v-show="props.mode == 'imageGen'" />
-    <HistoryImageEdit v-show="props.mode == 'imageEdit'" />
-    <HistoryVideo v-show="props.mode == 'video'" />
+    <HistoryWorkflow v-show="props.mode === 'imageGen'" mode="imageGen" />
+    <HistoryWorkflow v-show="props.mode === 'imageEdit'" mode="imageEdit" />
+    <HistoryWorkflow v-show="props.mode === 'video'" mode="video" />
   </SideModalBase>
 </template>
 
 <script setup lang="ts">
 import HistoryChat from '@/components/HistoryChat.vue'
-import HistoryImageEdit from '@/components/HistoryImageEdit.vue'
-import HistoryVideo from '@/components/HistoryVideo.vue'
-import HistoryImageGen from '@/components/HistoryImageGen.vue'
+import HistoryWorkflow from '@/components/HistoryWorkflow.vue'
 import { useConversations } from '@/assets/js/store/conversations.ts'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import SideModalBase from '@/components/SideModalBase.vue'
