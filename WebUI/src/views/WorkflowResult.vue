@@ -64,7 +64,7 @@
         >
           <button
             v-if="
-                currentImage && !(currentImage?.state === 'generating') && !isVideo(currentImage)
+                currentImage && currentImage?.state !== 'generating' && currentImage?.mode === 'imageGen'
               "
             @click="postImageToEnhance(currentImage)"
             :title="languages.COM_POST_TO_ENHANCE_PROCESS"
@@ -221,8 +221,51 @@ async function ensureModelsAreAvailable() {
   })
 }
 
-function postImageToEnhance(image: MediaItem) {
-  emits('postImageToEnhance', getMediaUrl(image))
+async function postImageToEnhance(image: MediaItem) {
+  imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
+
+  const imageInput = imageGeneration.activeWorkflow.inputs.find((input) => input.type === 'image')
+  if (!imageInput) {
+    console.warn(`No image input found in workflow "${imageGeneration.activeWorkflowName}".`)
+    return
+  }
+
+  if (!('nodeTitle' in imageInput)) {
+    console.warn('Image input does not have nodeTitle property (not a ComfyUI workflow)')
+    return
+  }
+
+  let imageAsBase64 = image.imageUrl
+
+  if (!image.imageUrl.startsWith('data:')) {
+    try {
+      const response = await fetch(image.imageUrl)
+      const blob = await response.blob()
+      imageAsBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error)
+      return
+    }
+  }
+
+  nextTick(() => {
+    const comfyImageInput = imageGeneration.comfyInputs.find(
+      (input) => input.type === 'image' &&
+        input.nodeTitle === imageInput.nodeTitle &&
+        input.nodeInput === imageInput.nodeInput
+    )
+
+    if (comfyImageInput && comfyImageInput.type === 'image') {
+      comfyImageInput.current.value = imageAsBase64
+    } else {
+      console.warn('Could not find matching comfyInput for image input')
+    }
+  })
 }
 
 function showParamsDialog() {
