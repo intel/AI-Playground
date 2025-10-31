@@ -187,9 +187,21 @@
         ></button>
       </div>
       <Chat v-show="promptStore.currentMode === 'chat'" ref="chatRef" />
-      <ImageGen v-show="promptStore.currentMode === 'imageGen'" ref="imageGenRef" />
-      <ImageEdit v-show="promptStore.currentMode === 'imageEdit'" ref="imageEditRef" />
-      <Video v-show="promptStore.currentMode === 'video'" ref="videoRef" />
+      <WorkflowResult
+        v-show="promptStore.currentMode === 'imageGen'"
+        ref="imageGenRef"
+        mode='imageGen'
+      />
+      <WorkflowResult
+        v-show="promptStore.currentMode === 'imageEdit'"
+        ref="imageEditRef"
+        mode='imageEdit'
+      />
+      <WorkflowResult
+        v-show="promptStore.currentMode === 'video'"
+        ref="videoRef"
+        mode='video'
+      />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
       <div
         v-if="!footerExpanded"
@@ -374,9 +386,7 @@ import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
-import ImageEdit from '@/views/ImageEdit.vue'
-import Video from '@/views/Video.vue'
-import ImageGen from '@/views/ImageGen.vue'
+import WorkflowResult from '@/views/WorkflowResult.vue'
 import Chat from '@/views/Chat.vue'
 import Answer from '@/views/Answer.vue'
 import { ref } from 'vue'

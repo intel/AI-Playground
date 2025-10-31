@@ -134,15 +134,32 @@ import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageG
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts"
 
+interface Props {
+  mode: 'imageGen' | 'imageEdit' | 'video'
+}
+
+const props = defineProps<Props>()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGeneration()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
 
+const selectedImageIdKey = computed(() => {
+    switch (props.mode) {
+      case 'imageGen':
+        return 'selectedGeneratedImageId'
+      case 'imageEdit':
+        return 'selectedEditedImageId'
+      case 'video':
+        return 'selectedVideoId'
+    }
+  }
+)
+
 const currentImage = computed<MediaItem | null>(() => {
   return imageGeneration.generatedImages.find(
-    (image) => image.id === imageGeneration.selectedGeneratedImageId
+    (image) => image.id === imageGeneration[selectedImageIdKey.value]
   ) ?? null
 })
 
@@ -154,23 +171,25 @@ const dragImage = (item: MediaItem | null) => (event: Event) => {
 }
 
 onMounted(() => {
-  promptStore.registerSubmitCallback('imageGen', generateImage)
-  promptStore.registerCancelCallback('imageGen', stopGeneration)
+  promptStore.registerSubmitCallback(props.mode, generateImage)
+  promptStore.registerCancelCallback(props.mode, stopGeneration)
 })
 
 onUnmounted(() => {
-  promptStore.unregisterSubmitCallback('imageGen')
-  promptStore.unregisterCancelCallback('imageGen')
+  promptStore.unregisterSubmitCallback(props.mode)
+  promptStore.unregisterCancelCallback(props.mode)
 })
 
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
-    const nonQueuedImages = imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === 'imageGen')
+    const nonQueuedImages = imageGeneration.generatedImages.filter(
+      (i) => i.state !== 'queued' && i.mode === props.mode
+    )
     if (nonQueuedImages.length > 0) {
-      imageGeneration.selectedGeneratedImageId = nonQueuedImages[nonQueuedImages.length - 1].id
+      imageGeneration[selectedImageIdKey.value] = nonQueuedImages[nonQueuedImages.length - 1].id
     } else {
-      imageGeneration.selectedGeneratedImageId = null
+      imageGeneration[selectedImageIdKey.value] = null
     }
     showInfoParams.value = false
   },
@@ -183,7 +202,7 @@ const emits = defineEmits<{
 async function generateImage(prompt: string) {
   imageGeneration.prompt = prompt
   await ensureModelsAreAvailable()
-  await imageGeneration.generate('imageGen')
+  await imageGeneration.generate(props.mode)
 }
 
 function stopGeneration() {
