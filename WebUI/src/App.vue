@@ -159,7 +159,7 @@
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
-      <div class="absolute top-4 left-4 z-5">
+      <div class="fixed top-18 left-4 z-5">
         <button
           v-show="!showHistory"
           @click="openHistory"
@@ -168,11 +168,39 @@
           {{ languages.COM_SHOW_HISTORY }}
         </button>
       </div>
+      <div
+        class="fixed left-4 z-5 flex items-center gap-3"
+        :class="{
+          'bottom-4': !footerExpanded,
+          'bottom-27': footerExpanded
+        }"
+      >
+        <button
+          @click="openAppSettings"
+          class="svg-icon i-setup w-6 h-6 text-white hover:text-white/80 transition-colors"
+          title="App Settings"
+        ></button>
+        <button
+          @click="openDevTools"
+          class="svg-icon i-code w-6 h-6 text-white hover:text-white/80 transition-colors"
+          title="Developer Tools"
+        ></button>
+      </div>
       <Chat v-show="promptStore.currentMode === 'chat'" ref="chatRef" />
       <ImageGen v-show="promptStore.currentMode === 'imageGen'" ref="imageGenRef" />
       <ImageEdit v-show="promptStore.currentMode === 'imageEdit'" ref="imageEditRef" />
       <Video v-show="promptStore.currentMode === 'video'" ref="videoRef" />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
+      <div
+        v-if="!footerExpanded"
+        class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
+        <button
+          @click="footerExpanded = !footerExpanded"
+          class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
+        >
+          SHOW FOOTER
+        </button>
+      </div>
     </div>
 
     <SideModalSpecificSettings
@@ -266,25 +294,13 @@
       'border-t border-color-spilter': theme.active === 'dark',
     }"
   >
-    <div v-if="useNewUI" class="w-full relative flex items-center justify-center pb-1">
-      <div class="absolute left-0 flex items-center gap-3 pb-4">
-        <button
-          @click="openAppSettings"
-          class="svg-icon i-setup w-6 h-6 text-white hover:text-white/80 transition-colors"
-          title="App Settings"
-        ></button>
-        <button
-          @click="openDevTools"
-          class="svg-icon i-code w-6 h-6 text-white hover:text-white/80 transition-colors"
-          title="Developer Tools"
-        ></button>
-      </div>
-
+    <div v-if="useNewUI && footerExpanded"
+         class="w-full relative flex items-center justify-center pb-1">
       <button
         @click="footerExpanded = !footerExpanded"
         class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
       >
-        {{ footerExpanded ? 'HIDE FOOTER' : 'SHOW FOOTER' }}
+        HIDE FOOTER
       </button>
     </div>
     <div v-show="footerExpanded" class="w-full flex justify-between items-center pb-2">

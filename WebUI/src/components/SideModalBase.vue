@@ -3,11 +3,10 @@
     <div
       v-if="isVisible"
       :class="[
-        'bg-gray-800 shadow-lg flex flex-col z-9 border-gray-700',
-        'fixed top-14 2xl:relative 2xl:top-0',
+        'bg-gray-800 shadow-lg flex flex-col z-9 border-gray-700 h-full',
+        'absolute 2xl:relative top-0',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
       ]"
-      :style="modalStyle"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold">{{ title }}</h2>
@@ -44,10 +43,6 @@ defineEmits<{
 }>()
 
 const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : 'slide-right'))
-
-const modalStyle = computed(() => ({
-  height: 'calc(100vh - 3.5rem)'
-}))
 </script>
 
 <style scoped>
