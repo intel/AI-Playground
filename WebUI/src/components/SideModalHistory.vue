@@ -44,7 +44,9 @@ const emit = defineEmits<{
 }>()
 
 function selectNewConversation() {
-  conversations.activeKey = Object.keys(conversations).pop() ?? ''
+  const key = conversations.addNewConversation()
+  if (!key) return
+  conversations.activeKey = key
   emit('close')
 }
 </script>

@@ -12,7 +12,7 @@
       @click="selectConversation(key)"
     >
       <span class="truncate text-sm text-foreground">
-        {{ conversations.conversationList[key]?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+        {{ conversationTitle(key) }}
       </span>
       <DropdownMenu
         :open="menuOpenKey === key"
@@ -139,9 +139,22 @@ const emits = defineEmits<{
 const reversedConversationKeys = computed(() => {
   const list = conversations.conversationList ?? {}
   const keys = Object.keys(list).reverse()
-  keys.shift()
+  console.log('Reversed conversation keys:', list, keys)
   return keys
 })
+
+const conversationTitle = (key: string) => {
+  const conversation = conversations.conversationList[key]
+  if (!conversation || conversation.length === 0) {
+    return 'New Conversation'
+  }
+  if (conversation[0].metadata?.conversationTitle) {
+    return conversation[0].metadata.conversationTitle
+  }
+  const firstMessage = conversation[1]
+  const titlePart = firstMessage.parts.find((part) => part.type === 'text')
+  return titlePart ? titlePart.text.substring(0, 50) : 'New Conversation'
+}
 
 const menuOpenKey = ref<string | null>(null)
 
@@ -160,7 +173,7 @@ const renameTitle = ref('')
 
 function openRenameDialog(conversationKey: string) {
   renameKey.value = conversationKey
-  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.title
+  const existingTitle = conversationTitle(conversationKey)
   renameTitle.value = existingTitle ?? ''
   renameDialogOpen.value = true
 }

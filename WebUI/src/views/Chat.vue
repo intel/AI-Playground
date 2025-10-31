@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="
-      (conversations.activeConversation && conversations.activeConversation.length > 0) ||
+      (activeConversation && activeConversation.length > 0) ||
       processing
     "
     id="chatPanel"
@@ -17,28 +17,28 @@
     </div>
     <!-- eslint-disable vue/require-v-for-key -->
     <div class="w-full max-w-3xl mx-auto flex flex-col gap-6">
-      <template v-for="(chatItem, i) in conversations.activeConversation">
+      <template v-for="(message, i) in activeConversation">
         <!-- eslint-enable -->
-        <div class="flex items-start gap-3">
+        <div v-if="message.role === 'user'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
             <p class="text-gray-300" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
             <div class="chat-content" style="white-space: pre-wrap">
-              {{ chatItem.question }}
+              {{ message.parts.find((part) => part.type === 'text')?.text }}
             </div>
             <button
               class="flex items-center gap-1 text-xs text-gray-300 mt-1"
               :title="languages.COM_COPY"
-              @click="copyText(chatItem.question)"
+              @click="copyText(message.parts.find((part) => part.type === 'text')?.text || '')"
             >
               <span class="svg-icon i-copy w-4 h-4"></span>
               <span>{{ languages.COM_COPY }}</span>
             </button>
           </div>
         </div>
-        <div class="flex items-start gap-3">
+        <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
           <div
             class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
@@ -47,19 +47,19 @@
               <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_AI_NAME }}
               </p>
-              <div v-if="chatItem.model" class="flex items-center gap-2">
+              <div v-if="(message.metadata as { model?: string }).model" class="flex items-center gap-2">
                 <span
                   class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
                   :class="textInference.nameSizeClass"
                 >
                   {{
-                    chatItem.model.endsWith('.gguf')
-                      ? (chatItem.model.split('/').at(-1)?.split('.gguf')[0] ?? chatItem.model)
-                      : chatItem.model
+                    (message.metadata as { model?: string }).model?.endsWith('.gguf')
+                      ? ((message.metadata as { model?: string }).model?.split('/').at(-1)?.split('.gguf')[0] ?? (message.metadata as { model?: string }).model)
+                      : (message.metadata as { model?: string }).model
                   }}
                 </span>
                 <!-- Display RAG source if available -->
-                <span
+                <!-- <span
                   v-if="chatItem.ragSource"
                   @click="chatItem.showRagSource = !chatItem.showRagSource"
                   class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
@@ -74,39 +74,37 @@
                     />
                     <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
                   </button>
-                </span>
+                </span> -->
               </div>
             </div>
 
             <!-- RAG Source Details (collapsible) -->
-            <div
+            <!-- <div
               v-if="chatItem.ragSource && chatItem.showRagSource"
               class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
               <div class="whitespace-pre-wrap">{{ chatItem.ragSource }}</div>
-            </div>
+            </div> -->
             <div class="ai-answer chat-content">
-              <template v-if="chatItem.model && thinkingModels[chatItem.model]">
+              <template v-if="message.parts.some((part) => part.type === 'reasoning')">
                 <div class="mb-2 flex items-center">
-                  <span class="italic text-gray-300">
+                   <span class="italic text-gray-300">
                     {{
-                      chatItem.reasoningTime !== undefined && chatItem.reasoningTime !== null
-                        ? `Reasoned for ${
-                            (chatItem.reasoningTime / 1000).toFixed(1).endsWith('.0')
-                              ? (chatItem.reasoningTime / 1000).toFixed(0)
-                              : (chatItem.reasoningTime / 1000).toFixed(1)
+                      message.metadata?.reasoningFinished && message.metadata?.reasoningStarted
+                        ? `Done Reasoning after ${((message.metadata.reasoningFinished - message.metadata.reasoningStarted) / 1000).toFixed(1)} seconds`
+                        : `Reasoned for ${
+                            ((Date.now() - (message.metadata?.reasoningStarted ?? 0)) / 1000).toFixed(1)
                           } seconds`
-                        : 'Done Reasoning'
                     }}
                   </span>
                   <button
-                    @click="chatItem.showThinkingText = !chatItem.showThinkingText"
+                    @click="showThinkingTextPerMessageId[message.id] = !showThinkingTextPerMessageId[message.id]"
                     class="ml-1"
                   >
                     <img
-                      v-if="chatItem.showThinkingText"
+                      v-if="showThinkingTextPerMessageId[message.id]"
                       src="../assets/svg/arrow-up.svg"
                       class="w-4 h-4"
                     />
@@ -114,14 +112,14 @@
                   </button>
                 </div>
                 <div
-                  v-if="chatItem.showThinkingText"
+                  v-if="showThinkingTextPerMessageId[message.id]"
                   class="border-l-2 border-gray-400 pl-4 text-gray-300"
-                  v-html="chatItem.parsedThinkingText"
+                  v-html="message.parts.find((part) => part.type === 'reasoning')?.text"
                 ></div>
-                <div v-html="chatItem.parsedAnswer"></div>
+                <div v-html="message.parts.find((part) => part.type === 'text')?.text"></div>
               </template>
               <template v-else>
-                <div v-html="chatItem.parsedAnswer"></div>
+                <div v-html="message.parts.find((part) => part.type === 'text')?.text"></div>
               </template>
             </div>
             <div class="answer-tools flex gap-3 items-center text-gray-300">
@@ -130,9 +128,7 @@
                 :title="languages.COM_COPY"
                 @click="
                   copyText(
-                    chatItem.model && thinkingModels[chatItem.model]
-                      ? textInference.extractPostMarker(chatItem.answer, chatItem.model)
-                      : chatItem.answer,
+                    message.parts.find((part) => part.type === 'text')?.text || ''
                   )
                 "
               >
@@ -142,7 +138,7 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_REGENERATE"
-                @click="() => regenerateLastResponse(conversations.activeKey)"
+                @click="() => openAiCompatibleChat.chat.regenerate({messageId: message.id})"
                 v-if="i + 1 == conversations.activeConversation.length"
                 :disabled="processing"
                 :class="{ 'opacity-50 cursor-not-allowed': processing }"
@@ -153,30 +149,30 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_DELETE"
-                @click="() => conversations.deleteItemFromConversation(conversations.activeKey, i)"
+                @click="() => openAiCompatibleChat.chat.messages = openAiCompatibleChat.chat.messages.filter(m => m.id !== message.id)"
               >
                 <span class="svg-icon i-delete w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
               </button>
             </div>
             <div
-              v-if="textInference.metricsEnabled && chatItem.metrics"
+              v-if="textInference.metricsEnabled && message.metadata?.metrics"
               class="metrics-info text-xs text-gray-400"
             >
-              <span class="mr-2">{{ chatItem.metrics.num_tokens }} Tokens</span>
+              <span class="mr-2">{{ message.metadata?.metrics.num_tokens }} Tokens</span>
               <span class="mr-2">⋅</span>
               <span class="mr-2"
-                >{{ chatItem.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                >{{ message.metadata?.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
               >
               <span class="mr-2">⋅</span>
               <span class="mr-2"
-                >1st Token Time: {{ chatItem.metrics.first_token_latency.toFixed(2) }}s</span
+                >1st Token Time: {{ message.metadata?.metrics.first_token_latency.toFixed(2) }}s</span
               >
             </div>
           </div>
         </div>
       </template>
-      <div
+      <!-- <div
         class="flex items-start gap-3"
         v-show="processing && conversations.activeKey === currentlyGeneratingKey"
       >
@@ -305,7 +301,7 @@
             ></loading-bar>
           </div>
         </div>
-      </div>
+      </div> -->
     </div>
   </div>
 </template>
@@ -331,77 +327,51 @@ const languages = instance?.appContext.config.globalProperties.languages
 const textInference = useTextInference()
 const conversations = useConversations()
 const backendServices = useBackendServices()
-const globalSetup = useGlobalSetup()
 const processing = ref(false)
-const markerFound = ref(false)
-const thinkingText = ref('')
-const showThinkingText = ref(false)
-const postMarkerText = ref('')
-const textIn = ref('')
-const textOut = ref('')
-const source = ref('')
-const thinkOut = ref('')
+
 const i18nState = useI18N().state
 const ragRetrievalInProgress = ref(false)
 const showRagPreview = ref(true)
-const loadingModel = ref(false)
 const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
 
-const downloadModel = reactive({
-  downloading: false,
-  text: '',
-  percent: 0,
-})
+const activeConversation = computed(() => openAiCompatibleChat.messages)
+const showThinkingTextPerMessageId = reactive<Record<string, boolean>>({})
 
-let reasoningStartTime = 0
-let reasoningTotalTime = 0
-let receiveOut = ''
 let actualRagResults: LangchainDocument[] | null = null
-let sseMetrics: MetricsData | null = null
 
 defineExpose({
   handleSubmitPromptClick,
   scrollToBottom,
 })
 
-// Keep track of which conversation is receiving the in-progress text
-const currentlyGeneratingKey = ref<string | null>(null)
-
 async function handleSubmitPromptClick(prompt: string) {
-  const newPrompt = prompt.trim()
-  if (newPrompt == '') {
+  const question = prompt.trim()
+  if (question == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
     return
   }
   try {
     await textInference.checkModelAvailability()
 
-    currentlyGeneratingKey.value = conversations.activeKey
-
-    const chatContext = JSON.parse(JSON.stringify(conversations.activeConversation))
-    chatContext.push({ question: newPrompt, answer: '' })
-    generate(chatContext)
+    generate(question)
   } catch {}
 }
 
-async function generate(chatContext: ChatItem[]) {
+async function generate(question: string) {
   try {
-    // Check if backend preparation is needed
     if (textInference.needsBackendPreparation) {
       textInference.startBackendPreparation()
 
       try {
-        // Ensure backend is ready before inference
         await textInference.ensureBackendReadiness()
-        // Note: completeBackendPreparation() will be called on first token
       } catch (error) {
-        textInference.completeBackendPreparation() // Reset state on error
         throw error
+      } finally {
+        textInference.completeBackendPreparation()
       }
     } else {
-      // Ensure backend is ready before inference (for non-preparation cases)
       await textInference.ensureBackendReadiness()
     }
 
@@ -428,7 +398,7 @@ async function generate(chatContext: ChatItem[]) {
 
         // Perform RAG retrieval
         const ragResults = await textInference.embedInputUsingRag(
-          chatContext[chatContext.length - 1].question,
+          question,
         )
 
         ragRetrievalInProgress.value = false
@@ -441,100 +411,13 @@ async function generate(chatContext: ChatItem[]) {
         console.error('Error retrieving RAG documents:', error)
       }
     }
-    openAiCompatibleChat.messageInput = chatContext[chatContext.length - 1].question
+    openAiCompatibleChat.messageInput = question
     await openAiCompatibleChat.generate()
+    conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
+    nextTick(scrollToBottom)
     
   } finally {
   }
-}
-
-
-function regenerateLastResponse(conversationKey: string) {
-  const item = conversations.conversationList[conversationKey].pop()
-  if (!item) return
-  const prompt = item.question
-  const chatContext = [...toRaw(conversations.conversationList[conversationKey])]
-
-  const finalMetrics: MetricsData = sseMetrics ?? {
-    num_tokens: 0,
-    total_time: 0,
-    first_token_latency: 0,
-    overall_tokens_per_second: 0,
-    second_plus_tokens_per_second: 0,
-  }
-
-  chatContext.push({
-    question: prompt,
-    answer: '',
-    parsedAnswer: '',
-    parsedThinkingText: '',
-    metrics: finalMetrics,
-    createdAt: Date.now(),
-  })
-  currentlyGeneratingKey.value = conversationKey
-  generate(chatContext)
-}
-
-async function postGenerate() {
-    const key = currentlyGeneratingKey.value
-
-    const finalMetrics: MetricsData = {
-      num_tokens: 0,
-      total_time: 0,
-      first_token_latency: 0,
-      overall_tokens_per_second: 0,
-      second_plus_tokens_per_second: 0,
-    }
-
-    if (key !== null) {
-      const ragSourceInfo =
-        actualRagResults && actualRagResults.length
-          ? textInference.formatRagSources(actualRagResults)
-          : null
-
-
-      conversations.addToActiveConversation(key, {
-        question: textIn.value,
-        answer: receiveOut, // No longer append source to answer
-        parsedAnswer,
-        parsedThinkingText,
-        metrics: finalMetrics,
-        model: textInference.activeModel,
-        ragSource: ragSourceInfo, // Store source separately
-        showRagSource: showRagPreview.value, // Initially collapsed
-        showThinkingText: false,
-        reasoningTime: markerFound.value ? reasoningTotalTime : undefined,
-        createdAt: Date.now(),
-      })
-      if (conversations.conversationList[key].length <= 3) {
-        console.log('Conversations is less than 4 items long, generating new title')
-        updateTitle(conversations.conversationList[key])
-      }
-    }
-
-    nextTick(() => {
-      if (!chatPanel.value) {
-        return
-      }
-
-      chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
-        console.log('setting copycode listeners for', item)
-        const el = item as HTMLElement
-        el.classList.remove('hidden')
-        el.removeEventListener('click', copyCode)
-        el.addEventListener('click', copyCode)
-      })
-      if (autoScrollEnabled.value) {
-        scrollToBottom(false)
-      }
-    })
-  }
-
-
-// implement with openai
-async function updateTitle(conversation: ChatItem[]) {
-  const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
-  
 }
 
 function handleScroll(e: Event) {
