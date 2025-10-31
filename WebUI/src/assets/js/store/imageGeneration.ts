@@ -483,6 +483,7 @@ export const useImageGeneration = defineStore(
     const activeWorkflowName = ref<string | null>('Standard - Fast')
     const lastUsedImageGenWorkflowName = ref<string>('Flux.1-Schnell Med Quality')
     const lastUsedImageEditWorkflowName = ref<string>('Edit By Prompt')
+    const lastUsedVideoWorkflowName = ref<string>('Video-Txt2Vid')
 
     const activeWorkflow = computed(() => {
       console.log('### activeWorkflowName', activeWorkflowName.value)
@@ -664,11 +665,17 @@ export const useImageGeneration = defineStore(
             (lastWorkflowPerBackend.value[activeWorkflow.value.backend] = activeWorkflowName.value),
         )
         loadSettingsForActiveWorkflow()
-        if (activeWorkflow.value.backend === 'comfyui' && activeWorkflowName.value) {
-          if (activeWorkflow.value.category === 'create-images') {
-            lastUsedImageGenWorkflowName.value = activeWorkflowName.value
-          } else if (activeWorkflow.value.category === 'edit-images') {
-            lastUsedImageEditWorkflowName.value = activeWorkflowName.value
+        if (activeWorkflow.value.backend === 'comfyui' && activeWorkflowName.value){
+          switch (activeWorkflow.value.category) {
+            case 'create-images':
+              lastUsedImageGenWorkflowName.value = activeWorkflowName.value
+              break;
+            case 'edit-images':
+              lastUsedImageEditWorkflowName.value = activeWorkflowName.value
+              break;
+            case 'create-videos':
+              lastUsedVideoWorkflowName.value = activeWorkflowName.value
+              break;
           }
         }
       },
@@ -951,7 +958,8 @@ export const useImageGeneration = defineStore(
       selectedGeneratedImageId,
       selectedEditedImageId,
       lastUsedImageGenWorkflowName,
-      lastUsedImageEditWorkflowName
+      lastUsedImageEditWorkflowName,
+      lastUsedVideoWorkflowName
     }
   },
   {
@@ -966,6 +974,7 @@ export const useImageGeneration = defineStore(
         'lastWorkflowPerBackend',
         'lastUsedImageGenWorkflowName',
         'lastUsedImageEditWorkflowName',
+        'lastUsedVideoWorkflowName',
       ],
     },
   },

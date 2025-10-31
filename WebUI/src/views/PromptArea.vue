@@ -101,10 +101,17 @@ function getTextAreaPlaceholder() {
 
 function setMode(mode: ModeType) {
   promptStore.currentMode = mode
-  if (mode === 'imageGen') {
-    imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageGenWorkflowName
-  } else if (mode === 'imageEdit') {
-    imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
+
+  switch (mode) {
+    case 'imageGen':
+      imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageGenWorkflowName
+      break;
+    case 'imageEdit':
+      imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
+      break;
+    case 'video':
+      imageGeneration.activeWorkflowName = imageGeneration.lastUsedVideoWorkflowName
+      break;
   }
 }
 
