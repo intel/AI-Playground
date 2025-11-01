@@ -65,13 +65,23 @@
         >
           <button
             v-if="
-                currentImage && currentImage?.state !== 'generating' && currentImage?.mode === 'imageGen'
+                currentImage && currentImage?.state !== 'generating' && props.mode === 'imageGen'
               "
-            @click="postImageToEnhance(currentImage)"
-            :title="languages.COM_POST_TO_ENHANCE_PROCESS"
+            @click="postImageToEnhance(currentImage, 'imageEdit')"
+            :title="languages.COM_POST_TO_IMAGE_EDIT"
             class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
           >
             <span class="svg-icon text-white i-transfer w-4 h-4"></span>
+          </button>
+          <button
+            v-if="
+                currentImage && currentImage?.state !== 'generating' && (props.mode === 'imageGen' || props.mode === 'imageEdit')
+              "
+            @click="postImageToEnhance(currentImage, 'video')"
+            :title="languages.COM_POST_TO_VIDEO"
+            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+          >
+            <span class="svg-icon text-white i-video w-4 h-4"></span>
           </button>
           <button
             v-show="currentImage && !(currentImage?.state === 'generating')"
@@ -196,10 +206,6 @@ watch(
   },
 )
 
-const emits = defineEmits<{
-  (e: 'postImageToEnhance', url: string): void
-}>()
-
 async function generateImage(prompt: string) {
   imageGeneration.prompt = prompt
   await ensureModelsAreAvailable()
@@ -222,8 +228,8 @@ async function ensureModelsAreAvailable() {
   })
 }
 
-async function postImageToEnhance(image: MediaItem) {
-  imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
+async function postImageToEnhance(image: MediaItem, mode: WorkflowModeType) {
+  promptStore.setCurrentMode(mode)
 
   const imageInput = imageGeneration.activeWorkflow.inputs.find((input) => input.type === 'image')
   if (!imageInput) {

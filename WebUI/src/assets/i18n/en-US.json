@@ -19,6 +19,8 @@
   "COM_HISTORY": "History",
   "COM_SHOW_HISTORY": "Show History",
   "COM_POST_TO_ENHANCE_PROCESS": "Post To Enhance Process",
+  "COM_POST_TO_IMAGE_EDIT": "Post To Image Edit Mode",
+  "COM_POST_TO_VIDEO": "Post To Video Mode",
   "COM_ZOOM_IN": "View Original Size",
   "COM_COPY": "Copy",
   "COM_COPY_SUCCESS_TIP": "Copy Success",

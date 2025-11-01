@@ -159,6 +159,10 @@
   --svg: url('@/assets/svg/transfer.svg');
 }
 
+.i-video {
+    --svg: url('@/assets/svg/video.svg');
+}
+
 .i-zoom-in {
   --svg: url('@/assets/svg/zoom-in.svg');
 }

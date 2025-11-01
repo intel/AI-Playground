@@ -689,7 +689,7 @@ export const useImageGeneration = defineStore(
       settings.height.value = height
     })
 
-    watch([inferenceSteps, width, height], () => {
+    watch([inferenceSteps, width, height, batchSize], () => {
       console.log('saving to settingsPerWorkflow')
       const saveToSettingsPerWorkflow = (settingName: ModifiableSettings) => {
         if (!activeWorkflowName.value) return
