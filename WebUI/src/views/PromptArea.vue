@@ -13,9 +13,9 @@
           <button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
             :key="mode"
-            @click="setMode(mode)"
+            @click="promptStore.setCurrentMode(mode)"
             :class="
-              promptStore.currentMode === mode
+              promptStore.getCurrentMode() === mode
                 ? 'bg-blue-600 hover:bg-blue-500'
                 : 'bg-gray-700 hover:bg-gray-600'
             "
@@ -29,7 +29,7 @@
             class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
             @click="$emit('openSettings')"
           >
-            {{ mapModeToLabel(promptStore.currentMode) }} Settings
+            {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
           </button>
           <button
             v-if="!isProcessing"
@@ -85,7 +85,7 @@ const isStopping = computed(() =>
 
 
 function getTextAreaPlaceholder() {
-  switch (promptStore.currentMode) {
+  switch (promptStore.getCurrentMode()) {
     case 'chat':
       return languages?.COM_PROMPT_CHAT || ''
     case 'imageGen':
@@ -99,25 +99,9 @@ function getTextAreaPlaceholder() {
   }
 }
 
-function setMode(mode: ModeType) {
-  promptStore.currentMode = mode
-
-  switch (mode) {
-    case 'imageGen':
-      imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageGenWorkflowName
-      break;
-    case 'imageEdit':
-      imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
-      break;
-    case 'video':
-      imageGeneration.activeWorkflowName = imageGeneration.lastUsedVideoWorkflowName
-      break;
-  }
-}
-
 function handleSubmitPromptClick() {
   emits('autoHideFooter')
-  promptStore.submitPrompt(prompt.value, promptStore.currentMode)
+  promptStore.submitPrompt(prompt.value)
   prompt.value = ''
 }
 

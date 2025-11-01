@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
 
 export const usePromptStore = defineStore('prompt', () => {
+  const imageGeneration = useImageGeneration()
   const currentMode = ref<ModeType>('chat')
 
   // todo: Remove this after cleaning up text inference. The text inference store should know its processing state directly, no need to track it here
@@ -10,8 +12,28 @@ export const usePromptStore = defineStore('prompt', () => {
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
   const cancelCallbacks = ref<Partial<Record<ModeType, () => void>>>({})
 
-  function submitPrompt(promptText: string, mode: ModeType) {
-    const callback = submitCallbacks.value[mode]
+  function getCurrentMode() {
+    return currentMode.value
+  }
+
+  function setCurrentMode(mode: ModeType) {
+    currentMode.value = mode
+
+      switch (mode) {
+        case 'imageGen':
+          imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageGenWorkflowName
+          break;
+        case 'imageEdit':
+          imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
+          break;
+        case 'video':
+          imageGeneration.activeWorkflowName = imageGeneration.lastUsedVideoWorkflowName
+          break;
+      }
+  }
+
+  function submitPrompt(promptText: string) {
+    const callback = submitCallbacks.value[currentMode.value]
     if (callback) {
       callback(promptText)
     }
@@ -42,11 +64,9 @@ export const usePromptStore = defineStore('prompt', () => {
   }
 
   return {
-    // State
-    currentMode,
     processing,
-
-    // Actions
+    getCurrentMode,
+    setCurrentMode,
     submitPrompt,
     cancelProcessing,
     registerSubmitCallback,

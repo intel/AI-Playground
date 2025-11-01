@@ -152,7 +152,7 @@
   >
     <SideModalHistory
       :isVisible="showHistory"
-      :mode="promptStore.currentMode"
+      :mode="promptStore.getCurrentMode()"
       @close="showHistory = false"
       @conversation-selected="chatRef?.scrollToBottom"
     />
@@ -186,19 +186,19 @@
           title="Developer Tools"
         ></button>
       </div>
-      <Chat v-show="promptStore.currentMode === 'chat'" ref="chatRef" />
+      <Chat v-show="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
       <WorkflowResult
-        v-show="promptStore.currentMode === 'imageGen'"
+        v-show="promptStore.getCurrentMode() === 'imageGen'"
         ref="imageGenRef"
         mode='imageGen'
       />
       <WorkflowResult
-        v-show="promptStore.currentMode === 'imageEdit'"
+        v-show="promptStore.getCurrentMode() === 'imageEdit'"
         ref="imageEditRef"
         mode='imageEdit'
       />
       <WorkflowResult
-        v-show="promptStore.currentMode === 'video'"
+        v-show="promptStore.getCurrentMode() === 'video'"
         ref="videoRef"
         mode='video'
       />
@@ -217,7 +217,7 @@
 
     <SideModalSpecificSettings
       :isVisible="showSpecificSettings"
-      :mode="promptStore.currentMode"
+      :mode="promptStore.getCurrentMode()"
       @close="showSpecificSettings = false"
     />
     <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>

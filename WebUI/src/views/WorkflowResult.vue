@@ -136,7 +136,7 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts"
 
 interface Props {
-  mode: 'imageGen' | 'imageEdit' | 'video'
+  mode: WorkflowModeType
 }
 
 const props = defineProps<Props>()

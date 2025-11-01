@@ -85,7 +85,7 @@ import {
 import { Button } from '@/components/ui/button'
 
 const props = defineProps<{
-  mode: 'imageGen' | 'imageEdit' | 'video'
+  mode: WorkflowModeType
 }>()
 
 const imageGeneration = useImageGeneration()

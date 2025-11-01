@@ -38,7 +38,7 @@ export type ComfyDynamicInputWithCurrent =
 export type Image = {
   id: string
   state: 'queued' | 'generating' | 'done' | 'stopped'
-  mode: 'imageGen' | 'imageEdit' | 'video'
+  mode: WorkflowModeType
   sourceImageUrl?: string
   settings: GenerationSettings
   dynamicSettings?: ComfyDynamicInputWithCurrent[]
@@ -869,7 +869,7 @@ export const useImageGeneration = defineStore(
       return result.filter((checkModelExistsResult) => !checkModelExistsResult.already_loaded)
     }
 
-    async function generate(mode: 'imageGen' | 'imageEdit' | 'video' = 'imageGen', sourceImage?: string) {
+    async function generate(mode: WorkflowModeType = 'imageGen', sourceImage?: string) {
       generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
       const imageIds: string[] = Array.from({ length: batchSize.value }, () => crypto.randomUUID())
       imageIds.forEach((imageId) => {

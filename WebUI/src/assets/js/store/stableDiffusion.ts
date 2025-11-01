@@ -113,7 +113,7 @@ export const useStableDiffusion = defineStore(
 
     async function generate(
       imageIds: string[],
-      mode: 'imageGen' | 'imageEdit' | 'video',
+      mode: WorkflowModeType,
       sourceImage?: string,
     ) {
       if (imageGeneration.processing) {
