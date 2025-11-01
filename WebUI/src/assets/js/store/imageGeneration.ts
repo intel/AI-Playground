@@ -901,6 +901,16 @@ export const useImageGeneration = defineStore(
 
     function deleteImage(id: string) {
       generatedImages.value = generatedImages.value.filter((image) => image.id !== id)
+
+      if (selectedGeneratedImageId.value === id) {
+        selectedGeneratedImageId.value = null
+      }
+      if (selectedEditedImageId.value === id) {
+        selectedEditedImageId.value = null
+      }
+      if (selectedVideoId.value === id) {
+        selectedVideoId.value = null
+      }
     }
 
     function deleteAllImages() {
