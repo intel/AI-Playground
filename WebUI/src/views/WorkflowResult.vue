@@ -4,27 +4,28 @@
     id="createPanel"
     class="h-full flex flex-col p-4"
   >
-    <div class="image-panel justify-center items-center flex-auto flex relative">
+    <div class="image-panel justify-center items-center flex-auto flex relative pr-6">
       <div
-        class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
+        class="flex justify-center items-center relative bg-color-image-bg rounded-lg border border-white/30"
+        style="width: min(768px, 100%); height: min(512px, 100%); aspect-ratio: 3/2;"
       >
         <!-- eslint-disable vue/require-v-for-key -->
         <div
           v-show="imageGeneration.generatedImages.length > 0 && currentImage"
-          class="flex justify-center items-center"
+          class="flex justify-center items-center w-full h-full"
           draggable="true"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
           <!-- eslint-enable -->
           <img
             v-if="currentImage && !isVideo(currentImage)"
-            class="max-w-768px max-h-512px object-contain p-2"
+            class="w-full h-full object-contain p-2"
             :src="currentImage?.imageUrl"
           />
           <video
             v-else
             :src="currentImage?.videoUrl as string"
-            class="max-w-768px max-h-512px object-contain p-2"
+            class="w-full h-full object-contain p-2"
             controlsList="nodownload nofullscreen noremoteplayback"
             controls
           />
