@@ -29,7 +29,6 @@ export class AiBackendService extends LongLivedPythonApiService {
   }
   readonly serviceFolder = 'service'
   readonly baseDir = path.resolve(path.join(aipgBaseDir, this.serviceFolder))
-  readonly wheelDir = path.resolve(path.join(this.baseDir, 'extra_wheels'))
   readonly serviceDir = this.baseDir
   readonly pythonEnvDir = path.resolve(path.join(this.serviceDir, '.venv'))
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
@@ -150,7 +149,7 @@ export class AiBackendService extends LongLivedPythonApiService {
   }> {
     const additionalEnvVariables = {
       VIRTUAL_ENV: this.pythonEnvDir,
-      PATH: `${path.join(this.pythonEnvDir, 'bin')};${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PATH: `${path.join(this.pythonEnvDir, 'bin')};${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
@@ -160,7 +159,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       PIP_CONFIG_FILE: 'nul',
     }
 
-    const pythonBinary = path.join(this.pythonEnvDir, 'bin', process.platform === 'win32' ? 'python.exe' : 'python');
+    const pythonBinary = path.join(this.pythonEnvDir, process.platform === 'win32' ? 'Scripts' : 'bin', process.platform === 'win32' ? 'python.exe' : 'python');
     const apiProcess = spawn(
       pythonBinary,
       ['web_api.py', '--port', this.port.toString()],
