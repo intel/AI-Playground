@@ -175,12 +175,27 @@ export const useOpenAiCompatibleChat = defineStore(
       return
     }
 
+    function removeMessage(messageId: string) {
+      const chat = chats[conversations.activeKey]
+      if (!chat) return
+      const indexOfAssistantMeessage = chat.messages.findIndex((m) => m.id === messageId)
+      console.log('removeMessage', {messageId, indexOfAssistantMeessage, messages: chat.messages})
+      // remove also the user message before the assistant message
+      if (indexOfAssistantMeessage > 0) {
+        chat.messages.splice(indexOfAssistantMeessage - 1, 2)
+      } else {
+        chat.messages.splice(indexOfAssistantMeessage, 1)
+      }
+      conversations.updateConversation(chat.messages, conversations.activeKey)
+    }
+
     return {
       chat: chats[conversations.activeKey],
       messages,
       messageInput,
       fileInput,
       generate,
+      removeMessage
     }
   },
   {

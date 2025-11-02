@@ -25,6 +25,11 @@
             <p class="text-gray-300" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
+            <img
+              v-if="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/'))"
+              :src="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/')).url"
+              alt="Generated Image"
+            />
             <div class="chat-content" style="white-space: pre-wrap">
               {{ message.parts.find((part) => part.type === 'text')?.text }}
             </div>
@@ -149,7 +154,7 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_DELETE"
-                @click="() => openAiCompatibleChat.chat.messages = openAiCompatibleChat.chat.messages.filter(m => m.id !== message.id)"
+                @click="() => {openAiCompatibleChat.removeMessage(message.id)}"
               >
                 <span class="svg-icon i-delete w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>

@@ -86,8 +86,6 @@ export class AiBackendService extends LongLivedPythonApiService {
       
       await this.git.ensureInstalled()
 
-      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
-
       currentStep = 'install dependencies'
       yield {
         serviceName: this.name,

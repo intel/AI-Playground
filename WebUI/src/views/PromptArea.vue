@@ -9,6 +9,24 @@
           v-model="question"
           @keydown="fastGenerate"
         ></textarea>
+        <div class="absolute bottom-14 left-3 flex gap-2">
+          <img
+            v-for="preview in imagePreview"
+            :key="preview.id"
+            :src="preview.url"
+            alt="Image Preview"
+            class="max-h-12 max-w-12 mr-2 rounded"
+          />
+          <div class="border border-dashed border-gray-500 rounded-md p-1 hover:cursor-pointer">
+            <Label htmlFor="image"><PlusIcon class="size-4 cursor-pointer" /></Label>
+            <Input
+              type="file"
+              class="hidden"
+              id="image"
+              @change="openAiCompatibleChat.fileInput = $event.target.files"
+            />
+          </div>
+        </div>
         <div class="absolute bottom-3 left-3 flex gap-2">
           <button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
@@ -52,11 +70,14 @@
 import { getCurrentInstance, ref } from 'vue'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { PlusIcon } from '@heroicons/vue/24/outline'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const question = ref('')
 const showSettings = ref(false)
+const openAiCompatibleChat = useOpenAiCompatibleChat()
 
 const props = defineProps<{
   currentMode: ModeType
@@ -67,6 +88,20 @@ const emits = defineEmits<{
   (e: 'selectMode', value: ModeType): void
   (e: 'submitPrompt', prompt: string, mode: ModeType): void
 }>()
+
+const imagePreview = computed(() => {
+  if (openAiCompatibleChat.fileInput) {
+    const urls = []
+    let id = 0
+    for (const file of openAiCompatibleChat.fileInput) {
+      const url = URL.createObjectURL(file)
+      urls.push({ id, url })
+      id++
+    }
+    return urls
+  }
+  return []
+})
 
 function getTextAreaPlaceholder() {
   switch (props.currentMode) {
