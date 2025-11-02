@@ -4,6 +4,34 @@ import { convertToModelMessages, DefaultChatTransport, streamText, UIMessage } f
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
+import z from 'zod'
+
+const LlamaCppRawValueTimingsSchema = z.object({
+        cache_n: z.number(),
+        prompt_n: z.number(),
+        prompt_ms: z.number(),
+        prompt_per_token_ms: z.number(),
+        prompt_per_second: z.number(),
+        predicted_n: z.number(),
+        predicted_ms: z.number(),
+        predicted_per_token_ms: z.number(),
+        predicted_per_second: z.number()
+    })
+
+const LlamaCppRawValueSchema = z.object({
+    choices: z.array(z.any()).optional(),
+    created: z.number(),
+    id: z.string(),
+    model: z.string(),
+    system_fingerprint: z.string().optional(),
+    object: z.string().optional(),
+    usage: z.object({
+        completion_tokens: z.number(),
+        prompt_tokens: z.number(),
+        total_tokens: z.number()
+    }).optional(),
+    timings: LlamaCppRawValueTimingsSchema.optional(),
+})
 
 export type AipgUiMessage = UIMessage<{
   reasoningStarted?: number
@@ -11,6 +39,7 @@ export type AipgUiMessage = UIMessage<{
   model?: string
   timestamp?: number
   conversationTitle?: string
+  timings?: z.infer<typeof LlamaCppRawValueTimingsSchema>
 }>
 
 export const useOpenAiCompatibleChat = defineStore(
@@ -25,6 +54,7 @@ export const useOpenAiCompatibleChat = defineStore(
       createOpenAICompatible({
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
+        includeUsage: true,
       }).chatModel(textInference.activeModel ?? ''),
     )
 
@@ -34,13 +64,21 @@ export const useOpenAiCompatibleChat = defineStore(
       const m = JSON.parse(options.body) as any
       let reasoningStarted: number = 0
       let reasoningFinished: number = 0
+      let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       const result = await streamText({
         model: model.value,
         messages: convertToModelMessages(m.messages),
         abortSignal: options.signal,
         system: textInference.systemPrompt,
         maxOutputTokens: textInference.maxTokens,
+        includeRawChunks: true,
         onChunk: (chunk) => {
+          if (chunk.chunk.type === 'raw') {
+            const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
+            if (rawValue.success && rawValue.data.timings) {
+              timings = rawValue.data.timings
+            }
+          }
           if (chunk.chunk.type === 'reasoning-delta' && !reasoningStarted) {
             reasoningStarted = Date.now()
             console.log('Reasoning started at:', reasoningStarted)
@@ -51,21 +89,26 @@ export const useOpenAiCompatibleChat = defineStore(
             console.log('Reasoning finished at:', reasoningFinished)
             chunk.chunk.providerMetadata = { aipg: {reasoningStarted, reasoningFinished} }
           }
+        },
+        onFinish: (result) => {
+          console.log('Stream finished:', result)
         }
+
       })
       console.log('streamText result:', result)
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
-        messageMetadata: (ok) => {
-          if (ok.part.type === 'text-delta' || ok.part.type === 'reasoning-delta') {
+        messageMetadata: (options) => {
+          if (options.part.type === 'text-delta' || options.part.type === 'reasoning-delta') {
           return {
-              reasoningStarted: ok.part.providerMetadata?.aipg?.reasoningStarted,
-              reasoningFinished: ok.part.providerMetadata?.aipg?.reasoningFinished,
+              reasoningStarted: options.part.providerMetadata?.aipg?.reasoningStarted,
+              reasoningFinished: options.part.providerMetadata?.aipg?.reasoningFinished,
             }
           }
           return {
             model: textInference.activeModel,
             timestamp: Date.now(),
+            timings,
           }
         }
       })

@@ -156,17 +156,17 @@
               </button>
             </div>
             <div
-              v-if="textInference.metricsEnabled && message.metadata?.metrics"
+              v-if="textInference.metricsEnabled && message.metadata?.timings"
               class="metrics-info text-xs text-gray-400"
             >
-              <span class="mr-2">{{ message.metadata?.metrics.num_tokens }} Tokens</span>
+              <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
               <span class="mr-2">⋅</span>
               <span class="mr-2"
-                >{{ message.metadata?.metrics.overall_tokens_per_second.toFixed(2) }} Tokens/s</span
+                >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }} Tokens/s</span
               >
               <span class="mr-2">⋅</span>
               <span class="mr-2"
-                >1st Token Time: {{ message.metadata?.metrics.first_token_latency.toFixed(2) }}s</span
+                >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
               >
             </div>
           </div>
