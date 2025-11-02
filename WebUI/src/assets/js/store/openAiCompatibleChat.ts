@@ -64,6 +64,9 @@ export const useOpenAiCompatibleChat = defineStore(
       const m = JSON.parse(options.body) as any
       let reasoningStarted: number = 0
       let reasoningFinished: number = 0
+      let startOfRequestTime: number = Date.now()
+      let firstTokenTime: number = 0
+      let finishTime: number = 0
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       const result = await streamText({
         model: model.value,
@@ -74,10 +77,14 @@ export const useOpenAiCompatibleChat = defineStore(
         includeRawChunks: true,
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
+            console.log(chunk.chunk)
             const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
             if (rawValue.success && rawValue.data.timings) {
               timings = rawValue.data.timings
             }
+          }
+          if (!firstTokenTime && (chunk.chunk.type === 'reasoning-delta' || chunk.chunk.type === 'text-delta')) {
+            firstTokenTime = Date.now()
           }
           if (chunk.chunk.type === 'reasoning-delta' && !reasoningStarted) {
             reasoningStarted = Date.now()
@@ -91,7 +98,21 @@ export const useOpenAiCompatibleChat = defineStore(
           }
         },
         onFinish: (result) => {
+          finishTime = Date.now()
           console.log('Stream finished:', result)
+          if (!timings) {
+             timings = {
+              cache_n: result.usage?.cachedInputTokens ?? 0,
+              prompt_n: result.usage?.outputTokens ?? 0,
+              prompt_ms: firstTokenTime - startOfRequestTime,
+              prompt_per_token_ms: result.usage?.inputTokens ? (firstTokenTime - startOfRequestTime) / result.usage.inputTokens : 0,
+              prompt_per_second: result.usage?.inputTokens ? (result.usage.inputTokens / ((firstTokenTime - startOfRequestTime) / 1000)) : 0,
+              predicted_n: result.usage?.outputTokens ?? 0,
+              predicted_ms: finishTime - firstTokenTime,
+              predicted_per_token_ms: result.usage?.outputTokens ? (finishTime - firstTokenTime) / result.usage.outputTokens : 0,
+              predicted_per_second: result.usage?.outputTokens ? (result.usage.outputTokens / ((finishTime - firstTokenTime) / 1000)) : 0,
+             }
+          }
         }
 
       })
