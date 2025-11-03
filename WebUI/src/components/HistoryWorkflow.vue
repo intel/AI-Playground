@@ -38,15 +38,17 @@
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete image?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    {{ languages.COM_DELETE_IMAGE_QUESTION }}
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently remove this image.
+                    {{ languages.COM_DELETE_IMAGE_EXPLANATION }}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction @click="() => deleteImage(image)">
-                    Delete
+                    {{ languages.COM_DELETE }}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

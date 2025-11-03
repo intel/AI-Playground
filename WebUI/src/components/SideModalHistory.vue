@@ -12,15 +12,17 @@
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete all images?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {{ languages.COM_DELETE_ALL_IMAGES_QUESTION }}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove all images in this mode.
+              {{ languages.COM_DELETE_ALL_IMAGES_EXPLANATION }}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction @click="deleteAllImages">
-              Delete All
+              {{ languages.COM_DELETE }}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

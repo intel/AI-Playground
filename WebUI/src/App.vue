@@ -220,7 +220,6 @@
       :mode="promptStore.getCurrentMode()"
       @close="showSpecificSettings = false"
     />
-    <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
   </main>
