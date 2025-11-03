@@ -16,6 +16,23 @@
         ></radio-block>
       </div>
     </div>
+    <div class="flex flex-col gap-3">
+      <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
+      <div class="flex flex-col items-start gap-1">
+        <Input
+          type="password"
+          v-model="models.hfToken"
+          class="v-drop-select"
+          :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"
+        />
+        <div
+          class="text-xs text-red-500 select-none"
+          :class="{ 'opacity-0': !(models.hfToken && !models.hfTokenIsValid) }"
+        >
+          {{ languages.SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT }}
+        </div>
+      </div>
+    </div>
   </div>
   <div class="flex flex-col gap-3">
     <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
@@ -40,11 +57,11 @@
     <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
   </div>
 </template>
+
 <script setup lang="ts">
 import RadioBlock from '../components/RadioBlock.vue'
-
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
-
+import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
@@ -52,6 +69,7 @@ import LanguageSelector from '@/components/LanguageSelector.vue'
 
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
+const models = useModels()
 const theme = useTheme()
 
 const themeToDisplayName = (theme: Theme) => {
