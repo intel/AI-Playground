@@ -2,7 +2,7 @@
   <div
     v-if="
       (activeConversation && activeConversation.length > 0) ||
-      processing
+      openAiCompatibleChat.processing
     "
     id="chatPanel"
     ref="chatPanel"
@@ -140,8 +140,8 @@
                 :title="languages.COM_REGENERATE"
                 @click="() => openAiCompatibleChat.chat.regenerate({messageId: message.id})"
                 v-if="i + 1 == conversations.activeConversation.length"
-                :disabled="processing"
-                :class="{ 'opacity-50 cursor-not-allowed': processing }"
+                :disabled="openAiCompatibleChat.processing"
+                :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
               >
                 <span class="svg-icon i-refresh w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
@@ -330,7 +330,6 @@ const textInference = useTextInference()
 const conversations = useConversations()
 const backendServices = useBackendServices()
 const promptStore = usePromptStore()
-const processing = ref(false)
 
 const i18nState = useI18N().state
 const ragRetrievalInProgress = ref(false)
@@ -359,7 +358,7 @@ onUnmounted(() => {
 })
 
 
-async function handleSubmitPromptClick(prompt: string) {
+async function handlePromptSubmit(prompt: string) {
   const question = prompt.trim()
   if (question == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
@@ -367,24 +366,13 @@ async function handleSubmitPromptClick(prompt: string) {
   }
   try {
     await textInference.checkModelAvailability()
-
-    generate(question)
+    await generate(question)
   } catch {}
 }
 
 async function handleCancel() {
-  if (processing.value && !stopping.value) {
-    stopping.value = true
-    await fetch(`${textInference.currentBackendUrl}/api/llm/stopGenerate`)
-    if (abortController) {
-      abortController.abort()
-      abortController = null
-    }
-
-    finishGenerate()
-    processing.value = false
-    promptStore.textInferenceProcessing = false
-    stopping.value = false
+  if (openAiCompatibleChat.processing) {
+    openAiCompatibleChat.stop()
   }
 }
 

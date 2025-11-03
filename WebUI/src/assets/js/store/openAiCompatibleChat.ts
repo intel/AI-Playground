@@ -47,8 +47,11 @@ export const useOpenAiCompatibleChat = defineStore(
   () => {
     const textInference = useTextInference()
     const conversations = useConversations()
-    
-    // TODO: processing state?
+
+    const processing = computed(() => {
+      const status = chats[conversations.activeKey]?.status
+      return status === 'submitted' || status === 'streaming'
+    })
 
     const model = computed(() =>
       createOpenAICompatible({
@@ -175,6 +178,10 @@ export const useOpenAiCompatibleChat = defineStore(
       return
     }
 
+    async function stop() {
+      await chats[conversations.activeKey]?.stop()
+    }
+
     function removeMessage(messageId: string) {
       const chat = chats[conversations.activeKey]
       if (!chat) return
@@ -195,6 +202,8 @@ export const useOpenAiCompatibleChat = defineStore(
       messageInput,
       fileInput,
       generate,
+      stop,
+      processing,
       removeMessage
     }
   },

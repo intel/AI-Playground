@@ -121,7 +121,7 @@ const imagePreview = computed(() => {
 })
 
 const isProcessing = computed(() =>
-  promptStore.textInferenceProcessing || imageGeneration.processing
+  openAiCompatibleChat.processing || imageGeneration.processing
 )
 
 const isStopping = computed(() =>

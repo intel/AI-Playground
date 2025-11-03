@@ -7,9 +7,6 @@ export const usePromptStore = defineStore('prompt', () => {
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
 
-  // todo: Remove this after cleaning up text inference. The text inference store should know its processing state directly, no need to track it here
-  const textInferenceProcessing = ref(false)
-
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
   const cancelCallbacks = ref<Partial<Record<ModeType, () => void>>>({})
 
@@ -67,7 +64,6 @@ export const usePromptStore = defineStore('prompt', () => {
 
   return {
     promptSubmitted,
-    textInferenceProcessing,
     getCurrentMode,
     setCurrentMode,
     submitPrompt,
