@@ -10,6 +10,25 @@
           :disabled="!readyForNewSubmit"
           @keydown="fastGenerate"
         ></textarea>
+        <div class="absolute bottom-14 left-3 flex gap-2">
+          <img
+            v-for="preview in imagePreview"
+            :key="preview.id"
+            :src="preview.url"
+            alt="Image Preview"
+            class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-gray-500 rounded-md"
+          />
+          <!-- TODO: delete icon for loaded images -->
+          <div class="self-center border border-dashed border-gray-500 rounded-md p-1 hover:cursor-pointer">
+            <Label htmlFor="image"><PlusIcon class="size-4 cursor-pointer" /></Label>
+            <Input
+              type="file"
+              class="hidden"
+              id="image"
+              @change="openAiCompatibleChat.fileInput = $event.target.files"
+            />
+          </div>
+        </div>
         <div class="absolute bottom-3 left-3 flex gap-2">
           <button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
@@ -64,18 +83,42 @@ import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { PlusIcon } from '@heroicons/vue/24/outline'
+import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
+const showSettings = ref(false)
 const prompt = ref('')
 const promptStore = usePromptStore()
 const imageGeneration = useImageGeneration()
 const processingDebounceTimer = ref<number | null>(null)
+const openAiCompatibleChat = useOpenAiCompatibleChat()
+
+const props = defineProps<{
+  currentMode: ModeType
+}>()
 
 const emits = defineEmits<{
   (e: 'autoHideFooter'): void,
   (e: 'openSettings'): void
 }>()
+
+const imagePreview = computed(() => {
+  if (openAiCompatibleChat.fileInput) {
+    const urls = []
+    let id = 0
+    for (const file of openAiCompatibleChat.fileInput) {
+      const url = URL.createObjectURL(file)
+      urls.push({ id, url })
+      id++
+    }
+    return urls
+  }
+  return []
+})
 
 const isProcessing = computed(() =>
   promptStore.textInferenceProcessing || imageGeneration.processing

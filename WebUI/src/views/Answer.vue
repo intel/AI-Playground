@@ -7,9 +7,7 @@
         :currently-generating-key="currentlyGeneratingKey"
         :processing="processing"
       ></ConversationManager>
-      <OllamaPoC @scroll="handleScroll" v-if="textInference.backend === 'ollama'"></OllamaPoC>
       <div
-        v-else
         id="chatPanel"
         class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
         :class="textInference.fontSizeClass"
@@ -445,6 +443,7 @@
         </div>
       </div>
       <div
+        v-if="textInference.backend !== 'llamaCPP' && textInference.backend !== 'ollama'"
         class="w-full h-32 gap-3 flex-none flex items-center pt-2"
         :class="{ 'demo-number-overlay': demoMode.answer.show }"
       >
@@ -484,6 +483,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// TODO: 
 import Rag from '../components/Rag.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import LoadingBar from '../components/LoadingBar.vue'
@@ -513,6 +513,7 @@ import ConversationManager from '@/components/ConversationManager.vue'
 import { useOllama } from '@/assets/js/store/ollama'
 import OllamaPoC from '@/components/OllamaPoC.vue'
 import { base64ToString } from 'uint8array-extras'
+import ChatInterface from '@/components/ChatInterface.vue'
 
 const demoMode = useDemoMode()
 const conversations = useConversations()
@@ -638,43 +639,6 @@ function dataProcess(line: string) {
   const data = JSON.parse(dataJson) as LLMOutCallback
   switch (data.type) {
     case 'text_out':
-      if (reasoningStartTime === 0) {
-        reasoningStartTime = performance.now()
-      }
-
-      if (data.dtype === 1) {
-        const chunk = data.value
-        textOutQueue.push(chunk)
-
-        // Complete backend preparation on first token
-        if (textInference.isPreparingBackend) {
-          textInference.completeBackendPreparation()
-        }
-
-        const activeModel = textInference.activeModel
-        if (activeModel && thinkingModels[activeModel]) {
-          const currentMarker = thinkingModels[activeModel]
-          if (!markerFound.value) {
-            const idx = chunk.indexOf(currentMarker)
-            if (idx === -1) {
-              thinkingText.value += chunk
-            } else {
-              reasoningTotalTime = performance.now() - reasoningStartTime
-              thinkingText.value += chunk.slice(0, idx)
-              markerFound.value = true
-              postMarkerText.value += chunk.slice(idx + currentMarker.length)
-            }
-          } else {
-            postMarkerText.value += chunk
-          }
-        }
-        if (firstOutput) {
-          firstOutput = false
-          simulatedInput()
-        }
-      } else {
-        source.value = data.value
-      }
       break
     case 'download_model_progress':
       downloadModel.downloading = true
@@ -738,6 +702,7 @@ function scrollToBottom(smooth = true) {
 }
 
 async function updateTitle(conversation: ChatItem[]) {
+  // TODO: Replace with openai compatible endpoint
   const instruction = `Create me a short descriptive title for the following conversation in a maximum of 4 words. Don't use unnecessary words like 'Conversation about': `
   const prompt = `${instruction}\n\n\`\`\`${JSON.stringify(conversation.slice(0, 3).map((item) => ({ question: item.question, answer: item.answer })))}\`\`\``
   console.log('prompt', prompt)
@@ -776,33 +741,10 @@ async function updateTitle(conversation: ChatItem[]) {
   conversation[0].title = newTitle
 }
 
-async function simulatedInput() {
-  while (textOutQueue.length > 0) {
-    const newText = textOutQueue.shift()!
-    receiveOut += newText
-    if (thinkingModels[textInference.activeModel ?? '']) {
-      textOut.value = await parse(
-        textInference.extractPostMarker(receiveOut, textInference.activeModel),
-      )
-      thinkOut.value = await parse(
-        textInference.extractPreMarker(receiveOut, textInference.activeModel),
-      )
-    } else {
-      textOut.value = await parse(receiveOut)
-    }
-    await nextTick()
-
-    if (autoScrollEnabled.value) {
-      scrollToBottom()
-    }
-  }
-  if (!textOutFinish) {
-    await util.delay(20)
-    await simulatedInput()
-  } else {
+async function postGenerate() {
     const key = currentlyGeneratingKey.value
 
-    const finalMetrics: MetricsData = sseMetrics ?? {
+    const finalMetrics: MetricsData = {
       num_tokens: 0,
       total_time: 0,
       first_token_latency: 0,
@@ -816,18 +758,6 @@ async function simulatedInput() {
           ? textInference.formatRagSources(actualRagResults)
           : null
 
-      const thinkingOutput = thinkingModels[textInference.activeModel ?? '']
-        ? textInference.extractPreMarker(receiveOut, textInference.activeModel)
-        : ''
-
-      const nonThinkingOutput = thinkingModels[textInference.activeModel ?? '']
-        ? textInference.extractPostMarker(receiveOut, textInference.activeModel)
-        : receiveOut
-
-      const parsedAnswer = await parse(nonThinkingOutput)
-      const parsedThinkingText = await parse(thinkingOutput)
-
-      console.log('parsed answer', parsedAnswer)
 
       conversations.addToActiveConversation(key, {
         question: textIn.value,
@@ -848,10 +778,6 @@ async function simulatedInput() {
       }
     }
 
-    sseMetrics = null
-    processing.value = false
-    textIn.value = ''
-    textOut.value = ''
     nextTick(() => {
       chatPanel.querySelectorAll('.copy-code').forEach((item) => {
         console.log('setting copycode listeners for', item)
@@ -864,9 +790,10 @@ async function simulatedInput() {
         scrollToBottom(false)
       }
     })
-  }
 }
 
+
+// TODO: Replicate if necessary
 function fastGenerate(e: KeyboardEvent) {
   if (e.code == 'Enter') {
     if (processing.value) {
@@ -903,40 +830,13 @@ async function newPromptGenerate() {
 }
 
 async function generate(chatContext: ChatItem[]) {
-  if (textInference.backend === 'ollama') {
-    ollama.generate(chatContext)
-  }
   if (processing.value || chatContext.length == 0) {
     return
   }
 
   try {
     // Check if backend preparation is needed
-    if (textInference.needsBackendPreparation) {
-      textInference.startBackendPreparation()
-
-      try {
-        // Ensure backend is ready before inference
-        await textInference.ensureBackendReadiness()
-        // Note: completeBackendPreparation() will be called on first token
-      } catch (error) {
-        textInference.completeBackendPreparation() // Reset state on error
-        throw error
-      }
-    } else {
-      // Ensure backend is ready before inference (for non-preparation cases)
-      await textInference.ensureBackendReadiness()
-    }
-
-    const backendToInferenceService = {
-      llamaCPP: 'llamacpp-backend',
-      openVINO: 'openvino-backend',
-      ipexLLM: 'ai-backend',
-      ollama: 'ollama-backend' as BackendServiceName,
-    } as const
-    const inferenceBackendService = backendToInferenceService[textInference.backend]
-    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-    backendServices.updateLastUsedBackend(inferenceBackendService)
+    await textInference.prepareBackendIfNeeded()
 
     textIn.value = util.escape2Html(chatContext[chatContext.length - 1].question)
     markerFound.value = false

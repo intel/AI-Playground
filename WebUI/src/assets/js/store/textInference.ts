@@ -20,6 +20,7 @@ export const backendToService = {
 
 export type LlmModel = {
   name: string
+  mmproj?: string
   type: LlmBackend
   active: boolean
   downloaded: boolean
@@ -94,6 +95,8 @@ export const useTextInference = defineStore(
     const models = useModels()
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
+    const systemPrompt = ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
+      You assist users by answering questions and providing information based on your training data and any additional context provided.`)
 
     const selectedModels = ref<LlmBackendKV>({
       ipexLLM: null,
@@ -134,6 +137,7 @@ export const useTextInference = defineStore(
         const selectedModelForType = selectedModels.value[m.type as LlmBackend]
         return {
           name: m.name,
+          mmproj: m.mmproj,
           type: m.type as LlmBackend,
           downloaded: m.downloaded ?? false,
           active:
@@ -301,15 +305,27 @@ export const useTextInference = defineStore(
       }
       if (!model) return []
 
-      const checkList = {
-        repo_id: model,
-        type:
-          type === 'embedding'
-            ? Const.MODEL_TYPE_EMBEDDING
-            : backendToAipgModelTypeNumber[backend.value],
-        backend: backendToAipgBackendName[backend.value],
+      const modelMetaData = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      const checkList = [
+        {
+          repo_id: model,
+          type:
+            type === 'embedding'
+              ? Const.MODEL_TYPE_EMBEDDING
+              : backendToAipgModelTypeNumber[backend.value],
+          backend: backendToAipgBackendName[backend.value],
+        },
+      ]
+      if (modelMetaData?.mmproj) {
+        checkList.push({
+          repo_id: modelMetaData.mmproj,
+          type: backendToAipgModelTypeNumber[backend.value],
+          backend: backendToAipgBackendName[backend.value],
+        })
       }
-      const checkedModels = await models.checkModelAlreadyLoaded([checkList])
+      const checkedModels = await models.checkModelAlreadyLoaded(checkList)
       const notYetDownloaded = checkedModels.filter((m) => !m.already_loaded)
       return notYetDownloaded
     }
@@ -634,7 +650,7 @@ export const useTextInference = defineStore(
     }
 
     async function ensureBackendReadiness(): Promise<void> {
-      if (backend.value === 'llamaCPP' || contextSizeSettingSupported.value) {
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
         const embeddingModelName = activeEmbeddingModel.value
@@ -676,6 +692,38 @@ export const useTextInference = defineStore(
       })
     }
 
+    async function prepareBackendIfNeeded() {
+      console.log('in prepareBackendIfNeeded')
+
+      if (needsBackendPreparation.value) {
+        console.log('preparing backend due to', preparationReason.value)
+        startBackendPreparation()
+
+        try {
+          // Ensure backend is ready before inference
+          console.log('ensuring backend readiness')
+          await ensureBackendReadiness()
+          // Note: completeBackendPreparation() will be called on first token
+        } catch (error) {
+          completeBackendPreparation() // Reset state on error
+          throw error
+        }
+      } else {
+        // Ensure backend is ready before inference (for non-preparation cases)
+        await ensureBackendReadiness()
+      }
+
+      const backendToInferenceService = {
+        llamaCPP: 'llamacpp-backend',
+        openVINO: 'openvino-backend',
+        ipexLLM: 'ai-backend',
+        ollama: 'ollama-backend' as BackendServiceName,
+      } as const
+      const inferenceBackendService = backendToInferenceService[backend.value]
+      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+      backendServices.updateLastUsedBackend(inferenceBackendService)
+    }
+
     return {
       backend,
       activeModel,
@@ -693,6 +741,7 @@ export const useTextInference = defineStore(
       isMinSize,
       ragList,
       contextSizeSettingSupported,
+      systemPrompt,
       selectModel,
       selectEmbeddingModel,
       getDownloadParamsForCurrentModelIfRequired,
@@ -720,6 +769,7 @@ export const useTextInference = defineStore(
       startBackendPreparation,
       completeBackendPreparation,
       updateLastUsedConfig,
+      prepareBackendIfNeeded,
     }
   },
   {

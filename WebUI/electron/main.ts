@@ -176,18 +176,26 @@ async function createWindow() {
   })
   session.webRequest.onHeadersReceived((details, callback) => {
     if (details.url.match(/^http:\/\/(localhost|127.0.0.1)/)) {
-      // if (details.method === "OPTIONS") {
-      //   details.statusLine = "HTTP/1.1 200 OK";
-      //   details.statusCode = 200;
-      //   return callback(details);
-      // }
-
-      details.responseHeaders = {
-        ...details.responseHeaders,
-        'Access-Control-Allow-Origin': ['*'],
-        'Access-Control-Allow-Methods': ['GET,POST'],
-        'Access-Control-Allow-Headers': ['x-requested-with,Content-Type,Authorization'],
+      const headers = new Headers()
+      if (details.responseHeaders) {
+        for (const [headerName, values] of Object.entries(details.responseHeaders)) {
+          for (const v of values) {
+            headers.append(headerName, v)
+          }
+        }
       }
+      const append = (name: string, value: string) => {
+        if (!headers.get(name)?.includes(value)) {
+          headers.append(name, value)
+        }
+      }
+      append('Access-Control-Allow-Origin', '*')
+      append('Access-Control-Allow-Methods', 'GET')
+      append('Access-Control-Allow-Methods', 'POST')
+      append('Access-Control-Allow-Headers', 'x-requested-with')
+      append('Access-Control-Allow-Headers', 'Content-Type')
+      append('Access-Control-Allow-Headers', 'Authorization')
+      details.responseHeaders = Object.fromEntries([...headers.entries()].map(([k, v]) => [k, [v]]))
       callback(details)
     } else {
       return callback(details)
@@ -982,6 +990,9 @@ function needAdminPermission() {
 }
 
 function isAdmin(): boolean {
+  if (process.platform !== 'win32') {
+    return false
+  }
   const lib = koffi.load('Shell32.dll')
   try {
     const IsUserAnAdmin = lib.func('IsUserAnAdmin', 'bool', [])

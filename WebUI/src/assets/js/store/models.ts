@@ -32,6 +32,7 @@ export type ModelType =
 
 export type Model = {
   name: string
+  mmproj?: string
   downloaded: boolean
   type: ModelType
   default: boolean

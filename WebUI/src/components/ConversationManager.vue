@@ -25,7 +25,7 @@
         v-for="(conversation, conversationKey) in conversations.conversationList"
         :key="'if' + conversationKey"
         @click="select(conversationKey)"
-        :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
+        :title="conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION"
         class="group relative cursor-pointer text-gray-300"
       >
         <div class="flex justify-between items-center w-full h-10 px-3">
@@ -44,7 +44,7 @@
             </template>
             <template v-else>
               <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
-                {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+                {{ conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION }}
               </span>
             </template>
             <div v-if="!conversations.isNewConversation(conversationKey)">
@@ -232,7 +232,7 @@ const renameTitle = ref('')
 
 function openRenameDialog(conversationKey: string) {
   renameKey.value = conversationKey
-  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.title
+  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.parts.find((part) => part.type === 'text')?.text
   renameTitle.value = existingTitle ?? ''
   renameDialogOpen.value = true
 }
@@ -247,7 +247,7 @@ function saveRename() {
   if (!renameKey.value) return
   const newTitle = renameTitle.value.trim()
   if (newTitle.length === 0) return
-  conversations.renameConversationTitle(renameKey.value, newTitle)
+  // conversations.renameConversationTitle(renameKey.value, newTitle)
   renameDialogOpen.value = false
   menuOpenKey.value = null
   renameKey.value = null

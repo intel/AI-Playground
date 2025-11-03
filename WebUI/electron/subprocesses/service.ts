@@ -166,7 +166,7 @@ export async function createEnhancedErrorDetails(
   }
 }
 
-const aipgBaseDir = () =>
+export const aipgBaseDir = () =>
   app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
 export const hijacksDir = path.resolve(path.join(aipgBaseDir(), `hijacks/ipex_to_cuda`))
 const hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
@@ -186,6 +186,7 @@ const checkHijacksDir = async (): Promise<boolean> => {
 }
 
 export const installHijacks = async (): Promise<void> => {
+  if (process.platform === 'darwin') return
   const git = new GitService()
   if (await checkHijacksDir()) {
     appLoggerInstance.info('ipex_to_cuda hijacks already cloned, skipping', 'ipex-hijacks')
@@ -616,9 +617,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
   encapsulatedProcess: ChildProcess | null = null
 
   readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
-  readonly prototypicalPythonEnv = app.isPackaged
-    ? path.join(this.baseDir, 'prototype-python-env')
-    : path.join(this.baseDir, 'build-envs/online/prototype-python-env')
   readonly wheelDir = path.join(
     app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
   )
@@ -648,7 +646,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     this.settings = settings
   }
 
-  abstract serviceIsSetUp(): boolean
+  abstract serviceIsSetUp(): Promise<boolean>
   abstract detectDevices(): Promise<void>
 
   async selectDevice(deviceId: string): Promise<void> {
@@ -683,6 +681,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     if (this.currentStatus === 'uninitializedStatus') {
       this.currentStatus = this.isSetUp ? 'notYetStarted' : 'notInstalled'
     }
+    this.appLogger.info(`getting info: current status is ${this.currentStatus}`, this.name)
     return {
       serviceName: this.name,
       status: this.currentStatus,
@@ -697,8 +696,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
   abstract set_up(): AsyncIterable<SetupProgress>
 
-  // Abstract method to get the service instance for pip freeze
-  abstract getServiceForPipFreeze(): PythonService | UvPipService | null
 
   async uninstall(): Promise<void> {
     this.stop()
@@ -816,7 +813,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     const duration = Date.now() - this.startupStartTime
 
     // Get pip freeze output for additional context
-    const service = this.getServiceForPipFreeze()
+    const service = null
     let pipFreezeOutput: string | undefined
     if (service) {
       pipFreezeOutput = await capturePipFreezeOutput(service)

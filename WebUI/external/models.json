@@ -40,6 +40,12 @@
     "default": false
   },
   {
+    "name": "unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q5_K_S.gguf",
+    "mmproj": "unsloth/gemma-3-4b-it-GGUF/mmproj-BF16.gguf",
+    "type": "llamaCPP",
+    "default": false
+  },
+  {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "type": "openVINO",
     "default": true
@@ -86,6 +92,11 @@
   },
   {
     "name": "OpenVINO/Mistral-7B-Instruct-v0.3-int4-cw-ov",
+    "type": "openVINO",
+    "default": false
+  },
+  {
+    "name": "OpenVINO/InternVL2-4B-int4-ov",
     "type": "openVINO",
     "default": false
   },

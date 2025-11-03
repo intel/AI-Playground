@@ -1,0 +1,52 @@
+[project]
+name = "aipg-default-backend"
+version = "2.6.2-beta"
+requires-python = "==3.12.*"
+dependencies = [
+  "spandrel",
+  "compel",
+  "datasets",
+  "diffusers",
+  "Flask",
+  "apiflask",
+  "marshmallow-dataclass",
+  "numpy",
+  "opencv-python-headless<4.12",
+  "peft",
+  "Pillow",
+  "psutil",
+  "Requests",
+  "transformers",
+  "setuptools",
+  "huggingface_hub",
+  "accelerate",
+  "torch>=2.9.0",
+  "torchaudio>=2.9.0",
+  "torchvision>=0.24.0",
+]
+[tool.uv]
+python-preference = "only-managed"
+link-mode = "clone"
+no-build = true
+index-strategy = "unsafe-best-match"
+required-environments = [
+  "sys_platform == 'win32'",
+  "sys_platform == 'darwin'",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch_xpu", marker = "sys_platform == 'win32'" },
+         { index = "pytorch_cpu", marker = "sys_platform == 'darwin'" }]
+torchaudio = [{ index = "pytorch_xpu", marker = "sys_platform == 'win32'" },
+              { index = "pytorch_cpu", marker = "sys_platform == 'darwin'" }]
+torchvision = [{ index = "pytorch_xpu", marker = "sys_platform == 'win32'" },
+               { index = "pytorch_cpu", marker = "sys_platform == 'darwin'" }]
+
+
+[[tool.uv.index]]
+name = "pytorch_xpu"
+url = "https://download.pytorch.org/whl/xpu"
+
+[[tool.uv.index]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu"

@@ -1,45 +1,185 @@
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
-import { existingFileOrError } from './osProcessHelper.ts'
-import { UvPipService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
-import { detectOpenVINODevices, openVinoDeviceSelectorEnv } from './deviceDetection.ts'
+import { app, BrowserWindow, net } from 'electron'
+import { appLoggerInstance } from '../logging/logger.ts'
+import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
+import { promisify } from 'util'
+import { exec } from 'child_process'
+import { LocalSettings } from '../main.ts'
 
-const serviceFolder = 'openVINO'
-export class OpenVINOBackendService extends LongLivedPythonApiService {
-  readonly serviceDir = path.resolve(path.join(this.baseDir, serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `openvino-env`))
-  // using ls_level_zero from default ai-backend env to avoid oneAPI dep conflicts
-  readonly lsLevelZeroDir = path.resolve(path.join(this.baseDir, 'ai-backend-env'))
-  readonly isRequired = true
+const execAsync = promisify(exec)
 
-  private version = '2025.2.0'
+interface OvmsServerProcess {
+  process: ChildProcess
+  port: number
+  modelRepoId: string
+  contextSize?: number
+  isReady: boolean
+}
 
-  healthEndpointUrl = `${this.baseUrl}/health`
+export class OpenVINOBackendService implements ApiService {
+  readonly name = 'openvino-backend' as BackendServiceName
+  readonly baseUrl: string
+  readonly port: number
+  readonly isRequired: boolean = false
+  readonly win: BrowserWindow
+  readonly settings: LocalSettings
 
-  readonly uvPip = new UvPipService(this.pythonEnvDir, serviceFolder)
-  readonly python = this.uvPip.python
-  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Use best device', selected: true }]
-  currentContextSize: number | null = null
+  // Service directories
+  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly serviceDir: string
+  readonly ovmsDir: string
+  readonly ovmsExePath: string
 
-  serviceIsSetUp(): boolean {
-    return filesystem.existsSync(this.python.getExePath())
+  readonly zipPath: string
+  devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+
+  // Health endpoint
+  healthEndpointUrl: string
+
+  // Status tracking
+  currentStatus: BackendStatus = 'notInstalled'
+  isSetUp: boolean = false
+  desiredStatus: BackendStatus = 'uninitializedStatus'
+
+  // Model server process
+  private ovmsProcess: OvmsServerProcess | null = null
+  private currentModel: string | null = null
+  private currentContextSize: number | null = null
+
+  // Store last startup error details for persistence
+  private lastStartupErrorDetails: ErrorDetails | null = null
+
+  // Logger
+  readonly appLogger = appLoggerInstance
+
+  private version = '2025.3'
+
+  constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
+    this.name = name
+    this.port = port
+    this.win = win
+    this.settings = settings
+    this.baseUrl = `http://127.0.0.1:${port}/v3`
+    this.healthEndpointUrl = `http://127.0.0.1:${port}/v2/health/ready`
+
+    // Set up paths
+    this.serviceDir = path.resolve(path.join(this.baseDir, 'OpenVINO'))
+    this.ovmsDir = path.resolve(path.join(this.serviceDir, 'ovms'))
+    this.ovmsExePath = path.resolve(path.join(this.ovmsDir, 'ovms.exe'))
+    this.zipPath = path.resolve(path.join(this.serviceDir, 'ovms.zip'))
+
+    // Check if already set up
+    this.isSetUp = this.serviceIsSetUp()
+    console.log('OVMS isSetUp:', this.isSetUp)
   }
 
-  isSetUp = this.serviceIsSetUp()
+  serviceIsSetUp(): boolean {
+    console.log('checking', this.ovmsExePath)
+    return filesystem.existsSync(this.ovmsExePath)
+  }
 
-  async detectDevices() {
-    const availableDevices = await detectOpenVINODevices(this.python)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    this.devices = [
-      { id: 'AUTO', name: 'Auto select device', selected: true },
-      ...availableDevices.map((d) => ({ ...d, selected: d.id == '0' })),
-    ]
+  async ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+  ): Promise<void> {
+    this.appLogger.info(
+      `Ensuring OpenVINO backend readiness for LLM: ${llmModelName}, Context: ${contextSize ?? 'default'}`,
+      this.name,
+    )
+
+    try {
+      // Handle model and context size changes
+      const needsRestart =
+        this.currentModel !== llmModelName ||
+        (contextSize && contextSize !== this.currentContextSize) ||
+        !this.ovmsProcess?.isReady
+
+      if (needsRestart) {
+        await this.stopOvmsServer()
+        await this.startOvmsServer(llmModelName, contextSize)
+        this.appLogger.info(`OpenVINO server ready with model: ${llmModelName}`, this.name)
+      } else {
+        this.appLogger.info(
+          `OpenVINO server already running with model: ${llmModelName}`,
+          this.name,
+        )
+      }
+
+      this.appLogger.info(`OpenVINO backend fully ready - LLM: ${llmModelName}`, this.name)
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to ensure backend readiness - LLM: ${llmModelName}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  async selectDevice(deviceId: string): Promise<void> {
+    if (!this.devices.find((d) => d.id === deviceId)) return
+    this.devices = this.devices.map((d) => ({ ...d, selected: d.id === deviceId }))
     this.updateStatus()
   }
 
-  getServiceForPipFreeze(): UvPipService {
-    return this.uvPip
+  async detectDevices() {
+    try {
+      // For now, we use a simple device list. Could enhance later with ovms device detection
+      this.appLogger.info('Setting up OpenVINO device options', this.name)
+      this.devices = [
+        { id: 'AUTO', name: 'Auto select device', selected: false },
+        { id: 'GPU', name: 'GPU (Intel)', selected: true },
+        { id: 'CPU', name: 'CPU', selected: false },
+      ]
+      this.appLogger.info(`Available devices: ${JSON.stringify(this.devices, null, 2)}`, this.name)
+    } catch (error) {
+      this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
+      // Fallback to default device on error
+      this.devices = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+    }
+    this.updateStatus()
+  }
+
+  get_info(): ApiServiceInformation {
+    if (this.currentStatus === 'uninitializedStatus') {
+      this.currentStatus = this.isSetUp ? 'notYetStarted' : 'notInstalled'
+    }
+    return {
+      serviceName: this.name,
+      status: this.currentStatus,
+      baseUrl: this.baseUrl,
+      port: this.port,
+      isSetUp: this.isSetUp,
+      isRequired: this.isRequired,
+      devices: this.devices,
+      errorDetails: this.lastStartupErrorDetails,
+    }
+  }
+
+  setStatus(status: BackendStatus) {
+    this.currentStatus = status
+    this.updateStatus()
+  }
+
+  updateStatus() {
+    this.win.webContents.send('serviceInfoUpdate', this.get_info())
+  }
+
+  async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.version) {
+      this.version = settings.version
+      this.appLogger.info(`applied new OpenVINO Model Server version ${this.version}`, this.name)
+    }
+  }
+
+  async getSettings(): Promise<ServiceSettings> {
+    this.appLogger.info(`getting OpenVINO settings`, this.name)
+    return {
+      version: this.version,
+      serviceName: this.name,
+    }
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -54,169 +194,355 @@ export class OpenVINOBackendService extends LongLivedPythonApiService {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
-        debugMessage: 'starting to set up python environment',
+        debugMessage: 'starting to set up OpenVINO Model Server',
       }
-      await this.python.ensureInstalled()
 
-      currentStep = 'install dependencies'
+      // Create service directory if it doesn't exist
+      if (!filesystem.existsSync(this.serviceDir)) {
+        filesystem.mkdirSync(this.serviceDir, { recursive: true })
+      }
+
+      currentStep = 'download'
       yield {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
-        debugMessage: `installing dependencies`,
+        debugMessage: `downloading OpenVINO Model Server`,
       }
 
-      let requirementsFile = path.join(this.serviceDir, 'requirements.txt')
-
-      this.appLogger.info(`Using OpenVINO version override: ${this.version}`, this.name)
-
-      // Create a temporary requirements file with the specified version
-      const tempRequirementsPath = path.join(this.serviceDir, 'requirements-temp.txt')
-      const originalRequirements = await filesystem.readFile(requirementsFile, 'utf-8')
-
-      // Replace openvino version in requirements
-      const modifiedRequirements = originalRequirements
-        .replace(/openvino[>=<~!]*[\d.]+/g, `openvino==${this.version}`)
-        .replace(/openvino-genai[>=<~!]*[\d.]+/g, `openvino-genai~=${this.version}`)
-        .replace(/openvino-tokenizers[>=<~!]*[\d.]+/g, `openvino-tokenizers~=${this.version}`)
-
-      await filesystem.writeFile(tempRequirementsPath, modifiedRequirements)
-      requirementsFile = tempRequirementsPath
-
-      this.appLogger.info(
-        `Created temporary requirements file with OpenVINO ${this.version}`,
-        this.name,
-      )
-
-      const commonRequirements = existingFileOrError(requirementsFile)
-      await this.uvPip.run(['install', '-r', commonRequirements])
-
-      // Clean up temporary requirements file if created
-      if (requirementsFile.includes('requirements-temp.txt')) {
-        await filesystem.remove(requirementsFile)
-        this.appLogger.info(`Cleaned up temporary requirements file`, this.name)
-      }
+      await this.downloadOvms()
 
       yield {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
-        debugMessage: `dependencies installed`,
+        debugMessage: 'download complete',
+      }
+
+      // Extract OVMS ZIP file
+      currentStep = 'extract'
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: 'extracting OpenVINO Model Server',
+      }
+
+      await this.extractOvms()
+
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: 'extraction complete',
       }
 
       this.setStatus('notYetStarted')
+      this.isSetUp = true
+
       currentStep = 'end'
       yield {
         serviceName: this.name,
         step: currentStep,
         status: 'success',
-        debugMessage: `service set up completely`,
+        debugMessage: 'service set up completely',
       }
     } catch (e) {
       this.appLogger.warn(`Set up of service failed due to ${e}`, this.name, true)
-      this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-        this.uvPip,
-      )
+
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
 
       yield {
         serviceName: this.name,
         step: currentStep,
         status: 'failed',
-        debugMessage: `Failed to setup python environment due to ${e}`,
+        debugMessage: `Failed to setup OpenVINO Model Server due to ${e}`,
         errorDetails,
       }
     }
   }
 
-  async updateSettings(settings: ServiceSettings): Promise<void> {
-    if (settings.version) {
-      this.version = settings.version
-      this.appLogger.info(`applied new openvino version ${this.version}`, this.name)
+  private async downloadOvms(): Promise<void> {
+    const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.3/ovms_windows_python_on.zip`
+    this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
+
+    // Delete existing zip if it exists
+    if (filesystem.existsSync(this.zipPath)) {
+      this.appLogger.info(`Removing existing OVMS zip file`, this.name)
+      filesystem.removeSync(this.zipPath)
     }
+
+    // Using electron net for better proxy support
+    const response = await net.fetch(downloadUrl)
+    if (!response.ok || response.status !== 200 || !response.body) {
+      throw new Error(`Failed to download OVMS: ${response.statusText}`)
+    }
+
+    const buffer = await response.arrayBuffer()
+    await filesystem.writeFile(this.zipPath, Buffer.from(buffer))
+
+    this.appLogger.info(`OVMS zip file downloaded successfully`, this.name)
   }
 
-  async getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`getting openvino settings`, this.name)
-    return {
-      version: this.version,
-      serviceName: this.name,
+  private async extractOvms(): Promise<void> {
+    this.appLogger.info(`Extracting OVMS to ${this.ovmsDir}`, this.name)
+
+    // Delete existing ovms directory if it exists
+    if (filesystem.existsSync(this.ovmsDir)) {
+      this.appLogger.info(`Removing existing OVMS directory`, this.name)
+      filesystem.removeSync(this.ovmsDir)
     }
-  }
 
-  async ensureBackendReadiness(
-    llmModelName: string,
-    embeddingModelName?: string,
-    contextSize?: number,
-  ): Promise<void> {
-    this.appLogger.info(
-      `Ensuring openVINO backend readiness for contextSize: ${contextSize}`,
-      this.name,
-    )
+    // Create ovms directory
+    filesystem.mkdirSync(this.ovmsDir, { recursive: true })
 
+    // Extract zip file using PowerShell's Expand-Archive
     try {
-      // Handle context size
-      if (contextSize && contextSize !== this.currentContextSize) {
-        this.currentContextSize = contextSize
-        await this.stop()
-        await this.start()
-        this.appLogger.info(`openVINO ready with context size: ${contextSize}`, this.name)
-      } else {
-        this.appLogger.info(`openVINO already running with context size: ${contextSize}`, this.name)
+      const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.ovmsDir}' -Force"`
+      await execAsync(command)
+
+      this.appLogger.info(`OVMS extracted successfully`, this.name)
+
+      // Check if there's only a single top-level folder and move its contents up
+      const items = filesystem.readdirSync(this.ovmsDir)
+      if (items.length === 1) {
+        const singleItem = path.join(this.ovmsDir, items[0])
+        const stats = filesystem.statSync(singleItem)
+
+        if (stats.isDirectory()) {
+          this.appLogger.info(
+            `Found single top-level folder '${items[0]}', moving contents up`,
+            this.name,
+          )
+
+          // Move contents to temp directory first
+          const tempDir = path.join(this.serviceDir, 'ovms-temp')
+          filesystem.moveSync(singleItem, tempDir)
+
+          // Remove the now-empty ovms directory
+          filesystem.removeSync(this.ovmsDir)
+
+          // Rename temp directory to ovms
+          filesystem.moveSync(tempDir, this.ovmsDir)
+
+          this.appLogger.info(`Moved contents of '${items[0]}' up to ovms directory`, this.name)
+        }
       }
     } catch (error) {
+      this.appLogger.error(`Failed to extract OVMS: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  async start(): Promise<BackendStatus> {
+    // In this architecture, model server is started on-demand via ensureBackendReadiness
+    // This method is kept for ApiService interface compatibility
+    if (this.currentStatus === 'running') {
+      this.clearLastStartupError()
+      return 'running'
+    }
+
+    this.appLogger.info(`${this.name} service ready - model server will start on-demand`, this.name)
+    this.desiredStatus = 'running'
+    this.currentStatus = 'running'
+    this.clearLastStartupError()
+    this.updateStatus()
+    return 'running'
+  }
+
+  async stop(): Promise<BackendStatus> {
+    this.appLogger.info(
+      `Stopping backend ${this.name}. It was in state ${this.currentStatus}`,
+      this.name,
+    )
+    this.desiredStatus = 'stopped'
+    this.setStatus('stopping')
+
+    // Stop model server
+    await this.stopOvmsServer()
+
+    this.setStatus('stopped')
+    return 'stopped'
+  }
+
+  // Model server management methods
+  private async startOvmsServer(
+    modelRepoId: string,
+    contextSize?: number,
+  ): Promise<OvmsServerProcess> {
+    try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+
+      this.appLogger.info(
+        `Starting OVMS server for model: ${modelRepoId} on port ${this.port} with device ${selectedDevice}`,
+        this.name,
+      )
+
+      const args = [
+        '--rest_bind_address',
+        '127.0.0.1',
+        '--rest_port',
+        this.port.toString(),
+        '--rest_workers',
+        '4',
+        '--source_model',
+        modelRepoId,
+        '--model_repository_path',
+        'models',
+        '--target_device',
+        selectedDevice,
+        '--cache_size',
+        '2',
+        '--task',
+        'text_generation',
+      ]
+
+      this.appLogger.info(`OVMS launch args: ${args.join(' ')}`, this.name)
+
+      // Set up environment variables as per setupvars.ps1
+      const pythonDir = path.join(this.ovmsDir, 'python')
+      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
+
+      const childProcess = spawn(this.ovmsExePath, args, {
+        cwd: this.ovmsDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          OVMS_DIR: this.ovmsDir,
+          PYTHONHOME: pythonDir,
+          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+        },
+      })
+
+      const ovmsProcess: OvmsServerProcess = {
+        process: childProcess,
+        port: this.port,
+        modelRepoId,
+        contextSize,
+        isReady: false,
+      }
+
+      // Set up process event handlers
+      childProcess.stdout!.on('data', (message) => {
+        this.appLogger.info(`[OVMS] ${message}`, this.name)
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        this.appLogger.error(`[OVMS] ${message}`, this.name)
+      })
+
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`OVMS server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`OVMS server process exited with code: ${code}`, this.name)
+        if (this.ovmsProcess === ovmsProcess) {
+          this.ovmsProcess = null
+          this.currentModel = null
+          this.currentContextSize = null
+        }
+      })
+
+      // Wait for server to be ready
+      await this.waitForServerReady(this.healthEndpointUrl)
+      ovmsProcess.isReady = true
+
+      this.ovmsProcess = ovmsProcess
+      this.currentModel = modelRepoId
+      this.currentContextSize = contextSize ?? null
+
+      this.appLogger.info(`OVMS server ready for model: ${modelRepoId}`, this.name)
+      return ovmsProcess
+    } catch (error) {
       this.appLogger.error(
-        `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`,
+        `Failed to start OVMS server for model ${modelRepoId}: ${error}`,
         this.name,
       )
       throw error
     }
   }
 
-  async spawnAPIProcess(): Promise<{
-    process: ChildProcess
-    didProcessExitEarlyTracker: Promise<boolean>
-  }> {
-    const additionalEnvVariables = {
-      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH}`,
-      PYTHONNOUSERSITE: 'true',
-      SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-      SYCL_CACHE_PERSISTENT: '1',
-      PYTHONIOENCODING: 'utf-8',
-      ...(this.currentContextSize ? { MAX_PROMPT_LEN: this.currentContextSize.toString() } : {}),
-      ...openVinoDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
-      PIP_CONFIG_FILE: 'nul',
+  private async stopOvmsServer(): Promise<void> {
+    if (this.ovmsProcess) {
+      this.appLogger.info(`Stopping OVMS server for model: ${this.currentModel}`, this.name)
+      this.ovmsProcess.process.kill('SIGTERM')
+
+      // Wait a bit for graceful shutdown, then force kill if needed
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.ovmsProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing OVMS server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+
+      this.ovmsProcess = null
+      this.currentModel = null
+      this.currentContextSize = null
+    }
+  }
+
+  private async waitForServerReady(healthUrl: string): Promise<void> {
+    const maxAttempts = 120
+    const delayMs = 1000
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await fetch(healthUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(1000),
+        })
+
+        if (response.ok) {
+          this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
+          return
+        }
+      } catch (_error) {
+        // Server not ready yet, continue waiting
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
 
-    const apiProcess = spawn(
-      this.python.getExePath(),
-      ['openvino_web_api.py', '--port', this.port.toString()],
-      {
-        cwd: this.serviceDir,
-        windowsHide: true,
-        env: Object.assign(process.env, additionalEnvVariables),
-      },
-    )
+    throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
+  }
 
-    //must be at the same tick as the spawn function call
-    //otherwise we cannot really track errors given the nature of spawn() with a longlived process
-    const didProcessExitEarlyTracker = new Promise<boolean>((resolve, _reject) => {
-      apiProcess.on('error', (error) => {
-        this.appLogger.error(`encountered error of process in ${this.name} : ${error}`, this.name)
-        resolve(true)
-      })
-      apiProcess.on('exit', () => {
-        this.appLogger.error(`encountered unexpected exit in ${this.name}.`, this.name)
-        resolve(true)
-      })
-    })
+  // Error management methods for startup failures
+  setLastStartupError(errorDetails: ErrorDetails): void {
+    this.lastStartupErrorDetails = errorDetails
+  }
 
-    return {
-      process: apiProcess,
-      didProcessExitEarlyTracker: didProcessExitEarlyTracker,
-    }
+  getLastStartupError(): ErrorDetails | null {
+    return this.lastStartupErrorDetails
+  }
+
+  clearLastStartupError(): void {
+    this.lastStartupErrorDetails = null
+  }
+
+  async uninstall(): Promise<void> {
+    await this.stop()
+    this.appLogger.info(`removing OpenVINO Model Server directory`, this.name)
+    await filesystem.remove(this.ovmsDir)
+    this.appLogger.info(`removed OpenVINO Model Server directory`, this.name)
+    this.setStatus('notInstalled')
+    this.isSetUp = false
+    // Clear startup errors when uninstalling
+    this.clearLastStartupError()
   }
 }
