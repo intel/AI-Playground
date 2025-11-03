@@ -6,6 +6,25 @@
     @close="$emit('close')"
   >
     <template #header-buttons>
+      <AlertDialog v-if="mode !== 'chat'">
+        <AlertDialogTrigger asChild>
+          <button class="svg-icon i-clear w-6 h-6" />
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all images?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove all images in this mode.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction @click="deleteAllImages">
+              Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <button
         v-show="mode === 'chat'"
         @click="selectNewConversation"
@@ -27,10 +46,24 @@
 import HistoryChat from '@/components/HistoryChat.vue'
 import HistoryWorkflow from '@/components/HistoryWorkflow.vue'
 import { useConversations } from '@/assets/js/store/conversations.ts'
+import { useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import SideModalBase from '@/components/SideModalBase.vue'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 const conversations = useConversations()
+const imageGeneration = useImageGeneration()
+
 const props = defineProps<{
   mode: ModeType
   isVisible: boolean
@@ -44,5 +77,11 @@ const emit = defineEmits<{
 function selectNewConversation() {
   conversations.activeKey = Object.keys(conversations).pop() ?? ''
   emit('close')
+}
+
+function deleteAllImages() {
+  if (props.mode !== 'chat') {
+    imageGeneration.deleteAllImagesForMode(props.mode as WorkflowModeType)
+  }
 }
 </script>

@@ -297,10 +297,6 @@ function deleteImage(image: MediaItem) {
   imageGeneration.deleteImage(image.id)
 }
 
-function deleteAllImages() {
-  imageGeneration.deleteAllImages()
-}
-
 function loadingStateToText(state: string) {
   switch (state) {
     case 'load_model':

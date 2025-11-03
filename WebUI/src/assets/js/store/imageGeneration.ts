@@ -917,6 +917,22 @@ export const useImageGeneration = defineStore(
       generatedImages.value.length = 0
     }
 
+    function deleteAllImagesForMode(mode: WorkflowModeType) {
+      generatedImages.value = generatedImages.value.filter((image) => image.mode !== mode)
+
+      switch (mode) {
+        case 'imageGen':
+          selectedGeneratedImageId.value = null
+          break
+        case 'imageEdit':
+          selectedEditedImageId.value = null
+          break
+        case 'video':
+          selectedVideoId.value = null
+          break
+      }
+    }
+
     loadWorkflowsFromJson()
 
     watch(
@@ -965,6 +981,7 @@ export const useImageGeneration = defineStore(
       stopGeneration,
       deleteImage,
       deleteAllImages,
+      deleteAllImagesForMode,
       getGenerationParameters,
       selectedGeneratedImageId,
       selectedEditedImageId,
