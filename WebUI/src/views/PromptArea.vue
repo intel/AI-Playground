@@ -72,6 +72,8 @@ import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vu
 import { mapModeToLabel } from '@/lib/utils.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { PlusIcon } from '@heroicons/vue/24/outline'
+import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
