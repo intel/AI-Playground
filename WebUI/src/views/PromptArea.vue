@@ -15,9 +15,10 @@
             :key="preview.id"
             :src="preview.url"
             alt="Image Preview"
-            class="max-h-12 max-w-12 mr-2 rounded"
+            class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-gray-500 rounded-md"
           />
-          <div class="border border-dashed border-gray-500 rounded-md p-1 hover:cursor-pointer">
+          <!-- TODO: delete icon for loaded images -->
+          <div class="self-center border border-dashed border-gray-500 rounded-md p-1 hover:cursor-pointer">
             <Label htmlFor="image"><PlusIcon class="size-4 cursor-pointer" /></Label>
             <Input
               type="file"
