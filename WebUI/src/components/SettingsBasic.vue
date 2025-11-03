@@ -6,15 +6,7 @@
     </div>
     <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
       <p>{{ languages.SETTINGS_THEME }}</p>
-      <div class="grid gap-2" :class="{ [`grid-cols-${theme.availableThemes.length}`]: true }">
-        <radio-block
-          v-for="themeName in theme.availableThemes"
-          :key="themeName"
-          :checked="theme.active === themeName"
-          :text="themeToDisplayName(themeName)"
-          @click="() => (theme.selected = themeName)"
-        ></radio-block>
-      </div>
+      <ThemeSelector />
     </div>
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
@@ -34,7 +26,7 @@
       </div>
     </div>
   </div>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3 pt-6">
     <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
     <table class="text-center w-full mx-2 table-fixed">
       <tbody>
@@ -66,6 +58,7 @@ import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import ThemeSelector from '@/components/ThemeSelector.vue'
 
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
