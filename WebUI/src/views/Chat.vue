@@ -30,9 +30,7 @@
               :src="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/')).url"
               alt="Generated Image"
             />
-            <div class="chat-content" style="white-space: pre-wrap">
-              {{ message.parts.find((part) => part.type === 'text')?.text }}
-            </div>
+            <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
             <button
               class="flex items-center gap-1 text-xs text-gray-300 mt-1"
               :title="languages.COM_COPY"
@@ -119,13 +117,10 @@
                 <div
                   v-if="showThinkingTextPerMessageId[message.id]"
                   class="border-l-2 border-gray-400 pl-4 text-gray-300"
-                  v-html="message.parts.find((part) => part.type === 'reasoning')?.text"
+                  v-html="parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '')"
                 ></div>
-                <div v-html="message.parts.find((part) => part.type === 'text')?.text"></div>
               </template>
-              <template v-else>
-                <div v-html="message.parts.find((part) => part.type === 'text')?.text"></div>
-              </template>
+              <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
             </div>
             <div class="answer-tools flex gap-3 items-center text-gray-300">
               <button
@@ -324,7 +319,8 @@ import { parse } from '@/assets/js/markdownParser.ts'
 import { base64ToString } from 'uint8array-extras'
 import ProgressBar from '@/components/ProgressBar.vue'
 import LoadingBar from '@/components/LoadingBar.vue'
-import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { AipgUiMessage, useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { asyncComputed } from '@vueuse/core'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
@@ -342,6 +338,10 @@ const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
 
 const activeConversation = computed(() => openAiCompatibleChat.messages)
+
+
+
+
 const showThinkingTextPerMessageId = reactive<Record<string, boolean>>({})
 
 let actualRagResults: LangchainDocument[] | null = null
