@@ -7,6 +7,7 @@
           class="rounded-2xl resize-none w-full h-48 pb-16"
           :placeholder="getTextAreaPlaceholder()"
           v-model="prompt"
+          :disabled="!readyForNewSubmit"
           @keydown="fastGenerate"
         ></textarea>
         <div class="absolute bottom-3 left-3 flex gap-2">
@@ -32,21 +33,21 @@
             {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
           </button>
           <button
-            v-if="!isProcessing"
+            v-if="readyForNewSubmit"
             @click="handleSubmitPromptClick"
             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm min-w-[44px]"
           >
             →
           </button>
           <button
-            v-if="isProcessing && !isStopping"
+            v-else-if="!isStopping"
             @click="handleCancelClick"
             class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
           >
             <i class="svg-icon w-4 h-4 i-stop"></i>
           </button>
           <button
-            v-if="isProcessing && isStopping"
+            v-else
             disabled
             class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
           >
@@ -59,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, ref, computed } from 'vue'
+import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
@@ -69,6 +70,7 @@ const languages = instance?.appContext.config.globalProperties.languages
 const prompt = ref('')
 const promptStore = usePromptStore()
 const imageGeneration = useImageGeneration()
+const processingDebounceTimer = ref<number | null>(null)
 
 const emits = defineEmits<{
   (e: 'autoHideFooter'): void,
@@ -76,13 +78,31 @@ const emits = defineEmits<{
 }>()
 
 const isProcessing = computed(() =>
-  promptStore.processing || imageGeneration.processing
+  promptStore.textInferenceProcessing || imageGeneration.processing
 )
 
 const isStopping = computed(() =>
   imageGeneration.stopping
 )
 
+const readyForNewSubmit = computed(() =>
+  !promptStore.promptSubmitted && !isProcessing.value
+)
+
+watch(isProcessing, (newValue, oldValue) => {
+  if (processingDebounceTimer.value !== null) {
+    clearTimeout(processingDebounceTimer.value)
+    processingDebounceTimer.value = null
+  }
+
+  if (oldValue === true && newValue === false) {
+    processingDebounceTimer.value = window.setTimeout(() => {
+      prompt.value = ''
+      promptStore.promptSubmitted = false
+      processingDebounceTimer.value = null
+    }, 1000)
+  }
+})
 
 function getTextAreaPlaceholder() {
   switch (promptStore.getCurrentMode()) {
@@ -102,7 +122,6 @@ function getTextAreaPlaceholder() {
 function handleSubmitPromptClick() {
   emits('autoHideFooter')
   promptStore.submitPrompt(prompt.value)
-  prompt.value = ''
 }
 
 function handleCancelClick() {

@@ -5,9 +5,10 @@ import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
 export const usePromptStore = defineStore('prompt', () => {
   const imageGeneration = useImageGeneration()
   const currentMode = ref<ModeType>('chat')
+  const promptSubmitted = ref(false)
 
   // todo: Remove this after cleaning up text inference. The text inference store should know its processing state directly, no need to track it here
-  const processing = ref(false)
+  const textInferenceProcessing = ref(false)
 
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
   const cancelCallbacks = ref<Partial<Record<ModeType, () => void>>>({})
@@ -35,6 +36,7 @@ export const usePromptStore = defineStore('prompt', () => {
   function submitPrompt(promptText: string) {
     const callback = submitCallbacks.value[currentMode.value]
     if (callback) {
+      promptSubmitted.value = true
       callback(promptText)
     }
   }
@@ -42,9 +44,9 @@ export const usePromptStore = defineStore('prompt', () => {
   function cancelProcessing() {
     const callback = cancelCallbacks.value[currentMode.value]
     if (callback) {
+      promptSubmitted.value = false
       callback()
     }
-    processing.value = false
   }
 
   function registerSubmitCallback(mode: ModeType, callback: (prompt: string) => void) {
@@ -64,7 +66,8 @@ export const usePromptStore = defineStore('prompt', () => {
   }
 
   return {
-    processing,
+    promptSubmitted,
+    textInferenceProcessing,
     getCurrentMode,
     setCurrentMode,
     submitPrompt,

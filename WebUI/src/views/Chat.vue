@@ -414,7 +414,7 @@ async function handleCancel() {
 
     finishGenerate()
     processing.value = false
-    promptStore.processing = false
+    promptStore.textInferenceProcessing = false
     stopping.value = false
   }
 }
@@ -472,7 +472,7 @@ async function generate(chatContext: ChatItem[]) {
     }
     textOutFinish = false
     processing.value = true
-    promptStore.processing = true
+    promptStore.textInferenceProcessing = true
     nextTick(scrollToBottom)
 
     let externalRagContext = null
@@ -529,7 +529,7 @@ async function generate(chatContext: ChatItem[]) {
     await new SSEProcessor(reader, dataProcess, finishGenerate).start()
   } finally {
     processing.value = false
-    promptStore.processing = false
+    promptStore.textInferenceProcessing = false
   }
 }
 
@@ -623,7 +623,7 @@ function dataProcess(line: string) {
       break
     case 'error':
       processing.value = false
-      promptStore.processing = false
+      promptStore.textInferenceProcessing = false
       textInference.completeBackendPreparation()
       switch (data.err_type) {
         case 'not_enough_disk_space':
@@ -748,7 +748,7 @@ async function simulatedInput() {
 
     sseMetrics = null
     processing.value = false
-    promptStore.processing = false
+    promptStore.textInferenceProcessing = false
     textIn.value = ''
     textOut.value = ''
     nextTick(() => {
