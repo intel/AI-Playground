@@ -161,6 +161,7 @@
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
       <div class="fixed top-18 left-4 z-5">
         <button
+          v-show="!showHistory"
           @click="openHistory"
           class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
         >
@@ -185,19 +186,19 @@
           title="Developer Tools"
         ></button>
       </div>
-      <Chat v-show="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
+      <Chat v-if="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
       <WorkflowResult
-        v-show="promptStore.getCurrentMode() === 'imageGen'"
+        v-if="promptStore.getCurrentMode() === 'imageGen'"
         ref="imageGenRef"
         mode='imageGen'
       />
       <WorkflowResult
-        v-show="promptStore.getCurrentMode() === 'imageEdit'"
+        v-if="promptStore.getCurrentMode() === 'imageEdit'"
         ref="imageEditRef"
         mode='imageEdit'
       />
       <WorkflowResult
-        v-show="promptStore.getCurrentMode() === 'video'"
+        v-if="promptStore.getCurrentMode() === 'video'"
         ref="videoRef"
         mode='video'
       />

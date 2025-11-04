@@ -97,10 +97,6 @@ const imageGeneration = useImageGeneration()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 
-const props = defineProps<{
-  currentMode: ModeType
-}>()
-
 const emits = defineEmits<{
   (e: 'autoHideFooter'): void,
   (e: 'openSettings'): void
