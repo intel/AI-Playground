@@ -80,7 +80,6 @@ function selectNewConversation() {
   const key = conversations.addNewConversation()
   if (!key) return
   conversations.activeKey = key
-  emit('close')
 }
 
 function deleteAllImages() {

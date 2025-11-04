@@ -161,7 +161,6 @@
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
       <div class="fixed top-18 left-4 z-5">
         <button
-          v-show="!showHistory"
           @click="openHistory"
           class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
         >

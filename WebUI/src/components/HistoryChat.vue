@@ -151,8 +151,14 @@ const conversationTitle = (key: string) => {
   if (conversation[0].metadata?.conversationTitle) {
     return conversation[0].metadata.conversationTitle
   }
-  const firstMessage = conversation[1]
-  const titlePart = firstMessage.parts.find((part) => part.type === 'text')
+  const firstMessage = conversation[0]
+
+  // todo: can be deleted eventually
+  if (firstMessage.parts === undefined) {
+    conversations.deleteConversation(key)
+  }
+
+  const titlePart = firstMessage.parts?.find((part) => part.type === 'text')
   return titlePart ? titlePart.text.substring(0, 50) : 'New Conversation'
 }
 

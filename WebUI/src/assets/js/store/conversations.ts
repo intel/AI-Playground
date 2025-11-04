@@ -36,7 +36,9 @@ export const useConversations = defineStore(
 
     function addNewConversation() {
       const list = conversationList.value
-      return addNewConversationIfLatestIsNotEmpty(list)
+      const newKey = addNewConversationIfLatestIsNotEmpty(list)
+      activeKey.value = newKey
+      return newKey
     }
 
     const isNewConversation = (key: string) => conversationList.value[key].length === 0
@@ -72,25 +74,17 @@ export const useConversations = defineStore(
 function addNewConversationIfLatestIsNotEmpty(
   list: Record<string, AipgUiMessage[]>,
   conversationKey?: string,
-) {
-  console.log('Checking if new conversation is needed', { list, conversationKey })
-  if (conversationKey && list[conversationKey].length !== 0) {
-    // If the last conversation is already empty, do nothing
-    const lastKey = Object.keys(list).at(-1)
-    if (lastKey && list[lastKey].length === 0) return lastKey
+): string {
+  console.log('Checking if new conversation is needed', {list, conversationKey})
 
-    // Otherwise, create a fresh conversation
-    const newKey = new Date().getTime().toString()
-    list[newKey] = []
-    return newKey
+  const lastKey = Object.keys(list).at(-1)
+  if (lastKey && list[lastKey].length === 0) {
+    return lastKey
   }
 
-  // Fallback old logic
-  if (Object.values(list).at(-1)?.length !== 0) {
-    const newKey = new Date().getTime().toString()
-    list[newKey] = []
-    return newKey
-  }
+  const newKey = new Date().getTime().toString()
+  list[newKey] = []
+  return newKey
 }
 
 if (import.meta.hot) {
