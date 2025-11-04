@@ -117,7 +117,7 @@
           ></drop-down-new>
         </div>
         <!-- todo: needs to actually do something-->
-        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset </Button>
+        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
       </div>
       <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
@@ -181,7 +181,7 @@ const documentButtonText = computed(() => {
 const documentStats = computed(() => {
   const totalDocs = textInference.ragList.length
   const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
-  return { total: totalDocs, enabled: enabledDocs }
+  return {total: totalDocs, enabled: enabledDocs}
 })
 
 function handlePresetSelectionClick(backendInfo: BackendInfo) {

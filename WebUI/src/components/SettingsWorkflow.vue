@@ -48,34 +48,9 @@
         <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
-      <div
-        v-if="modifiableOrDisplayed('resolution')"
-        class="grid grid-cols-[120px_1fr] items-center gap-4"
-      >
-        <Label class="whitespace-nowrap">
-          {{ languages.SETTINGS_MODEL_IMAGE_WIDTH }}: {{ imageGeneration.width }}
-        </Label>
-        <Slider
-          v-model="imageGeneration.width"
-          :min="256"
-          :max="2048"
-          :step="64"
-          :disabled="!modifiable('resolution')"
-        />
-      </div>
-
-      <div
-        v-if="modifiableOrDisplayed('resolution')"
-        class="grid grid-cols-[120px_1fr] items-center gap-4"
-      >
-        <Label class="whitespace-nowrap">
-          {{ languages.SETTINGS_MODEL_IMAGE_HEIGHT }}: {{ imageGeneration.height }}
-        </Label>
-        <Slider
-          v-model="imageGeneration.height"
-          :min="256"
-          :max="2048"
-          :step="64"
+      <div class="flex flex-col gap-2">
+        <AspectRatioPicker
+          v-if="modifiableOrDisplayed('resolution')"
           :disabled="!modifiable('resolution')"
         />
       </div>
@@ -199,6 +174,7 @@ import {
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import ComfyDynamic from "@/components/SettingsImageComfyDynamic.vue";
 import { Preset } from "../assets/js/presets";
+import AspectRatioPicker from "./AspectRatioPicker.vue";
 
 interface Props {
   presets: Preset[]
