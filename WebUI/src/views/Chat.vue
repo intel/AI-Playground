@@ -1,4 +1,14 @@
 <template>
+  <button
+    v-if="showScrollButton"
+    class="absolute bottom-65 left-1/2 transform -translate-x-1/2 bg-white text-black p-2 rounded-full shadow-lg z-50 hover:bg-gray-200 transition-colors"
+    @click="scrollToBottom()"
+    title="Scroll to bottom"
+  >
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+    </svg>
+  </button>
   <div
     v-if="
       (activeConversation && activeConversation.length > 0) ||
@@ -6,7 +16,7 @@
     "
     id="chatPanel"
     ref="chatPanel"
-    class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6"
+    class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 relative"
     @scroll="handleScroll"
   >
     <div
@@ -15,6 +25,7 @@
     >
       <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
     </div>
+
     <!-- eslint-disable vue/require-v-for-key -->
     <div class="w-full max-w-3xl mx-auto flex flex-col gap-6">
       <template v-for="(message, i) in activeConversation">
@@ -139,7 +150,7 @@
                 class="flex items-end"
                 :title="languages.COM_REGENERATE"
                 @click="() => openAiCompatibleChat.chat.regenerate({messageId: message.id})"
-                v-if="i + 1 == conversations.activeConversation.length"
+                v-if="i + 1 == activeConversation.length"
                 :disabled="openAiCompatibleChat.processing"
                 :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
               >
@@ -441,8 +452,11 @@ async function generate(question: string) {
     openAiCompatibleChat.messageInput = question
     await openAiCompatibleChat.generate()
     conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
-    nextTick(scrollToBottom)
 
+    await nextTick()
+    if (autoScrollEnabled.value) {
+      scrollToBottom(false)
+    }
   } finally {
   }
 }
