@@ -11,12 +11,19 @@
       @click="selectImage(image.id)"
     >
       <div
-        class="w-[100px] h-[60px] overflow-hidden rounded-sm flex items-center justify-center bg-black"
+        class="relative w-[150px] h-[90px] overflow-hidden rounded-sm flex items-center justify-center bg-black"
         draggable="true"
         @dragstart="(e) => dragImage(image)(e)"
       >
         <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
         <img v-else :src="image.imageUrl" class="w-full h-full object-cover" />
+
+        <div
+          v-if="image.sourceImageUrl === image.imageUrl"
+          class="absolute bottom-0 w-full bg-black/60 text-white text-[14px] text-center py-[2px]"
+        >
+          {{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}
+        </div>
       </div>
 
       <div class="absolute top-1 right-1 flex items-center">
