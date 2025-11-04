@@ -72,7 +72,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useI18N } from '@/assets/js/store/i18n'
 import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import {
   DropdownMenu,
@@ -98,7 +97,6 @@ const props = defineProps<{
 }>()
 
 const imageGeneration = useImageGeneration()
-const i18nState = useI18N().state
 
 const nonQueuedImages = computed(() =>
   imageGeneration.generatedImages.filter(

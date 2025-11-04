@@ -51,7 +51,6 @@
 </template>
 
 <script setup lang="ts">
-import RadioBlock from '../components/RadioBlock.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
@@ -65,7 +64,8 @@ const backendServices = useBackendServices()
 const models = useModels()
 const theme = useTheme()
 
-const themeToDisplayName = (theme: Theme) => {
+// todo: why is this not used
+const _themeToDisplayName = (theme: Theme) => {
   switch (theme) {
     case 'dark':
       return 'Default'

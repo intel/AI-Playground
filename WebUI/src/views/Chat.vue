@@ -321,18 +321,13 @@
 import { getCurrentInstance } from 'vue'
 import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
-import { thinkingModels, useTextInference } from '@/assets/js/store/textInference.ts'
+import { useTextInference } from '@/assets/js/store/textInference.ts'
 import { useConversations } from '@/assets/js/store/conversations.ts'
-import * as util from '@/assets/js/util.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { parse } from '@/assets/js/markdownParser.ts'
-import { base64ToString } from 'uint8array-extras'
-import ProgressBar from '@/components/ProgressBar.vue'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts";
-import { AipgUiMessage, useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
-import { asyncComputed } from '@vueuse/core'
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
@@ -343,8 +338,8 @@ const backendServices = useBackendServices()
 const promptStore = usePromptStore()
 
 const i18nState = useI18N().state
-const ragRetrievalInProgress = ref(false)
-const showRagPreview = ref(true)
+// const ragRetrievalInProgress = ref(false)
+// const showRagPreview = ref(true)
 const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
@@ -352,7 +347,7 @@ const chatPanel = ref<HTMLElement | null>(null)
 const activeConversation = computed(() => openAiCompatibleChat.messages)
 const showThinkingTextPerMessageId = reactive<Record<string, boolean>>({})
 
-let actualRagResults: LangchainDocument[] | null = null
+// let actualRagResults: LangchainDocument[] | null = null
 
 defineExpose({
   scrollToBottom,
@@ -425,30 +420,30 @@ async function generate(question: string) {
 
     nextTick(scrollToBottom)
 
-    let externalRagContext = null
-    actualRagResults = null
+    // let externalRagContext = null
+    // actualRagResults = null
 
-    if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
-      try {
-        // Set RAG retrieval in progress
-        ragRetrievalInProgress.value = true
-        showRagPreview.value = true
-
-        // Perform RAG retrieval
-        const ragResults = await textInference.embedInputUsingRag(
-          question,
-        )
-
-        ragRetrievalInProgress.value = false
-
-        if (ragResults && ragResults.length > 0) {
-          externalRagContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
-          actualRagResults = ragResults
-        }
-      } catch (error) {
-        console.error('Error retrieving RAG documents:', error)
-      }
-    }
+    // if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
+    //   try {
+    //     // Set RAG retrieval in progress
+    //     ragRetrievalInProgress.value = true
+    //     showRagPreview.value = true
+    //
+    //     // Perform RAG retrieval
+    //     const ragResults = await textInference.embedInputUsingRag(
+    //       question,
+    //     )
+    //
+    //     ragRetrievalInProgress.value = false
+    //
+    //     if (ragResults && ragResults.length > 0) {
+    //       externalRagContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
+    //       actualRagResults = ragResults
+    //     }
+    //   } catch (error) {
+    //     console.error('Error retrieving RAG documents:', error)
+    //   }
+    // }
     openAiCompatibleChat.messageInput = question
     await openAiCompatibleChat.generate()
     conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
@@ -478,11 +473,11 @@ function scrollToBottom(smooth = true) {
   }
 }
 
-function copyCode(e: MouseEvent) {
-  if (!(e.target instanceof HTMLElement)) return
-  if (!e.target?.dataset?.code) return
-  copyText(base64ToString(e.target?.dataset?.code))
-}
+// function copyCode(e: MouseEvent) {
+//   if (!(e.target instanceof HTMLElement)) return
+//   if (!e.target?.dataset?.code) return
+//   copyText(base64ToString(e.target?.dataset?.code))
+// }
 
 function copyText(text: string) {
   navigator.clipboard

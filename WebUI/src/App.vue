@@ -284,7 +284,6 @@
           @postImageToEnhance="postImageToEnhance"
         ></create>
         <enhance v-show="activeTabIdx === 'enhance'" ref="enhanceCompt"></enhance>
-        <Answer v-show="activeTabIdx === 'answer'" @show-model-request="showModelRequest"></Answer>
         <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
       </div>
       <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
@@ -387,7 +386,6 @@ import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
 import WorkflowResult from '@/views/WorkflowResult.vue'
 import Chat from '@/views/Chat.vue'
-import Answer from '@/views/Answer.vue'
 import { ref } from 'vue'
 import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
@@ -547,7 +545,8 @@ function postImageToEnhance(imageUrl: string) {
   activeTabIdx.value = 'enhance'
 }
 
-function showModelRequest() {
+// todo: Why is this not used
+function _showModelRequest() {
   showModelRequestDialog.value = true
   nextTick(() => {
     addLLMCompt.value!.onShow()

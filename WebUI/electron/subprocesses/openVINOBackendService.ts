@@ -82,7 +82,7 @@ export class OpenVINOBackendService implements ApiService {
 
   async ensureBackendReadiness(
     llmModelName: string,
-    embeddingModelName?: string,
+    _embeddingModelName?: string,
     contextSize?: number,
   ): Promise<void> {
     this.appLogger.info(

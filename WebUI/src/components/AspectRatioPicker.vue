@@ -88,7 +88,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { type SliderRootProps } from 'radix-vue'
-import { cn } from '@/lib/utils'
 import { clsx } from 'clsx'
 import { findBestResolution, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { Label } from '@/components/ui/label'

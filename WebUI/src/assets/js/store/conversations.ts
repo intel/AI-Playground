@@ -1,6 +1,5 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { AipgUiMessage } from './openAiCompatibleChat'
-import { A } from 'ollama/dist/shared/ollama.27169772.mjs'
 
 export const useConversations = defineStore(
   'conversations',

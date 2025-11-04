@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { appLoggerInstance } from '../../logging/logger.ts'
 import path from 'path'
 import fs from 'fs'
+import { spawn } from 'child_process'
 
 export const aipgBaseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
 const buildResources = app.isPackaged ? aipgBaseDir : path.join(aipgBaseDir, 'build', 'resources')
@@ -29,9 +30,8 @@ const loggerFor = (source: string) => ({
   }
 })
 
-const uv = (uvCommand: string[], logger: ReturnType<typeof loggerFor>) => 
+const uv = (uvCommand: string[], logger: ReturnType<typeof loggerFor>) =>
   new Promise<void>((resolve, reject) => {
-    const { spawn } = require('child_process')
     const uvProcess = spawn(uvPath, uvCommand)
 
     uvProcess.stdout.on('data', (data: Buffer) => {

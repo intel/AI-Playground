@@ -90,7 +90,6 @@ import {Label} from '@/components/ui/label'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
-const showSettings = ref(false)
 const prompt = ref('')
 const promptStore = usePromptStore()
 const imageGeneration = useImageGeneration()
