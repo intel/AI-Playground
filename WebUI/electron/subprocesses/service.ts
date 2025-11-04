@@ -478,19 +478,35 @@ export class UvPipService {
 export class GitService extends ExecutableService {
   constructor() {
     super('git', '')
-    this.dir = path.resolve(path.join(this.baseDir, 'portable-git'))
+    if (process.platform === 'win32') {
+      this.dir = path.resolve(path.join(this.baseDir, 'portable-git'))
+    } else {
+      this.dir = '/usr/bin'
+    }
   }
 
   getExePath(): string {
-    return path.resolve(path.join(this.dir, 'cmd/git.exe'))
+    if (process.platform === 'win32') {
+      return path.resolve(path.join(this.dir, 'cmd/git.exe'))
+    }
+    return path.resolve(path.join(this.dir, 'git'))
   }
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     // Explicitly specify the cert file bundled with portable git,
     // to avoid being affected by the system git configuration.
+
+    const platformEnv: Partial<Record<NodeJS.Platform, Record<string, string>>> = {
+      win32: {
+        GIT_SSL_CAINFO: path.resolve(path.join(this.dir, 'mingw64/etc/ssl/certs/ca-bundle.crt')),
+      },
+      darwin: {},
+      linux: {},
+    }
+
     const env = {
       ...extraEnv,
-      GIT_SSL_CAINFO: path.resolve(path.join(this.dir, 'mingw64/etc/ssl/certs/ca-bundle.crt')),
+      ...(platformEnv[process.platform] ?? {}),
     }
     return super.run(args, env, workDir)
   }
@@ -506,7 +522,12 @@ export class GitService extends ExecutableService {
   }
 
   async install(): Promise<void> {
+    if (process.platform !== 'win32') {
+      this.log('git installation not required on non-windows platform, skipping')
+      return
+    }
     this.log('start installing')
+
     await this.downloadGitZip()
     await this.unzipGit()
 
@@ -517,13 +538,17 @@ export class GitService extends ExecutableService {
   }
 
   async repair(checkError: ServiceCheckError): Promise<void> {
+    if (process.platform !== 'win32') {
+      this.log('git repair not required on non-windows platform, skipping')
+      return
+    }
     assert(checkError.component === this.name)
     await this.install()
   }
 
   readonly remoteUrl =
-    'https://github.com/git-for-windows/git/releases/download/v2.51.0.windows.1/PortableGit-2.51.0-64-bit.7z.exe'
-  readonly sha256 = 'a09b275d51ed3e829128e04cf4168fb54896cf6234bb30fecb8dc96a2bd321fa'
+    'https://github.com/git-for-windows/git/releases/download/v2.51.2.windows.1/PortableGit-2.51.2-64-bit.7z.exe'
+  readonly sha256 = 'f5764d546ff9a2511b50ec4e20424c5f4669de1695abc3fa4128e7f7d4a7b2cd'
   readonly zipPath = path.resolve(path.join(this.baseDir, 'portable-git.7z.exe'))
   readonly unzipExePath = path.resolve(path.join(this.baseDir, '7zr.exe'))
 
