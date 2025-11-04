@@ -27,7 +27,7 @@
             </p>
             <img
               v-if="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/'))"
-              :src="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/')).url"
+              :src="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/'))?.url"
               alt="Generated Image"
             />
             <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
@@ -357,6 +357,15 @@ onUnmounted(() => {
   promptStore.unregisterCancelCallback('chat')
 })
 
+watch(
+  () => openAiCompatibleChat.messages,
+  () => {
+    if (autoScrollEnabled.value) {
+      nextTick(() => scrollToBottom())
+    }
+  },
+  { deep: true, immediate: false }
+)
 
 async function handlePromptSubmit(prompt: string) {
   const question = prompt.trim()
