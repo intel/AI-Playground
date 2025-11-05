@@ -44,7 +44,7 @@ export class LlamaCppBackendService implements ApiService {
   healthEndpointUrl: string
 
   // Status tracking
-  currentStatus: BackendStatus = 'notInstalled'
+  currentStatus: BackendStatus = 'uninitializedStatus'
   isSetUp: boolean = false
   desiredStatus: BackendStatus = 'uninitializedStatus'
 
@@ -85,6 +85,7 @@ export class LlamaCppBackendService implements ApiService {
 
     // Check if already set up
     this.isSetUp = this.serviceIsSetUp()
+    this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)
   }
 
   async ensureBackendReadiness(

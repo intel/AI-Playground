@@ -77,3 +77,4 @@ export const installWheel = async (backend: string, wheelPath: string) => {
   const uvCommand = ['pip', 'install', '--directory', path.join(aipgBaseDir, backend), wheelPath]
   logger.info(`Installing wheel: ${wheelPath} with ${JSON.stringify(uvCommand)}`)
 }
+
