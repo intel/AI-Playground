@@ -54,3 +54,10 @@ declare interface ApiServiceInformation {
   isSetUp: boolean
   isRequired: boolean
 }
+
+// Declare ComfyUICustomNodeRepoId type
+declare interface ComfyUICustomNodeRepoId {
+  username: string
+  repoName: string
+  gitRef?: string
+}

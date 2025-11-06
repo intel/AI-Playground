@@ -487,9 +487,7 @@ export const useImageGeneration = defineStore(
 
     const activeWorkflow = computed(() => {
       console.log('### activeWorkflowName', activeWorkflowName.value)
-      return (
-        workflows.value.find((w) => w.name === activeWorkflowName.value) ?? predefinedWorkflows[0]
-      )
+      return workflows.value.find((w) => w.name === activeWorkflowName.value) ?? predefinedWorkflows[0]
     })
     const processing = ref(false)
     const stopping = ref(false)

@@ -189,21 +189,32 @@ export const useComfyUi = defineStore(
     }
 
     async function checkWorkflowRequirements() {
-      const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/checkWorkflowRequirements`, {
-        method: 'POST',
-        body: JSON.stringify({
-          customNodes: getRequiredCustomNodes(),
-          pythonPackages: getToBeInstalledPythonPackages(),
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      // Use Electron IPC with uv for package management
+      const comfyUiRootPath = '../ComfyUI'
+
+      const customNodes = getRequiredCustomNodes()
+      const pythonPackages = getToBeInstalledPythonPackages()
+
+      console.info('Checking workflow requirements', {
+        customNodes,
+        pythonPackages
       })
-      if (response.status !== 200) {
-        throw new Error('Request Failure to check required comfyUINode')
-      }
-      const answer = z.object({ needsInstallation: z.boolean() }).parse(await response.json())
-      return answer.needsInstallation
+      // Check custom nodes
+      const nodeChecks = await Promise.all(
+        customNodes.map((node) =>
+          window.electronAPI.comfyui.isCustomNodeInstalled(node, comfyUiRootPath),
+        ),
+      )
+      console.info('Custom node installation status', { nodeChecks })
+      const nodesNeedInstallation = nodeChecks.some((installed: boolean) => !installed)
+
+      // Check Python packages using uv (backend figures out Python path)
+      const packageChecks = await Promise.all(
+        pythonPackages.map((pkg) => window.electronAPI.comfyui.isPackageInstalled(pkg)),
+      )
+      const packagesNeedInstallation = packageChecks.some((installed: boolean) => !installed)
+
+      return nodesNeedInstallation || packagesNeedInstallation
     }
 
     function extractCustomNodeInfo(
@@ -233,23 +244,36 @@ export const useComfyUi = defineStore(
 
     async function installCustomNodesForActiveWorkflow(): Promise<boolean> {
       const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] = getRequiredCustomNodes()
+      
+      // Use Electron IPC with uv for package management
+      const comfyUiRootPath = '../ComfyUI'
 
-      const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/loadCustomNodes`, {
-        method: 'POST',
-        body: JSON.stringify({ data: requiredCustomNodes }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      if (response.status !== 200) {
-        throw new Error('Request Failure to install required comfyUINode')
+      // Filter nodes that need installation
+      const nodesToInstall: ComfyUICustomNodesRequestParameters[] = []
+      for (const node of requiredCustomNodes) {
+        const isInstalled = await window.electronAPI.comfyui.isCustomNodeInstalled(
+          node,
+          comfyUiRootPath,
+        )
+        if (!isInstalled) {
+          nodesToInstall.push(node)
+        }
       }
-      const data = (await response.json()) as { node: string; success: boolean }[]
-      const notInstalledNodes = data.filter((item) => !item.success)
-      if (notInstalledNodes.length > 0) {
-        throw new Error(`Failed to install required comfyUI custom nodes: ${notInstalledNodes}`)
+
+      // Install nodes (uv handles Python environment automatically)
+      const results = await Promise.all(
+        nodesToInstall.map((node) =>
+          window.electronAPI.comfyui.downloadCustomNode(node, comfyUiRootPath),
+        ),
+      )
+
+      const failedNodes = nodesToInstall.filter((_, index) => !results[index])
+      if (failedNodes.length > 0) {
+        const failedNodeNames = failedNodes.map((n) => `${n.username}/${n.repoName}`).join(', ')
+        throw new Error(`Failed to install required comfyUI custom nodes: ${failedNodeNames}`)
       }
-      const areNewNodesInstalled = data.length > 0
+
+      const areNewNodesInstalled = nodesToInstall.length > 0
       return areNewNodesInstalled
     }
 
@@ -266,20 +290,19 @@ export const useComfyUi = defineStore(
     async function triggerInstallPythonPackagesForActiveWorkflow() {
       const toBeInstalledPackages = getToBeInstalledPythonPackages()
       console.info('Installing python packages', { toBeInstalledPackages })
+      
+      // Use Electron IPC with uv for package management
       await backendServices.stopService('comfyui-backend')
-      const response = await fetch(`${globalSetup.apiHost}/api/comfyUi/installPythonPackage`, {
-        method: 'POST',
-        body: JSON.stringify({ data: toBeInstalledPackages }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      if (response.status === 200) {
+
+      try {
+        // uv handles Python environment path automatically
+        await Promise.all(
+          toBeInstalledPackages.map((pkg) => window.electronAPI.comfyui.installPypiPackage(pkg)),
+        )
         console.info('python package installation completed')
-        return
+      } catch (error) {
+        throw new Error(`Failed to install Python packages: ${error}`)
       }
-      const data = await response.json()
-      throw new Error(data.error_message)
     }
 
     function getToBeInstalledPythonPackages() {

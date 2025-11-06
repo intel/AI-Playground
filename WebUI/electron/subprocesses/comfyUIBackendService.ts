@@ -44,7 +44,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
   private revision = 'v0.3.66'
 
-  private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
+  private readonly comfyUIStartupParameters = process.platform !== 'win32' ? 
+    [] : this.settings.comfyUiParameters
     ? this.settings.comfyUiParameters
     : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 

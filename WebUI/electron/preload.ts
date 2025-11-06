@@ -107,4 +107,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
       embeddingModelName,
       contextSize,
     ),
+  // ComfyUI Tools
+  comfyui: {
+    isGitInstalled: () => ipcRenderer.invoke('comfyui:isGitInstalled'),
+    isComfyUIInstalled: (comfyUiRootPath: string) =>
+      ipcRenderer.invoke('comfyui:isComfyUIInstalled', comfyUiRootPath),
+    getGitRef: (repoDir: string) => ipcRenderer.invoke('comfyui:getGitRef', repoDir),
+    isPackageInstalled: (packageSpecifier: string) =>
+      ipcRenderer.invoke('comfyui:isPackageInstalled', packageSpecifier),
+    installPypiPackage: (packageSpecifier: string) =>
+      ipcRenderer.invoke('comfyui:installPypiPackage', packageSpecifier),
+    isCustomNodeInstalled: (nodeRepoRef: ComfyUICustomNodeRepoId, comfyUiRootPath: string) =>
+      ipcRenderer.invoke('comfyui:isCustomNodeInstalled', nodeRepoRef, comfyUiRootPath),
+    downloadCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId, comfyUiRootPath: string) =>
+      ipcRenderer.invoke('comfyui:downloadCustomNode', nodeRepoData, comfyUiRootPath),
+    uninstallCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId, comfyUiRootPath: string) =>
+      ipcRenderer.invoke('comfyui:uninstallCustomNode', nodeRepoData, comfyUiRootPath),
+    listInstalledCustomNodes: (comfyUiRootPath: string) =>
+      ipcRenderer.invoke('comfyui:listInstalledCustomNodes', comfyUiRootPath),
+  },
 })

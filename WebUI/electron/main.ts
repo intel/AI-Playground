@@ -48,6 +48,7 @@ import {
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
+import * as comfyuiTools from './subprocesses/comfyuiTools'
 import getPort, { portNumbers } from 'get-port'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
@@ -868,12 +869,15 @@ function initEventHandle() {
     })
   })
 
-  ipcMain.handle('reloadImageWorkflows', () => {
-    const files = fs.readdirSync(path.join(externalRes, 'workflows'))
-    const workflows = files.map((file) =>
-      fs.readFileSync(path.join(externalRes, 'workflows', file), { encoding: 'utf-8' }),
+  ipcMain.handle('reloadImageWorkflows', async () => {
+    const files = await fs.promises.readdir(path.join(externalRes, 'workflows'))
+    const workflows = await Promise.all(
+      files.map((file) =>
+        fs.promises.readFile(path.join(externalRes, 'workflows', file), { encoding: 'utf-8' }),
+      )
     )
-    return workflows
+    const osSpecificWorkflows = workflows.map((workflow) => process.platform !== 'win32' ? workflow.replaceAll('\\\\', '/') : workflow)
+    return osSpecificWorkflows
   })
 
   ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
@@ -883,6 +887,66 @@ function initEventHandle() {
   // Version management IPC handlers for frontend store integration
   ipcMain.handle('resolveBackendVersion', async (_event, serviceName: BackendServiceName) => {
     return await resolveBackendVersion(serviceName, settings)
+  })
+
+  // ComfyUI Tools IPC handlers
+  ipcMain.handle('comfyui:isGitInstalled', async () => {
+    return await comfyuiTools.isGitInstalled()
+  })
+
+  ipcMain.handle('comfyui:isComfyUIInstalled', (_event, comfyUiRootPath: string) => {
+    return comfyuiTools.isComfyUIInstalled(comfyUiRootPath)
+  })
+
+  ipcMain.handle('comfyui:getGitRef', async (_event, repoDir: string) => {
+    return await comfyuiTools.getGitRef(repoDir)
+  })
+
+  ipcMain.handle(
+    'comfyui:isPackageInstalled',
+    async (_event, packageSpecifier: string) => {
+      return await comfyuiTools.isPackageInstalled(packageSpecifier)
+    },
+  )
+
+  ipcMain.handle(
+    'comfyui:installPypiPackage',
+    async (_event, packageSpecifier: string) => {
+      return await comfyuiTools.installPypiPackage(packageSpecifier)
+    },
+  )
+
+  ipcMain.handle(
+    'comfyui:isCustomNodeInstalled',
+    (_event, nodeRepoRef: comfyuiTools.ComfyUICustomNodeRepoId, comfyUiRootPath: string) => {
+      return comfyuiTools.isCustomNodeInstalled(nodeRepoRef, comfyUiRootPath)
+    },
+  )
+
+  ipcMain.handle(
+    'comfyui:downloadCustomNode',
+    async (
+      _event,
+      nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId,
+      comfyUiRootPath: string,
+    ) => {
+      return await comfyuiTools.downloadCustomNode(nodeRepoData, comfyUiRootPath)
+    },
+  )
+
+  ipcMain.handle(
+    'comfyui:uninstallCustomNode',
+    async (
+      _event,
+      nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId,
+      comfyUiRootPath: string,
+    ) => {
+      return await comfyuiTools.uninstallCustomNode(nodeRepoData, comfyUiRootPath)
+    },
+  )
+
+  ipcMain.handle('comfyui:listInstalledCustomNodes', (_event, comfyUiRootPath: string) => {
+    return comfyuiTools.listInstalledCustomNodes(comfyUiRootPath)
   })
 
   const getAssetPathFromUrl = (url: string) => {
