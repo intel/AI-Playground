@@ -1,0 +1,137 @@
+{
+  "name": "SD1.5",
+  "displayPriority": 500,
+  "tags": [],
+  "backend": "comfyui",
+  "category": "create-images",
+  "comfyUIRequirements": {
+    "customNodes": [],
+    "requiredModels": [
+      {
+        "type": "checkpoints",
+        "model": "Lykon/DreamShaper/DreamShaper_8_pruned.safetensors"
+      }
+    ]
+  },
+  "requirements": [],
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "output_image",
+      "type": "image"
+    }
+  ],
+  "defaultSettings": {
+    "resolution": "512x512",
+    "inferenceSteps": 20
+  },
+  "displayedSettings": [],
+  "modifiableSettings": ["inferenceSteps", "seed", "batchSize", "imagePreview", "resolution", "negativePrompt"],
+  "comfyUiApiWorkflow": {
+  "3": {
+    "inputs": {
+      "seed": 413053266758155,
+      "steps": 20,
+      "cfg": 7,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "Lykon---DreamShaper/DreamShaper_8_pruned.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "prompt"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "nsfw",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "negativePrompt"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "AIPG_Image",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}
+}
