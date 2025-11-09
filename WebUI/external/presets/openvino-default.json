@@ -1,0 +1,13 @@
+{
+  "type": "chat",
+  "name": "OpenVINO Default",
+  "description": "Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.",
+  "displayPriority": 100,
+  "tags": ["Intel", "Optimized", "Fast"],
+  "backend": "openVINO",
+  "systemPrompt": "You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel. You assist users by answering questions and providing information based on your training data and any additional context provided.",
+  "contextSize": 8192,
+  "maxNewTokens": 1024,
+  "requiredModels": []
+}
+

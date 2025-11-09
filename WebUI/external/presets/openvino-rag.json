@@ -1,0 +1,23 @@
+{
+  "type": "chat",
+  "name": "OpenVINO with RAG",
+  "description": "OpenVINO backend configured for Retrieval-Augmented Generation. Enables document-based context for more accurate responses.",
+  "displayPriority": 95,
+  "tags": ["Intel", "Optimized", "RAG", "Documents"],
+  "backend": "openVINO",
+  "systemPrompt": "You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context doesn't contain relevant information, say so.",
+  "contextSize": 8192,
+  "maxNewTokens": 1024,
+  "embeddingModel": "BAAI/bge-large-en-v1.5",
+  "rag": {
+    "enabled": true,
+    "embeddingModel": "BAAI/bge-large-en-v1.5"
+  },
+  "requiredModels": [
+    {
+      "type": "embedding",
+      "model": "BAAI/bge-large-en-v1.5"
+    }
+  ]
+}
+

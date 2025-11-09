@@ -6,6 +6,7 @@ import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
+import { type ChatPreset } from './presets'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -735,6 +736,11 @@ export const useTextInference = defineStore(
           backend.value = preset.backend
         }
 
+        // Apply model selection if specified
+        if (preset.model && preset.backend) {
+          selectModel(preset.backend, preset.model)
+        }
+
         // Apply system prompt
         if (preset.systemPrompt) {
           systemPrompt.value = preset.systemPrompt
@@ -750,38 +756,27 @@ export const useTextInference = defineStore(
           maxTokens.value = preset.maxNewTokens
         }
 
+        // Apply embedding model (top-level or from RAG config)
+        const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
+        if (embeddingModelToUse && preset.backend) {
+          selectEmbeddingModel(preset.backend, embeddingModelToUse)
+        }
+
         // Apply RAG settings
         if (preset.rag) {
           if (preset.rag.enabled !== undefined) {
             // RAG enabled state would need to be tracked separately if needed
-            // For now, we just apply the embedding model
-          }
-          if (preset.rag.embeddingModel && preset.backend) {
-            selectEmbeddingModel(preset.backend, preset.rag.embeddingModel)
+            // For now, we just apply the embedding model (already done above)
           }
         }
 
-        // Apply model selection if specified in preset settings
-        // This would require preset.settings to contain model selection info
-        // For now, we rely on the backend selection above
+        // Prepare backend if needed after applying preset settings
+        await prepareBackendIfNeeded()
 
         console.log('Applied chat preset:', preset.name)
       } catch (error) {
         console.error('Failed to apply chat preset:', error)
-      }
-    }
-
-    // ChatPreset type - will be properly typed when preset is passed
-    type ChatPreset = {
-      type: 'chat'
-      name: string
-      backend: 'ipexLLM' | 'llamaCPP' | 'openVINO' | 'ollama'
-      systemPrompt?: string
-      contextSize?: number
-      maxNewTokens?: number
-      rag?: {
-        embeddingModel?: string
-        enabled?: boolean
+        throw error
       }
     }
 

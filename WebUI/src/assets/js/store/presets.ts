@@ -109,10 +109,12 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
 const ChatPresetSchema = BasePresetFieldsSchema.extend({
   type: z.literal('chat'),
   backend: z.enum(['ipexLLM', 'llamaCPP', 'openVINO', 'ollama']),
+  model: z.string().optional(), // Explicit model selection
   systemPrompt: z.string().optional(),
   contextSize: z.number().optional(),
   maxNewTokens: z.number().optional(),
   supportedDevices: z.array(z.string()).optional(),
+  embeddingModel: z.string().optional(), // Top-level embedding model for convenience
   rag: z
     .object({
       embeddingModel: z.string().optional(),
@@ -348,6 +350,10 @@ export const usePresets = defineStore(
       ) as Preset[]
     })
 
+    const chatPresets = computed(() => {
+      return presets.value.filter((p) => p.type === 'chat') as ChatPreset[]
+    })
+
     // ========================================================================
     // Settings Persistence
     // ========================================================================
@@ -387,6 +393,7 @@ export const usePresets = defineStore(
       imageGenPresets,
       imageEditPresets,
       videoPresets,
+      chatPresets,
 
       // Methods
       validatePreset,

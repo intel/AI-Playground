@@ -1,0 +1,13 @@
+{
+  "type": "chat",
+  "name": "Ollama Local",
+  "description": "Local LLM inference using Ollama. Integrated CLI-based solution for running models locally.",
+  "displayPriority": 80,
+  "tags": ["Integrated", "CLI", "Local"],
+  "backend": "ollama",
+  "systemPrompt": "You are a helpful AI assistant running locally via Ollama.",
+  "contextSize": 4096,
+  "maxNewTokens": 1024,
+  "requiredModels": []
+}
+

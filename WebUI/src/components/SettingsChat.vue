@@ -11,25 +11,32 @@
       <h2 class="text-xl font-semibold text-center">Chat Presets</h2>
       <div class="grid grid-cols-3 gap-3">
         <div
-          v-for="backendInfo in Object.values(backendInfos)"
-          :key="backendInfo.name"
-          class="relative rounded-l overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
+          v-for="preset in sortedChatPresets"
+          :key="preset.name"
+          class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
           :class="[
-            textInference.backend === backendInfo.name
+            textInferencePresets.activePresetName === preset.name
               ? 'border-blue-500 ring-2 ring-blue-400'
               : 'border-transparent hover:border-blue-500',
-            !backendInfo.isRunning && 'grayscale opacity-80',
+            !isBackendRunning(preset.backend) && 'grayscale opacity-80',
           ]"
-          @click="() => handlePresetSelectionClick(backendInfo)"
+          @click="() => handlePresetSelectionClick(preset)"
         >
           <img
+            v-if="preset.image"
             class="absolute inset-0 w-full h-full object-cover"
-            :src="`/src/assets/image/${backendInfo.name}.png`"
-            :alt="backendInfo.displayName"
+            :src="preset.image"
+            :alt="preset.name"
+          />
+          <img
+            v-else
+            class="absolute inset-0 w-full h-full object-cover"
+            :src="`/src/assets/image/${preset.backend}.png`"
+            :alt="preset.name"
           />
           <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
             <span class="text-white text-sm font-semibold">
-              {{ backendInfo.displayName }}
+              {{ preset.name }}
             </span>
           </div>
         </div>
@@ -37,15 +44,15 @@
 
       <div class="flex flex-col gap-4">
         <h2 class="text-lg font-semibold">
-          {{ backendInfos[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}
+          {{ currentPreset?.name || backendInfos[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}
         </h2>
         <p class="text-sm text-gray-400">
-          {{ backendInfos[textInference.backend]?.description }}
+          {{ currentPreset?.description || backendInfos[textInference.backend]?.description }}
         </p>
 
         <div class="flex gap-2">
           <span
-            v-for="tag in backendInfos[textInference.backend]?.tags"
+            v-for="tag in currentPreset?.tags || backendInfos[textInference.backend]?.tags || []"
             :key="tag"
             class="px-3 py-1 text-xs bg-purple-600 rounded-full"
           >
@@ -139,7 +146,7 @@ import {
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useDemoMode } from '@/assets/js/store/demoMode.ts'
 import Rag from '@/components/Rag.vue'
@@ -148,6 +155,8 @@ import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
+import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
+import { useTextInferencePresets } from '@/assets/js/store/textInferencePresets.ts'
 
 type BackendInfo = {
   displayName: string
@@ -163,11 +172,23 @@ const showUploader = ref(false)
 const processing = ref(false)
 const i18nState = useI18N().state
 const textInference = useTextInference()
+const textInferencePresets = useTextInferencePresets()
+const presetsStore = usePresets()
 const demoMode = useDemoMode()
 const backendServices = useBackendServices()
 const backendInfos = computed(() => backendTypesToBackends())
 const globalSetup = useGlobalSetup()
 const warningDialogStore = useDialogStore()
+
+const sortedChatPresets = computed(() => {
+  return [...presetsStore.chatPresets].sort(
+    (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
+  )
+})
+
+const currentPreset = computed(() => {
+  return textInferencePresets.activePreset
+})
 
 const documentButtonText = computed(() => {
   const stats = documentStats.value
@@ -184,14 +205,19 @@ const documentStats = computed(() => {
   return {total: totalDocs, enabled: enabledDocs}
 })
 
-function handlePresetSelectionClick(backendInfo: BackendInfo) {
-  if (backendInfo.isRunning) {
-    textInference.backend = backendInfo.name as LlmBackend
+function handlePresetSelectionClick(preset: ChatPreset) {
+  if (isBackendRunning(preset.backend)) {
+    textInferencePresets.selectPreset(preset.name)
   } else {
     warningDialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
       globalSetup.loadingState = 'manageInstallations'
     })
   }
+}
+
+function isBackendRunning(backend: LlmBackend): boolean {
+  const serviceName = mapBackendNames(backend)
+  return backendServices.info.find((item) => item.serviceName === serviceName)?.status === 'running'
 }
 
 function isEnabled(name: LlmBackend) {
