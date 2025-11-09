@@ -7,6 +7,7 @@ import * as Const from '../const'
 import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
 import { useBackendServices } from './backendServices'
+import { usePresets } from './presets'
 
 export type GenerateState =
   | 'no_start'
@@ -471,6 +472,7 @@ export const useImageGeneration = defineStore(
       },
     ]
 
+    const presets = usePresets()
     const comfyUi = useComfyUi()
     const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
@@ -774,7 +776,53 @@ export const useImageGeneration = defineStore(
           }
         })
         .filter((wf) => wf !== undefined)
-      workflows.value = [...predefinedWorkflows, ...parsedWorkflows]
+
+      const presetWorkflows = await loadPresetsAsWorkflows()
+      console.log('presetWorkflows', presetWorkflows)
+      workflows.value = [...predefinedWorkflows, ...parsedWorkflows, ...presetWorkflows]
+    }
+
+    // Load presets and convert to workflows for backward compatibility
+    async function loadPresetsAsWorkflows(): Promise<ComfyUiWorkflow[]> {
+      try {
+        console.log('loading presets as workflows', presets.presets)
+        // Convert ComfyUI presets to workflows for backward compatibility
+        const presetWorkflows: ComfyUiWorkflow[] = presets.presets
+          .filter((p) => p.type === 'comfy')
+          .map((preset) => {
+            // Type guard: ensure this is a ComfyUI preset
+            if (preset.type !== 'comfy') return null
+            // Convert preset to workflow format
+            const workflow: ComfyUiWorkflow = {
+              name: preset.name,
+              category: preset.category as 'create-images' | 'edit-images' | 'create-videos' | undefined,
+              displayPriority: preset.displayPriority,
+              backend: 'comfyui',
+              comfyUIRequirements: {
+                customNodes: preset.requiredCustomNodes ?? [],
+                pythonPackages: preset.requiredPythonPackages ?? [],
+                requiredModels: preset.requiredModels ?? [],
+              },
+              tags: preset.tags,
+              requiredModels: preset.requiredModels?.map((m: { model: string }) => m.model),
+              requirements: [],
+              inputs: preset.settings.filter(
+                (s: any): s is ComfyDynamicInput => 'nodeTitle' in s && 'nodeInput' in s,
+              ) as ComfyDynamicInput[],
+              outputs: [],
+              defaultSettings: {},
+              displayedSettings: [],
+              modifiableSettings: [],
+              comfyUiApiWorkflow: preset.comfyUiApiWorkflow,
+            }
+            return workflow
+          })
+          .filter((w): w is ComfyUiWorkflow => w !== null)
+          return presetWorkflows
+      } catch (error) {
+        console.error('Failed to load presets as workflows:', error)
+        return []
+      }
     }
 
     async function getMissingModels(): Promise<DownloadModelParam[]> {
@@ -937,7 +985,9 @@ export const useImageGeneration = defineStore(
       () => backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.isSetUp,
       (isSetUp) => {
         console.log('comfyui backend set up trigger')
-        if (isSetUp) loadWorkflowsFromJson()
+        if (isSetUp) {
+          loadWorkflowsFromJson()
+        }
       },
     )
 

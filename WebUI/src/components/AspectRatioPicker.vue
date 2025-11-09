@@ -89,13 +89,13 @@
 import { computed } from 'vue'
 import { type SliderRootProps } from 'radix-vue'
 import { clsx } from 'clsx'
-import { findBestResolution, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { findBestResolution, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { Label } from '@/components/ui/label'
 import DropDownNew from '@/components/DropDownNew.vue'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
 
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
 
 const aspectRatios = [
   { label: '16/9', value: 16 / 9 },
@@ -106,12 +106,13 @@ const aspectRatios = [
 ]
 
 const megaPixelsOptions = computed(() => {
-  if (imageGeneration.activeWorkflow.tags.includes('sd1.5')) {
+  const tags = imageGeneration.activePreset?.tags ?? []
+  if (tags.includes('sd1.5')) {
     return [
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
     ]
-  } else if (imageGeneration.activeWorkflow.tags.includes('LTX Video')) {
+  } else if (tags.includes('LTX Video')) {
     return [
       { label: '0.1', totalPixels: 320 * 320 },
       { label: '0.25', totalPixels: 512 * 512 },

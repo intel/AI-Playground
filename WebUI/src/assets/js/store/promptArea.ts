@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
+import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
 
 export const usePromptStore = defineStore('prompt', () => {
-  const imageGeneration = useImageGeneration()
+  const imageGeneration = useImageGenerationPresets()
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
 
@@ -19,19 +19,19 @@ export const usePromptStore = defineStore('prompt', () => {
 
       switch (mode) {
         case 'imageGen':
-          imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageGenWorkflowName
+          imageGeneration.activePresetName = imageGeneration.lastUsedImageGenPresetName
           break;
         case 'imageEdit':
-          imageGeneration.activeWorkflowName = imageGeneration.lastUsedImageEditWorkflowName
+          imageGeneration.activePresetName = imageGeneration.lastUsedImageEditPresetName
           break;
         case 'video':
-          imageGeneration.activeWorkflowName = imageGeneration.lastUsedVideoWorkflowName
+          imageGeneration.activePresetName = imageGeneration.lastUsedVideoPresetName
           break;
       }
   }
 
   function submitPrompt(promptText: string) {
-    const callback = submitCallbacks.value[currentMode.value]
+  const callback = submitCallbacks.value[currentMode.value]
     if (callback) {
       promptSubmitted.value = true
       callback(promptText)

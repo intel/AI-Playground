@@ -106,7 +106,7 @@ export const useOpenAiCompatibleChat = defineStore(
           if (!timings) {
              timings = {
               cache_n: result.usage?.cachedInputTokens ?? 0,
-              prompt_n: result.usage?.outputTokens ?? 0,
+              prompt_n: result.usage?.inputTokens ?? 0,
               prompt_ms: firstTokenTime - startOfRequestTime,
               prompt_per_token_ms: result.usage?.inputTokens ? (firstTokenTime - startOfRequestTime) / result.usage.inputTokens : 0,
               prompt_per_second: result.usage?.inputTokens ? (result.usage.inputTokens / ((firstTokenTime - startOfRequestTime) / 1000)) : 0,

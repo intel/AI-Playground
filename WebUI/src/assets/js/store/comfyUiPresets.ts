@@ -1,10 +1,11 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
-import { ComfyUIApiWorkflow, MediaItem, Setting, useImageGeneration } from './imageGeneration'
+import { ComfyUIApiWorkflow } from './presets'
+import { useImageGenerationPresets, type MediaItem } from './imageGenerationPresets'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { usePresets, type ComfyUiPreset, type ComfyInput } from './presets'
 import { z } from 'zod'
 
 const WEBSOCKET_OPEN = 1
@@ -19,7 +20,7 @@ const settingToComfyInputsName = {
   guidanceScale: ['cfg'],
   scheduler: ['scheduler'],
   batchSize: ['batch_size'],
-} satisfies Partial<Record<Setting, string[]>>
+} satisfies Partial<Record<string, string[]>>
 
 type ComfySetting = keyof typeof settingToComfyInputsName
 
@@ -154,11 +155,11 @@ function modifySettingInWorkflow(
   }
 }
 
-export const useComfyUi = defineStore(
-  'comfyUi',
+export const useComfyUiPresets = defineStore(
+  'comfyUiPresets',
   () => {
-    const imageGeneration = useImageGeneration()
-    const globalSetup = useGlobalSetup()
+    const imageGeneration = useImageGenerationPresets()
+    const presetsStore = usePresets()
     const i18nState = useI18N().state
     const comfyPort = computed(() => comfyUiState.value?.port)
     const comfyBaseUrl = computed(() => comfyUiState.value?.baseUrl)
@@ -174,13 +175,13 @@ export const useComfyUi = defineStore(
       return backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
     })
 
-    async function installCustomNodesForActiveWorkflowFully() {
-      const workflowNeedsToBeInstalled = await checkWorkflowRequirements()
-      if (!workflowNeedsToBeInstalled) return
+    async function installCustomNodesForActivePresetFully() {
+      const presetNeedsToBeInstalled = await checkPresetRequirements()
+      if (!presetNeedsToBeInstalled) return
       console.info('restarting comfyUI to finalize installation of required custom nodes')
       await backendServices.stopService('comfyui-backend')
-      await triggerInstallPythonPackagesForActiveWorkflow()
-      await installCustomNodesForActiveWorkflow()
+      await triggerInstallPythonPackagesForActivePreset()
+      await installCustomNodesForActivePreset()
       const startingResult = await backendServices.startService('comfyui-backend')
       if (startingResult !== 'running') {
         throw new Error('Failed to restart comfyUI. Required Nodes are not active.')
@@ -188,27 +189,29 @@ export const useComfyUi = defineStore(
       console.info('restart complete')
     }
 
-    async function checkWorkflowRequirements() {
-      // Use Electron IPC with uv for package management
+    async function checkPresetRequirements() {
       const comfyUiRootPath = '../ComfyUI'
+      const preset = imageGeneration.activePreset
+      if (!preset || preset.type !== 'comfy') return false
 
-      const customNodes = getRequiredCustomNodes()
-      const pythonPackages = getToBeInstalledPythonPackages()
+      const customNodes = preset.requiredCustomNodes ?? []
+      const pythonPackages = preset.requiredPythonPackages ?? []
 
-      console.info('Checking workflow requirements', {
+      console.info('Checking preset requirements', {
         customNodes,
-        pythonPackages
+        pythonPackages,
       })
-      // Check custom nodes
+
       const nodeChecks = await Promise.all(
         customNodes.map((node) =>
-          window.electronAPI.comfyui.isCustomNodeInstalled(node, comfyUiRootPath),
+          window.electronAPI.comfyui.isCustomNodeInstalled(
+            extractCustomNodeInfo(node),
+            comfyUiRootPath,
+          ),
         ),
       )
-      console.info('Custom node installation status', { nodeChecks })
       const nodesNeedInstallation = nodeChecks.some((installed: boolean) => !installed)
 
-      // Check Python packages using uv (backend figures out Python path)
       const packageChecks = await Promise.all(
         pythonPackages.map((pkg) => window.electronAPI.comfyui.isPackageInstalled(pkg)),
       )
@@ -238,29 +241,27 @@ export const useComfyUi = defineStore(
         throw new Error('Could not extract comfyUI node description from ${workflowNodeInfoString}')
       }
       const [username, repoName] = repoInfoSplitted
-      console.info(JSON.stringify({ username: username, repoName: repoName, gitRef: gitRef }))
       return { username: username, repoName: repoName, gitRef: gitRef }
     }
 
-    async function installCustomNodesForActiveWorkflow(): Promise<boolean> {
-      const requiredCustomNodes: ComfyUICustomNodesRequestParameters[] = getRequiredCustomNodes()
-      
-      // Use Electron IPC with uv for package management
+    async function installCustomNodesForActivePreset(): Promise<boolean> {
+      const preset = imageGeneration.activePreset
+      if (!preset || preset.type !== 'comfy') return false
+
+      const requiredCustomNodes = preset.requiredCustomNodes ?? []
       const comfyUiRootPath = '../ComfyUI'
 
-      // Filter nodes that need installation
       const nodesToInstall: ComfyUICustomNodesRequestParameters[] = []
       for (const node of requiredCustomNodes) {
         const isInstalled = await window.electronAPI.comfyui.isCustomNodeInstalled(
-          node,
+          extractCustomNodeInfo(node),
           comfyUiRootPath,
         )
         if (!isInstalled) {
-          nodesToInstall.push(node)
+          nodesToInstall.push(extractCustomNodeInfo(node))
         }
       }
 
-      // Install nodes (uv handles Python environment automatically)
       const results = await Promise.all(
         nodesToInstall.map((node) =>
           window.electronAPI.comfyui.downloadCustomNode(node, comfyUiRootPath),
@@ -273,29 +274,19 @@ export const useComfyUi = defineStore(
         throw new Error(`Failed to install required comfyUI custom nodes: ${failedNodeNames}`)
       }
 
-      const areNewNodesInstalled = nodesToInstall.length > 0
-      return areNewNodesInstalled
+      return nodesToInstall.length > 0
     }
 
-    function getRequiredCustomNodes() {
-      const uniqueCustomNodes = new Set(
-        imageGeneration.workflows
-          .filter((w) => w.name === imageGeneration.activeWorkflowName)
-          .filter((w) => w.backend === 'comfyui')
-          .flatMap((item) => item.comfyUIRequirements.customNodes),
-      )
-      return [...uniqueCustomNodes].map((nodeName) => extractCustomNodeInfo(nodeName))
-    }
+    async function triggerInstallPythonPackagesForActivePreset() {
+      const preset = imageGeneration.activePreset
+      if (!preset || preset.type !== 'comfy') return
 
-    async function triggerInstallPythonPackagesForActiveWorkflow() {
-      const toBeInstalledPackages = getToBeInstalledPythonPackages()
+      const toBeInstalledPackages = preset.requiredPythonPackages ?? []
       console.info('Installing python packages', { toBeInstalledPackages })
-      
-      // Use Electron IPC with uv for package management
+
       await backendServices.stopService('comfyui-backend')
 
       try {
-        // uv handles Python environment path automatically
         await Promise.all(
           toBeInstalledPackages.map((pkg) => window.electronAPI.comfyui.installPypiPackage(pkg)),
         )
@@ -303,16 +294,6 @@ export const useComfyUi = defineStore(
       } catch (error) {
         throw new Error(`Failed to install Python packages: ${error}`)
       }
-    }
-
-    function getToBeInstalledPythonPackages() {
-      const uniquePackages = new Set(
-        imageGeneration.workflows
-          .filter((w) => w.name === imageGeneration.activeWorkflowName)
-          .filter((w) => w.backend === 'comfyui')
-          .flatMap((item) => item.comfyUIRequirements.pythonPackages ?? []),
-      )
-      return [...uniquePackages]
     }
 
     function connectToComfyUi() {
@@ -346,9 +327,7 @@ export const useComfyUi = defineStore(
                 const imageBlob = new Blob([buffer.slice(4)], {
                   type: imageMime,
                 })
-                console.log('got image blob')
                 const imageUrl = URL.createObjectURL(imageBlob)
-                console.log('image url', imageUrl)
                 if (imageBlob) {
                   const newImage: MediaItem = {
                     ...queuedImages[generateIdx],
@@ -372,12 +351,24 @@ export const useComfyUi = defineStore(
                 console.log('progress', { data: msg.data })
                 break
               case 'executing':
+                const executingNode = msg.data.node
                 console.log('executing', {
-                  detail: msg.data.display_node || msg.data.node,
+                  detail: msg.data.display_node || executingNode,
+                  node: executingNode,
+                  isLoaderNode: loaderNodes.value.includes(executingNode ?? ''),
                 })
-                imageGeneration.currentState = loaderNodes.value.includes(msg.data.node ?? '')
-                  ? 'load_model'
-                  : 'generating'
+                // Transition state based on which node is executing
+                if (executingNode && loaderNodes.value.includes(executingNode)) {
+                  imageGeneration.currentState = 'load_model'
+                } else if (executingNode === null) {
+                  // Node is null when execution starts/ends - keep current state or transition to generating
+                  if (imageGeneration.currentState === 'load_workflow_components') {
+                    imageGeneration.currentState = 'generating'
+                  }
+                } else {
+                  // Regular node execution - transition to generating
+                  imageGeneration.currentState = 'generating'
+                }
                 break
               case 'executed':
                 const output = msg.data.output
@@ -401,6 +392,10 @@ export const useComfyUi = defineStore(
                     }
                     imageGeneration.updateImage(newItem)
                     generateIdx++
+                    // Update state when image is received
+                    if (generateIdx >= queuedImages.length) {
+                      imageGeneration.currentState = 'image_out'
+                    }
                   }
                 }
                 if ('gifs' in output) {
@@ -414,13 +409,17 @@ export const useComfyUi = defineStore(
                     }
                     imageGeneration.updateImage(newImage)
                     generateIdx++
+                    // Update state when video is received
+                    if (generateIdx >= queuedImages.length) {
+                      imageGeneration.currentState = 'image_out'
+                    }
                   }
                 }
-
                 console.log('executed', { detail: msg.data })
                 break
               case 'execution_start':
                 imageGeneration.processing = true
+                imageGeneration.currentState = 'load_workflow_components'
                 console.log('execution_start', { detail: msg.data })
                 break
               case 'execution_success':
@@ -429,10 +428,12 @@ export const useComfyUi = defineStore(
                 break
               case 'execution_error':
                 imageGeneration.processing = false
+                imageGeneration.currentState = 'error'
                 if (msg.data.exception_message) toast.error(msg.data.exception_message)
                 break
               case 'execution_interrupted':
                 imageGeneration.processing = false
+                imageGeneration.currentState = 'no_start'
                 break
               case 'execution_cached':
                 break
@@ -444,9 +445,11 @@ export const useComfyUi = defineStore(
       })
     }
 
-    // Lazy WebSocket connection - only connect when actually needed
-    // This prevents duplicate connections when both old and new stores are instantiated
-    // The connection will be established in the generate() function if needed
+    watchEffect(() => {
+      if (comfyPort && comfyUiState.value?.status === 'running') {
+        connectToComfyUi()
+      }
+    })
 
     function dataURItoBlob(dataURI: string) {
       const bytes =
@@ -472,12 +475,8 @@ export const useComfyUi = defineStore(
           input.type === 'boolean' ||
           input.type === 'stringList'
         ) {
-          if (input.type === 'string' || input.type === 'stringList')
-            console.log('probably modifying string', input.label, input.current.value)
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
-            if (input.type === 'string' || input.type === 'stringList')
-              console.log('actually modifying string', input.label, input.current.value)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
           }
         }
@@ -497,7 +496,6 @@ export const useComfyUi = defineStore(
             /data:image\/(png|jpeg|webp);base64,/,
           )?.[1]
           const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`
-          console.log('uploadImageName', uploadImageName)
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadImageName
@@ -544,35 +542,27 @@ export const useComfyUi = defineStore(
       mode: WorkflowModeType,
       sourceImage?: string,
     ) {
-      console.log('generateWithComfy')
-      if (imageGeneration.activeWorkflow.backend !== 'comfyui') {
-        console.warn('The selected workflow is not a comfyui workflow')
+      const preset = imageGeneration.activePreset
+      if (!preset || preset.type !== 'comfy') {
+        console.warn('The selected preset is not a comfyui preset')
         return
       }
       if (imageGeneration.processing) {
         console.warn('Already processing')
         return
       }
-      // Connect WebSocket if not already connected
-      if (!websocket.value || websocket.value.readyState !== WEBSOCKET_OPEN) {
-        if (comfyPort && comfyUiState.value?.status === 'running') {
-          connectToComfyUi()
-          // Wait a bit for connection to establish
-          await new Promise((resolve) => setTimeout(resolve, 100))
-        }
-        if (!websocket.value || websocket.value.readyState !== WEBSOCKET_OPEN) {
-          console.warn('Websocket not open')
-          return
-        }
+      if (websocket.value?.readyState !== WEBSOCKET_OPEN) {
+        console.warn('Websocket not open')
+        return
       }
 
       try {
         imageGeneration.processing = true
         imageGeneration.currentState = 'install_workflow_components'
-        await installCustomNodesForActiveWorkflowFully()
+        await installCustomNodesForActivePresetFully()
 
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
-          JSON.stringify(imageGeneration.activeWorkflow.comfyUiApiWorkflow),
+          JSON.stringify(preset.comfyUiApiWorkflow),
         )
         generateIdx = 0
         const baseSeed =
@@ -638,7 +628,6 @@ export const useComfyUi = defineStore(
         toast.error('Backend could not generate image.')
         imageGeneration.processing = false
         imageGeneration.currentState = 'no_start'
-      } finally {
       }
     }
 
@@ -665,11 +654,12 @@ export const useComfyUi = defineStore(
   },
   {
     persist: {
-      pick: ['backend'],
+      pick: [],
     },
   },
 )
 
 if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useComfyUi, import.meta.hot))
+  import.meta.hot.accept(acceptHMRUpdate(useComfyUiPresets, import.meta.hot))
 }
+

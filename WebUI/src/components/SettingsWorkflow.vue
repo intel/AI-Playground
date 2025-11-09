@@ -4,36 +4,36 @@
     <div class="grid grid-cols-3 gap-3">
       <div
         v-for="preset in presets"
-        :key="preset.workflowName"
+        :key="preset.name"
         class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
         :class="[
-          imageGeneration.activeWorkflowName === preset.workflowName
+          imageGeneration.activePresetName === preset.name
             ? 'border-blue-500 ring-2 ring-blue-400'
             : 'border-transparent hover:border-blue-500',
         ]"
-        @click="() => (imageGeneration.activeWorkflowName = preset.workflowName)"
+        @click="() => (imageGeneration.activePresetName = preset.name)"
       >
         <img
           class="absolute inset-0 w-full h-full object-cover"
           :src="preset.image"
-          :alt="preset.displayName"
+          :alt="preset.name"
         />
         <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
           <span class="text-white text-sm font-semibold">
-            {{ preset.displayName }}
+            {{ preset.name }}
           </span>
         </div>
       </div>
     </div>
 
     <div class="flex flex-col gap-4">
-      <h2 class="text-lg font-semibold">{{ currentPreset?.displayName }}</h2>
+      <h2 class="text-lg font-semibold">{{ currentPreset?.name }}</h2>
       <p class="text-sm text-gray-400">
         {{ currentPreset?.description }}
       </p>
       <div class="flex gap-2">
         <span
-          v-for="tag in imageGeneration.activeWorkflow.tags"
+          v-for="tag in imageGeneration.activePreset?.tags ?? []"
           :key="tag"
           class="px-3 py-1 text-xs bg-purple-600 rounded-full"
         >
@@ -45,7 +45,7 @@
         <Label class="whitespace-nowrap">
           {{ languages.DEVICE }}
         </Label>
-        <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
+        <DeviceSelector :backend="backendToService[imageGeneration.backend as 'comfyui' | 'default']" />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -136,13 +136,13 @@
       <ComfyDynamic></ComfyDynamic>
 
       <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
-        <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings">
+        <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
           <div class="svg-icon i-refresh">Reset</div>
           {{ languages.COM_LOAD_WORKFLOW_DEFAULTS }}
         </button>
       </div>
 
-      <a v-if="imageGeneration.backend === 'comfyui'"
+      <a v-if="imageGeneration.activePreset?.backend === 'comfyui'"
          :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
          target="_blank"
          class="max-w-md mx-auto"
@@ -168,12 +168,11 @@ import DeviceSelector from '@/components/DeviceSelector.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
 import {
   backendToService,
-  Setting,
-  useImageGeneration
-} from "@/assets/js/store/imageGeneration.ts";
+  useImageGenerationPresets
+} from "@/assets/js/store/imageGenerationPresets.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import ComfyDynamic from "@/components/SettingsImageComfyDynamic.vue";
-import { Preset } from "../assets/js/presets";
+import { usePresets, type Preset } from "@/assets/js/store/presets";
 import AspectRatioPicker from "./AspectRatioPicker.vue";
 
 interface Props {
@@ -183,18 +182,18 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
+const presetsStore = usePresets()
 const backendServices = useBackendServices()
 const fastMode = ref(true)
 
 const currentPreset = computed(() => {
-  return props.presets.find(preset => preset.workflowName === imageGeneration.activeWorkflowName)
+  return props.presets.find(preset => preset.name === imageGeneration.activePresetName)
 })
 
-const modifiableOrDisplayed = (setting: Setting) =>
-  imageGeneration.activeWorkflow.modifiableSettings.includes(setting) ||
-  imageGeneration.activeWorkflow.displayedSettings.includes(setting)
+const modifiableOrDisplayed = (settingName: string) =>
+  imageGeneration.settingIsRelevant(settingName)
 
-const modifiable = (setting: Setting) =>
-  imageGeneration.activeWorkflow.modifiableSettings.includes(setting)
+const modifiable = (settingName: string) =>
+  imageGeneration.isModifiable(settingName)
 </script>

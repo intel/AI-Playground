@@ -33,6 +33,10 @@ type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
+  reloadPresets(): Promise<string[]>
+  getUserPresetsPath(): Promise<string>
+  loadUserPresets(): Promise<string[]>
+  saveUserPreset(presetContent: string): Promise<boolean>
   resolveBackendVersion(
     serviceName: string,
   ): Promise<{ releaseTag: string; version: string } | undefined>

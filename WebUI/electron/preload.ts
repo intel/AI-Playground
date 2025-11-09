@@ -25,6 +25,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setUpService: (serviceName: string) => ipcRenderer.invoke('setUpService', serviceName),
   updateWorkflowsFromIntelRepo: () => ipcRenderer.invoke('updateWorkflowsFromIntelRepo'),
   reloadImageWorkflows: () => ipcRenderer.invoke('reloadImageWorkflows'),
+  reloadPresets: () => ipcRenderer.invoke('reloadPresets'),
+  getUserPresetsPath: () => ipcRenderer.invoke('getUserPresetsPath'),
+  loadUserPresets: () => ipcRenderer.invoke('loadUserPresets'),
+  saveUserPreset: (presetContent: string) => ipcRenderer.invoke('saveUserPreset', presetContent),
   resolveBackendVersion: (serviceName: string) =>
     ipcRenderer.invoke('resolveBackendVersion', serviceName),
   openDevTools: () => ipcRenderer.send('openDevTools'),

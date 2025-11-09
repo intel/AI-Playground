@@ -884,6 +884,78 @@ function initEventHandle() {
     return updateIntelWorkflows(settings.remoteRepository)
   })
 
+  // Preset management IPC handlers
+  ipcMain.handle('reloadPresets', async () => {
+    const presetsDir = path.join(externalRes, 'presets')
+    try {
+      // Ensure presets directory exists
+      await fs.promises.mkdir(presetsDir, { recursive: true })
+      const files = await fs.promises.readdir(presetsDir)
+      const presetFiles = files.filter((file) => file.endsWith('.json'))
+      const presets = await Promise.all(
+        presetFiles.map((file) =>
+          fs.promises.readFile(path.join(presetsDir, file), { encoding: 'utf-8' }),
+        ),
+      )
+      const osSpecificPresets = presets.map((preset) =>
+        process.platform !== 'win32' ? preset.replaceAll('\\\\', '/') : preset,
+      )
+      return osSpecificPresets
+    } catch (error) {
+      appLogger.error(`Failed to load presets: ${error}`, 'electron-backend')
+      return []
+    }
+  })
+
+  ipcMain.handle('getUserPresetsPath', async () => {
+    const userDataPath = app.getPath('documents')
+    const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+    // Ensure directory exists
+    await fs.promises.mkdir(presetsPath, { recursive: true })
+    return presetsPath
+  })
+
+  ipcMain.handle('loadUserPresets', async () => {
+    try {
+      const userDataPath = app.getPath('documents')
+      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      if (!fs.existsSync(presetsPath)) {
+        return []
+      }
+      const files = await fs.promises.readdir(presetsPath)
+      const presetFiles = files.filter((file) => file.endsWith('.json'))
+      const presets = await Promise.all(
+        presetFiles.map((file) =>
+          fs.promises.readFile(path.join(presetsPath, file), { encoding: 'utf-8' }),
+        ),
+      )
+      return presets
+    } catch (error) {
+      appLogger.error(`Failed to load user presets: ${error}`, 'electron-backend')
+      return []
+    }
+  })
+
+  ipcMain.handle('saveUserPreset', async (_event, presetContent: string) => {
+    try {
+      const userDataPath = app.getPath('documents')
+      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      await fs.promises.mkdir(presetsPath, { recursive: true })
+
+      // Parse to get preset name for filename
+      const preset = JSON.parse(presetContent)
+      const filename = `${preset.name.replace(/[^a-z0-9]/gi, '_')}.json`
+      const filePath = path.join(presetsPath, filename)
+
+      await fs.promises.writeFile(filePath, presetContent, { encoding: 'utf-8' })
+      appLogger.info(`Saved user preset to ${filePath}`, 'electron-backend')
+      return true
+    } catch (error) {
+      appLogger.error(`Failed to save user preset: ${error}`, 'electron-backend')
+      return false
+    }
+  })
+
   // Version management IPC handlers for frontend store integration
   ipcMain.handle('resolveBackendVersion', async (_event, serviceName: BackendServiceName) => {
     return await resolveBackendVersion(serviceName, settings)

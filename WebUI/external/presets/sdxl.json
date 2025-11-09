@@ -1,0 +1,247 @@
+{
+  "type": "comfy",
+  "name": "SDXL",
+  "displayPriority": 500,
+  "tags": ["SDXL"],
+  "backend": "comfyui",
+  "category": "create-images",
+  "description": "Stable Diffusion XL image generation workflow using Juggernaut-XL-v9",
+  "requiredCustomNodes": [],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "checkpoints",
+      "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "1024x1024",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "string",
+      "label": "Image Model",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "RunDiffusion/Juggernaut-XL-v9",
+      "settingName": "imageModel"
+    },
+    {
+      "type": "string",
+      "label": "Inpaint Model",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "RunDiffusion/Juggernaut-XL-v9",
+      "settingName": "inpaintModel"
+    },
+    {
+      "type": "number",
+      "label": "Guidance Scale",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 7,
+      "settingName": "guidanceScale"
+    },
+    {
+      "type": "string",
+      "label": "LoRA",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "None",
+      "settingName": "lora"
+    },
+    {
+      "type": "string",
+      "label": "Scheduler",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "DPM++ SDE",
+      "settingName": "scheduler"
+    },
+    {
+      "type": "boolean",
+      "label": "Image Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "imagePreview"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 413053266758155,
+        "steps": 20,
+        "cfg": 7,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "normal",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "4": {
+      "inputs": {
+        "ckpt_name": "RunDiffusion---Juggernaut-XL-v9---Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "5": {
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage",
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "6": {
+      "inputs": {
+        "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+        "clip": [
+          "4",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "nsfw",
+        "clip": [
+          "4",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    },
+    "8": {
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}
+

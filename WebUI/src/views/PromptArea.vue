@@ -82,7 +82,7 @@
 import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
-import { useImageGeneration } from "@/assets/js/store/imageGeneration.ts";
+import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { PlusIcon } from '@heroicons/vue/24/outline'
 import {Input} from '@/components/ui/input'
@@ -92,7 +92,7 @@ const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const prompt = ref('')
 const promptStore = usePromptStore()
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 

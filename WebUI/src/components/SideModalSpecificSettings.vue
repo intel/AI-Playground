@@ -29,7 +29,12 @@ import SideModalBase from '@/components/SideModalBase.vue'
 import SettingsChat from '@/components/SettingsChat.vue'
 import SettingsWorkflow from '@/components/SettingsWorkflow.vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
-import { imageGenPresets, imageEditPresets, videoPresets } from "../assets/js/presets";
+import { usePresets } from "@/assets/js/store/presets";
+
+const presetsStore = usePresets()
+const imageGenPresets = presetsStore.imageGenPresets
+const imageEditPresets = presetsStore.imageEditPresets
+const videoPresets = presetsStore.videoPresets
 
 const props = defineProps<{
   mode: ModeType

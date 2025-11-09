@@ -724,6 +724,67 @@ export const useTextInference = defineStore(
       backendServices.updateLastUsedBackend(inferenceBackendService)
     }
 
+    // ========================================================================
+    // Chat Preset Application
+    // ========================================================================
+
+    async function applyChatPreset(preset: ChatPreset) {
+      try {
+        // Apply backend
+        if (preset.backend) {
+          backend.value = preset.backend
+        }
+
+        // Apply system prompt
+        if (preset.systemPrompt) {
+          systemPrompt.value = preset.systemPrompt
+        }
+
+        // Apply context size
+        if (preset.contextSize) {
+          contextSize.value = preset.contextSize
+        }
+
+        // Apply max tokens
+        if (preset.maxNewTokens) {
+          maxTokens.value = preset.maxNewTokens
+        }
+
+        // Apply RAG settings
+        if (preset.rag) {
+          if (preset.rag.enabled !== undefined) {
+            // RAG enabled state would need to be tracked separately if needed
+            // For now, we just apply the embedding model
+          }
+          if (preset.rag.embeddingModel && preset.backend) {
+            selectEmbeddingModel(preset.backend, preset.rag.embeddingModel)
+          }
+        }
+
+        // Apply model selection if specified in preset settings
+        // This would require preset.settings to contain model selection info
+        // For now, we rely on the backend selection above
+
+        console.log('Applied chat preset:', preset.name)
+      } catch (error) {
+        console.error('Failed to apply chat preset:', error)
+      }
+    }
+
+    // ChatPreset type - will be properly typed when preset is passed
+    type ChatPreset = {
+      type: 'chat'
+      name: string
+      backend: 'ipexLLM' | 'llamaCPP' | 'openVINO' | 'ollama'
+      systemPrompt?: string
+      contextSize?: number
+      maxNewTokens?: number
+      rag?: {
+        embeddingModel?: string
+        enabled?: boolean
+      }
+    }
+
     return {
       backend,
       activeModel,
@@ -760,6 +821,7 @@ export const useTextInference = defineStore(
       formatRagSources,
       ensureBackendReadiness,
       checkModelAvailability,
+      applyChatPreset,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

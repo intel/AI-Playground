@@ -141,7 +141,7 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { MediaItem, isVideo, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts"
 
@@ -152,7 +152,7 @@ interface Props {
 const props = defineProps<Props>()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
 
