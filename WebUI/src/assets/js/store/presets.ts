@@ -150,6 +150,7 @@ export const usePresets = defineStore(
   () => {
     const presets = ref<Preset[]>([])
     const activePresetName = ref<string | null>(null)
+    const activeVariantName = ref<Record<string, string>>({}) // preset name -> variant name
     const settingsPerPreset = ref<Record<string, Record<string, unknown>>>({})
 
     // ========================================================================
@@ -193,6 +194,25 @@ export const usePresets = defineStore(
       return validatePreset(merged) || basePreset
     }
 
+    function getPresetWithVariant(presetName: string): Preset | null {
+      const preset = presets.value.find((p) => p.name === presetName)
+      if (!preset) return null
+
+      const variantName = activeVariantName.value[presetName]
+      if (variantName) {
+        return applyVariant(preset, variantName)
+      }
+      return preset
+    }
+
+    function setActiveVariant(presetName: string, variantName: string | null): void {
+      if (variantName) {
+        activeVariantName.value[presetName] = variantName
+      } else {
+        delete activeVariantName.value[presetName]
+      }
+    }
+
     // Deep merge utility function
     function deepMerge<T extends Record<string, any>>(target: T, source: DeepPartial<T>): T {
       const output = { ...target } as T
@@ -201,7 +221,21 @@ export const usePresets = defineStore(
           const sourceValue = (source as any)[key]
           const targetValue = (output as any)[key]
 
-          if (
+          // Special handling for settings arrays - merge by settingName
+          if (key === 'settings' && Array.isArray(sourceValue) && Array.isArray(targetValue)) {
+            const mergedSettings = [...targetValue]
+            sourceValue.forEach((sourceSetting: any) => {
+              const index = mergedSettings.findIndex(
+                (s: any) => s.settingName === sourceSetting.settingName
+              )
+              if (index >= 0) {
+                mergedSettings[index] = { ...mergedSettings[index], ...sourceSetting }
+              } else {
+                mergedSettings.push(sourceSetting)
+              }
+            })
+            ;(output as any)[key] = mergedSettings
+          } else if (
             sourceValue &&
             typeof sourceValue === 'object' &&
             !Array.isArray(sourceValue) &&
@@ -228,11 +262,21 @@ export const usePresets = defineStore(
         const presetFiles = await window.electronAPI.reloadPresets()
         const validatedPresets: Preset[] = []
 
-        for (const fileContent of presetFiles) {
+        for (const presetFile of presetFiles) {
           try {
+            // Handle both old format (string) and new format (object with content and image)
+            const fileContent =
+              typeof presetFile === 'string' ? presetFile : presetFile.content
+            const imageFromFile =
+              typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
+
             const parsed = JSON.parse(fileContent)
             const validated = validatePreset(parsed)
             if (validated) {
+              // Use image from file if preset doesn't already have an image
+              if (!validated.image && imageFromFile) {
+                validated.image = imageFromFile
+              }
               validatedPresets.push(validated)
             }
           } catch (error) {
@@ -253,11 +297,21 @@ export const usePresets = defineStore(
         const userPresetFiles = await window.electronAPI.loadUserPresets()
         const validatedPresets: Preset[] = []
 
-        for (const fileContent of userPresetFiles) {
+        for (const presetFile of userPresetFiles) {
           try {
+            // Handle both old format (string) and new format (object with content and image)
+            const fileContent =
+              typeof presetFile === 'string' ? presetFile : presetFile.content
+            const imageFromFile =
+              typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
+
             const parsed = JSON.parse(fileContent)
             const validated = validatePreset(parsed)
             if (validated) {
+              // Use image from file if preset doesn't already have an image
+              if (!validated.image && imageFromFile) {
+                validated.image = imageFromFile
+              }
               validatedPresets.push(validated)
             }
           } catch (error) {
@@ -384,6 +438,7 @@ export const usePresets = defineStore(
       // State
       presets,
       activePresetName,
+      activeVariantName,
       settingsPerPreset,
 
       // Computed
@@ -397,6 +452,8 @@ export const usePresets = defineStore(
 
       // Methods
       validatePreset,
+      getPresetWithVariant,
+      setActiveVariant,
       applyVariant,
       loadPresetsFromFiles,
       loadUserPresets,
@@ -408,7 +465,7 @@ export const usePresets = defineStore(
   },
   {
     persist: {
-      pick: ['activePresetName', 'settingsPerPreset'],
+      pick: ['activePresetName', 'activeVariantName', 'settingsPerPreset'],
     },
   },
 )

@@ -73,34 +73,34 @@
                   }}
                 </span>
                 <!-- Display RAG source if available -->
-                <!-- <span
-                  v-if="chatItem.ragSource"
-                  @click="chatItem.showRagSource = !chatItem.showRagSource"
+                <span
+                  v-if="(message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id]"
+                  @click="showRagSourcePerMessageId[message.id] = !showRagSourcePerMessageId[message.id]"
                   class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
                   :class="textInference.nameSizeClass"
                 >
                   Source Docs
                   <button class="ml-1">
                     <img
-                      v-if="chatItem.showRagSource"
+                      v-if="showRagSourcePerMessageId[message.id]"
                       src="../assets/svg/arrow-up.svg"
                       class="w-3 h-3"
                     />
                     <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
                   </button>
-                </span> -->
+                </span>
               </div>
             </div>
 
             <!-- RAG Source Details (collapsible) -->
-            <!-- <div
-              v-if="chatItem.ragSource && chatItem.showRagSource"
+            <div
+              v-if="((message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id]) && showRagSourcePerMessageId[message.id]"
               class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-              <div class="whitespace-pre-wrap">{{ chatItem.ragSource }}</div>
-            </div> -->
+              <div class="whitespace-pre-wrap">{{ (message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id] }}</div>
+            </div>
             <div class="ai-answer chat-content">
               <template v-if="message.parts.some((part) => part.type === 'reasoning')">
                 <div class="mb-2 flex items-center">
@@ -338,16 +338,15 @@ const backendServices = useBackendServices()
 const promptStore = usePromptStore()
 
 const i18nState = useI18N().state
-// const ragRetrievalInProgress = ref(false)
-// const showRagPreview = ref(true)
 const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
 
 const activeConversation = computed(() => openAiCompatibleChat.messages)
 const showThinkingTextPerMessageId = reactive<Record<string, boolean>>({})
+const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 
-// let actualRagResults: LangchainDocument[] | null = null
+const ragSourcePerMessageId = reactive<Record<string, string>>({})
 
 defineExpose({
   scrollToBottom,
@@ -365,12 +364,24 @@ onUnmounted(() => {
 
 watch(
   () => openAiCompatibleChat.messages,
-  () => {
+  (messages) => {
+    // Initialize RAG source display state from message metadata
+    if (messages) {
+      messages.forEach((message) => {
+        const ragSource = (message.metadata as { ragSource?: string })?.ragSource
+        if (ragSource && !ragSourcePerMessageId[message.id]) {
+          ragSourcePerMessageId[message.id] = ragSource
+          // Default to collapsed state
+          showRagSourcePerMessageId[message.id] = false
+        }
+      })
+    }
+    
     if (autoScrollEnabled.value) {
       nextTick(() => scrollToBottom())
     }
   },
-  { deep: true, immediate: false }
+  { deep: true, immediate: true }
 )
 
 async function handlePromptSubmit(prompt: string) {
@@ -420,32 +431,25 @@ async function generate(question: string) {
 
     nextTick(scrollToBottom)
 
-    // let externalRagContext = null
-    // actualRagResults = null
+    // Prepare RAG context (handles retrieval and system prompt enhancement)
+    const ragContext = await textInference.prepareRagContext(question)
 
-    // if (textInference.ragList.filter((item) => item.isChecked).length > 0) {
-    //   try {
-    //     // Set RAG retrieval in progress
-    //     ragRetrievalInProgress.value = true
-    //     showRagPreview.value = true
-    //
-    //     // Perform RAG retrieval
-    //     const ragResults = await textInference.embedInputUsingRag(
-    //       question,
-    //     )
-    //
-    //     ragRetrievalInProgress.value = false
-    //
-    //     if (ragResults && ragResults.length > 0) {
-    //       externalRagContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
-    //       actualRagResults = ragResults
-    //     }
-    //   } catch (error) {
-    //     console.error('Error retrieving RAG documents:', error)
-    //   }
-    // }
     openAiCompatibleChat.messageInput = question
-    await openAiCompatibleChat.generate()
+    
+    // Generate response with RAG-enhanced system prompt (if RAG was used)
+    await openAiCompatibleChat.generate(ragContext.systemPrompt)
+    
+    // Store RAG source information for the latest assistant message
+    const latestMessage = openAiCompatibleChat.messages?.[openAiCompatibleChat.messages.length - 1]
+    if (latestMessage && latestMessage.role === 'assistant' && ragContext.ragSourceText) {
+      // Store in both metadata (for persistence) and per-message state (for UI)
+      if (latestMessage.metadata) {
+        latestMessage.metadata.ragSource = ragContext.ragSourceText
+      }
+      ragSourcePerMessageId[latestMessage.id] = ragContext.ragSourceText
+      showRagSourcePerMessageId[latestMessage.id] = true
+    }
+    
     conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
 
     await nextTick()

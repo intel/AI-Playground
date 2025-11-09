@@ -488,28 +488,43 @@ onMounted(() => {
 
 async function setInitalLoadingState() {
   console.log('setting loading state')
+  // Wait for service info (non-blocking check)
   if (!backendServices.serviceInfoUpdateReceived) {
     globalSetup.loadingState = 'verifyBackend'
     setTimeout(setInitalLoadingState, 1000)
     return
   }
-  if (backendServices.allRequiredSetUp) {
-    globalSetup.loadingState = 'loading'
-    const result = await backendServices.startAllSetUpServices()
-    if (result.allServicesStarted) {
-      await globalSetup.initSetup()
-      globalSetup.loadingState = 'running'
-      return
-    }
+
+  // Check if installation dialog is needed
+  // Wait for setup checks to complete before deciding
+  const needsInstallation = await backendServices.shouldShowInstallationDialog()
+  if (needsInstallation) {
+    globalSetup.loadingState = 'manageInstallations'
+    // Note: Backends are now started automatically by the service registry
+    // This call is kept as a fallback for manual restarts
+    backendServices.startAllSetUpServicesInBackground()
+    return
   }
-  globalSetup.loadingState = 'manageInstallations'
+
+  // Show UI immediately
+  // Note: Backends are now started automatically by the service registry in the main process
+  // This ensures they start regardless of frontend state or UI mode
+  globalSetup.loadingState = 'running'
+  await globalSetup.initSetup()
+  
+  // Optional: Frontend can still trigger startup as a fallback or for manual restarts
+  // but it's no longer required since services start automatically
+  backendServices.startAllSetUpServicesInBackground()
 }
 
 async function concludeLoadingStateAfterManagedInstallationDialog() {
-  if (backendServices.allRequiredSetUp) {
-    await globalSetup.initSetup()
-    globalSetup.loadingState = 'running'
-  }
+  // Always try to initialize, even if not all required are set up
+  // This allows the UI to be functional with whatever backends are available
+  await globalSetup.initSetup()
+  globalSetup.loadingState = 'running'
+  // Note: Backends are now started automatically by the service registry
+  // This call is kept as a fallback for manual restarts after installation
+  backendServices.startAllSetUpServicesInBackground()
 }
 
 /** Get tooltips of AIPG demo mode on click of Help button */

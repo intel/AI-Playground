@@ -27,7 +27,23 @@
     </div>
 
     <div class="flex flex-col gap-4">
-      <h2 class="text-lg font-semibold">{{ currentPreset?.name }}</h2>
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold">{{ currentPreset?.name }}</h2>
+        <drop-selector
+          v-if="currentPreset?.variants && currentPreset.variants.length > 0"
+          :array="variantOptions"
+          @change="onVariantChange"
+        >
+          <template #selected>
+            <span class="text-sm text-gray-400">
+              {{ activeVariantName || 'Default' }}
+            </span>
+          </template>
+          <template #list="slotItem">
+            <span>{{ slotItem.item.name }}</span>
+          </template>
+        </drop-selector>
+      </div>
       <p class="text-sm text-gray-400">
         {{ currentPreset?.description }}
       </p>
@@ -166,6 +182,7 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
+import DropSelector from '@/components/DropSelector.vue'
 import {
   backendToService,
   useImageGenerationPresets
@@ -196,4 +213,22 @@ const modifiableOrDisplayed = (settingName: string) =>
 
 const modifiable = (settingName: string) =>
   imageGeneration.isModifiable(settingName)
+
+const activeVariantName = computed(() => {
+  if (!imageGeneration.activePresetName) return null
+  return presetsStore.activeVariantName[imageGeneration.activePresetName] || null
+})
+
+const variantOptions = computed(() => {
+  if (!currentPreset.value?.variants) return []
+  return [
+    { name: 'Default', value: null },
+    ...currentPreset.value.variants.map(v => ({ name: v.name, value: v.name }))
+  ]
+})
+
+function onVariantChange(selected: { name: string; value: string | null }) {
+  if (!imageGeneration.activePresetName) return
+  presetsStore.setActiveVariant(imageGeneration.activePresetName, selected.value)
+}
 </script>

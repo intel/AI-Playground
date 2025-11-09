@@ -73,6 +73,78 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
   getServiceInformation(): ApiServiceInformation[] {
     return this.getRegistered().map((service) => service.get_info())
   }
+
+  /**
+   * Automatically start all services that are set up.
+   * This runs in the background and doesn't block.
+   * Waits for async setup checks to complete before starting services.
+   */
+  async startAllSetUpServices(): Promise<void> {
+    // Check setup status for all services.
+    // Some services check asynchronously (ai-backend, comfyui-backend) and some synchronously (llamacpp-backend).
+    // We'll check all services that have a serviceIsSetUp method and use the actual result,
+    // rather than relying on the isSetUp property which may not be updated yet.
+    const setupChecks = await Promise.all(
+      this.registeredServices.map(async (service) => {
+        // Check if service has async setup check method
+        if ('serviceIsSetUp' in service && typeof (service as unknown as { serviceIsSetUp?: unknown }).serviceIsSetUp === 'function') {
+          const isSetUp = await (service as { serviceIsSetUp: () => Promise<boolean> }).serviceIsSetUp()
+          return { service, isSetUp }
+        }
+        // For services without async check, use the isSetUp property directly
+        return { service, isSetUp: service.isSetUp }
+      }),
+    )
+    
+    // Filter to only services that are set up
+    const setUpServices = setupChecks
+      .filter(({ isSetUp }) => isSetUp)
+      .map(({ service }) => service)
+    
+    if (setUpServices.length === 0) {
+      appLoggerInstance.info('No services are set up to start', 'apiServiceRegistry')
+      return
+    }
+
+    appLoggerInstance.info(
+      `Starting ${setUpServices.length} backend service(s) automatically:`,
+      'apiServiceRegistry',
+    )
+    appLoggerInstance.info(
+      setUpServices.map((s) => s.name).join(', '),
+      'apiServiceRegistry',
+    )
+
+    // Start all services in parallel, but don't block
+    Promise.all(
+      setUpServices.map(async (service) => {
+        try {
+          // Detect devices first
+          await service.detectDevices()
+          await new Promise((resolve) => setTimeout(resolve, 100)) // Brief delay for device detection to settle
+          
+          // Start the service
+          const status = await service.start()
+          appLoggerInstance.info(
+            `Service ${service.name} started with status: ${status}`,
+            'apiServiceRegistry',
+          )
+        } catch (error) {
+          appLoggerInstance.error(
+            `Failed to start service ${service.name}: ${error}`,
+            'apiServiceRegistry',
+            true,
+          )
+        }
+      }),
+    ).catch((error) => {
+      appLoggerInstance.error(
+        `Error during automatic service startup: ${error}`,
+        'apiServiceRegistry',
+        true,
+      )
+    })
+  }
 }
 
 let instance: ApiServiceRegistryImpl | null = null
@@ -125,6 +197,10 @@ export async function aiplaygroundApiServiceRegistry(
         ),
       )
     }
+
+    // Automatically start all set-up services in the background
+    // This happens regardless of frontend state, making it more reliable
+    instance.startAllSetUpServices()
   }
   return instance
 }

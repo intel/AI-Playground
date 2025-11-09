@@ -71,6 +71,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addDocumentToRAGList: (doc: IndexedDocument) => ipcRenderer.invoke('addDocumentToRAGList', doc),
   embedInputUsingRag: (embedInquiry: EmbedInquiry) =>
     ipcRenderer.invoke('embedInputUsingRag', embedInquiry),
+  getEmbeddingServerUrl: (serviceName: string) =>
+    ipcRenderer.invoke('getEmbeddingServerUrl', serviceName),
   getInitSetting: () => ipcRenderer.invoke('getInitSetting'),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke('updateModelPaths', modelPaths),
   restorePathsSettings: () => ipcRenderer.invoke('restorePathsSettings'),

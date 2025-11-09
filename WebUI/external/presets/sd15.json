@@ -13,6 +13,106 @@
       "model": "Lykon/DreamShaper/DreamShaper_8_pruned.safetensors"
     }
   ],
+  "variants": [
+    {
+      "name": "LCM",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "Lykon/DreamShaper/DreamShaper_8_pruned.safetensors"
+          },
+          {
+            "type": "defaultLora",
+            "model": "latent-consistency/lcm-lora-sdv1-5/pytorch_lora_weights.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 4,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "number",
+            "label": "Guidance Scale",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1.5,
+            "settingName": "guidanceScale"
+          },
+          {
+            "type": "string",
+            "label": "LoRA",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": "latent-consistency/lcm-lora-sdv1-5",
+            "settingName": "lora"
+          },
+          {
+            "type": "string",
+            "label": "Scheduler",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": "Simple",
+            "settingName": "scheduler"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "steps": 4,
+              "cfg": 1.5,
+              "sampler_name": "lcm",
+              "scheduler": "simple",
+              "model": [
+                "10",
+                0
+              ]
+            }
+          },
+          "10": {
+            "inputs": {
+              "lora_name": "latent-consistency---lcm-lora-sdv1-5\\pytorch_lora_weights.safetensors",
+              "strength_model": 1,
+              "strength_clip": 1,
+              "model": [
+                "4",
+                0
+              ],
+              "clip": [
+                "4",
+                1
+              ]
+            },
+            "class_type": "LoraLoader",
+            "_meta": {
+              "title": "Load LoRA"
+            }
+          },
+          "6": {
+            "inputs": {
+              "clip": [
+                "10",
+                1
+              ]
+            }
+          },
+          "7": {
+            "inputs": {
+              "clip": [
+                "10",
+                1
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
   "settings": [
     {
       "type": "string",

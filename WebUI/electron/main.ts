@@ -851,6 +851,28 @@ function initEventHandle() {
     },
   )
 
+  ipcMain.handle('getEmbeddingServerUrl', async (_event: IpcMainInvokeEvent, serviceName: string) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service) {
+      return { success: false, error: `Service ${serviceName} not found` }
+    }
+
+    // Check if service has getEmbeddingServerUrl method (llamaCPP backend)
+    if ('getEmbeddingServerUrl' in service && typeof service.getEmbeddingServerUrl === 'function') {
+      const embeddingUrl = service.getEmbeddingServerUrl()
+      if (embeddingUrl) {
+        return { success: true, url: embeddingUrl }
+      }
+      return { success: false, error: 'Embedding server not running' }
+    }
+
+    // For other backends, return the base URL (they might use the same server)
+    return { success: true, url: service.baseUrl }
+  })
+
   ipcMain.on('ondragstart', async (event, filePath) => {
     const imagePath = getAssetPathFromUrl(filePath)
     if (!imagePath) return
@@ -893,14 +915,40 @@ function initEventHandle() {
       const files = await fs.promises.readdir(presetsDir)
       const presetFiles = files.filter((file) => file.endsWith('.json'))
       const presets = await Promise.all(
-        presetFiles.map((file) =>
-          fs.promises.readFile(path.join(presetsDir, file), { encoding: 'utf-8' }),
-        ),
+        presetFiles.map(async (file) => {
+          const presetContent = await fs.promises.readFile(
+            path.join(presetsDir, file),
+            { encoding: 'utf-8' },
+          )
+          const osSpecificPreset =
+            process.platform !== 'win32' ? presetContent.replaceAll('\\\\', '/') : presetContent
+
+          // Check for image file with same name
+          const presetNameWithoutExt = path.basename(file, '.json')
+          const imageExtensions = ['.png', '.jpg', '.jpeg']
+          let imageBase64: string | null = null
+
+          for (const ext of imageExtensions) {
+            const imagePath = path.join(presetsDir, `${presetNameWithoutExt}${ext}`)
+            if (fs.existsSync(imagePath)) {
+              try {
+                const imageBuffer = await fs.promises.readFile(imagePath)
+                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
+                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+                break
+              } catch (error) {
+                appLogger.warn(`Failed to read image file ${imagePath}: ${error}`, 'electron-backend')
+              }
+            }
+          }
+
+          return {
+            content: osSpecificPreset,
+            image: imageBase64,
+          }
+        }),
       )
-      const osSpecificPresets = presets.map((preset) =>
-        process.platform !== 'win32' ? preset.replaceAll('\\\\', '/') : preset,
-      )
-      return osSpecificPresets
+      return presets
     } catch (error) {
       appLogger.error(`Failed to load presets: ${error}`, 'electron-backend')
       return []
@@ -925,9 +973,36 @@ function initEventHandle() {
       const files = await fs.promises.readdir(presetsPath)
       const presetFiles = files.filter((file) => file.endsWith('.json'))
       const presets = await Promise.all(
-        presetFiles.map((file) =>
-          fs.promises.readFile(path.join(presetsPath, file), { encoding: 'utf-8' }),
-        ),
+        presetFiles.map(async (file) => {
+          const presetContent = await fs.promises.readFile(
+            path.join(presetsPath, file),
+            { encoding: 'utf-8' },
+          )
+
+          // Check for image file with same name
+          const presetNameWithoutExt = path.basename(file, '.json')
+          const imageExtensions = ['.png', '.jpg', '.jpeg']
+          let imageBase64: string | null = null
+
+          for (const ext of imageExtensions) {
+            const imagePath = path.join(presetsPath, `${presetNameWithoutExt}${ext}`)
+            if (fs.existsSync(imagePath)) {
+              try {
+                const imageBuffer = await fs.promises.readFile(imagePath)
+                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
+                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+                break
+              } catch (error) {
+                appLogger.warn(`Failed to read image file ${imagePath}: ${error}`, 'electron-backend')
+              }
+            }
+          }
+
+          return {
+            content: presetContent,
+            image: imageBase64,
+          }
+        }),
       )
       return presets
     } catch (error) {

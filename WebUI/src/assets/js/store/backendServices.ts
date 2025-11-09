@@ -109,6 +109,7 @@ export const useBackendServices = defineStore(
 
     const serviceInfoUpdatePresent = computed(() => currentServiceInfo.value.length > 0)
     const initalStartupRequestComplete = ref(false)
+    const backendStartupInProgress = ref(false)
     const allRequiredSetUp = computed(
       () =>
         currentServiceInfo.value.length > 0 &&
@@ -294,6 +295,61 @@ export const useBackendServices = defineStore(
       }
     }
 
+    async function shouldShowInstallationDialog(): Promise<boolean> {
+      // Wait a moment for async setup checks to complete in the main process
+      // Services like ai-backend check setup asynchronously, so we need to give them time
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      
+      // Re-fetch service info to get the latest setup status
+      try {
+        const latestServices = await window.electronAPI.getServices()
+        currentServiceInfo.value = latestServices
+      } catch (error) {
+        console.warn('Failed to refresh service info for installation check:', error)
+      }
+      
+      // Only show if required backends are missing or have errors
+      const requiredServices = currentServiceInfo.value.filter((s) => s.isRequired)
+      return requiredServices.some(
+        (s) => !s.isSetUp || (s.errorDetails !== null && s.errorDetails !== undefined),
+      )
+    }
+
+    async function startAllSetUpServicesInBackground(): Promise<void> {
+      if (backendStartupInProgress.value) {
+        console.log('Backend startup already in progress, skipping')
+        return
+      }
+      
+      // Check if there are any services to start
+      const servicesToStart = currentServiceInfo.value.filter((s) => s.isSetUp)
+      if (servicesToStart.length === 0) {
+        console.log('No services are set up to start')
+        return
+      }
+      
+      console.log(
+        `Starting ${servicesToStart.length} backend service(s) in background:`,
+        servicesToStart.map((s) => s.serviceName),
+      )
+      backendStartupInProgress.value = true
+
+      // Start in background without blocking
+      startAllSetUpServices()
+        .then((result) => {
+          console.log('Background backend startup completed', result)
+          if (!result.allServicesStarted) {
+            console.warn('Not all services started successfully in background')
+          }
+        })
+        .catch((error) => {
+          console.error('Background backend startup failed', error)
+        })
+        .finally(() => {
+          backendStartupInProgress.value = false
+        })
+    }
+
     return {
       info: currentServiceInfo,
       serviceInfoUpdateReceived: serviceInfoUpdatePresent,
@@ -316,6 +372,9 @@ export const useBackendServices = defineStore(
       selectDevice,
       ensureBackendReadiness,
       getServiceErrorDetails,
+      shouldShowInstallationDialog,
+      startAllSetUpServicesInBackground,
+      backendStartupInProgress,
     }
   },
   {

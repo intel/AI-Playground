@@ -40,6 +40,7 @@ export type AipgUiMessage = UIMessage<{
   timestamp?: number
   conversationTitle?: string
   timings?: z.infer<typeof LlamaCppRawValueTimingsSchema>
+  ragSource?: string
 }>
 
 export const useOpenAiCompatibleChat = defineStore(
@@ -71,11 +72,12 @@ export const useOpenAiCompatibleChat = defineStore(
       let firstTokenTime: number = 0
       let finishTime: number = 0
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
+      const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
       const result = await streamText({
         model: model.value,
         messages: convertToModelMessages(m.messages),
         abortSignal: options.signal,
-        system: textInference.systemPrompt,
+        system: systemPromptToUse,
         maxOutputTokens: textInference.maxTokens,
         includeRawChunks: true,
         onChunk: (chunk) => {
@@ -160,18 +162,24 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const messageInput = ref('')
     const fileInput = ref<FileList | null>(null)
+    const temporarySystemPrompt = ref<string | null>(null)
 
-    async function generate() {
+    async function generate(systemPromptOverride?: string) {
       await textInference.prepareBackendIfNeeded()
+      temporarySystemPrompt.value = systemPromptOverride || null
       console.log('before generate', {chat: chats[conversations.activeKey], messages: chats[conversations.activeKey]?.messages})
-      await chats[conversations.activeKey]?.sendMessage({
-        text: messageInput.value,
-        files: fileInput.value ? fileInput.value : undefined,
-        metadata: {
-          model: textInference.activeModel,
-          timestamp: Date.now(),
-        },
-      })
+      try {
+        await chats[conversations.activeKey]?.sendMessage({
+          text: messageInput.value,
+          files: fileInput.value ? fileInput.value : undefined,
+          metadata: {
+            model: textInference.activeModel,
+            timestamp: Date.now(),
+          },
+        })
+      } finally {
+        temporarySystemPrompt.value = null
+      }
       messageInput.value = ''
       fileInput.value = null
       console.log('after generate', {chat: chats[conversations.activeKey], messages: chats[conversations.activeKey]?.messages})

@@ -1,4 +1,4 @@
-import { acceptHMRUpdate, defineStore } from 'pinia'
+import { acceptHMRUpdate, defineStore, storeToRefs } from 'pinia'
 import { useComfyUiPresets } from './comfyUiPresets'
 import { useStableDiffusion } from './stableDiffusion'
 import { useI18N } from './i18n'
@@ -116,6 +116,7 @@ export const useImageGenerationPresets = defineStore(
   'imageGenerationPresets',
   () => {
     const presetsStore = usePresets()
+    const { activeVariantName } = storeToRefs(presetsStore)
     const comfyUi = useComfyUiPresets()
     const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
@@ -131,7 +132,10 @@ export const useImageGenerationPresets = defineStore(
 
     const activePreset = computed(() => {
       if (!activePresetName.value) return null
-      const preset = presetsStore.presets.find((p) => p.name === activePresetName.value)
+      // Access activeVariantName to make this computed reactive to variant changes
+      const variantName = activeVariantName.value[activePresetName.value]
+      const preset = presetsStore.getPresetWithVariant(activePresetName.value)
+      console.log('### activePreset', activePresetName.value, variantName, preset, activeVariantName.value)
       if (preset && preset.type === 'comfy') return preset
       return null
     })
@@ -155,7 +159,10 @@ export const useImageGenerationPresets = defineStore(
       seed.value = generalDefaultSettings.seed
       imagePreview.value = generalDefaultSettings.imagePreview
       safetyCheck.value = generalDefaultSettings.safetyCheck
-      settingsPerPreset.value[activePresetName.value ?? ''] = {}
+      const settingsKey = getSettingsKey()
+      if (settingsKey) {
+        settingsPerPreset.value[settingsKey] = {}
+      }
       comfyInputsPerPreset.value[activePresetName.value ?? ''] = undefined
       loadSettingsForActivePreset()
     }
@@ -298,9 +305,23 @@ export const useImageGenerationPresets = defineStore(
       return setting?.modifiable ?? false
     }
 
+    // Change the settings key to include variant
+    function getSettingsKey(): string {
+      if (!activePresetName.value) return ''
+      const variantName = activeVariantName.value[activePresetName.value]
+      return variantName ? `${activePresetName.value}:${variantName}` : activePresetName.value
+    }
+
+    // Watch for variant changes by watching the variant name for the current preset
+    const currentVariantName = computed(() => {
+      if (!activePresetName.value) return null
+      return activeVariantName.value[activePresetName.value] || null
+    })
+
     watch(
-      [activePresetName, () => presetsStore.presets],
+      [activePresetName, () => presetsStore.presets, currentVariantName],
       () => {
+        console.log('### watch', { presets: presetsStore.presets, activePresetName: activePresetName.value, currentVariantName: currentVariantName.value, activeVariantName: activeVariantName.value })
         loadSettingsForActivePreset()
         if (activePreset.value && activePreset.value.type === 'comfy' && activePresetName.value) {
           switch (activePreset.value.category) {
@@ -318,18 +339,19 @@ export const useImageGenerationPresets = defineStore(
       },
     )
 
-    watch(resolution, (newResolution) => {
-      const [w, h] = newResolution.split('x').map(Number)
-      width.value = w
-      height.value = h
+    watch(resolution, () => {
+      const [w, h] = resolution.value.split('x').map(Number)
+      settings.width.value = w
+      settings.height.value = h
     })
 
     watch([inferenceSteps, width, height, batchSize], () => {
       const saveToSettingsPerPreset = (settingName: string) => {
-        if (!activePresetName.value) return
+        const settingsKey = getSettingsKey()
+        if (!settingsKey) return
         if (isModifiable(settingName)) {
-          settingsPerPreset.value[activePresetName.value] = {
-            ...settingsPerPreset.value[activePresetName.value],
+          settingsPerPreset.value[settingsKey] = {
+            ...settingsPerPreset.value[settingsKey],
             [settingName]: (settings as any)[settingName]?.value,
           }
         }
@@ -355,11 +377,14 @@ export const useImageGenerationPresets = defineStore(
     function loadSettingsForActivePreset() {
       if (!activePresetName.value || !activePreset.value) return
 
+      const settingsKey = getSettingsKey()
+      console.log('### loadSettingsForActivePreset', settingsKey, settingsPerPreset.value)
       const getSavedOrDefault = (settingName: string) => {
-        if (!activePresetName.value) return
-        const saved = settingsPerPreset.value[activePresetName.value]?.[settingName]
+        if (!settingsKey) return
+        const saved = settingsPerPreset.value[settingsKey]?.[settingName]
         const presetValue = getSettingValue(settingName)
         const globalValue = (globalDefaultSettings as any)[settingName]
+        console.log('### getSavedOrDefault', settingName, saved, presetValue, globalValue)
         return saved ?? presetValue ?? globalValue
       }
 
@@ -389,8 +414,11 @@ export const useImageGenerationPresets = defineStore(
 
     async function getMissingModels(): Promise<DownloadModelParam[]> {
       if (!activePreset.value) return []
-      return getMissingComfyuiBackendModels(activePreset.value)
-
+      if (activePreset.value.backend === 'comfyui') {
+        return getMissingComfyuiBackendModels(activePreset.value)
+      } else {
+        return getMissingDefaultBackendModels()
+      }
     }
 
     async function getMissingComfyuiBackendModels(
@@ -451,6 +479,30 @@ export const useImageGenerationPresets = defineStore(
       return modelsToBeLoaded
     }
 
+    async function getMissingDefaultBackendModels(): Promise<DownloadModelParam[]> {
+      const checkList: CheckModelAlreadyLoadedParameters[] = [
+        { repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: 'default' },
+      ]
+      if (lora.value !== 'None') {
+        checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: 'default' })
+      }
+      if (imagePreview.value) {
+        checkList.push({
+          repo_id: 'madebyollin/taesd',
+          type: Const.MODEL_TYPE_PREVIEW,
+          backend: 'default',
+        })
+        checkList.push({
+          repo_id: 'madebyollin/taesdxl',
+          type: Const.MODEL_TYPE_PREVIEW,
+          backend: 'default',
+        })
+      }
+
+      const result = await models.checkModelAlreadyLoaded(checkList)
+      return result.filter((checkModelExistsResult) => !checkModelExistsResult.already_loaded)
+    }
+
     async function generate(mode: WorkflowModeType = 'imageGen', sourceImage?: string) {
       console.log('### generate', mode, sourceImage, activePreset.value)
       if (!activePreset.value) {
@@ -475,8 +527,11 @@ export const useImageGenerationPresets = defineStore(
       const inferenceBackendService = backendToService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
-      await comfyUi.generate(imageIds, mode, sourceImage)
-
+      if (activePreset.value.backend === 'comfyui') {
+        await comfyUi.generate(imageIds, mode, sourceImage)
+      } else {
+        await stableDiffusion.generate(imageIds, mode, sourceImage)
+      }
     }
 
     function stopGeneration() {
@@ -554,7 +609,6 @@ export const useImageGenerationPresets = defineStore(
       seed,
       width,
       height,
-      resolution,
       batchSize,
       negativePrompt,
       settingsPerPreset,

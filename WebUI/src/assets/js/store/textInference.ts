@@ -409,16 +409,117 @@ export const useTextInference = defineStore(
       if (!activeEmbeddingModel.value) {
         throw new Error('No embedding model selected')
       }
+
+      // For llamaCPP backend, get the embedding server URL (runs on different port)
+      let backendBaseUrl = currentBackendUrl.value
+      if (backend.value === 'llamaCPP') {
+        const serviceName = backendToService[backend.value]
+        const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
+        if (embeddingUrlResult.success && embeddingUrlResult.url) {
+          backendBaseUrl = embeddingUrlResult.url
+        } else {
+          throw new Error(
+            embeddingUrlResult.error || 'Embedding server not available. Please ensure the embedding model is loaded.',
+          )
+        }
+      }
+
       const newEmbedInquiry: EmbedInquiry = {
         prompt: prompt,
         ragList: checkedRagList,
-        backendBaseUrl: currentBackendUrl.value,
+        backendBaseUrl: backendBaseUrl,
         embeddingModel: activeEmbeddingModel.value,
         maxResults: runningOnOpenvinoNpu.value ? 2 : 8,
       }
       console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
       const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)
       return response
+    }
+
+    // RAG state for UI display
+    const ragRetrievalState = reactive({
+      inProgress: false,
+      lastResults: null as Document[] | null,
+    })
+
+    /**
+     * Prepares RAG context for a prompt and returns enhanced system prompt
+     * @param prompt The user's prompt/question
+     * @returns Object containing enhanced system prompt and RAG results (if any)
+     */
+    async function prepareRagContext(prompt: string): Promise<{
+      systemPrompt: string
+      ragResults: Document[] | null
+      ragSourceText: string | null
+    }> {
+      const hasRagDocuments = ragList.value.some((item) => item.isChecked)
+
+      if (!hasRagDocuments) {
+        return {
+          systemPrompt: systemPrompt.value,
+          ragResults: null,
+          ragSourceText: null,
+        }
+      }
+
+      // For llamaCPP, ensure embedding server is ready before attempting RAG retrieval
+      if (backend.value === 'llamaCPP') {
+        const serviceName = backendToService[backend.value]
+        if (!activeEmbeddingModel.value) {
+          throw new Error('No embedding model selected for RAG')
+        }
+        
+        // Verify embedding server is available
+        const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
+        if (!embeddingUrlResult.success || !embeddingUrlResult.url) {
+          throw new Error(
+            embeddingUrlResult.error || 
+            'Embedding server not ready. Please ensure the embedding model is loaded and try again.'
+          )
+        }
+      }
+
+      try {
+        ragRetrievalState.inProgress = true
+
+        // Perform RAG retrieval
+        const ragResults = await embedInputUsingRag(prompt)
+        ragRetrievalState.lastResults = ragResults
+
+        ragRetrievalState.inProgress = false
+
+        if (ragResults && ragResults.length > 0) {
+          // Build RAG context from retrieved documents
+          const ragContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
+          
+          // Enhance system prompt with RAG context
+          const enhancedSystemPrompt = `${systemPrompt.value}\n\nUse the following context from your knowledge base to answer the question:\n\n${ragContext}`
+          
+          // Format RAG sources for display
+          const ragSourceText = formatRagSources(ragResults)
+
+          return {
+            systemPrompt: enhancedSystemPrompt,
+            ragResults,
+            ragSourceText: ragSourceText,
+          }
+        }
+
+        return {
+          systemPrompt: systemPrompt.value,
+          ragResults: null,
+          ragSourceText: null,
+        }
+      } catch (error) {
+        console.error('Error retrieving RAG documents:', error)
+        ragRetrievalState.inProgress = false
+        // Return base system prompt on error
+        return {
+          systemPrompt: systemPrompt.value,
+          ragResults: null,
+          ragSourceText: null,
+        }
+      }
     }
 
     function updateFileCheckStatus(hash: string, isChecked: boolean) {
@@ -817,6 +918,7 @@ export const useTextInference = defineStore(
       ensureBackendReadiness,
       checkModelAvailability,
       applyChatPreset,
+      prepareRagContext,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),
@@ -827,6 +929,10 @@ export const useTextInference = defineStore(
       completeBackendPreparation,
       updateLastUsedConfig,
       prepareBackendIfNeeded,
+
+      // RAG state
+      ragRetrievalInProgress: computed(() => ragRetrievalState.inProgress),
+      lastRagResults: computed(() => ragRetrievalState.lastResults),
     }
   },
   {

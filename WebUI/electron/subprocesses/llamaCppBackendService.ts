@@ -143,6 +143,17 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
+  /**
+   * Get the embedding server URL if an embedding server is running
+   * @returns The embedding server base URL, or null if no embedding server is running
+   */
+  getEmbeddingServerUrl(): string | null {
+    if (this.llamaEmbeddingProcess?.isReady) {
+      return `http://127.0.0.1:${this.llamaEmbeddingProcess.port}`
+    }
+    return null
+  }
+
   async selectDevice(deviceId: string): Promise<void> {
     if (!this.devices.find((d) => d.id === deviceId)) return
     this.devices = this.devices.map((d) => ({ ...d, selected: d.id === deviceId }))

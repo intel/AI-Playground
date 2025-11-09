@@ -33,9 +33,9 @@ type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
-  reloadPresets(): Promise<string[]>
+  reloadPresets(): Promise<Array<{ content: string; image: string | null }>>
   getUserPresetsPath(): Promise<string>
-  loadUserPresets(): Promise<string[]>
+  loadUserPresets(): Promise<Array<{ content: string; image: string | null }>>
   saveUserPreset(presetContent: string): Promise<boolean>
   resolveBackendVersion(
     serviceName: string,
@@ -72,6 +72,7 @@ type electronAPI = {
   existsPath(path: string): Promise<boolean>
   addDocumentToRAGList(doc: IndexedDocument): Promise<IndexedDocument>
   embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<LangchainDocument[]>
+  getEmbeddingServerUrl(serviceName: string): Promise<{ success: boolean; url?: string; error?: string }>
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
