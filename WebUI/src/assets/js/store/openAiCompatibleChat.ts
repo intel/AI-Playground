@@ -1,4 +1,5 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { computed, ref, watch } from 'vue'
 import { Chat } from '@ai-sdk/vue'
 import { convertToModelMessages, DefaultChatTransport, streamText, UIMessage } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
@@ -160,6 +161,46 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const messages = computed(() => chats[conversations.activeKey]?.messages)
 
+    // Calculate context usage from message timings
+    const contextUsage = computed(() => {
+      const msgs = messages.value
+      if (!msgs || msgs.length === 0) {
+        return {
+          inputTokens: 0,
+          outputTokens: 0,
+          cachedInputTokens: 0,
+          reasoningTokens: 0,
+        }
+      }
+
+      let inputTokens = 0
+      let outputTokens = 0
+      let cachedInputTokens = 0
+      let reasoningTokens = 0
+
+      // Sum up tokens from all messages that have timings
+      msgs.forEach((msg) => {
+        const timings = (msg.metadata as { timings?: z.infer<typeof LlamaCppRawValueTimingsSchema> })?.timings
+        if (timings) {
+          inputTokens += timings.prompt_n
+          outputTokens += timings.predicted_n
+          cachedInputTokens += timings.cache_n
+          // reasoningTokens not tracked in timings, leave as 0
+        }
+      })
+
+      return {
+        inputTokens,
+        outputTokens,
+        cachedInputTokens,
+        reasoningTokens,
+      }
+    })
+
+    const usedTokens = computed(() => {
+      return contextUsage.value.inputTokens + contextUsage.value.outputTokens
+    })
+
     const messageInput = ref('')
     const fileInput = ref<FileList | null>(null)
     const temporarySystemPrompt = ref<string | null>(null)
@@ -207,6 +248,8 @@ export const useOpenAiCompatibleChat = defineStore(
     return {
       chat: chats[conversations.activeKey],
       messages,
+      contextUsage,
+      usedTokens,
       messageInput,
       fileInput,
       generate,

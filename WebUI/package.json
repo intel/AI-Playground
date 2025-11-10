@@ -49,7 +49,7 @@
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.5.0",
     "radix-vue": "^1.9.17",
-    "reka-ui": "^2.5.1",
+    "reka-ui": "^2.6.0",
     "remove": "^0.1.5",
     "shiki": "^3.13.0",
     "sudo-prompt": "^9.2.1",

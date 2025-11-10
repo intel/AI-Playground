@@ -73,7 +73,6 @@ textarea {
   border-radius: 4px;
   outline: none;
   position: relative;
-  padding: 2px 8px;
   color: var(--color-text-main);
 
   &:focus {
@@ -82,7 +81,6 @@ textarea {
 }
 
 textarea {
-  padding: 12px 16px;
 
   &::-webkit-scrollbar {
     width: 4px;
