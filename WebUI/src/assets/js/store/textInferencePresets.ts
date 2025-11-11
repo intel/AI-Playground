@@ -2,11 +2,10 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { usePresets, type ChatPreset } from './presets'
 import { useTextInference, backendToService } from './textInference'
-import { useBackendServices } from './backendServices'
+import { useBackendServices, type BackendServiceName } from './backendServices'
 import { useGlobalSetup } from './globalSetup'
 import { useDialogStore } from './dialogs'
 import { useI18N } from './i18n'
-import type { BackendServiceName } from '@/types/shared'
 
 export const useTextInferencePresets = defineStore(
   'textInferencePresets',
@@ -18,11 +17,9 @@ export const useTextInferencePresets = defineStore(
     const dialogStore = useDialogStore()
     const i18nState = useI18N().state
 
-    const activePresetName = ref<string | null>(null)
-
     const activePreset = computed(() => {
-      if (!activePresetName.value) return null
-      const preset = presetsStore.presets.find((p) => p.name === activePresetName.value)
+      if (!presetsStore.activePresetName) return null
+      const preset = presetsStore.presets.find((p) => p.name === presetsStore.activePresetName)
       if (preset && preset.type === 'chat') return preset as ChatPreset
       return null
     })
@@ -31,12 +28,12 @@ export const useTextInferencePresets = defineStore(
     watch(
       () => presetsStore.chatPresets,
       (chatPresets) => {
-        if (chatPresets.length > 0 && !activePresetName.value) {
+        if (chatPresets.length > 0 && !presetsStore.activePresetName) {
           // Sort by displayPriority and select the first one
           const sortedPresets = [...chatPresets].sort(
             (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
           )
-          activePresetName.value = sortedPresets[0].name
+          presetsStore.activePresetName = sortedPresets[0].name
         }
       },
       { immediate: true },
@@ -61,8 +58,8 @@ export const useTextInferencePresets = defineStore(
         // Apply the preset using textInference store
         await textInference.applyChatPreset(preset)
 
-        // Update active preset name
-        activePresetName.value = preset.name
+        // Update active preset name in unified store
+        presetsStore.activePresetName = preset.name
 
         console.log('Applied chat preset:', preset.name)
       } catch (error) {
@@ -80,9 +77,6 @@ export const useTextInferencePresets = defineStore(
     }
 
     return {
-      // State
-      activePresetName,
-
       // Computed
       activePreset,
 
@@ -90,11 +84,6 @@ export const useTextInferencePresets = defineStore(
       applyPreset,
       selectPreset,
     }
-  },
-  {
-    persist: {
-      pick: ['activePresetName'],
-    },
   },
 )
 

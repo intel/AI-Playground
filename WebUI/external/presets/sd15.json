@@ -15,7 +15,7 @@
   ],
   "variants": [
     {
-      "name": "LCM",
+      "name": "Fast",
       "overrides": {
         "requiredModels": [
           {

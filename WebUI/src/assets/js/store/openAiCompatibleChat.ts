@@ -1,7 +1,7 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { Chat } from '@ai-sdk/vue'
-import { convertToModelMessages, DefaultChatTransport, streamText, UIMessage } from 'ai'
+import { convertToModelMessages, DefaultChatTransport, LanguageModelUsage, streamText, UIMessage } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
@@ -42,6 +42,7 @@ export type AipgUiMessage = UIMessage<{
   conversationTitle?: string
   timings?: z.infer<typeof LlamaCppRawValueTimingsSchema>
   ragSource?: string
+  usage?: LanguageModelUsage
 }>
 
 export const useOpenAiCompatibleChat = defineStore(
@@ -73,6 +74,7 @@ export const useOpenAiCompatibleChat = defineStore(
       let firstTokenTime: number = 0
       let finishTime: number = 0
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
+      let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
       const result = await streamText({
         model: model.value,
@@ -106,6 +108,9 @@ export const useOpenAiCompatibleChat = defineStore(
         onFinish: (result) => {
           finishTime = Date.now()
           console.log('Stream finished:', result)
+          if (result.usage) {
+            usage = result.usage
+          }
           if (!timings) {
              timings = {
               cache_n: result.usage?.cachedInputTokens ?? 0,
@@ -136,6 +141,7 @@ export const useOpenAiCompatibleChat = defineStore(
             model: textInference.activeModel,
             timestamp: Date.now(),
             timings,
+            usage,
           }
         }
       })
@@ -161,44 +167,13 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const messages = computed(() => chats[conversations.activeKey]?.messages)
 
-    // Calculate context usage from message timings
     const contextUsage = computed(() => {
-      const msgs = messages.value
-      if (!msgs || msgs.length === 0) {
-        return {
-          inputTokens: 0,
-          outputTokens: 0,
-          cachedInputTokens: 0,
-          reasoningTokens: 0,
-        }
-      }
-
-      let inputTokens = 0
-      let outputTokens = 0
-      let cachedInputTokens = 0
-      let reasoningTokens = 0
-
-      // Sum up tokens from all messages that have timings
-      msgs.forEach((msg) => {
-        const timings = (msg.metadata as { timings?: z.infer<typeof LlamaCppRawValueTimingsSchema> })?.timings
-        if (timings) {
-          inputTokens += timings.prompt_n
-          outputTokens += timings.predicted_n
-          cachedInputTokens += timings.cache_n
-          // reasoningTokens not tracked in timings, leave as 0
-        }
-      })
-
-      return {
-        inputTokens,
-        outputTokens,
-        cachedInputTokens,
-        reasoningTokens,
-      }
+      const lastAssistantMessage = messages.value?.findLast((m) => m.metadata?.usage)
+      return lastAssistantMessage?.metadata?.usage
     })
 
     const usedTokens = computed(() => {
-      return contextUsage.value.inputTokens + contextUsage.value.outputTokens
+      return (contextUsage.value?.inputTokens ?? 0) + (contextUsage.value?.outputTokens ?? 0)
     })
 
     const messageInput = ref('')
@@ -245,6 +220,8 @@ export const useOpenAiCompatibleChat = defineStore(
       conversations.updateConversation(chat.messages, conversations.activeKey)
     }
 
+    const error = computed(() => chats[conversations.activeKey]?.error?.message)
+
     return {
       chat: chats[conversations.activeKey],
       messages,
@@ -255,7 +232,8 @@ export const useOpenAiCompatibleChat = defineStore(
       generate,
       stop,
       processing,
-      removeMessage
+      removeMessage,
+      error,
     }
   },
   {

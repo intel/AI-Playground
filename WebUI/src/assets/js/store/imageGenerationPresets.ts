@@ -116,7 +116,6 @@ export const useImageGenerationPresets = defineStore(
   'imageGenerationPresets',
   () => {
     const presetsStore = usePresets()
-    const { activeVariantName } = storeToRefs(presetsStore)
     const comfyUi = useComfyUiPresets()
     const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
@@ -125,18 +124,9 @@ export const useImageGenerationPresets = defineStore(
 
     const hdWarningDismissed = ref(false)
 
-    const activePresetName = ref<string | null>(null)
-    const lastUsedImageGenPresetName = ref<string>('SD1.5')
-    const lastUsedImageEditPresetName = ref<string>('Edit By Prompt')
-    const lastUsedVideoPresetName = ref<string>('Video-Txt2Vid')
-
     const activePreset = computed(() => {
-      if (!activePresetName.value) return null
-      // Access activeVariantName to make this computed reactive to variant changes
-      const variantName = activeVariantName.value[activePresetName.value]
-      const preset = presetsStore.getPresetWithVariant(activePresetName.value)
-      console.log('### activePreset', activePresetName.value, variantName, preset, activeVariantName.value)
-      if (preset && preset.type === 'comfy') return preset
+      console.log('### activePreset', presetsStore.activePresetWithVariant)
+      if (presetsStore.activePresetWithVariant?.type === 'comfy') return presetsStore.activePresetWithVariant
       return null
     })
 
@@ -163,7 +153,7 @@ export const useImageGenerationPresets = defineStore(
       if (settingsKey) {
         settingsPerPreset.value[settingsKey] = {}
       }
-      comfyInputsPerPreset.value[activePresetName.value ?? ''] = undefined
+      comfyInputsPerPreset.value[activePreset.value?.name ?? ''] = undefined
       loadSettingsForActivePreset()
     }
 
@@ -206,7 +196,7 @@ export const useImageGenerationPresets = defineStore(
 
     const getGenerationParameters = (): GenerationSettings => {
       const allSettings = {
-        preset: activePresetName.value ?? 'unknown',
+        preset: activePreset.value?.name ?? 'unknown',
         device: 0, // TODO get correct device from backend service
         prompt: prompt.value,
         negativePrompt: negativePrompt.value,
@@ -253,41 +243,44 @@ export const useImageGenerationPresets = defineStore(
     })
 
     const comfyInputs = computed(() => {
-      if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
-      const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
-      const savePerPreset = (input: ComfyInput, newValue: any) => {
-        if (!activePresetName.value) return
-        comfyInputsPerPreset.value[activePresetName.value] = {
-          ...comfyInputsPerPreset.value[activePresetName.value],
-          [inputRef(input)]: newValue,
-        }
-      }
-      const getSavedOrDefault = (input: ComfyInput) => {
-        if (!activePresetName.value) return input.defaultValue
-        const saved = comfyInputsPerPreset.value[activePresetName.value]?.[inputRef(input)]
-        return saved ?? input.defaultValue
-      }
+      console.log('### comfyInputs', activePreset.value)
+      return activePreset.value?.comfyUiApiWorkflow?.inputs ?? []
+      // if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
+      // const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
+      // const savePerPreset = (input: ComfyInput, newValue: any) => {
+      //   if (!activePresetName.value) return
+      //   comfyInputsPerPreset.value[activePresetName.value] = {
+      //     ...comfyInputsPerPreset.value[activePresetName.value],
+      //     [inputRef(input)]: newValue,
+      //   }
+      // }
+      // const getSavedOrDefault = (input: ComfyInput) => {
+      //   if (!activePresetName.value) return input.defaultValue
+      //   const saved = comfyInputsPerPreset.value[activePresetName.value]?.[inputRef(input)]
+      //   return saved ?? input.defaultValue
+      // }
 
-      // Filter ComfyUI inputs (those with nodeTitle and nodeInput)
-      const comfyInputs = activePreset.value.settings.filter(
-        (s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s,
-      )
+      // console.log('### activePreset.value.settings', activePreset.value.settings)
+      // // Filter ComfyUI inputs (those with nodeTitle and nodeInput)
+      // const comfyInputs = activePreset.value.settings.filter(
+      //   (s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s,
+      // )
+      // console.log('### comfyInputs', comfyInputs)
+      // return comfyInputs.map((input) => {
+      //   const _current = ref(getSavedOrDefault(input))
 
-      return comfyInputs.map((input) => {
-        const _current = ref(getSavedOrDefault(input))
+      //   const current = computed({
+      //     get() {
+      //       return _current.value
+      //     },
+      //     set(newValue) {
+      //       _current.value = newValue
+      //       savePerPreset(input, newValue)
+      //     },
+      //   })
 
-        const current = computed({
-          get() {
-            return _current.value
-          },
-          set(newValue) {
-            _current.value = newValue
-            savePerPreset(input, newValue)
-          },
-        })
-
-        return { ...input, current }
-      })
+      //   return { ...input, current }
+      // })
     })
 
     type PresetName = string
@@ -307,34 +300,24 @@ export const useImageGenerationPresets = defineStore(
 
     // Change the settings key to include variant
     function getSettingsKey(): string {
-      if (!activePresetName.value) return ''
-      const variantName = activeVariantName.value[activePresetName.value]
-      return variantName ? `${activePresetName.value}:${variantName}` : activePresetName.value
+      if (!activePreset.value?.name) return ''
+      const variantName = presetsStore.activeVariantName[activePreset.value.name]
+      return variantName ? `${activePreset.value.name}:${variantName}` : activePreset.value.name
     }
 
     // Watch for variant changes by watching the variant name for the current preset
     const currentVariantName = computed(() => {
-      if (!activePresetName.value) return null
-      return activeVariantName.value[activePresetName.value] || null
+      if (!activePreset.value?.name) return null
+      return presetsStore.activeVariantName[activePreset.value.name] || null
     })
 
     watch(
-      [activePresetName, () => presetsStore.presets, currentVariantName],
+      [activePreset, () => presetsStore.presets],
       () => {
-        console.log('### watch', { presets: presetsStore.presets, activePresetName: activePresetName.value, currentVariantName: currentVariantName.value, activeVariantName: activeVariantName.value })
+        console.log('### watchy watch', { presets: presetsStore.presets, activePreset: activePreset.value, currentVariantName: currentVariantName.value, activeVariantName: presetsStore.activeVariantName })
         loadSettingsForActivePreset()
-        if (activePreset.value && activePreset.value.type === 'comfy' && activePresetName.value) {
-          switch (activePreset.value.category) {
-            case 'create-images':
-              lastUsedImageGenPresetName.value = activePresetName.value
-              break
-            case 'edit-images':
-              lastUsedImageEditPresetName.value = activePresetName.value
-              break
-            case 'create-videos':
-              lastUsedVideoPresetName.value = activePresetName.value
-              break
-          }
+        if (activePreset.value && activePreset.value.type === 'comfy' && activePreset.value.name && activePreset.value.category) {
+          presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
         }
       },
     )
@@ -375,7 +358,7 @@ export const useImageGenerationPresets = defineStore(
     const stepText = ref('')
 
     function loadSettingsForActivePreset() {
-      if (!activePresetName.value || !activePreset.value) return
+      if (!activePreset.value) return
 
       const settingsKey = getSettingsKey()
       console.log('### loadSettingsForActivePreset', settingsKey, settingsPerPreset.value)
@@ -577,10 +560,10 @@ export const useImageGenerationPresets = defineStore(
     watch(
       () => presetsStore.presets,
       (presets) => {
-        if (presets.length > 0 && !activePresetName.value) {
+        if (presets.length > 0 && !activePreset.value) {
           const firstComfyPreset = presets.find((p) => p.type === 'comfy')
           if (firstComfyPreset) {
-            activePresetName.value = firstComfyPreset.name
+            presetsStore.setActiveVariant(firstComfyPreset.name, null)
           }
         }
       },
@@ -590,7 +573,6 @@ export const useImageGenerationPresets = defineStore(
     return {
       hdWarningDismissed,
       backend,
-      activePresetName,
       activePreset,
       processing,
       prompt,
@@ -626,9 +608,6 @@ export const useImageGenerationPresets = defineStore(
       selectedGeneratedImageId,
       selectedEditedImageId,
       selectedVideoId,
-      lastUsedImageGenPresetName,
-      lastUsedImageEditPresetName,
-      lastUsedVideoPresetName,
       settingIsRelevant,
       isModifiable,
     }
@@ -637,13 +616,9 @@ export const useImageGenerationPresets = defineStore(
     persist: {
       debug: true,
       pick: [
-        'activePresetName',
         'settingsPerPreset',
         'comfyInputsPerPreset',
         'hdWarningDismissed',
-        'lastUsedImageGenPresetName',
-        'lastUsedImageEditPresetName',
-        'lastUsedVideoPresetName',
       ],
     },
   },

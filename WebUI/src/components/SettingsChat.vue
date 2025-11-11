@@ -9,56 +9,15 @@
     </teleport>
     <div class="flex flex-col gap-6 p-1">
       <h2 class="text-xl font-semibold text-center">Chat Presets</h2>
-      <div class="grid grid-cols-3 gap-3">
-        <div
-          v-for="preset in sortedChatPresets"
-          :key="preset.name"
-          class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
-          :class="[
-            textInferencePresets.activePresetName === preset.name
-              ? 'border-blue-500 ring-2 ring-blue-400'
-              : 'border-transparent hover:border-blue-500',
-            !isBackendRunning(preset.backend) && 'grayscale opacity-80',
-          ]"
-          @click="() => handlePresetSelectionClick(preset)"
-        >
-          <img
-            v-if="preset.image"
-            class="absolute inset-0 w-full h-full object-cover"
-            :src="preset.image"
-            :alt="preset.name"
-          />
-          <img
-            v-else
-            class="absolute inset-0 w-full h-full object-cover"
-            :src="`/src/assets/image/${preset.backend}.png`"
-            :alt="preset.name"
-          />
-          <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
-            <span class="text-white text-sm font-semibold">
-              {{ preset.name }}
-            </span>
-          </div>
-        </div>
-      </div>
+      <PresetSelector
+        type="chat"
+        :model-value="presetsStore.activePresetName || undefined"
+        @update:model-value="handlePresetChange"
+        @update:variant="handleVariantChange"
+      />
 
       <div class="flex flex-col gap-4">
-        <h2 class="text-lg font-semibold">
-          {{ currentPreset?.name || backendInfos[textInference.backend]?.displayName + ' ' + languages.COM_SETTINGS }}
-        </h2>
-        <p class="text-sm text-gray-400">
-          {{ currentPreset?.description || backendInfos[textInference.backend]?.description }}
-        </p>
 
-        <div class="flex gap-2">
-          <span
-            v-for="tag in currentPreset?.tags || backendInfos[textInference.backend]?.tags || []"
-            :key="tag"
-            class="px-3 py-1 text-xs bg-purple-600 rounded-full"
-          >
-            {{ tag }}
-          </span>
-        </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
@@ -94,6 +53,20 @@
             min="0"
             max="4096"
             step="1"
+            class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+          />
+        </div>
+        <div
+          v-if="textInference.contextSizeSettingSupported"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">{{ languages.ANSWER_CONTEXT_SIZE }}</Label>
+          <input
+            type="number"
+            v-model="textInference.contextSize"
+            min="512"
+            max="131072"
+            step="512"
             class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
           />
         </div>
@@ -157,6 +130,7 @@ import DropDownNew from '@/components/DropDownNew.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import { useTextInferencePresets } from '@/assets/js/store/textInferencePresets.ts'
+import PresetSelector from '@/components/PresetSelector.vue'
 
 type BackendInfo = {
   displayName: string
@@ -180,15 +154,23 @@ const backendInfos = computed(() => backendTypesToBackends())
 const globalSetup = useGlobalSetup()
 const warningDialogStore = useDialogStore()
 
-const sortedChatPresets = computed(() => {
-  return [...presetsStore.chatPresets].sort(
-    (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
-  )
+const currentPreset = computed(() => {
+  if (!presetsStore.activePresetName) return null
+  const preset = presetsStore.presets.find((p) => p.name === presetsStore.activePresetName)
+  if (preset && preset.type === 'chat') return preset as ChatPreset
+  return null
 })
 
-const currentPreset = computed(() => {
-  return textInferencePresets.activePreset
-})
+function handlePresetChange(presetName: string) {
+  const preset = presetsStore.chatPresets.find((p) => p.name === presetName)
+  if (preset) {
+    handlePresetSelectionClick(preset)
+  }
+}
+
+function handleVariantChange(presetName: string, variantName: string | null) {
+  presetsStore.setActiveVariant(presetName, variantName)
+}
 
 const documentButtonText = computed(() => {
   const stats = documentStats.value
@@ -205,9 +187,13 @@ const documentStats = computed(() => {
   return {total: totalDocs, enabled: enabledDocs}
 })
 
-function handlePresetSelectionClick(preset: ChatPreset) {
+async function handlePresetSelectionClick(preset: ChatPreset) {
   if (isBackendRunning(preset.backend)) {
-    textInferencePresets.selectPreset(preset.name)
+    // Update active preset name in unified store
+    presetsStore.activePresetName = preset.name
+    
+    // Apply the preset using textInference store
+    await textInferencePresets.applyPreset(preset)
   } else {
     warningDialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
       globalSetup.loadingState = 'manageInstallations'

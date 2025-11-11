@@ -48,6 +48,10 @@ const ComfyInputSchema = SettingSchema.extend({
   nodeInput: z.string(),
   // ComfyInputs don't have settingName (they're workflow-specific)
   settingName: z.undefined().optional(),
+  // Optional min/max/step for numeric inputs
+  min: z.number().optional(),
+  max: z.number().optional(),
+  step: z.number().optional(),
 })
 
 // Required Model Schema
@@ -152,6 +156,7 @@ export const usePresets = defineStore(
     const activePresetName = ref<string | null>(null)
     const activeVariantName = ref<Record<string, string>>({}) // preset name -> variant name
     const settingsPerPreset = ref<Record<string, Record<string, unknown>>>({})
+    const lastUsedPresetName = ref<Record<string, string | null>>({}) // category -> preset name
 
     // ========================================================================
     // Validation
@@ -353,12 +358,56 @@ export const usePresets = defineStore(
     }
 
     // ========================================================================
+    // Category-based Preset Management
+    // ========================================================================
+
+    function getPresetsByCategories(categories: string[], type?: string): Preset[] {
+      return presets.value.filter((preset) => {
+        // If type is specified, filter by type
+        if (type && preset.type !== type) return false
+        
+        // If categories are specified, filter by category
+        if (categories.length > 0) {
+          const presetCategory = preset.category || 'uncategorized'
+          return categories.includes(presetCategory)
+        }
+        
+        // If no categories specified but type is, return all of that type
+        return true
+      })
+    }
+
+    function getLastUsedPreset(categories: string[]): string | null {
+      for (const category of categories) {
+        const lastUsed = lastUsedPresetName.value[category]
+        if (lastUsed) {
+          // Verify the preset still exists
+          const preset = presets.value.find((p) => p.name === lastUsed)
+          if (preset) {
+            return lastUsed
+          }
+        }
+      }
+      return null
+    }
+
+    function setLastUsedPreset(category: string, presetName: string): void {
+      lastUsedPresetName.value[category] = presetName
+    }
+
+    // ========================================================================
     // Computed Properties
     // ========================================================================
 
     const activePreset = computed(() => {
       if (!activePresetName.value) return null
       return presets.value.find((p) => p.name === activePresetName.value) || null
+    })
+
+    const activePresetWithVariant = computed(() => {
+      console.log('### presets store activePresetWithVariant', activePresetName.value)
+      if (!activePresetName.value) return null
+      return getPresetWithVariant(activePresetName.value)
     })
 
     const presetsByCategory = computed(() => {
@@ -440,6 +489,7 @@ export const usePresets = defineStore(
       activePresetName,
       activeVariantName,
       settingsPerPreset,
+      lastUsedPresetName,
 
       // Computed
       activePreset,
@@ -449,6 +499,7 @@ export const usePresets = defineStore(
       imageEditPresets,
       videoPresets,
       chatPresets,
+      activePresetWithVariant,
 
       // Methods
       validatePreset,
@@ -461,11 +512,14 @@ export const usePresets = defineStore(
       saveSettingsForPreset,
       getSettingsForPreset,
       resetSettingsForPreset,
+      getPresetsByCategories,
+      getLastUsedPreset,
+      setLastUsedPreset,
     }
   },
   {
     persist: {
-      pick: ['activePresetName', 'activeVariantName', 'settingsPerPreset'],
+      pick: ['activePresetName', 'activeVariantName', 'settingsPerPreset', 'lastUsedPresetName'],
     },
   },
 )

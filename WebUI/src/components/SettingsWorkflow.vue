@@ -1,61 +1,14 @@
 <template>
   <div class="flex flex-col gap-6 p-1">
     <h2 class="text-xl font-semibold text-center">{{ title }}</h2>
-    <div class="grid grid-cols-3 gap-3">
-      <div
-        v-for="preset in presets"
-        :key="preset.name"
-        class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
-        :class="[
-          imageGeneration.activePresetName === preset.name
-            ? 'border-blue-500 ring-2 ring-blue-400'
-            : 'border-transparent hover:border-blue-500',
-        ]"
-        @click="() => (imageGeneration.activePresetName = preset.name)"
-      >
-        <img
-          class="absolute inset-0 w-full h-full object-cover"
-          :src="preset.image"
-          :alt="preset.name"
-        />
-        <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
-          <span class="text-white text-sm font-semibold">
-            {{ preset.name }}
-          </span>
-        </div>
-      </div>
-    </div>
+    <PresetSelector
+      :categories="categories"
+      :model-value="presetsStore.activePresetName || undefined"
+      @update:model-value="handlePresetChange"
+      @update:variant="handleVariantChange"
+    />
 
     <div class="flex flex-col gap-4">
-      <div class="flex items-center gap-3">
-        <h2 class="text-lg font-semibold">{{ currentPreset?.name }}</h2>
-        <drop-selector
-          v-if="currentPreset?.variants && currentPreset.variants.length > 0"
-          :array="variantOptions"
-          @change="onVariantChange"
-        >
-          <template #selected>
-            <span class="text-sm text-gray-400">
-              {{ activeVariantName || 'Default' }}
-            </span>
-          </template>
-          <template #list="slotItem">
-            <span>{{ slotItem.item.name }}</span>
-          </template>
-        </drop-selector>
-      </div>
-      <p class="text-sm text-gray-400">
-        {{ currentPreset?.description }}
-      </p>
-      <div class="flex gap-2">
-        <span
-          v-for="tag in imageGeneration.activePreset?.tags ?? []"
-          :key="tag"
-          class="px-3 py-1 text-xs bg-purple-600 rounded-full"
-        >
-          {{ tag }}
-        </span>
-      </div>
 
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">
@@ -158,7 +111,7 @@
         </button>
       </div>
 
-      <a v-if="imageGeneration.activePreset?.backend === 'comfyui'"
+      <a v-if="currentPreset?.backend === 'comfyui'"
          :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
          target="_blank"
          class="max-w-md mx-auto"
@@ -182,18 +135,18 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
-import DropSelector from '@/components/DropSelector.vue'
 import {
   backendToService,
   useImageGenerationPresets
 } from "@/assets/js/store/imageGenerationPresets.ts";
 import { useBackendServices } from "@/assets/js/store/backendServices.ts";
 import ComfyDynamic from "@/components/SettingsImageComfyDynamic.vue";
-import { usePresets, type Preset } from "@/assets/js/store/presets";
+import { usePresets } from "@/assets/js/store/presets";
 import AspectRatioPicker from "./AspectRatioPicker.vue";
+import PresetSelector from "./PresetSelector.vue";
 
 interface Props {
-  presets: Preset[]
+  categories: string[]
   title: string
 }
 
@@ -205,30 +158,20 @@ const backendServices = useBackendServices()
 const fastMode = ref(true)
 
 const currentPreset = computed(() => {
-  return props.presets.find(preset => preset.name === imageGeneration.activePresetName)
+  return presetsStore.activePreset
 })
+
+function handlePresetChange(presetName: string) {
+  presetsStore.activePresetName = presetName
+}
+
+function handleVariantChange(presetName: string, variantName: string | null) {
+  presetsStore.setActiveVariant(presetName, variantName)
+}
 
 const modifiableOrDisplayed = (settingName: string) =>
   imageGeneration.settingIsRelevant(settingName)
 
 const modifiable = (settingName: string) =>
   imageGeneration.isModifiable(settingName)
-
-const activeVariantName = computed(() => {
-  if (!imageGeneration.activePresetName) return null
-  return presetsStore.activeVariantName[imageGeneration.activePresetName] || null
-})
-
-const variantOptions = computed(() => {
-  if (!currentPreset.value?.variants) return []
-  return [
-    { name: 'Default', value: null },
-    ...currentPreset.value.variants.map(v => ({ name: v.name, value: v.name }))
-  ]
-})
-
-function onVariantChange(selected: { name: string; value: string | null }) {
-  if (!imageGeneration.activePresetName) return
-  presetsStore.setActiveVariant(imageGeneration.activePresetName, selected.value)
-}
 </script>

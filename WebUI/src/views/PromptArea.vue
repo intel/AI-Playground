@@ -1,6 +1,9 @@
 <template>
   <div id="prompt-area" class="text-white flex flex-col w-full pt-4">
     <div class="flex flex-col items-center gap-7 text-base px-4">
+        <div v-if="contextError" class="flex items-center gap-3">
+          <p class="text-red-500">{{ contextError }}</p>
+        </div>
       <div class="flex items-center gap-3">
         <p class="text-2xl font-bold">Let's Generate</p>
         <Context
@@ -20,16 +23,15 @@
         <!-- RAG Documents Display (only in chat mode) -->
         <div
           v-if="promptStore.getCurrentMode() === 'chat' && checkedRagDocuments.length > 0"
-          class="text-xs relative top-11 z-10 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1 "
+          class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1 "
         >
           <span class=" text-gray-400 flex items-center gap-1">
-            <PaperClipIcon class="size-3" />
-            Context:
+            <PaperClipIcon class="size-4" />
           </span>
           <div
             v-for="doc in checkedRagDocuments"
             :key="doc.hash"
-            class="flex items-center gap-1.5 px-1 py-0.5 bg-purple-600/20 border border-purple-500/30 rounded-md text-gray-200 hover:bg-purple-600/30 transition-colors group"
+            class="flex items-center gap-1 px-1 py-0.5 bg-purple-600/20 border border-purple-500/30 rounded-md text-gray-200 hover:bg-purple-600/30 transition-colors group"
           >
             <span class="svg-icon flex-none w-4 h-4" :class="getRagIconClass(doc.type)"></span>
             <span class="truncate max-w-[200px]" :title="doc.filename">{{ doc.filename }}</span>
@@ -38,7 +40,7 @@
               class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
               title="Remove from context"
             >
-              <span class="svg-icon i-close w-3 h-3"></span>
+              <XMarkIcon class="size-4" />
             </button>
           </div>
         </div>
@@ -125,7 +127,7 @@ import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { useTextInference, type ValidFileExtension } from '@/assets/js/store/textInference'
-import { PlusIcon, PaperClipIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {
@@ -201,6 +203,7 @@ const readyForNewSubmit = computed(() =>
 const contextUsedTokens = computed(() => openAiCompatibleChat.usedTokens)
 const contextMaxTokens = computed(() => textInference.contextSize)
 const contextUsage = computed(() => openAiCompatibleChat.contextUsage)
+const contextError = computed(() => openAiCompatibleChat.error)
 
 watch(isProcessing, (newValue, oldValue) => {
   if (processingDebounceTimer.value !== null) {

@@ -561,8 +561,8 @@ export const useComfyUi = defineStore(
           await new Promise((resolve) => setTimeout(resolve, 100))
         }
         if (!websocket.value || websocket.value.readyState !== WEBSOCKET_OPEN) {
-          console.warn('Websocket not open')
-          return
+        console.warn('Websocket not open')
+        return
         }
       }
 

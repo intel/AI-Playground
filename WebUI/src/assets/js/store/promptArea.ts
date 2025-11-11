@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
+import { usePresets } from "@/assets/js/store/presets";
 
 export const usePromptStore = defineStore('prompt', () => {
-  const imageGeneration = useImageGenerationPresets()
+  const presetsStore = usePresets()
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
 
@@ -17,17 +17,41 @@ export const usePromptStore = defineStore('prompt', () => {
   function setCurrentMode(mode: ModeType) {
     currentMode.value = mode
 
-      switch (mode) {
-        case 'imageGen':
-          imageGeneration.activePresetName = imageGeneration.lastUsedImageGenPresetName
-          break;
-        case 'imageEdit':
-          imageGeneration.activePresetName = imageGeneration.lastUsedImageEditPresetName
-          break;
-        case 'video':
-          imageGeneration.activePresetName = imageGeneration.lastUsedVideoPresetName
-          break;
+    // Map modes to categories and set active preset from lastUsed
+    switch (mode) {
+      case 'chat': {
+        const categories = ['chat']
+        const lastUsed = presetsStore.getLastUsedPreset(categories)
+        if (lastUsed) {
+          presetsStore.activePresetName = lastUsed
+        }
+        break
       }
+      case 'imageGen': {
+        const categories = ['create-images']
+        const lastUsed = presetsStore.getLastUsedPreset(categories)
+        if (lastUsed) {
+          presetsStore.activePresetName = lastUsed
+        }
+        break
+      }
+      case 'imageEdit': {
+        const categories = ['edit-images']
+        const lastUsed = presetsStore.getLastUsedPreset(categories)
+        if (lastUsed) {
+          presetsStore.activePresetName = lastUsed
+        }
+        break
+      }
+      case 'video': {
+        const categories = ['create-videos']
+        const lastUsed = presetsStore.getLastUsedPreset(categories)
+        if (lastUsed) {
+          presetsStore.activePresetName = lastUsed
+        }
+        break
+      }
+    }
   }
 
   function submitPrompt(promptText: string) {
