@@ -6,7 +6,7 @@
   >
     <div class="image-panel justify-center items-center flex-auto flex relative pr-6">
       <div
-        class="flex justify-center items-center relative bg-color-image-bg rounded-lg border border-white/30"
+        class="flex justify-center items-center relative bg-accent rounded-lg border border-border"
         style="width: min(768px, 100%); height: min(512px, 100%); aspect-ratio: 3/2;"
       >
         <!-- eslint-disable vue/require-v-for-key -->
@@ -48,7 +48,7 @@
           ></loading-bar>
           <div
             v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
-            class="flex gap-2 items-center justify-center text-white bg-black/50 py-6 px-12 rounded-lg"
+            class="flex gap-2 items-center justify-center text-foreground bg-background/50 py-6 px-12 rounded-lg"
           >
             <span class="svg-icon i-loading w-8 h-8"></span>
             <span class="text-2xl tabular-nums" style="min-width: 200px">{{
@@ -69,9 +69,9 @@
               "
             @click="postImageToMode(currentImage, 'imageEdit')"
             :title="languages.COM_POST_TO_IMAGE_EDIT"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-transfer w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-transfer w-4 h-4"></span>
           </button>
           <button
             v-if="
@@ -79,49 +79,49 @@
               "
             @click="postImageToMode(currentImage, 'video')"
             :title="languages.COM_POST_TO_VIDEO"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-video w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-video w-4 h-4"></span>
           </button>
           <button
             v-show="currentImage && !(currentImage?.state === 'generating')"
             @click="showParamsDialog"
             :title="languages.COM_OPEN_PARAMS"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-info w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-info w-4 h-4"></span>
           </button>
           <button
             v-if="currentImage && !(currentImage?.state === 'generating')"
             @click="openImage(currentImage)"
             :title="languages.COM_ZOOM_IN"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-zoom-in w-4 h-4"></span>
           </button>
           <button
             v-if="currentImage && !(currentImage?.state === 'generating')"
             @click="copyImage(currentImage)"
             :title="languages.COM_COPY"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-copy w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-copy w-4 h-4"></span>
           </button>
           <button
             v-if="currentImage && !(currentImage?.state === 'generating')"
             @click="openImageInFolder(currentImage)"
             :title="languages.COM_OPEN_LOCATION"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-folder w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-folder w-4 h-4"></span>
           </button>
           <button
             v-if="currentImage"
             @click="deleteImage(currentImage)"
             :title="languages.COM_DELETE"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-delete w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-delete w-4 h-4"></span>
           </button>
         </div>
       </div>

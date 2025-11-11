@@ -3,12 +3,12 @@
     <div
       v-if="isVisible"
       :class="[
-        'bg-gray-800 shadow-lg flex flex-col z-9 border-gray-700 h-full',
+        'bg-card shadow-lg flex flex-col z-9 border-border h-full',
         'absolute 2xl:relative top-0',
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
       ]"
     >
-      <div class="flex items-center justify-between p-4 border-b border-gray-700">
+      <div class="flex items-center justify-between p-4 border-b border-border">
         <h2 class="text-lg font-semibold">{{ title }}</h2>
         <div class="flex gap-3 items-center">
           <slot name="header-buttons" />

@@ -17,15 +17,15 @@
           v-model.number="widthInput"
           type="number"
           min="1"
-          class="w-full rounded-lg bg-gray-800 border border-gray-700 text-white py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           :disabled="props.disabled"
         />
-        <span class="text-gray-400">×</span>
+        <span class="text-muted-foreground">×</span>
         <input
           v-model.number="heightInput"
           type="number"
           min="1"
-          class="w-full rounded-lg bg-gray-800 border border-gray-700 text-white py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           :disabled="props.disabled"
         />
       </div>
@@ -51,9 +51,9 @@
         >
           <div
             :className="
-              clsx('bg-black border-2 transition-colors', {
-                'border-gray-600': resolutionIndex !== i || disabled,
-                'border-blue-500': resolutionIndex === i && !disabled,
+              clsx('bg-background border-2 transition-colors', {
+                'border-border': resolutionIndex !== i || disabled,
+                'border-primary': resolutionIndex === i && !disabled,
               })
             "
             :style="
@@ -72,8 +72,8 @@
           <span
             :className="
               clsx('text-xs select-none transition-colors', {
-                'text-gray-500': resolutionIndex !== i || disabled,
-                'text-blue-500 font-semibold': resolutionIndex === i && !disabled,
+                'text-muted-foreground': resolutionIndex !== i || disabled,
+                'text-primary font-semibold': resolutionIndex === i && !disabled,
               })
             "
           >

@@ -5,7 +5,7 @@
     class="flex shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
   >
     <div class="flex justify-end">
-      <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+      <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-foreground">
         <img
           v-if="!isHistoryVisible"
           :class="textInference.iconSizeClass"
@@ -26,7 +26,7 @@
         :key="'if' + conversationKey"
         @click="select(conversationKey)"
         :title="conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION"
-        class="group relative cursor-pointer text-gray-300"
+        class="group relative cursor-pointer text-muted-foreground"
       >
         <div class="flex justify-between items-center w-full h-10 px-3">
           <div
@@ -57,7 +57,7 @@
                     variant="ghost"
                     size="icon"
                     :class="[
-                      'transition-opacity duration-100 ml-2 text-gray-300 hover:text-white hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
+                      'transition-opacity duration-100 ml-2 text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
                       menuOpenKey === conversationKey
                         ? 'opacity-70'
                         : 'opacity-0 group-hover:opacity-70',
@@ -163,11 +163,11 @@
       >
         <span
           v-if="conversationKey === currentlyGeneratingKey && processing"
-          class="svg-icon i-loading w-8 h-8 animate-spin text-white flex items-center justify-center m-auto"
+          class="svg-icon i-loading w-8 h-8 animate-spin text-foreground flex items-center justify-center m-auto"
         ></span>
         <PlusCircleIcon
           v-else-if="conversations.isNewConversation(conversationKey)"
-          class="m-auto size-8 text-gray-300"
+          class="m-auto size-8 text-muted-foreground"
         />
         <ChatBubbleLeftRightIcon v-else class="m-auto size-8 text-gray-300" />
       </div>

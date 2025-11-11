@@ -44,7 +44,7 @@
             </div>
             <div class="bg-gray-900 rounded-lg p-4">
               <h4 class="text-sm font-medium text-gray-300 mb-1">Duration</h4>
-              <span class="text-blue-400 font-mono text-lg">{{
+              <span class="text-primary font-mono text-lg">{{
                 formatDuration(errorDetails.duration)
               }}</span>
             </div>
@@ -66,19 +66,19 @@
 
           <!-- Standard Output -->
           <div v-if="errorDetails.stdout" class="bg-gray-900 rounded-lg p-4">
-            <h3 class="text-lg font-medium text-blue-400 mb-2">Standard Output</h3>
+            <h3 class="text-lg font-medium text-primary mb-2">Standard Output</h3>
             <div class="bg-black rounded p-3 max-h-64 overflow-y-auto">
-              <pre class="text-blue-300 text-sm whitespace-pre-wrap">{{ errorDetails.stdout }}</pre>
+              <pre class="text-primary/80 text-sm whitespace-pre-wrap">{{ errorDetails.stdout }}</pre>
             </div>
           </div>
 
           <!-- Pip Freeze Output -->
           <div v-if="errorDetails.pipFreezeOutput" class="bg-gray-900 rounded-lg p-4">
-            <h3 class="text-lg font-medium text-purple-400 mb-2">
+            <h3 class="text-lg font-medium text-primary mb-2">
               Python Environment (pip freeze)
             </h3>
             <div class="bg-black rounded p-3 max-h-64 overflow-y-auto">
-              <pre class="text-purple-300 text-sm whitespace-pre-wrap">{{
+              <pre class="text-primary/80 text-sm whitespace-pre-wrap">{{
                 errorDetails.pipFreezeOutput
               }}</pre>
             </div>
@@ -109,7 +109,7 @@
       <div class="flex justify-end p-2 border-t border-gray-700">
         <button
           @click="copyErrorDetails"
-          class="mr-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+          class="mr-3 px-4 py-2 bg-primary hover:bg-primary/80 text-primary-foreground rounded transition-colors"
         >
           Copy Error Details
         </button>

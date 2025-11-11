@@ -53,7 +53,7 @@
             min="0"
             max="4096"
             step="1"
-            class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+            class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border"
           />
         </div>
         <div
@@ -67,7 +67,7 @@
             min="512"
             max="131072"
             step="512"
-            class="rounded-sm text-white text-center h-7 w-20 leading-7 p-0 bg-transparent border border-white"
+            class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border"
           />
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">

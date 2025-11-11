@@ -6,8 +6,8 @@
       class="flex items-center justify-between rounded-lg px-3 py-1 transition cursor-pointer border-2"
       :class="
         conversations.activeKey === key
-          ? 'border-blue-500 bg-gray-700 hover:bg-gray-600'
-          : 'border-transparent bg-gray-700 hover:bg-gray-600'
+          ? 'border-primary bg-muted hover:bg-muted/80'
+          : 'border-transparent bg-muted hover:bg-muted/80'
       "
       @click="selectConversation(key)"
     >

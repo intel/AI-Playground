@@ -1,7 +1,7 @@
 <template>
   <dialog
     ref="hdConfirmationDialog"
-    class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg text-white"
+    class="bg-card max-w-md p-7 items-center justify-center rounded-lg shadow-lg text-foreground"
   >
     <form method="dialog" class="items-center justify-center">
       <p class="mb-4">
@@ -19,7 +19,7 @@
                 classicModel = 'sdxl'
               }
             "
-            class="bg-color-active py-1 px-4 rounded"
+            class="bg-primary py-1 px-4 rounded"
           >
             {{ languages.COM_CONFIRM }}
           </button>
@@ -30,7 +30,7 @@
                 classicModel = 'sdxl'
               }
             "
-            class="bg-blue-500 py-1 px-4 rounded"
+            class="bg-primary py-1 px-4 rounded"
           >
             {{ languages.COM_DO_NOT_SHOW_AGAIN }}
           </button>
@@ -52,7 +52,7 @@
             backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl
           "
           target="_blank"
-          class="flex flex-row gap-1 items-center text-blue-500 cursor-pointer"
+          class="flex flex-row gap-1 items-center text-primary cursor-pointer"
         >
           <p>Open ComfyUI</p>
           <ArrowTopRightOnSquareIcon class="size-5" />
@@ -155,7 +155,7 @@
           :data-tooltip="i18nState.WORKFLOW_HIGH_VRAM_INFO"
         >
           <span
-            class="svg-icon text-purple-500 align-bottom i-warning-triangle w-5 h-5 px-3"
+            class="svg-icon text-primary align-bottom i-warning-triangle w-5 h-5 px-3"
           ></span>
           {{ languages.WORKFLOW_HIGH_VRAM_WARNING }}
         </p>
@@ -170,13 +170,13 @@
         ></DropDownWorkflow>
         <div :data-tooltip="i18nState.WORKFLOW_RELOAD_INFO">
           <button
-            class="svg-icon i-refresh w-5 h-5 text-purple-500"
+            class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="imageGeneration.loadWorkflowsFromJson"
           ></button>
         </div>
         <div :data-tooltip="i18nState.WORKFLOW_DOWNLOAD_INFO">
           <button
-            class="svg-icon i-download-cloud w-5 h-5 text-purple-500"
+            class="svg-icon i-download-cloud w-5 h-5 text-primary"
             @click="loadWorkflowsFromIntel"
           ></button>
         </div>

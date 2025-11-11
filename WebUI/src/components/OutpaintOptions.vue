@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex items-center gap-2 text-white"
+    class="flex items-center gap-2 text-foreground"
     :class="{ 'demo-mode-outpaint-content': demoMode.enhance.showOutpaint }"
   >
     <div class="flex flex-col gap-2 items-center text-center">
@@ -33,7 +33,7 @@
     <DemoNumber :show="demoMode.enhance.showOutpaint" :number="2"></DemoNumber>
   </div>
   <div
-    class="flex flex-col gap-8 text-white"
+    class="flex flex-col gap-8 text-foreground"
     :class="{ 'demo-mode-denoise-content': demoMode.enhance.showOutpaint }"
   >
     <div class="flex gap-3 items-center">

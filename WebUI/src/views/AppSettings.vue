@@ -1,7 +1,7 @@
 <template>
   <div
     id="app-settings-panel"
-    class="settings-panel flex-none bg-color-bg-main text-sm text-white py-4 border-l border-color-spilter"
+    class="settings-panel flex-none bg-background text-sm text-foreground py-4 border-l border-border"
   >
     <div class="flex justify-between px-3">
       <div class="flex items-stretch gap-2">
@@ -22,7 +22,7 @@
     <!--ImageSettingsTab-->
     <div
       v-show="tabIndex == 0"
-      class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto"
+      class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-border overflow-y-auto"
     >
       <div class="px-3 flex-none flex flex-col gap-3">
         <SettingsImageGeneration></SettingsImageGeneration>
@@ -31,7 +31,7 @@
     <!--BasicSettingsTab-->
     <div
       v-show="tabIndex == 1"
-      class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto"
+      class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-border overflow-y-auto"
     >
       <div class="px-3 flex-none flex flex-col gap-3">
         <SettingsBasic></SettingsBasic>
@@ -40,7 +40,7 @@
     <!--ModelSettingsTab-->
     <div
       v-show="tabIndex == 2"
-      class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-color-spilter overflow-y-auto"
+      class="flex-auto h-0 flex flex-col gap-5 pt-3 border-t border-border overflow-y-auto"
     >
       <div class="px-3 flex-none flex flex-col gap-3">
         <SettingsPanel />

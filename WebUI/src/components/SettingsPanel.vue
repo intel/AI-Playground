@@ -1,5 +1,5 @@
 <template>
-  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+  <div class="border-b border-border flex flex-col gap-5 py-4">
     <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_HUGGINGFACE }}</h2>
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
@@ -18,7 +18,7 @@
       </div>
     </div>
   </div>
-  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+  <div class="border-b border-border flex flex-col gap-5 py-4">
     <h2 class="text-center font-bold">{{ languages.SETTINGS_MODEL_SD_PRESET_MODEL }}</h2>
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_SD_STANDARD_MODEL }}</p>
@@ -33,19 +33,19 @@
         >
           <template #selected>
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ presetModel.SDStandard }}</span>
             </div>
           </template>
           <template #list="slotItem">
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ slotItem.item }}</span>
             </div>
           </template>
         </drop-selector>
         <button
-          class="svg-icon i-refresh w-5 h-5 text-purple-500"
+          class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
           @click="refreshSDModles"
         ></button>
@@ -64,19 +64,19 @@
         >
           <template #selected>
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ presetModel.SDStandardInpaint }}</span>
             </div>
           </template>
           <template #list="slotItem">
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ slotItem.item }}</span>
             </div>
           </template>
         </drop-selector>
         <button
-          class="svg-icon i-refresh w-5 h-5 text-purple-500"
+          class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
           @click="refreshInpaintModles"
         ></button>
@@ -95,19 +95,19 @@
         >
           <template #selected>
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ presetModel.SDHD }}</span>
             </div>
           </template>
           <template #list="slotItem">
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ slotItem.item }}</span>
             </div>
           </template>
         </drop-selector>
         <button
-          class="svg-icon i-refresh w-5 h-5 text-purple-500"
+          class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
           @click="refreshSDModles"
         ></button>
@@ -126,19 +126,19 @@
         >
           <template #selected>
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ presetModel.SDHDInpaint }}</span>
             </div>
           </template>
           <template #list="slotItem">
             <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-green-500 w-2 h-2"></span>
+              <span class="rounded-full bg-primary w-2 h-2"></span>
               <span>{{ slotItem.item }}</span>
             </div>
           </template>
         </drop-selector>
         <button
-          class="svg-icon i-refresh w-5 h-5 text-purple-500"
+          class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
           @click="refreshInpaintModles"
         ></button>
@@ -156,7 +156,7 @@
       </button>
     </div>
   </div>
-  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+  <div class="border-b border-border flex flex-col gap-5 py-4">
     <h2 class="text-center font-bold">{{ languages.SETTINGS_BASIC_PATHS }}</h2>
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_BASIC_LLM_CHECKPOINTS }}</p>
@@ -206,13 +206,13 @@
   <div class="flex flex-col gap-5 py-4">
     <div>
       <h2 class="text-center font-bold mb-1">{{ languages.SETTINGS_MODEL_DOWNLOAD }}</h2>
-      <p class="text-xs text-justify text-gray-300">{{ languages.SETTINGS_MODEL_DOWNLOAD_DESC }}</p>
+      <p class="text-xs text-justify text-muted-foreground">{{ languages.SETTINGS_MODEL_DOWNLOAD_DESC }}</p>
     </div>
     <div class="flex flex-col gap-3">
       <p>{{ languages.DOWNLOADER_FOR_IMAGE_GENERATE }}</p>
 
       <div class="flex justify-between items-center gap-6">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: dreamshaper-8</span
         >
         <span class="flex-none text-right">6.46 GB</span>
@@ -224,7 +224,7 @@
         </button>
       </div>
       <div class="flex justify-between items-center gap-6">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD }}: Juggernaut-XL-v9</span
         >
         <span class="flex-none text-right">7.65 GB</span>
@@ -239,7 +239,7 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.DOWNLOADER_FOR_INAPINT_GENERATE }}</p>
       <div class="flex justify-between items-center gap-6">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: dreamshaper-8-inpainting</span
         >
         <span class="flex-none text-right">4.45 GB</span>
@@ -254,7 +254,7 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.DOWNLOADER_FOR_IMAGE_LORA }}</p>
       <div class="flex items-center gap-4">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: lcm-lora-sdv1-5</span
         >
         <span class="flex-none text-right">128 MB</span>
@@ -266,7 +266,7 @@
         </button>
       </div>
       <div class="flex items-center gap-4">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD }}: lcm-lora-sdxl</span
         >
         <span class="flex-none text-right">375.61 MB</span>
@@ -281,7 +281,7 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.DOWNLOADER_FOR_ANSWER_GENERATE }}</p>
       <div class="flex items-center gap-4">
-        <span class="text-gray-300 flex-auto">microsoft/Phi-3-mini-4k-instruct</span>
+        <span class="text-muted-foreground flex-auto">microsoft/Phi-3-mini-4k-instruct</span>
         <span class="flex-none text-right">7.11 GB</span>
         <button
           class="text-yellow-500 flex-none"
@@ -294,7 +294,7 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.DOWNLOADER_FOR_RAG_QUERY }}</p>
       <div class="flex items-center gap-4">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_STANDARD }}: bge-large-en-v1.5</span
         >
         <span class="flex-none text-right">1.25 GB</span>
@@ -306,7 +306,7 @@
         </button>
       </div>
       <div class="flex items-center gap-4">
-        <span class="text-gray-300 flex-auto"
+        <span class="text-muted-foreground flex-auto"
           >{{ languages.SETTINGS_MODEL_IMAGE_RESOLUTION_HD }}: bge-large-zh-v1.5</span
         >
         <span class="flex-none text-right">1.21 GB</span>

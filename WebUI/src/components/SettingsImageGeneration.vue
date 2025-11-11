@@ -157,19 +157,19 @@
           >
             <template #selected>
               <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                <span class="rounded-full bg-primary w-2 h-2"></span>
                 <span>{{ imageGeneration.imageModel }}</span>
               </div>
             </template>
             <template #list="slotItem">
               <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                <span class="rounded-full bg-primary w-2 h-2"></span>
                 <span>{{ slotItem.item }}</span>
               </div>
             </template>
           </drop-selector>
           <button
-            class="svg-icon i-refresh w-5 h-5 text-purple-500"
+            class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="globalSetup.refreshSDModles"
           ></button>
         </div>
@@ -184,19 +184,19 @@
           >
             <template #selected>
               <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                <span class="rounded-full bg-primary w-2 h-2"></span>
                 <span>{{ imageGeneration.inpaintModel }}</span>
               </div>
             </template>
             <template #list="slotItem">
               <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-green-500 w-2 h-2"></span>
+                <span class="rounded-full bg-primary w-2 h-2"></span>
                 <span>{{ slotItem.item }}</span>
               </div>
             </template>
           </drop-selector>
           <button
-            class="svg-icon i-refresh w-5 h-5 text-purple-500"
+            class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="globalSetup.refreshInpaintModles"
           ></button>
         </div>
@@ -214,14 +214,14 @@
             </template>
           </drop-selector>
           <button
-            class="svg-icon i-refresh w-5 h-5 text-purple-500"
+            class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="globalSetup.refreshLora"
           ></button>
         </div>
       </div>
     </div>
     <ComfyDynamic></ComfyDynamic>
-    <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
+    <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
       <button class="mt-4" @click="imageGeneration.resetActiveWorkflowSettings">
         <div class="svg-icon i-refresh">Reset</div>
         {{ languages.COM_LOAD_WORKFLOW_DEFAULTS }}

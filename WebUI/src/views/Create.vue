@@ -34,15 +34,15 @@
             @click="deleteAllImages"
             :title="languages.COM_CLEAR_HISTORY"
             :disabled="imageGeneration.processing"
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 ml-2 flex items-center justify-center"
+            class="bg-muted rounded-xs w-6 h-6 ml-2 flex items-center justify-center"
           >
-            <span class="svg-icon text-white i-clear w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-clear w-4 h-4"></span>
           </button>
         </div>
       </div>
       <div class="flex-auto relative flex items-center justify-center">
         <div
-          class="flex justify-center items-center w-768px h-512px relative bg-color-image-bg rounded-lg border border-white/30"
+          class="flex justify-center items-center w-768px h-512px relative bg-accent rounded-lg border border-border"
         >
           <!-- eslint-disable vue/require-v-for-key -->
           <div
@@ -83,7 +83,7 @@
             ></loading-bar>
             <div
               v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
-              class="flex gap-2 items-center justify-center text-white bg-black/50 py-6 px-12 rounded-lg"
+              class="flex gap-2 items-center justify-center text-foreground bg-background/50 py-6 px-12 rounded-lg"
             >
               <span class="svg-icon i-loading w-8 h-8"></span>
               <span class="text-2xl tabular-nums" style="min-width: 200px">{{
@@ -104,49 +104,49 @@
               "
               @click="postImageToEnhance(currentImage)"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-transfer w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-transfer w-4 h-4"></span>
             </button>
             <button
               v-show="currentImage && !(currentImage?.state === 'generating')"
               @click="showParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-info w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-info w-4 h-4"></span>
             </button>
             <button
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="openImage(currentImage)"
               :title="languages.COM_ZOOM_IN"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-zoom-in w-4 h-4"></span>
             </button>
             <button
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="copyImage(currentImage)"
               :title="languages.COM_COPY"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-copy w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-copy w-4 h-4"></span>
             </button>
             <button
               v-if="currentImage && !(currentImage?.state === 'generating')"
               @click="openImageInFolder(currentImage)"
               :title="languages.COM_OPEN_LOCATION"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-folder w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-folder w-4 h-4"></span>
             </button>
             <button
               v-if="currentImage"
               @click="deleteImage(currentImage)"
               :title="languages.COM_DELETE"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-delete w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-delete w-4 h-4"></span>
             </button>
           </div>
         </div>
@@ -158,8 +158,8 @@
         ></info-table>
       </div>
     </div>
-    <div class="pt-2 gap-y-2 flex flex-col border-t border-color-spilter">
-      <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-white">
+    <div class="pt-2 gap-y-2 flex flex-col border-t border-border">
+      <div class="w-full flex flex-wrap items-center gap-y-2 gap-x-4 text-foreground">
         <div class="flex items-center gap-2">
           <ModeSelector
             v-if="imageGeneration.activeWorkflow.backend === 'default'"
@@ -180,7 +180,7 @@
         :class="{ 'demo-number-overlay': demoMode.create.show }"
       >
         <textarea
-          class="rounded-xl border border-color-spilter flex-auto h-full resize-none"
+          class="rounded-xl border border-border flex-auto h-full resize-none"
           :placeholder="languages.COM_SD_PROMPT"
           v-model="imageGeneration.prompt"
           @keydown.enter.prevent="generateImage"

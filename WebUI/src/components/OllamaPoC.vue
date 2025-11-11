@@ -2,7 +2,7 @@
   <div
     v-if="textInference.backend === 'ollama'"
     id="chatPanel"
-    class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
+    class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-foreground overflow-y-scroll"
     :class="textInference.fontSizeClass"
     @scroll="props.onScroll"
   >

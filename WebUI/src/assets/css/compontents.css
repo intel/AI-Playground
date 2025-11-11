@@ -43,7 +43,7 @@
 
     .v-slide-bg {
       height: 7px;
-      background: #28282b;
+      background: hsl(var(--muted));
       overflow: hidden;
       flex: 1;
       border-radius: 3.5px;
@@ -77,9 +77,9 @@
 
 .v-radio-block {
   border-radius: 8px;
-  background: var(--color-control-bg);
-  border: 1px solid var(--color-control-bg);
-  color: rgb(216, 216, 216);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
@@ -89,29 +89,29 @@
   padding: 4px 12px;
 
   &.v-radio-block-checked {
-    border: 1px solid var(--color-active);
+    border: 1px solid hsl(var(--primary));
   }
 }
 
 .v-radio {
   padding: 6px 8px;
-  border: 1px solid var(--compontents-main);
-  color: var(--compontents-main);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   border-radius: 6px;
   display: flex;
   align-items: center;
-  background-color: var(--color-control-bg);
+  background-color: hsl(var(--muted));
   gap: 8px;
   font-size: 14px;
 
   .v-radio-box {
     width: 19px;
     height: 19px;
-    border: 1px solid var(--compontents-main);
+    border: 1px solid hsl(var(--border));
     border-radius: 50%;
 
     &:hover {
-      border: 1px solid var(--color-active);
+      border: 1px solid hsl(var(--primary));
     }
 
     &.v-radio-checked {
@@ -159,7 +159,7 @@
   gap: 10px;
 
   .v-loading-text {
-    color: var(--color-text-main);
+    color: hsl(var(--foreground));
     text-align: center;
     font-size: 16px;
     font-weight: 700;
@@ -202,9 +202,9 @@
   height: 30px;
   line-height: 30px;
   border-radius: 15px;
-  background: #05010f;
-  border: 1px solid #cdcdcd;
-  color: #fff;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   padding: 0px 3px;
 
   .v-drop-select-result {
@@ -246,12 +246,12 @@
 
 .v-drop-select-list {
   position: absolute;
-  color: #fff;
+  color: hsl(var(--foreground));
   width: 100%;
   border-radius: 8px;
   padding: 3px;
-  border: 1px solid #cdcdcd;
-  background: #05010f;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   max-height: 188px;
   overflow-y: auto;
   left: 0px;
@@ -273,7 +273,7 @@
 
     &:hover {
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.3);
+      background: hsl(var(--muted));
     }
   }
 }
@@ -295,8 +295,8 @@
     align-items: flex-start;
     font-size: 12px;
     border-radius: 4px;
-    border: 1px solid #32303b;
-    background: #38383d;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--input));
   }
 
   .v-random-btns {
@@ -315,8 +315,8 @@
     align-items: flex-start;
     font-size: 12px;
     border-radius: 4px;
-    border: 1px solid #32303b;
-    background: #38383d;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--input));
   }
 }
 
@@ -372,7 +372,7 @@
 
     .v-slide-bg {
       height: 100%;
-      background: var(--color-control-bg);
+      background: hsl(var(--muted));
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -411,12 +411,12 @@
 
 .v-checkbox {
   padding: 6px 8px;
-  border: 1px solid var(--compontents-main);
-  color: var(--compontents-main);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   border-radius: 6px;
   display: flex;
   align-items: center;
-  background-color: var(--color-control-bg);
+  background-color: hsl(var(--muted));
   gap: 8px;
   font-size: 14px;
 
@@ -427,7 +427,7 @@
 }
 
 .v-checkbox-control {
-  border: 1px solid var(--compontents-main);
+  border: 1px solid hsl(var(--border));
   border-radius: 4px;
   width: 16px;
   height: 16px;
@@ -448,7 +448,7 @@
 }
 
 .v-checkbox-control-table {
-  border: 1px solid var(--compontents-main);
+  border: 1px solid hsl(var(--border));
   border-radius: 4px;
   width: 16px;
   height: 16px;

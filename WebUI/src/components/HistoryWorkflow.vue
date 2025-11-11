@@ -6,12 +6,12 @@
     <div
       v-for="image in nonQueuedImages"
       :key="image.id"
-      class="flex items-center gap-2 bg-gray-700 rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-gray-600"
-      :class="isSelected(image.id) ? 'border-blue-500' : 'border-transparent'"
+      class="flex items-center gap-2 bg-muted rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-muted/80"
+      :class="isSelected(image.id) ? 'border-primary' : 'border-transparent'"
       @click="selectImage(image.id)"
     >
       <div
-        class="relative w-[150px] h-[90px] overflow-hidden rounded-sm flex items-center justify-center bg-black"
+        class="relative w-[150px] h-[90px] overflow-hidden rounded-sm flex items-center justify-center bg-background"
         draggable="true"
         @dragstart="(e) => dragImage(image)(e)"
       >
@@ -20,7 +20,7 @@
 
         <div
           v-if="image.sourceImageUrl === image.imageUrl"
-          class="absolute bottom-0 w-full bg-black/60 text-white text-[14px] text-center py-[2px]"
+          class="absolute bottom-0 w-full bg-background/60 text-foreground text-[14px] text-center py-[2px]"
         >
           {{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}
         </div>
@@ -65,7 +65,7 @@
       </div>
     </div>
   </div>
-  <div v-else class="text-gray-400 text-center p-5 italic">
+  <div v-else class="text-muted-foreground text-center p-5 italic">
     No images generated yet.
   </div>
 </template>

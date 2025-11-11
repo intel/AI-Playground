@@ -1,17 +1,17 @@
 <template>
   <div
     v-if="props.generationParameters"
-    class="info-params absolute px-5 pt-8 pb-5 text-white w-1000"
+    class="info-params absolute px-5 pt-8 pb-5 text-foreground w-1000"
   >
     <button
       class="w-5 h-5 svg-icon i-close absolute right-2 top-2"
       @click="emits('close')"
     ></button>
     <div class="params-list">
-      <ul class="border border-color-spilter">
+      <ul class="border border-border">
         <li
           v-for="(value, key) in props.generationParameters"
-          class="last:border-none border-b border-color-spilter flex items-center"
+          class="last:border-none border-b border-border flex items-center"
           :key="key"
         >
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{
@@ -20,10 +20,10 @@
           <span class="px-4 flex-auto break-word">{{ value }}</span>
         </li>
       </ul>
-      <ul class="border border-color-spilter">
+      <ul class="border border-border">
         <li
           v-for="value in props.dynamicInputs"
-          class="last:border-none border-b border-color-spilter flex items-center"
+          class="last:border-none border-b border-border flex items-center"
           :key="value.label"
         >
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{

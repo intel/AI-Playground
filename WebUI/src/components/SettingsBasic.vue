@@ -1,5 +1,5 @@
 <template>
-  <div class="border-b border-color-spilter flex flex-col gap-5 py-4">
+  <div class="border-b border-border flex flex-col gap-5 py-4">
     <div class="flex flex-col gap-2">
       <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
       <LanguageSelector></LanguageSelector>
@@ -39,14 +39,10 @@
       </tbody>
     </table>
     <div class="flex flex-col pt-5">
-      <button @click="globalSetup.loadingState = 'manageInstallations'" class="confirm-btn">
+      <button @click="globalSetup.loadingState = 'manageInstallations'" class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm">
         {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
       </button>
     </div>
-  </div>
-  <!--  todo: delete this div after migrating fully to new UI-->
-  <div class="text-right my-5">
-    <button @click="openDebug" class="v-radio-block">{{ languages.COM_DEBUG }}</button>
   </div>
 </template>
 
@@ -63,20 +59,6 @@ const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
 const models = useModels()
 const theme = useTheme()
-
-// todo: why is this not used
-const _themeToDisplayName = (theme: Theme) => {
-  switch (theme) {
-    case 'dark':
-      return 'Default'
-    case 'lnl':
-      return 'Intel® Core™ Ultra'
-    case 'bmg':
-      return 'Intel® Arc™'
-    default:
-      return theme
-  }
-}
 
 const displayComponents = computed(() => {
   return backendServices.info.map((item) => ({

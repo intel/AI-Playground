@@ -14,8 +14,13 @@
     v-if="theme.active === 'bmg'"
     class="absolute -z-50 w-screen h-screen bg-cover bg-center bg-bmg"
   ></div>
+  <div
+    v-if="theme.active === 'light'"
+    class="absolute -z-50 w-screen h-screen bg-cover bg-center bg-light"
+  ></div>
   <header
-    class="main-title text-2xl font-bold flex justify-between items-center px-4 border-b border-white/20 text-white bg-black/20"
+    class="main-title text-2xl font-bold flex justify-between items-center px-4 border-b border-border/20 text-foreground bg-background/20"
+    :class="{ 'bg-muted/50': theme.active === 'light' }"
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-3 items-baseline">
@@ -30,7 +35,7 @@
         <span class="text-sm">New UI</span>
       </label>
       <button
-        v-if="debugToolsEnabled && !useNewUI"
+        v-if="debugToolsEnabled"
         :title="languages.COM_SETTINGS"
         @click="
           () => {
@@ -44,7 +49,7 @@
         "
         ref="showSettingBtn"
       >
-        <ServerStackIcon class="size-6 text-white"></ServerStackIcon>
+        <ServerStackIcon class="size-6 text-foreground"></ServerStackIcon>
       </button>
       <button
         v-if="!demoMode.enabled && !useNewUI"
@@ -106,7 +111,7 @@
     class="flex-auto flex items-start mt-[10vh] justify-center"
   >
     <div
-      class="dialog-container z-10 text-white w-[60vw] align-top bg-black/50 p-4 rounded-lg border border-gray-400"
+      class="dialog-container z-10 text-foreground w-[60vw] align-top bg-background/50 p-4 rounded-lg border border-border"
     >
       <Collapsible v-model:open="isOpen" class="space-y-2">
         <div class="flex items-center justify-between gap-2">
@@ -118,7 +123,7 @@
             <button
               variant="default"
               size="sm"
-              class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded"
+              class="bg-muted hover:bg-muted/80 text-foreground font-semibold py-1 px-2 border border-border rounded"
             >
               <i class="fas fa-chevron-down" />
               {{ languages.ERROR_PYTHON_BACKEND_INIT_DETAILS }}
@@ -128,7 +133,7 @@
             @click="openDevTools"
             variant="default"
             size="sm"
-            class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-1 px-2 border border-gray-400 rounded"
+            class="bg-muted hover:bg-muted/80 text-foreground font-semibold py-1 px-2 border border-border rounded"
           >
             <i class="fas fa-chevron-down" />
             {{ languages.ERROR_PYTHON_BACKEND_INIT_OPEN_LOG }}
@@ -147,7 +152,7 @@
     :class="{
     'bg-black/50': theme.active === 'lnl',
     'bg-black/80': theme.active === 'bmg',
-    'border-t border-color-spilter': theme.active === 'dark',
+    'border-t border-border': theme.active === 'dark',
   }"
   >
     <SideModalHistory
@@ -163,7 +168,7 @@
         <button
           v-show="!showHistory"
           @click="openHistory"
-          class="text-white px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+          class="text-foreground px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
         >
           {{ languages.COM_SHOW_HISTORY }}
         </button>
@@ -177,12 +182,12 @@
       >
         <button
           @click="openAppSettings"
-          class="svg-icon i-setup w-6 h-6 text-white hover:text-white/80 transition-colors"
+          class="svg-icon i-setup w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
           title="App Settings"
         ></button>
         <button
           @click="openDevTools"
-          class="svg-icon i-code w-6 h-6 text-white hover:text-white/80 transition-colors"
+          class="svg-icon i-code w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
           title="Developer Tools"
         ></button>
       </div>
@@ -208,7 +213,7 @@
         class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
         <button
           @click="footerExpanded = !footerExpanded"
-          class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
+          class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
         >
           SHOW FOOTER
         </button>
@@ -229,7 +234,7 @@
     v-else-if="!useNewUI && globalSetup.loadingState === 'running'"
     class="flex-auto flex flex-col relative"
   >
-    <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-gray-400">
+    <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-muted-foreground">
       <button
         class="tab"
         :class="{ active: activeTabIdx === 'create' }"
@@ -301,14 +306,14 @@
     :class="{
       'bg-black/50': theme.active === 'lnl',
       'bg-black/80': theme.active === 'bmg',
-      'border-t border-color-spilter': theme.active === 'dark',
+      'border-t border-border': theme.active === 'dark',
     }"
   >
     <div v-if="useNewUI && footerExpanded"
          class="w-full relative flex items-center justify-center pb-1">
       <button
         @click="footerExpanded = !footerExpanded"
-        class="text-white/30 hover:text-white/80 text-xs uppercase tracking-wider transition-colors"
+        class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
       >
         HIDE FOOTER
       </button>
@@ -317,7 +322,7 @@
       <div>
         <p>
           Al Playground from Intel Corporation
-          <a href="https://github.com/intel/ai-playground" target="_blank" class="text-blue-500"
+          <a href="https://github.com/intel/ai-playground" target="_blank" class="text-primary"
           >https://github.com/intel/ai-playground</a
           >
         </p>
@@ -326,7 +331,7 @@
           <a
             href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf"
             target="_blank"
-            class="text-blue-500"
+            class="text-primary"
           >
             User Guide</a
           >
@@ -334,7 +339,7 @@
           <a
             href="https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md"
             target="_blank"
-            class="text-blue-500"
+            class="text-primary"
           >
             | Important Notices and Disclaimers</a
           >
@@ -342,20 +347,24 @@
           <a
             href="https://github.com/intel/ai-playground/blob/main/LICENSE"
             target="_blank"
-            class="text-blue-500"
+            class="text-primary"
           >
             | Licenses</a
           >
         </p>
       </div>
       <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
-        <p class="text-gray-300 text-lg mr-2">Powered by</p>
+        <p class="text-muted-foreground text-lg mr-2">Powered by</p>
         <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
         <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
       </div>
       <div v-if="theme.active === 'bmg'" class="flex gap-2 items-center">
-        <p class="text-gray-300 text-lg mr-2">Powered by</p>
+        <p class="text-muted-foreground text-lg mr-2">Powered by</p>
         <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
+      </div>
+      <div v-if="theme.active === 'light'" class="flex gap-2 items-center">
+        <p class="text-muted-foreground text-lg mr-2">Powered by</p>
+        <img class="size-12" src="@/assets/image/arc_graphics_badge.png" />
       </div>
       <img v-else-if="theme.active === 'dark'" src="@/assets/svg/intel.svg" />
     </div>
@@ -479,6 +488,17 @@ onBeforeMount(async () => {
 })
 
 onMounted(() => {
+  // Apply theme class to document root for CSS variables
+  watch(() => theme.active, (newTheme) => {
+    const root = document.documentElement
+    // Remove all theme classes
+    root.classList.remove('dark', 'lnl', 'bmg', 'light')
+    // Add current theme class (light theme is default via :root, so no class needed)
+    if (newTheme !== 'light') {
+      root.classList.add(newTheme)
+    }
+  }, { immediate: true })
+
   watch([() => globalSetup.loadingState, activeTabIdx] as const, ([loadingState, activeTabIdx]) => {
     if (loadingState === 'running' && !useNewUI.value) {
       setTimeout(() => demoMode.triggerHelp(activeTabIdx))

@@ -93,14 +93,14 @@ const appSize = {
   height: 128,
   maxChatContentHeight: 0,
 }
-const ThemeSchema = z.enum(['dark', 'lnl', 'bmg'])
+const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
   comfyUiParameters: z.array(z.string()).default([]),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
   enablePreviewFeatures: z.boolean().default(false),
   isAdminExec: z.boolean().default(false),
-  availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg']),
+  availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg', 'light']),
   currentTheme: ThemeSchema.default('bmg'),
   isDemoModeEnabled: z.boolean().default(false),
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),

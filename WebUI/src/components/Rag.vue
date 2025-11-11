@@ -1,16 +1,16 @@
 <template>
   <div
-    class="rag-panel flex flex-col text-white bg-black rounded-xl p-4"
-    :class="{ 'border-2 border-dashed border-purple-500 bg-purple-900/10': isOverDropZone }"
+    class="rag-panel flex flex-col text-foreground bg-background rounded-xl p-4"
+    :class="{ 'border-2 border-dashed border-primary bg-primary/10': isOverDropZone }"
     ref="dropZoneRef"
   >
     <!-- Header -->
     <div
-      class="flex justify-between items-center h-11 px-4 mb-3 border-b border-purple-800/60 text-sm w-full"
+      class="flex justify-between items-center h-11 px-4 mb-3 border-b border-border text-sm w-full"
     >
       <span class="text-lg font-bold">{{ languages.RAG_SEARCHABLE_DOCUMENTS }}</span>
       <button
-        class="svg-icon i-close w-7 h-7 hover:text-purple-500 transition-colors duration-200"
+        class="svg-icon i-close w-7 h-7 hover:text-primary transition-colors duration-200"
         @click="closeRagPanel"
       ></button>
     </div>
@@ -21,13 +21,13 @@
       <div
         v-for="file in textInference.ragList"
         :key="file.hash"
-        class="flex items-center mb-2 py-1 px-2 hover:bg-purple-900/20 rounded-lg transition-colors duration-200"
+        class="flex items-center mb-2 py-1 px-2 hover:bg-primary/20 rounded-lg transition-colors duration-200"
       >
         <!-- Checkbox (aligned left) -->
         <div class="w-[10%] flex justify-start pl-2">
           <input
             type="checkbox"
-            class="w-5 h-5 accent-purple-600"
+            class="w-5 h-5 accent-primary"
             :title="languages.COM_ADD_FILE_TO_RAG_CHECKBOX"
             v-model="file.isChecked"
             @change="textInference.updateFileCheckStatus(file.hash, file.isChecked)"
@@ -45,22 +45,22 @@
         <!-- Delete Button (aligned right) -->
         <div class="w-[15%] flex justify-end pr-2">
           <button
-            class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
+            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
             :title="languages.COM_DELETE_FILE"
             @click="deleteFile(file.hash)"
           >
-            <span class="svg-icon text-white i-delete w-4 h-4"></span>
+            <span class="svg-icon text-foreground i-delete w-4 h-4"></span>
           </button>
         </div>
       </div>
 
       <!-- Bottom Controls -->
-      <div class="flex items-center border-t border-purple-800/60 py-1 px-2 pt-3 mt-2">
+      <div class="flex items-center border-t border-border py-1 px-2 pt-3 mt-2">
         <!-- Three-state Checkbox (aligned left) -->
         <div class="w-[10%] flex justify-start pl-2">
           <input
             type="checkbox"
-            class="w-5 h-5 accent-purple-600"
+            class="w-5 h-5 accent-primary"
             :checked="selectionState === 'all'"
             @change="toggleSelectionState"
             ref="selectAllCheckbox"
@@ -72,9 +72,9 @@
           <button
             @click="chooseUploadFiles"
             :title="languages.COM_ADD_FILE_TO_RAG"
-            class="bg-blue-500 rounded-sm px-4 h-8 flex items-center justify-center hover:bg-blue-500/50 transition-colors duration-200"
+            class="bg-primary rounded-sm px-4 h-8 flex items-center justify-center hover:bg-primary/80 transition-colors duration-200"
           >
-            <span class="svg-icon text-white i-add w-5 h-5 mr-2"></span>
+            <span class="svg-icon text-foreground i-add w-5 h-5 mr-2"></span>
             <span>{{ languages.RAG_ADD_FILES }}</span>
           </button>
         </div>
@@ -84,9 +84,9 @@
           <button
             @click="deleteAllFiles"
             :title="languages.COM_DELETE_ALL_FILES"
-            class="bg-gray-600/50 rounded-sm px-2 h-8 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
+            class="bg-muted/50 rounded-sm px-2 h-8 flex items-center justify-center hover:bg-destructive/50 transition-colors duration-200"
           >
-            <span class="svg-icon text-white i-delete w-4 h-4 mr-1"></span>
+            <span class="svg-icon text-foreground i-delete w-4 h-4 mr-1"></span>
             <span class="text-xs">{{ languages.RAG_CLEAR_ALL }}</span>
           </button>
         </div>
@@ -96,24 +96,24 @@
     <!-- Empty State -->
     <div
       v-show="textInference.ragList.length == 0"
-      class="flex-auto h-0 flex flex-col items-center gap-4 justify-center text-gray-200 select-none p-10"
+      class="flex-auto h-0 flex flex-col items-center gap-4 justify-center text-muted-foreground select-none p-10"
     >
-      <div class="w-20 h-20 rounded-full bg-purple-900/30 flex items-center justify-center">
+      <div class="w-20 h-20 rounded-full bg-primary/30 flex items-center justify-center">
         <span class="svg-icon i-upload w-10 h-10"></span>
       </div>
       <p class="text-lg font-bold" v-if="!globalSetup.state.isAdminExec">
         {{ i18nState.RAG_DRAG_UPLOAD }}
       </p>
-      <pre class="text-xs bg-black/20 p-2 rounded" v-if="!globalSetup.state.isAdminExec">{{
+      <pre class="text-xs bg-background/20 p-2 rounded" v-if="!globalSetup.state.isAdminExec">{{
         i18nState.RAG_UPLOAD_MIME_TYPE
       }}</pre>
       <p class="px-5" v-else>{{ i18nState.RAG_DRAG_UPLOAD_UNSUPPORTED }}</p>
       <button
         @click="chooseUploadFiles"
         :title="languages.COM_ADD_FILE_TO_RAG"
-        class="bg-purple-600 py-2 px-6 rounded-sm hover:bg-purple-600/50 transition-colors duration-200 flex items-center justify-center gap-2"
+        class="bg-primary py-2 px-6 rounded-sm hover:bg-primary/80 transition-colors duration-200 flex items-center justify-center gap-2"
       >
-        <span class="svg-icon text-white i-add w-5 h-5"></span>
+        <span class="svg-icon text-foreground i-add w-5 h-5"></span>
         <span>{{ languages.RAG_ADD_FILES }}</span>
       </button>
     </div>

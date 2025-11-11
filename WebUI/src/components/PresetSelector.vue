@@ -7,8 +7,8 @@
         class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square"
         :class="[
           selectedPresetName === preset.name
-            ? 'border-blue-500 ring-2 ring-blue-400'
-            : 'border-transparent hover:border-blue-500',
+            ? 'border-primary ring-2 ring-primary'
+            : 'border-transparent hover:border-primary',
         ]"
         @click="selectPreset(preset.name)"
       >
@@ -24,8 +24,8 @@
           :src="`/src/assets/image/${preset.backend}.png`"
           :alt="preset.name"
         />
-        <div class="absolute bottom-0 w-full bg-black/60 text-center py-2">
-          <span class="text-white text-sm font-semibold">
+        <div class="absolute bottom-0 w-full bg-background/60 text-center py-2">
+          <span class="text-foreground text-sm font-semibold">
             {{ preset.name }}
           </span>
         </div>
@@ -42,14 +42,14 @@
           :columns="variantSelectorOptions.length <= 3 ? variantSelectorOptions.length : 3"
         />
       </div>
-      <p v-if="selectedPreset.description" class="text-sm text-gray-400">
+      <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
         {{ selectedPreset.description }}
       </p>
       <div v-if="selectedPreset.tags && selectedPreset.tags.length > 0" class="flex gap-2">
         <span
           v-for="tag in selectedPreset.tags"
           :key="tag"
-          class="px-3 py-1 text-xs bg-purple-600 rounded-full"
+          class="px-3 py-1 text-xs bg-primary rounded-full"
         >
           {{ tag }}
         </span>

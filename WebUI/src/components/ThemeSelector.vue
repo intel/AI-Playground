@@ -5,14 +5,14 @@
   >
     <template #selected>
       <div class="flex gap-2 items-center">
-        <span class="rounded-full bg-green-500 w-2 h-2"></span>
+        <span class="rounded-full bg-primary w-2 h-2"></span>
         <span>{{ activeThemeDisplayName }}</span>
       </div>
     </template>
 
     <template #list="slotItem">
       <div class="flex gap-2 items-center">
-        <span class="rounded-full bg-green-500 w-2 h-2"></span>
+        <span class="rounded-full bg-primary w-2 h-2"></span>
         <span>{{ themeToDisplayName(slotItem.item.name) }}</span>
       </div>
     </template>
@@ -33,6 +33,8 @@ const themeToDisplayName = (themeName: Theme) => {
       return 'Intel® Core™ Ultra'
     case 'bmg':
       return 'Intel® Arc™'
+    case 'light':
+      return 'Light'
     default:
       return themeName
   }

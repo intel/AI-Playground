@@ -31,7 +31,7 @@ type KVObject = {
   [key: string]: any
 }
 
-type Theme = 'dark' | 'lnl' | 'bmg'
+type Theme = 'dark' | 'lnl' | 'bmg' | 'light'
 
 type LocaleSettings = {
   locale: string

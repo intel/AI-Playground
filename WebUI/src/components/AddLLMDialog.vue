@@ -1,10 +1,10 @@
 <template>
   <div class="dialog-container z-10">
     <div
-      class="dialog-mask absolute left-0 top-0 w-full h-full bg-black/55 flex justify-center items-center"
+      class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
     >
       <div
-        class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-6 text-white"
+        class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-card rounded-3xl gap-6 text-foreground"
         :class="{ 'animate-scale-in': animate }"
       >
         <b v-html="i18nState.REQUEST_LLM_MODEL_NAME"></b>
@@ -35,10 +35,10 @@
         </span>
         <p v-show="addModelError" style="color: #f44336">{{ addModelErrorMessage }}</p>
         <div class="flex justify-center items-center gap-9">
-          <button @click="closeAdd" class="bg-color-control-bg py-1 px-4 rounded">
+          <button @click="closeAdd" class="bg-muted py-1 px-4 rounded">
             {{ i18nState.COM_CLOSE }}
           </button>
-          <button @click="addModel" class="bg-color-control-bg py-1 px-4 rounded">
+          <button @click="addModel" class="bg-muted py-1 px-4 rounded">
             {{ i18nState.COM_ADD }}
           </button>
         </div>

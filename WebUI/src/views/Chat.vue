@@ -1,7 +1,7 @@
 <template>
   <button
     v-if="showScrollButton"
-    class="absolute bottom-65 left-1/2 transform -translate-x-1/2 bg-white text-black p-2 rounded-full shadow-lg z-50 hover:bg-gray-200 transition-colors"
+    class="absolute bottom-65 left-1/2 transform -translate-x-1/2 bg-background text-foreground p-2 rounded-full shadow-lg z-50 hover:bg-muted transition-colors"
     @click="scrollToBottom()"
     title="Scroll to bottom"
   >
@@ -20,7 +20,7 @@
     @scroll="handleScroll"
   >
     <div
-      class="absolute inset-0 flex justify-center items-center bg-black/30 z-10"
+      class="absolute inset-0 flex justify-center items-center bg-background/30 z-10"
       v-if="textInference.isPreparingBackend"
     >
       <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
@@ -33,7 +33,7 @@
         <div v-if="message.role === 'user'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
           <div class="flex flex-col gap-3 max-w-3/4">
-            <p class="text-gray-300" :class="textInference.nameSizeClass">
+            <p class="text-muted-foreground" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
             <img
@@ -43,7 +43,7 @@
             />
             <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
             <button
-              class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+              class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
               :title="languages.COM_COPY"
               @click="copyText(message.parts.find((part) => part.type === 'text')?.text || '')"
             >
@@ -55,15 +55,15 @@
         <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
           <div
-            class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+            class="flex flex-col gap-3 bg-muted rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
           >
             <div class="flex items-center gap-2">
-              <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+              <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_AI_NAME }}
               </p>
               <div v-if="(message.metadata as { model?: string }).model" class="flex items-center gap-2">
                 <span
-                  class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+                  class="bg-secondary text-foreground font-sans rounded-md px-1 py-1"
                   :class="textInference.nameSizeClass"
                 >
                   {{
@@ -76,7 +76,7 @@
                 <span
                   v-if="(message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id]"
                   @click="showRagSourcePerMessageId[message.id] = !showRagSourcePerMessageId[message.id]"
-                  class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+                  class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
                   :class="textInference.nameSizeClass"
                 >
                   Source Docs
@@ -95,7 +95,7 @@
             <!-- RAG Source Details (collapsible) -->
             <div
               v-if="((message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id]) && showRagSourcePerMessageId[message.id]"
-              class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+              class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
@@ -104,7 +104,7 @@
             <div class="ai-answer chat-content">
               <template v-if="message.parts.some((part) => part.type === 'reasoning')">
                 <div class="mb-2 flex items-center">
-                   <span class="italic text-gray-300">
+                   <span class="italic text-muted-foreground">
                     {{
                       message.metadata?.reasoningFinished && message.metadata?.reasoningStarted
                         ? `Done Reasoning after ${((message.metadata.reasoningFinished - message.metadata.reasoningStarted) / 1000).toFixed(1)} seconds`
@@ -127,13 +127,13 @@
                 </div>
                 <div
                   v-if="showThinkingTextPerMessageId[message.id]"
-                  class="border-l-2 border-gray-400 pl-4 text-gray-300"
+                  class="border-l-2 border-border pl-4 text-muted-foreground"
                   v-html="parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '')"
                 ></div>
               </template>
               <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
             </div>
-            <div class="answer-tools flex gap-3 items-center text-gray-300">
+            <div class="answer-tools flex gap-3 items-center text-muted-foreground">
               <button
                 class="flex items-end"
                 :title="languages.COM_COPY"
@@ -168,7 +168,7 @@
             </div>
             <div
               v-if="textInference.metricsEnabled && message.metadata?.timings"
-              class="metrics-info text-xs text-gray-400"
+              class="metrics-info text-xs text-muted-foreground"
             >
               <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
               <span class="mr-2">⋅</span>
@@ -189,14 +189,14 @@
       >
         <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
         <div class="flex flex-col gap-3 max-w-3/4">
-          <p class="text-gray-300" :class="textInference.nameSizeClass">
+          <p class="text-muted-foreground" :class="textInference.nameSizeClass">
             {{ languages.ANSWER_USER_NAME }}
           </p>
           <div class="chat-content" style="white-space: pre-wrap">
             {{ textIn }}
           </div>
           <button
-            class="flex items-center gap-1 text-xs text-gray-300 mt-1"
+            class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
             :title="languages.COM_COPY"
             @click="copyText(textIn)"
           >
@@ -211,21 +211,21 @@
       >
         <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
         <div
-          class="flex flex-col gap-3 bg-gray-600 rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+          class="flex flex-col gap-3 bg-muted rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
         >
           <div class="flex items-center gap-2">
-            <p class="text-gray-300 mt-0.75" :class="textInference.nameSizeClass">
+            <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_AI_NAME }}
             </p>
             <span
-              class="bg-gray-400 text-black font-sans rounded-md px-1 py-1"
+              class="bg-secondary text-foreground font-sans rounded-md px-1 py-1"
               :class="textInference.nameSizeClass"
             >
               {{ textInference.activeModel }}
             </span>
             <span
               v-if="ragRetrievalInProgress || actualRagResults?.length"
-              class="bg-purple-400 text-black font-sans rounded-md px-1 py-1 cursor-pointer"
+              class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
               :class="textInference.nameSizeClass"
               @click="showRagPreview = !showRagPreview"
             >
@@ -239,7 +239,7 @@
 
           <div
             v-if="showRagPreview"
-            class="my-2 text-gray-300 border-l-2 border-purple-400 pl-2 flex flex-row gap-1"
+            class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
             :class="textInference.fontSizeClass"
           >
             <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
@@ -264,7 +264,7 @@
           >
             <template v-if="textInference.activeModel && thinkingModels[textInference.activeModel]">
               <div class="mb-2 flex items-center">
-                <span class="italic text-gray-300 inline-flex items-center">
+                <span class="italic text-muted-foreground inline-flex items-center">
                   <template v-if="thinkingText || postMarkerText">
                     <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
                       {{ `Reasoned for ${(reasoningTotalTime / 1000).toFixed(1)} seconds` }}
@@ -289,10 +289,10 @@
               </div>
               <div
                 v-if="showThinkingText"
-                class="border-l-2 border-gray-400 pl-4 text-gray-300"
+                class="border-l-2 border-border pl-4 text-muted-foreground"
                 v-html="thinkOut"
               ></div>
-              <div class="mt-2 text-white" v-html="textOut"></div>
+              <div class="mt-2 text-foreground" v-html="textOut"></div>
             </template>
             <template v-else>
               <span v-html="textOut"></span>

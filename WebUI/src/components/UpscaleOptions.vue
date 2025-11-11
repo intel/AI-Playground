@@ -1,6 +1,6 @@
 <template>
   <div :class="{ 'demo-variation-splitter': demoMode.enhance.showUpscale }">
-    <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_SCALE }}</h3>
+    <h3 class="text-foreground mb-3">{{ languages.ENHANCE_UPSCALE_SCALE }}</h3>
     <div class="gap-3 w-80 flex-wrap grid grid-cols-2">
       <radio
         :checked="scale == 0"
@@ -16,7 +16,7 @@
     <div v-if="demoMode.enhance.showUpscale" class="demo-step-number demo-step-number-two">2</div>
   </div>
   <div>
-    <h3 class="text-white mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
+    <h3 class="text-foreground mb-3">{{ languages.ENHANCE_UPSCALE_VARIATION }}</h3>
     <div class="gap-3 w-80">
       <slide-bar v-model:current="denoise" :min="0" :max="1" :step="0.01"></slide-bar>
     </div>

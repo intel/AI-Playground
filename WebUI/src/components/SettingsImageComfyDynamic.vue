@@ -46,13 +46,13 @@
     >
       <template #selected>
         <div class="flex gap-2 items-center">
-          <span class="rounded-full bg-green-500 w-2 h-2"></span>
+          <span class="rounded-full bg-primary w-2 h-2"></span>
           <span>{{ input.current.value as string }}</span>
         </div>
       </template>
       <template #list="slotItem">
         <div class="flex gap-2 items-center">
-          <span class="rounded-full bg-green-500 w-2 h-2"></span>
+          <span class="rounded-full bg-primary w-2 h-2"></span>
           <span>{{ slotItem.item }}</span>
         </div>
       </template>

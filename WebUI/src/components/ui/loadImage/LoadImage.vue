@@ -2,7 +2,7 @@
   <div ref="imgDropZone" class="flex justify-center relative">
     <div
       v-show="isOverDropZone"
-      class="bg-black/70 absolute inset-0 flex items-center justify-center text-white text-lg"
+      class="bg-background/70 absolute inset-0 flex items-center justify-center text-foreground text-lg"
     >
       {{ languages.COM_LOAD_IMAGE }}
     </div>
@@ -20,7 +20,7 @@
       :for="id"
       :class="
         cn(
-          'text-base bg-color-active py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
+          'text-base bg-primary py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
           props.class,
         )
       "

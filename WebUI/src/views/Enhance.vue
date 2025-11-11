@@ -29,7 +29,7 @@
       </div>
       <div class="flex-auto relative flex items-center justify-center">
         <div
-          class="flex justify-center items-center bg-color-image-bg rounded-lg relative border border-white/20"
+          class="flex justify-center items-center bg-accent rounded-lg relative border border-border"
           style="width: 768px; height: 400px"
         >
           <!--inpaint mask-->
@@ -52,14 +52,14 @@
             ></inpaint-mask>
           </div>
           <div
-            class="absolute -right-8 bottom-3 flex flex-col items-center justify-center gap-2 text-white"
+            class="absolute -right-8 bottom-3 flex flex-col items-center justify-center gap-2 text-foreground"
           >
             <!--inpaint mask pen-->
             <button
               id="mask-pen"
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(0)"
-              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
+              class="bg-muted w-6 h-6 rounded-xs flex justify-center items-center"
               :class="{ 'demo-mode-overlay-content': demoMode.enhance.showInpaint }"
             >
               <span class="svg-icon i-pen w-5 h-5"></span>
@@ -69,11 +69,11 @@
               v-show="
                 mode == 3 && previewIdx == -1 && generateState != 'no_start' && maskData.mode == 0
               "
-              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded-sm border-color-control-bg w-5 py-1"
+              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded-sm border-muted w-5 py-1"
               :style="{ left: maskBrush.x, top: maskBrush.y }"
             >
               <div class="flex flex-col items-center justify-center gap-1 flex-auto">
-                <span class="w-3 h-3 bg-gray-400 rounded-full flex-none"></span>
+                <span class="w-3 h-3 bg-muted-foreground rounded-full flex-none"></span>
                 <vertical-slide-bar
                   type="vertical"
                   :showEditbox="false"
@@ -84,7 +84,7 @@
                   class="flex-auto"
                 >
                 </vertical-slide-bar>
-                <span class="w-2 h-2 bg-gray-400 rounded-full flex-none"></span>
+                <span class="w-2 h-2 bg-muted-foreground rounded-full flex-none"></span>
               </div>
               <span class="w-4 h-4 rounded-sm flex justify-center items-center">
                 <span class="svg-icon i-pen w-3 h-3"></span>
@@ -95,7 +95,7 @@
               id="mask-easer"
               v-show="mode == 3 && previewIdx == -1 && generateState != 'no_start'"
               @click="switchMaskDrawMode(1)"
-              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
+              class="bg-muted w-6 h-6 rounded-xs flex justify-center items-center"
             >
               <span class="svg-icon i-easer w-5 h-5"></span>
             </button>
@@ -103,11 +103,11 @@
               v-show="
                 mode == 3 && generateState != 'no_start' && previewIdx == -1 && maskData.mode == 1
               "
-              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded-sm border-color-control-bg w-5 py-1"
+              class="flex flex-col items-center justify-center gap-2 absolute h-44 border rounded-sm border-muted w-5 py-1"
               :style="{ left: maskEaser.x, top: maskEaser.y }"
             >
               <div class="flex flex-col items-center justify-center gap-1 flex-auto">
-                <span class="w-3 h-3 bg-gray-400 rounded-full flex-none"></span>
+                <span class="w-3 h-3 bg-muted-foreground rounded-full flex-none"></span>
                 <vertical-slide-bar
                   type="vertical"
                   :showEditbox="false"
@@ -118,7 +118,7 @@
                   class="flex-auto"
                 >
                 </vertical-slide-bar>
-                <span class="w-2 h-2 bg-gray-400 rounded-full flex-none"></span>
+                <span class="w-2 h-2 bg-muted-foreground rounded-full flex-none"></span>
               </div>
               <span class="w-4 h-4 rounded-sm flex justify-center items-center">
                 <span class="svg-icon i-easer w-3 h-3"></span>
@@ -128,7 +128,7 @@
             <button
               v-show="mode == 3 && generateState != 'no_start' && previewIdx == -1"
               @click="inpaintMaskCompt?.clearMaskImage"
-              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
+              class="bg-muted w-6 h-6 rounded-xs flex justify-center items-center"
             >
               <span class="svg-icon i-broom w-5 h-5"></span>
             </button>
@@ -136,45 +136,45 @@
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="postImageToEnhance"
               :title="languages.COM_POST_TO_ENHANCE_PROCESS"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-transfer w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-transfer w-4 h-4"></span>
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="toggleParamsDialog"
               :title="languages.COM_OPEN_PARAMS"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-info w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-info w-4 h-4"></span>
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="openImage"
               :title="languages.COM_ZOOM_IN"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-zoom-in w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-zoom-in w-4 h-4"></span>
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="copyImage"
               :title="languages.COM_COPY"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-copy w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-copy w-4 h-4"></span>
             </button>
             <button
               v-show="previewIdx != -1 && previewIdx <= generateFinishIdx"
               @click="openImageInFolder"
               :title="languages.COM_OPEN_LOCATION"
-              class="bg-color-image-tool-button rounded-xs w-6 h-6 flex items-center justify-center"
+              class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
             >
-              <span class="svg-icon text-white i-folder w-4 h-4"></span>
+              <span class="svg-icon text-foreground i-folder w-4 h-4"></span>
             </button>
             <button
               v-show="sourceImg && !processing"
-              class="bg-color-image-tool-button w-6 h-6 rounded-xs flex justify-center items-center"
+              class="bg-muted w-6 h-6 rounded-xs flex justify-center items-center"
             >
               <span class="svg-icon i-delete w-5 h-5" @click="removeImage"></span>
             </button>
@@ -189,7 +189,7 @@
           <!-- eslint-enable -->
           <div
             v-show="processing && generateIdx == previewIdx"
-            class="absolute left-0 top-0 w-full h-full bg-black/50 flex justify-center items-center"
+            class="absolute left-0 top-0 w-full h-full bg-background/50 flex justify-center items-center"
           >
             <loading-bar
               v-if="['load_model', 'load_model_components'].includes(generateState)"
@@ -202,7 +202,7 @@
             ></loading-bar>
             <div
               v-else-if="generateState == 'generating'"
-              class="flex gap-2 items-center justify-center text-white"
+              class="flex gap-2 items-center justify-center text-foreground"
             >
               <span class="svg-icon i-loading w-8 h-8"></span>
               <span class="text-2xl">{{ stepText }}</span>
@@ -264,7 +264,7 @@
       </div>
     </div>
     <div class="flex flex-col flex-none h-44">
-      <div class="enhance-tabs flex-none pt-2 flex items-end justify-start gap-1 text-gray-400">
+      <div class="enhance-tabs flex-none pt-2 flex items-end justify-start gap-1 text-muted-foreground">
         <button
           class="tab"
           :class="{ active: mode == 1 }"
@@ -299,14 +299,14 @@
         </button>
       </div>
       <div
-        class="enhance-content flex-auto border p-2 rounded-b-md border-color-spilter"
+        class="enhance-content flex-auto border p-2 rounded-b-md border-border"
         :class="{
           'demo-mode-overlay-content': demoMode.enhance.showUpscale,
           'demo-number-overlay': demoMode.enhance.showUpscale,
         }"
       >
-        <div class="w-80 rounded-lg bg-color-control-bg relative h-full">
-          <div class="flex flex-col items-center justify-center gap-2 text-white text-xs h-full">
+        <div class="w-80 rounded-lg bg-muted relative h-full">
+          <div class="flex flex-col items-center justify-center gap-2 text-foreground text-xs h-full">
             <p class="text-sm">{{ languages.COM_CLICK_UPLOAD }}</p>
           </div>
           <input

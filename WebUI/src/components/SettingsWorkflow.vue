@@ -83,7 +83,7 @@
           {{ languages.SETTINGS_MODEL_NEGATIVE_PROMPT }}
         </Label>
         <textarea
-          class="h-24 rounded-lg resize-none bg-gray-800 border border-gray-700 text-white p-2"
+          class="h-24 rounded-lg resize-none bg-input border border-border text-foreground p-2"
           v-model="imageGeneration.negativePrompt"
           :disabled="!modifiable('negativePrompt')"
         ></textarea>
@@ -104,7 +104,7 @@
       </div>
       <ComfyDynamic></ComfyDynamic>
 
-      <div class="border-t border-color-spilter items-center flex-wrap grid grid-cols-1 gap-2">
+      <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
         <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
           <div class="svg-icon i-refresh">Reset</div>
           {{ languages.COM_LOAD_WORKFLOW_DEFAULTS }}

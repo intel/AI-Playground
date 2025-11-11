@@ -136,7 +136,7 @@ const sliderModel = computed({
       <select
         id="megapixels"
         v-model="megaPixelsIndex"
-        class="mt-1 text-center block w-full rounded-md bg-[var(--color-control-bg)] border border-gray-500"
+        class="mt-1 text-center block w-full rounded-md bg-muted border border-border"
         :disabled="props.disabled"
       >
         <option v-for="(option, index) in megaPixelsOptions" :key="index" :value="index">
@@ -146,7 +146,7 @@ const sliderModel = computed({
       Megapixels
     </div>
     <span
-      class="w-[90px] text-center rounded-xs border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]"
+      class="w-[90px] text-center rounded-xs border border-border py-0.5 px-2 bg-muted"
       >{{ imageGeneration.width }} x {{ imageGeneration.height }}</span
     >
   </div>
@@ -165,9 +165,9 @@ const sliderModel = computed({
           "
           v-if="i % 2 === 0"
           :className="
-            clsx({ 'cursor-pointer': !props.disabled }, 'bg-[var(--color-control-bg)] border', {
-              'border-gray-500': resolutionIndex[0] !== i || disabled,
-              'border-white': resolutionIndex[0] === i && !disabled,
+            clsx({ 'cursor-pointer': !props.disabled }, 'bg-muted border', {
+              'border-border': resolutionIndex[0] !== i || disabled,
+              'border-primary': resolutionIndex[0] === i && !disabled,
             })
           "
           :style="{
@@ -194,7 +194,7 @@ const sliderModel = computed({
         v-for="(_, key) in sliderModel"
         :key="key"
         :className="
-          clsx('block h-3 w-3 rounded-full border border-[#4e80ff] bg-white transition-colors', {
+          clsx('block h-3 w-3 rounded-full border border-primary bg-background transition-colors', {
             'cursor-pointer': !disabled,
           })
         "

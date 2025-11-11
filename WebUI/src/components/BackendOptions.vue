@@ -397,7 +397,7 @@ const showMenuButton = computed(
             </form>
 
             <DialogFooter>
-              <Button type="submit" form="dialogForm">
+              <Button type="submit" form="dialogForm" class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded text-sm">
                 {{ i18nState.BACKEND_SAVE_CHANGES }}
               </Button></DialogFooter
             >

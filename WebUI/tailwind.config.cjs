@@ -22,18 +22,9 @@ module.exports = {
     extend: {
       backgroundImage: {
         bmg: "radial-gradient(circle, #2042 0%, #1027 48%), url('/src/assets/image/arc-graphics-environments-3color-pattern-full.jpg')",
+        light: "radial-gradient(circle, #ffff 0%, #fffe 60%, #fffd 100%), url('/src/assets/image/arc-graphics-environments-3color-pattern-full-transparent-16x9.png')",
       },
       colors: {
-        'color-bg-main': 'var(--color-bg-main)',
-        'color-spilter': 'var(--color-spilter)',
-        'color-gray-244': 'var(--color-gray-244)',
-        'color-panel-focus': 'var(--color-panel-focus)',
-        'color-gray-666': 'var(--color-gray-666)',
-        'color-uploader-bg': 'var(--color-uploader-bg)',
-        'color-image-tool-button': 'var(--color-image-tool-button)',
-        'color-image-bg': 'var(--color-image-bg)',
-        'color-active': 'var(--color-active)',
-        'color-control-bg': 'var(--color-control-bg)',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

@@ -58,25 +58,25 @@ const selectedItem = computed(() => {
     <DropdownMenuTrigger as-child>
       <button>
         <div
-          class="w-full h-[30px] rounded-[15px] bg-[#05010f] border border-[#cdcdcd] text-white px-3 flex items-center justify-between"
+          class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between"
         >
           <div
             class="w-2 h-2 rounded-full shrink-0"
-            :class="selectedItem.active ? 'bg-green-500' : 'bg-gray-400'"
+            :class="selectedItem.active ? 'bg-primary' : 'bg-muted-foreground'"
           ></div>
           <span class="text-xs flex-grow text-left px-3 text-nowrap">
             {{ selectedItem.label }}
           </span>
-          <ChevronDownIcon class="size-4 text-gray-200"></ChevronDownIcon>
+          <ChevronDownIcon class="size-4 text-muted-foreground"></ChevronDownIcon>
         </div>
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent
       :align="'start'"
       :align-offset="-20"
-      class="w-full rounded-lg p-[3px] border border-[#cdcdcd] bg-[#05010f] max-h-[188px] overflow-y-auto z-[100] ml-4"
+      class="w-full rounded-md p-[3px] border border-border bg-card max-h-[188px] overflow-y-auto z-[100] ml-4"
     >
-      <DropdownMenuLabel class="text-white px-3 py-2 text-sm font-medium">{{
+      <DropdownMenuLabel class="text-foreground px-3 py-2 text-sm font-medium">{{
         languages.SETTINGS_TEXT_INFERENCE_MODEL
       }}</DropdownMenuLabel>
       <div class="px-3 flex items-center" v-if="runningOnOpenvinoNpu">
@@ -92,17 +92,17 @@ const selectedItem = computed(() => {
           {{ languages.SETTINGS_TEXT_INFERENCE_NPU_ONLY }}
         </label>
       </div>
-      <DropdownMenuSeparator class="bg-white/20" />
+      <DropdownMenuSeparator class="bg-border" />
       <div class="py-1">
         <DropdownMenuItem
           v-for="item in items"
           :key="item.value"
           @click="() => textInference.selectModel(textInference.backend, item.value)"
-          class="text-sm px-4 py-1 flex items-center text-left hover:bg-white/10 text-white"
+          class="text-sm px-4 py-1 flex items-center text-left hover:bg-muted text-foreground"
         >
           <div
             class="w-2 h-2 rounded-full mr-2 shrink-0"
-            :class="item.active ? 'bg-green-500' : 'bg-gray-400'"
+            :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
           ></div>
           {{ item.label }}
         </DropdownMenuItem>

@@ -1,5 +1,5 @@
 <template>
-  <div id="prompt-area" class="text-white flex flex-col w-full pt-4">
+  <div id="prompt-area" class="text-foreground flex flex-col w-full pt-4">
     <div class="flex flex-col items-center gap-7 text-base px-4">
         <div v-if="contextError" class="flex items-center gap-3">
           <p class="text-red-500">{{ contextError }}</p>
@@ -25,19 +25,19 @@
           v-if="promptStore.getCurrentMode() === 'chat' && checkedRagDocuments.length > 0"
           class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1 "
         >
-          <span class=" text-gray-400 flex items-center gap-1">
+          <span class=" text-muted-foreground flex items-center gap-1">
             <PaperClipIcon class="size-4" />
           </span>
           <div
             v-for="doc in checkedRagDocuments"
             :key="doc.hash"
-            class="flex items-center gap-1 px-1 py-0.5 bg-purple-600/20 border border-purple-500/30 rounded-md text-gray-200 hover:bg-purple-600/30 transition-colors group"
+            class="flex items-center gap-1 px-1 py-0.5 bg-primary/20 border border-primary/30 rounded-md text-foreground hover:bg-primary/30 transition-colors group"
           >
             <span class="svg-icon flex-none w-4 h-4" :class="getRagIconClass(doc.type)"></span>
             <span class="truncate max-w-[200px]" :title="doc.filename">{{ doc.filename }}</span>
             <button
               @click="textInference.updateFileCheckStatus(doc.hash, false)"
-              class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
+              class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
               title="Remove from context"
             >
               <XMarkIcon class="size-4" />
@@ -45,7 +45,7 @@
           </div>
         </div>
         <textarea
-          class="rounded-2xl resize-none w-full h-48 px-4 pb-16"
+          class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
           :class="{ [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true }"
           :placeholder="getTextAreaPlaceholder()"
           v-model="prompt"
@@ -58,10 +58,10 @@
             :key="preview.id"
             :src="preview.url"
             alt="Image Preview"
-            class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-gray-500 rounded-md"
+            class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-border rounded-md"
           />
           <!-- TODO: delete icon for loaded images -->
-          <div class="self-center border border-dashed border-gray-500 rounded-md p-1 hover:cursor-pointer">
+          <div class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer">
             <Label htmlFor="image"><PlusIcon class="size-4 cursor-pointer" /></Label>
             <Input
               type="file"
@@ -71,24 +71,24 @@
             />
           </div>
         </div>
-        <div class="absolute bottom-3 left-3 flex gap-2">
+        <div class="absolute bottom-4 left-3 flex gap-2">
           <button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
             :key="mode"
             @click="promptStore.setCurrentMode(mode)"
             :class="
               promptStore.getCurrentMode() === mode
-                ? 'bg-blue-600 hover:bg-blue-500'
-                : 'bg-gray-700 hover:bg-gray-600'
+                ? 'bg-primary hover:bg-primary/80'
+                : 'bg-muted hover:bg-muted/80'
             "
             class="px-3 py-1.5 rounded-lg text-sm"
           >
             {{ mapModeToLabel(mode) }}
           </button>
         </div>
-        <div class="absolute bottom-3 right-3 flex gap-2">
+        <div class="absolute bottom-4 right-3 flex gap-2">
           <button
-            class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+            class="px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
             @click="$emit('openSettings')"
           >
             {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
@@ -96,7 +96,7 @@
           <button
             v-if="readyForNewSubmit"
             @click="handleSubmitPromptClick"
-            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm min-w-[44px]"
+            class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
           >
             →
           </button>

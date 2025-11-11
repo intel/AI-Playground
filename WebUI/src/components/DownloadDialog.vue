@@ -1,17 +1,17 @@
 <template>
   <div class="dialog-container z-10">
     <div
-      class="dialog-mask absolute left-0 top-0 w-full h-full bg-black/55 flex justify-center items-center"
+      class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
     >
       <div
-        class="py-20 px-20 w-768px flex flex-col items-center justify-center bg-gray-600 rounded-3xl gap-8 text-white"
+        class="py-20 px-20 w-768px flex flex-col items-center justify-center bg-card rounded-3xl gap-8 text-foreground"
         :class="{ 'animate-scale-in': animate }"
       >
         <div v-if="showConfirm" class="text-center flex items-center flex-col gap-5">
           <p>{{ i18nState.DOWNLOADER_CONFRIM_TIP }}</p>
           <table class="text-left w-full">
             <thead>
-              <tr class="text-center text-gray-300 font-bold">
+              <tr class="text-center text-muted-foreground font-bold">
                 <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
                 <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
                 <td>{{ languages.DOWNLOADER_GATED }}</td>
@@ -71,7 +71,7 @@
                     <a
                       :href="getInfoUrl(item.repo_id, item.type)"
                       target="_blank"
-                      class="text-blue-500 text-sm"
+                      class="text-primary text-sm"
                     >
                       {{ i18nState.DOWNLOADER_TERMS }}
                     </a>
@@ -85,7 +85,7 @@
                     <a
                       :href="item.additionalLicenseLink"
                       target="_blank"
-                      class="text-blue-500 text-sm"
+                      class="text-primary text-sm"
                     >
                       {{ i18nState.DOWNLOADER_TERMS }}
                     </a>
@@ -149,7 +149,7 @@
             <span class="text-sm text-left">{{ languages.DOWNLOADER_TERMS_TIP }}</span>
           </div>
           <div class="flex justify-center items-center gap-9">
-            <button @click="cancelConfirm" class="bg-color-control-bg py-1 px-4 rounded">
+            <button @click="cancelConfirm" class="bg-muted py-1 px-4 rounded">
               {{ i18nState.COM_CANCEL }}
             </button>
             <button
@@ -157,7 +157,7 @@
               :disabled="
                 sizeRequesting || !readTerms || downloadModelRender.every((i) => !i.accessGranted)
               "
-              class="bg-color-active py-1 px-4 rounded"
+              class="bg-primary py-1 px-4 rounded"
             >
               {{ i18nState.COM_CONFIRM }}
             </button>

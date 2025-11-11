@@ -1,5 +1,5 @@
 <template>
-  <div class="z-10 text-white rounded-xl bg-black/70">
+  <div class="z-10 text-foreground rounded-xl bg-background/70 border border-border">
     <div class="px-20 py-5 max-w-5xl">
       <h1 class="text-center py-1 px-4 rounded-sm text-4xl">
         {{ languages.BACKEND_MANAGE }}
@@ -65,7 +65,7 @@
                       component.status === 'failed' || component.status === 'installationFailed'
                     "
                     @click="showErrorDetails(component.serviceName)"
-                    class="text-blue-400 hover:text-blue-300 transition-colors"
+                    class="text-primary hover:text-primary/80 transition-colors"
                     title="View error details"
                   >
                     <span class="svg-icon i-info w-5 h-5 align-text-top"></span>
@@ -81,7 +81,7 @@
                   v-else-if="component.status === 'notInstalled' && !component.isSetUp"
                   @click="() => installBackend(component.serviceName)"
                   :disabled="!component.enabled || isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_INSTALL }}
                 </button>
@@ -91,7 +91,7 @@
                   "
                   @click="() => repairBackend(component.serviceName)"
                   :disabled="!component.enabled || isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_REPAIR }}
                 </button>
@@ -99,7 +99,7 @@
                   v-else-if="component.status === 'running'"
                   @click="() => restartBackend(component.serviceName)"
                   :disabled="isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_RESTART }}
                 </button>
@@ -107,7 +107,7 @@
                   v-else-if="component.status === 'stopped' || component.status === 'notYetStarted'"
                   @click="() => restartBackend(component.serviceName)"
                   :disabled="isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_START }}
                 </button>
@@ -128,14 +128,14 @@
           :style="{ visibility: convertVisibility(!somethingChanged) }"
           :disabled="!CanCloseInstallations()"
           @click="closeInstallations"
-          class="flex bg-color-active py-1 px-4 rounded"
+          class="flex bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_CLOSE }}
         </button>
         <button
           :disabled="!areBoxesChecked() || isSomethingLoading() || isEverythingRunning()"
           @click="installAllSelected"
-          class="flex bg-color-active py-1 px-4 rounded"
+          class="flex bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_INSTALL_ALL }}
         </button>
@@ -143,7 +143,7 @@
           :style="{ visibility: convertVisibility(somethingChanged) }"
           :disabled="!CanCloseInstallations()"
           @click="closeInstallations"
-          class="flex bg-color-active py-1 px-4 rounded"
+          class="flex bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_CONTINUE }}
         </button>

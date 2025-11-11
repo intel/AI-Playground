@@ -2,13 +2,13 @@
   <drop-selector :array="i18n.languageOptions" @change="i18n.changeLanguage">
     <template #selected>
       <div class="flex gap-2 items-center">
-        <span class="rounded-full bg-green-500 w-2 h-2"></span>
+        <span class="rounded-full bg-primary w-2 h-2"></span>
         <span>{{ i18n.currentLanguageName }}</span>
       </div>
     </template>
     <template #list="slotItem">
       <div class="flex gap-2 items-center">
-        <span class="rounded-full bg-green-500 w-2 h-2"></span>
+        <span class="rounded-full bg-primary w-2 h-2"></span>
         <span>{{ slotItem.item.name }}</span>
       </div>
     </template>
