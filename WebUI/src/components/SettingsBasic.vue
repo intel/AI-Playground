@@ -44,6 +44,25 @@
       </button>
     </div>
   </div>
+  <div class="flex flex-col gap-3 pt-6 border-t border-border">
+    <div class="flex justify-between items-center">
+      <p>{{ i18nState.SETTINGS_PRESETS_MANAGEMENT || languages.SETTINGS_PRESETS_MANAGEMENT || 'Presets Management' }}</p>
+      <div class="flex gap-2 items-center">
+        <div :data-tooltip="i18nState.PRESET_RELOAD_INFO || i18nState.WORKFLOW_RELOAD_INFO">
+          <button
+            class="svg-icon i-refresh w-5 h-5 text-primary"
+            @click="presetsStore.loadPresetsFromFiles"
+          ></button>
+        </div>
+        <div :data-tooltip="i18nState.PRESET_DOWNLOAD_INFO || i18nState.WORKFLOW_DOWNLOAD_INFO">
+          <button
+            class="svg-icon i-download-cloud w-5 h-5 text-primary"
+            @click="loadPresetsFromIntel"
+          ></button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -52,6 +71,9 @@ import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { usePresets } from '@/assets/js/store/presets'
+import { useI18N } from '@/assets/js/store/i18n.ts'
+import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
 
@@ -59,6 +81,8 @@ const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
 const models = useModels()
 const theme = useTheme()
+const presetsStore = usePresets()
+const i18nState = useI18N().state
 
 const displayComponents = computed(() => {
   return backendServices.info.map((item) => ({
@@ -67,7 +91,32 @@ const displayComponents = computed(() => {
   }))
 })
 
+async function loadPresetsFromIntel() {
+  const syncStatus = await presetsStore.loadPresetsFromIntel()
+  if (syncStatus.result === 'success') {
+    toast.success(`Backed up presets at ${syncStatus.backupDir}`)
+  } else if (syncStatus.result === 'noUpdate') {
+    toast.warning('No updated presets available')
+  } else {
+    toast.error('Synchronisation failed')
+  }
+}
+
 function openDebug() {
   window.electronAPI.openDevTools()
 }
 </script>
+
+<style>
+[data-tooltip]:hover::after {
+  display: block;
+  position: absolute;
+  right: 10px;
+  content: attr(data-tooltip);
+  border: 1px solid rgb(122, 122, 122);
+  background: rgba(41, 41, 41, 0.95);
+  border-radius: 0.5rem;
+  padding: 0.7em;
+  z-index: 10;
+}
+</style>

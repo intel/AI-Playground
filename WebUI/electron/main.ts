@@ -47,6 +47,7 @@ import {
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
 import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
+import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
 import getPort, { portNumbers } from 'get-port'
@@ -904,6 +905,10 @@ function initEventHandle() {
 
   ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
     return updateIntelWorkflows(settings.remoteRepository)
+  })
+
+  ipcMain.handle('updatePresetsFromIntelRepo', () => {
+    return updateIntelPresets(settings.remoteRepository)
   })
 
   // Preset management IPC handlers

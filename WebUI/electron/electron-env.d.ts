@@ -55,6 +55,11 @@ type UpdateWorkflowsFromIntelResult = {
   backupDir?: string
 }
 
+type UpdatePresetsFromIntelResult = {
+  result: 'success' | 'error' | 'noUpdate'
+  backupDir?: string
+}
+
 type BackendStatus =
   | 'notYetStarted'
   | 'starting'

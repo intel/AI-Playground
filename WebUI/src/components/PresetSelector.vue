@@ -171,22 +171,36 @@ onMounted(() => {
 })
 
 // Watch for changes in filtered presets and auto-select if current selection is no longer valid
-watch(filteredPresets, (newPresets) => {
-  if (selectedPresetName.value) {
-    const stillExists = newPresets.some((p) => p.name === selectedPresetName.value)
-    if (!stillExists) {
-      // Current selection is no longer in the filtered list
-      const categories = props.categories && props.categories.length > 0 
-        ? props.categories 
-        : (props.type === 'chat' ? ['chat'] : [])
-      const lastUsed = categories.length > 0 ? presetsStore.getLastUsedPreset(categories) : null
-      if (lastUsed && newPresets.some((p) => p.name === lastUsed)) {
-        emits('update:modelValue', lastUsed)
-      } else if (newPresets.length > 0) {
-        emits('update:modelValue', newPresets[0].name)
+// Use a deep comparison to avoid triggering when the array reference changes but content is the same
+watch(
+  filteredPresets,
+  (newPresets, oldPresets) => {
+    // Only proceed if the selection actually changed (preset names differ)
+    const newPresetNames = newPresets.map(p => p.name).sort().join(',')
+    const oldPresetNames = oldPresets?.map(p => p.name).sort().join(',') || ''
+    
+    // Skip if preset names haven't actually changed (just array reference changed)
+    if (newPresetNames === oldPresetNames && selectedPresetName.value) {
+      return
+    }
+    
+    if (selectedPresetName.value) {
+      const stillExists = newPresets.some((p) => p.name === selectedPresetName.value)
+      if (!stillExists) {
+        // Current selection is no longer in the filtered list
+        const categories = props.categories && props.categories.length > 0 
+          ? props.categories 
+          : (props.type === 'chat' ? ['chat'] : [])
+        const lastUsed = categories.length > 0 ? presetsStore.getLastUsedPreset(categories) : null
+        if (lastUsed && newPresets.some((p) => p.name === lastUsed)) {
+          emits('update:modelValue', lastUsed)
+        } else if (newPresets.length > 0) {
+          emits('update:modelValue', newPresets[0].name)
+        }
       }
     }
-  }
-})
+  },
+  { deep: false } // Don't deep watch, we'll do our own comparison
+)
 </script>
 

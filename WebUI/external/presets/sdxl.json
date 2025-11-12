@@ -5,7 +5,7 @@
   "tags": ["SDXL"],
   "backend": "comfyui",
   "category": "create-images",
-  "description": "Stable Diffusion XL image generation workflow using Juggernaut-XL-v9",
+  "description": "Stable Diffusion XL image generation using Juggernaut-XL-v9",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

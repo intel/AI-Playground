@@ -33,6 +33,7 @@ type electronAPI = {
   getFilePath: (file: File) => string
   reloadImageWorkflows(): Promise<string[]>
   updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
+  updatePresetsFromIntelRepo(): Promise<UpdatePresetsFromIntelResult>
   reloadPresets(): Promise<Array<{ content: string; image: string | null }>>
   getUserPresetsPath(): Promise<string>
   loadUserPresets(): Promise<Array<{ content: string; image: string | null }>>

@@ -332,6 +332,62 @@ export const usePresets = defineStore(
       }
     }
 
+    async function loadPresetsFromIntel(): Promise<UpdatePresetsFromIntelResult> {
+      const syncResponse = await window.electronAPI.updatePresetsFromIntelRepo()
+      // Load both built-in and user presets, then update the array once to avoid multiple reactive triggers
+      const [builtInPresets, userPresets] = await Promise.all([
+        (async () => {
+          const presetFiles = await window.electronAPI.reloadPresets()
+          const validatedPresets: Preset[] = []
+          for (const presetFile of presetFiles) {
+            try {
+              const fileContent =
+                typeof presetFile === 'string' ? presetFile : presetFile.content
+              const imageFromFile =
+                typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
+              const parsed = JSON.parse(fileContent)
+              const validated = validatePreset(parsed)
+              if (validated) {
+                if (!validated.image && imageFromFile) {
+                  validated.image = imageFromFile
+                }
+                validatedPresets.push(validated)
+              }
+            } catch (error) {
+              console.error('Failed to parse preset file:', error)
+            }
+          }
+          return validatedPresets
+        })(),
+        (async () => {
+          const userPresetFiles = await window.electronAPI.loadUserPresets()
+          const validatedPresets: Preset[] = []
+          for (const presetFile of userPresetFiles) {
+            try {
+              const fileContent =
+                typeof presetFile === 'string' ? presetFile : presetFile.content
+              const imageFromFile =
+                typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
+              const parsed = JSON.parse(fileContent)
+              const validated = validatePreset(parsed)
+              if (validated) {
+                if (!validated.image && imageFromFile) {
+                  validated.image = imageFromFile
+                }
+                validatedPresets.push(validated)
+              }
+            } catch (error) {
+              console.error('Failed to parse user preset file:', error)
+            }
+          }
+          return validatedPresets
+        })(),
+      ])
+      // Update the array only once to avoid multiple reactive triggers
+      presets.value = [...builtInPresets, ...userPresets]
+      return syncResponse
+    }
+
     // ========================================================================
     // Preset Management
     // ========================================================================
@@ -508,6 +564,7 @@ export const usePresets = defineStore(
       applyVariant,
       loadPresetsFromFiles,
       loadUserPresets,
+      loadPresetsFromIntel,
       addPreset,
       saveSettingsForPreset,
       getSettingsForPreset,

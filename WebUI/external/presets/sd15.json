@@ -5,6 +5,7 @@
   "tags": [],
   "backend": "comfyui",
   "category": "create-images",
+  "description": "Stable Diffusion 1.5 image generation using DreamShaper 8",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

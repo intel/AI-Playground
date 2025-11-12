@@ -311,9 +311,24 @@ export const useImageGenerationPresets = defineStore(
       return presetsStore.activeVariantName[activePreset.value.name] || null
     })
 
+    // Track the last preset name to avoid unnecessary reloads
+    let lastPresetName: string | null = null
+    let lastVariantName: string | null = null
+
     watch(
-      [activePreset, () => presetsStore.presets],
+      [activePreset, currentVariantName],
       () => {
+        const currentPresetName = activePreset.value?.name ?? null
+        const currentVariant = currentVariantName.value
+        
+        // Only reload if the preset or variant actually changed
+        if (currentPresetName === lastPresetName && currentVariant === lastVariantName) {
+          return
+        }
+        
+        lastPresetName = currentPresetName
+        lastVariantName = currentVariant ?? null
+        
         console.log('### watchy watch', { presets: presetsStore.presets, activePreset: activePreset.value, currentVariantName: currentVariantName.value, activeVariantName: presetsStore.activeVariantName })
         loadSettingsForActivePreset()
         if (activePreset.value && activePreset.value.type === 'comfy' && activePreset.value.name && activePreset.value.category) {
