@@ -30,7 +30,7 @@
       "type": "string",
       "label": "Prompt",
       "displayed": false,
-      "modifiable": false,
+      "modifiable": true,
       "defaultValue": "",
       "settingName": "prompt"
     },

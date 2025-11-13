@@ -7,16 +7,24 @@
   "category": "edit-images",
   "description": "Upscale images using Real-ESRGAN model",
   "requiredCustomNodes": [
-    "kijai/ComfyUI-Math@a7ce59e381934733bfae03b1be029756d6ce936d"
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
-      "type": "upscale_models",
+      "type": "upscale",
       "model": "Comfy-Org/Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors"
     }
   ],
   "settings": [
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
     {
       "type": "image",
       "label": "Input Image",
@@ -55,7 +63,7 @@
     },
     "13": {
       "inputs": {
-        "model_name": "RealESRGAN_x4plus.safetensors"
+        "model_name": "Comfy-Org---Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors"
       },
       "class_type": "UpscaleModelLoader",
       "_meta": {

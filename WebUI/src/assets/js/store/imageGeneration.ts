@@ -483,7 +483,7 @@ export const useImageGeneration = defineStore(
 
     const workflows = ref<Workflow[]>(predefinedWorkflows)
     const activeWorkflowName = ref<string | null>('Standard - Fast')
-    const lastUsedImageGenWorkflowName = ref<string>('Flux.1-Schnell Med Quality')
+    const lastUsedImageGenWorkflowName = ref<string>('Flux.1-Schnell')
     const lastUsedImageEditWorkflowName = ref<string>('Edit By Prompt')
     const lastUsedVideoWorkflowName = ref<string>('Video-Txt2Vid')
 

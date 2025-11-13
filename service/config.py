@@ -37,6 +37,7 @@ comfy_ui_model_paths = {
     "facerestore": f"{comfy_ui_root_path}/models/facerestore_models",
     "nsfwdetector": f"{comfy_ui_root_path}/models/nsfw_detector",
     "controlNet": f"{comfy_ui_root_path}/models/controlnet",
+    "upscale": f"{comfy_ui_root_path}/models/upscale_models",
     "defaultCheckpoint": "./models/stable_diffusion/checkpoints",
     "defaultLora": "./models/stable_diffusion/lora",
 }
@@ -92,5 +93,7 @@ def convert_model_type(type: int):
         return "nsfwdetector"
     elif type == 109:
         return "checkpoints"
+    elif type == 110:
+        return "upscale"
     else:
         raise Exception(f"unknown model type value {type}")

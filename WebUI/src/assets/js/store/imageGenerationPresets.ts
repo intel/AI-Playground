@@ -238,49 +238,54 @@ export const useImageGenerationPresets = defineStore(
     type ModifiableSettings = keyof typeof settings
 
     const backend = computed(() => {
+      console.log('### computing backend', activePreset.value?.backend)
       if (!activePreset.value) return 'default' as const
       return activePreset.value.backend as 'comfyui' | 'default'
     })
 
+    watch(() => activePreset.value, () => {
+      console.log('### watch activePreset test!!!', activePreset.value)
+    })
+
     const comfyInputs = computed(() => {
-      console.log('### comfyInputs', activePreset.value)
-      return activePreset.value?.comfyUiApiWorkflow?.inputs ?? []
-      // if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
-      // const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
-      // const savePerPreset = (input: ComfyInput, newValue: any) => {
-      //   if (!activePresetName.value) return
-      //   comfyInputsPerPreset.value[activePresetName.value] = {
-      //     ...comfyInputsPerPreset.value[activePresetName.value],
-      //     [inputRef(input)]: newValue,
-      //   }
-      // }
-      // const getSavedOrDefault = (input: ComfyInput) => {
-      //   if (!activePresetName.value) return input.defaultValue
-      //   const saved = comfyInputsPerPreset.value[activePresetName.value]?.[inputRef(input)]
-      //   return saved ?? input.defaultValue
-      // }
+      console.log('### computing comfyInputs', activePreset.value?.name)
+      // return activePreset.value?.settings?.filter((s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s) ?? []
+      if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
+      const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
+      const savePerPreset = (input: ComfyInput, newValue: any) => {
+        if (!activePreset.value?.name) return
+        comfyInputsPerPreset.value[activePreset.value.name] = {
+          ...comfyInputsPerPreset.value[activePreset.value.name],
+          [inputRef(input)]: newValue,
+        }
+      }
+      const getSavedOrDefault = (input: ComfyInput) => {
+        if (!activePreset.value?.name) return input.defaultValue
+        const saved = comfyInputsPerPreset.value[activePreset.value.name]?.[inputRef(input)]
+        return saved ?? input.defaultValue
+      }
 
-      // console.log('### activePreset.value.settings', activePreset.value.settings)
-      // // Filter ComfyUI inputs (those with nodeTitle and nodeInput)
-      // const comfyInputs = activePreset.value.settings.filter(
-      //   (s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s,
-      // )
-      // console.log('### comfyInputs', comfyInputs)
-      // return comfyInputs.map((input) => {
-      //   const _current = ref(getSavedOrDefault(input))
+      console.log('### activePreset.value.settings', activePreset.value.settings)
+      // Filter ComfyUI inputs (those with nodeTitle and nodeInput)
+      const comfyInputs = activePreset.value.settings.filter(
+        (s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s,
+      )
+      console.log('### comfyInputs', comfyInputs)
+      return comfyInputs.map((input) => {
+        const _current = ref(getSavedOrDefault(input))
 
-      //   const current = computed({
-      //     get() {
-      //       return _current.value
-      //     },
-      //     set(newValue) {
-      //       _current.value = newValue
-      //       savePerPreset(input, newValue)
-      //     },
-      //   })
+        const current = computed({
+          get() {
+            return _current.value
+          },
+          set(newValue) {
+            _current.value = newValue
+            savePerPreset(input, newValue)
+          },
+        })
 
-      //   return { ...input, current }
-      // })
+        return { ...input, current }
+      })
     })
 
     type PresetName = string
@@ -307,6 +312,7 @@ export const useImageGenerationPresets = defineStore(
 
     // Watch for variant changes by watching the variant name for the current preset
     const currentVariantName = computed(() => {
+      console.log('### computing currentVariantName', activePreset.value?.name)
       if (!activePreset.value?.name) return null
       return presetsStore.activeVariantName[activePreset.value.name] || null
     })
@@ -318,6 +324,7 @@ export const useImageGenerationPresets = defineStore(
     watch(
       [activePreset, currentVariantName],
       () => {
+        console.log('### watch activePreset and currentVariantName', { activePreset: activePreset.value, currentVariantName: currentVariantName.value })
         const currentPresetName = activePreset.value?.name ?? null
         const currentVariant = currentVariantName.value
         
@@ -329,7 +336,6 @@ export const useImageGenerationPresets = defineStore(
         lastPresetName = currentPresetName
         lastVariantName = currentVariant ?? null
         
-        console.log('### watchy watch', { presets: presetsStore.presets, activePreset: activePreset.value, currentVariantName: currentVariantName.value, activeVariantName: presetsStore.activeVariantName })
         loadSettingsForActivePreset()
         if (activePreset.value && activePreset.value.type === 'comfy' && activePreset.value.name && activePreset.value.category) {
           presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
@@ -344,6 +350,7 @@ export const useImageGenerationPresets = defineStore(
     })
 
     watch([inferenceSteps, width, height, batchSize], () => {
+      console.log('### watch inferenceSteps, width, height, batchSize', { inferenceSteps: inferenceSteps.value, width: width.value, height: height.value, batchSize: batchSize.value })
       const saveToSettingsPerPreset = (settingName: string) => {
         const settingsKey = getSettingsKey()
         if (!settingsKey) return
@@ -447,6 +454,8 @@ export const useImageGenerationPresets = defineStore(
               return Const.MODEL_TYPE_COMFY_DEFAULT_LORA
             case 'controlNet':
               return Const.MODEL_TYPE_COMFY_CONTROL_NET
+            case 'upscale':
+              return Const.MODEL_TYPE_UPSCALE
             default:
               console.warn('received unknown comfyUI type: ', type)
               return -1
@@ -575,6 +584,7 @@ export const useImageGenerationPresets = defineStore(
     watch(
       () => presetsStore.presets,
       (presets) => {
+        console.log('### watch presets', { presets: presetsStore.presets, activePreset: activePreset.value, currentVariantName: currentVariantName.value, activeVariantName: presetsStore.activeVariantName })
         if (presets.length > 0 && !activePreset.value) {
           const firstComfyPreset = presets.find((p) => p.type === 'comfy')
           if (firstComfyPreset) {

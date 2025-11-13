@@ -46,10 +46,13 @@
         </div>
         <textarea
           class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
-          :class="{ [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true }"
+          :class="{ 
+            [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
+            'opacity-50 cursor-not-allowed': !isPromptModifiable
+          }"
           :placeholder="getTextAreaPlaceholder()"
           v-model="prompt"
-          :disabled="!readyForNewSubmit"
+          :disabled="isTextAreaDisabled"
           @keydown="fastGenerate"
         ></textarea>
         <div class="absolute bottom-14 left-3 flex gap-2">
@@ -198,6 +201,29 @@ const isStopping = computed(() =>
 const readyForNewSubmit = computed(() =>
   !promptStore.promptSubmitted && !isProcessing.value
 )
+
+// Check if prompt is modifiable for ComfyUI presets
+const isPromptModifiable = computed(() => {
+  const mode = promptStore.getCurrentMode()
+  // For chat mode, prompt is always modifiable
+  if (mode === 'chat') return true
+  
+  // For image/video modes, check if there's an active ComfyUI preset
+  if (mode === 'imageGen' || mode === 'imageEdit' || mode === 'video') {
+    // If there's an active preset, check if prompt is modifiable
+    if (imageGeneration.activePreset) {
+      return imageGeneration.isModifiable('prompt')
+    }
+    // If no active preset, allow prompt input (fallback behavior)
+    return true
+  }
+  
+  return true
+})
+
+const isTextAreaDisabled = computed(() => {
+  return !readyForNewSubmit.value || !isPromptModifiable.value
+})
 
 // Context usage data for Context component
 const contextUsedTokens = computed(() => openAiCompatibleChat.usedTokens)

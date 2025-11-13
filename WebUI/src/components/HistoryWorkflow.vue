@@ -72,7 +72,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -91,12 +90,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { useImageGenerationPresets, MediaItem, isVideo } from '@/assets/js/store/imageGenerationPresets'
 
 const props = defineProps<{
   mode: WorkflowModeType
 }>()
 
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
 
 const nonQueuedImages = computed(() =>
   imageGeneration.generatedImages.filter(

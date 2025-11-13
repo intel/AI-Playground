@@ -43,7 +43,7 @@
         />
       </div>
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
-        {{ selectedPreset.description }}
+        {{ presetsStore.activePresetWithVariant?.description || selectedPreset.description }}
       </p>
       <div v-if="selectedPreset.tags && selectedPreset.tags.length > 0" class="flex gap-2">
         <span
@@ -55,7 +55,7 @@
         </span>
       </div>
     </div>
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

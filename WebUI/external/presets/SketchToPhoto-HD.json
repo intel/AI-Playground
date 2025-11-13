@@ -1,0 +1,499 @@
+{
+  "type": "comfy",
+  "name": "SketchToPhoto-HD",
+  "displayPriority": 150,
+  "tags": [
+    "SDXL",
+    "20-Steps"
+  ],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "requiredCustomNodes": [],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "defaultCheckpoint",
+      "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
+    },
+    {
+      "type": "defaultCheckpoint",
+      "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
+    },
+    {
+      "type": "defaultCheckpoint",
+      "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
+    },
+    {
+      "type": "defaultCheckpoint",
+      "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+    },
+    {
+      "type": "controlNet",
+      "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 896,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 896,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "896x896",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "string",
+      "label": "Image Model",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "Lykon/dreamshaper-8",
+      "settingName": "imageModel"
+    },
+    {
+      "type": "string",
+      "label": "Inpaint Model",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "Lykon/dreamshaper-8-inpainting",
+      "settingName": "inpaintModel"
+    },
+    {
+      "type": "number",
+      "label": "Guidance Scale",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 7,
+      "settingName": "guidanceScale"
+    },
+    {
+      "type": "string",
+      "label": "LoRA",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "None",
+      "settingName": "lora"
+    },
+    {
+      "type": "string",
+      "label": "Scheduler",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "DPM++ SDE Karras",
+      "settingName": "scheduler"
+    },
+    {
+      "type": "boolean",
+      "label": "Image Preview",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "imagePreview"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "number",
+      "label": "Canny - Low Threshold",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 0.2,
+      "nodeTitle": "Canny",
+      "nodeInput": "low_threshold"
+    },
+    {
+      "type": "number",
+      "label": "Canny - High Threshold",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 0.6,
+      "nodeTitle": "Canny",
+      "nodeInput": "high_threshold"
+    },
+    {
+      "type": "number",
+      "label": "ControlNet - Strength",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 0.6,
+      "nodeTitle": "Apply ControlNet (OLD)",
+      "nodeInput": "strength"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAZMElEQVR4nO3daXMTZ9aA4aPFFl6wDdgQ2xAChAEya/7/T0hmMkvlTZFJUiSYxYDBOCAv2t4PlKmEAWy1JUutc11fZoqopce2pL776a3y9ddf9wIASKU66gEAAKdPAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJCQAASEgAAEBCAgAAEhIAAJCQAACAhAQAACQkAAAgIQEAAAkJAABISAAAQEICAAASEgAAkJAAAICEBAAAJCQAACAhAQAACQkAAEhIAABAQgIAABISAACQkAAAgIQEAAAkJAAAICEBAAAJ/T8r8gNH5WpNaAAAAABJRU5ErkJggg==",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "variants": [
+    {
+      "name": "Fast",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "defaultCheckpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
+          },
+          {
+            "type": "defaultCheckpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
+          },
+          {
+            "type": "defaultCheckpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
+          },
+          {
+            "type": "defaultCheckpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+          },
+          {
+            "type": "defaultLora",
+            "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 4,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "number",
+            "label": "ControlNet - Strength",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 0.5,
+            "nodeTitle": "Apply ControlNet (OLD)",
+            "nodeInput": "strength"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "steps": 4,
+              "cfg": 1.5,
+              "sampler_name": "lcm",
+              "scheduler": "simple",
+              "model": [
+                "19",
+                0
+              ]
+            }
+          },
+          "5": {
+            "inputs": {
+              "width": 1024,
+              "height": 1024
+            }
+          },
+          "6": {
+            "inputs": {
+              "clip": [
+                "19",
+                1
+              ]
+            }
+          },
+          "7": {
+            "inputs": {
+              "clip": [
+                "19",
+                1
+              ]
+            }
+          },
+          "18": {
+            "inputs": {
+              "strength": 0.5
+            }
+          },
+          "19": {
+            "inputs": {
+              "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
+              "strength_model": 1,
+              "strength_clip": 1,
+              "model": [
+                "23",
+                0
+              ],
+              "clip": [
+                "24",
+                0
+              ]
+            },
+            "class_type": "LoraLoader",
+            "_meta": {
+              "title": "Load LoRA"
+            }
+          },
+          "20": {
+            "inputs": {
+              "high_threshold": 0.8
+            }
+          }
+        },
+        "tags": [
+          "SDXL",
+          "4-steps"
+        ]
+      }
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 322974,
+        "steps": 20,
+        "cfg": 6,
+        "sampler_name": "heun",
+        "scheduler": "sgm_uniform",
+        "denoise": 1,
+        "model": [
+          "23",
+          0
+        ],
+        "positive": [
+          "18",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "KSampler"
+    },
+    "5": {
+      "inputs": {
+        "width": 896,
+        "height": 896,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage"
+    },
+    "6": {
+      "inputs": {
+        "text": "modern apartment high rise downtown New York City, highly detailed, ultra realistic, film grain, depth of field",
+        "clip": [
+          "24",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "nsfw",
+        "clip": [
+          "24",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    },
+    "8": {
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "22",
+          0
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "15": {
+      "inputs": {
+        "image": "input.png",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "16": {
+      "inputs": {
+        "images": [
+          "20",
+          0
+        ]
+      },
+      "class_type": "PreviewImage",
+      "_meta": {
+        "title": "Preview Image"
+      }
+    },
+    "17": {
+      "inputs": {
+        "control_net_name": "stabilityai---control-lora\\control-LoRAs-rank128\\control-lora-canny-rank128.safetensors"
+      },
+      "class_type": "ControlNetLoader",
+      "_meta": {
+        "title": "Load ControlNet Model"
+      }
+    },
+    "18": {
+      "inputs": {
+        "strength": 0.9,
+        "conditioning": [
+          "6",
+          0
+        ],
+        "control_net": [
+          "17",
+          0
+        ],
+        "image": [
+          "20",
+          0
+        ]
+      },
+      "class_type": "ControlNetApply",
+      "_meta": {
+        "title": "Apply ControlNet (OLD)"
+      }
+    },
+    "20": {
+      "inputs": {
+        "low_threshold": 0.2,
+        "high_threshold": 0.8,
+        "image": [
+          "15",
+          0
+        ]
+      },
+      "class_type": "Canny",
+      "_meta": {
+        "title": "Canny"
+      }
+    },
+    "22": {
+      "inputs": {
+        "vae_name": "RunDiffusion---Juggernaut-XL-v9\\vae\\diffusion_pytorch_model.fp16.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "23": {
+      "inputs": {
+        "unet_name": "RunDiffusion---Juggernaut-XL-v9\\unet\\diffusion_pytorch_model.fp16.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "24": {
+      "inputs": {
+        "clip_name1": "RunDiffusion---Juggernaut-XL-v9\\text_encoder\\model.fp16.safetensors",
+        "clip_name2": "RunDiffusion---Juggernaut-XL-v9\\text_encoder_2\\model.fp16.safetensors",
+        "type": "sdxl"
+      },
+      "class_type": "DualCLIPLoader",
+      "_meta": {
+        "title": "DualCLIPLoader"
+      }
+    }
+  }
+}
+

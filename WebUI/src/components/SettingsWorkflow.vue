@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-6 p-1">
-    <h2 class="text-xl font-semibold text-center">{{ title }}</h2>
     <PresetSelector
       :categories="categories"
       :model-value="presetsStore.activePresetName || undefined"

@@ -106,7 +106,7 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
   requiredCustomNodes: z.array(z.string()).optional(),
   requiredPythonPackages: z.array(z.string()).optional(),
   // ComfyUI-specific settings can be ComfyInput
-  settings: z.array(z.union([SettingSchema, ComfyInputSchema])).default([]),
+  settings: z.array(z.union([ComfyInputSchema, SettingSchema])).default([]),
 })
 
 // Chat Preset Schema
@@ -164,7 +164,10 @@ export const usePresets = defineStore(
 
     function validatePreset(data: unknown): Preset | null {
       try {
-        return PresetSchema.parse(data)
+        console.log('### validating preset', data)
+        const validated = PresetSchema.parse(data)
+        console.log('### validated preset', validated)
+        return validated
       } catch (error) {
         if (error instanceof z.ZodError) {
           console.error('Preset validation failed:', {
@@ -226,12 +229,12 @@ export const usePresets = defineStore(
           const sourceValue = (source as any)[key]
           const targetValue = (output as any)[key]
 
-          // Special handling for settings arrays - merge by settingName
+          // Special handling for settings arrays - merge by label
           if (key === 'settings' && Array.isArray(sourceValue) && Array.isArray(targetValue)) {
             const mergedSettings = [...targetValue]
             sourceValue.forEach((sourceSetting: any) => {
               const index = mergedSettings.findIndex(
-                (s: any) => s.settingName === sourceSetting.settingName
+                (s: any) => s.label === sourceSetting.label
               )
               if (index >= 0) {
                 mergedSettings[index] = { ...mergedSettings[index], ...sourceSetting }

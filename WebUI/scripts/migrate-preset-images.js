@@ -8,10 +8,8 @@ const presetImageMapping = {
   'CopyFace': 'copyface.png',
   'FaceSwap-HD': 'faceswap.png',
   'Edit By Prompt': 'editbyprompt.png',
-  'Flux.1-Schnell Med Quality': 'flux_schnell.png',
-  'Flux.1-Schnell High Quality': 'flux_schnell.png',
-  'SketchToPhoto-HD-Draft': 'draft.png',
-  'SketchToPhoto-HD-Quality': 'sketchtophoto.png',
+  'Flux.1-Schnell': 'flux_schnell.png',
+  'SketchToPhoto-HD': 'sketchtophoto.png',
   'SD1.5 (old)': null, // No specific image, will use backend default
   'SDXL': null, // No specific image, will use backend default
   
@@ -28,10 +26,8 @@ const presetNameToFilename = {
   'CopyFace': 'CopyFace',
   'FaceSwap-HD': 'FaceSwapHD',
   'Edit By Prompt': 'EditByPrompt',
-  'Flux.1-Schnell Med Quality': 'fluxQ4',
-  'Flux.1-Schnell High Quality': 'fluxQ8',
-  'SketchToPhoto-HD-Draft': 'SketchToPhotoHD-Draft',
-  'SketchToPhoto-HD-Quality': 'SketchToPhotoHD-Quality',
+  'Flux.1-Schnell': 'flux',
+  'SketchToPhoto-HD': 'SketchToPhoto-HD',
   'SD1.5 (old)': 'sd15',
   'SDXL': 'sdxl',
   'llamaCPP Fast': 'llamacpp-fast',
