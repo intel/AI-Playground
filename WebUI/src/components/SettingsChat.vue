@@ -27,8 +27,7 @@
           <ModelSelector />
         </div>
         <Button
-          variant="outline"
-          class="self-start w-auto"
+          class="self-start w-auto bg-secondary hover:bg-secondary/80 px-3 py-1.5 rounded text-sm"
           @click="() => (showModelRequestDialog = true)"
         >
           {{ languages.COM_ADD + ' ' + languages.MODEL }}
@@ -36,8 +35,7 @@
 
         <!-- todo: processing -->
         <Button
-          variant="outline"
-          class="self-start w-auto"
+          class="self-start w-auto bg-secondary hover:bg-secondary/80 px-3 py-1.5 rounded text-sm"
           @click="showUploader = !showUploader"
           :disabled="processing"
           :title="languages.ANSWER_RAG_OPEN_DIALOG"
@@ -97,7 +95,7 @@
           ></drop-down-new>
         </div>
         <!-- todo: needs to actually do something-->
-        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
+        <Button class="max-w-md mx-auto bg-secondary hover:bg-secondary/80 px-3 py-1.5 rounded text-sm"> Create New Preset</Button>
       </div>
       <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
