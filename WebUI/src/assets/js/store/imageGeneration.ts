@@ -485,7 +485,7 @@ export const useImageGeneration = defineStore(
     const activeWorkflowName = ref<string | null>('Standard - Fast')
     const lastUsedImageGenWorkflowName = ref<string>('Flux.1-Schnell')
     const lastUsedImageEditWorkflowName = ref<string>('Edit By Prompt')
-    const lastUsedVideoWorkflowName = ref<string>('Video-Txt2Vid')
+    const lastUsedVideoWorkflowName = ref<string>('LTX-Video')
 
     const activeWorkflow = computed(() => {
       console.log('### activeWorkflowName', activeWorkflowName.value)

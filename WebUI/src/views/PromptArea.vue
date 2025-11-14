@@ -4,8 +4,8 @@
         <div v-if="contextError" class="flex items-center gap-3">
           <p class="text-red-500">{{ contextError }}</p>
         </div>
-      <div class="flex items-center gap-3">
-        <p class="text-2xl font-bold">Let's Generate</p>
+      <div class="grid grid-cols-3 items-center gap-3 h-10">
+        <p class="text-2xl col-start-2 font-bold">Let's Generate</p>
         <Context
           v-if="promptStore.getCurrentMode() === 'chat'"
           :used-tokens="contextUsedTokens"

@@ -3,6 +3,7 @@ import path from 'node:path'
 import * as fs from 'fs-extra'
 import { copyFileWithDirs, existingFileOrError, spawnProcessAsync } from './osProcessHelper.ts'
 import { app } from 'electron'
+import { execSync } from 'node:child_process'
 
 const logger = appLoggerInstance
 const processLogHandler = (data: string) => {
@@ -35,6 +36,7 @@ export async function updateIntelPresets(
     await fetchNewIntelPresets(remoteRepository)
     await backUpCurrentPresets()
     await replaceCurrentPresetsWithIntelPresets()
+    await filterPartnerPresets()
     return {
       result: 'success',
       backupDir: presetDirBakTargetPath,
@@ -193,6 +195,44 @@ async function checkGitRefExists(gitExe: string, workDir: string, ref: string): 
       logSourceName,
       true,
     )
+    return false
+  }
+}
+
+async function filterPartnerPresets() {
+  const presets = await fs.promises.readdir(presetDirTargetPath, { withFileTypes: true })
+  const acerPresets = presets.filter((p) => p.name.startsWith('Acer'))
+  const acerVisionArtIsInstalled = await getFromRegistry(
+    'HKLM:\\SOFTWARE\\Acer\\AICO2',
+    'AICO2Installer',
+  )
+  if (!acerVisionArtIsInstalled) {
+    for (const preset of acerPresets) {
+      await fs.promises.rm(path.join(presetDirTargetPath, preset.name))
+    }
+  } else {
+    logger.info(`Acer Vision Art detected, keeping Acer presets`, logSourceName, true)
+  }
+}
+
+async function getFromRegistry(regPath: string, key: string) {
+  const script = `
+  $ErrorActionPreference = 'Stop'
+  try {
+    $value = Get-ItemProperty -Path ${regPath} -Name ${key}
+    if ($value -ne $null) {
+      Write-Output $value.${key}
+    } else {
+      Write-Error "Value not found."
+    }
+  } catch {
+    Write-Error "Error: $_"
+  }
+`
+  try {
+    const version = execSync(script, { encoding: 'utf-8', shell: 'powershell.exe' })
+    return version.length > 0
+  } catch (_error: unknown) {
     return false
   }
 }

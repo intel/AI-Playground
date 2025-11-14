@@ -1,31 +1,33 @@
 <template>
-  <div ref="imgDropZone" class="flex justify-center relative">
-    <div
-      v-show="isOverDropZone"
-      class="bg-background/70 absolute inset-0 flex items-center justify-center text-foreground text-lg"
-    >
-      {{ languages.COM_LOAD_IMAGE }}
+  <div>
+    <div ref="imgDropZone" class="flex justify-center relative">
+      <div
+        v-show="isOverDropZone"
+        class="bg-background/70 absolute inset-0 flex items-center justify-center text-foreground text-lg"
+      >
+        {{ languages.COM_LOAD_IMAGE }}
+      </div>
+      <img :src="imageUrlRef.value as string" alt="Image" class="w-64 py-4 object-scale-down" />
     </div>
-    <img :src="imageUrlRef.value as string" alt="Image" class="w-64 py-4 object-scale-down" />
-  </div>
-  <div class="flex justify-center">
-    <input
-      :id="id"
-      :accept="acceptedImageTypes.join(',')"
-      type="file"
-      class="hidden"
-      v-on:change="(e: Event) => handleFilesEvent(imageUrlRef as Ref<string, string>)(e)"
-    />
-    <label
-      :for="id"
-      :class="
-        cn(
-          'text-base bg-primary py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
-          props.class,
-        )
-      "
-      >{{ languages.COM_LOAD_IMAGE }}</label
-    >
+    <div class="flex justify-center">
+      <input
+        :id="id"
+        :accept="acceptedImageTypes.join(',')"
+        type="file"
+        class="hidden"
+        v-on:change="(e: Event) => handleFilesEvent(imageUrlRef as Ref<string, string>)(e)"
+      />
+      <label
+        :for="id"
+        :class="
+          cn(
+            'text-base bg-primary py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
+            props.class,
+          )
+        "
+        >{{ languages.COM_LOAD_IMAGE }}</label
+      >
+    </div>
   </div>
 </template>
 

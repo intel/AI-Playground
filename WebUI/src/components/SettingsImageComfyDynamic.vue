@@ -1,21 +1,23 @@
 <template>
   <div
     v-for="input in imageGeneration.comfyInputs"
-    :key="`${input.nodeTitle}${input.nodeInput}`"
-    class="flex flex-col gap-2 py-2"
+    :key="`${input.label}${input.nodeTitle}${input.nodeInput}`"
+    class="grid grid-cols-[120px_1fr] items-center gap-4"
   >
-    <p>
+    <Label>
       {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
-    </p>
+    </Label>
 
     <!--    Number    -->
-    <slide-bar
-      v-if="input.type === 'number'"
-      v-model:current="input.current.value as number"
-      :min="input.min"
-      :max="input.max"
-      :step="input.step"
-    ></slide-bar>
+    <div v-if="input.type === 'number'" class="flex gap-2">
+      <Slider
+        v-model="input.current.value as number"
+        :min="input.min"
+        :max="input.max"
+        :step="input.step"
+      ></Slider>
+      <span>{{ input.current.value }}</span>
+    </div>
 
     <!--    Image    -->
     <LoadImage
@@ -72,10 +74,11 @@
 import { Input } from './ui/aipgInput'
 import { LoadImage } from '../components/ui/loadImage'
 import { LoadVideo } from '../components/ui/loadVideo'
-import SlideBar from '../components/SlideBar.vue'
 import { getTranslationLabel } from '@/lib/utils'
 import DropSelector from '@/components/DropSelector.vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import Slider from './ui/slider/Slider.vue'
+import { Label } from './ui/label'
 
 const imageGeneration = useImageGenerationPresets()
 </script>

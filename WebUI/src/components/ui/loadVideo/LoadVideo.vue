@@ -1,37 +1,40 @@
 <template>
-  <div ref="videoDropZone" class="flex justify-center relative">
-    <div
-      v-show="isOverDropZone"
-      class="bg-background/70 absolute inset-0 flex items-center justify-center text-foreground text-lg"
-    >
-      {{ languages.COM_LOAD_VIDEO }}
+  <div>
+
+    <div ref="videoDropZone" class="flex justify-center relative">
+      <div
+        v-show="isOverDropZone"
+        class="bg-background/70 absolute inset-0 flex items-center justify-center text-foreground text-lg"
+      >
+        {{ languages.COM_LOAD_VIDEO }}
+      </div>
+      <video
+        :src="videoUrlRef.value as string"
+        alt="Video"
+        class="w-64 py-4 object-scale-down"
+        controls
+        controlsList="nodownload nofullscreen noremoteplayback"
+      />
     </div>
-    <video
-      :src="videoUrlRef.value as string"
-      alt="Video"
-      class="w-64 py-4 object-scale-down"
-      controls
-      controlsList="nodownload nofullscreen noremoteplayback"
-    />
-  </div>
-  <div class="flex justify-center">
-    <input
-      :id="id"
-      :accept="acceptedVideoTypes.join(',')"
-      type="file"
-      class="hidden"
-      v-on:change="(e: Event) => handleFilesEvent(videoUrlRef as Ref<string, string>)(e)"
-    />
-    <label
-      :for="id"
-      :class="
-        cn(
-          'text-base bg-primary py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
-          props.class,
-        )
-      "
-      >{{ languages.COM_LOAD_VIDEO }}</label
-    >
+    <div class="flex justify-center">
+      <input
+        :id="id"
+        :accept="acceptedVideoTypes.join(',')"
+        type="file"
+        class="hidden"
+        v-on:change="(e: Event) => handleFilesEvent(videoUrlRef as Ref<string, string>)(e)"
+      />
+      <label
+        :for="id"
+        :class="
+          cn(
+            'text-base bg-primary py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
+            props.class,
+          )
+        "
+        >{{ languages.COM_LOAD_VIDEO }}</label
+      >
+    </div>
   </div>
 </template>
 
