@@ -9,10 +9,7 @@ export const useConversations = defineStore(
     const activeConversation = computed(() => conversationList.value[activeKey.value])
 
     function updateConversation(messages: AipgUiMessage[], conversationKey: string) {
-      conversationList.value[conversationKey] = [
-        ...conversationList.value[conversationKey],
-        ...messages,
-      ]
+      conversationList.value[conversationKey] = messages
     }
 
     function deleteConversation(conversationKey: string) {
