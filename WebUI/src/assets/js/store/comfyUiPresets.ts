@@ -92,6 +92,15 @@ const ComfyMessageSchema = z.discriminatedUnion('type', [
               }),
             ),
           }),
+          z.object({
+            '3d': z.array(
+              z.object({
+                filename: z.string(),
+                subfolder: z.string(),
+                type: z.string(),
+              }),
+            ),
+          }),
         ]),
       })
       .passthrough(),
@@ -410,6 +419,23 @@ export const useComfyUiPresets = defineStore(
                     imageGeneration.updateImage(newImage)
                     generateIdx++
                     // Update state when video is received
+                    if (generateIdx >= queuedImages.length) {
+                      imageGeneration.currentState = 'image_out'
+                    }
+                  }
+                }
+                if ('3d' in output) {
+                  const model3d = output['3d'].find((i) => i.type === 'output')
+                  if (model3d) {
+                    const newImage: MediaItem = {
+                      ...queuedImages[generateIdx],
+                      state: 'done',
+                      imageUrl: `${comfyBaseUrl.value}/view?filename=${model3d.filename}&type=${model3d.type}&subfolder=${model3d.subfolder ?? ''}`,
+                      model3dUrl: `${comfyBaseUrl.value}/view?filename=${model3d.filename}&type=${model3d.type}&subfolder=${model3d.subfolder ?? ''}`,
+                    }
+                    imageGeneration.updateImage(newImage)
+                    generateIdx++
+                    // Update state when 3D model is received
                     if (generateIdx >= queuedImages.length) {
                       imageGeneration.currentState = 'image_out'
                     }

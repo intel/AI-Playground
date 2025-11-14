@@ -21,6 +21,7 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "^1.0.19",
     "@ai-sdk/vue": "^2.0.54",
+    "@google/model-viewer": "^4.1.0",
     "@heroicons/vue": "^2.2.0",
     "@langchain/community": "^0.3.56",
     "@langchain/core": "^0.3.77",
@@ -54,6 +55,7 @@
     "shiki": "^3.13.0",
     "sudo-prompt": "^9.2.1",
     "tailwind-merge": "^3.3.1",
+    "three": "^0.181.1",
     "uint8array-extras": "^1.5.0",
     "unplugin-auto-import": "^20.2.0",
     "vee-validate": "^4.15.1",

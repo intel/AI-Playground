@@ -25,6 +25,11 @@
               @dragstart="(e) => dragImage(image)(e)"
             >
               <video v-if="isVideo(image)" :src="image.videoUrl" class="image-thumb" />
+              <Model3DViewer
+                v-else-if="is3D(image)"
+                :src="image.model3dUrl"
+                class="image-thumb"
+              />
               <img v-else :src="image.imageUrl" class="image-thumb" />
             </div>
           </div>
@@ -53,16 +58,21 @@
           >
             <!-- eslint-enable -->
             <img
-              v-if="currentImage && !isVideo(currentImage)"
+              v-if="currentImage && !isVideo(currentImage) && !is3D(currentImage)"
               class="max-w-768px max-h-512px object-contain p-2"
               :src="currentImage?.imageUrl"
             />
             <video
-              v-else
+              v-else-if="currentImage && isVideo(currentImage)"
               :src="currentImage?.videoUrl as string"
               class="max-w-768px max-h-512px object-contain p-2"
               controlsList="nodownload nofullscreen noremoteplayback"
               controls
+            />
+            <Model3DViewer
+              v-else-if="currentImage && is3D(currentImage)"
+              :src="currentImage?.model3dUrl as string"
+              class="max-w-768px max-h-512px"
             />
           </div>
           <div
@@ -219,7 +229,8 @@ import ModeSelector from '@/components/ModeSelector.vue'
 import DemoNumber from '@/components/demo-mode/DemoNumber.vue'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { MediaItem, isVideo, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import Model3DViewer from '@/components/Model3DViewer.vue'
+import { MediaItem, isVideo, is3D, useImageGeneration } from '@/assets/js/store/imageGeneration'
 import { useDemoMode } from '@/assets/js/store/demoMode'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
@@ -236,7 +247,7 @@ const currentImage: ComputedRef<MediaItem | null> = computed(() => {
 const dragImage = (item: MediaItem | null) => (event: Event) => {
   if (!item) return
   event.preventDefault()
-  const url = isVideo(item) ? item.videoUrl : item.imageUrl
+  const url = getMediaUrl(item)
   window.electronAPI.startDrag(url)
 }
 
@@ -321,6 +332,8 @@ function loadingStateToText(state: string) {
 }
 
 function getMediaUrl(image: MediaItem) {
-  return isVideo(image) ? image.videoUrl : image.imageUrl
+  if (isVideo(image)) return image.videoUrl
+  if (is3D(image)) return image.model3dUrl
+  return image.imageUrl
 }
 </script>

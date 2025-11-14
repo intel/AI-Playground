@@ -13,21 +13,26 @@
         <div
           v-show="imageGeneration.generatedImages.length > 0 && currentImage"
           class="flex justify-center items-center w-full h-full"
-          draggable="true"
+          :draggable="currentImage && !is3D(currentImage) ? true : false"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
           <!-- eslint-enable -->
           <img
-            v-if="currentImage && !isVideo(currentImage)"
+            v-if="currentImage && !isVideo(currentImage) && !is3D(currentImage)"
             class="w-full h-full object-contain p-2"
             :src="currentImage?.imageUrl"
           />
           <video
-            v-else
+            v-else-if="currentImage && isVideo(currentImage)"
             :src="currentImage?.videoUrl as string"
             class="w-full h-full object-contain p-2"
             controlsList="nodownload nofullscreen noremoteplayback"
             controls
+          />
+          <Model3DViewer
+            v-else-if="currentImage && is3D(currentImage)"
+            :src="currentImage?.model3dUrl as string"
+            class="w-full h-full"
           />
         </div>
         <div
@@ -75,7 +80,7 @@
           </button>
           <button
             v-if="
-                currentImage && currentImage?.state !== 'generating' && (props.mode === 'imageGen' || props.mode === 'imageEdit')
+                currentImage && currentImage?.state !== 'generating' && (props.mode === 'imageGen' || props.mode === 'imageEdit') && !is3D(currentImage)
               "
             @click="postImageToMode(currentImage, 'video')"
             :title="languages.COM_POST_TO_VIDEO"
@@ -141,7 +146,8 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { MediaItem, isVideo, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { MediaItem, isVideo, is3D, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import Model3DViewer from '@/components/Model3DViewer.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts"
 
@@ -177,7 +183,7 @@ const currentImage = computed<MediaItem | null>(() => {
 const dragImage = (item: MediaItem | null) => (event: Event) => {
   if (!item) return
   event.preventDefault()
-  const url = isVideo(item) ? item.videoUrl : item.imageUrl
+  const url = getMediaUrl(item)
   window.electronAPI.startDrag(url)
 }
 
@@ -275,6 +281,8 @@ function loadingStateToText(state: string) {
 }
 
 function getMediaUrl(image: MediaItem) {
-  return isVideo(image) ? image.videoUrl : image.imageUrl
+  if (isVideo(image)) return image.videoUrl
+  if (is3D(image)) return image.model3dUrl
+  return image.imageUrl
 }
 </script>

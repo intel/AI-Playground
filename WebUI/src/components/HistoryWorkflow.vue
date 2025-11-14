@@ -16,6 +16,11 @@
         @dragstart="(e) => dragImage(image)(e)"
       >
         <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
+        <Model3DViewer
+          v-else-if="is3D(image)"
+          :src="image.model3dUrl"
+          class="w-full h-full"
+        />
         <img v-else :src="image.imageUrl" class="w-full h-full object-cover" />
 
         <div
@@ -90,7 +95,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { useImageGenerationPresets, MediaItem, isVideo } from '@/assets/js/store/imageGenerationPresets'
+import { useImageGenerationPresets, MediaItem, isVideo, is3D } from '@/assets/js/store/imageGenerationPresets'
+import Model3DViewer from '@/components/Model3DViewer.vue'
 
 const props = defineProps<{
   mode: WorkflowModeType
@@ -107,7 +113,14 @@ const nonQueuedImages = computed(() =>
 const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   if (!item) return
   event.preventDefault()
-  const url = isVideo(item) ? item.videoUrl : item.imageUrl
+  let url: string
+  if (isVideo(item)) {
+    url = item.videoUrl
+  } else if (is3D(item)) {
+    url = item.model3dUrl
+  } else {
+    url = item.imageUrl
+  }
   window.electronAPI.startDrag(url)
 }
 

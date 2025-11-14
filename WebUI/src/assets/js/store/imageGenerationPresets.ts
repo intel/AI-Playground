@@ -55,9 +55,13 @@ export type Image = {
 
 export type Video = Image & { videoUrl: string }
 
-export type MediaItem = Image | Video
+export type Model3D = Image & { model3dUrl: string }
+
+export type MediaItem = Image | Video | Model3D
 
 export const isVideo = (item: MediaItem): item is Video => 'videoUrl' in item
+
+export const is3D = (item: MediaItem): item is Model3D => 'model3dUrl' in item
 
 const globalDefaultSettings = {
   seed: -1,
