@@ -32,12 +32,12 @@ const StandardSettingNameSchema = z.enum([
 
 // Base Setting Schema - can be either a standard setting or a generic setting
 const SettingSchema = z.object({
-  type: z.enum(['number', 'string', 'boolean', 'image', 'video', 'stringList']),
+  type: z.enum(['number', 'string', 'boolean', 'image', 'video', 'stringList', 'outpaintCanvas']),
   label: z.string(),
   displayed: z.boolean(),
   modifiable: z.boolean(),
   options: z.array(z.union([z.string(), z.number()])).optional(),
-  defaultValue: z.union([z.string(), z.number(), z.boolean()]),
+  defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
   // For standard settings, specify the setting name
   settingName: StandardSettingNameSchema.optional(),
 })

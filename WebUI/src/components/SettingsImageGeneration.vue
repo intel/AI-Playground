@@ -116,18 +116,11 @@
       </div>
       <div v-if="modifiableOrDisplayed('scheduler')" class="flex flex-col gap-2">
         <p>{{ languages.SETTINGS_MODEL_SCHEDULER }}</p>
-        <drop-selector
-          :array="globalSetup.models.scheduler"
-          @change="imageGeneration.scheduler = $event"
-          :disabled="!modifiable('scheduler')"
-        >
-          <template #selected>
-            {{ imageGeneration.scheduler }}
-          </template>
-          <template #list="slotItem">
-            {{ slotItem.item }}
-          </template>
-        </drop-selector>
+        <drop-down-new
+          :items="schedulerItems"
+          :value="imageGeneration.scheduler"
+          @change="(value) => (imageGeneration.scheduler = value)"
+        />
       </div>
       <div v-if="modifiableOrDisplayed('guidanceScale')" class="flex flex-col gap-2">
         <p>{{ languages.SETTINGS_MODEL_IMAGE_CFG }}</p>
@@ -150,24 +143,11 @@
           {{ languages.SETTINGS_MODEL_IMAGE_MODEL }}
         </p>
         <div v-if="modifiableOrDisplayed('imageModel')" class="flex items-center gap-2">
-          <drop-selector
-            :array="globalSetup.models.stableDiffusion"
-            @change="imageGeneration.imageModel = $event"
-            :disabled="!modifiable('imageModel')"
-          >
-            <template #selected>
-              <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-primary w-2 h-2"></span>
-                <span>{{ imageGeneration.imageModel }}</span>
-              </div>
-            </template>
-            <template #list="slotItem">
-              <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-primary w-2 h-2"></span>
-                <span>{{ slotItem.item }}</span>
-              </div>
-            </template>
-          </drop-selector>
+          <drop-down-new
+            :items="stableDiffusionItems"
+            :value="imageGeneration.imageModel"
+            @change="(value) => (imageGeneration.imageModel = value)"
+          />
           <button
             class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="globalSetup.refreshSDModles"
@@ -177,24 +157,11 @@
       <div v-if="modifiableOrDisplayed('inpaintModel')" class="flex flex-col gap-2">
         <p>{{ languages.SETTINGS_MODEL_INPAINT_MODEL }}</p>
         <div class="flex items-center gap-2">
-          <drop-selector
-            :array="globalSetup.models.inpaint"
-            @change="imageGeneration.inpaintModel = $event"
-            :disabled="!modifiable('inpaintModel')"
-          >
-            <template #selected>
-              <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-primary w-2 h-2"></span>
-                <span>{{ imageGeneration.inpaintModel }}</span>
-              </div>
-            </template>
-            <template #list="slotItem">
-              <div class="flex gap-2 items-center">
-                <span class="rounded-full bg-primary w-2 h-2"></span>
-                <span>{{ slotItem.item }}</span>
-              </div>
-            </template>
-          </drop-selector>
+          <drop-down-new
+            :items="inpaintItems"
+            :value="imageGeneration.inpaintModel"
+            @change="(value) => (imageGeneration.inpaintModel = value)"
+          />
           <button
             class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="globalSetup.refreshInpaintModles"
@@ -204,15 +171,11 @@
       <div v-if="modifiableOrDisplayed('lora')" class="flex flex-col gap-2">
         <p>{{ languages.SETTINGS_MODEL_LORA }}</p>
         <div class="flex items-center gap-2">
-          <drop-selector
-            :array="globalSetup.models.lora"
-            @change="imageGeneration.lora = $event"
-            :disabled="!modifiable('lora')"
-          >
-            <template #selected>
-              {{ imageGeneration.lora }}
-            </template>
-          </drop-selector>
+          <drop-down-new
+            :items="loraItems"
+            :value="imageGeneration.lora"
+            @change="(value) => (imageGeneration.lora = value)"
+          />
           <button
             class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="globalSetup.refreshLora"
@@ -238,11 +201,43 @@ import ComfyDynamic from '../components/SettingsImageComfyDynamic.vue'
 import SlideBar from '../components/SlideBar.vue'
 import ResolutionPicker from '../components/ui/slider/ResolutionPicker.vue'
 import RandomNumber from '../components/RandomNumber.vue'
-import DropSelector from '../components/DropSelector.vue'
+import DropDownNew from '../components/DropDownNew.vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 
 const imageGeneration = useImageGeneration()
 const globalSetup = useGlobalSetup()
+
+const schedulerItems = computed(() =>
+  globalSetup.models.scheduler.map((scheduler) => ({
+    label: scheduler,
+    value: scheduler,
+    active: true,
+  })),
+)
+
+const stableDiffusionItems = computed(() =>
+  globalSetup.models.stableDiffusion.map((model) => ({
+    label: model,
+    value: model,
+    active: true,
+  })),
+)
+
+const inpaintItems = computed(() =>
+  globalSetup.models.inpaint.map((model) => ({
+    label: model,
+    value: model,
+    active: true,
+  })),
+)
+
+const loraItems = computed(() =>
+  globalSetup.models.lora.map((lora) => ({
+    label: lora,
+    value: lora,
+    active: true,
+  })),
+)
 
 const anyModifiableOrDisplayed = (settings: Setting[]) =>
   settings.some((setting) => modifiableOrDisplayed(setting))

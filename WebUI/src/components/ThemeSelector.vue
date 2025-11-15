@@ -1,26 +1,13 @@
 <template>
-  <drop-selector
-    :array="themeOptions"
-    @change="changeTheme"
-  >
-    <template #selected>
-      <div class="flex gap-2 items-center">
-        <span class="rounded-full bg-primary w-2 h-2"></span>
-        <span>{{ activeThemeDisplayName }}</span>
-      </div>
-    </template>
-
-    <template #list="slotItem">
-      <div class="flex gap-2 items-center">
-        <span class="rounded-full bg-primary w-2 h-2"></span>
-        <span>{{ themeToDisplayName(slotItem.item.name) }}</span>
-      </div>
-    </template>
-  </drop-selector>
+  <drop-down-new
+    :items="themeItems"
+    :value="theme.active"
+    @change="(value) => (theme.selected = value as Theme)"
+  />
 </template>
 
 <script setup lang="ts">
-import DropSelector from '../components/DropSelector.vue'
+import DropDownNew from '../components/DropDownNew.vue'
 import { useTheme } from '@/assets/js/store/theme'
 
 const theme = useTheme()
@@ -40,16 +27,11 @@ const themeToDisplayName = (themeName: Theme) => {
   }
 }
 
-const themeOptions = computed(() =>
+const themeItems = computed(() =>
   theme.availableThemes.map((t) => ({
-    name: themeToDisplayName(t),
+    label: themeToDisplayName(t),
     value: t,
+    active: true,
   })),
 )
-
-const activeThemeDisplayName = computed(() => themeToDisplayName(theme.active))
-
-function changeTheme(selectedOption: { name: string; value: Theme }) {
-  theme.selected = selectedOption.value
-}
 </script>

@@ -9,10 +9,10 @@
       >
         <p v-html="warningMessage"></p>
         <div class="flex justify-center items-center gap-9">
-          <button @click="cancelConfirm" class="bg-muted py-1 px-4 rounded">
+          <button @click="cancelConfirm" class="bg-muted text-foreground py-1 px-4 rounded">
             {{ i18nState.COM_CANCEL }}
           </button>
-          <button @click="confirmAdd" class="bg-muted py-1 px-4 rounded">
+          <button @click="confirmAdd" class="bg-muted text-foreground py-1 px-4 rounded">
             {{ i18nState.COM_CONFIRM }}
           </button>
         </div>

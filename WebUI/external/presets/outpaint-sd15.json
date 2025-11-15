@@ -1,0 +1,512 @@
+{
+  "type": "comfy",
+  "name": "Outpaint SD1.5",
+  "displayPriority": 500,
+  "tags": ["outpaint", "edit-images", "sd1.5"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Outpaint images using Stable Diffusion 1.5",
+  "requiredCustomNodes": [],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "defaultCheckpoint",
+      "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+    },
+    {
+      "type": "defaultCheckpoint",
+      "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
+    },
+    {
+      "type": "defaultCheckpoint",
+      "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "string",
+      "label": "Image Model",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "Lykon/dreamshaper-8-inpainting",
+      "settingName": "imageModel"
+    },
+    {
+      "type": "string",
+      "label": "Inpaint Model",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "Lykon/dreamshaper-8-inpainting",
+      "settingName": "inpaintModel"
+    },
+    {
+      "type": "number",
+      "label": "Guidance Scale",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 7,
+      "settingName": "guidanceScale"
+    },
+    {
+      "type": "string",
+      "label": "LoRA",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "None",
+      "settingName": "lora"
+    },
+    {
+      "type": "string",
+      "label": "Scheduler",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "DPM++ SDE",
+      "settingName": "scheduler"
+    },
+    {
+      "type": "boolean",
+      "label": "Image Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "imagePreview"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "image",
+      "label": "Input Image",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image",
+      "defaultValue": "",
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Left Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "left",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Top Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "top",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Right Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "right",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Bottom Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "bottom",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Feathering",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "feathering",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "defaultValue": 24,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Scale By",
+      "nodeTitle": "ScaleImage",
+      "nodeInput": "scale_by",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01,
+      "defaultValue": 1.0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Width",
+      "nodeTitle": "CropImage",
+      "nodeInput": "width",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 512,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Height",
+      "nodeTitle": "CropImage",
+      "nodeInput": "height",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 512,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop X",
+      "nodeTitle": "CropImage",
+      "nodeInput": "x",
+      "min": 0,
+      "max": 2048,
+      "step": 1,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Y",
+      "nodeTitle": "CropImage",
+      "nodeInput": "y",
+      "min": 0,
+      "max": 2048,
+      "step": 1,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "outpaintCanvas",
+      "label": "Outpaint Canvas",
+      "nodeTitle": "OutpaintCanvas",
+      "nodeInput": "canvas",
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Denoise",
+      "nodeTitle": "KSampler",
+      "nodeInput": "denoise",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01,
+      "defaultValue": 1.0,
+      "displayed": true,
+      "modifiable": true
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "image": "input.jpg",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "2": {
+      "inputs": {
+        "upscale_method": "bicubic",
+        "scale_by": 1.0,
+        "image": [
+          "1",
+          0
+        ]
+      },
+      "class_type": "ImageScaleBy",
+      "_meta": {
+        "title": "ScaleImage"
+      }
+    },
+    "13": {
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "x": 0,
+        "y": 0,
+        "image": [
+          "2",
+          0
+        ]
+      },
+      "class_type": "ImageCrop",
+      "_meta": {
+        "title": "CropImage"
+      }
+    },
+    "14": {
+      "inputs": {
+        "left": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "feathering": 24,
+        "image": [
+          "13",
+          0
+        ]
+      },
+      "class_type": "ImagePadForOutpaint",
+      "_meta": {
+        "title": "OutpaintDirection"
+      }
+    },
+    "3": {
+      "inputs": {
+        "seed": 413053266758155,
+        "steps": 20,
+        "cfg": 7,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1.0,
+        "model": [
+          "11",
+          0
+        ],
+        "positive": [
+          "12",
+          0
+        ],
+        "negative": [
+          "12",
+          1
+        ],
+        "latent_image": [
+          "12",
+          2
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "4": {
+      "inputs": {
+        "vae_name": "Lykon---dreamshaper-8-inpainting\\vae\\diffusion_pytorch_model.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "5": {
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "6": {
+      "inputs": {
+        "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+        "clip": [
+          "9",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "nsfw",
+        "clip": [
+          "9",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    },
+    "11": {
+      "inputs": {
+        "model": [
+          "10",
+          0
+        ]
+      },
+      "class_type": "DifferentialDiffusion",
+      "_meta": {
+        "title": "Differential Diffusion"
+      }
+    },
+    "12": {
+      "inputs": {
+        "noise_mask": false,
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ],
+        "pixels": [
+          "14",
+          0
+        ],
+        "mask": [
+          "14",
+          1
+        ]
+      },
+      "class_type": "InpaintModelConditioning",
+      "_meta": {
+        "title": "InpaintModelConditioning"
+      }
+    },
+    "8": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "9": {
+      "inputs": {
+        "clip_name": "Lykon---dreamshaper-8-inpainting\\text_encoder\\model.safetensors",
+        "type": "stable_diffusion",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "CLIPLoader"
+      }
+    },
+    "10": {
+      "inputs": {
+        "unet_name": "Lykon---dreamshaper-8-inpainting\\unet\\diffusion_pytorch_model.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    }
+  }
+}
+

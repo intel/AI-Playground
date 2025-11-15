@@ -367,15 +367,15 @@ textarea {
 .confirm-btn {
   border-radius: 4px;
   padding: 4px 20px;
-  color: #fff;
-  background: linear-gradient(160deg, #04ddfe 5.8%, #fa00ff 100%);
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
 }
 
 .cancel-btn {
   border-radius: 4px;
   padding: 4px 20px;
-  color: #fff;
-  background: #6949ae;
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted));
 }
 
 .view-btn {

@@ -23,27 +23,11 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_SD_STANDARD_MODEL }}</p>
       <div class="flex items-center gap-2">
-        <drop-selector
-          :array="globalSetup.models.stableDiffusion"
-          @change="
-            (value, _) => {
-              customPresetModel('SDStandard', value)
-            }
-          "
-        >
-          <template #selected>
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ presetModel.SDStandard }}</span>
-            </div>
-          </template>
-          <template #list="slotItem">
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ slotItem.item }}</span>
-            </div>
-          </template>
-        </drop-selector>
+        <drop-down-new
+          :items="stableDiffusionItems"
+          :value="presetModel.SDStandard"
+          @change="(value) => customPresetModel('SDStandard', value)"
+        />
         <button
           class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
@@ -54,27 +38,11 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_SD_STANDARD_INPAINT_MODEL }}</p>
       <div class="flex items-center gap-2">
-        <drop-selector
-          :array="globalSetup.models.inpaint"
-          @change="
-            (value, _) => {
-              customPresetModel('SDStandardInpaint', value)
-            }
-          "
-        >
-          <template #selected>
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ presetModel.SDStandardInpaint }}</span>
-            </div>
-          </template>
-          <template #list="slotItem">
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ slotItem.item }}</span>
-            </div>
-          </template>
-        </drop-selector>
+        <drop-down-new
+          :items="inpaintItems"
+          :value="presetModel.SDStandardInpaint"
+          @change="(value) => customPresetModel('SDStandardInpaint', value)"
+        />
         <button
           class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
@@ -85,27 +53,11 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_SD_HD_MODEL }}</p>
       <div class="flex items-center gap-2">
-        <drop-selector
-          :array="globalSetup.models.stableDiffusion"
-          @change="
-            (value, _) => {
-              customPresetModel('SDHD', value)
-            }
-          "
-        >
-          <template #selected>
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ presetModel.SDHD }}</span>
-            </div>
-          </template>
-          <template #list="slotItem">
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ slotItem.item }}</span>
-            </div>
-          </template>
-        </drop-selector>
+        <drop-down-new
+          :items="stableDiffusionItems"
+          :value="presetModel.SDHD"
+          @change="(value) => customPresetModel('SDHD', value)"
+        />
         <button
           class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
@@ -116,27 +68,11 @@
     <div class="flex flex-col gap-3">
       <p>{{ languages.SETTINGS_MODEL_SD_HD_INPAINT_MODEL }}</p>
       <div class="flex items-center gap-2">
-        <drop-selector
-          :array="globalSetup.models.inpaint"
-          @change="
-            (value, _) => {
-              customPresetModel('SDHDInpaint', value)
-            }
-          "
-        >
-          <template #selected>
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ presetModel.SDHDInpaint }}</span>
-            </div>
-          </template>
-          <template #list="slotItem">
-            <div class="flex gap-2 items-center">
-              <span class="rounded-full bg-primary w-2 h-2"></span>
-              <span>{{ slotItem.item }}</span>
-            </div>
-          </template>
-        </drop-selector>
+        <drop-down-new
+          :items="inpaintItems"
+          :value="presetModel.SDHDInpaint"
+          @change="(value) => customPresetModel('SDHDInpaint', value)"
+        />
         <button
           class="svg-icon i-refresh w-5 h-5 text-primary"
           @animationend="removeRonate360"
@@ -324,7 +260,7 @@
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
-import DropSelector from '../components/DropSelector.vue'
+import DropDownNew from '../components/DropDownNew.vue'
 import FolderSelector from '../components/FolderSelector.vue'
 import { Input } from '@/components/ui/aipgInput'
 import * as toast from '@/assets/js/toast'
@@ -340,6 +276,22 @@ const dialogStore = useDialogStore()
 
 const presetModel = reactive<StringKV>(Object.assign({}, toRaw(globalSetup.presetModel)))
 const presetModelChange = ref(false)
+
+const stableDiffusionItems = computed(() =>
+  globalSetup.models.stableDiffusion.map((model) => ({
+    label: model,
+    value: model,
+    active: true,
+  })),
+)
+
+const inpaintItems = computed(() =>
+  globalSetup.models.inpaint.map((model) => ({
+    label: model,
+    value: model,
+    active: true,
+  })),
+)
 
 const paths = reactive<ModelPaths>(Object.assign({}, toRaw(globalSetup.paths)))
 const pathsChange = ref(false)

@@ -309,8 +309,9 @@ const highToLowPrio = (a: ComfyUiWorkflow, b: ComfyUiWorkflow) =>
   position: absolute;
   right: 10px;
   content: attr(data-tooltip);
-  border: 1px solid rgb(122, 122, 122);
-  background: rgba(41, 41, 41, 0.95);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
   border-radius: 0.5rem;
   padding: 0.7em;
   z-index: 10;

@@ -149,7 +149,7 @@
             <span class="text-sm text-left">{{ languages.DOWNLOADER_TERMS_TIP }}</span>
           </div>
           <div class="flex justify-center items-center gap-9">
-            <button @click="cancelConfirm" class="bg-muted py-1 px-4 rounded">
+            <button @click="cancelConfirm" class="bg-muted text-foreground py-1 px-4 rounded">
               {{ i18nState.COM_CANCEL }}
             </button>
             <button

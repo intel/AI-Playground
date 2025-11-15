@@ -64,13 +64,19 @@
             class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-border rounded-md"
           />
           <!-- TODO: delete icon for loaded images -->
-          <div class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer">
-            <Label htmlFor="image"><PlusIcon class="size-4 cursor-pointer" /></Label>
+          <div 
+            ref="dropZoneRef"
+            class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer"
+            :class="{ 'border-primary bg-primary/10': isOverDropZone }"
+          >
+            <Label htmlFor="file-attachment"><PlusIcon class="size-4 cursor-pointer" /></Label>
             <Input
               type="file"
               class="hidden"
-              id="image"
-              @change="openAiCompatibleChat.fileInput = $event.target.files"
+              id="file-attachment"
+              :accept="promptStore.getCurrentMode() === 'chat' ? 'image/*,.txt,.doc,.docx,.md,.pdf' : 'image/*'"
+              multiple
+              @change="handleFileInput"
             />
           </div>
         </div>
@@ -91,7 +97,7 @@
         </div>
         <div class="absolute bottom-4 right-3 flex gap-2">
           <button
-            class="px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
+            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"
             @click="$emit('openSettings')"
           >
             {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
@@ -129,10 +135,13 @@ import { mapModeToLabel } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
-import { useTextInference, type ValidFileExtension } from '@/assets/js/store/textInference'
+import { useTextInference, type ValidFileExtension, type IndexedDocument } from '@/assets/js/store/textInference'
+import { useI18N } from '@/assets/js/store/i18n'
 import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
+import { useDropZone } from '@vueuse/core'
+import * as toast from '@/assets/js/toast'
 import {
   Context,
   ContextTrigger,
@@ -143,12 +152,14 @@ import {
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
+const i18nState = useI18N().state
 const prompt = ref('')
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
+const dropZoneRef = ref<HTMLDivElement>()
 
 // Get checked RAG documents for display
 const checkedRagDocuments = computed(() => {
@@ -276,4 +287,140 @@ function fastGenerate(e: KeyboardEvent) {
     handleSubmitPromptClick()
   }
 }
+
+// Valid document extensions for RAG
+const validDocumentExtensions = ['txt', 'doc', 'docx', 'md', 'pdf'] as const
+
+// Check if a file is an image
+function isImageFile(file: File): boolean {
+  return file.type.startsWith('image/')
+}
+
+// Check if a file is a valid document
+function isDocumentFile(file: File): boolean {
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  return ext ? validDocumentExtensions.includes(ext as ValidFileExtension) : false
+}
+
+// Handle file input change
+async function handleFileInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (!target.files || target.files.length === 0) return
+
+  const files = Array.from(target.files)
+  const imageFiles: File[] = []
+  const documentFiles: File[] = []
+
+  // Separate images from documents
+  for (const file of files) {
+    if (isImageFile(file)) {
+      imageFiles.push(file)
+    } else if (isDocumentFile(file) && promptStore.getCurrentMode() === 'chat') {
+      documentFiles.push(file)
+    }
+  }
+
+  // Handle images (existing behavior)
+  if (imageFiles.length > 0) {
+    const imageFileList = new DataTransfer()
+    imageFiles.forEach(file => imageFileList.items.add(file))
+    openAiCompatibleChat.fileInput = imageFileList.files
+  }
+
+  // Handle documents (add to RAG)
+  if (documentFiles.length > 0) {
+    await addDocumentsToRagList(documentFiles)
+  }
+
+  // Reset input
+  target.value = ''
+}
+
+// Add documents to RAG list
+async function addDocumentsToRagList(files: File[]) {
+  for (const file of files) {
+    try {
+      const filePath = window.electronAPI.getFilePath(file)
+      const name = filePath.split(/(\\|\/)/g).pop()
+      const ext = name?.split('.').pop()?.toLowerCase() as ValidFileExtension | undefined
+
+      if (!name || !ext || !validDocumentExtensions.includes(ext)) {
+        toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
+        continue
+      }
+
+      // Check if document already exists in RAG list (by filepath)
+      const existingDoc = textInference.ragList.find((doc) => doc.filepath === filePath)
+      
+      if (existingDoc) {
+        // Document already exists - just enable it if it's disabled
+        if (!existingDoc.isChecked) {
+          textInference.updateFileCheckStatus(existingDoc.hash, true)
+        }
+        // If already checked, do nothing
+        continue
+      }
+
+      // Document doesn't exist - add it
+      const newDocument: IndexedDocument = {
+        filename: name,
+        filepath: filePath,
+        type: ext,
+        splitDB: [],
+        hash: '',
+        isChecked: true,
+      }
+
+      await textInference.addDocumentToRagList(newDocument)
+    } catch (error) {
+      console.error('Error adding document to RAG list:', error)
+      toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
+    }
+  }
+}
+
+// Handle drag and drop
+function onDrop(files: File[] | null) {
+  if (!files || files.length === 0) return
+
+  const imageFiles: File[] = []
+  const documentFiles: File[] = []
+
+  // Separate images from documents
+  for (const file of files) {
+    if (isImageFile(file)) {
+      imageFiles.push(file)
+    } else if (isDocumentFile(file) && promptStore.getCurrentMode() === 'chat') {
+      documentFiles.push(file)
+    }
+  }
+
+  // Handle images
+  if (imageFiles.length > 0) {
+    const imageFileList = new DataTransfer()
+    imageFiles.forEach(file => imageFileList.items.add(file))
+    openAiCompatibleChat.fileInput = imageFileList.files
+  }
+
+  // Handle documents
+  if (documentFiles.length > 0) {
+    // Validate document extensions
+    const filePaths = documentFiles.map((file) => window.electronAPI.getFilePath(file))
+    const fileExtensions = filePaths.map((filePath) => filePath.split('.').pop()?.toLowerCase() ?? '')
+    
+    if (fileExtensions.some((ext) => !validDocumentExtensions.includes(ext as ValidFileExtension))) {
+      toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
+      return
+    }
+
+    addDocumentsToRagList(documentFiles)
+  }
+}
+
+// Set up drag and drop zone
+const { isOverDropZone } = useDropZone(dropZoneRef, {
+  onDrop,
+  multiple: true,
+  preventDefaultForUnhandled: false,
+})
 </script>
