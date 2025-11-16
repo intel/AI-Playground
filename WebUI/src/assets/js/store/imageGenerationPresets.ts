@@ -289,6 +289,27 @@ export const useImageGenerationPresets = defineStore(
     >({})
     const settingsPerPreset = ref<Record<PresetName, Record<string, any>>>({})
 
+    // Watch resolution changes and sync to target width/height ComfyInputs (for inpainting with target resolution)
+    watch(resolution, (newResolution) => {
+      const [newWidth, newHeight] = newResolution.split('x').map(Number)
+      
+      // Find target width and height ComfyInputs
+      const targetWidthInput = comfyInputs.value.find(
+        (input) => input.nodeTitle === 'width' && input.nodeInput === 'value'
+      )
+      const targetHeightInput = comfyInputs.value.find(
+        (input) => input.nodeTitle === 'height' && input.nodeInput === 'value'
+      )
+      
+      // Update them if they exist
+      if (targetWidthInput && targetWidthInput.current) {
+        targetWidthInput.current.value = newWidth
+      }
+      if (targetHeightInput && targetHeightInput.current) {
+        targetHeightInput.current.value = newHeight
+      }
+    })
+
     const isModifiable = (settingName: string): boolean => {
       if (!activePreset.value) return false
       const setting = activePreset.value.settings.find(

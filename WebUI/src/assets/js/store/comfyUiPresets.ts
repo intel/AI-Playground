@@ -509,7 +509,7 @@ export const useComfyUiPresets = defineStore(
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
           }
         }
-        if (input.type === 'image') {
+        if (input.type === 'image' || input.type === 'inpaintMask') {
           if (typeof input.current.value !== 'string') continue
           const uploadImageHash = Array.from(
             new Uint8Array(
@@ -521,9 +521,13 @@ export const useComfyUiPresets = defineStore(
           )
             .map((b) => b.toString(16).padStart(2, '0'))
             .join('')
-          const uploadImageExtension = input.current.value.match(
-            /data:image\/(png|jpeg|webp);base64,/,
-          )?.[1]
+          // For inpaintMask, always use PNG to preserve alpha channel
+          // For regular images, extract extension from data URI
+          let uploadImageExtension = 'png'
+          if (input.type === 'image') {
+            const match = input.current.value.match(/data:image\/(png|jpeg|webp);base64,/)
+            uploadImageExtension = match?.[1] || 'png'
+          }
           const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

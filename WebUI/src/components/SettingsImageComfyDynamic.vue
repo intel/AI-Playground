@@ -30,6 +30,20 @@
       />
     </div>
 
+    <!-- Inpaint Mask - special handling -->
+    <div
+      v-else-if="input.type === 'inpaintMask'"
+      class="grid grid-cols-[120px_1fr] items-start gap-4"
+    >
+      <Label>
+        {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
+      </Label>
+      <SettingsInpaintMask
+        :image-url="imageUrl"
+        @update:image="(v) => updateMaskImage(input, v)"
+      />
+    </div>
+
     <!-- Regular inputs -->
     <div
       v-else
@@ -107,6 +121,7 @@ import Slider from './ui/slider/Slider.vue'
 import { Label } from './ui/label'
 import SettingsOutpaintDirection from './SettingsOutpaintDirection.vue'
 import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
+import SettingsInpaintMask from './SettingsInpaintMask.vue'
 
 const imageGeneration = useImageGenerationPresets()
 
@@ -204,6 +219,22 @@ function updateValue(nodeTitle: string, nodeInput: string, value: number) {
         (input) => input.nodeTitle === nodeTitle && input.nodeInput === nodeInput,
       )
       if (retryInput) {
+        retryInput.current.value = value
+      }
+    })
+  }
+}
+
+function updateMaskImage(input: any, value: string) {
+  if (input && input.current) {
+    input.current.value = value
+  } else {
+    // Input might not be loaded yet, try again on next tick
+    nextTick(() => {
+      const retryInput = imageGeneration.comfyInputs.find(
+        (i) => i.nodeTitle === input.nodeTitle && i.nodeInput === input.nodeInput,
+      )
+      if (retryInput && retryInput.current) {
         retryInput.current.value = value
       }
     })
