@@ -193,8 +193,8 @@
       "max": 1.0,
       "step": 0.01,
       "defaultValue": 1.0,
-      "displayed": true,
-      "modifiable": true
+      "displayed": false,
+      "modifiable": false
     }
   ],
   "comfyUiApiWorkflow": {

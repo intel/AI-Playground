@@ -1,9 +1,8 @@
 <template>
-  <div class="inpaint-mask-container flex flex-col gap-4">
+  <div class="flex flex-col gap-4 w-full">
     <!-- Controls -->
     <div class="flex items-center gap-4">
       <div class="flex items-center gap-2">
-        <Label>Tool:</Label>
         <div class="flex gap-2">
           <button
             :class="[
@@ -14,7 +13,7 @@
             ]"
             @click="mode = 'brush'"
           >
-            Brush
+          <PaintBrushIcon class="size-4"></PaintBrushIcon>
           </button>
           <button
             :class="[
@@ -25,18 +24,17 @@
             ]"
             @click="mode = 'eraser'"
           >
-            Eraser
+          <TrashIcon class="size-4"></TrashIcon>
           </button>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <Label>Brush Size:</Label>
         <Slider
           v-model="brushSize"
           :min="10"
           :max="100"
           :step="5"
-          class="w-32"
+          class="w-16"
         />
         <span class="text-sm text-foreground/60 w-12">{{ brushSize }}px</span>
       </div>
@@ -44,18 +42,20 @@
         class="px-3 py-1 rounded border bg-background text-foreground border-border hover:bg-muted"
         @click="clearMask"
       >
-        Clear Mask
+        <NoSymbolIcon class="size-4"></NoSymbolIcon>
       </button>
     </div>
 
     <!-- Canvas Container -->
-    <div class="flex justify-center">
+    <div ref="parentContainer" class="flex justify-center w-full">
       <div
         ref="canvasContainer"
         class="relative border-2 border-border rounded-lg bg-muted overflow-hidden"
         :style="{
-          width: `${canvasDisplayWidth}px`,
-          height: `${canvasDisplayHeight}px`,
+          width: imageLoaded ? `${canvasDisplayWidth}px` : '100%',
+          height: imageLoaded ? `${canvasDisplayHeight}px` : 'auto',
+          maxWidth: '100%',
+          maxHeight: '100%',
         }"
       >
         <!-- Base image - use originalImageUrl if available, otherwise use imageUrl prop -->
@@ -126,9 +126,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted } from 'vue'
+import { computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { Label } from './ui/label'
 import Slider from './ui/slider/Slider.vue'
+import { NoSymbolIcon, PaintBrushIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
   imageUrl: string
@@ -138,37 +139,75 @@ const emits = defineEmits<{
   (e: 'update:image', value: string): void
 }>()
 
+const parentContainer = useTemplateRef<HTMLDivElement>('parentContainer')
 const canvasContainer = useTemplateRef<HTMLDivElement>('canvasContainer')
 const sourceImage = useTemplateRef<HTMLImageElement>('sourceImage')
 const maskCanvas = useTemplateRef<HTMLCanvasElement>('maskCanvas')
 const previewCanvas = useTemplateRef<HTMLCanvasElement>('previewCanvas')
 
-const MAX_CANVAS_DISPLAY_SIZE = 600
 const imageLoaded = ref(false)
 const imageWidth = ref(0)
 const imageHeight = ref(0)
 const sourceImageWidth = ref(0)
 const sourceImageHeight = ref(0)
 const originalImageUrl = ref<string>('') // Store original image URL separately
+const containerWidth = ref(0)
+const containerHeight = ref(0)
 
 const mode = ref<'brush' | 'eraser'>('brush')
 const brushSize = ref(30)
 const isDrawing = ref(false)
 
-// Canvas display size (scaled down for UI)
+// Use ResizeObserver to track parent container size
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  if (parentContainer.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        console.log('### resizeObserver', entry.contentRect.width, entry.contentRect.height)
+        containerWidth.value = entry.contentRect.width
+        containerHeight.value = entry.contentRect.height
+      }
+    })
+    resizeObserver.observe(parentContainer.value)
+    
+    // Initial size
+    containerWidth.value = parentContainer.value.clientWidth
+    containerHeight.value = parentContainer.value.clientHeight
+  }
+})
+
+onUnmounted(() => {
+  if (resizeObserver && parentContainer.value) {
+    resizeObserver.unobserve(parentContainer.value)
+    resizeObserver.disconnect()
+  }
+})
+
+// Canvas display size (scaled to fit parent container width, height calculated from aspect ratio)
 const canvasScale = computed(() => {
-  if (!imageWidth.value || !imageHeight.value) return 1
-  const scaleX = MAX_CANVAS_DISPLAY_SIZE / imageWidth.value
-  const scaleY = MAX_CANVAS_DISPLAY_SIZE / imageHeight.value
-  return Math.min(scaleX, scaleY, 1)
+  console.log('### canvasScale', imageWidth.value, imageHeight.value, containerWidth.value, containerHeight.value)
+  if (!imageWidth.value || !imageHeight.value || !containerWidth.value) return 1
+  // Use container width minus some padding (e.g., 20px on each side)
+  const availableWidth = containerWidth.value - 40
+  // Calculate scale based on width only
+  const scale = availableWidth / imageWidth.value
+  // Don't scale up beyond 1:1
+  return Math.min(scale, 1)
 })
 
 const canvasDisplayWidth = computed(() => imageWidth.value * canvasScale.value)
-const canvasDisplayHeight = computed(() => imageHeight.value * canvasScale.value)
+const canvasDisplayHeight = computed(() => {
+  if (!imageWidth.value || !imageHeight.value) return 0
+  // Calculate height based on scaled width and image aspect ratio
+  return (canvasDisplayWidth.value / imageWidth.value) * imageHeight.value
+})
 
 function onImageLoad() {
   if (!sourceImage.value) return
 
+  console.log('### onImageLoad', sourceImage.value.naturalWidth, sourceImage.value.naturalHeight)
   imageLoaded.value = true
   sourceImageWidth.value = sourceImage.value.naturalWidth
   sourceImageHeight.value = sourceImage.value.naturalHeight
@@ -419,9 +458,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.inpaint-mask-container {
-  width: 100%;
-}
-</style>
 

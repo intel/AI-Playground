@@ -1,12 +1,14 @@
 <template>
   <div class="outpaint-canvas-container flex flex-col gap-4">
-    <div class="flex justify-center">
+    <div ref="parentContainer" class="flex justify-center w-full">
       <div
         ref="canvasContainer"
         class="relative border-2 border-border rounded-lg bg-muted overflow-hidden"
         :style="{
           width: `${canvasDisplayWidth}px`,
           height: `${canvasDisplayHeight}px`,
+          maxWidth: '100%',
+          maxHeight: '100%',
         }"
       >
         <canvas
@@ -55,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted } from 'vue'
+import { computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 
 const props = defineProps<{
@@ -85,23 +87,59 @@ const emits = defineEmits<{
 const imageGeneration = useImageGenerationPresets()
 
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
+const parentContainer = useTemplateRef<HTMLDivElement>('parentContainer')
 const canvasContainer = useTemplateRef<HTMLDivElement>('canvasContainer')
 const sourceImage = useTemplateRef<HTMLImageElement>('sourceImage')
 
-const MAX_CANVAS_DISPLAY_SIZE = 400
 const imageLoaded = ref(false)
 const sourceImageWidth = ref(0)
 const sourceImageHeight = ref(0)
+const containerWidth = ref(0)
+const containerHeight = ref(0)
 
-// Canvas display size (scaled down for UI)
+// Use ResizeObserver to track parent container size
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  if (parentContainer.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        containerWidth.value = entry.contentRect.width
+        containerHeight.value = entry.contentRect.height
+      }
+    })
+    resizeObserver.observe(parentContainer.value)
+    
+    // Initial size
+    containerWidth.value = parentContainer.value.clientWidth
+    containerHeight.value = parentContainer.value.clientHeight
+  }
+})
+
+onUnmounted(() => {
+  if (resizeObserver && parentContainer.value) {
+    resizeObserver.unobserve(parentContainer.value)
+    resizeObserver.disconnect()
+  }
+})
+
+// Canvas display size (scaled to fit parent container width, height calculated from aspect ratio)
 const canvasScale = computed(() => {
-  const scaleX = MAX_CANVAS_DISPLAY_SIZE / props.targetWidth
-  const scaleY = MAX_CANVAS_DISPLAY_SIZE / props.targetHeight
-  return Math.min(scaleX, scaleY, 1)
+  if (!props.targetWidth || !props.targetHeight || !containerWidth.value) return 1
+  // Use container width minus some padding (e.g., 20px on each side)
+  const availableWidth = containerWidth.value - 40
+  // Calculate scale based on width only
+  const scale = availableWidth / props.targetWidth
+  // Don't scale up beyond 1:1
+  return Math.min(scale, 1)
 })
 
 const canvasDisplayWidth = computed(() => props.targetWidth * canvasScale.value)
-const canvasDisplayHeight = computed(() => props.targetHeight * canvasScale.value)
+const canvasDisplayHeight = computed(() => {
+  if (!props.targetWidth || !props.targetHeight) return 0
+  // Calculate height based on scaled width and target aspect ratio
+  return (canvasDisplayWidth.value / props.targetWidth) * props.targetHeight
+})
 
 // Image position and size (in target resolution coordinates)
 const imageX = ref(0)
