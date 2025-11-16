@@ -1,5 +1,5 @@
 <template>
-  <template v-for="input in imageGeneration.comfyInputs" :key="`${input.label}${input.nodeTitle}${input.nodeInput}`">
+  <template v-for="input in displayedComfyInputs" :key="`${input.label}${input.nodeTitle}${input.nodeInput}`">
     <!-- Outpaint Canvas - special handling -->
     <div
       v-if="input.type === 'outpaintCanvas'"
@@ -60,6 +60,7 @@
           :min="input.min"
           :max="input.max"
           :step="input.step"
+          :disabled="!isModifiable(input)"
         ></Slider>
         <span>{{ input.current.value }}</span>
       </div>
@@ -83,18 +84,21 @@
         v-if="input.type === 'string'"
         type="text"
         v-model="input.current.value as string"
+        :disabled="!isModifiable(input)"
       ></Input>
 
       <!--    StringList    -->
       <SettingsOutpaintDirection
         v-if="input.type === 'stringList' && input.nodeInput === 'direction'"
         :model-value="(input.current.value as 'top' | 'right' | 'bottom' | 'left')"
+        :disabled="!isModifiable(input)"
         @update:model-value="(value) => (input.current.value = value)"
       />
       <drop-down-new
         v-else-if="input.type === 'stringList'"
         :items="(input.options || []).map((opt) => ({ label: String(opt), value: String(opt), active: true }))"
         :value="String(input.current.value)"
+        :disabled="!isModifiable(input)"
         @change="(value) => (input.current.value = value)"
       />
 
@@ -102,8 +106,12 @@
       <button
         v-if="input.type === 'boolean'"
         class="v-checkbox-control flex-none w-5 h-5"
-        :class="{ 'v-checkbox-checked': input.current.value }"
-        @click="() => (input.current.value = !input.current.value)"
+        :class="{ 
+          'v-checkbox-checked': input.current.value,
+          'opacity-50 cursor-not-allowed': !isModifiable(input)
+        }"
+        :disabled="!isModifiable(input)"
+        @click="() => { if (isModifiable(input)) input.current.value = !input.current.value }"
       ></button>
     </div>
   </template>
@@ -124,6 +132,20 @@ import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
 import SettingsInpaintMask from './SettingsInpaintMask.vue'
 
 const imageGeneration = useImageGenerationPresets()
+
+// Filter inputs based on displayed attribute (default to true if not specified)
+const displayedComfyInputs = computed(() => {
+  return imageGeneration.comfyInputs.filter((input) => {
+    // Default to true if displayed is not specified (backward compatibility)
+    return input.displayed !== false
+  })
+})
+
+// Helper to check if input is modifiable (default to true if not specified)
+const isModifiable = (input: typeof imageGeneration.comfyInputs[0]) => {
+  // Default to true if modifiable is not specified (backward compatibility)
+  return input.modifiable !== false
+}
 
 // Find the image input to get the image URL
 const imageInput = computed(() => {

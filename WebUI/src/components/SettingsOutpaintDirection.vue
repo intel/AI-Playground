@@ -3,22 +3,26 @@
     <div class="outpaint-control-bg">
       <button
         class="outpaint-drieciton top"
-        :class="{ active: modelValue === 'top' }"
+        :class="{ active: modelValue === 'top', 'opacity-50 cursor-not-allowed': disabled }"
+        :disabled="disabled"
         @click="updateDirection('top')"
       ></button>
       <button
         class="outpaint-drieciton right"
-        :class="{ active: modelValue === 'right' }"
+        :class="{ active: modelValue === 'right', 'opacity-50 cursor-not-allowed': disabled }"
+        :disabled="disabled"
         @click="updateDirection('right')"
       ></button>
       <button
         class="outpaint-drieciton bottom"
-        :class="{ active: modelValue === 'bottom' }"
+        :class="{ active: modelValue === 'bottom', 'opacity-50 cursor-not-allowed': disabled }"
+        :disabled="disabled"
         @click="updateDirection('bottom')"
       ></button>
       <button
         class="outpaint-drieciton left"
-        :class="{ active: modelValue === 'left' }"
+        :class="{ active: modelValue === 'left', 'opacity-50 cursor-not-allowed': disabled }"
+        :disabled="disabled"
         @click="updateDirection('left')"
       ></button>
     </div>
@@ -28,6 +32,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   modelValue: 'top' | 'right' | 'bottom' | 'left'
+  disabled?: boolean
 }>()
 
 const emits = defineEmits<{
@@ -35,6 +40,7 @@ const emits = defineEmits<{
 }>()
 
 function updateDirection(value: 'top' | 'right' | 'bottom' | 'left') {
+  if (props.disabled) return
   emits('update:modelValue', value)
 }
 </script>

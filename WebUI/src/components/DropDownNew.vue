@@ -20,6 +20,7 @@ const props = defineProps<{
   items: DropdownItem[]
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }>()
 
 const selectedItem = computed(() => {
@@ -35,10 +36,10 @@ const selectedItem = computed(() => {
 
 <template>
   <DropdownMenu>
-    <DropdownMenuTrigger as-child>
-      <button>
+    <DropdownMenuTrigger as-child :disabled="props.disabled">
+      <button :disabled="props.disabled">
         <div
-          class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between"
+          class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div
             class="w-2 h-2 rounded-full shrink-0"

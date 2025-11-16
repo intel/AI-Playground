@@ -8,6 +8,7 @@ import { useModels } from './models'
 import { useBackendServices } from './backendServices'
 import { usePresets, type ComfyUiPreset, type ComfyInput, type Setting } from './presets'
 import type { ComfyUIApiWorkflow } from './presets'
+import { useUIStore } from './ui'
 
 export type GenerateState =
   | 'no_start'
@@ -123,6 +124,7 @@ export const useImageGenerationPresets = defineStore(
     const comfyUi = useComfyUiPresets()
     const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
+    const uiStore = useUIStore()
     const models = useModels()
     const i18nState = useI18N().state
 
@@ -546,6 +548,12 @@ export const useImageGenerationPresets = defineStore(
       })
       currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
+      
+      // Auto-open history view for batch generation
+      if (batchSize.value > 1) {
+        uiStore.openHistory()
+      }
+      
       const inferenceBackendService = backendToService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)

@@ -8,6 +8,7 @@ import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
 import { useBackendServices } from './backendServices'
 import { usePresets } from './presets'
+import { useUIStore } from './ui'
 
 export type GenerateState =
   | 'no_start'
@@ -480,6 +481,7 @@ export const useImageGeneration = defineStore(
     const comfyUi = useComfyUi()
     const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
+    const uiStore = useUIStore()
     const models = useModels()
     const i18nState = useI18N().state
 
@@ -934,6 +936,12 @@ export const useImageGeneration = defineStore(
       })
       currentState.value = 'no_start'
       stepText.value = i18nState.COM_GENERATING
+      
+      // Auto-open history view for batch generation
+      if (batchSize.value > 1) {
+        uiStore.openHistory()
+      }
+      
       const inferenceBackendService = backendToService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)

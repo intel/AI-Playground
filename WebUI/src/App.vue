@@ -156,9 +156,9 @@
   }"
   >
     <SideModalHistory
-      :isVisible="showHistory"
+      :isVisible="uiStore.showHistory"
       :mode="promptStore.getCurrentMode()"
-      @close="showHistory = false"
+      @close="uiStore.closeHistory()"
       @conversation-selected="chatRef?.scrollToBottom"
     />
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
@@ -166,7 +166,7 @@
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
       <div class="fixed top-18 left-4 z-5">
         <button
-          v-show="!showHistory"
+          v-show="!uiStore.showHistory"
           @click="openHistory"
           class="text-foreground px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
         >
@@ -401,6 +401,7 @@ import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts";
 import SideModalSpecificSettings from "@/components/SideModalSpecificSettings.vue";
+import { useUIStore } from '@/assets/js/store/ui.ts'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -408,6 +409,7 @@ const globalSetup = useGlobalSetup()
 const demoMode = useDemoMode()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
+const uiStore = useUIStore()
 
 const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
@@ -425,7 +427,6 @@ const isOpen = ref(false)
 const activeTabIdx = ref<AipgPage>('create')
 const showSetting = ref(false)
 const footerExpanded = ref(true)
-const showHistory = ref(false)
 const showAppSettings = ref(false)
 const showModelRequestDialog = ref(false)
 const fullscreen = ref(false)
@@ -593,7 +594,7 @@ function handleAutoHideFooter() {
 }
 
 function openHistory() {
-  showHistory.value = true
+  uiStore.openHistory()
 }
 
 function openSpecificSettings() {
