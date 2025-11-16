@@ -496,7 +496,6 @@ export const useComfyUiPresets = defineStore(
       for (const input of imageGeneration.comfyInputs) {
         const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle)
         if (keys.length === 0) {
-          console.warn(`No node found with title "${input.nodeTitle}" for input "${input.label}"`)
           continue
         }
         if (
@@ -507,12 +506,7 @@ export const useComfyUiPresets = defineStore(
         ) {
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const oldValue = (mutableWorkflow[keys[0]].inputs as any)[input.nodeInput]
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
-            if (input.nodeTitle === 'ScaleImage' && input.nodeInput === 'scale_by') {
-              console.log(`Setting scale_by: ${oldValue} -> ${input.current.value} in node ${keys[0]}`)
-            }
           }
         }
         if (input.type === 'image') {

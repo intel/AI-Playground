@@ -118,15 +118,7 @@ const imageInput = computed(() => {
 })
 
 const imageUrl = computed(() => {
-  // Access the current value to make it reactive
-  const url = (imageInput.value?.current.value as string) || ''
-  console.log('Canvas imageUrl computed:', url ? url.substring(0, 50) + '...' : 'empty')
-  return url
-})
-
-// Watch for changes to debug
-watch(imageUrl, (newUrl) => {
-  console.log('Canvas imageUrl changed:', newUrl ? newUrl.substring(0, 50) + '...' : 'empty')
+  return (imageInput.value?.current.value as string) || ''
 })
 
 // Find padding inputs
@@ -136,24 +128,47 @@ const findPaddingInput = (nodeInput: string) => {
   )
 }
 
+// Use toRef to ensure reactivity when inputs change
+const leftInput = computed(() => findPaddingInput('left'))
+const topInput = computed(() => findPaddingInput('top'))
+const rightInput = computed(() => findPaddingInput('right'))
+const bottomInput = computed(() => findPaddingInput('bottom'))
+
 const leftValue = computed(() => {
-  const input = findPaddingInput('left')
-  return (input?.current.value as number) ?? 0
+  const input = leftInput.value
+  if (input?.current) {
+    // Access the value to track reactivity
+    const value = input.current.value
+    return (value as number) ?? 0
+  }
+  return 0
 })
 
 const topValue = computed(() => {
-  const input = findPaddingInput('top')
-  return (input?.current.value as number) ?? 0
+  const input = topInput.value
+  if (input?.current) {
+    const value = input.current.value
+    return (value as number) ?? 0
+  }
+  return 0
 })
 
 const rightValue = computed(() => {
-  const input = findPaddingInput('right')
-  return (input?.current.value as number) ?? 0
+  const input = rightInput.value
+  if (input?.current) {
+    const value = input.current.value
+    return (value as number) ?? 0
+  }
+  return 0
 })
 
 const bottomValue = computed(() => {
-  const input = findPaddingInput('bottom')
-  return (input?.current.value as number) ?? 0
+  const input = bottomInput.value
+  if (input?.current) {
+    const value = input.current.value
+    return (value as number) ?? 0
+  }
+  return 0
 })
 
 const featheringValue = computed(() => {
@@ -163,8 +178,16 @@ const featheringValue = computed(() => {
 
 function updatePaddingValue(nodeInput: string, value: number) {
   const input = findPaddingInput(nodeInput)
-  if (input) {
+  if (input && input.current) {
     input.current.value = value
+  } else {
+    // Input might not be loaded yet, try again on next tick
+    nextTick(() => {
+      const retryInput = findPaddingInput(nodeInput)
+      if (retryInput && retryInput.current) {
+        retryInput.current.value = value
+      }
+    })
   }
 }
 
@@ -173,7 +196,6 @@ function updateValue(nodeTitle: string, nodeInput: string, value: number) {
     (input) => input.nodeTitle === nodeTitle && input.nodeInput === nodeInput,
   )
   if (input) {
-    console.log(`Updating ${nodeTitle}.${nodeInput}: ${input.current.value} -> ${value}`)
     input.current.value = value
   } else {
     // Input might not be loaded yet, try again on next tick
@@ -182,10 +204,7 @@ function updateValue(nodeTitle: string, nodeInput: string, value: number) {
         (input) => input.nodeTitle === nodeTitle && input.nodeInput === nodeInput,
       )
       if (retryInput) {
-        console.log(`Updating ${nodeTitle}.${nodeInput} (retry): ${retryInput.current.value} -> ${value}`)
         retryInput.current.value = value
-      } else {
-        console.warn(`Input not found: ${nodeTitle}.${nodeInput} (available inputs: ${imageGeneration.comfyInputs.map(i => `${i.nodeTitle}.${i.nodeInput}`).join(', ')})`)
       }
     })
   }

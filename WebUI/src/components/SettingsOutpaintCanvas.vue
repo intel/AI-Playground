@@ -14,7 +14,10 @@
           :width="targetWidth"
           :height="targetHeight"
           class="absolute inset-0 w-full h-full"
+          :style="{ cursor: canvasCursor }"
           style="image-rendering: pixelated;"
+          @pointerdown="startDrag"
+          @pointermove="updateCursor"
         ></canvas>
         <!-- Image element - always render when URL exists so @load can fire -->
         <img
@@ -25,41 +28,15 @@
           @load="onImageLoad"
           @error="onImageError"
         />
-        <!-- Image container - only show when loaded -->
         <div
-          v-if="imageUrl && imageUrl.trim() !== '' && imageLoaded"
-          ref="imageContainer"
-          class="absolute cursor-move border-2 border-primary"
-          :style="{
-            left: `${imageX}px`,
-            top: `${imageY}px`,
-            width: `${imageWidth}px`,
-            height: `${imageHeight}px`,
-            transform: `scale(${canvasScale})`,
-            transformOrigin: 'top left',
-          }"
-          @pointerdown="startDrag"
-        >
-          <img
-            :src="imageUrl"
-            class="w-full h-full object-contain"
-            style="pointer-events: none;"
-          />
-          <!-- Scale handles -->
-          <div
-            class="absolute bottom-0 right-0 w-4 h-4 bg-primary cursor-nwse-resize"
-            @pointerdown.stop="startResize"
-          ></div>
-        </div>
-        <div
-          v-else-if="imageUrl && imageUrl.trim() !== '' && !imageLoaded"
-          class="absolute inset-0 flex items-center justify-center text-foreground/60"
+          v-if="imageUrl && imageUrl.trim() !== '' && !imageLoaded"
+          class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
           Loading image...
         </div>
         <div
-          v-else
-          class="absolute inset-0 flex items-center justify-center text-foreground/60"
+          v-else-if="!imageUrl || imageUrl.trim() === ''"
+          class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
           Load an image to position it
         </div>
@@ -78,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { computed, watch, nextTick, onMounted } from 'vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 
 const props = defineProps<{
@@ -109,7 +86,6 @@ const imageGeneration = useImageGenerationPresets()
 
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 const canvasContainer = useTemplateRef<HTMLDivElement>('canvasContainer')
-const imageContainer = useTemplateRef<HTMLDivElement>('imageContainer')
 const sourceImage = useTemplateRef<HTMLImageElement>('sourceImage')
 
 const MAX_CANVAS_DISPLAY_SIZE = 400
@@ -133,9 +109,23 @@ const imageY = ref(0)
 const imageWidth = ref(0)
 const imageHeight = ref(0)
 
+// Cursor state
+const canvasCursor = ref('default')
+
+// Crop state (relative to image position, in canvas coordinates)
+const cropX = ref(0)
+const cropY = ref(0)
+const cropWidth = ref(0)
+const cropHeight = ref(0)
+
 // Drag state
 const isDragging = ref(false)
 const isResizing = ref(false)
+const isCropping = ref(false)
+const cropHandle = ref<'left' | 'right' | 'top' | 'bottom' | null>(null)
+
+// Flag to prevent prop sync watch from updating during our own emits
+const isEmitting = ref(false)
 const dragStartX = ref(0)
 const dragStartY = ref(0)
 const dragStartImageX = ref(0)
@@ -144,15 +134,22 @@ const resizeStartWidth = ref(0)
 const resizeStartHeight = ref(0)
 const resizeStartX = ref(0)
 const resizeStartY = ref(0)
+const cropStartX = ref(0)
+const cropStartY = ref(0)
+const cropStartWidth = ref(0)
+const cropStartHeight = ref(0)
+const resizeStartCropX = ref(0)
+const resizeStartCropY = ref(0)
+const resizeStartCropWidth = ref(0)
+const resizeStartCropHeight = ref(0)
 
-// Calculate scale factor from image size vs original size
-// The canvas shows the final cropped image size (imageWidth x imageHeight)
-// We need to calculate what scale factor would produce this size from the original
-// The user can scale independently in X and Y, so we need to ensure the scaled image
-// is large enough to contain the crop region
+// Calculate scale factor from displayed image size vs original size
+// The scale is based on the full displayed image (imageWidth x imageHeight)
+// which represents the scaled image before cropping
+// Example: 1000x1000 original -> scale 0.3 -> 300x300 displayed -> crop to 300x200
 const scaleBy = computed(() => {
   if (!sourceImageWidth.value || !imageWidth.value || !sourceImageHeight.value || !imageHeight.value) return 1.0
-  // Calculate scale factors for both dimensions
+  // Calculate scale factors for both dimensions based on displayed image size
   const scaleX = imageWidth.value / sourceImageWidth.value
   const scaleY = imageHeight.value / sourceImageHeight.value
   // Use the larger scale to ensure the scaled image contains the crop region
@@ -168,55 +165,53 @@ const scaleBy = computed(() => {
 const scaledImageWidth = computed(() => Math.round(sourceImageWidth.value * scaleBy.value))
 const scaledImageHeight = computed(() => Math.round(sourceImageHeight.value * scaleBy.value))
 
-// Crop width/height should match the canvas image size
-const cropWidth = computed(() => Math.round(imageWidth.value))
-const cropHeight = computed(() => Math.round(imageHeight.value))
-// Crop position: start from top-left (0,0) for now
-// TODO: Allow user to adjust crop position in canvas
-const cropX = computed(() => 0)
-const cropY = computed(() => 0)
-
-// Calculate padding values from image position
-const left = computed(() => Math.max(0, Math.round(imageX.value)))
-const top = computed(() => Math.max(0, Math.round(imageY.value)))
+// Calculate padding values from cropped image position
+// Padding is relative to the cropped region, not the full displayed image
+// The cropped image is positioned at (imageX + cropX, imageY + cropY) with size (cropWidth, cropHeight)
+const left = computed(() => Math.max(0, Math.round(imageX.value + cropX.value)))
+const top = computed(() => Math.max(0, Math.round(imageY.value + cropY.value)))
 const right = computed(() =>
-  Math.max(0, Math.round(props.targetWidth - (imageX.value + imageWidth.value))),
+  Math.max(0, Math.round(props.targetWidth - (imageX.value + cropX.value + cropWidth.value))),
 )
 const bottom = computed(() =>
-  Math.max(0, Math.round(props.targetHeight - (imageY.value + imageHeight.value))),
+  Math.max(0, Math.round(props.targetHeight - (imageY.value + cropY.value + cropHeight.value))),
 )
 
-// Watch all calculated values and emit updates
-// Only emit when image is loaded to ensure inputs are available
-watch([left, top, right, bottom, scaleBy, cropWidth, cropHeight, cropX, cropY], 
-  ([l, t, r, b, scale, cw, ch, cx, cy]) => {
-    if (!imageLoaded.value) return // Don't emit until image is loaded
-    console.log('Canvas values changed:', { scale, cw, ch, cx, cy, l, t, r, b })
-    emits('update:left', l)
-    emits('update:top', t)
-    emits('update:right', r)
-    emits('update:bottom', b)
-    emits('update:scaleBy', scale)
-    emits('update:cropWidth', cw)
-    emits('update:cropHeight', ch)
-    emits('update:cropX', cx)
-    emits('update:cropY', cy)
-  }
-)
+// Emit all calculated values to parent component
+// This is called explicitly when interactions end or image loads
+function emitAllValues() {
+  if (!imageLoaded.value) return
+  
+  isEmitting.value = true
+  
+  const l = left.value
+  const t = top.value
+  const r = right.value
+  const b = bottom.value
+  const scale = scaleBy.value
+  const cw = Math.round(cropWidth.value)
+  const ch = Math.round(cropHeight.value)
+  const cx = Math.round(cropX.value)
+  const cy = Math.round(cropY.value)
+  
+  emits('update:left', l)
+  emits('update:top', t)
+  emits('update:right', r)
+  emits('update:bottom', b)
+  emits('update:scaleBy', scale)
+  emits('update:cropWidth', cw)
+  emits('update:cropHeight', ch)
+  emits('update:cropX', cx)
+  emits('update:cropY', cy)
+  
+  isEmitting.value = false
+}
 
 // Emit initial values when image loads
 watch(imageLoaded, (loaded) => {
   if (loaded) {
-    // Emit all current values once image is loaded
-    emits('update:left', left.value)
-    emits('update:top', top.value)
-    emits('update:right', right.value)
-    emits('update:bottom', bottom.value)
-    emits('update:scaleBy', scaleBy.value)
-    emits('update:cropWidth', cropWidth.value)
-    emits('update:cropHeight', cropHeight.value)
-    emits('update:cropX', cropX.value)
-    emits('update:cropY', cropY.value)
+    emitAllValues()
+    emits('update:feathering', props.feathering)
   }
 })
 
@@ -231,7 +226,6 @@ watch([() => props.targetWidth, () => props.targetHeight], () => {
 function onImageLoad() {
   if (!sourceImage.value) return
 
-  console.log('Image loaded in canvas:', sourceImage.value.src.substring(0, 50))
   imageLoaded.value = true
   sourceImageWidth.value = sourceImage.value.naturalWidth
   sourceImageHeight.value = sourceImage.value.naturalHeight
@@ -262,12 +256,17 @@ function onImageLoad() {
     imageHeight.value = sourceImageHeight.value * sizeScale
   }
 
+  // Initialize crop to full image
+  cropX.value = 0
+  cropY.value = 0
+  cropWidth.value = imageWidth.value
+  cropHeight.value = imageHeight.value
+
   constrainImagePosition()
   drawCanvas()
 }
 
-function onImageError(e: Event) {
-  console.error('Failed to load image in canvas:', e)
+function onImageError() {
   imageLoaded.value = false
 }
 
@@ -315,47 +314,238 @@ function drawCanvas() {
     ctx.stroke()
   }
 
-  // Draw padding areas (outpaint regions)
+  // Draw the image if loaded
+  if (imageLoaded.value && sourceImage.value) {
+    ctx.save()
+    
+    // Calculate source crop coordinates (in original image pixels)
+    const sourceCropX = (cropX.value / imageWidth.value) * sourceImageWidth.value
+    const sourceCropY = (cropY.value / imageHeight.value) * sourceImageHeight.value
+    const sourceCropWidth = (cropWidth.value / imageWidth.value) * sourceImageWidth.value
+    const sourceCropHeight = (cropHeight.value / imageHeight.value) * sourceImageHeight.value
+    
+    // Draw the cropped portion of the image
+    ctx.drawImage(
+      sourceImage.value,
+      sourceCropX, sourceCropY, sourceCropWidth, sourceCropHeight, // Source crop
+      imageX.value + cropX.value, imageY.value + cropY.value, cropWidth.value, cropHeight.value // Destination
+    )
+    
+    // Grey out the cropped parts
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    // Top crop
+    if (cropY.value > 0) {
+      ctx.fillRect(imageX.value, imageY.value, imageWidth.value, cropY.value)
+    }
+    // Bottom crop
+    const cropBottom = cropY.value + cropHeight.value
+    if (cropBottom < imageHeight.value) {
+      ctx.fillRect(imageX.value, imageY.value + cropBottom, imageWidth.value, imageHeight.value - cropBottom)
+    }
+    // Left crop
+    if (cropX.value > 0) {
+      ctx.fillRect(imageX.value, imageY.value + cropY.value, cropX.value, cropHeight.value)
+    }
+    // Right crop
+    const cropRight = cropX.value + cropWidth.value
+    if (cropRight < imageWidth.value) {
+      ctx.fillRect(imageX.value + cropRight, imageY.value + cropY.value, imageWidth.value - cropRight, cropHeight.value)
+    }
+    
+    ctx.restore()
+  }
+
+  // Draw padding areas (outpaint regions) - highlight areas outside the image
   ctx.fillStyle = 'rgba(156, 163, 175, 0.3)' // neutral gray with transparency
   
-  // Top padding
-  if (top.value > 0) {
-    ctx.fillRect(0, 0, props.targetWidth, top.value)
+  if (imageLoaded.value) {
+    // Top padding (above the image)
+    if (imageY.value > 0) {
+      ctx.fillRect(0, 0, props.targetWidth, imageY.value)
+    }
+    // Bottom padding (below the image)
+    const imageBottom = imageY.value + imageHeight.value
+    if (imageBottom < props.targetHeight) {
+      ctx.fillRect(0, imageBottom, props.targetWidth, props.targetHeight - imageBottom)
+    }
+    // Left padding (to the left of the image)
+    if (imageX.value > 0) {
+      ctx.fillRect(0, imageY.value, imageX.value, imageHeight.value)
+    }
+    // Right padding (to the right of the image)
+    const imageRight = imageX.value + imageWidth.value
+    if (imageRight < props.targetWidth) {
+      ctx.fillRect(imageRight, imageY.value, props.targetWidth - imageRight, imageHeight.value)
+    }
+
+    // Draw border around full image
+    ctx.strokeStyle = 'hsl(var(--primary))'
+    ctx.lineWidth = 2
+    ctx.strokeRect(imageX.value, imageY.value, imageWidth.value, imageHeight.value)
+    
+    // Draw border around crop region
+    ctx.strokeStyle = 'hsl(var(--primary))'
+    ctx.lineWidth = 2
+    ctx.setLineDash([4, 4])
+    ctx.strokeRect(imageX.value + cropX.value, imageY.value + cropY.value, cropWidth.value, cropHeight.value)
+    ctx.setLineDash([])
+
+    // Draw resize handle at bottom-right corner (more visible)
+    const handleSize = 16
+    const handleX = imageX.value + imageWidth.value - handleSize / 2
+    const handleY = imageY.value + imageHeight.value - handleSize / 2
+    ctx.fillStyle = 'hsl(var(--primary))'
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 2
+    ctx.fillRect(handleX, handleY, handleSize, handleSize)
+    ctx.strokeRect(handleX, handleY, handleSize, handleSize)
+    
+    // Draw crop handles (only on edges, not corners)
+    const cropHandleSize = 12
+    const cropHandles = [
+      // Edges only
+      { x: imageX.value + cropX.value + cropWidth.value / 2, y: imageY.value + cropY.value, type: 'top' },
+      { x: imageX.value + cropX.value + cropWidth.value / 2, y: imageY.value + cropY.value + cropHeight.value, type: 'bottom' },
+      { x: imageX.value + cropX.value, y: imageY.value + cropY.value + cropHeight.value / 2, type: 'left' },
+      { x: imageX.value + cropX.value + cropWidth.value, y: imageY.value + cropY.value + cropHeight.value / 2, type: 'right' },
+    ]
+    
+    ctx.fillStyle = 'white'
+    ctx.strokeStyle = 'hsl(var(--primary))'
+    ctx.lineWidth = 2
+    for (const handle of cropHandles) {
+      ctx.fillRect(handle.x - cropHandleSize / 2, handle.y - cropHandleSize / 2, cropHandleSize, cropHandleSize)
+      ctx.strokeRect(handle.x - cropHandleSize / 2, handle.y - cropHandleSize / 2, cropHandleSize, cropHandleSize)
+    }
   }
-  // Bottom padding
-  if (bottom.value > 0) {
-    ctx.fillRect(0, props.targetHeight - bottom.value, props.targetWidth, bottom.value)
+}
+
+function getCanvasCoordinates(e: PointerEvent): { x: number; y: number } | null {
+  if (!canvas.value || !canvasContainer.value) return null
+  
+  const rect = canvasContainer.value.getBoundingClientRect()
+  const scaleX = props.targetWidth / rect.width
+  const scaleY = props.targetHeight / rect.height
+  
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
   }
-  // Left padding
-  if (left.value > 0) {
-    ctx.fillRect(0, 0, left.value, props.targetHeight)
+}
+
+function isPointInImage(x: number, y: number): boolean {
+  return (
+    x >= imageX.value &&
+    x <= imageX.value + imageWidth.value &&
+    y >= imageY.value &&
+    y <= imageY.value + imageHeight.value
+  )
+}
+
+function isPointInResizeHandle(x: number, y: number): boolean {
+  const handleSize = 16
+  const handleX = imageX.value + imageWidth.value - handleSize / 2
+  const handleY = imageY.value + imageHeight.value - handleSize / 2
+  
+  return (
+    x >= handleX &&
+    x <= handleX + handleSize &&
+    y >= handleY &&
+    y <= handleY + handleSize
+  )
+}
+
+function getCropHandleAt(x: number, y: number): 'left' | 'right' | 'top' | 'bottom' | null {
+  const cropHandleSize = 12
+  const handles = [
+    // Edges only
+    { x: imageX.value + cropX.value + cropWidth.value / 2, y: imageY.value + cropY.value, type: 'top' as const },
+    { x: imageX.value + cropX.value + cropWidth.value / 2, y: imageY.value + cropY.value + cropHeight.value, type: 'bottom' as const },
+    { x: imageX.value + cropX.value, y: imageY.value + cropY.value + cropHeight.value / 2, type: 'left' as const },
+    { x: imageX.value + cropX.value + cropWidth.value, y: imageY.value + cropY.value + cropHeight.value / 2, type: 'right' as const },
+  ]
+  
+  for (const handle of handles) {
+    if (
+      x >= handle.x - cropHandleSize / 2 &&
+      x <= handle.x + cropHandleSize / 2 &&
+      y >= handle.y - cropHandleSize / 2 &&
+      y <= handle.y + cropHandleSize / 2
+    ) {
+      return handle.type
+    }
   }
-  // Right padding
-  if (right.value > 0) {
-    ctx.fillRect(props.targetWidth - right.value, 0, right.value, props.targetHeight)
+  
+  return null
+}
+
+function updateCursor(e: PointerEvent) {
+  if (!imageLoaded.value || isDragging.value || isResizing.value || isCropping.value) return
+  
+  const coords = getCanvasCoordinates(e)
+  if (!coords) {
+    canvasCursor.value = 'default'
+    return
+  }
+  
+  const cropHandleType = getCropHandleAt(coords.x, coords.y)
+  if (cropHandleType) {
+    // Set cursor based on crop handle type (edges only)
+    if (cropHandleType === 'top' || cropHandleType === 'bottom') {
+      canvasCursor.value = 'ns-resize'
+    } else if (cropHandleType === 'left' || cropHandleType === 'right') {
+      canvasCursor.value = 'ew-resize'
+    }
+  } else if (isPointInResizeHandle(coords.x, coords.y)) {
+    canvasCursor.value = 'nwse-resize'
+  } else if (isPointInImage(coords.x, coords.y)) {
+    canvasCursor.value = 'move'
+  } else {
+    canvasCursor.value = 'default'
   }
 }
 
 function startDrag(e: PointerEvent) {
-  if (!imageContainer.value) return
+  if (!canvas.value || !imageLoaded.value) return
+  
+  const coords = getCanvasCoordinates(e)
+  if (!coords) return
+  
+  // Check if clicking on crop handle
+  const cropHandleType = getCropHandleAt(coords.x, coords.y)
+  if (cropHandleType) {
+    startCrop(e, cropHandleType)
+    return
+  }
+  
+  // Check if clicking on resize handle
+  if (isPointInResizeHandle(coords.x, coords.y)) {
+    startResize(e)
+    return
+  }
+  
+  // Check if clicking on image
+  if (!isPointInImage(coords.x, coords.y)) return
   
   isDragging.value = true
-  dragStartX.value = e.clientX
-  dragStartY.value = e.clientY
+  dragStartX.value = coords.x
+  dragStartY.value = coords.y
   dragStartImageX.value = imageX.value
   dragStartImageY.value = imageY.value
 
-  imageContainer.value.setPointerCapture(e.pointerId)
-  imageContainer.value.addEventListener('pointermove', onDrag)
-  imageContainer.value.addEventListener('pointerup', stopDrag, { once: true })
+  canvas.value.setPointerCapture(e.pointerId)
+  canvas.value.addEventListener('pointermove', onDrag)
+  canvas.value.addEventListener('pointerup', stopDrag, { once: true })
 }
 
 function onDrag(e: PointerEvent) {
-  if (!isDragging.value || !canvasContainer.value) return
+  if (!isDragging.value || !canvas.value) return
 
-  const rect = canvasContainer.value.getBoundingClientRect()
-  const deltaX = (e.clientX - dragStartX.value) / canvasScale.value
-  const deltaY = (e.clientY - dragStartY.value) / canvasScale.value
+  const coords = getCanvasCoordinates(e)
+  if (!coords) return
+
+  const deltaX = coords.x - dragStartX.value
+  const deltaY = coords.y - dragStartY.value
 
   imageX.value = dragStartImageX.value + deltaX
   imageY.value = dragStartImageY.value + deltaY
@@ -366,47 +556,75 @@ function onDrag(e: PointerEvent) {
 
 function stopDrag() {
   isDragging.value = false
-  if (imageContainer.value) {
-    imageContainer.value.removeEventListener('pointermove', onDrag)
+  if (canvas.value) {
+    canvas.value.removeEventListener('pointermove', onDrag)
   }
+  emitAllValues()
 }
 
 function startResize(e: PointerEvent) {
-  if (!imageContainer.value) return
+  if (!canvas.value || !imageLoaded.value) return
 
   e.stopPropagation()
   isResizing.value = true
-  dragStartX.value = e.clientX
-  dragStartY.value = e.clientY
+  
+  const coords = getCanvasCoordinates(e)
+  if (!coords) return
+  
+  dragStartX.value = coords.x
+  dragStartY.value = coords.y
   resizeStartWidth.value = imageWidth.value
   resizeStartHeight.value = imageHeight.value
   resizeStartX.value = imageX.value
   resizeStartY.value = imageY.value
+  // Store crop values at start of resize
+  resizeStartCropX.value = cropX.value
+  resizeStartCropY.value = cropY.value
+  resizeStartCropWidth.value = cropWidth.value
+  resizeStartCropHeight.value = cropHeight.value
 
-  imageContainer.value.setPointerCapture(e.pointerId)
-  imageContainer.value.addEventListener('pointermove', onResize)
-  imageContainer.value.addEventListener('pointerup', stopResize, { once: true })
+  canvas.value.setPointerCapture(e.pointerId)
+  canvas.value.addEventListener('pointermove', onResize)
+  canvas.value.addEventListener('pointerup', stopResize, { once: true })
 }
 
 function onResize(e: PointerEvent) {
-  if (!isResizing.value || !canvasContainer.value) return
+  if (!isResizing.value || !canvas.value) return
 
-  const deltaX = (e.clientX - dragStartX.value) / canvasScale.value
-  const deltaY = (e.clientY - dragStartY.value) / canvasScale.value
+  const coords = getCanvasCoordinates(e)
+  if (!coords) return
+
+  const deltaX = coords.x - dragStartX.value
+  const deltaY = coords.y - dragStartY.value
 
   // Calculate new size maintaining aspect ratio
   const aspectRatio = sourceImageWidth.value / sourceImageHeight.value
   const newWidth = Math.max(64, Math.min(resizeStartWidth.value + deltaX, props.targetWidth - resizeStartX.value))
   const newHeight = newWidth / aspectRatio
 
+  // Calculate scale factors for crop adjustment
+  const scaleX = newWidth / resizeStartWidth.value
+  const scaleY = newHeight / resizeStartHeight.value
+
   // Check if height fits
   if (newHeight > props.targetHeight - resizeStartY.value) {
     const constrainedHeight = props.targetHeight - resizeStartY.value
     imageHeight.value = constrainedHeight
     imageWidth.value = constrainedHeight * aspectRatio
+    const finalScaleY = constrainedHeight / resizeStartHeight.value
+    // Adjust crop values proportionally from start values
+    cropX.value = Math.max(0, Math.min(resizeStartCropX.value * scaleX, imageWidth.value - 64))
+    cropY.value = Math.max(0, Math.min(resizeStartCropY.value * finalScaleY, imageHeight.value - 64))
+    cropWidth.value = Math.max(64, Math.min(resizeStartCropWidth.value * scaleX, imageWidth.value - cropX.value))
+    cropHeight.value = Math.max(64, Math.min(resizeStartCropHeight.value * finalScaleY, imageHeight.value - cropY.value))
   } else {
     imageWidth.value = newWidth
     imageHeight.value = newHeight
+    // Adjust crop values proportionally from start values
+    cropX.value = Math.max(0, Math.min(resizeStartCropX.value * scaleX, imageWidth.value - 64))
+    cropY.value = Math.max(0, Math.min(resizeStartCropY.value * scaleY, imageHeight.value - 64))
+    cropWidth.value = Math.max(64, Math.min(resizeStartCropWidth.value * scaleX, imageWidth.value - cropX.value))
+    cropHeight.value = Math.max(64, Math.min(resizeStartCropHeight.value * scaleY, imageHeight.value - cropY.value))
   }
 
   constrainImagePosition()
@@ -415,9 +633,88 @@ function onResize(e: PointerEvent) {
 
 function stopResize() {
   isResizing.value = false
-  if (imageContainer.value) {
-    imageContainer.value.removeEventListener('pointermove', onResize)
+  if (canvas.value) {
+    canvas.value.removeEventListener('pointermove', onResize)
   }
+  emitAllValues()
+}
+
+function startCrop(e: PointerEvent, handleType: 'left' | 'right' | 'top' | 'bottom') {
+  if (!canvas.value || !imageLoaded.value) return
+
+  e.stopPropagation()
+  isCropping.value = true
+  cropHandle.value = handleType
+  
+  const coords = getCanvasCoordinates(e)
+  if (!coords) return
+  
+  cropStartX.value = cropX.value
+  cropStartY.value = cropY.value
+  cropStartWidth.value = cropWidth.value
+  cropStartHeight.value = cropHeight.value
+  dragStartX.value = coords.x
+  dragStartY.value = coords.y
+
+  canvas.value.setPointerCapture(e.pointerId)
+  canvas.value.addEventListener('pointermove', onCrop)
+  canvas.value.addEventListener('pointerup', stopCrop, { once: true })
+}
+
+function onCrop(e: PointerEvent) {
+  if (!isCropping.value || !canvas.value) return
+
+  const coords = getCanvasCoordinates(e)
+  if (!coords) return
+
+  const deltaX = coords.x - dragStartX.value
+  const deltaY = coords.y - dragStartY.value
+
+  const handle = cropHandle.value
+  if (!handle) return
+
+  // Calculate new crop bounds
+  let newCropX = cropStartX.value
+  let newCropY = cropStartY.value
+  let newCropWidth = cropStartWidth.value
+  let newCropHeight = cropStartHeight.value
+
+  // Handle edge adjustments only
+  if (handle === 'left') {
+    newCropX = Math.max(0, Math.min(cropStartX.value + deltaX, cropStartX.value + cropStartWidth.value - 64))
+    newCropWidth = cropStartWidth.value - (newCropX - cropStartX.value)
+  } else if (handle === 'right') {
+    newCropWidth = Math.max(64, Math.min(cropStartWidth.value + deltaX, imageWidth.value - cropStartX.value))
+  } else if (handle === 'top') {
+    newCropY = Math.max(0, Math.min(cropStartY.value + deltaY, cropStartY.value + cropStartHeight.value - 64))
+    newCropHeight = cropStartHeight.value - (newCropY - cropStartY.value)
+  } else if (handle === 'bottom') {
+    newCropHeight = Math.max(64, Math.min(cropStartHeight.value + deltaY, imageHeight.value - cropStartY.value))
+  }
+
+  // Ensure crop stays within image bounds
+  if (newCropX + newCropWidth > imageWidth.value) {
+    newCropWidth = imageWidth.value - newCropX
+  }
+  if (newCropY + newCropHeight > imageHeight.value) {
+    newCropHeight = imageHeight.value - newCropY
+  }
+
+  cropX.value = newCropX
+  cropY.value = newCropY
+  cropWidth.value = newCropWidth
+  cropHeight.value = newCropHeight
+
+  drawCanvas()
+}
+
+function stopCrop() {
+  isCropping.value = false
+  cropHandle.value = null
+  if (canvas.value) {
+    canvas.value.removeEventListener('pointermove', onCrop)
+  }
+  emitAllValues()
 }
 
 // Watch for image URL changes
@@ -452,11 +749,30 @@ watch(() => props.imageUrl, (newUrl, oldUrl) => {
 }, { immediate: true })
 
 // Watch for padding changes from outside (e.g., when preset loads)
+// Only update if padding changed externally (not from our own emits)
 watch([() => props.left, () => props.top, () => props.right, () => props.bottom], ([l, t, r, b]) => {
-  if (imageLoaded.value && (l !== left.value || t !== top.value || r !== right.value || b !== bottom.value)) {
+  if (!imageLoaded.value || isEmitting.value) return
+  
+  // Calculate what the padding should be based on current image position
+  const currentLeft = Math.max(0, Math.round(imageX.value + cropX.value))
+  const currentTop = Math.max(0, Math.round(imageY.value + cropY.value))
+  const currentRight = Math.max(0, Math.round(props.targetWidth - (imageX.value + cropX.value + cropWidth.value)))
+  const currentBottom = Math.max(0, Math.round(props.targetHeight - (imageY.value + cropY.value + cropHeight.value)))
+  
+  // Only update if padding changed externally (not from our own emits)
+  // Use a small threshold to account for rounding differences
+  const threshold = 1
+  const paddingChanged = 
+    Math.abs(l - currentLeft) > threshold ||
+    Math.abs(t - currentTop) > threshold ||
+    Math.abs(r - currentRight) > threshold ||
+    Math.abs(b - currentBottom) > threshold
+  
+  if (paddingChanged) {
     // Update position based on padding
-    imageX.value = l
-    imageY.value = t
+    // Padding is relative to the cropped region
+    imageX.value = l - cropX.value
+    imageY.value = t - cropY.value
     const availableWidth = props.targetWidth - l - r
     const availableHeight = props.targetHeight - t - b
     if (availableWidth > 0 && availableHeight > 0) {

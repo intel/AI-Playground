@@ -239,7 +239,6 @@ export const useImageGenerationPresets = defineStore(
       imageModel,
       inpaintModel,
     }
-    type ModifiableSettings = keyof typeof settings
 
     const backend = computed(() => {
       console.log('### computing backend', activePreset.value?.backend)
@@ -247,13 +246,7 @@ export const useImageGenerationPresets = defineStore(
       return activePreset.value.backend as 'comfyui' | 'default'
     })
 
-    watch(() => activePreset.value, () => {
-      console.log('### watch activePreset test!!!', activePreset.value)
-    })
-
     const comfyInputs = computed(() => {
-      console.log('### computing comfyInputs', activePreset.value?.name)
-      // return activePreset.value?.settings?.filter((s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s) ?? []
       if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
       const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
       const savePerPreset = (input: ComfyInput, newValue: any) => {
@@ -269,12 +262,9 @@ export const useImageGenerationPresets = defineStore(
         return saved ?? input.defaultValue
       }
 
-      console.log('### activePreset.value.settings', activePreset.value.settings)
-      // Filter ComfyUI inputs (those with nodeTitle and nodeInput)
       const comfyInputs = activePreset.value.settings.filter(
         (s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s,
       )
-      console.log('### comfyInputs', comfyInputs)
       return comfyInputs.map((input) => {
         const _current = ref(getSavedOrDefault(input))
 

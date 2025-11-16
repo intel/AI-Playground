@@ -162,7 +162,7 @@
       "step": 8,
       "defaultValue": 0,
       "displayed": false,
-      "modifiable": true
+      "modifiable": false
     },
     {
       "type": "number",
@@ -174,7 +174,7 @@
       "step": 8,
       "defaultValue": 0,
       "displayed": false,
-      "modifiable": true
+      "modifiable": false
     },
     {
       "type": "number",
@@ -186,7 +186,7 @@
       "step": 8,
       "defaultValue": 0,
       "displayed": false,
-      "modifiable": true
+      "modifiable": false
     },
     {
       "type": "number",
@@ -198,7 +198,7 @@
       "step": 8,
       "defaultValue": 0,
       "displayed": false,
-      "modifiable": true
+      "modifiable": false
     },
     {
       "type": "number",
