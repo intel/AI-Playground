@@ -132,6 +132,42 @@
                 ></div>
               </template>
               <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
+              
+              <!-- Render tool parts -->
+              <template v-for="part in message.parts" :key="part.type === 'tool-useComfy' ? `tool-${(part as any).toolCallId}` : undefined">
+                <template v-if="part.type === 'tool-useComfy'">
+                  <div class="mt-4 border-t border-border pt-4">
+                    <template v-if="(part as any).state === 'input-streaming' || (part as any).state === 'input-available'">
+                      <div class="text-muted-foreground text-sm">
+                        <div v-if="(part as any).input">
+                          <div>Generating image with workflow: {{ (part as any).input.workflow || 'default' }}</div>
+                          <div>Prompt: {{ (part as any).input.prompt }}</div>
+                          <div class="mt-2 flex items-center gap-2">
+                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-foreground"></div>
+                            <span>Generating...</span>
+                          </div>
+                        </div>
+                        <div v-else>
+                          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-foreground inline-block"></div>
+                          <span class="ml-2">Preparing image generation...</span>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-if="(part as any).state === 'output-available'">
+                      <div class="text-sm text-muted-foreground mb-2">Generated images:</div>
+                      <div class="grid grid-cols-1 gap-4">
+                        <div
+                          v-for="image in ((part as any).output?.images || [])"
+                          :key="image.id"
+                          class="rounded-lg overflow-hidden border border-border"
+                        >
+                          <img :src="image.imageUrl" :alt="`Generated image ${image.id}`" class="w-full h-auto" />
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </template>
             </div>
             <div class="answer-tools flex gap-3 items-center text-muted-foreground">
               <button

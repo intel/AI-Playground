@@ -46,6 +46,12 @@
     "default": false
   },
   {
+    "name": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf",
+    "mmproj": "unsloth/Qwen3-VL-4B-Instruct-GGUF/mmproj-BF16.gguf",
+    "type": "llamaCPP",
+    "default": false
+  },
+  {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "type": "openVINO",
     "default": true

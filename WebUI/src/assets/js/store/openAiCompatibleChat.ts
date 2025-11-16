@@ -5,6 +5,7 @@ import { convertToModelMessages, DefaultChatTransport, LanguageModelUsage, strea
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
+import { useComfyTool } from '../tools/useComfy'
 import z from 'zod'
 
 const LlamaCppRawValueTimingsSchema = z.object({
@@ -76,13 +77,18 @@ export const useOpenAiCompatibleChat = defineStore(
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
+      const messages = convertToModelMessages(m.messages)//.filter((m) => m.role !== 'tool')
+
       const result = await streamText({
         model: model.value,
-        messages: convertToModelMessages(m.messages),
+        messages,
         abortSignal: options.signal,
         system: systemPromptToUse,
         maxOutputTokens: textInference.maxTokens,
         includeRawChunks: true,
+        tools: {
+          useComfy: useComfyTool,
+        },
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
             console.log(chunk.chunk)
