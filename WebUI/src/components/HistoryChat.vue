@@ -97,8 +97,19 @@
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div v-if="images(conversations.conversationList[key]).length > 0" class="flex p-2 overflow-hidden justify-end self-start">
-        <img v-for="img in images(conversations.conversationList[key])" :key="img.id" :src="img.imageUrl" class="-mx-1 w-12 h-12 rounded-sm shadow-foreground shadow-md" />
+      <div
+        v-if="images(conversations.conversationList[key]).length > 0"
+        class="flex p-2 overflow-hidden justify-end self-start"
+      >
+        <img
+          v-for="(img, i) in images(conversations.conversationList[key])"
+          :key="img.id"
+          :src="img.imageUrl"
+          class="w-12 h-12 rounded-sm shadow-black shadow-md border-3 border-background"
+          :style="{
+            marginLeft: `-${overlap(i, images(conversations.conversationList[key]).length)}px`,
+          }"
+        />
       </div>
     </div>
   </div>
@@ -142,14 +153,23 @@ const emits = defineEmits<{
   (e: 'conversationSelected'): void
 }>()
 
-
 const images = (conversation: AipgUiMessage[]) => {
-  return conversation.flatMap(msg => msg.parts
-  .filter(part => part.type === 'tool-useComfy' && part.state === 'output-available')
-  .map(part => part.output?.images)
-  .flat()
-  .filter(img => img.imageUrl && img.imageUrl.trim() !== '')
-)
+  return conversation.flatMap((msg) =>
+    msg.parts
+      .filter((part) => part.type === 'tool-comfyUI' && part.state === 'output-available')
+      .map((part) => part.output?.images)
+      .flat()
+      .filter((img) => img.imageUrl && img.imageUrl.trim() !== ''),
+  )
+}
+
+const overlap = (i: number, length: number) => {
+  if (i === 0) return 0
+  const reversed = length - i
+  // overlap should be 1 for the last 4 images and then increase by 1 for each image before that up to 8
+  const overlap = Math.min(Math.max(4, reversed), 8)
+  console.log('overlap', i, length, overlap)
+  return 4 * overlap
 }
 
 const reversedConversationKeys = computed(() => {

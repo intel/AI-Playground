@@ -22,7 +22,6 @@ module.exports = {
     extend: {
       backgroundImage: {
         bmg: "radial-gradient(circle, #2042 0%, #1027 48%), url('/src/assets/image/arc-graphics-environments-3color-pattern-full.jpg')",
-        light: "radial-gradient(circle, #ffff 0%, #fffe 60%, #fffd 100%), url('/src/assets/image/arc-graphics-environments-3color-pattern-full-transparent-16x9.png')",
       },
       colors: {
         border: 'hsl(var(--border))',

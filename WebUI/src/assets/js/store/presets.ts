@@ -433,7 +433,7 @@ export const usePresets = defineStore(
         
         // If no categories specified but type is, return all of that type
         return true
-      })
+      }).sort((a, b) => a.displayPriority - b.displayPriority)
     }
 
     function getLastUsedPreset(categories: string[]): string | null {

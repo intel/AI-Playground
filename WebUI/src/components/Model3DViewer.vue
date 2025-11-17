@@ -6,7 +6,7 @@
     auto-rotate
     class="w-full h-full"
     style="background-color: transparent;"
-    :style="{ width: '100%', height: '100%' }"
+    :style="{ width: '100%', height: '100%', zIndex: 5 }"
   />
 </template>
 

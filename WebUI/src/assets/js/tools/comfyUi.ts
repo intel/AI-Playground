@@ -200,7 +200,7 @@ export async function executeComfyGeneration(args: {
 }
 
 // Tool definition for AI SDK
-export const useComfyTool = {
+export const comfyUI = {
   description: 'Use this tool to create, edit, or enhance images based on text prompts. Only use this tool if the user explicitly asks to create media content like images, videos, or 3D models.',
   inputSchema: z.object({
     workflow: z.string().describe('Workflow name or ID to use for generation. Always use exactly `SD1.5`'),

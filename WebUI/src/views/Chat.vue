@@ -134,9 +134,14 @@
               <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
               
               <!-- Render tool parts -->
-              <template v-for="part in message.parts" :key="part.type === 'tool-useComfy' ? `tool-${(part as any).toolCallId}` : undefined">
-                <template v-if="part.type === 'tool-useComfy'">
-                  <div class="mt-4 border-t border-border pt-4">
+              <template v-for="part in message.parts.filter((p) => p.type.startsWith('tool-'))" :key="part.type === 'tool-comfyUI' ? `tool-${(part as any).toolCallId}` : undefined">
+                <span>I'm using the tool {{ part.type.replace('tool-', '') }}</span>
+                <template v-if="part.type === 'tool-comfyUI'">
+                  <div class="mt-1 pt-1">
+                    <span>Generating using the preset <b>{{ part.input.workflow }}</b></span>
+                    <br />
+                    <br />
+                    <span><em>{{ part.input.prompt }}</em></span>
                     <ChatWorkflowResult
                       :images="getToolImages(part)"
                       :processing="getToolProcessing(part)"
@@ -198,136 +203,6 @@
           </div>
         </div>
       </template>
-      <!-- <div
-        class="flex items-start gap-3"
-        v-show="processing && conversations.activeKey === currentlyGeneratingKey"
-      >
-        <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
-        <div class="flex flex-col gap-3 max-w-3/4">
-          <p class="text-muted-foreground" :class="textInference.nameSizeClass">
-            {{ languages.ANSWER_USER_NAME }}
-          </p>
-          <div class="chat-content" style="white-space: pre-wrap">
-            {{ textIn }}
-          </div>
-          <button
-            class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
-            :title="languages.COM_COPY"
-            @click="copyText(textIn)"
-          >
-            <span class="svg-icon i-copy w-4 h-4"></span>
-            <span>{{ languages.COM_COPY }}</span>
-          </button>
-        </div>
-      </div>
-      <div
-        class="flex items-start gap-3"
-        v-show="processing && conversations.activeKey === currentlyGeneratingKey"
-      >
-        <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
-        <div
-          class="flex flex-col gap-3 bg-muted rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
-        >
-          <div class="flex items-center gap-2">
-            <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
-              {{ languages.ANSWER_AI_NAME }}
-            </p>
-            <span
-              class="bg-secondary text-foreground font-sans rounded-md px-1 py-1"
-              :class="textInference.nameSizeClass"
-            >
-              {{ textInference.activeModel }}
-            </span>
-            <span
-              v-if="ragRetrievalInProgress || actualRagResults?.length"
-              class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
-              :class="textInference.nameSizeClass"
-              @click="showRagPreview = !showRagPreview"
-            >
-              Source Docs
-              <button class="ml-1">
-                <img v-if="showRagPreview" src="../assets/svg/arrow-up.svg" class="w-3 h-3" />
-                <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
-              </button>
-            </span>
-          </div>
-
-          <div
-            v-if="showRagPreview"
-            class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
-            :class="textInference.fontSizeClass"
-          >
-            <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-            <div v-if="ragRetrievalInProgress" class="whitespace-pre-wrap">
-              Retrieving Documents...
-            </div>
-            <div v-else-if="actualRagResults?.length" class="whitespace-pre-wrap">
-              {{ textInference.formatRagSources(actualRagResults) }}
-            </div>
-          </div>
-          <div
-            v-if="!downloadModel.downloading && !loadingModel"
-            :class="[
-              'ai-answer',
-              {
-                'cursor-block': !(
-                  textInference.activeModel && thinkingModels[textInference.activeModel]
-                ),
-              },
-              'break-all',
-            ]"
-          >
-            <template v-if="textInference.activeModel && thinkingModels[textInference.activeModel]">
-              <div class="mb-2 flex items-center">
-                <span class="italic text-muted-foreground inline-flex items-center">
-                  <template v-if="thinkingText || postMarkerText">
-                    <span v-if="reasoningTotalTime !== 0" class="inline-block mr-1">
-                      {{ `Reasoned for ${(reasoningTotalTime / 1000).toFixed(1)} seconds` }}
-                    </span>
-                    <span v-else class="inline-block w-[9ch] truncate">
-                      {{ animatedReasoningText }}
-                    </span>
-
-                    <button @click="showThinkingText = !showThinkingText" class="flex items-center">
-                      <img
-                        v-if="showThinkingText"
-                        src="../assets/svg/arrow-up.svg"
-                        class="w-4 h-4"
-                      />
-                      <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4" />
-                    </button>
-                  </template>
-                  <template v-else>
-                    <span class="cursor-block"></span>
-                  </template>
-                </span>
-              </div>
-              <div
-                v-if="showThinkingText"
-                class="border-l-2 border-border pl-4 text-muted-foreground"
-                v-html="thinkOut"
-              ></div>
-              <div class="mt-2 text-foreground" v-html="textOut"></div>
-            </template>
-            <template v-else>
-              <span v-html="textOut"></span>
-            </template>
-          </div>
-          <div v-else class="px-20 h-24 w-768px flex items-center justify-center">
-            <progress-bar
-              v-if="downloadModel.downloading"
-              :text="downloadModel.text"
-              :percent="downloadModel.percent"
-              class="w-512px"
-            ></progress-bar>
-            <loading-bar
-              v-else-if="loadingModel"
-              :text="languages.COM_LOADING_MODEL"
-              class="w-512px"
-            ></loading-bar>
-          </div>
-        </div>
-      </div> -->
     </div>
   </div>
 </template>
@@ -589,7 +464,7 @@ watch(
     // Find tool calls that just started (input-streaming or input-available)
     messages.forEach(msg => {
       msg.parts.forEach(part => {
-        if (part.type === 'tool-useComfy') {
+        if (part.type === 'tool-comfyUI') {
           const toolCallId = (part as any).toolCallId
           const state = (part as any).state
           
@@ -617,7 +492,7 @@ watch(
     // Find active tool calls that are processing
     const activeToolParts = activeConversation.value
       ?.flatMap(msg => msg.parts)
-      .filter(part => part.type === 'tool-useComfy' && 
+      .filter(part => part.type === 'tool-comfyUI' && 
         ((part as any).state === 'input-streaming' || (part as any).state === 'input-available'))
       .map(part => ({
         toolCallId: (part as any).toolCallId,

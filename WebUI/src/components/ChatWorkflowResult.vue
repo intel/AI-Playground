@@ -11,7 +11,7 @@
       <div
         v-for="image in imagesWithPreview"
         :key="image.id"
-        class="flex-shrink-0 cursor-pointer relative border-2 transition-colors rounded-sm overflow-hidden"
+        class="flex-shrink-0 cursor-pointer relative border-3 shadow-foreground/40 shadow-md transition-colors rounded-sm overflow-hidden"
         :class="selectedImageId === image.id ? 'border-primary' : 'border-transparent'"
         @click="selectedImageId = image.id"
         style="width: 80px; height: 60px;"
@@ -43,36 +43,36 @@
     <!-- Main Image Display -->
     <div class="flex justify-center items-center relative">
       <div
-        class="flex justify-center items-center relative bg-accent rounded-lg border border-border"
-        style="width: min(512px, 100%); height: min(384px, 100%); aspect-ratio: 4/3;"
+        class="flex justify-center items-center relative bg-accent rounded-lg gap-2"
+        style=""
       >
         <div
           v-show="images.length > 0 && currentImage"
-          class="flex justify-center items-center w-full h-full"
+          class="flex justify-center items-center"
           :draggable="currentImage && !is3D(currentImage) ? true : false"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
           <img
             v-if="currentImage && !isVideo(currentImage) && !is3D(currentImage)"
-            class="w-full h-full object-contain p-2"
+            class="object-contain shadow-black/40 shadow-md rounded-sm border-3 border-background"
             :src="currentImage?.imageUrl"
           />
           <video
             v-else-if="currentImage && isVideo(currentImage)"
             :src="currentImage?.videoUrl as string"
-            class="w-full h-full object-contain p-2"
+            class="object-contain p-2"
             controlsList="nodownload nofullscreen noremoteplayback"
             controls
           />
           <Model3DViewer
             v-else-if="currentImage && is3D(currentImage)"
             :src="currentImage?.model3dUrl as string"
-            class="w-full h-full"
+            class=""
           />
         </div>
         <div
           v-show="processing"
-          class="absolute left-0 top-0 w-full h-full flex justify-center items-center"
+          class="w-full h-full flex justify-center items-center"
         >
           <loading-bar
             v-if="
@@ -111,7 +111,7 @@
               currentImage &&
               (!(currentImage?.state === 'generating') || !processing)
             "
-          class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
+          class="flex flex-col items-center justify-center gap-2"
         >
           <button
             v-show="currentImage && !(currentImage?.state === 'generating')"
