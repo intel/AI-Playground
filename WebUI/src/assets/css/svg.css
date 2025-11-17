@@ -132,6 +132,10 @@
     --svg: url('@/assets/svg/record.svg');
 }
 
+.i-record-active {
+    --svg: url('@/assets/svg/record-active.svg');
+}
+
 .i-pen {
   --svg: url('@/assets/svg/pen.svg');
 }

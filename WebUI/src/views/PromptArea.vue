@@ -101,21 +101,19 @@
             @click="handleRecordingClick"
             :disabled="audioRecorder.isTranscribing"
             :class="{
-              'bg-red-500 hover:bg-red-600 animate-pulse': audioRecorder.isRecording,
-              'bg-muted hover:bg-muted/80': !audioRecorder.isRecording,
               'opacity-50 cursor-not-allowed': audioRecorder.isTranscribing
             }"
-            class="px-3 py-1.5 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
+            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
             :title="audioRecorder.isRecording ? 'Stop recording' : audioRecorder.isTranscribing ? 'Transcribing...' : 'Voice recording'"
           >
             <i
               v-if="!audioRecorder.isTranscribing"
-              class="svg-icon w-4 h-4"
-              :class="audioRecorder.isRecording ? 'i-stop' : 'i-record'"
+              class="svg-icon w-5 h-5"
+              :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
             ></i>
             <i
               v-else
-              class="svg-icon w-4 h-4 i-loading animate-spin"
+              class="svg-icon w-5 h-5 i-loading animate-spin"
             ></i>
           </button>
           <button
