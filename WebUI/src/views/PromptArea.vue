@@ -312,7 +312,7 @@ async function handleRecordingClick() {
     await new Promise(resolve => setTimeout(resolve, 100))
 
     if (audioRecorder.audioBlob) {
-      console.log("call transcription endpoint here")
+      audioRecorder.transcribeAudio()
     }
   } else {
     await audioRecorder.startRecording()

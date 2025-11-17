@@ -157,7 +157,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     isPaused.value = false
   }
 
-  async function transcribeAudio(endpoint: string, apiKey?: string) {
+  async function transcribeAudio() {
     if (!audioBlob.value) {
       error.value = 'No audio to transcribe'
       return
@@ -167,40 +167,50 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     error.value = null
 
     try {
-      const formData = new FormData()
-
-      // Determine file extension from MIME type
-      const extension = audioBlob.value.type.includes('webm') ? 'webm' : 'ogg'
-      formData.append('file', audioBlob.value, `recording.${extension}`)
-      formData.append('model', 'whisper-1') // For OpenAI Whisper
-
-      const headers: HeadersInit = {}
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`
+      if (audioUrl.value) {
+        const audio = new Audio(audioUrl.value)
+        await audio.play()
+      } else {
+        console.log("no audio found!")
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: formData
-      })
+      return 'Playback only (test mode)'
 
-      if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.statusText}`)
-      }
 
-      const data = await response.json()
-      const transcribedText = data.text || data.transcription || ''
-
-      // Call the registered callback with the transcribed text
-      if (transcriptionCallback && transcribedText) {
-        transcriptionCallback(transcribedText)
-      }
-
-      // Reset after successful transcription
-      reset()
-
-      return transcribedText
+      // const formData = new FormData()
+      //
+      // // Determine file extension from MIME type
+      // const extension = audioBlob.value.type.includes('webm') ? 'webm' : 'ogg'
+      // formData.append('file', audioBlob.value, `recording.${extension}`)
+      // formData.append('model', 'whisper-1') // For OpenAI Whisper
+      //
+      // const headers: HeadersInit = {}
+      // if (apiKey) {
+      //   headers['Authorization'] = `Bearer ${apiKey}`
+      // }
+      //
+      // const response = await fetch(endpoint, {
+      //   method: 'POST',
+      //   headers,
+      //   body: formData
+      // })
+      //
+      // if (!response.ok) {
+      //   throw new Error(`Transcription failed: ${response.statusText}`)
+      // }
+      //
+      // const data = await response.json()
+      // const transcribedText = data.text || data.transcription || ''
+      //
+      // // Call the registered callback with the transcribed text
+      // if (transcriptionCallback && transcribedText) {
+      //   transcriptionCallback(transcribedText)
+      // }
+      //
+      // // Reset after successful transcription
+      // reset()
+      //
+      // return transcribedText
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Transcription failed'
       console.error('Transcription error:', err)
