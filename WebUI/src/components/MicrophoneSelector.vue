@@ -1,6 +1,6 @@
 <template>
   <drop-down-new
-    :title="title"
+    :title="languages.MICROPHONE"
     @change="onSelect"
     :value="selectedDeviceId"
     :items="items"
@@ -11,10 +11,6 @@
 import { onMounted, computed, ref } from 'vue'
 import DropDownNew from './DropDownNew.vue'
 import { useAudioRecorder } from "../assets/js/store/audioRecorder";
-
-const props = defineProps<{
-  title?: string
-}>()
 
 const audioRecorder = useAudioRecorder()
 

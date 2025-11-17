@@ -267,6 +267,7 @@
   "INPUT_PROMPT": "Prompt",
   "BACKEND": "Backend",
   "DEVICE": "Device",
+  "MICROPHONE": "Microphone",
   "MODEL": "Model",
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Checkpoint Model",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
