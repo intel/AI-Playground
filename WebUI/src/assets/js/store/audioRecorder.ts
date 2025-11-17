@@ -1,0 +1,301 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export interface AudioRecorderConfig {
+  echoCancellation: boolean
+  noiseSuppression: boolean
+  sampleRate: number
+  maxDuration: number
+}
+
+export const useAudioRecorder = defineStore('audioRecorder', () => {
+
+  const isRecording = ref(false)
+  const isPaused = ref(false)
+  const recordingTime = ref(0)
+  const audioBlob = ref<Blob | null>(null)
+  const audioUrl = ref<string | null>(null)
+  const error = ref<string | null>(null)
+  const isTranscribing = ref(false)
+
+  const audioDevices = ref<MediaDeviceInfo[]>([])
+  const selectedDeviceId = ref<string | null>(null)
+
+  const config = ref<AudioRecorderConfig>({
+    echoCancellation: true,
+    noiseSuppression: true,
+    sampleRate: 44100,
+    maxDuration: 300
+  })
+
+
+  let mediaRecorder: MediaRecorder | null = null
+  let audioChunks: Blob[] = []
+  let timerInterval: number | null = null
+  let stream: MediaStream | null = null
+  let transcriptionCallback: ((text: string) => void) | null = null
+
+
+  const hasRecording = computed(() => audioBlob.value !== null)
+  const formattedTime = computed(() => {
+    const mins = Math.floor(recordingTime.value / 60)
+    const secs = recordingTime.value % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  })
+  const canRecord = computed(() => !isRecording.value && !isTranscribing.value)
+
+
+  async function loadAudioDevices() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      audioDevices.value = devices.filter(d => d.kind === 'audioinput')
+    } catch (err) {
+      console.error('Failed to load audio devices:', err)
+    }
+  }
+
+
+  async function startRecording() {
+    if (!canRecord.value) return
+
+    try {
+      error.value = null
+
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: selectedDeviceId.value ? { exact: selectedDeviceId.value } : undefined,
+          echoCancellation: config.value.echoCancellation,
+          noiseSuppression: config.value.noiseSuppression,
+          sampleRate: config.value.sampleRate
+        }
+      })
+
+
+      const mimeType = getSupportedMimeType()
+
+      mediaRecorder = new MediaRecorder(stream, { mimeType })
+      audioChunks = []
+
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data)
+        }
+      }
+
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: mimeType })
+        audioBlob.value = blob
+        audioUrl.value = URL.createObjectURL(blob)
+
+        cleanupStream()
+      }
+
+
+      mediaRecorder.onerror = (event) => {
+        error.value = 'Recording error occurred'
+        console.error('MediaRecorder error:', event)
+        stopRecording()
+      }
+
+
+      mediaRecorder.start()
+      isRecording.value = true
+      recordingTime.value = 0
+
+      startTimer()
+
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to start recording'
+      console.error('Error starting recording:', err)
+
+
+      if (err instanceof DOMException) {
+        if (err.name === 'NotAllowedError') {
+          error.value = 'Microphone permission denied'
+        } else if (err.name === 'NotFoundError') {
+          error.value = 'No microphone found'
+        }
+      }
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && isRecording.value) {
+      mediaRecorder.stop()
+      isRecording.value = false
+      isPaused.value = false
+      stopTimer()
+    }
+  }
+
+  function cancelRecording() {
+    if (mediaRecorder && isRecording.value) {
+
+      mediaRecorder.ondataavailable = null
+      mediaRecorder.onstop = null
+      mediaRecorder.stop()
+    }
+
+    cleanupStream()
+    stopTimer()
+    reset()
+  }
+
+  function reset() {
+    if (audioUrl.value) {
+      URL.revokeObjectURL(audioUrl.value)
+    }
+
+    audioBlob.value = null
+    audioUrl.value = null
+    recordingTime.value = 0
+    error.value = null
+    isRecording.value = false
+    isPaused.value = false
+  }
+
+  async function transcribeAudio(endpoint: string, apiKey?: string) {
+    if (!audioBlob.value) {
+      error.value = 'No audio to transcribe'
+      return
+    }
+
+    isTranscribing.value = true
+    error.value = null
+
+    try {
+      const formData = new FormData()
+
+      // Determine file extension from MIME type
+      const extension = audioBlob.value.type.includes('webm') ? 'webm' : 'ogg'
+      formData.append('file', audioBlob.value, `recording.${extension}`)
+      formData.append('model', 'whisper-1') // For OpenAI Whisper
+
+      const headers: HeadersInit = {}
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error(`Transcription failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const transcribedText = data.text || data.transcription || ''
+
+      // Call the registered callback with the transcribed text
+      if (transcriptionCallback && transcribedText) {
+        transcriptionCallback(transcribedText)
+      }
+
+      // Reset after successful transcription
+      reset()
+
+      return transcribedText
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Transcription failed'
+      console.error('Transcription error:', err)
+      throw err
+    } finally {
+      isTranscribing.value = false
+    }
+  }
+
+  function registerTranscriptionCallback(callback: (text: string) => void) {
+    transcriptionCallback = callback
+  }
+
+  function unregisterTranscriptionCallback() {
+    transcriptionCallback = null
+  }
+
+  function updateConfig(newConfig: Partial<AudioRecorderConfig>) {
+    config.value = { ...config.value, ...newConfig }
+  }
+
+  function startTimer() {
+    timerInterval = window.setInterval(() => {
+      recordingTime.value++
+
+      if (config.value.maxDuration > 0 && recordingTime.value >= config.value.maxDuration) {
+        stopRecording()
+      }
+    }, 1000)
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      timerInterval = null
+    }
+  }
+
+  function cleanupStream() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      stream = null
+    }
+  }
+
+  function getSupportedMimeType(): string {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mp4'
+    ]
+
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type
+      }
+    }
+
+    return 'audio/webm' // Fallback
+  }
+
+  function $dispose() {
+    cancelRecording()
+    if (audioUrl.value) {
+      URL.revokeObjectURL(audioUrl.value)
+    }
+  }
+
+  return {
+    // State
+    isRecording,
+    isPaused,
+    recordingTime,
+    audioBlob,
+    audioUrl,
+    error,
+    isTranscribing,
+    config,
+
+    // Computed
+    hasRecording,
+    formattedTime,
+    canRecord,
+
+    // Actions
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    reset,
+    transcribeAudio,
+    registerTranscriptionCallback,
+    unregisterTranscriptionCallback,
+    updateConfig,
+    $dispose
+  }
+})

@@ -99,10 +99,24 @@
           <button
             v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
-            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center"
-            title="Voice recording"
+            :disabled="audioRecorder.isTranscribing"
+            :class="{
+              'bg-red-500 hover:bg-red-600 animate-pulse': audioRecorder.isRecording,
+              'bg-muted hover:bg-muted/80': !audioRecorder.isRecording,
+              'opacity-50 cursor-not-allowed': audioRecorder.isTranscribing
+            }"
+            class="px-3 py-1.5 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
+            :title="audioRecorder.isRecording ? 'Stop recording' : audioRecorder.isTranscribing ? 'Transcribing...' : 'Voice recording'"
           >
-            <i class="svg-icon w-4 h-4 i-record"></i>
+            <i
+              v-if="!audioRecorder.isTranscribing"
+              class="svg-icon w-4 h-4"
+              :class="audioRecorder.isRecording ? 'i-stop' : 'i-record'"
+            ></i>
+            <i
+              v-else
+              class="svg-icon w-4 h-4 i-loading animate-spin"
+            ></i>
           </button>
           <button
             class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"
@@ -140,6 +154,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel } from '@/lib/utils.ts'
+import { useAudioRecorder } from "../assets/js/store/audioRecorder";
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
@@ -159,6 +174,7 @@ import {
 } from '@/components/ui/context'
 
 const instance = getCurrentInstance()
+const audioRecorder = useAudioRecorder()
 const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
 const prompt = ref('')
@@ -289,9 +305,22 @@ function handleCancelClick() {
   promptStore.cancelProcessing()
 }
 
-function handleRecordingClick() {
-  // TODO: Implement voice recording functionality
-  console.log('Recording button clicked')
+async function handleRecordingClick() {
+  if (audioRecorder.isRecording) {
+    audioRecorder.stopRecording()
+
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    if (audioRecorder.audioBlob) {
+      console.log("call transcription endpoint here")
+    }
+  } else {
+    await audioRecorder.startRecording()
+
+    if (audioRecorder.error) {
+      toast.error(audioRecorder.error)
+    }
+  }
 }
 
 function fastGenerate(e: KeyboardEvent) {
