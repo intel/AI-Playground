@@ -46,7 +46,7 @@
         </div>
         <textarea
           class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
-          :class="{ 
+          :class="{
             [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
             'opacity-50 cursor-not-allowed': !isPromptModifiable
           }"
@@ -64,7 +64,7 @@
             class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-border rounded-md"
           />
           <!-- TODO: delete icon for loaded images -->
-          <div 
+          <div
             ref="dropZoneRef"
             class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer"
             :class="{ 'border-primary bg-primary/10': isOverDropZone }"
@@ -96,6 +96,14 @@
           </button>
         </div>
         <div class="absolute bottom-4 right-3 flex gap-2">
+          <button
+            v-if="promptStore.getCurrentMode() === 'chat'"
+            @click="handleRecordingClick"
+            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center"
+            title="Voice recording"
+          >
+            <i class="svg-icon w-4 h-4 i-record"></i>
+          </button>
           <button
             class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"
             @click="$emit('openSettings')"
@@ -218,7 +226,7 @@ const isPromptModifiable = computed(() => {
   const mode = promptStore.getCurrentMode()
   // For chat mode, prompt is always modifiable
   if (mode === 'chat') return true
-  
+
   // For image/video modes, check if there's an active ComfyUI preset
   if (mode === 'imageGen' || mode === 'imageEdit' || mode === 'video') {
     // If there's an active preset, check if prompt is modifiable
@@ -228,7 +236,7 @@ const isPromptModifiable = computed(() => {
     // If no active preset, allow prompt input (fallback behavior)
     return true
   }
-  
+
   return true
 })
 
@@ -279,6 +287,11 @@ function handleSubmitPromptClick() {
 
 function handleCancelClick() {
   promptStore.cancelProcessing()
+}
+
+function handleRecordingClick() {
+  // TODO: Implement voice recording functionality
+  console.log('Recording button clicked')
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -351,7 +364,7 @@ async function addDocumentsToRagList(files: File[]) {
 
       // Check if document already exists in RAG list (by filepath)
       const existingDoc = textInference.ragList.find((doc) => doc.filepath === filePath)
-      
+
       if (existingDoc) {
         // Document already exists - just enable it if it's disabled
         if (!existingDoc.isChecked) {
@@ -407,7 +420,7 @@ function onDrop(files: File[] | null) {
     // Validate document extensions
     const filePaths = documentFiles.map((file) => window.electronAPI.getFilePath(file))
     const fileExtensions = filePaths.map((filePath) => filePath.split('.').pop()?.toLowerCase() ?? '')
-    
+
     if (fileExtensions.some((ext) => !validDocumentExtensions.includes(ext as ValidFileExtension))) {
       toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
       return

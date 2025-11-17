@@ -128,6 +128,10 @@
   --svg: url('@/assets/svg/add-box.svg');
 }
 
+.i-record {
+    --svg: url('@/assets/svg/record.svg');
+}
+
 .i-pen {
   --svg: url('@/assets/svg/pen.svg');
 }
