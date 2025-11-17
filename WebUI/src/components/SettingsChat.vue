@@ -17,7 +17,7 @@
       />
 
       <div class="flex flex-col gap-4">
-
+        <MicrophoneSelector title="Microphone" />
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
@@ -131,6 +131,7 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import { useTextInferencePresets } from '@/assets/js/store/textInferencePresets.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
+import MicrophoneSelector from "@/components/MicrophoneSelector.vue"
 
 type BackendInfo = {
   displayName: string
@@ -191,7 +192,7 @@ async function handlePresetSelectionClick(preset: ChatPreset) {
   if (isBackendRunning(preset.backend)) {
     // Update active preset name in unified store
     presetsStore.activePresetName = preset.name
-    
+
     // Apply the preset using textInference store
     await textInferencePresets.applyPreset(preset)
   } else {

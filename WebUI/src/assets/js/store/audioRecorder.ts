@@ -48,7 +48,24 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   async function loadAudioDevices() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices()
-      audioDevices.value = devices.filter(d => d.kind === 'audioinput')
+      const inputs = devices.filter(d => d.kind === 'audioinput')
+
+      const filtered: MediaDeviceInfo[] = []
+      const seenGroups = new Set<string>()
+
+      for (const d of inputs) {
+        const isValid = d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications'
+        if (isValid && !seenGroups.has(d.groupId)) {
+          filtered.push(d)
+          seenGroups.add(d.groupId)
+        }
+      }
+
+      audioDevices.value = filtered
+
+      if (!selectedDeviceId.value && audioDevices.value.length > 0) {
+        selectedDeviceId.value = audioDevices.value[0].deviceId
+      }
     } catch (err) {
       console.error('Failed to load audio devices:', err)
     }
@@ -61,6 +78,9 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     try {
       error.value = null
 
+      if (!selectedDeviceId.value) {
+        await loadAudioDevices()
+      }
 
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -170,8 +190,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       if (audioUrl.value) {
         const audio = new Audio(audioUrl.value)
         await audio.play()
-      } else {
-        console.log("no audio found!")
       }
 
       return 'Playback only (test mode)'
@@ -281,6 +299,11 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     }
   }
 
+  function updateSelectedDevice(id: string | null) {
+    selectedDeviceId.value = id
+  }
+
+
   return {
     // State
     isRecording,
@@ -291,6 +314,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     error,
     isTranscribing,
     config,
+    audioDevices,
+    selectedDeviceId,
 
     // Computed
     hasRecording,
@@ -302,6 +327,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     stopRecording,
     cancelRecording,
     reset,
+    updateSelectedDevice,
+    loadAudioDevices,
     transcribeAudio,
     registerTranscriptionCallback,
     unregisterTranscriptionCallback,
