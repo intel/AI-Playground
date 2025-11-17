@@ -4,7 +4,7 @@
     class="info-params absolute px-5 pt-8 pb-5 text-foreground w-1000"
   >
     <button
-      class="w-5 h-5 svg-icon i-close absolute right-2 top-2"
+      class="w-5 h-5 svg-icon i-close absolute right-2 top-2 text-foreground hover:text-foreground/80"
       @click="emits('close')"
     ></button>
     <div class="params-list">

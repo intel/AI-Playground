@@ -137,34 +137,13 @@
               <template v-for="part in message.parts" :key="part.type === 'tool-useComfy' ? `tool-${(part as any).toolCallId}` : undefined">
                 <template v-if="part.type === 'tool-useComfy'">
                   <div class="mt-4 border-t border-border pt-4">
-                    <template v-if="(part as any).state === 'input-streaming' || (part as any).state === 'input-available'">
-                      <div class="text-muted-foreground text-sm">
-                        <div v-if="(part as any).input">
-                          <div>Generating image with workflow: {{ (part as any).input.workflow || 'default' }}</div>
-                          <div>Prompt: {{ (part as any).input.prompt }}</div>
-                          <div class="mt-2 flex items-center gap-2">
-                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-foreground"></div>
-                            <span>Generating...</span>
-                          </div>
-                        </div>
-                        <div v-else>
-                          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-foreground inline-block"></div>
-                          <span class="ml-2">Preparing image generation...</span>
-                        </div>
-                      </div>
-                    </template>
-                    <template v-if="(part as any).state === 'output-available'">
-                      <div class="text-sm text-muted-foreground mb-2">Generated images:</div>
-                      <div class="grid grid-cols-1 gap-4">
-                        <div
-                          v-for="image in ((part as any).output?.images || [])"
-                          :key="image.id"
-                          class="rounded-lg overflow-hidden border border-border"
-                        >
-                          <img :src="image.imageUrl" :alt="`Generated image ${image.id}`" class="w-full h-auto" />
-                        </div>
-                      </div>
-                    </template>
+                    <ChatWorkflowResult
+                      :images="getToolImages(part)"
+                      :processing="getToolProcessing(part)"
+                      :currentState="getToolCurrentState(part)"
+                      :stepText="getToolStepText(part)"
+                      :toolCallId="(part as any).toolCallId"
+                    />
                   </div>
                 </template>
               </template>
@@ -364,6 +343,8 @@ import { parse } from '@/assets/js/markdownParser.ts'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts";
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
+import { useImageGenerationPresets, type MediaItem, type GenerateState } from '@/assets/js/store/imageGenerationPresets'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
@@ -372,6 +353,7 @@ const textInference = useTextInference()
 const conversations = useConversations()
 const backendServices = useBackendServices()
 const promptStore = usePromptStore()
+const imageGeneration = useImageGenerationPresets()
 
 const i18nState = useI18N().state
 const autoScrollEnabled = ref(true)
@@ -383,6 +365,15 @@ const showThinkingTextPerMessageId = reactive<Record<string, boolean>>({})
 const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 
 const ragSourcePerMessageId = reactive<Record<string, string>>({})
+
+// Track progress for active tool calls
+const toolProgressMap = reactive<Record<string, {
+  processing: boolean
+  currentState?: GenerateState
+  stepText?: string
+  images: MediaItem[]
+  initialImageIds: Set<string> // Track which image IDs existed when tool call started
+}>>({})
 
 defineExpose({
   scrollToBottom,
@@ -527,4 +518,174 @@ function copyText(text: string) {
     })
     .catch((e) => console.error('Error while copying text to clipboard', e))
 }
+
+// Helper functions for tool rendering
+function getToolImages(part: any): MediaItem[] {
+  const toolCallId = part.toolCallId
+  const progress = toolProgressMap[toolCallId]
+  
+  // If we have progress tracking with images, use those
+  if (progress && progress.images.length > 0) {
+    return progress.images
+  }
+  
+  // Otherwise, use output images if available
+  if (part.state === 'output-available' && part.output?.images) {
+    return part.output.images
+      .filter((img: any) => img.imageUrl && img.imageUrl.trim() !== '') // Filter out images without URL
+      .map((img: any) => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        mode: img.mode || 'imageGen',
+        state: 'done' as const,
+        settings: img.settings || {},
+      }))
+  }
+  
+  return []
+}
+
+function getToolProcessing(part: any): boolean {
+  const toolCallId = part.toolCallId
+  const progress = toolProgressMap[toolCallId]
+  
+  // If we have progress tracking, use that
+  if (progress) {
+    return progress.processing
+  }
+  
+  // Otherwise, check part state
+  return part.state === 'input-streaming' || part.state === 'input-available'
+}
+
+function getToolCurrentState(part: any): GenerateState | undefined {
+  const toolCallId = part.toolCallId
+  const progress = toolProgressMap[toolCallId]
+  
+  if (progress && progress.currentState) {
+    return progress.currentState as GenerateState
+  }
+  
+  return undefined
+}
+
+function getToolStepText(part: any): string | undefined {
+  const toolCallId = part.toolCallId
+  const progress = toolProgressMap[toolCallId]
+  
+  if (progress && progress.stepText) {
+    return progress.stepText
+  }
+  
+  return undefined
+}
+
+// Watch for new tool calls starting to initialize their image tracking
+watch(
+  () => activeConversation.value,
+  (messages) => {
+    if (!messages) return
+    
+    // Find tool calls that just started (input-streaming or input-available)
+    messages.forEach(msg => {
+      msg.parts.forEach(part => {
+        if (part.type === 'tool-useComfy') {
+          const toolCallId = (part as any).toolCallId
+          const state = (part as any).state
+          
+          // If this tool call just started and we haven't initialized it yet
+          if ((state === 'input-streaming' || state === 'input-available') && !toolProgressMap[toolCallId]) {
+            // Record the current set of image IDs to exclude them from this tool call's images
+            const currentImageIds = new Set(imageGeneration.generatedImages.map(img => img.id))
+            toolProgressMap[toolCallId] = {
+              processing: true,
+              images: [],
+              initialImageIds: currentImageIds,
+            }
+          }
+        }
+      })
+    })
+  },
+  { deep: true }
+)
+
+// Watch imageGeneration store to track progress for active tool calls
+watch(
+  () => [imageGeneration.generatedImages, imageGeneration.processing, imageGeneration.currentState, imageGeneration.stepText],
+  () => {
+    // Find active tool calls that are processing
+    const activeToolParts = activeConversation.value
+      ?.flatMap(msg => msg.parts)
+      .filter(part => part.type === 'tool-useComfy' && 
+        ((part as any).state === 'input-streaming' || (part as any).state === 'input-available'))
+      .map(part => ({
+        toolCallId: (part as any).toolCallId,
+        part,
+      })) || []
+    
+    // Update progress for each active tool call
+    activeToolParts.forEach(({ toolCallId }) => {
+      const progress = toolProgressMap[toolCallId]
+      if (!progress) return
+      
+      // Only get images that were created for this tool call (not in initial set)
+      const toolCallImages = imageGeneration.generatedImages
+        .filter(img => !progress.initialImageIds.has(img.id))
+        .filter(img => img.state === 'queued' || img.state === 'generating' || img.state === 'done')
+        // Filter out images without imageUrl to avoid broken image icons
+        .filter(img => img.imageUrl && img.imageUrl.trim() !== '')
+        .map(img => {
+          const baseItem: MediaItem = {
+            id: img.id,
+            imageUrl: img.imageUrl || '',
+            mode: img.mode,
+            state: img.state,
+            settings: img.settings || {},
+            sourceImageUrl: img.sourceImageUrl,
+            dynamicSettings: img.dynamicSettings,
+          }
+          
+          // Add videoUrl or model3dUrl if present
+          if ('videoUrl' in img) {
+            return { ...baseItem, videoUrl: img.videoUrl }
+          }
+          if ('model3dUrl' in img) {
+            return { ...baseItem, model3dUrl: img.model3dUrl }
+          }
+          
+          return baseItem
+        })
+      
+      progress.images = toolCallImages
+      progress.processing = imageGeneration.processing
+      progress.currentState = imageGeneration.currentState
+      progress.stepText = imageGeneration.stepText
+    })
+  },
+  { deep: true }
+)
+
+// Also watch processing state
+watch(
+  () => imageGeneration.processing,
+  (processing) => {
+    // Update all active tool calls
+    Object.keys(toolProgressMap).forEach(toolCallId => {
+      const progress = toolProgressMap[toolCallId]
+      if (progress) {
+        progress.processing = processing
+        if (!processing) {
+          // When processing stops, mark images as done and filter out any without imageUrl
+          progress.images = progress.images
+            .filter(img => img.imageUrl && img.imageUrl.trim() !== '')
+            .map(img => ({
+              ...img,
+              state: 'done' as const,
+            }))
+        }
+      }
+    })
+  }
+)
 </script>

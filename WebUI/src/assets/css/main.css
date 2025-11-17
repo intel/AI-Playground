@@ -105,8 +105,8 @@ textarea {
   width: 768px;
   overflow-y: auto;
   border-radius: 12px;
-  box-shadow: #dcdcdc 0px 0px 2px 0px;
-  background: rgb(30 41 59);
+  box-shadow: 0px 0px 2px 0px hsl(var(--border));
+  background: hsl(var(--card));
   .params-list {
     max-height: 480px;
     overflow-y: auto;
@@ -116,7 +116,7 @@ textarea {
 .info-params-image {
   max-width: 250px;
   margin: 10px;
-  border: 1px solid white;
+  border: 1px solid hsl(var(--border));
 }
 
 .enhance-content {
