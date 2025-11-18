@@ -14,8 +14,8 @@
       <Label class="whitespace-nowrap">{{ languages.SETTINGS_AUDIO_SILENCE_DETECTION }}</Label>
       <Checkbox
         id="silence-detection"
-        :checked="audioRecorder.config.enableSilenceDetection"
-        @click="toggleSilenceDetection()"
+        :modelValue="audioRecorder.config.enableSilenceDetection"
+        @update:modelValue="toggleSilenceDetection"
       />
     </div>
 
@@ -67,9 +67,9 @@ async function onSelect(deviceId: string) {
   audioRecorder.updateSelectedDevice(deviceId)
 }
 
-function toggleSilenceDetection() {
+function toggleSilenceDetection(value: boolean | 'indeterminate') {
   audioRecorder.updateConfig({
-    enableSilenceDetection: !audioRecorder.config.enableSilenceDetection
+    enableSilenceDetection: value === true
   })
 }
 
