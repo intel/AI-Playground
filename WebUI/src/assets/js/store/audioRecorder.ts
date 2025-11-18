@@ -29,9 +29,9 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     noiseSuppression: true,
     sampleRate: 44100,
     maxDuration: 300,
-    silenceThreshold: -50,
-    silenceDuration: 3,
-    enableSilenceDetection: false
+    silenceThreshold: -40,
+    silenceDuration: 2,
+    enableSilenceDetection: true
   })
 
 
@@ -118,12 +118,13 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       }
 
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(audioChunks, { type: mimeType })
         audioBlob.value = blob
         audioUrl.value = URL.createObjectURL(blob)
 
         cleanupStream()
+        await transcribeAudio()
       }
 
 
@@ -392,7 +393,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     reset,
     updateSelectedDevice,
     loadAudioDevices,
-    transcribeAudio,
     registerTranscriptionCallback,
     unregisterTranscriptionCallback,
     updateConfig,

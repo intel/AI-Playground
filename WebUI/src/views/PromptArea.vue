@@ -306,12 +306,6 @@ function handleCancelClick() {
 async function handleRecordingClick() {
   if (audioRecorder.isRecording) {
     audioRecorder.stopRecording()
-
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    if (audioRecorder.audioBlob) {
-      audioRecorder.transcribeAudio()
-    }
   } else {
     await audioRecorder.startRecording()
 
