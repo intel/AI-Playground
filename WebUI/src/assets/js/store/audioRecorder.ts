@@ -6,6 +6,9 @@ export interface AudioRecorderConfig {
   noiseSuppression: boolean
   sampleRate: number
   maxDuration: number
+  silenceThreshold: number
+  silenceDuration: number
+  enableSilenceDetection: boolean
 }
 
 export const useAudioRecorder = defineStore('audioRecorder', () => {
@@ -25,7 +28,10 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     echoCancellation: true,
     noiseSuppression: true,
     sampleRate: 44100,
-    maxDuration: 300
+    maxDuration: 300,
+    silenceThreshold: -50,
+    silenceDuration: 3,
+    enableSilenceDetection: false
   })
 
 
@@ -34,7 +40,10 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   let timerInterval: number | null = null
   let stream: MediaStream | null = null
   let transcriptionCallback: ((text: string) => void) | null = null
-
+  let audioContext: AudioContext | null = null
+  let analyser: AnalyserNode | null = null
+  let silenceTimer: number | null = null
+  let silenceCheckInterval: number | null = null
 
   const hasRecording = computed(() => audioBlob.value !== null)
   const formattedTime = computed(() => {
@@ -91,6 +100,10 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         }
       })
 
+      if (config.value.enableSilenceDetection) {
+        startSilenceDetection(stream)
+      }
+
 
       const mimeType = getSupportedMimeType()
 
@@ -128,6 +141,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       startTimer()
 
     } catch (err) {
+      stopSilenceDetection()
+      cleanupStream()
       error.value = err instanceof Error ? err.message : 'Failed to start recording'
       console.error('Error starting recording:', err)
 
@@ -144,6 +159,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
 
   function stopRecording() {
     if (mediaRecorder && isRecording.value) {
+      stopSilenceDetection()
       mediaRecorder.stop()
       isRecording.value = false
       isPaused.value = false
@@ -159,6 +175,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       mediaRecorder.stop()
     }
 
+    stopSilenceDetection()
     cleanupStream()
     stopTimer()
     reset()
@@ -175,6 +192,52 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     error.value = null
     isRecording.value = false
     isPaused.value = false
+  }
+
+  function startSilenceDetection(stream: MediaStream) {
+    if (!config.value.enableSilenceDetection) return
+
+    audioContext = new AudioContext()
+    analyser = audioContext.createAnalyser()
+    const source = audioContext.createMediaStreamSource(stream)
+
+    source.connect(analyser)
+    analyser.fftSize = 2048
+
+    const bufferLength = analyser.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
+
+    let silenceStart: number | null = null
+
+    silenceCheckInterval = window.setInterval(() => {
+      analyser!.getByteFrequencyData(dataArray)
+
+      const average = dataArray.reduce((a, b) => a + b) / bufferLength
+      const dB = 20 * Math.log10(average / 255)
+
+      if (dB < config.value.silenceThreshold) {
+        if (silenceStart === null) {
+          silenceStart = Date.now()
+        } else if ((Date.now() - silenceStart) / 1000 >= config.value.silenceDuration) {
+          console.log('Auto-stopping due to silence')
+          stopRecording()
+        }
+      } else {
+        silenceStart = null
+      }
+    }, 100)
+  }
+
+  function stopSilenceDetection() {
+    if (silenceCheckInterval) {
+      clearInterval(silenceCheckInterval)
+      silenceCheckInterval = null
+    }
+    if (audioContext) {
+      audioContext.close()
+      audioContext = null
+      analyser = null
+    }
   }
 
   async function transcribeAudio() {
