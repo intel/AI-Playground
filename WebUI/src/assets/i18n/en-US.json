@@ -272,6 +272,7 @@
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Checkpoint Model",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Frame Rate",
   "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Total Frames",
+  "SETTINGS_AUDIO": "Audio Input",
 
   "BACKEND_STOP": "Stop Backend",
   "BACKEND_START": "Start Backend",
