@@ -11,7 +11,7 @@
     </div>
 
     <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label class="whitespace-nowrap">Silence Detection</Label>
+      <Label class="whitespace-nowrap">{{ languages.SETTINGS_AUDIO_SILENCE_DETECTION }}</Label>
       <Checkbox
         id="silence-detection"
         :checked="audioRecorder.config.enableSilenceDetection"
@@ -23,7 +23,7 @@
       v-if="audioRecorder.config.enableSilenceDetection"
       class="grid grid-cols-[120px_1fr] items-center gap-4"
     >
-      <Label class="whitespace-nowrap">Silence Duration</Label>
+      <Label class="whitespace-nowrap">{{ languages.SETTINGS_AUDIO_SILENCE_DURATION }}</Label>
       <input
         type="number"
         :value="audioRecorder.config.silenceDuration"

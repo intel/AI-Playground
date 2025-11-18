@@ -273,6 +273,8 @@
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Bildrate",
   "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Gesamtanzahl Frames",
   "SETTINGS_AUDIO": "Audioeingabe",
+  "SETTINGS_AUDIO_SILENCE_DETECTION": "Stille-Erkennung",
+  "SETTINGS_AUDIO_SILENCE_DURATION": "Stille-Dauer",
 
   "BACKEND_STOP": "Backend stoppen",
   "BACKEND_START": "Backend starten",
