@@ -109,16 +109,16 @@
             ></i>
             <div
               v-if="audioRecorder.isRecording"
-              class="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-0.5 items-end h-6"
+              class="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-1 items-end h-10"
             >
               <div
                 v-for="i in 5"
                 :key="i"
-                class="w-1 bg-primary rounded-full transition-all duration-100"
+                class="w-1.5 bg-primary rounded-full transition-all duration-100"
                 :style="{
-                height: `${Math.max(4, (audioRecorder.audioLevel / 100) * 24 * (i / 5))}px`,
-                opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.3
-              }"
+                  height: `${Math.max(6, (audioRecorder.audioLevel / 100) * 40 * (i / 5))}px`,
+                  opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.35
+                }"
               ></div>
             </div>
           </button>
