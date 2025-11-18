@@ -43,7 +43,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   let transcriptionCallback: ((text: string) => void) | null = null
   let audioContext: AudioContext | null = null
   let analyser: AnalyserNode | null = null
-  let silenceTimer: number | null = null
+  let meterInterval: number | null = null
   let silenceCheckInterval: number | null = null
 
   const hasRecording = computed(() => audioBlob.value !== null)
@@ -81,7 +81,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     }
   }
 
-
   async function startRecording() {
     if (!canRecord.value) return
 
@@ -101,23 +100,21 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         }
       })
 
+      startAudioMeter(stream)
+
       if (config.value.enableSilenceDetection) {
-        startSilenceDetection(stream)
+        startSilenceDetection()
       }
 
-
       const mimeType = getSupportedMimeType()
-
       mediaRecorder = new MediaRecorder(stream, { mimeType })
       audioChunks = []
-
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunks.push(event.data)
         }
       }
-
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(audioChunks, { type: mimeType })
@@ -128,13 +125,11 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         await transcribeAudio()
       }
 
-
       mediaRecorder.onerror = (event) => {
         error.value = 'Recording error occurred'
         console.error('MediaRecorder error:', event)
         stopRecording()
       }
-
 
       mediaRecorder.start()
       isRecording.value = true
@@ -143,43 +138,36 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       startTimer()
 
     } catch (err) {
+      stopAudioMeter()
       stopSilenceDetection()
       cleanupStream()
       error.value = err instanceof Error ? err.message : 'Failed to start recording'
       console.error('Error starting recording:', err)
-
-
-      if (err instanceof DOMException) {
-        if (err.name === 'NotAllowedError') {
-          error.value = 'Microphone permission denied'
-        } else if (err.name === 'NotFoundError') {
-          error.value = 'No microphone found'
-        }
-      }
     }
   }
 
   function stopRecording() {
     if (mediaRecorder && isRecording.value) {
-      stopSilenceDetection()
       mediaRecorder.stop()
       isRecording.value = false
       isPaused.value = false
-      stopTimer()
     }
+    stopTimer()
+    stopSilenceDetection()
+    stopAudioMeter()
   }
 
   function cancelRecording() {
     if (mediaRecorder && isRecording.value) {
-
       mediaRecorder.ondataavailable = null
       mediaRecorder.onstop = null
       mediaRecorder.stop()
     }
 
-    stopSilenceDetection()
-    cleanupStream()
     stopTimer()
+    stopSilenceDetection()
+    stopAudioMeter()
+    cleanupStream()
     reset()
   }
 
@@ -187,18 +175,17 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     if (audioUrl.value) {
       URL.revokeObjectURL(audioUrl.value)
     }
-
     audioBlob.value = null
     audioUrl.value = null
     recordingTime.value = 0
     error.value = null
     isRecording.value = false
     isPaused.value = false
+    audioLevel.value = 0
   }
 
-  function startSilenceDetection(stream: MediaStream) {
-    if (!config.value.enableSilenceDetection) return
 
+  function startAudioMeter(stream: MediaStream) {
     audioContext = new AudioContext()
     analyser = audioContext.createAnalyser()
     const source = audioContext.createMediaStreamSource(stream)
@@ -209,26 +196,49 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     const bufferLength = analyser.frequencyBinCount
     const dataArray = new Uint8Array(bufferLength)
 
+    meterInterval = window.setInterval(() => {
+      analyser!.getByteFrequencyData(dataArray)
+      const avg = dataArray.reduce((a, b) => a + b) / bufferLength
+      const dB = 20 * Math.log10(avg / 255)
+
+      audioLevel.value = Math.max(0, Math.min(100, ((dB + 60) / 60) * 100))
+    }, 100)
+  }
+
+  function stopAudioMeter() {
+    if (meterInterval) {
+      clearInterval(meterInterval)
+      meterInterval = null
+    }
+    if (audioContext) {
+      audioContext.close()
+      audioContext = null
+      analyser = null
+    }
+  }
+
+
+  function startSilenceDetection() {
+    if (!config.value.enableSilenceDetection || !analyser) return
+
+    const bufferLength = analyser.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
     let silenceStart: number | null = null
 
     silenceCheckInterval = window.setInterval(() => {
       analyser!.getByteFrequencyData(dataArray)
-
-      const average = dataArray.reduce((a, b) => a + b) / bufferLength
-      const dB = 20 * Math.log10(average / 255)
-
-      audioLevel.value = Math.max(0, Math.min(100, ((dB + 60) / 60) * 100))
+      const avg = dataArray.reduce((a, b) => a + b) / bufferLength
+      const dB = 20 * Math.log10(avg / 255)
 
       if (dB < config.value.silenceThreshold) {
-        if (silenceStart === null) {
-          silenceStart = Date.now()
-        } else if ((Date.now() - silenceStart) / 1000 >= config.value.silenceDuration) {
-          console.log('Auto-stopping due to silence')
+        if (!silenceStart) silenceStart = Date.now()
+        else if ((Date.now() - silenceStart) / 1000 >= config.value.silenceDuration) {
           stopRecording()
         }
       } else {
         silenceStart = null
       }
+
     }, 100)
   }
 
@@ -236,11 +246,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     if (silenceCheckInterval) {
       clearInterval(silenceCheckInterval)
       silenceCheckInterval = null
-    }
-    if (audioContext) {
-      audioContext.close()
-      audioContext = null
-      analyser = null
     }
   }
 
@@ -341,7 +346,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     }
   }
 
-  function getSupportedMimeType(): string {
+  function getSupportedMimeType() {
     const types = [
       'audio/webm;codecs=opus',
       'audio/webm',
@@ -349,14 +354,10 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       'audio/ogg',
       'audio/mp4'
     ]
-
-    for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) {
-        return type
-      }
+    for (const t of types) {
+      if (MediaRecorder.isTypeSupported(t)) return t
     }
-
-    return 'audio/webm' // Fallback
+    return 'audio/webm'
   }
 
   function $dispose() {
