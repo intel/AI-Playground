@@ -100,21 +100,27 @@
             v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
             :disabled="audioRecorder.isTranscribing"
-            :class="{
-              'opacity-50 cursor-not-allowed': audioRecorder.isTranscribing
-            }"
-            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
-            :title="audioRecorder.isRecording ? 'Stop recording' : audioRecorder.isTranscribing ? 'Transcribing...' : 'Voice recording'"
+            class="relative px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
           >
             <i
               v-if="!audioRecorder.isTranscribing"
               class="svg-icon w-5 h-5"
               :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
             ></i>
-            <i
-              v-else
-              class="svg-icon w-5 h-5 i-loading animate-spin"
-            ></i>
+            <div
+              v-if="audioRecorder.isRecording"
+              class="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-0.5 items-end h-6"
+            >
+              <div
+                v-for="i in 5"
+                :key="i"
+                class="w-1 bg-primary rounded-full transition-all duration-100"
+                :style="{
+                height: `${Math.max(4, (audioRecorder.audioLevel / 100) * 24 * (i / 5))}px`,
+                opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.3
+              }"
+              ></div>
+            </div>
           </button>
           <button
             class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"

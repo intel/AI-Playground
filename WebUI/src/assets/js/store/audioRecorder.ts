@@ -20,6 +20,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   const audioUrl = ref<string | null>(null)
   const error = ref<string | null>(null)
   const isTranscribing = ref(false)
+  const audioLevel = ref(0)
 
   const audioDevices = ref<MediaDeviceInfo[]>([])
   const selectedDeviceId = ref<string | null>(null)
@@ -216,6 +217,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       const average = dataArray.reduce((a, b) => a + b) / bufferLength
       const dB = 20 * Math.log10(average / 255)
 
+      audioLevel.value = Math.max(0, Math.min(100, ((dB + 60) / 60) * 100))
+
       if (dB < config.value.silenceThreshold) {
         if (silenceStart === null) {
           silenceStart = Date.now()
@@ -380,6 +383,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     config,
     audioDevices,
     selectedDeviceId,
+    audioLevel,
 
     // Computed
     hasRecording,
