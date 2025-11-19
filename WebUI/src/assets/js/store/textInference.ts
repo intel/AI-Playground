@@ -1,11 +1,13 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { z } from 'zod'
-import { useBackendServices } from './backendServices'
+import { useBackendServices, type BackendServiceName } from './backendServices'
 import { useModels } from './models'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
-import { type ChatPreset } from './presets'
+import { usePresets, type ChatPreset } from './presets'
+import { useGlobalSetup } from './globalSetup'
+import { useI18N } from './i18n'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -93,6 +95,9 @@ export const useTextInference = defineStore(
     const backendServices = useBackendServices()
     const dialogStore = useDialogStore()
     const models = useModels()
+    const presetsStore = usePresets()
+    const globalSetup = useGlobalSetup()
+    const i18nState = useI18N().state
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
     const systemPrompt = ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
@@ -804,7 +809,8 @@ export const useTextInference = defineStore(
           // Ensure backend is ready before inference
           console.log('ensuring backend readiness')
           await ensureBackendReadiness()
-          // Note: completeBackendPreparation() will be called on first token
+          // Complete preparation immediately after model is loaded
+          completeBackendPreparation()
         } catch (error) {
           completeBackendPreparation() // Reset state on error
           throw error
@@ -823,6 +829,60 @@ export const useTextInference = defineStore(
       const inferenceBackendService = backendToInferenceService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)
+    }
+
+    // ========================================================================
+    // Chat Preset Management
+    // ========================================================================
+
+    const activePreset = computed(() => {
+      if (!presetsStore.activePresetName) return null
+      const preset = presetsStore.presets.find((p) => p.name === presetsStore.activePresetName)
+      if (preset && preset.type === 'chat') return preset as ChatPreset
+      return null
+    })
+
+    // Initialize with first chat preset if available and no preset is selected
+    watch(
+      () => presetsStore.chatPresets,
+      (chatPresets) => {
+        if (chatPresets.length > 0 && !presetsStore.activePresetName) {
+          // Sort by displayPriority and select the first one
+          const sortedPresets = [...chatPresets].sort(
+            (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
+          )
+          presetsStore.activePresetName = sortedPresets[0].name
+        }
+      },
+      { immediate: true },
+    )
+
+    async function applyPreset(preset: ChatPreset) {
+      try {
+        // Check if backend is running
+        const serviceName = backendToService[preset.backend] as BackendServiceName
+        const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+
+        if (!backendInfo || backendInfo.status !== 'running') {
+          dialogStore.showWarningDialog(
+            i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET,
+            () => {
+              globalSetup.loadingState = 'manageInstallations'
+            },
+          )
+          return
+        }
+
+        // Apply the preset using existing applyChatPreset method
+        await applyChatPreset(preset)
+
+        // Update active preset name in unified store
+        presetsStore.activePresetName = preset.name
+
+        console.log('Applied chat preset:', preset.name)
+      } catch (error) {
+        console.error('Failed to apply chat preset:', error)
+      }
     }
 
     // ========================================================================
@@ -918,6 +978,10 @@ export const useTextInference = defineStore(
       checkModelAvailability,
       applyChatPreset,
       prepareRagContext,
+
+      // Preset management
+      activePreset,
+      applyPreset,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

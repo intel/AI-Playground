@@ -129,7 +129,6 @@ import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
-import { useTextInferencePresets } from '@/assets/js/store/textInferencePresets.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 
 type BackendInfo = {
@@ -146,20 +145,12 @@ const showUploader = ref(false)
 const processing = ref(false)
 const i18nState = useI18N().state
 const textInference = useTextInference()
-const textInferencePresets = useTextInferencePresets()
 const presetsStore = usePresets()
 const demoMode = useDemoMode()
 const backendServices = useBackendServices()
-const backendInfos = computed(() => backendTypesToBackends())
 const globalSetup = useGlobalSetup()
 const warningDialogStore = useDialogStore()
 
-const currentPreset = computed(() => {
-  if (!presetsStore.activePresetName) return null
-  const preset = presetsStore.presets.find((p) => p.name === presetsStore.activePresetName)
-  if (preset && preset.type === 'chat') return preset as ChatPreset
-  return null
-})
 
 function handlePresetChange(presetName: string) {
   const preset = presetsStore.chatPresets.find((p) => p.name === presetName)
@@ -193,7 +184,7 @@ async function handlePresetSelectionClick(preset: ChatPreset) {
     presetsStore.activePresetName = preset.name
     
     // Apply the preset using textInference store
-    await textInferencePresets.applyPreset(preset)
+    await textInference.applyPreset(preset)
   } else {
     warningDialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
       globalSetup.loadingState = 'manageInstallations'
