@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
 export interface AudioRecorderConfig {
   echoCancellation: boolean
@@ -14,7 +15,6 @@ export interface AudioRecorderConfig {
 export const useAudioRecorder = defineStore('audioRecorder', () => {
 
   const isRecording = ref(false)
-  const isPaused = ref(false)
   const recordingTime = ref(0)
   const audioBlob = ref<Blob | null>(null)
   const audioUrl = ref<string | null>(null)
@@ -46,12 +46,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   let meterInterval: number | null = null
   let silenceCheckInterval: number | null = null
 
-  const hasRecording = computed(() => audioBlob.value !== null)
-  const formattedTime = computed(() => {
-    const mins = Math.floor(recordingTime.value / 60)
-    const secs = recordingTime.value % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  })
   const canRecord = computed(() => !isRecording.value && !isTranscribing.value)
 
 
@@ -140,6 +134,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     } catch (err) {
       stopAudioMeter()
       stopSilenceDetection()
+      stopTimer()
       cleanupStream()
       error.value = err instanceof Error ? err.message : 'Failed to start recording'
       console.error('Error starting recording:', err)
@@ -150,7 +145,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     if (mediaRecorder && isRecording.value) {
       mediaRecorder.stop()
       isRecording.value = false
-      isPaused.value = false
     }
     stopTimer()
     stopSilenceDetection()
@@ -180,7 +174,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     recordingTime.value = 0
     error.value = null
     isRecording.value = false
-    isPaused.value = false
     audioLevel.value = 0
   }
 
@@ -197,7 +190,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     const dataArray = new Uint8Array(bufferLength)
 
     meterInterval = window.setInterval(() => {
-      analyser!.getByteFrequencyData(dataArray)
+      if (!analyser) return
+      analyser.getByteFrequencyData(dataArray)
       const avg = dataArray.reduce((a, b) => a + b) / bufferLength
       const dB = 20 * Math.log10(avg / 255)
 
@@ -226,7 +220,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     let silenceStart: number | null = null
 
     silenceCheckInterval = window.setInterval(() => {
-      analyser!.getByteFrequencyData(dataArray)
+      if (!analyser) return
+      analyser.getByteFrequencyData(dataArray)
       const avg = dataArray.reduce((a, b) => a + b) / bufferLength
       const dB = 20 * Math.log10(avg / 255)
 
@@ -264,44 +259,33 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         await audio.play()
       }
 
-      return 'Playback only (test mode)'
+      const formData = new FormData()
+      const extension = audioBlob.value.type.includes('webm') ? 'webm' :
+                        audioBlob.value.type.includes('ogg') ? 'ogg' : 'mp4'
 
+      formData.append('file', audioBlob.value, `recording.${extension}`)
+      formData.append('model', 'whisper-1')
 
-      // const formData = new FormData()
-      //
-      // // Determine file extension from MIME type
-      // const extension = audioBlob.value.type.includes('webm') ? 'webm' : 'ogg'
-      // formData.append('file', audioBlob.value, `recording.${extension}`)
-      // formData.append('model', 'whisper-1') // For OpenAI Whisper
-      //
-      // const headers: HeadersInit = {}
-      // if (apiKey) {
-      //   headers['Authorization'] = `Bearer ${apiKey}`
-      // }
-      //
-      // const response = await fetch(endpoint, {
-      //   method: 'POST',
-      //   headers,
-      //   body: formData
-      // })
-      //
-      // if (!response.ok) {
-      //   throw new Error(`Transcription failed: ${response.statusText}`)
-      // }
-      //
-      // const data = await response.json()
-      // const transcribedText = data.text || data.transcription || ''
-      //
-      // // Call the registered callback with the transcribed text
-      // if (transcriptionCallback && transcribedText) {
-      //   transcriptionCallback(transcribedText)
-      // }
-      //
-      // // Reset after successful transcription
-      // reset()
-      //
-      // return transcribedText
+      const response = await fetch(`${useGlobalSetup().apiHost}/api/audio/transcriptions`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error(`Transcription failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const transcribedText = data.text || ''
+
+      if (transcriptionCallback && transcribedText) {
+        transcriptionCallback(transcribedText)
+      }
+
+      reset()
+      return transcribedText
     } catch (err) {
+      reset()
       error.value = err instanceof Error ? err.message : 'Transcription failed'
       console.error('Transcription error:', err)
       throw err
@@ -375,7 +359,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   return {
     // State
     isRecording,
-    isPaused,
     recordingTime,
     audioBlob,
     audioUrl,
@@ -386,21 +369,13 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     selectedDeviceId,
     audioLevel,
 
-    // Computed
-    hasRecording,
-    formattedTime,
-    canRecord,
-
     // Actions
     startRecording,
     stopRecording,
-    cancelRecording,
-    reset,
     updateSelectedDevice,
     loadAudioDevices,
     registerTranscriptionCallback,
     unregisterTranscriptionCallback,
     updateConfig,
-    $dispose
   }
 })
