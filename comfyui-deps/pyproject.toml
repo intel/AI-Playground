@@ -10,6 +10,7 @@ dependencies = [
   "torchsde",
   "torchvision>=0.24.0",
   "torchaudio>=2.9.0",
+  "pytorch-triton-xpu>=2.9.0",
   "numpy>=1.25.0",
   "einops",
   "transformers>=4.37.2",
@@ -43,17 +44,22 @@ required-environments = [
 ]
 
 [tool.uv.sources]
-torch = [{ index = "pytorch_xpu", marker = "sys_platform == 'win32'" },
-         { index = "pytorch_cpu", marker = "sys_platform == 'darwin'" }]
-torchaudio = [{ index = "pytorch_xpu", marker = "sys_platform == 'win32'" },
-              { index = "pytorch_cpu", marker = "sys_platform == 'darwin'" }]
-torchvision = [{ index = "pytorch_xpu", marker = "sys_platform == 'win32'" },
-               { index = "pytorch_cpu", marker = "sys_platform == 'darwin'" }]
+torch = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+         { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+torchaudio = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+              { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+torchvision = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+               { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+pytorch-triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
 
 [[tool.uv.index]]
-name = "pytorch_xpu"
+name = "pytorch-xpu"
 url = "https://download.pytorch.org/whl/xpu"
+explicit = true
 
 [[tool.uv.index]]
-name = "pytorch_cpu"
+name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
+explicit = true

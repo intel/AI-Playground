@@ -264,7 +264,8 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   private async downloadOvms(): Promise<void> {
-    const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.3/ovms_windows_python_on.zip`
+    // const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.3/ovms_windows_python_on.zip`
+    const downloadUrl = `https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/weekly/2025.4.0.15ce0188/ovms_windows_python_on.zip`
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
@@ -387,15 +388,19 @@ export class OpenVINOBackendService implements ApiService {
         '--rest_workers',
         '4',
         '--source_model',
-        modelRepoId,
+        modelRepoId.split('/').join('---'),
         '--model_repository_path',
-        'models',
+        path.resolve(path.join('..', 'service', 'models', 'llm', 'openvino')),
         '--target_device',
         selectedDevice,
         '--cache_size',
         '2',
         '--task',
         'text_generation',
+        '--tool_parser',
+        'hermes3',
+        '--reasoning_parser',
+        'qwen3',
       ]
 
       this.appLogger.info(`OVMS launch args: ${args.join(' ')}`, this.name)

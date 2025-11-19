@@ -92,6 +92,11 @@
     "default": false
   },
   {
+    "name": "OpenVINO/Qwen3-4B-int4-ov",
+    "type": "openVINO",
+    "default": false
+  },
+  {
     "name": "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov",
     "type": "openVINO",
     "default": false

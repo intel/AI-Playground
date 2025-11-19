@@ -62,7 +62,7 @@ export const useOpenAiCompatibleChat = defineStore(
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
-      }).chatModel(textInference.activeModel ?? ''),
+      }).chatModel(textInference.activeModel?.split('/').join('---') ?? ''),
     )
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
