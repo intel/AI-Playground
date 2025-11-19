@@ -2,12 +2,10 @@
   <div
     v-if="theme.active === 'lnl'"
     class="lnl-grid lnl-top-grid"
-    :class="{ [`pos-${activeTabIdx}`]: true }"
   ></div>
   <div
     v-if="theme.active === 'lnl'"
     class="lnl-grid lnl-bottom-grid"
-    :class="{ [`pos-${activeTabIdx}`]: true }"
   ></div>
   <div v-if="theme.active === 'lnl'" class="lnl-gradient"></div>
   <div
@@ -30,10 +28,6 @@
       </h1>
     </div>
     <div class="flex justify-between items-center gap-5">
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" v-model="useNewUI" class="w-4 h-4 cursor-pointer" />
-        <span class="text-sm">New UI</span>
-      </label>
       <button
         v-if="debugToolsEnabled"
         :title="languages.COM_SETTINGS"
@@ -51,13 +45,6 @@
       >
         <ServerStackIcon class="size-6 text-foreground"></ServerStackIcon>
       </button>
-      <button
-        v-if="!demoMode.enabled && !useNewUI"
-        :title="languages.COM_SETTINGS"
-        class="svg-icon i-setup w-6 h-6"
-        @click="showSettings"
-        ref="showSettingBtn"
-      ></button>
       <button
         v-if="!demoMode.enabled"
         :title="languages.COM_MINI"
@@ -147,7 +134,7 @@
   </main>
 
   <main
-    v-if="useNewUI && globalSetup.loadingState === 'running'"
+    v-if="globalSetup.loadingState === 'running'"
     class="flex-1 flex relative min-h-0"
     :class="{
     'bg-black/50': theme.active === 'lnl',
@@ -229,78 +216,6 @@
     <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
   </main>
 
-  <!-- todo: Old UI only, we should eventually be able to remove this main block -->
-  <main
-    v-else-if="!useNewUI && globalSetup.loadingState === 'running'"
-    class="flex-auto flex flex-col relative"
-  >
-    <div class="main-tabs flex-none pt-2 px-3 flex items-end justify-start gap-1 text-muted-foreground">
-      <button
-        class="tab"
-        :class="{ active: activeTabIdx === 'create' }"
-        @click="() => (activeTabIdx = 'create')"
-      >
-        {{ languages.TAB_CREATE }}
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTabIdx === 'enhance' }"
-        @click="() => (activeTabIdx = 'enhance')"
-      >
-        {{ languages.TAB_ENHANCE }}
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTabIdx === 'answer' }"
-        @click="() => (activeTabIdx = 'answer')"
-      >
-        {{ languages.TAB_ANSWER }}
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTabIdx === 'learn-more' }"
-        @click="() => (activeTabIdx = 'learn-more')"
-      >
-        {{ languages.TAB_LEARN_MORE }}
-      </button>
-      <span class="main-tab-glider tab absolute" :class="{ [`pos-${activeTabIdx}`]: true }"></span>
-      <button
-        v-if="demoMode.enabled"
-        class="demo-help-button"
-        ref="needHelpBtn"
-        @click="
-          (event) => {
-            event.stopPropagation()
-            demoMode.triggerHelp(activeTabIdx, true)
-          }
-        "
-      >
-        {{ languages.DEMO_NEED_HELP }}
-      </button>
-    </div>
-    <div class="main-content-container flex-auto rounded-t-lg flex">
-      <div class="main-content-area flex-auto">
-        <CreateDemo></CreateDemo>
-        <AnswerDemo></AnswerDemo>
-        <EnhanceDemo></EnhanceDemo>
-        <create
-          v-show="activeTabIdx === 'create'"
-          ref="createCompt"
-          @postImageToEnhance="postImageToEnhance"
-        ></create>
-        <enhance v-show="activeTabIdx === 'enhance'" ref="enhanceCompt"></enhance>
-        <learn-more v-show="activeTabIdx === 'learn-more'"></learn-more>
-      </div>
-      <app-settings v-if="showSetting" @close="hideAppSettings"></app-settings>
-    </div>
-    <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
-    <add-l-l-m-dialog
-      v-show="showModelRequestDialog"
-      ref="addLLMCompt"
-      @close="showModelRequestDialog = false"
-    ></add-l-l-m-dialog>
-    <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
-  </main>
   <footer
     class="flex-none px-4 flex flex-col justify-between items-center select-none transition-all duration-300"
     :class="{
@@ -309,7 +224,7 @@
       'border-t border-border': theme.active === 'dark',
     }"
   >
-    <div v-if="useNewUI && footerExpanded"
+    <div v-if="footerExpanded"
          class="w-full relative flex items-center justify-center pb-1">
       <button
         @click="footerExpanded = !footerExpanded"
@@ -372,16 +287,9 @@
 </template>
 
 <script setup lang="ts">
-import CreateDemo from './components/demo-mode/CreateDemo.vue'
-import AnswerDemo from './components/demo-mode/AnswerDemo.vue'
-import EnhanceDemo from './components/demo-mode/EnhanceDemo.vue'
 import LoadingBar from './components/LoadingBar.vue'
 import InstallationManagement from './components/InstallationManagement.vue'
-import Create from './views/Create.vue'
-import Enhance from './views/Enhance.vue'
 import PromptArea from '@/views/PromptArea.vue'
-import LearnMore from './views/LearnMore.vue'
-import AppSettings from './views/AppSettings.vue'
 import './assets/css/index.css'
 import { useGlobalSetup } from './assets/js/store/globalSetup'
 import DownloadDialog from '@/components/DownloadDialog.vue'
@@ -411,10 +319,8 @@ const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const uiStore = useUIStore()
 
-const enhanceCompt = ref<InstanceType<typeof Enhance>>()
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
-const needHelpBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
   scrollToBottom: () => void
@@ -424,13 +330,10 @@ const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>(
 const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 
 const isOpen = ref(false)
-const activeTabIdx = ref<AipgPage>('create')
-const showSetting = ref(false)
 const footerExpanded = ref(true)
 const showAppSettings = ref(false)
 const showModelRequestDialog = ref(false)
 const fullscreen = ref(false)
-const useNewUI = ref(true)
 const showSpecificSettings = ref(false)
 
 const platformTitle = window.envVars.platformTitle
@@ -439,7 +342,6 @@ const debugToolsEnabled = window.envVars.debugToolsEnabled
 
 const mode = useColorMode()
 mode.value = 'dark'
-let initialPage: AipgPage = 'create'
 
 const zoomIn = (event: KeyboardEvent) => {
   if (event.ctrlKey && event.code === 'Equal') window.electronAPI.zoomIn()
@@ -472,12 +374,6 @@ onBeforeMount(async () => {
     }
   })
 
-  /** Get command line parameters and load default page on AIPG screen  */
-  window.electronAPI.getInitialPage().then((res) => {
-    initialPage = res
-    activeTabIdx.value = initialPage
-  })
-
   // document.body.addEventListener('mousedown', autoHideAppSettings)
   document.body.addEventListener('keydown', (e) => {
     if (e.key == 'F11') {
@@ -500,11 +396,6 @@ onMounted(() => {
     }
   }, { immediate: true })
 
-  watch([() => globalSetup.loadingState, activeTabIdx] as const, ([loadingState, activeTabIdx]) => {
-    if (loadingState === 'running' && !useNewUI.value) {
-      setTimeout(() => demoMode.triggerHelp(activeTabIdx))
-    }
-  })
 })
 
 async function setInitalLoadingState() {
@@ -548,16 +439,6 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
   backendServices.startAllSetUpServicesInBackground()
 }
 
-/** Get tooltips of AIPG demo mode on click of Help button */
-const createCompt = ref()
-
-function showSettings() {
-  showSetting.value = showSetting.value === false
-}
-
-function hideAppSettings() {
-  showSetting.value = false
-}
 
 function miniWindow() {
   window.electronAPI.miniWindow()
@@ -574,11 +455,6 @@ function closeWindow() {
 
 function openDevTools() {
   window.electronAPI.openDevTools()
-}
-
-function postImageToEnhance(imageUrl: string) {
-  enhanceCompt.value?.receiveImage(imageUrl)
-  activeTabIdx.value = 'enhance'
 }
 
 // todo: Why is this not used

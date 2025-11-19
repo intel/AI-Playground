@@ -4,12 +4,6 @@
 service_model_paths = {
     "llm": "./models/llm/checkpoints",
     "embedding": "./models/llm/embedding/ipexLLM",
-    "stableDiffusion": "./models/stable_diffusion/checkpoints",
-    "lora": "./models/stable_diffusion/lora",
-    "vae": "./models/stable_diffusion/vae",
-    "inpaint": "./models/stable_diffusion/inpaint",
-    "ESRGAN": "./models/stable_diffusion/ESRGAN",
-    "preview": "./models/stable_diffusion/preview",
 }
 
 # LlamaCPP model paths
@@ -51,49 +45,30 @@ git = {
 # Default device
 device = "xpu"
 
-# Model type conversion mapping
-def convert_model_type(type: int):
-    if type == 0:
-        return "llm"
-    elif type == 1:
-        return "stableDiffusion"
-    elif type == 2:
-        return "lora"
-    elif type == 3:
-        return "vae"
-    elif type == 4:
-        return "ESRGAN"
-    elif type == 5:
-        return "embedding"
-    elif type == 6:
-        return "inpaint"
-    elif type == 7:
-        return "preview"
-    elif type == 8:
-        return "ggufLLM"
-    elif type == 9:
-        return "openvinoLLM"
-    elif type == 100:
-        return "unet"
-    elif type == 101:
-        return "clip"
-    elif type == 102:
-        return "vae"
-    elif type == 103:
-        return "defaultCheckpoint"
-    elif type == 104:
-        return "defaultLora"
-    elif type == 105:
-        return "controlNet"
-    elif type == 106:
-        return "faceswap"
-    elif type == 107:
-        return "facerestore"
-    elif type == 108:
-        return "nsfwdetector"
-    elif type == 109:
-        return "checkpoints"
-    elif type == 110:
-        return "upscale"
-    else:
-        raise Exception(f"unknown model type value {type}")
+# Model type conversion mapping - deprecated, kept for backward compatibility
+# All model types are now strings, this function is a no-op identity function
+def convert_model_type(type):
+    """Convert model type - now a no-op since types are already strings"""
+    if isinstance(type, str):
+        return type
+    # Legacy support for numeric types (should not be used in new code)
+    type_map = {
+        0: "llm",
+        5: "embedding",
+        8: "ggufLLM",
+        9: "openvinoLLM",
+        100: "unet",
+        101: "clip",
+        102: "vae",
+        103: "defaultCheckpoint",
+        104: "defaultLora",
+        105: "controlNet",
+        106: "faceswap",
+        107: "facerestore",
+        108: "nsfwdetector",
+        109: "checkpoints",
+        110: "upscale",
+    }
+    if type in type_map:
+        return type_map[type]
+    raise Exception(f"unknown model type value {type}")

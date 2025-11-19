@@ -46,7 +46,6 @@ import {
   aiplaygroundApiServiceRegistry,
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
-import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
 import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -605,18 +604,6 @@ function initEventHandle() {
     return pathsManager.scanLLMModels()
   })
 
-  ipcMain.handle('getDownloadedDiffusionModels', (_event) => {
-    return pathsManager.scanSDModelLists(false)
-  })
-
-  ipcMain.handle('getDownloadedInpaintModels', (_event) => {
-    return pathsManager.scanInpaint(false)
-  })
-
-  ipcMain.handle('getDownloadedLoras', (_event) => {
-    return pathsManager.scanLora(false)
-  })
-
   ipcMain.handle('getDownloadedLLMs', (_event) => {
     return pathsManager.scanLLMModels()
   })
@@ -890,21 +877,6 @@ function initEventHandle() {
       file: imagePath,
       icon: thumbnail,
     })
-  })
-
-  ipcMain.handle('reloadImageWorkflows', async () => {
-    const files = await fs.promises.readdir(path.join(externalRes, 'workflows'))
-    const workflows = await Promise.all(
-      files.map((file) =>
-        fs.promises.readFile(path.join(externalRes, 'workflows', file), { encoding: 'utf-8' }),
-      )
-    )
-    const osSpecificWorkflows = workflows.map((workflow) => process.platform !== 'win32' ? workflow.replaceAll('\\\\', '/') : workflow)
-    return osSpecificWorkflows
-  })
-
-  ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
-    return updateIntelWorkflows(settings.remoteRepository)
   })
 
   ipcMain.handle('updatePresetsFromIntelRepo', () => {

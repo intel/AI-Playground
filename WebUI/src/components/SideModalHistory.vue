@@ -48,7 +48,7 @@
 import HistoryChat from '@/components/HistoryChat.vue'
 import HistoryWorkflow from '@/components/HistoryWorkflow.vue'
 import { useConversations } from '@/assets/js/store/conversations.ts'
-import { useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import SideModalBase from '@/components/SideModalBase.vue'
 import {
@@ -64,7 +64,7 @@ import {
 } from '@/components/ui/alert-dialog'
 
 const conversations = useConversations()
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
 
 const props = defineProps<{
   mode: ModeType

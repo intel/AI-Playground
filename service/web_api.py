@@ -44,24 +44,13 @@ try:
         except ImportError:
             pass
 
-    from datetime import datetime
     import os
     import threading
     from flask import jsonify, request, Response, stream_with_context
     from apiflask import APIFlask
 
-    from sd_adapter import SD_SSE_Adapter
     import model_download_adpater
-    from paint_biz import (
-        TextImageParams,
-        ImageToImageParams,
-        InpaintParams,
-        OutpaintParams,
-        UpscaleImageParams,
-        stop_generate
-    )
     import aipg_utils as utils
-    import service_config
     from model_downloader import HFPlaygroundDownloader
     from psutil._common import bytes2human
     import traceback
@@ -70,92 +59,10 @@ try:
 
     app = APIFlask(__name__)
 
-
     @app.get("/healthy")
     def healthEndpoint():
         return jsonify({"health": "OK"})
 
-
-
-
-    @app.post("/api/sd/generate")
-    def sd_generate():
-        """
-        {
-            "prompt": str,
-            "model_repo_id": str,
-            "mode": int,
-            "image?": file,
-            "mask?": file
-        }
-        """
-        mode = request.form.get("mode", default=0, type=int)
-        if mode != 0:
-            if mode == 1:
-                params = UpscaleImageParams()
-                params.scale = request.form.get("scale", 1.5, type=float)
-            elif mode == 2:
-                params = ImageToImageParams()
-            elif mode == 3:
-                params = InpaintParams()
-                params.mask_image = cache_mask_image()
-            elif mode == 4:
-                params = OutpaintParams()
-                params.direction = request.form.get("direction", "right", type=str)
-
-            params.image = cache_input_image()
-            params.denoise = request.form.get("denoise", 0.5, type=float)
-        else:
-            params = TextImageParams()
-        base_params = params
-        base_params.prompt = request.form.get("prompt", default="", type=str)
-        base_params.model_name = request.form["model_repo_id"]
-        base_params.mode = mode
-        base_params.width = request.form.get("width", default=512, type=int)
-        base_params.negative_prompt = request.form.get(
-            "negative_prompt", default="", type=str
-        )
-        base_params.height = request.form.get("height", default=512, type=int)
-        base_params.generate_number = request.form.get(
-            "generate_number", default=1, type=int
-        )
-        base_params.inference_steps = request.form.get(
-            "inference_steps", default=12, type=int
-        )
-        base_params.guidance_scale = request.form.get(
-            "guidance_scale", default=7.5, type=float
-        )
-        base_params.seed = request.form.get("seed", default=-1, type=int)
-        base_params.scheduler = request.form.get("scheduler", default="None", type=str)
-        base_params.lora = request.form.get("lora", default="None", type=str)
-        base_params.image_preview = request.form.get("image_preview", default=0, type=int)
-        base_params.safe_check = request.form.get("safe_check", default=1, type=int)
-        sse_invoker = SD_SSE_Adapter(request.url_root)
-        it = sse_invoker.generate(params)
-        return Response(stream_with_context(it), content_type="text/event-stream")
-
-
-    @app.get("/api/sd/stopGenerate")
-    def stop_sd_generate():
-        stop_generate()
-        return jsonify({"code": 0, "message": "success"})
-
-
-    @app.post("/api/init")
-    def get_init_settings():
-        import schedulers_util
-
-        post_config: dict = request.get_json()
-        for k, v in post_config.items():
-            if service_config.service_model_paths.__contains__(k):
-                service_config.service_model_paths.__setitem__(k, v)
-
-        return jsonify(schedulers_util.schedulers)
-
-
-    @app.post("/api/getGraphics")
-    def get_graphics():
-        return jsonify(utils.get_support_graphics())
 
 
     @app.get("/api/applicationExit")
@@ -265,10 +172,7 @@ try:
 
     def fill_size_execute(repo_id: str, type: int, result_dict: dict):
         key = f"{repo_id}_{type}"
-        if type == 4:
-            total_size = utils.get_ESRGAN_size()
-        else:
-            total_size = HFPlaygroundDownloader().get_model_total_size(repo_id, type)
+        total_size = HFPlaygroundDownloader().get_model_total_size(repo_id, type)
         with lock:
             size_cache.__setitem__(key, total_size)
             result_dict.__setitem__(key, bytes2human(total_size, "%(value).2f%(symbol)s"))
@@ -352,46 +256,6 @@ try:
             return jsonify({'needsInstallation' : needs_installation})
         except Exception as e:
             return jsonify({'errorMessage': f'failed to check for installation {e}'}), 500
-
-
-    def cache_input_image():
-        file = request.files.get("image")
-        ext = ".png"
-        if file.content_type == "image/jpeg":
-            ext = ".jpg"
-        elif file.content_type == "image/gif":
-            ext = ".gif"
-        elif file.content_type == "image/bmp":
-            ext = ".bmp"
-        now = datetime.now()
-        folder = now.strftime("%Y_%m_%d")
-        base_name = now.strftime("%H%M%S")
-        file_path = os.path.abspath(
-            os.path.join("./static/sd_input/", folder, base_name + ext)
-        )
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        file.save(file_path)
-        utils.cache_file(file_path, file.__sizeof__())
-        file.stream.close()
-        return file_path
-
-
-    def cache_mask_image():
-        mask_width = request.form.get("mask_width", default=512, type=int)
-        mask_height = request.form.get("mask_height", default=512, type=int)
-        mask_image = utils.generate_mask_image(
-            request.files.get("mask_image").stream.read(), mask_width, mask_height
-        )
-        now = datetime.now()
-        folder = now.strftime("%Y_%m_%d")
-        base_name = now.strftime("%H%M%S")
-        file_path = os.path.abspath(
-            os.path.join("static/sd_mask/", folder, base_name + ".png")
-        )
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        mask_image.save(file_path)
-        utils.cache_file(file_path, os.path.getsize(file_path))
-        return file_path
 
 
     if __name__ == "__main__":

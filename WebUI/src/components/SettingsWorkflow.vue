@@ -13,7 +13,7 @@
         <Label class="whitespace-nowrap">
           {{ languages.DEVICE }}
         </Label>
-        <DeviceSelector :backend="backendToService[imageGeneration.backend as 'comfyui' | 'default']" />
+        <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -100,7 +100,7 @@
       <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
         <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
           <div class="svg-icon i-refresh">Reset</div>
-          {{ languages.COM_LOAD_WORKFLOW_DEFAULTS }}
+          {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
         </button>
       </div>
 

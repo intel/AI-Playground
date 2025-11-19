@@ -85,26 +85,6 @@ button:hover {
     rotateX(102deg) skewX(-5deg);
 }
 
-.pos-create {
-  --position-index: 0;
-}
-
-.pos-enhance {
-  --position-index: 1;
-}
-
-.pos-answer {
-  --position-index: 2;
-}
-
-.pos-learn-more {
-  --position-index: 3;
-}
-
-.pos-new-ui {
-  --position-index: 4;
-}
-
 .lnl-gradient {
   position: absolute;
   background: linear-gradient(

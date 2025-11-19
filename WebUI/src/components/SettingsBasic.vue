@@ -14,7 +14,7 @@
         <Input
           type="password"
           v-model="models.hfToken"
-          class="v-drop-select"
+          class="h-[30px] leading-[30px] rounded-[15px] bg-card border-border text-foreground px-[3px]"
           :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"
         />
         <div
@@ -48,13 +48,13 @@
     <div class="flex justify-between items-center">
       <p>{{ i18nState.SETTINGS_PRESETS_MANAGEMENT || languages.SETTINGS_PRESETS_MANAGEMENT || 'Presets Management' }}</p>
       <div class="flex gap-2 items-center">
-        <div :data-tooltip="i18nState.PRESET_RELOAD_INFO || i18nState.WORKFLOW_RELOAD_INFO">
+        <div :data-tooltip="i18nState.PRESET_RELOAD_INFO">
           <button
             class="svg-icon i-refresh w-5 h-5 text-primary"
             @click="presetsStore.loadPresetsFromFiles"
           ></button>
         </div>
-        <div :data-tooltip="i18nState.PRESET_DOWNLOAD_INFO || i18nState.WORKFLOW_DOWNLOAD_INFO">
+        <div :data-tooltip="i18nState.PRESET_DOWNLOAD_INFO">
           <button
             class="svg-icon i-download-cloud w-5 h-5 text-primary"
             @click="loadPresetsFromIntel"

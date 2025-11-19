@@ -1,4 +1,4 @@
-<template>
+  <template>
   <div class="v-checkbox" type="button" :disabled="props.disabled">
     <button
       class="v-checkbox-control flex-none"

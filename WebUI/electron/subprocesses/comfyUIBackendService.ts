@@ -3,7 +3,6 @@ import path from 'node:path'
 import fs from 'fs'
 import * as filesystem from 'fs-extra'
 import { existingFileOrError } from './osProcessHelper.ts'
-import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
 import {
   LongLivedPythonApiService,
   aiBackendServiceDir,
@@ -265,11 +264,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
-        debugMessage: `updating workflows from intel repository`,
       }
-      currentStep = 'updating workflows'
-      await updateIntelWorkflows(this.settings.remoteRepository)
-
       this.setStatus('notYetStarted')
       currentStep = 'end'
       yield {

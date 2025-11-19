@@ -8,10 +8,6 @@ export const ModelSchema = z.object({
   downloaded: z.boolean().optional(),
   type: z.enum([
     'embedding',
-    'stableDiffusion',
-    'inpaint',
-    'lora',
-    'vae',
     'undefined',
     ...llmBackendTypes,
   ]),

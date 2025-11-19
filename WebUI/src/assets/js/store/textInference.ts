@@ -2,7 +2,6 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { z } from 'zod'
 import { useBackendServices } from './backendServices'
 import { useModels } from './models'
-import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
@@ -204,11 +203,11 @@ export const useTextInference = defineStore(
       ollama: 'ollama',
     } as const
 
-    const backendToAipgModelTypeNumber = {
-      openVINO: Const.MODEL_TYPE_OPENVINO,
-      ipexLLM: Const.MODEL_TYPE_LLM,
-      llamaCPP: Const.MODEL_TYPE_LLAMA_CPP,
-      ollama: Const.MODEL_TYPE_LLM, // Using LLM type for Ollama
+    const backendToAipgModelType = {
+      openVINO: 'openvinoLLM',
+      ipexLLM: 'llm',
+      llamaCPP: 'ggufLLM',
+      ollama: 'llm', // Using LLM type for Ollama
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {
@@ -314,15 +313,15 @@ export const useTextInference = defineStore(
           repo_id: model,
           type:
             type === 'embedding'
-              ? Const.MODEL_TYPE_EMBEDDING
-              : backendToAipgModelTypeNumber[backend.value],
+              ? 'embedding'
+              : backendToAipgModelType[backend.value],
           backend: backendToAipgBackendName[backend.value],
         },
       ]
       if (modelMetaData?.mmproj) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
-          type: backendToAipgModelTypeNumber[backend.value],
+          type: backendToAipgModelType[backend.value],
           backend: backendToAipgBackendName[backend.value],
         })
       }

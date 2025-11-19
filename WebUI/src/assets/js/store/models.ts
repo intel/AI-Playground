@@ -4,29 +4,17 @@ import { useBackendServices } from './backendServices'
 
 export type ModelPaths = {
   llm: string
+  ggufLLM: string
   embedding: string
-  stableDiffusion: string
-  inpaint: string
-  lora: string
-  vae: string
 } & StringKV
 
 export type ModelLists = {
   llm: string[]
-  stableDiffusion: string[]
-  lora: string[]
-  vae: string[]
-  scheduler: string[]
   embedding: string[]
-  inpaint: string[]
 } & { [key: string]: Array<string> }
 
 export type ModelType =
   | 'embedding'
-  | 'stableDiffusion'
-  | 'inpaint'
-  | 'lora'
-  | 'vae'
   | 'undefined'
   | LlmBackend
 
@@ -50,19 +38,12 @@ export const useModels = defineStore(
 
     async function refreshModels() {
       const predefinedModels = await window.electronAPI.loadModels()
-      const sdModels = await window.electronAPI.getDownloadedDiffusionModels()
       const llmModels = await window.electronAPI.getDownloadedLLMs()
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
       const openVINOLLMModels = await window.electronAPI.getDownloadedOpenVINOLLMModels()
-      const loraModels = await window.electronAPI.getDownloadedLoras()
-      const inpaintModels = await window.electronAPI.getDownloadedInpaintModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
 
       const downloadedModels = [
-        ...sdModels.map<{ name: string; type: ModelType }>((name) => ({
-          name,
-          type: 'stableDiffusion',
-        })),
         ...llmModels.map<{ name: string; type: ModelType }>((name) => ({ name, type: 'ipexLLM' })),
         ...ggufModels.map<{ name: string; type: ModelType }>((name) => ({
           name,
@@ -71,11 +52,6 @@ export const useModels = defineStore(
         ...openVINOLLMModels.map<{ name: string; type: ModelType }>((name) => ({
           name,
           type: 'openVINO',
-        })),
-        ...loraModels.map<{ name: string; type: ModelType }>((name) => ({ name, type: 'lora' })),
-        ...inpaintModels.map<{ name: string; type: ModelType }>((name) => ({
-          name,
-          type: 'inpaint',
         })),
         ...embeddingModels,
       ]

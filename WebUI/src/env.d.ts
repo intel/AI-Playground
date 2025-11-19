@@ -24,6 +24,7 @@ type DemoModeSettings = {
   demoModeResetInSeconds: null | number
 }
 
+// AipgPage type kept for backward compatibility with demoMode, but old UI pages are no longer used
 type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
 type ModeType = 'chat' | WorkflowModeType
@@ -31,8 +32,6 @@ type ModeType = 'chat' | WorkflowModeType
 type electronAPI = {
   startDrag: (fileName: string) => void
   getFilePath: (file: File) => string
-  reloadImageWorkflows(): Promise<string[]>
-  updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
   updatePresetsFromIntelRepo(): Promise<UpdatePresetsFromIntelResult>
   reloadPresets(): Promise<Array<{ content: string; image: string | null }>>
   getUserPresetsPath(): Promise<string>
@@ -84,9 +83,6 @@ type electronAPI = {
   loadModels(): Promise<Model[]>
   zoomIn(): Promise<void>
   zoomOut(): Promise<void>
-  getDownloadedDiffusionModels(): Promise<string[]>
-  getDownloadedInpaintModels(): Promise<string[]>
-  getDownloadedLoras(): Promise<string[]>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
@@ -393,8 +389,8 @@ type DownloadFailedParams = {
 
 type CheckModelAlreadyLoadedParameters = {
   repo_id: string
-  type: number
-  backend: 'comfyui' | 'default' | 'llama_cpp' | 'openvino'
+  type: string
+  backend: 'comfyui' | 'llama_cpp' | 'openvino'
   additionalLicenseLink?: string
 }
 
@@ -455,10 +451,6 @@ type Model = {
   type:
     | 'undefined'
     | 'embedding'
-    | 'stableDiffusion'
-    | 'inpaint'
-    | 'lora'
-    | 'vae'
     | 'openVINO'
     | 'ipexLLM'
     | 'llamaCPP'

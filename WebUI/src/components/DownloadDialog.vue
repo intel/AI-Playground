@@ -187,7 +187,6 @@ import ProgressBar from './ProgressBar.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import * as util from '@/assets/js/util'
-import * as Const from '@/assets/js/const'
 import * as toast from '@/assets/js/toast'
 import { useModels } from '@/assets/js/store/models'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
@@ -340,8 +339,8 @@ async function initializeDownloadDialog() {
   }
 }
 
-function getInfoUrl(repoId: string, type: number) {
-  if (type == 4) {
+function getInfoUrl(repoId: string, type: string) {
+  if (type === 'upscale') {
     return 'https://github.com/xinntao/Real-ESRGAN'
   }
 
@@ -365,22 +364,12 @@ function getInfoUrl(repoId: string, type: number) {
   return `https://huggingface.co/${repoId.split('/').slice(0, 2).join('/')}`
 }
 
-function getFunctionTip(type: number): string {
+function getFunctionTip(type: string): string {
   switch (type) {
-    case Const.MODEL_TYPE_LLM:
+    case 'llm':
       return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE
-    case Const.MODEL_TYPE_EMBEDDING:
+    case 'embedding':
       return i18nState.DOWNLOADER_FOR_RAG_QUERY
-    case Const.MODEL_TYPE_STABLE_DIFFUSION:
-    case Const.MODEL_TYPE_LORA:
-    case Const.MODEL_TYPE_VAE:
-      return i18nState.DOWNLOADER_FOR_IMAGE_GENERATE
-    case Const.MODEL_TYPE_INPAINT:
-      return i18nState.DOWNLOADER_FOR_INAPINT_GENERATE
-    case Const.MODEL_TYPE_PREVIEW:
-      return i18nState.DOWNLOADER_FOR_IMAGE_PREVIEW
-    case Const.MODEL_TYPE_ESRGAN:
-      return i18nState.DOWNLOADER_FOR_IMAGE_UPSCALE
     default:
       return 'Undefined'
   }

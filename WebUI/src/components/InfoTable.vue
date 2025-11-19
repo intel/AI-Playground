@@ -37,7 +37,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ComfyDynamicInputWithCurrent, GenerationSettings } from '@/assets/js/store/imageGeneration'
+import { ComfyDynamicInputWithCurrent, GenerationSettings } from '@/assets/js/store/imageGenerationPresets'
 import { getTranslationLabel } from '@/lib/utils'
 
 const props = defineProps<{
@@ -46,7 +46,7 @@ const props = defineProps<{
 }>()
 
 const settingToTranslationKey: Record<keyof GenerationSettings, string> = {
-  workflow: 'SETTINGS_IMAGE_WORKFLOW',
+  preset: 'SETTINGS_IMAGE_PRESET',
   device: 'DEVICE',
   imageModel: 'DOWNLOADER_MODEL',
   inpaintModel: 'DOWNLOADER_FOR_INAPINT_GENERATE',

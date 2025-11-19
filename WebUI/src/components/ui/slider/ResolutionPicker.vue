@@ -4,11 +4,13 @@ import { type SliderRootProps } from 'radix-vue'
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'radix-vue'
 import { cn } from '@/lib/utils'
 import { clsx } from 'clsx'
-import { findBestResolution, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { findBestResolution, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { usePresets } from '@/assets/js/store/presets'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
 
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
+const presetsStore = usePresets()
 
 const aspectRatios = [
   { label: '12/5', value: 12 / 5 },
@@ -23,12 +25,13 @@ const aspectRatios = [
 ]
 
 const megaPixelsOptions = computed(() => {
-  if (imageGeneration.activeWorkflow.tags.includes('sd1.5')) {
+  const activePreset = presetsStore.activePresetWithVariant
+  if (activePreset?.tags?.includes('sd1.5')) {
     return [
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
     ]
-  } else if (imageGeneration.activeWorkflow.tags.includes('LTX Video')) {
+  } else if (activePreset?.tags?.includes('LTX Video')) {
     return [
       { label: '0.1', totalPixels: 320 * 320 },
       { label: '0.25', totalPixels: 512 * 512 },

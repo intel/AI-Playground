@@ -3,26 +3,13 @@ name = "aipg-default-backend"
 version = "2.6.2-beta"
 requires-python = "==3.12.*"
 dependencies = [
-  "spandrel",
-  "compel",
-  "datasets",
-  "diffusers",
   "Flask",
   "apiflask",
   "marshmallow-dataclass",
-  "numpy",
-  "opencv-python-headless<4.12",
-  "peft",
-  "Pillow",
   "psutil",
   "Requests",
-  "transformers",
   "setuptools",
   "huggingface_hub",
-  "accelerate",
-  "torch>=2.9.0",
-  "torchaudio>=2.9.0",
-  "torchvision>=0.24.0",
 ]
 [tool.uv]
 python-preference = "only-managed"

@@ -27,7 +27,7 @@
       "filter": ["!__pycache__/"]
     },
     {
-      "from": "external/workflows",
+      "from": "external/presets",
       "to": "workflows"
     },
     {

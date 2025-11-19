@@ -8,7 +8,6 @@ from file_downloader import FileDownloader
 from model_downloader import NotEnoughDiskSpaceException, DownloadException
 from psutil._common import bytes2human
 from model_downloader import HFPlaygroundDownloader
-import realesrgan
 import aipg_utils as utils
 from web_request_bodies import DownloadModelData
 
@@ -118,14 +117,6 @@ class Model_Downloader_Adapter:
                     break
                 if self.has_error:
                     break
-                if item.type == 4:
-                    self.file_downloader.download_file(
-                        realesrgan.ESRGAN_MODEL_URL,
-                        os.path.join(
-                            utils.get_model_path(item.type,item.backend),
-                            os.path.basename(realesrgan.ESRGAN_MODEL_URL)
-                        ),
-                    )
                 else:
                     self.hf_downloader.download(item.repo_id, item.type, item.backend)
             self.put_msg({"type": "allComplete"})

@@ -1,8 +1,6 @@
 import { acceptHMRUpdate, defineStore, storeToRefs } from 'pinia'
 import { useComfyUiPresets } from './comfyUiPresets'
-import { useStableDiffusion } from './stableDiffusion'
 import { useI18N } from './i18n'
-import * as Const from '../const'
 import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
 import { useBackendServices } from './backendServices'
@@ -86,49 +84,21 @@ const generalDefaultSettings = {
   safetyCheck: true,
 }
 
-export const backendToService: Record<'comfyui' | 'default', BackendServiceName> = {
+export const backendToService: Record<'comfyui', BackendServiceName> = {
   comfyui: 'comfyui-backend',
-  default: 'ai-backend',
 }
 
-export function findBestResolution(totalPixels: number, aspectRatio: number) {
-  const MIN_SIZE = 256
-  const MAX_SIZE = 1536
-  let bestWidth = 0
-  let bestHeight = 0
-  let minDiff = Infinity
-
-  for (let h = MIN_SIZE; h <= MAX_SIZE; h += 64) {
-    let w = aspectRatio * h
-    w = Math.round(w / 64) * 64
-
-    if (w < MIN_SIZE || w > MAX_SIZE) continue
-
-    const actualPixels = w * h
-    const diff = Math.abs(actualPixels - totalPixels)
-
-    if (diff < minDiff) {
-      minDiff = diff
-      bestWidth = w
-      bestHeight = h
-    }
-  }
-
-  return { width: bestWidth, height: bestHeight, totalPixels: bestWidth * bestHeight }
-}
+export { findBestResolution } from './imageGenerationUtils'
 
 export const useImageGenerationPresets = defineStore(
   'imageGenerationPresets',
   () => {
     const presetsStore = usePresets()
     const comfyUi = useComfyUiPresets()
-    const stableDiffusion = useStableDiffusion()
     const backendServices = useBackendServices()
     const uiStore = useUIStore()
     const models = useModels()
     const i18nState = useI18N().state
-
-    const hdWarningDismissed = ref(false)
 
     const activePreset = computed(() => {
       console.log('### activePreset', presetsStore.activePresetWithVariant)
@@ -244,8 +214,8 @@ export const useImageGenerationPresets = defineStore(
 
     const backend = computed(() => {
       console.log('### computing backend', activePreset.value?.backend)
-      if (!activePreset.value) return 'default' as const
-      return activePreset.value.backend as 'comfyui' | 'default'
+      if (!activePreset.value) return 'comfyui' as const
+      return activePreset.value.backend as 'comfyui'
     })
 
     const comfyInputs = computed(() => {
@@ -436,96 +406,16 @@ export const useImageGenerationPresets = defineStore(
 
     async function getMissingModels(): Promise<DownloadModelParam[]> {
       if (!activePreset.value) return []
-      if (activePreset.value.backend === 'comfyui') {
-        return getMissingComfyuiBackendModels(activePreset.value)
-      } else {
-        return getMissingDefaultBackendModels()
-      }
+      return getMissingComfyuiBackendModels(activePreset.value)
     }
 
     async function getMissingComfyuiBackendModels(
       preset: ComfyUiPreset,
     ): Promise<DownloadModelParam[]> {
-      function extractDownloadModelParamsFromString(
-        requiredModel: { type: string; model: string; additionalLicenceLink?: string },
-      ): CheckModelAlreadyLoadedParameters {
-        function modelTypeToId(type: string) {
-          switch (type) {
-            case 'checkpoints':
-              return Const.MODEL_TYPE_COMFY_CHECKPOINTS
-            case 'unet':
-              return Const.MODEL_TYPE_COMFY_UNET
-            case 'clip':
-              return Const.MODEL_TYPE_COMFY_CLIP
-            case 'vae':
-              return Const.MODEL_TYPE_COMFY_VAE
-            case 'faceswap':
-              return Const.MODEL_TYPE_FACESWAP
-            case 'facerestore':
-              return Const.MODEL_TYPE_FACERESTORE
-            case 'nsfwdetector':
-              return Const.MODEL_TYPE_NSFW_DETECTOR
-            case 'defaultCheckpoint':
-              return Const.MODEL_TYPE_COMFY_DEFAULT_CHECKPOINT
-            case 'defaultLora':
-              return Const.MODEL_TYPE_COMFY_DEFAULT_LORA
-            case 'controlNet':
-              return Const.MODEL_TYPE_COMFY_CONTROL_NET
-            case 'upscale':
-              return Const.MODEL_TYPE_UPSCALE
-            default:
-              console.warn('received unknown comfyUI type: ', type)
-              return -1
-          }
-        }
-
-        return {
-          type: modelTypeToId(requiredModel.type),
-          repo_id: requiredModel.model,
-          backend: 'comfyui',
-          additionalLicenseLink: requiredModel.additionalLicenceLink,
-        }
-      }
-
-      const checkList: CheckModelAlreadyLoadedParameters[] =
-        (preset.requiredModels ?? []).map(extractDownloadModelParamsFromString)
-      const checkedModels: CheckModelAlreadyLoadedResult[] =
-        await models.checkModelAlreadyLoaded(checkList)
-      const modelsToBeLoaded = checkedModels.filter(
-        (checkModelExistsResult) => !checkModelExistsResult.already_loaded,
-      )
-      for (const item of modelsToBeLoaded) {
-        if (!(await models.checkIfHuggingFaceUrlExists(item.repo_id))) {
-          toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
-          return []
-        }
-      }
-      return modelsToBeLoaded
+      const { getMissingComfyuiBackendModels: getMissingModels } = await import('./imageGenerationUtils')
+      return getMissingModels(preset.requiredModels ?? [])
     }
 
-    async function getMissingDefaultBackendModels(): Promise<DownloadModelParam[]> {
-      const checkList: CheckModelAlreadyLoadedParameters[] = [
-        { repo_id: imageModel.value, type: Const.MODEL_TYPE_STABLE_DIFFUSION, backend: 'default' },
-      ]
-      if (lora.value !== 'None') {
-        checkList.push({ repo_id: lora.value, type: Const.MODEL_TYPE_LORA, backend: 'default' })
-      }
-      if (imagePreview.value) {
-        checkList.push({
-          repo_id: 'madebyollin/taesd',
-          type: Const.MODEL_TYPE_PREVIEW,
-          backend: 'default',
-        })
-        checkList.push({
-          repo_id: 'madebyollin/taesdxl',
-          type: Const.MODEL_TYPE_PREVIEW,
-          backend: 'default',
-        })
-      }
-
-      const result = await models.checkModelAlreadyLoaded(checkList)
-      return result.filter((checkModelExistsResult) => !checkModelExistsResult.already_loaded)
-    }
 
     async function generate(mode: WorkflowModeType = 'imageGen', sourceImage?: string) {
       console.log('### generate', mode, sourceImage, activePreset.value)
@@ -556,16 +446,11 @@ export const useImageGenerationPresets = defineStore(
       
       const inferenceBackendService = backendToService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-      backendServices.updateLastUsedBackend(inferenceBackendService)
-      if (activePreset.value.backend === 'comfyui') {
-        await comfyUi.generate(imageIds, mode, sourceImage)
-      } else {
-        await stableDiffusion.generate(imageIds, mode, sourceImage)
-      }
+      await backendServices.updateLastUsedBackend(inferenceBackendService)
+      await comfyUi.generate(imageIds, mode, sourceImage)
     }
 
     function stopGeneration() {
-      stableDiffusion.stop()
       comfyUi.stop()
     }
 
@@ -619,7 +504,6 @@ export const useImageGenerationPresets = defineStore(
     )
 
     return {
-      hdWarningDismissed,
       backend,
       activePreset,
       processing,
@@ -666,7 +550,6 @@ export const useImageGenerationPresets = defineStore(
       pick: [
         'settingsPerPreset',
         'comfyInputsPerPreset',
-        'hdWarningDismissed',
       ],
     },
   },
