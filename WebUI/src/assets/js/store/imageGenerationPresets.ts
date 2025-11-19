@@ -5,8 +5,9 @@ import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
 import { useBackendServices } from './backendServices'
 import { usePresets, type ComfyUiPreset, type ComfyInput, type Setting } from './presets'
-import type { ComfyUIApiWorkflow } from './presets'
 import { useUIStore } from './ui'
+import { useDialogStore } from './dialogs'
+import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
 
 export type GenerateState =
   | 'no_start'
@@ -97,7 +98,7 @@ export const useImageGenerationPresets = defineStore(
     const comfyUi = useComfyUiPresets()
     const backendServices = useBackendServices()
     const uiStore = useUIStore()
-    const models = useModels()
+    const dialogStore = useDialogStore()
     const i18nState = useI18N().state
 
     const activePreset = computed(() => {
@@ -406,14 +407,18 @@ export const useImageGenerationPresets = defineStore(
 
     async function getMissingModels(): Promise<DownloadModelParam[]> {
       if (!activePreset.value) return []
-      return getMissingComfyuiBackendModels(activePreset.value)
+      return getMissingComfyuiBackendModels(activePreset.value.requiredModels ?? [])
     }
 
-    async function getMissingComfyuiBackendModels(
-      preset: ComfyUiPreset,
-    ): Promise<DownloadModelParam[]> {
-      const { getMissingComfyuiBackendModels: getMissingModels } = await import('./imageGenerationUtils')
-      return getMissingModels(preset.requiredModels ?? [])
+    async function ensureModelsAreAvailable(): Promise<void> {
+      return new Promise<void>(async (resolve, reject) => {
+        const downloadList = await getMissingModels()
+        if (downloadList.length > 0) {
+          dialogStore.showDownloadDialog(downloadList, resolve, reject)
+        } else {
+          resolve()
+        }
+      })
     }
 
 
@@ -530,6 +535,7 @@ export const useImageGenerationPresets = defineStore(
       comfyInputs,
       resetActivePresetSettings,
       getMissingModels,
+      ensureModelsAreAvailable,
       updateImage,
       generate,
       stopGeneration,

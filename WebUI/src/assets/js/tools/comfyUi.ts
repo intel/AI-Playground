@@ -122,6 +122,9 @@ export async function executeComfyGeneration(args: {
       await new Promise(resolve => setTimeout(resolve, 100))
     }
 
+    // Ensure required models are available before proceeding
+    await imageGeneration.ensureModelsAreAvailable()
+
     // Set temporary values, using preset defaults when tool args don't provide values
     // Always use preset defaults, not saved values
     imageGeneration.prompt = args.prompt

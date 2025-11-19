@@ -148,7 +148,6 @@ import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
 import { MediaItem, isVideo, is3D, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
-import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from "@/assets/js/store/promptArea.ts"
 
 interface Props {
@@ -156,7 +155,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const i18nState = useI18N().state
@@ -214,23 +212,12 @@ watch(
 
 async function generateImage(prompt: string) {
   imageGeneration.prompt = prompt
-  await ensureModelsAreAvailable()
+  await imageGeneration.ensureModelsAreAvailable()
   await imageGeneration.generate(props.mode)
 }
 
 function stopGeneration() {
   imageGeneration.stopGeneration()
-}
-
-async function ensureModelsAreAvailable() {
-  return new Promise<void>(async (resolve, reject) => {
-    const downloadList = await imageGeneration.getMissingModels()
-    if (downloadList.length > 0) {
-      dialogStore.showDownloadDialog(downloadList, resolve, reject)
-    } else {
-      resolve()
-    }
-  })
 }
 
 async function postImageToMode(image: MediaItem, mode: WorkflowModeType) {
