@@ -10,7 +10,7 @@ dependencies = [
   "torchsde",
   "torchvision>=0.24.0",
   "torchaudio>=2.9.0",
-  "pytorch-triton-xpu>=2.9.0",
+  "pytorch-triton-xpu>=3.5.0; sys_platform == 'win32'",
   "numpy>=1.25.0",
   "einops",
   "transformers>=4.37.2",

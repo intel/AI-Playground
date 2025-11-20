@@ -1,4 +1,7 @@
-# To be invoked by installer
+# /// script
+# requires-python = ">=3.12"
+# ///
+# # To be invoked by installer
 # Usage: python move_model_files.py <src_dir> <target_dir>
 
 import os

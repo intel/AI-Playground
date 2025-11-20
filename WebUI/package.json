@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "2.6.2-beta",
+  "version": "3.0.0-alpha",
   "scripts": {
     "dev": "cross-env VITE_DEBUG_TOOLS=\"true\" VITE_PLATFORM_TITLE=\"for Local® Dev™ Mode\" vite",
     "preview": "vite preview",
@@ -91,7 +91,8 @@
     "vue-tsc": "^3.0.8"
   },
   "overrides": {
-    "ip": "https://registry.npmjs.org/neoip/-/neoip-2.1.0.tgz"
+    "ip": "https://registry.npmjs.org/neoip/-/neoip-2.1.0.tgz",
+    "three": "^0.181.1"
   },
   "debug": {
     "env": {

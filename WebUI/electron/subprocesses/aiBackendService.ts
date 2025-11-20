@@ -43,31 +43,6 @@ export class AiBackendService extends LongLivedPythonApiService {
   }
   readonly deviceService = new DeviceService()
 
-  async detectDevices() {
-    // const availableDevices = await detectLevelZeroDevices(this.python)
-    const availableDevices = [{ id: '*', name: 'Auto select device', selected: true }]
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    if (availableDevices.length === 0) {
-      this.appLogger.error(`No devices detected`, this.name)
-      return
-    }
-
-    let bestDeviceId: string
-    try {
-      const bestDeviceName = (await this.deviceService.getDevices())[0].name
-      bestDeviceId = getBestDevice(availableDevices, bestDeviceName)
-      this.appLogger.info(
-        `Selected ${bestDeviceName} as best device by pci id via xpu-smi. Which should correspond to deviceId ${bestDeviceId}`,
-        this.name,
-      )
-    } catch (e: unknown) {
-      this.appLogger.error(`Couldn't detect best device, selecting first. Error: ${e}`, this.name)
-      bestDeviceId = availableDevices[0].name
-    }
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
-    this.updateStatus()
-  }
-
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
@@ -92,9 +67,7 @@ export class AiBackendService extends LongLivedPythonApiService {
         step: currentStep,
         status: 'executing',
         debugMessage: `installing dependencies`,
-      }
-      await installHijacks()
-      
+      }      
       await installBackend(this.serviceFolder)
 
       this.appLogger.info('scanning for extra wheels', this.name)
@@ -149,11 +122,8 @@ export class AiBackendService extends LongLivedPythonApiService {
       VIRTUAL_ENV: this.pythonEnvDir,
       PATH: `${path.join(this.pythonEnvDir, 'bin')};${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
       PYTHONNOUSERSITE: 'true',
-      SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-      SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
-      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       PIP_CONFIG_FILE: 'nul',
     }
 

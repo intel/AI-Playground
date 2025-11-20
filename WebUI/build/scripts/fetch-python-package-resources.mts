@@ -181,6 +181,18 @@ async function main(): Promise<void> {
       }
     }
 
+    // move 7zr.exe to resourcesDir/7zr.exe on win32
+    if (target.data === 'win32') {
+      const sevenZrPath = path.join(buildPaths.tmpDir, '7zr.exe')
+      const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
+      if (existsSync(sevenZrPath)) {
+        renameSync(sevenZrPath, destinationPath)
+        console.log(`✅ Moved ${sevenZrPath} to ${destinationPath}`)
+      } else {
+        console.error(`❌ 7zr binary not found: ${sevenZrPath}`)
+      }
+    }
+
     console.log('✅ All Python package resources fetched successfully!')
     console.log(`📂 Resources available in: ${buildPaths.resourcesDir}`)
   } catch (error) {

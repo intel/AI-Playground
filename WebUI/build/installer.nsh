@@ -18,13 +18,6 @@
     ${EndIf}
 
     SetDetailsPrint both
-    IfFileExists "$INSTDIR\resources\prototype-python-env.7z" extracting 0
-    Abort "Broken installer!"
-
-    extracting:
-        DetailPrint "Extracting python environment..."
-        nsExec::ExecToLog '"$INSTDIR\resources\7zr.exe" x "$INSTDIR\resources\prototype-python-env.7z" -o"$INSTDIR\resources\prototype-python-env"'
-        Delete "$INSTDIR\resources\prototype-python-env.7z"
 
     StrCpy $0 "$INSTDIR"
     StrCpy $1 "_model_backup"
@@ -63,9 +56,9 @@
     StrCpy $1 "_model_backup"
     StrCpy $2 "$0$1"
 
-    IfFileExists "$INSTDIR\resources\prototype-python-env\python.exe" 0 slowBackup
+    IfFileExists "$INSTDIR\resources\uv.exe" 0 slowBackup
     IfFileExists "$INSTDIR\resources\service\tools\move_model_files.py" 0 slowBackup
-    nsExec::ExecToLog '"$INSTDIR\resources\prototype-python-env\python.exe" "$INSTDIR\resources\service\tools\move_model_files.py" "$INSTDIR\resources\service\models" "$2"'
+    nsExec::ExecToLog '"$INSTDIR\resources\uv.exe" "run" "--script" "$INSTDIR\resources\service\tools\move_model_files.py" "$INSTDIR\resources\service\models" "$2"'
     Pop $0
     ${if} $0 == 0
       Goto deleteAll

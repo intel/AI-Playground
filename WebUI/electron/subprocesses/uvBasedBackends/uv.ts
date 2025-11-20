@@ -32,7 +32,7 @@ const loggerFor = (source: string) => ({
 
 const uv = (uvCommand: string[], logger: ReturnType<typeof loggerFor>) =>
   new Promise<void>((resolve, reject) => {
-    const uvProcess = spawn(uvPath, uvCommand)
+    const uvProcess = spawn(uvPath, uvCommand, { env: { ...process.env, UV_NO_ENV_FILE: '1', UV_NO_CONFIG: '1' } })
 
     uvProcess.stdout.on('data', (data: Buffer) => {
       logger.info(`UV: ${data.toString()}`)
