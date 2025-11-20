@@ -47,6 +47,10 @@
       "to": "7zr.exe"
     },
     {
+      "from": "../build/resources/uv.exe",
+      "to": "uv.exe"
+    },
+    {
       "from": "../build/resources/prototype-python-env.7z",
       "to": "prototype-python-env.7z"
     },

@@ -6,13 +6,11 @@ import { appLoggerInstance } from '../logging/logger.ts'
 import {
   ApiService,
   DeviceService,
-  PythonService,
   createEnhancedErrorDetails,
   ErrorDetails,
 } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { detectLevelZeroDevices } from './deviceDetection.ts'
 import { getBestDevice } from './deviceArch.ts'
 import { LocalSettings } from '../main.ts'
 
@@ -33,10 +31,6 @@ export class OllamaBackendService implements ApiService {
   readonly ollamaExePath: string
 
   readonly zipPath: string
-  readonly aiBackend = new PythonService(
-    path.resolve(path.join(this.baseDir, `ai-backend-env`)),
-    path.resolve(path.join(this.baseDir, `service`)),
-  )
   readonly deviceService = new DeviceService()
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
 
@@ -86,22 +80,10 @@ export class OllamaBackendService implements ApiService {
   }
 
   async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-
-    let bestDeviceId: string
-    try {
-      const bestDeviceName = (await this.deviceService.getDevices())[0].name
-      bestDeviceId = getBestDevice(availableDevices, bestDeviceName)
-      this.appLogger.info(
-        `Selected ${bestDeviceName} as best device by pci id via xpu-smi. Which should correspond to deviceId ${bestDeviceId}`,
-        this.name,
-      )
-    } catch (e: unknown) {
-      this.appLogger.error(`Couldn't detect best device, selecting first. Error: ${e}`, this.name)
-      bestDeviceId = availableDevices[0].name
-    }
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+    // Device detection temporarily disabled - PythonService removed
+    // TODO: Re-implement device detection using uv-managed Python environment if needed
+    this.devices = [{ id: '*', name: 'Auto select device', selected: true }]
+    this.appLogger.info(`Device detection disabled - using default device`, this.name)
     this.updateStatus()
   }
 
@@ -234,7 +216,6 @@ export class OllamaBackendService implements ApiService {
       const errorDetails = await createEnhancedErrorDetails(
         e,
         `${currentStep} operation`,
-        this.aiBackend,
       )
 
       yield {
@@ -376,7 +357,6 @@ export class OllamaBackendService implements ApiService {
         const errorDetails = await createEnhancedErrorDetails(
           startupError,
           'service startup',
-          this.aiBackend,
         )
         this.setLastStartupError(errorDetails)
       }
@@ -391,7 +371,6 @@ export class OllamaBackendService implements ApiService {
       const errorDetails = await createEnhancedErrorDetails(
         error,
         'service startup',
-        this.aiBackend,
       )
       this.setLastStartupError(errorDetails)
     } finally {

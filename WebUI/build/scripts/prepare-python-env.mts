@@ -166,14 +166,6 @@ function installPip(getPipFile: string): void {
       cwd: PYTHON_ENV_DIR,
     })
     console.log('✅ Pip installed successfully')
-
-    // Install uv package manager
-    console.log('📦 Installing uv package manager...')
-    execSync(`"${pythonExe}" -m pip install uv`, {
-      stdio: 'inherit',
-      cwd: PYTHON_ENV_DIR,
-    })
-    console.log('✅ UV package manager installed successfully')
   } catch (error) {
     console.error(`❌ Failed to install pip: ${error}`)
     process.exit(1)

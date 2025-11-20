@@ -23,7 +23,7 @@ const props = withDefaults(
   {
     model: () => ({
       name: 'model not found',
-      type: 'ipexLLM',
+      type: 'llamaCPP',
       downloaded: false,
       default: false,
       active: false,

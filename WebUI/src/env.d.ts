@@ -449,10 +449,9 @@ type Model = {
     | 'undefined'
     | 'embedding'
     | 'openVINO'
-    | 'ipexLLM'
     | 'llamaCPP'
     | 'ollama'
   default: boolean
   downloaded?: boolean | undefined
-  backend?: 'openVINO' | 'ipexLLM' | 'llamaCPP' | 'ollama' | undefined
+  backend?: 'openVINO' | 'llamaCPP' | 'ollama' | undefined
 }

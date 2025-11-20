@@ -1,6 +1,6 @@
 import z from 'zod'
 
-export const llmBackendTypes = ['openVINO', 'ipexLLM', 'llamaCPP', 'ollama'] as const
+export const llmBackendTypes = ['openVINO', 'llamaCPP', 'ollama'] as const
 
 export const ModelSchema = z.object({
   name: z.string(),

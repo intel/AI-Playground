@@ -41,7 +41,7 @@
           v-if="selectedPreset.variants && selectedPreset.variants.length > 0"
           v-model="selectedVariantValue"
           :options="variantSelectorOptions"
-          :columns="variantSelectorOptions.length <= 3 ? variantSelectorOptions.length : 3"
+          :columns="(variantSelectorOptions.length <= 3 ? variantSelectorOptions.length : 3) as 1 | 2 | 3"
         />
       </div>
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">

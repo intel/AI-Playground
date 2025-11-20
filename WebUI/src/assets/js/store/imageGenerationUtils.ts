@@ -1,6 +1,5 @@
 import * as toast from '@/assets/js/toast.ts'
 import { useModels } from './models'
-import type { CheckModelAlreadyLoadedParameters, DownloadModelParam } from '../env'
 
 export function findBestResolution(totalPixels: number, aspectRatio: number) {
   const MIN_SIZE = 256

@@ -157,7 +157,7 @@
         :key="'else' + conversationKey"
         :inVisibleKey="conversationKey"
         @click="select(conversationKey)"
-        :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
+        :title="(conversation?.[0]?.parts.find((part) => part.type === 'text')?.text?.substring(0, 50)) ?? languages.ANSWER_NEW_CONVERSATION"
         class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
         :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
       >

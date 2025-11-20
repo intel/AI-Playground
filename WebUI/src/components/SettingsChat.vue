@@ -208,7 +208,6 @@ function isRunning(name: LlmBackend) {
 }
 
 function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
-  if (name === 'ipexLLM') return 'ai-backend'
   if (name === 'llamaCPP') return 'llamacpp-backend'
   if (name === 'openVINO') return 'openvino-backend'
   if (name === 'ollama') return 'ollama-backend' as BackendServiceName
@@ -219,7 +218,6 @@ function backendTypesToBackends() {
   const result: Partial<Record<LlmBackend, BackendInfo>> = {}
 
   llmBackendTypes
-    .filter((b) => b !== 'ipexLLM')
     .forEach((llmBackend) => {
       result[llmBackend] = {
         displayName: textInferenceBackendDisplayName[llmBackend],

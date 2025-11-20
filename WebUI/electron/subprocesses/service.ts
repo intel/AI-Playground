@@ -28,47 +28,19 @@ export interface ErrorDetails {
 }
 
 // Helper function to capture pip freeze output using service-specific Python environment
-export async function capturePipFreezeOutput(
-  service?: PythonService | UvPipService,
-): Promise<string | undefined> {
-  try {
-    if (!service) {
-      return 'No service provided for pip freeze'
-    }
-
-    let result: string
-
-    if (service instanceof UvPipService) {
-      // For UvPipService, use 'uv pip freeze'
-      result = await service.run(['freeze'])
-    } else if (service instanceof PythonService) {
-      // For PythonService, use 'python -m pip freeze'
-      result = await service.run(['-m', 'pip', 'freeze'])
-    } else {
-      return 'Unsupported service type for pip freeze'
-    }
-
-    return result.trim()
-  } catch (error) {
-    if (error instanceof ProcessError) {
-      return `pip freeze failed (exit code ${error.result.exitCode}): ${error.result.stderr || error.result.stdout}`
-    }
-    return `Failed to execute pip freeze: ${error instanceof Error ? error.message : String(error)}`
-  }
+export async function capturePipFreezeOutput(): Promise<string | undefined> {
+  // pip freeze functionality removed - uv handles Python environments
+  return undefined
 }
 
 export async function createEnhancedErrorDetails(
   error: unknown,
   context?: string,
-  service?: PythonService | UvPipService,
 ): Promise<ErrorDetails> {
   const timestamp = new Date().toISOString()
 
   // Capture pip freeze output for installation-related errors
-  let pipFreezeOutput: string | undefined
-  if (service) {
-    pipFreezeOutput = await capturePipFreezeOutput(service)
-  }
+  const pipFreezeOutput: string | undefined = await capturePipFreezeOutput()
 
   if (error instanceof ProcessError) {
     return {
@@ -336,144 +308,6 @@ abstract class ExecutableService extends GenericServiceImpl {
   }
 }
 
-export class PythonService extends ExecutableService {
-  constructor(
-    readonly dir: string,
-    readonly serviceDir: string,
-  ) {
-    super('python', dir)
-  }
-
-  getExePath(): string {
-    return path.resolve(path.join(this.dir, 'python.exe'))
-  }
-
-  async check(): Promise<void> {
-    this.log('checking')
-    try {
-      await this.run(['--version'])
-    } catch (e) {
-      this.log(`warning: ${e}`)
-      throw new ServiceCheckError(this.name)
-    }
-  }
-
-  async install(): Promise<void> {
-    this.log(
-      `installing python env at ${this.dir} from ${this.name} for service ${this.serviceDir}`,
-    )
-    await this.clonePythonEnv()
-  }
-
-  async repair(checkError: ServiceCheckError): Promise<void> {
-    assert(checkError.component === this.name)
-    await this.install()
-  }
-
-  readonly prototypicalEnvDir = app.isPackaged
-    ? path.join(this.baseDir, 'prototype-python-env')
-    : path.join(this.baseDir, 'build/python-env')
-  private async clonePythonEnv(): Promise<void> {
-    existingFileOrError(this.prototypicalEnvDir)
-    if (filesystem.existsSync(this.dir)) {
-      this.log(`removing existing python env at ${this.dir}`)
-      filesystem.removeSync(this.dir)
-    }
-    this.log(`copying prototypical python env to ${this.dir} for service in ${this.serviceDir}`)
-    await filesystem.copy(this.prototypicalEnvDir, this.dir)
-
-    // Find the Python version by looking for python*._pth file
-    const files = filesystem.readdirSync(this.dir)
-    const pthFilePattern = /^python(\d+)\._pth$/
-    let pythonVersion = null
-    let pthFileName = null
-
-    for (const file of files) {
-      const match = file.match(pthFilePattern)
-      if (match) {
-        pythonVersion = match[1]
-        pthFileName = file
-        break
-      }
-    }
-
-    if (!pythonVersion || !pthFileName) {
-      this.log(`Could not find python*._pth file in the directory: ${this.dir}`)
-      throw new Error(`Could not find python*._pth file in the directory: ${this.dir}`)
-    }
-
-    this.log(`Found Python version: ${pythonVersion} (${pthFileName})`)
-
-    filesystem.writeFile(
-      path.join(this.dir, pthFileName),
-      `
-    python${pythonVersion}.zip
-    .
-    ../${this.serviceDir}
-    ../hijacks
-    ../backend-shared
-
-    # Uncomment to run site.main() automatically
-    import site
-    `,
-    )
-    this.log(`Patched Python paths in ${pthFileName}`)
-  }
-}
-
-export class UvPipService {
-  readonly python: PythonService
-  readonly name = 'uvpip'
-
-  log(msg: string) {
-    appLoggerInstance.info(msg, this.name)
-  }
-
-  logError(msg: string) {
-    appLoggerInstance.error(msg, this.name, true)
-  }
-
-  constructor(
-    readonly dir: string,
-    readonly serviceDir: string,
-  ) {
-    this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
-    this.python = new PythonService(this.dir, this.serviceDir)
-  }
-
-  getExePath(): string {
-    return this.python.getExePath()
-  }
-
-  async installRequirementsTxt(requirementsTxtPath: string): Promise<void> {
-    await this.run(['install', '-r', requirementsTxtPath])
-  }
-
-  async checkRequirementsTxt(requirementsTxtPath: string): Promise<void> {
-    await this.python
-      .run([
-        '-c',
-        `import pkg_resources; pkg_resources.require([s for s in open(r'${requirementsTxtPath}') if s and s[0].isalpha()])`,
-      ])
-      .catch((e: unknown) => {
-        throw new Error(`requirements check failed: ${e}`)
-      })
-  }
-
-  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    return this.python.run(
-      ['-m', 'uv', 'pip', ...args],
-      { ...extraEnv, PYTHONNOUSERSITE: 'true', UV_LINK_MODE: 'copy' },
-      workDir,
-    )
-  }
-
-  async check(): Promise<void> {}
-
-  async install(): Promise<void> {}
-
-  async repair(_checkError: ServiceCheckError): Promise<void> {}
-}
 
 export class GitService extends ExecutableService {
   constructor() {
@@ -838,11 +672,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     const duration = Date.now() - this.startupStartTime
 
     // Get pip freeze output for additional context
-    const service = null
-    let pipFreezeOutput: string | undefined
-    if (service) {
-      pipFreezeOutput = await capturePipFreezeOutput(service)
-    }
+    const pipFreezeOutput: string | undefined = await capturePipFreezeOutput()
 
     // Combine buffered stdout and stderr
     const stdout = this.startupLogBuffer.stdout.join('').trim()

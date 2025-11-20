@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { watch } from 'vue'
-import { useImageGenerationPresets } from '../store/imageGenerationPresets'
+import { useImageGenerationPresets, type ImageMediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
 import { usePresets } from '../store/presets'
@@ -137,6 +137,7 @@ export async function executeComfyGeneration(args: {
         mode: 'imageGen',
         state: 'queued',
         settings: {},
+        type: 'image',
         imageUrl: '',
       })
     })
@@ -152,7 +153,12 @@ export async function executeComfyGeneration(args: {
 
       const checkCompletion = () => {
         const completedImages = imageGeneration.generatedImages.filter(
-          (img) => imageIds.includes(img.id) && img.state === 'done' && img.imageUrl
+          (img): img is ImageMediaItem => 
+            imageIds.includes(img.id) && 
+            img.state === 'done' && 
+            img.type === 'image' &&
+            'imageUrl' in img &&
+            !!img.imageUrl
         )
         
         if (completedImages.length >= batchSize) {

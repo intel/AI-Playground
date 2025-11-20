@@ -116,13 +116,12 @@ const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   let url: string
   if (isVideo(item)) {
     url = item.videoUrl
-  } else if (item.type === 'model3d') {
+  } else if (is3D(item)) {
     url = item.model3dUrl
   } else if (item.type === 'image') {
     url = item.imageUrl
   } else {
-    // Fallback for video
-    url = item.videoUrl
+    url = ''
   }
   window.electronAPI.startDrag(url)
 }

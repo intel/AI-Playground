@@ -45,9 +45,7 @@ export class PathsManager {
     try {
       const model_settings: ModelLists = {
         llm: this.scanLLMModels(),
-        embedding: this.scanEmbedding()
-          .filter((model) => model.backend === 'ipexLLM')
-          .map((model) => model.name),
+        embedding: [],
       }
       return model_settings
     } catch (ex) {

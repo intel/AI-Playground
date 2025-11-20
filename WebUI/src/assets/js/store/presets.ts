@@ -109,7 +109,7 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
 // Chat Preset Schema
 const ChatPresetSchema = BasePresetFieldsSchema.extend({
   type: z.literal('chat'),
-  backend: z.enum(['ipexLLM', 'llamaCPP', 'openVINO', 'ollama']),
+  backend: z.enum(['llamaCPP', 'openVINO', 'ollama']),
   model: z.string().optional(), // Explicit model selection
   systemPrompt: z.string().optional(),
   contextSize: z.number().optional(),

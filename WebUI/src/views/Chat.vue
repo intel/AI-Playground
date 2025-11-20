@@ -37,8 +37,8 @@
               {{ languages.ANSWER_USER_NAME }}
             </p>
             <img
-              v-if="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/'))"
-              :src="message.parts.find((part) => part.type === 'file' && part.mediaType.startsWith('image/'))?.url"
+              v-if="message.parts.find((part) => part.type === 'file' && part.mediaType?.startsWith('image/'))"
+              :src="(message.parts.find((part) => part.type === 'file' && part.mediaType?.startsWith('image/')) as { url?: string })?.url"
               alt="Generated Image"
             />
             <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
@@ -138,10 +138,10 @@
                 <span>I'm using the tool {{ part.type.replace('tool-', '') }}</span>
                 <template v-if="part.type === 'tool-comfyUI'">
                   <div class="mt-1 pt-1">
-                    <span>Generating using the preset <b>{{ part.input.workflow }}</b></span>
+                    <span>Generating using the preset <b>{{ (part as any).input?.workflow ?? 'unknown' }}</b></span>
                     <br />
                     <br />
-                    <span><em>{{ part.input.prompt }}</em></span>
+                    <span><em>{{ (part as any).input?.prompt ?? '' }}</em></span>
                     <ChatWorkflowResult
                       :images="getToolImages(part)"
                       :processing="getToolProcessing(part)"

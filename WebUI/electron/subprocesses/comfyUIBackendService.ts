@@ -15,8 +15,7 @@ import {
 import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
-import { Arch } from './deviceArch.ts'
-import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
 export class ComfyUiBackendService extends LongLivedPythonApiService {
@@ -264,6 +263,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
+        debugMessage: 'dependencies configured',
       }
       this.setStatus('notYetStarted')
       currentStep = 'end'

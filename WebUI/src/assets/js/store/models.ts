@@ -38,13 +38,11 @@ export const useModels = defineStore(
 
     async function refreshModels() {
       const predefinedModels = await window.electronAPI.loadModels()
-      const llmModels = await window.electronAPI.getDownloadedLLMs()
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
       const openVINOLLMModels = await window.electronAPI.getDownloadedOpenVINOLLMModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
 
       const downloadedModels = [
-        ...llmModels.map<{ name: string; type: ModelType }>((name) => ({ name, type: 'ipexLLM' })),
         ...ggufModels.map<{ name: string; type: ModelType }>((name) => ({
           name,
           type: 'llamaCPP',

@@ -12,10 +12,7 @@
         `${((ollama.ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollama.ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
       }}
     </div>
-    <div v-for="message in ollama.messages" :key="message.id">
-      {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
-      {{ message.parts }}
-    </div>
+    <!-- Messages display removed - ollama store doesn't have messages property -->
   </div>
 </template>
 

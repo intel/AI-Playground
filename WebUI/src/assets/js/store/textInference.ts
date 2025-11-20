@@ -67,14 +67,12 @@ export const thinkingModels: Record<string, string> = {
 
 // A friendly display name for each backend
 export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
-  ipexLLM: 'IPEX-LLM',
   llamaCPP: 'llamaCPP - GGUF',
   openVINO: 'OpenVINO',
   ollama: 'Ollama',
 }
 
 export const textInferenceBackendDescription: Record<LlmBackend, string> = {
-  ipexLLM: 'potato',
   llamaCPP:
     'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
   openVINO:
@@ -83,7 +81,6 @@ export const textInferenceBackendDescription: Record<LlmBackend, string> = {
 }
 
 export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
-  ipexLLM: ['Intel', 'Legacy'],
   llamaCPP: ['Lightweight', 'Portable'],
   openVINO: ['Intel', 'Optimized', 'Fast'],
   ollama: ['Integrated', 'CLI'],
@@ -104,14 +101,12 @@ export const useTextInference = defineStore(
       You assist users by answering questions and providing information based on your training data and any additional context provided.`)
 
     const selectedModels = ref<LlmBackendKV>({
-      ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
       ollama: null,
     })
 
     const selectedEmbeddingModels = ref<LlmBackendKV>({
-      ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
       ollama: null,
@@ -120,13 +115,11 @@ export const useTextInference = defineStore(
     // Backend readiness state tracking
     const backendReadinessState = reactive({
       lastUsedModel: {
-        ipexLLM: null,
         llamaCPP: null,
         openVINO: null,
         ollama: null,
       } as LlmBackendKV,
       lastUsedContextSize: {
-        ipexLLM: null,
         llamaCPP: null,
         openVINO: null,
         ollama: null,
@@ -136,7 +129,7 @@ export const useTextInference = defineStore(
 
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
-        ['ipexLLM', 'llamaCPP', 'openVINO', 'ollama'].includes(m.type),
+        ['llamaCPP', 'openVINO', 'ollama'].includes(m.type),
       )
       const newModels = llmTypeModels.map((m) => {
         const selectedModelForType = selectedModels.value[m.type as LlmBackend]
@@ -203,14 +196,12 @@ export const useTextInference = defineStore(
 
     const backendToAipgBackendName = {
       openVINO: 'openvino',
-      ipexLLM: 'default',
       llamaCPP: 'llama_cpp',
       ollama: 'ollama',
     } as const
 
     const backendToAipgModelType = {
       openVINO: 'openvinoLLM',
-      ipexLLM: 'llm',
       llamaCPP: 'ggufLLM',
       ollama: 'llm', // Using LLM type for Ollama
     } as const

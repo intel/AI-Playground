@@ -29,8 +29,8 @@
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{
             languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', value.label)] ?? value.label
           }}</span>
-          <img v-if="value.type === 'image'" :src="value.current" class="info-params-image" />
-          <span v-else class="px-4 flex-auto break-word">{{ value.current }}</span>
+          <img v-if="value.type === 'image'" :src="String(value.current ?? '')" class="info-params-image" />
+          <span v-else class="px-4 flex-auto break-word">{{ String(value.current ?? '') }}</span>
         </li>
       </ul>
     </div>

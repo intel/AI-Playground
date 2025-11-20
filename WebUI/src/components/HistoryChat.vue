@@ -154,12 +154,29 @@ const emits = defineEmits<{
 }>()
 
 const images = (conversation: AipgUiMessage[]) => {
-  return conversation.flatMap((msg) =>
+  return conversation.flatMap((msg, msgIndex) =>
     msg.parts
       .filter((part) => part.type === 'tool-comfyUI' && part.state === 'output-available')
-      .map((part) => part.output?.images)
+      .map((part, partIndex) => {
+        if (part.type === 'tool-comfyUI' && 'output' in part && part.output && typeof part.output === 'object' && 'images' in part.output) {
+          const images = (part.output as { images?: Array<{ imageUrl?: string }> }).images ?? []
+          return images.map((img, imgIndex) => ({
+            id: `${msgIndex}-${partIndex}-${imgIndex}`,
+            imageUrl: img.imageUrl ?? '',
+          }))
+        }
+        return []
+      })
       .flat()
-      .filter((img) => img.imageUrl && img.imageUrl.trim() !== ''),
+      .filter((img): img is { id: string; imageUrl: string } => 
+        img !== null && 
+        img !== undefined && 
+        'imageUrl' in img && 
+        typeof img.imageUrl === 'string' && 
+        img.imageUrl.trim() !== '' &&
+        'id' in img &&
+        typeof img.id === 'string'
+      ),
   )
 }
 
