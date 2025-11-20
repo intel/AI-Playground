@@ -2,12 +2,10 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import fs from 'fs'
 import * as filesystem from 'fs-extra'
-import { existingFileOrError } from './osProcessHelper.ts'
+import { spawnProcessAsync } from './osProcessHelper.ts'
 import {
   LongLivedPythonApiService,
-  aiBackendServiceDir,
   GitService,
-  hijacksDir,
   installHijacks,
   patchFile,
   createEnhancedErrorDetails,
@@ -18,10 +16,11 @@ import { getMediaDir } from '../util.ts'
 import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
+type Device = Omit<InferenceDevice, 'selected'>
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     super(name, port, win, settings)
-    
+
     this.serviceIsSetUp().then((setUp) => {
       this.isSetUp = setUp
       if (this.isSetUp) {
@@ -42,10 +41,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
   private revision = 'v0.3.66'
 
-  private readonly comfyUIStartupParameters = process.platform !== 'win32' ? 
+  private readonly comfyUIStartupParameters = process.platform !== 'win32' ?
     [] : this.settings.comfyUiParameters
-    ? this.settings.comfyUiParameters
-    : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
+      ? this.settings.comfyUiParameters
+      : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
   async serviceIsSetUp(): Promise<boolean> {
     this.appLogger.info(`Checking if comfyUI directories exist`, this.name)
@@ -53,7 +52,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       filesystem.existsSync(this.serviceDir)
     this.appLogger.info(`Checking if comfyUI directories exist: ${dirsExist}`, this.name)
     if (!dirsExist) return false
-    
+
     setTimeout(async () => {
       const version = await this.getCurrentVersion()
       if (version) {
@@ -92,14 +91,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
       return undefined
     }
-  }
-
-  async detectDevices() {
-    // For now, use auto-select device similar to aiBackendService
-    const availableDevices = [{ id: '*', name: 'Auto select device', selected: true }]
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    this.devices = availableDevices
-    this.updateStatus()
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -292,11 +283,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
   }
 
-  async spawnAPIProcess(): Promise<{
-    process: ChildProcess
-    didProcessExitEarlyTracker: Promise<boolean>
-  }> {
-    const additionalEnvVariables = {
+  getEnvVars() {
+    return {
       PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
@@ -306,6 +294,87 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       PIP_CONFIG_FILE: 'nul',
     }
+  }
+
+  getPythonBinaryPath() {
+    return path.join(
+      this.pythonEnvDir,
+      process.platform === 'win32' ? 'Scripts' : 'bin',
+      process.platform === 'win32' ? 'python.exe' : 'python'
+    )
+  }
+
+  async detectDevices() {
+    // For now, use auto-select device similar to aiBackendService
+    const availableDevices = [{ id: '*', name: 'Auto select device', selected: true }]
+    let allDevices: Device[] = []
+    try {
+      const pythonScript = `
+import torch
+import sys
+
+try:
+    # Try to get the number of XPU devices
+    device_count = torch.xpu.device_count()
+    
+    # For each device, get its name and print it
+    for i in range(device_count):
+        try:
+            device_name = torch.xpu.get_device_name(i)
+            print(f"{i}|{device_name}")
+        except Exception as e:
+            print(f"{i}|Unknown Device")
+except Exception as e:
+    print(f"Error detecting XPU devices: {str(e)}")
+    sys.exit(1)
+`
+      let i = 0
+      let lastDeviceList: Device[] = []
+      const pythonBinary = this.getPythonBinaryPath()
+      while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
+        const env = { ...this.getEnvVars(), ONEAPI_DEVICE_SELECTOR: `level_zero:${i}` }
+        this.appLogger.info(`Detecting level_zero devices with ONEAPI_DEVICE_SELECTOR=${env.ONEAPI_DEVICE_SELECTOR}`, this.name)
+        const result = await spawnProcessAsync(pythonBinary, ['-c', pythonScript], (d) => this.appLogger.info(d, this.name), env)
+        this.appLogger.info(`Device detection result: ${result}`, this.name)
+
+        // Parse the output
+        const devices: Device[] = []
+        const lines = result
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((line) => line !== '')
+
+        for (const line of lines) {
+          if (line.startsWith('Error detecting XPU devices:')) {
+            console.error(line)
+            continue
+          }
+
+          const parts = line.split('|', 2)
+          if (parts.length == 2) {
+            const id = `${i}`
+            const name = parts[1]
+
+            devices.push({ id, name })
+          }
+        }
+        i = i + 1
+        lastDeviceList = devices
+        allDevices = allDevices.concat(lastDeviceList)
+      }
+    } catch (error) {
+      console.error('Error detecting level_zero devices:', error)
+    }
+    this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
+    this.devices = allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
+    this.updateStatus()
+  }
+
+  async spawnAPIProcess(): Promise<{
+    process: ChildProcess
+    didProcessExitEarlyTracker: Promise<boolean>
+  }> {
+    const additionalEnvVariables = this.getEnvVars()
     const mediaDir = getMediaDir()
     const parameters = [
       'main.py',
@@ -322,11 +391,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.name,
       true,
     )
-    const pythonBinary = path.join(
-      this.pythonEnvDir,
-      process.platform === 'win32' ? 'Scripts' : 'bin',
-      process.platform === 'win32' ? 'python.exe' : 'python'
-    )
+    const pythonBinary = this.getPythonBinaryPath()
     const apiProcess = spawn(pythonBinary, parameters, {
       cwd: this.serviceDir,
       windowsHide: true,
@@ -352,7 +417,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
   }
 }
-function checkProject(serviceDir: string) {
+
+function checkProject(_serviceDir: string) {
   throw new Error('Function not implemented.')
 }
 

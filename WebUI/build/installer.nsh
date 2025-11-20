@@ -26,7 +26,7 @@
 
     recoverModels:
         DetailPrint "Recovering model files..."
-        nsExec::ExecToLog '"$INSTDIR\resources\prototype-python-env\python.exe" "$INSTDIR\resources\service\tools\move_model_files.py" "$2" "$INSTDIR\resources\service\models"'
+        nsExec::ExecToLog '"$INSTDIR\resources\uv.exe" "run" "--script" "$INSTDIR\resources\service\tools\move_model_files.py" "$2" "$INSTDIR\resources\service\models"'
         Pop $0
         ${if} $0 == 0
           RMDir /r "$2"

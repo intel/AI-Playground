@@ -2,14 +2,10 @@ import * as filesystem from 'fs-extra'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import {
-  DeviceService,
   GitService,
-  installHijacks,
   LongLivedPythonApiService,
   createEnhancedErrorDetails,
 } from './service.ts'
-import { getBestDevice } from './deviceArch.ts'
-import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { aipgBaseDir, checkBackend, installBackend, installWheel } from './uvBasedBackends/uv.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
@@ -41,7 +37,6 @@ export class AiBackendService extends LongLivedPythonApiService {
     this.appLogger.info(`Service ${this.name} isSetUp: ${result}`, this.name)
     return result
   }
-  readonly deviceService = new DeviceService()
 
   async detectDevices() {
   }
