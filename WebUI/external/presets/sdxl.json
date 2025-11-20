@@ -36,30 +36,6 @@
             "modifiable": true,
             "defaultValue": 4,
             "settingName": "inferenceSteps"
-          },
-          {
-            "type": "number",
-            "label": "Guidance Scale",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": 1.5,
-            "settingName": "guidanceScale"
-          },
-          {
-            "type": "string",
-            "label": "LoRA",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": "latent-consistency/lcm-lora-sdxl",
-            "settingName": "lora"
-          },
-          {
-            "type": "string",
-            "label": "Scheduler",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": "Simple",
-            "settingName": "scheduler"
           }
         ],
         "comfyUiApiWorkflow": {
@@ -178,46 +154,6 @@
       "modifiable": true,
       "defaultValue": "nsfw",
       "settingName": "negativePrompt"
-    },
-    {
-      "type": "string",
-      "label": "Image Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "RunDiffusion/Juggernaut-XL-v9",
-      "settingName": "imageModel"
-    },
-    {
-      "type": "string",
-      "label": "Inpaint Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "RunDiffusion/Juggernaut-XL-v9",
-      "settingName": "inpaintModel"
-    },
-    {
-      "type": "number",
-      "label": "Guidance Scale",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 7,
-      "settingName": "guidanceScale"
-    },
-    {
-      "type": "string",
-      "label": "LoRA",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "None",
-      "settingName": "lora"
-    },
-    {
-      "type": "string",
-      "label": "Scheduler",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "DPM++ SDE",
-      "settingName": "scheduler"
     },
     {
       "type": "boolean",

@@ -562,7 +562,7 @@ export class LlamaCppBackendService implements ApiService {
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(`http://127.0.0.1:${port}/health`)
+      await this.waitForServerReady(`http://127.0.0.1:${port}/health`, childProcess)
       llamaProcess.isReady = true
 
       this.llamaLlmProcess = llamaProcess
@@ -648,7 +648,7 @@ export class LlamaCppBackendService implements ApiService {
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(`http://127.0.0.1:${port}/health`)
+      await this.waitForServerReady(`http://127.0.0.1:${port}/health`, childProcess)
       llamaProcess.isReady = true
 
       this.llamaEmbeddingProcess = llamaProcess
@@ -771,11 +771,20 @@ export class LlamaCppBackendService implements ApiService {
     return path.join(modelDir, ggufFile)
   }
 
-  private async waitForServerReady(healthUrl: string): Promise<void> {
+  private async waitForServerReady(healthUrl: string, process: ChildProcess): Promise<void> {
     const maxAttempts = 120
     const delayMs = 1000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Check if process has exited before attempting health check
+      if (!process || process.killed) {
+        this.appLogger.warn(
+          `Process for ${this.name} is not alive, aborting health check`,
+          this.name,
+        )
+        throw new Error(`Process exited before server became ready`)
+      }
+
       try {
         const response = await fetch(healthUrl, {
           method: 'GET',
@@ -783,11 +792,27 @@ export class LlamaCppBackendService implements ApiService {
         })
 
         if (response.ok) {
+          // Double-check process is still alive before accepting success
+          if (!process || process.killed) {
+            this.appLogger.warn(
+              `Process for ${this.name} exited after health check succeeded, marking as failed`,
+              this.name,
+            )
+            throw new Error(`Process exited after health check succeeded`)
+          }
           this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
           return
         }
       } catch (_error) {
         // Server not ready yet, continue waiting
+        // But check if process is still alive
+        if (!process || process.killed) {
+          this.appLogger.warn(
+            `Process for ${this.name} exited during health check wait`,
+            this.name,
+          )
+          throw new Error(`Process exited during server startup`)
+        }
       }
 
       await new Promise((resolve) => setTimeout(resolve, delayMs))

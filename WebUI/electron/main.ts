@@ -451,19 +451,15 @@ function initEventHandle() {
     const paths = app.isPackaged
       ? {
           llm: './resources/service/models/llm/checkpoints',
+          ggufLLM: './resources/service/models/llm/checkpoints/ggufLLM',
+          openvinoLLM: './resources/service/models/llm/checkpoints/openvinoLLM',
           embedding: './resources/service/models/llm/embedding/ipexLLM',
-          stableDiffusion: './resources/service/models/stable_diffusion/checkpoints',
-          inpaint: './resources/service/models/stable_diffusion/inpaint',
-          lora: './resources/service/models/stable_diffusion/lora',
-          vae: './resources/service/models/stable_diffusion/vae',
         }
       : {
           llm: '../service/models/llm/checkpoints',
+          ggufLLM: '../service/models/llm/checkpoints/ggufLLM',
+          openvinoLLM: '../service/models/llm/checkpoints/openvinoLLM',
           embedding: '../service/models/llm/embedding/ipexLLM',
-          stableDiffusion: '../service/models/stable_diffusion/checkpoints',
-          inpaint: '../service/models/stable_diffusion/inpaint',
-          lora: '../service/models/stable_diffusion/lora',
-          vae: '../service/models/stable_diffusion/vae',
         }
     pathsManager.updateModelPaths(paths)
   })
@@ -586,18 +582,6 @@ function initEventHandle() {
   ipcMain.handle('updateModelPaths', (_event, modelPaths: ModelPaths) => {
     pathsManager.updateModelPaths(modelPaths)
     return pathsManager.scanAll()
-  })
-
-  ipcMain.handle('refreshSDModles', (_event) => {
-    return pathsManager.scanSDModelLists()
-  })
-
-  ipcMain.handle('refreshInpaintModles', (_event) => {
-    return pathsManager.scanInpaint()
-  })
-
-  ipcMain.handle('refreshLora', (_event) => {
-    return pathsManager.scanLora()
   })
 
   ipcMain.handle('refreshLLMModles', (_event) => {

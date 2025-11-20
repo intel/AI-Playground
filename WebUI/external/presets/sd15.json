@@ -37,30 +37,6 @@
             "modifiable": true,
             "defaultValue": 4,
             "settingName": "inferenceSteps"
-          },
-          {
-            "type": "number",
-            "label": "Guidance Scale",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": 1.5,
-            "settingName": "guidanceScale"
-          },
-          {
-            "type": "string",
-            "label": "LoRA",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": "latent-consistency/lcm-lora-sdv1-5",
-            "settingName": "lora"
-          },
-          {
-            "type": "string",
-            "label": "Scheduler",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": "Simple",
-            "settingName": "scheduler"
           }
         ],
         "comfyUiApiWorkflow": {
@@ -179,46 +155,6 @@
       "modifiable": true,
       "defaultValue": "nsfw",
       "settingName": "negativePrompt"
-    },
-    {
-      "type": "string",
-      "label": "Image Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "Lykon/dreamshaper-8",
-      "settingName": "imageModel"
-    },
-    {
-      "type": "string",
-      "label": "Inpaint Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "Lykon/dreamshaper-8-inpainting",
-      "settingName": "inpaintModel"
-    },
-    {
-      "type": "number",
-      "label": "Guidance Scale",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 7,
-      "settingName": "guidanceScale"
-    },
-    {
-      "type": "string",
-      "label": "LoRA",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "None",
-      "settingName": "lora"
-    },
-    {
-      "type": "string",
-      "label": "Scheduler",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "DPM++ SDE Karras",
-      "settingName": "scheduler"
     },
     {
       "type": "boolean",

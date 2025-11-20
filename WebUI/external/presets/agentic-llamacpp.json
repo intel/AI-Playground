@@ -1,0 +1,14 @@
+{
+  "type": "chat",
+  "name": "Agentic (llama-cpp) [Preview]",
+  "description": "Agentic AI with tool calling capabilities using llama-cpp. Can execute workflows and generate images through function calls.",
+  "displayPriority": 85,
+  "tags": ["Agentic", "Tools", "Function Calling", "llama-cpp", "Preview"],
+  "backend": "llamaCPP",
+  "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf",
+  "systemPrompt": "You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help users accomplish their goals.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "requiredModels": []
+}
+

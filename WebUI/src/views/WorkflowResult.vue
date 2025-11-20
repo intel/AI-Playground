@@ -18,9 +18,9 @@
         >
           <!-- eslint-enable -->
           <img
-            v-if="currentImage && !isVideo(currentImage) && !is3D(currentImage)"
+            v-if="currentImage && currentImage.type === 'image'"
             class="w-full h-full object-contain p-2"
-            :src="currentImage?.imageUrl"
+            :src="currentImage.imageUrl"
           />
           <video
             v-else-if="currentImage && isVideo(currentImage)"
@@ -225,7 +225,9 @@ async function postImageToMode(image: MediaItem, mode: WorkflowModeType) {
 
   const mewImage: MediaItem = {...image}
   mewImage.mode = mode
-  mewImage.sourceImageUrl = mewImage.imageUrl
+  if (image.type === 'image') {
+    mewImage.sourceImageUrl = image.imageUrl
+  }
 
   imageGeneration.generatedImages.push(mewImage)
 }
@@ -268,8 +270,13 @@ function loadingStateToText(state: string) {
 }
 
 function getMediaUrl(image: MediaItem) {
-  if (isVideo(image)) return image.videoUrl
-  if (is3D(image)) return image.model3dUrl
-  return image.imageUrl
+  switch (image.type) {
+    case 'video':
+      return image.videoUrl
+    case 'model3d':
+      return image.model3dUrl
+    case 'image':
+      return image.imageUrl
+  }
 }
 </script>

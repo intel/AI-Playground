@@ -17,8 +17,6 @@ const settingToComfyInputsName = {
   width: ['width'],
   prompt: ['text'],
   negativePrompt: ['text'],
-  guidanceScale: ['cfg'],
-  scheduler: ['scheduler'],
   batchSize: ['batch_size'],
 } satisfies Partial<Record<string, string[]>>
 
@@ -341,6 +339,7 @@ export const useComfyUiPresets = defineStore(
                   const newImage: MediaItem = {
                     ...queuedImages[generateIdx],
                     state: 'generating',
+                    type: 'image',
                     imageUrl,
                   }
                   imageGeneration.updateImage(newImage)
@@ -387,15 +386,18 @@ export const useComfyUiPresets = defineStore(
                   if (image) {
                     let newItem: MediaItem
                     if (output?.animated?.[imageIndex]) {
+                      const videoUrl = `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`
                       newItem = {
                         ...queuedImages[generateIdx],
                         state: 'done',
-                        videoUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
+                        type: 'video',
+                        videoUrl,
                       }
                     } else {
                       newItem = {
                         ...queuedImages[generateIdx],
                         state: 'done',
+                        type: 'image',
                         imageUrl: `${comfyBaseUrl.value}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder ?? ''}`,
                       }
                     }
@@ -410,11 +412,14 @@ export const useComfyUiPresets = defineStore(
                 if ('gifs' in output) {
                   const video = output.gifs.find((i) => i.type === 'output')
                   if (video) {
+                    const videoUrl = `${comfyBaseUrl.value}/view?filename=${video.filename}&type=${video.type}&subfolder=${video.subfolder ?? ''}`
+                    const thumbnailUrl = `${comfyBaseUrl.value}/view?filename=${video.workflow}&type=${video.type}&subfolder=${video.subfolder ?? ''}`
                     const newImage: MediaItem = {
                       ...queuedImages[generateIdx],
                       state: 'done',
-                      imageUrl: `${comfyBaseUrl.value}/view?filename=${video.workflow}&type=${video.type}&subfolder=${video.subfolder ?? ''}`,
-                      videoUrl: `${comfyBaseUrl.value}/view?filename=${video.filename}&type=${video.type}&subfolder=${video.subfolder ?? ''}`,
+                      type: 'video',
+                      videoUrl,
+                      thumbnailUrl,
                     }
                     imageGeneration.updateImage(newImage)
                     generateIdx++
@@ -427,11 +432,12 @@ export const useComfyUiPresets = defineStore(
                 if ('3d' in output) {
                   const model3d = output['3d'].find((i) => i.type === 'output')
                   if (model3d) {
+                    const model3dUrl = `${comfyBaseUrl.value}/view?filename=${model3d.filename}&type=${model3d.type}&subfolder=${model3d.subfolder ?? ''}`
                     const newImage: MediaItem = {
                       ...queuedImages[generateIdx],
                       state: 'done',
-                      imageUrl: `${comfyBaseUrl.value}/view?filename=${model3d.filename}&type=${model3d.type}&subfolder=${model3d.subfolder ?? ''}`,
-                      model3dUrl: `${comfyBaseUrl.value}/view?filename=${model3d.filename}&type=${model3d.type}&subfolder=${model3d.subfolder ?? ''}`,
+                      type: 'model3d',
+                      model3dUrl,
                     }
                     imageGeneration.updateImage(newImage)
                     generateIdx++
@@ -490,6 +496,32 @@ export const useComfyUiPresets = defineStore(
       }
 
       return new Blob([intArray], { type: mimeType })
+    }
+
+    function validateRequiredImageInputs(): string[] {
+      const missingInputs: string[] = []
+      
+      for (const input of imageGeneration.comfyInputs) {
+        // Check if this is a required image input
+        const isImageType = input.type === 'image' || input.type === 'inpaintMask'
+        const isDisplayed = input.displayed !== false // defaults to true
+        const isModifiable = input.modifiable !== false // defaults to true
+        const hasNoDefault = input.defaultValue === '' || input.defaultValue === undefined
+        
+        if (isImageType && isDisplayed && isModifiable && hasNoDefault) {
+          // Check if current value is empty or invalid
+          const value = input.current.value
+          const isEmpty = value === '' || value === undefined || value === null
+          const isString = typeof value === 'string'
+          const isValidDataUri = isString && value.match(/^data:image\/(png|jpeg|webp);base64,/)
+          
+          if (isEmpty || !isString || !isValidDataUri) {
+            missingInputs.push(input.label)
+          }
+        }
+      }
+      
+      return missingInputs
     }
 
     async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
@@ -589,6 +621,14 @@ export const useComfyUiPresets = defineStore(
         return
       }
 
+      // Validate required image inputs before execution
+      const missingInputs = validateRequiredImageInputs()
+      if (missingInputs.length > 0) {
+        const inputLabels = missingInputs.join(', ')
+        toast.error(`Missing required image inputs: ${inputLabels}`)
+        return
+      }
+
       try {
         imageGeneration.processing = true
         imageGeneration.currentState = 'install_workflow_components'
@@ -623,9 +663,10 @@ export const useComfyUiPresets = defineStore(
             id: imageIds[i],
             mode: mode,
             sourceImageUrl: sourceImage,
+            type: 'image' as const,
             imageUrl:
               'data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%3F%3E%3Csvg%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20color%3D%22%23000000%22%3E%3Cpath%20d%3D%22M12%2012C15.866%2012%2019%208.86599%2019%205H5C5%208.86599%208.13401%2012%2012%2012ZM12%2012C15.866%2012%2019%2015.134%2019%2019H5C5%2015.134%208.13401%2012%2012%2012Z%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%202L12%202L19%202%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5%2022H12L19%2022%22%20stroke%3D%22%23000000%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
-            state: 'queued',
+            state: 'queued' as const,
             settings,
             dynamicSettings: imageGeneration.comfyInputs.map((input) => ({
               ...input,

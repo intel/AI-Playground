@@ -1,6 +1,7 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { z } from 'zod'
 import { ref, computed } from 'vue'
+import { useBackendServices } from './backendServices'
 
 // DeepPartial utility type
 type DeepPartial<T> = {
@@ -21,11 +22,6 @@ const StandardSettingNameSchema = z.enum([
   'resolution',
   'batchSize',
   'negativePrompt',
-  'imageModel',
-  'inpaintModel',
-  'guidanceScale',
-  'lora',
-  'scheduler',
   'imagePreview',
   'safetyCheck',
 ])
@@ -92,6 +88,7 @@ const BasePresetFieldsSchema = z.object({
     .array(
       z.object({
         name: z.string(),
+        removeSettings: z.array(z.string()).optional(), // Labels of settings to remove
         overrides: z.any(), // DeepPartial<Preset> - using z.any() for flexibility
       }),
     )
@@ -199,6 +196,14 @@ export const usePresets = defineStore(
 
       // Deep merge variant overrides into base preset
       const merged = deepMerge(basePreset, variant.overrides as DeepPartial<Preset>)
+      
+      // Remove settings specified in removeSettings array
+      if (variant.removeSettings && variant.removeSettings.length > 0 && merged.settings) {
+        merged.settings = merged.settings.filter(
+          (setting) => !variant.removeSettings!.includes(setting.label)
+        )
+      }
+      
       return validatePreset(merged) || basePreset
     }
 
@@ -513,7 +518,20 @@ export const usePresets = defineStore(
     })
 
     const chatPresets = computed(() => {
-      return presets.value.filter((p) => p.type === 'chat') as ChatPreset[]
+      // Get backend services to check if ollama is available
+      const backendServices = useBackendServices()
+      const ollamaServiceExists = backendServices.info.some(
+        (s) => s.serviceName === 'ollama-backend',
+      )
+
+      return presets.value.filter((p) => {
+        if (p.type !== 'chat') return false
+        // Filter out ollama presets if experimental features are disabled
+        if ((p as ChatPreset).backend === 'ollama' && !ollamaServiceExists) {
+          return false
+        }
+        return true
+      }) as ChatPreset[]
     })
 
     // ========================================================================

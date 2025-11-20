@@ -9,10 +9,6 @@ export class PathsManager {
     ggufLLM: '',
     openvinoLLM: '',
     embedding: '',
-    stableDiffusion: '',
-    inpaint: '',
-    lora: '',
-    vae: '',
   }
   configPath: string
 
@@ -48,12 +44,7 @@ export class PathsManager {
   scanAll(): ModelLists {
     try {
       const model_settings: ModelLists = {
-        stableDiffusion: this.scanSDModelLists(),
-        inpaint: this.scanInpaint(),
         llm: this.scanLLMModels(),
-        lora: this.scanLora(),
-        vae: [],
-        scheduler: [],
         embedding: this.scanEmbedding()
           .filter((model) => model.backend === 'ipexLLM')
           .map((model) => model.name),
@@ -63,36 +54,6 @@ export class PathsManager {
       fs.appendFileSync(path.join(path.dirname(this.configPath), 'debug.log'), `${ex}\r\n`)
       throw ex
     }
-  }
-  scanSDModelLists(returnDefaults = true) {
-    const models = returnDefaults ? ['Lykon/dreamshaper-8', 'RunDiffusion/Juggernaut-XL-v9'] : []
-    const dir = this.modelPaths.stableDiffusion
-    if (fs.existsSync(dir)) {
-      const modelsSet = new Set(models)
-      fs.readdirSync(dir).forEach((enumPath) => {
-        const realPath = path.join(dir, enumPath)
-        const pathStat = fs.statSync(realPath)
-        if (pathStat.isFile() && (enumPath.endsWith('.bin') || enumPath.endsWith('.safetensors'))) {
-          const modelName = enumPath
-          if (!modelsSet.has(modelName)) {
-            modelsSet.add(modelName)
-            models.push(modelName)
-          }
-        } else if (
-          pathStat.isDirectory() &&
-          fs.existsSync(path.join(realPath, 'model_index.json'))
-        ) {
-          const modelName = enumPath.replace('---', '/')
-          if (!modelsSet.has(modelName)) {
-            modelsSet.add(modelName)
-            models.push(modelName)
-          }
-        }
-      })
-    } else {
-      fs.mkdirSync(dir, { recursive: true })
-    }
-    return models
   }
   scanLLMModels() {
     const dir = this.modelPaths.llm
@@ -142,40 +103,6 @@ export class PathsManager {
 
     return [...modelsSet]
   }
-  scanLora(returnDefaults = true) {
-    const models = returnDefaults
-      ? ['None', 'latent-consistency/lcm-lora-sdxl', 'latent-consistency/lcm-lora-sdv1-5']
-      : []
-    const loraDir = this.modelPaths.lora
-    if (fs.existsSync(loraDir)) {
-      const modelsSet = new Set(models)
-      fs.readdirSync(loraDir).forEach((pathname) => {
-        const fullPath = path.join(loraDir, pathname)
-        if (fs.statSync(fullPath).isDirectory()) {
-          if (
-            fs.existsSync(path.join(fullPath, 'pytorch_lora_weights.safetensors')) ||
-            fs.existsSync(path.join(fullPath, 'pytorch_lora_weights.bin'))
-          ) {
-            const modelName = pathname.replace('---', '/')
-            if (!modelsSet.has(modelName)) {
-              modelsSet.add(modelName)
-              models.push(modelName)
-            }
-          }
-        } else if (pathname.endsWith('.safetensors') || pathname.endsWith('.bin')) {
-          const modelName = pathname
-          if (!modelsSet.has(modelName)) {
-            modelsSet.add(modelName)
-            models.push(modelName)
-          }
-        }
-      })
-    } else {
-      fs.mkdirSync(loraDir, { recursive: true })
-    }
-    return models
-  }
-
   scanEmbedding(): Model[] {
     const embeddingModels: Model[] = []
     llmBackendTypes.forEach((backend) => {
@@ -195,36 +122,5 @@ export class PathsManager {
       }
     })
     return embeddingModels
-  }
-
-  scanInpaint(returnDefaults = true) {
-    const models = returnDefaults ? ['Lykon/dreamshaper-8-inpainting'] : []
-    const dir = this.modelPaths.inpaint
-    if (fs.existsSync(dir)) {
-      const modelsSet = new Set(models)
-      fs.readdirSync(dir).forEach((enumPath) => {
-        const realPath = path.join(dir, enumPath)
-        const pathStat = fs.statSync(realPath)
-        if (pathStat.isFile() && (enumPath.endsWith('.bin') || enumPath.endsWith('.safetensors'))) {
-          const modelName = enumPath
-          if (!modelsSet.has(modelName)) {
-            modelsSet.add(modelName)
-            models.push(modelName)
-          }
-        } else if (
-          pathStat.isDirectory() &&
-          fs.existsSync(path.join(realPath, 'model_index.json'))
-        ) {
-          const modelName = enumPath.replace('---', '/')
-          if (!modelsSet.has(modelName)) {
-            modelsSet.add(modelName)
-            models.push(modelName)
-          }
-        }
-      })
-    } else {
-      fs.mkdirSync(dir, { recursive: true })
-    }
-    return models
   }
 }

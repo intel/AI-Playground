@@ -27,7 +27,7 @@
             :src="image.model3dUrl"
             class="w-full h-full"
           />
-          <img v-else :src="image.imageUrl" class="w-full h-full object-cover" />
+          <img v-else-if="image.type === 'image'" :src="image.imageUrl" class="w-full h-full object-cover" />
           
           <!-- State indicator overlay -->
           <div
@@ -53,9 +53,9 @@
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
           <img
-            v-if="currentImage && !isVideo(currentImage) && !is3D(currentImage)"
+            v-if="currentImage && currentImage.type === 'image'"
             class="object-contain shadow-black/40 shadow-md rounded-sm border-3 border-background"
-            :src="currentImage?.imageUrl"
+            :src="currentImage.imageUrl"
           />
           <video
             v-else-if="currentImage && isVideo(currentImage)"
@@ -185,9 +185,14 @@ const showInfoParams = ref(false)
 // Local state for selected image
 const selectedImageId = ref<string | null>(null)
 
-// Filter images to only show those with previews (imageUrl)
+// Filter images to only show those with valid URLs
 const imagesWithPreview = computed(() => {
-  return props.images.filter(img => img.imageUrl && img.imageUrl.trim() !== '')
+  return props.images.filter(img => {
+    if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
+    if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
+    if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
+    return false
+  })
 })
 
 // Watch images to auto-select the last one when new images arrive
@@ -253,9 +258,14 @@ function loadingStateToText(state: string) {
 }
 
 function getMediaUrl(image: MediaItem) {
-  if (isVideo(image)) return image.videoUrl
-  if (is3D(image)) return image.model3dUrl
-  return image.imageUrl
+  switch (image.type) {
+    case 'video':
+      return image.videoUrl
+    case 'model3d':
+      return image.model3dUrl
+    case 'image':
+      return image.imageUrl
+  }
 }
 </script>
 

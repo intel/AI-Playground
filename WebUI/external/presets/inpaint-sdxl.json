@@ -1,25 +1,29 @@
 {
   "type": "comfy",
-  "name": "Inpaint SD1.5",
+  "name": "Inpaint SDXL",
   "displayPriority": 500,
-  "tags": ["inpaint", "edit-images", "sd1.5"],
+  "tags": ["inpaint", "edit-images", "sdxl"],
   "backend": "comfyui",
   "category": "edit-images",
-  "description": "Inpaint images using Stable Diffusion 1.5",
+  "description": "Inpaint images using Stable Diffusion XL",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
       "type": "defaultCheckpoint",
-      "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+      "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/unet/diffusion_pytorch_model.safetensors"
     },
     {
       "type": "defaultCheckpoint",
-      "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
+      "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder/model.safetensors"
     },
     {
       "type": "defaultCheckpoint",
-      "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+      "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder_2/model.safetensors"
+    },
+    {
+      "type": "defaultCheckpoint",
+      "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/vae/diffusion_pytorch_model.safetensors"
     }
   ],
   "settings": [
@@ -52,7 +56,7 @@
       "label": "Width",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": 512,
+      "defaultValue": 1024,
       "settingName": "width"
     },
     {
@@ -60,7 +64,7 @@
       "label": "Height",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": 512,
+      "defaultValue": 1024,
       "settingName": "height"
     },
     {
@@ -71,7 +75,7 @@
       "min": 64,
       "max": 2048,
       "step": 8,
-      "defaultValue": 512,
+      "defaultValue": 1024,
       "displayed": false,
       "modifiable": true
     },
@@ -83,7 +87,7 @@
       "min": 64,
       "max": 2048,
       "step": 8,
-      "defaultValue": 512,
+      "defaultValue": 1024,
       "displayed": false,
       "modifiable": true
     },
@@ -92,7 +96,7 @@
       "label": "Resolution",
       "displayed": true,
       "modifiable": true,
-      "defaultValue": "512x512",
+      "defaultValue": "1024x1024",
       "settingName": "resolution"
     },
     {
@@ -174,7 +178,7 @@
         "steps": 20,
         "cfg": 7,
         "sampler_name": "dpmpp_2m",
-        "scheduler": "karras",
+        "scheduler": "normal",
         "denoise": 1.0,
         "model": [
           "11",
@@ -200,7 +204,7 @@
     },
     "4": {
       "inputs": {
-        "vae_name": "Lykon---dreamshaper-8-inpainting\\vae\\diffusion_pytorch_model.safetensors"
+        "vae_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\vae\\diffusion_pytorch_model.safetensors"
       },
       "class_type": "VAELoader",
       "_meta": {
@@ -361,7 +365,7 @@
     },
     "27": {
       "inputs": {
-        "value": 512
+        "value": 1024
       },
       "class_type": "PrimitiveInt",
       "_meta": {
@@ -370,7 +374,7 @@
     },
     "28": {
       "inputs": {
-        "value": 512
+        "value": 1024
       },
       "class_type": "PrimitiveInt",
       "_meta": {
@@ -392,18 +396,18 @@
     },
     "9": {
       "inputs": {
-        "clip_name": "Lykon---dreamshaper-8-inpainting\\text_encoder\\model.safetensors",
-        "type": "stable_diffusion",
-        "device": "default"
+        "clip_name1": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder\\model.safetensors",
+        "clip_name2": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder_2\\model.safetensors",
+        "type": "sdxl"
       },
-      "class_type": "CLIPLoader",
+      "class_type": "DualCLIPLoader",
       "_meta": {
-        "title": "CLIPLoader"
+        "title": "DualCLIPLoader"
       }
     },
     "10": {
       "inputs": {
-        "unet_name": "Lykon---dreamshaper-8-inpainting\\unet\\diffusion_pytorch_model.safetensors",
+        "unet_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\unet\\diffusion_pytorch_model.safetensors",
         "weight_dtype": "default"
       },
       "class_type": "UNETLoader",

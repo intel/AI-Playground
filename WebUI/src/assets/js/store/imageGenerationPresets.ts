@@ -31,11 +31,6 @@ export type GenerationSettings = Partial<{
   resolution: string
   batchSize: number
   negativePrompt: string
-  imageModel: string
-  inpaintModel: string
-  guidanceScale: number
-  lora: string | null
-  scheduler: string | null
   imagePreview: boolean
   safetyCheck: boolean
 }>
@@ -43,25 +38,41 @@ export type GenerationSettings = Partial<{
 export type ComfyDynamicInputWithCurrent =
   | (ComfyInput & { current: string | number | boolean })
 
-export type Image = {
+export type MediaItemState = 'queued' | 'generating' | 'done' | 'stopped'
+
+type BaseMediaItem = {
   id: string
-  state: 'queued' | 'generating' | 'done' | 'stopped'
+  state: MediaItemState
   mode: WorkflowModeType
   sourceImageUrl?: string
   settings: GenerationSettings
   dynamicSettings?: ComfyDynamicInputWithCurrent[]
+}
+
+export type ImageMediaItem = BaseMediaItem & {
+  type: 'image'
   imageUrl: string
 }
 
-export type Video = Image & { videoUrl: string }
+export type VideoMediaItem = BaseMediaItem & {
+  type: 'video'
+  videoUrl: string
+  thumbnailUrl?: string // Optional thumbnail for video preview
+}
 
-export type Model3D = Image & { model3dUrl: string }
+export type Model3DMediaItem = BaseMediaItem & {
+  type: 'model3d'
+  model3dUrl: string
+  thumbnailUrl?: string // Optional thumbnail for 3D preview
+}
 
-export type MediaItem = Image | Video | Model3D
+export type MediaItem = ImageMediaItem | VideoMediaItem | Model3DMediaItem
 
-export const isVideo = (item: MediaItem): item is Video => 'videoUrl' in item
+export const isVideo = (item: MediaItem): item is VideoMediaItem => item.type === 'video'
 
-export const is3D = (item: MediaItem): item is Model3D => 'model3dUrl' in item
+export const is3D = (item: MediaItem): item is Model3DMediaItem => item.type === 'model3d'
+
+export const isImage = (item: MediaItem): item is ImageMediaItem => item.type === 'image'
 
 const globalDefaultSettings = {
   seed: -1,
@@ -71,11 +82,6 @@ const globalDefaultSettings = {
   resolution: '704x384',
   batchSize: 4,
   negativePrompt: 'nsfw',
-  imageModel: 'Lykon/dreamshaper-8',
-  inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-  guidanceScale: 7,
-  lora: 'None',
-  scheduler: 'DPM++ SDE Karras',
 }
 
 const generalDefaultSettings = {
@@ -138,11 +144,6 @@ export const useImageGenerationPresets = defineStore(
     const negativePrompt = ref<string>(globalDefaultSettings.negativePrompt)
     const width = ref<number>(globalDefaultSettings.width)
     const height = ref<number>(globalDefaultSettings.height)
-    const scheduler = ref<string>(globalDefaultSettings.scheduler)
-    const imageModel = ref(globalDefaultSettings.imageModel)
-    const inpaintModel = ref(globalDefaultSettings.inpaintModel)
-    const lora = ref<string>(globalDefaultSettings.lora)
-    const guidanceScale = ref<number>(globalDefaultSettings.guidanceScale)
     const inferenceSteps = ref<number>(globalDefaultSettings.inferenceSteps)
     const resolution = computed({
       get() {
@@ -177,16 +178,12 @@ export const useImageGenerationPresets = defineStore(
         device: 0, // TODO get correct device from backend service
         prompt: prompt.value,
         negativePrompt: negativePrompt.value,
-        imageModel: imageModel.value,
         batchSize: batchSize.value,
         inferenceSteps: inferenceSteps.value,
-        guidanceScale: guidanceScale.value,
         seed: seed.value,
         height: height.value,
         width: width.value,
         resolution: resolution.value,
-        lora: lora.value,
-        scheduler: scheduler.value,
         imagePreview: imagePreview.value,
         safetyCheck: safetyCheck.value,
       }
@@ -206,11 +203,6 @@ export const useImageGenerationPresets = defineStore(
       resolution,
       batchSize,
       negativePrompt,
-      lora,
-      scheduler,
-      guidanceScale,
-      imageModel,
-      inpaintModel,
     }
 
     const backend = computed(() => {
@@ -356,11 +348,6 @@ export const useImageGenerationPresets = defineStore(
       saveToSettingsPerPreset('resolution')
       saveToSettingsPerPreset('batchSize')
       saveToSettingsPerPreset('negativePrompt')
-      saveToSettingsPerPreset('lora')
-      saveToSettingsPerPreset('scheduler')
-      saveToSettingsPerPreset('guidanceScale')
-      saveToSettingsPerPreset('imageModel')
-      saveToSettingsPerPreset('inpaintModel')
     })
 
     const generatedImages = ref<MediaItem[]>([])
@@ -389,11 +376,6 @@ export const useImageGenerationPresets = defineStore(
       resolution.value = getSavedOrDefault('resolution') ?? globalDefaultSettings.resolution
       batchSize.value = getSavedOrDefault('batchSize') ?? globalDefaultSettings.batchSize
       negativePrompt.value = getSavedOrDefault('negativePrompt') ?? globalDefaultSettings.negativePrompt
-      lora.value = getSavedOrDefault('lora') ?? globalDefaultSettings.lora
-      scheduler.value = getSavedOrDefault('scheduler') ?? globalDefaultSettings.scheduler
-      guidanceScale.value = getSavedOrDefault('guidanceScale') ?? globalDefaultSettings.guidanceScale
-      imageModel.value = getSavedOrDefault('imageModel') ?? globalDefaultSettings.imageModel
-      inpaintModel.value = getSavedOrDefault('inpaintModel') ?? globalDefaultSettings.inpaintModel
     }
 
     function updateImage(newImage: MediaItem) {
@@ -438,6 +420,7 @@ export const useImageGenerationPresets = defineStore(
           sourceImageUrl: sourceImage,
           state: 'queued',
           settings: {},
+          type: 'image',
           imageUrl: '',
         })
       })
@@ -517,11 +500,6 @@ export const useImageGenerationPresets = defineStore(
       currentState,
       stepText,
       stopping,
-      imageModel,
-      inpaintModel,
-      lora,
-      scheduler,
-      guidanceScale,
       imagePreview,
       safetyCheck,
       inferenceSteps,

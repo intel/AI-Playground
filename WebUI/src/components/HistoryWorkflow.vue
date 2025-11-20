@@ -21,10 +21,10 @@
           :src="image.model3dUrl"
           class="w-full h-full"
         />
-        <img v-else :src="image.imageUrl" class="w-full h-full object-cover" />
+        <img v-else-if="image.type === 'image'" :src="image.imageUrl" class="w-full h-full object-cover" />
 
         <div
-          v-if="image.sourceImageUrl === image.imageUrl"
+          v-if="image.type === 'image' && image.sourceImageUrl === image.imageUrl"
           class="absolute bottom-0 w-full bg-background/60 text-foreground text-[14px] text-center py-[2px]"
         >
           {{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}
@@ -116,10 +116,13 @@ const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   let url: string
   if (isVideo(item)) {
     url = item.videoUrl
-  } else if (is3D(item)) {
+  } else if (item.type === 'model3d') {
     url = item.model3dUrl
-  } else {
+  } else if (item.type === 'image') {
     url = item.imageUrl
+  } else {
+    // Fallback for video
+    url = item.videoUrl
   }
   window.electronAPI.startDrag(url)
 }

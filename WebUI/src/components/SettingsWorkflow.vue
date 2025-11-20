@@ -40,22 +40,6 @@
       </div>
 
       <div
-        v-if="modifiableOrDisplayed('guidanceScale')"
-        class="grid grid-cols-[120px_1fr] items-center gap-4"
-      >
-        <Label class="whitespace-nowrap">
-          {{ languages.SETTINGS_MODEL_IMAGE_CFG }}: {{ imageGeneration.guidanceScale }}
-        </Label>
-        <Slider
-          v-model="imageGeneration.guidanceScale"
-          :min="0"
-          :max="10"
-          :step="1"
-          :disabled="!modifiable('guidanceScale')"
-        />
-      </div>
-
-      <div
         v-if="modifiableOrDisplayed('batchSize')"
         class="grid grid-cols-[120px_1fr] items-center gap-4"
       >

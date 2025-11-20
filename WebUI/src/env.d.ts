@@ -76,10 +76,7 @@ type electronAPI = {
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
-  refreshSDModles(): Promise<string[]>
   refreshLLMModles(): Promise<string[]>
-  refreshLora(): Promise<string[]>
-  refreshInpaintModles(): Promise<string[]>
   loadModels(): Promise<Model[]>
   zoomIn(): Promise<void>
   zoomOut(): Promise<void>

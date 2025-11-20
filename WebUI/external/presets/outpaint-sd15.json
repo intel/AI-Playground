@@ -88,46 +88,6 @@
       "settingName": "negativePrompt"
     },
     {
-      "type": "string",
-      "label": "Image Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "Lykon/dreamshaper-8-inpainting",
-      "settingName": "imageModel"
-    },
-    {
-      "type": "string",
-      "label": "Inpaint Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "Lykon/dreamshaper-8-inpainting",
-      "settingName": "inpaintModel"
-    },
-    {
-      "type": "number",
-      "label": "Guidance Scale",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 7,
-      "settingName": "guidanceScale"
-    },
-    {
-      "type": "string",
-      "label": "LoRA",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "None",
-      "settingName": "lora"
-    },
-    {
-      "type": "string",
-      "label": "Scheduler",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "DPM++ SDE",
-      "settingName": "scheduler"
-    },
-    {
       "type": "boolean",
       "label": "Image Preview",
       "displayed": true,

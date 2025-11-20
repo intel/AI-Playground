@@ -1,0 +1,24 @@
+{
+  "type": "chat",
+  "name": "RAG (OpenVINO)",
+  "description": "Retrieval-Augmented Generation with OpenVINO. Enables document-based context for more accurate responses on Intel hardware.",
+  "displayPriority": 92,
+  "tags": ["RAG", "Documents", "OpenVINO", "Intel"],
+  "backend": "openVINO",
+  "model": "OpenVINO/Qwen3-4B-int4-ov",
+  "systemPrompt": "/no_think You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context doesn't contain relevant information, say so.",
+  "contextSize": 8192,
+  "maxNewTokens": 1024,
+  "embeddingModel": "OpenVINO/bge-base-en-v1.5-fp16-ov",
+  "rag": {
+    "enabled": true,
+    "embeddingModel": "OpenVINO/bge-base-en-v1.5-fp16-ov"
+  },
+  "requiredModels": [
+    {
+      "type": "embedding",
+      "model": "OpenVINO/bge-base-en-v1.5-fp16-ov"
+    }
+  ]
+}
+

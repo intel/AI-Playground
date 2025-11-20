@@ -913,10 +913,43 @@ export abstract class LongLivedPythonApiService implements ApiService {
       const queryIntervalMs = 250
       const startupPeriodMaxMs = 300000
       while (performance.now() < startTime + startupPeriodMaxMs) {
+        // Check if process has exited before attempting health check
+        const hasExitedEarly = await Promise.race([
+          didProcessExitEarlyTracker,
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 0)),
+        ])
+        if (hasExitedEarly) {
+          this.appLogger.warn(
+            `Process for ${this.name} exited early, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
+        // Verify process is still alive before health check
+        if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+          this.appLogger.warn(
+            `Process for ${this.name} is not alive, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
         try {
           const serviceHealthResponse = await fetch(this.healthEndpointUrl)
           this.appLogger.info(`received response: ${serviceHealthResponse.status}`, this.name)
           if (serviceHealthResponse.status === 200) {
+            // Double-check process is still alive before accepting success
+            if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+              this.appLogger.warn(
+                `Process for ${this.name} exited after health check succeeded, marking as failed`,
+                this.name,
+              )
+              resolve(false)
+              return
+            }
             const endTime = performance.now()
             this.appLogger.info(
               `${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`,
@@ -940,9 +973,21 @@ export abstract class LongLivedPythonApiService implements ApiService {
       }
     })
 
-    const processStartupFailedDueToEarlyExit = didProcessExitEarlyTracker.then(
-      (earlyExit) => !earlyExit,
-    )
+    // If process exits early, immediately resolve to false (not ready)
+    // We create a promise that resolves to false immediately if process exits early
+    const processStartupFailedDueToEarlyExit = new Promise<boolean>((resolve) => {
+      didProcessExitEarlyTracker.then((earlyExit) => {
+        if (earlyExit) {
+          this.appLogger.error(
+            `Process for ${this.name} exited early during startup`,
+            this.name,
+          )
+          resolve(false)
+        }
+        // If process didn't exit early, this promise never resolves
+        // allowing the health check promise to win the race
+      })
+    })
 
     return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
   }

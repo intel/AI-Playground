@@ -407,14 +407,27 @@ function getToolImages(part: any): MediaItem[] {
   // Otherwise, use output images if available
   if (part.state === 'output-available' && part.output?.images) {
     return part.output.images
-      .filter((img: any) => img.imageUrl && img.imageUrl.trim() !== '') // Filter out images without URL
-      .map((img: any) => ({
-        id: img.id,
-        imageUrl: img.imageUrl,
-        mode: img.mode || 'imageGen',
-        state: 'done' as const,
-        settings: img.settings || {},
-      }))
+      .filter((img: any) => {
+        // Filter out items without a valid URL based on type
+        if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
+        if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
+        if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
+        // Fallback for old format
+        return img.imageUrl && img.imageUrl.trim() !== ''
+      })
+      .map((img: any) => {
+        // If already has type, return as-is
+        if (img.type) return img
+        // Otherwise, create as image type (legacy format)
+        return {
+          id: img.id,
+          type: 'image' as const,
+          imageUrl: img.imageUrl,
+          mode: img.mode || 'imageGen',
+          state: 'done' as const,
+          settings: img.settings || {},
+        }
+      })
   }
   
   return []
@@ -508,29 +521,14 @@ watch(
       const toolCallImages = imageGeneration.generatedImages
         .filter(img => !progress.initialImageIds.has(img.id))
         .filter(img => img.state === 'queued' || img.state === 'generating' || img.state === 'done')
-        // Filter out images without imageUrl to avoid broken image icons
-        .filter(img => img.imageUrl && img.imageUrl.trim() !== '')
-        .map(img => {
-          const baseItem: MediaItem = {
-            id: img.id,
-            imageUrl: img.imageUrl || '',
-            mode: img.mode,
-            state: img.state,
-            settings: img.settings || {},
-            sourceImageUrl: img.sourceImageUrl,
-            dynamicSettings: img.dynamicSettings,
-          }
-          
-          // Add videoUrl or model3dUrl if present
-          if ('videoUrl' in img) {
-            return { ...baseItem, videoUrl: img.videoUrl }
-          }
-          if ('model3dUrl' in img) {
-            return { ...baseItem, model3dUrl: img.model3dUrl }
-          }
-          
-          return baseItem
+        // Filter out items without valid URL based on type
+        .filter(img => {
+          if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
+          if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
+          if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
+          return false
         })
+        .map(img => ({ ...img }))
       
       progress.images = toolCallImages
       progress.processing = imageGeneration.processing
@@ -551,9 +549,14 @@ watch(
       if (progress) {
         progress.processing = processing
         if (!processing) {
-          // When processing stops, mark images as done and filter out any without imageUrl
+          // When processing stops, mark images as done and filter out any without valid URL
           progress.images = progress.images
-            .filter(img => img.imageUrl && img.imageUrl.trim() !== '')
+            .filter(img => {
+              if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
+              if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
+              if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
+              return false
+            })
             .map(img => ({
               ...img,
               state: 'done' as const,

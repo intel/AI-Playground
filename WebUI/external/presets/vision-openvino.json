@@ -1,0 +1,14 @@
+{
+  "type": "chat",
+  "name": "Vision (OpenVINO)",
+  "description": "Vision Language Model with OpenVINO for image understanding. Attach images to ask questions about visual content on Intel hardware.",
+  "displayPriority": 90,
+  "tags": ["Vision", "Image", "Multimodal", "OpenVINO", "Intel"],
+  "backend": "openVINO",
+  "model": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
+  "systemPrompt": "You are a helpful AI assistant with vision capabilities. Analyze images carefully and provide detailed descriptions and answers about visual content.",
+  "contextSize": 4096,
+  "maxNewTokens": 1024,
+  "requiredModels": []
+}
+

@@ -1,36 +1,38 @@
 <template>
   <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-3 gap-3">
-      <div
-        v-for="preset in filteredPresets"
-        :key="preset.name"
-        class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square shadow-md"
-        :class="[
-          selectedPresetName === preset.name
-            ? 'border-primary ring-2 ring-primary'
-            : 'border-transparent hover:border-primary',
-        ]"
-        @click="selectPreset(preset.name)"
-      >
-        <img
-          v-if="preset.image"
-          class="absolute inset-0 w-full h-full object-cover"
-          :src="preset.image"
-          :alt="preset.name"
-        />
-        <img
-          v-else-if="preset.type === 'chat'"
-          class="absolute inset-0 w-full h-full object-cover"
-          :src="`/src/assets/image/${preset.backend}.png`"
-          :alt="preset.name"
-        />
-        <div class="absolute bottom-0 w-full bg-background/60 text-center py-2">
-          <span class="text-foreground text-sm font-semibold">
-            {{ preset.name }}
-          </span>
+    <Card class="bg-muted p-3">
+      <div class="grid grid-cols-3 gap-3">
+        <div
+          v-for="preset in filteredPresets"
+          :key="preset.name"
+          class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square shadow-md"
+          :class="[
+            selectedPresetName === preset.name
+              ? 'border-primary ring-2 ring-primary'
+              : 'border-transparent hover:border-primary',
+          ]"
+          @click="selectPreset(preset.name)"
+        >
+          <img
+            v-if="preset.image"
+            class="absolute inset-0 w-full h-full object-cover"
+            :src="preset.image"
+            :alt="preset.name"
+          />
+          <img
+            v-else-if="preset.type === 'chat'"
+            class="absolute inset-0 w-full h-full object-cover"
+            :src="`/src/assets/image/${preset.backend}.png`"
+            :alt="preset.name"
+          />
+          <div class="absolute bottom-0 w-full bg-background/60 text-center py-2">
+            <span class="text-foreground text-sm font-semibold">
+              {{ preset.name }}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </Card>
 
     <div v-if="selectedPreset" class="flex flex-col gap-4">
       <div class="flex flex-col gap-3">
@@ -62,7 +64,7 @@
 import { computed, watch, onMounted } from 'vue'
 import { usePresets, type Preset } from '@/assets/js/store/presets'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
-
+import { Card } from '@/components/ui/card'
 interface Props {
   categories?: string[]
   type?: string

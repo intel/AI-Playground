@@ -1,0 +1,14 @@
+{
+  "type": "chat",
+  "name": "Vision (llama-cpp)",
+  "description": "Vision Language Model with llama-cpp for image understanding. Attach images to ask questions about visual content.",
+  "displayPriority": 91,
+  "tags": ["Vision", "Image", "Multimodal", "llama-cpp"],
+  "backend": "llamaCPP",
+  "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf",
+  "systemPrompt": "You are a helpful AI assistant with vision capabilities. Analyze images carefully and provide detailed descriptions and answers about visual content.",
+  "contextSize": 4096,
+  "maxNewTokens": 1024,
+  "requiredModels": []
+}
+

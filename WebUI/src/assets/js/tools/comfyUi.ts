@@ -14,11 +14,6 @@ const globalDefaultSettings = {
   resolution: '704x384',
   batchSize: 4,
   negativePrompt: 'nsfw',
-  imageModel: 'Lykon/dreamshaper-8',
-  inpaintModel: 'Lykon/dreamshaper-8-inpainting',
-  guidanceScale: 7,
-  lora: 'None',
-  scheduler: 'DPM++ SDE Karras',
 }
 
 // Helper function to execute ComfyUI generation for tool calls

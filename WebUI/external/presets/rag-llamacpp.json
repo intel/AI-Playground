@@ -1,0 +1,24 @@
+{
+  "type": "chat",
+  "name": "RAG (llama-cpp)",
+  "description": "Retrieval-Augmented Generation with llama-cpp. Enables document-based context for more accurate responses.",
+  "displayPriority": 93,
+  "tags": ["RAG", "Documents", "llama-cpp"],
+  "backend": "llamaCPP",
+  "model": "unsloth/Qwen3-4B-GGUF/Qwen3-4B-Q5_K_S.gguf",
+  "systemPrompt": "/no_think You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context doesn't contain relevant information, say so.",
+  "contextSize": 8192,
+  "maxNewTokens": 1024,
+  "embeddingModel": "ChristianAzinn/bge-small-en-v1.5-gguf",
+  "rag": {
+    "enabled": true,
+    "embeddingModel": "ChristianAzinn/bge-small-en-v1.5-gguf"
+  },
+  "requiredModels": [
+    {
+      "type": "embedding",
+      "model": "ChristianAzinn/bge-small-en-v1.5-gguf"
+    }
+  ]
+}
+

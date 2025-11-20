@@ -92,46 +92,6 @@
       "settingName": "negativePrompt"
     },
     {
-      "type": "string",
-      "label": "Image Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
-      "settingName": "imageModel"
-    },
-    {
-      "type": "string",
-      "label": "Inpaint Model",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
-      "settingName": "inpaintModel"
-    },
-    {
-      "type": "number",
-      "label": "Guidance Scale",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 7,
-      "settingName": "guidanceScale"
-    },
-    {
-      "type": "string",
-      "label": "LoRA",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "None",
-      "settingName": "lora"
-    },
-    {
-      "type": "string",
-      "label": "Scheduler",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "DPM++ SDE",
-      "settingName": "scheduler"
-    },
-    {
       "type": "boolean",
       "label": "Image Preview",
       "displayed": true,
@@ -217,6 +177,66 @@
       "modifiable": true
     },
     {
+      "type": "number",
+      "label": "Scale By",
+      "nodeTitle": "ScaleImage",
+      "nodeInput": "scale_by",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01,
+      "defaultValue": 1.0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Width",
+      "nodeTitle": "CropImage",
+      "nodeInput": "width",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 1024,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Height",
+      "nodeTitle": "CropImage",
+      "nodeInput": "height",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 1024,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop X",
+      "nodeTitle": "CropImage",
+      "nodeInput": "x",
+      "min": 0,
+      "max": 2048,
+      "step": 1,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Y",
+      "nodeTitle": "CropImage",
+      "nodeInput": "y",
+      "min": 0,
+      "max": 2048,
+      "step": 1,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
       "type": "outpaintCanvas",
       "label": "Outpaint Canvas",
       "nodeTitle": "OutpaintCanvas",
@@ -250,13 +270,43 @@
     },
     "2": {
       "inputs": {
+        "upscale_method": "bicubic",
+        "scale_by": 1.0,
+        "image": [
+          "1",
+          0
+        ]
+      },
+      "class_type": "ImageScaleBy",
+      "_meta": {
+        "title": "ScaleImage"
+      }
+    },
+    "13": {
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0,
+        "image": [
+          "2",
+          0
+        ]
+      },
+      "class_type": "ImageCrop",
+      "_meta": {
+        "title": "CropImage"
+      }
+    },
+    "14": {
+      "inputs": {
         "left": 0,
         "top": 0,
         "right": 0,
         "bottom": 0,
         "feathering": 24,
         "image": [
-          "1",
+          "13",
           0
         ]
       },
@@ -278,20 +328,16 @@
           0
         ],
         "positive": [
-          "6",
+          "12",
           0
         ],
         "negative": [
-          "7",
-          0
-        ],
-        "image": [
-          "2",
-          0
-        ],
-        "mask": [
-          "2",
+          "12",
           1
+        ],
+        "latent_image": [
+          "12",
+          2
         ]
       },
       "class_type": "KSampler",
@@ -348,6 +394,35 @@
       "class_type": "CLIPTextEncode",
       "_meta": {
         "title": "negativePrompt"
+      }
+    },
+    "12": {
+      "inputs": {
+        "noise_mask": false,
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ],
+        "pixels": [
+          "14",
+          0
+        ],
+        "mask": [
+          "14",
+          1
+        ]
+      },
+      "class_type": "InpaintModelConditioning",
+      "_meta": {
+        "title": "InpaintModelConditioning"
       }
     },
     "8": {
