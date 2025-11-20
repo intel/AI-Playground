@@ -43,6 +43,9 @@ export class AiBackendService extends LongLivedPythonApiService {
   }
   readonly deviceService = new DeviceService()
 
+  async detectDevices() {
+  }
+
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)

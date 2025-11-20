@@ -83,7 +83,7 @@
     },
     "54": {
       "inputs": {
-        "ckpt_name": "tencent---Hunyuan3D-2mini/hunyuan3d-dit-v2-mini-turbo/model.fp16.safetensors"
+        "ckpt_name": "tencent---Hunyuan3D-2mini\\hunyuan3d-dit-v2-mini-turbo\\model.fp16.safetensors"
       },
       "class_type": "ImageOnlyCheckpointLoader",
       "_meta": {

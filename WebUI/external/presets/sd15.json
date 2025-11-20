@@ -206,7 +206,7 @@
     },
     "4": {
       "inputs": {
-        "ckpt_name": "Lykon---DreamShaper/DreamShaper_8_pruned.safetensors"
+        "ckpt_name": "Lykon---DreamShaper\\DreamShaper_8_pruned.safetensors"
       },
       "class_type": "CheckpointLoaderSimple",
       "_meta": {

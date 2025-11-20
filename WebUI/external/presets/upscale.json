@@ -63,7 +63,7 @@
     },
     "13": {
       "inputs": {
-        "model_name": "Comfy-Org---Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors"
+        "model_name": "Comfy-Org---Real-ESRGAN_repackaged\\RealESRGAN_x4plus.safetensors"
       },
       "class_type": "UpscaleModelLoader",
       "_meta": {
