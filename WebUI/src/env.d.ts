@@ -115,23 +115,20 @@ type electronAPI = {
   // ComfyUI Tools - uses uv for Python package management
   comfyui: {
     isGitInstalled(): Promise<boolean>
-    isComfyUIInstalled(comfyUiRootPath: string): Promise<boolean>
+    isComfyUIInstalled(): Promise<boolean>
     getGitRef(repoDir: string): Promise<string | undefined>
     isPackageInstalled(packageSpecifier: string): Promise<boolean>
     installPypiPackage(packageSpecifier: string): Promise<void>
     isCustomNodeInstalled(
       nodeRepoRef: ComfyUICustomNodeRepoId,
-      comfyUiRootPath: string,
     ): Promise<boolean>
     downloadCustomNode(
       nodeRepoData: ComfyUICustomNodeRepoId,
-      comfyUiRootPath: string,
     ): Promise<boolean>
     uninstallCustomNode(
       nodeRepoData: ComfyUICustomNodeRepoId,
-      comfyUiRootPath: string,
     ): Promise<boolean>
-    listInstalledCustomNodes(comfyUiRootPath: string): Promise<string[]>
+    listInstalledCustomNodes(): Promise<string[]>
   }
 }
 

@@ -3,7 +3,7 @@ import { promisify } from 'node:util'
 import path from 'node:path'
 import fs from 'fs'
 import { appLoggerInstance } from '../logging/logger'
-import { isPackageInstalled as uvIsPackageInstalled, installPypiPackage as uvInstallPackage, installRequirementsTxt } from './uvBasedBackends/uv'
+import { isPackageInstalled as uvIsPackageInstalled, installPypiPackage as uvInstallPackage, installRequirementsTxt, aipgBaseDir } from './uvBasedBackends/uv'
 
 const execAsync = promisify(exec)
 
@@ -45,7 +45,7 @@ def nsfw_image(img_path: str, model_path: str):
  */
 export function getGitBinaryPath(): string {
   if (process.platform === 'win32') {
-    return path.join(process.resourcesPath, '..', 'portable-git', 'cmd', 'git.exe')
+    return path.join(aipgBaseDir, 'portable-git', 'cmd', 'git.exe')
   }
   return 'git'
 }
@@ -87,16 +87,19 @@ function removeExistingResource(targetPath: string): void {
  */
 async function installGitRepo(gitRepoUrl: string, targetDir: string): Promise<void> {
   try {
-    removeExistingResource(targetDir)
+    // Ensure targetDir is an absolute path
+    const absoluteTargetDir = path.resolve(targetDir)
+    removeExistingResource(absoluteTargetDir)
     const gitPath = getGitBinaryPath()
-    await execAsync(`"${gitPath}" clone ${gitRepoUrl} "${targetDir}"`)
-    appLoggerInstance.info(`Cloned ${gitRepoUrl} into ${targetDir}`, 'comfyui-tools')
+    await execAsync(`"${gitPath}" clone ${gitRepoUrl} "${absoluteTargetDir}"`)
+    appLoggerInstance.info(`Cloned ${gitRepoUrl} into ${absoluteTargetDir}`, 'comfyui-tools')
   } catch (error) {
     appLoggerInstance.error(
       `Git clone failed with exception: ${error}. Cleaning up failed resources.`,
       'comfyui-tools',
     )
-    removeExistingResource(targetDir)
+    const absoluteTargetDir = path.resolve(targetDir)
+    removeExistingResource(absoluteTargetDir)
     throw error
   }
 }
@@ -105,24 +108,26 @@ async function installGitRepo(gitRepoUrl: string, targetDir: string): Promise<vo
  * Checkout a specific git ref
  */
 async function checkoutGitRef(repoDir: string, gitRef?: string): Promise<void> {
+  // Ensure repoDir is an absolute path
+  const absoluteRepoDir = path.resolve(repoDir)
   if (!gitRef || !gitRef.trim()) {
-    appLoggerInstance.info(`No valid git ref provided for ${repoDir}`, 'comfyui-tools')
-    const currentRef = await getGitRef(repoDir)
-    appLoggerInstance.warn(`Repo ${repoDir} remains in ref ${currentRef}`, 'comfyui-tools')
+    appLoggerInstance.info(`No valid git ref provided for ${absoluteRepoDir}`, 'comfyui-tools')
+    const currentRef = await getGitRef(absoluteRepoDir)
+    appLoggerInstance.warn(`Repo ${absoluteRepoDir} remains in ref ${currentRef}`, 'comfyui-tools')
     return
   }
 
   try {
     const gitPath = getGitBinaryPath()
-    await execAsync(`"${gitPath}" checkout ${gitRef}`, { cwd: repoDir })
-    appLoggerInstance.info(`Checked out ${gitRef} in ${repoDir}`, 'comfyui-tools')
+    await execAsync(`"${gitPath}" checkout ${gitRef}`, { cwd: absoluteRepoDir })
+    appLoggerInstance.info(`Checked out ${gitRef} in ${absoluteRepoDir}`, 'comfyui-tools')
   } catch (error) {
     appLoggerInstance.warn(
-      `Git checkout of ${gitRef} failed for repo ${repoDir} due to: ${error}`,
+      `Git checkout of ${gitRef} failed for repo ${absoluteRepoDir} due to: ${error}`,
       'comfyui-tools',
     )
-    const currentRef = await getGitRef(repoDir)
-    appLoggerInstance.warn(`Repo ${repoDir} remains in ref ${currentRef}`, 'comfyui-tools')
+    const currentRef = await getGitRef(absoluteRepoDir)
+    appLoggerInstance.warn(`Repo ${absoluteRepoDir} remains in ref ${currentRef}`, 'comfyui-tools')
   }
 }
 
@@ -131,11 +136,14 @@ async function checkoutGitRef(repoDir: string, gitRef?: string): Promise<void> {
  */
 export async function getGitRef(repoDir: string): Promise<string | undefined> {
   try {
+    // Ensure repoDir is an absolute path
+    const absoluteRepoDir = path.resolve(repoDir)
     const gitPath = getGitBinaryPath()
-    const { stdout } = await execAsync(`"${gitPath}" rev-parse HEAD`, { cwd: repoDir })
+    const { stdout } = await execAsync(`"${gitPath}" rev-parse HEAD`, { cwd: absoluteRepoDir })
     return stdout.trim()
   } catch (error) {
-    appLoggerInstance.warn(`Resolving git ref in ${repoDir} failed due to: ${error}`, 'comfyui-tools')
+    const absoluteRepoDir = path.resolve(repoDir)
+    appLoggerInstance.warn(`Resolving git ref in ${absoluteRepoDir} failed due to: ${error}`, 'comfyui-tools')
     return undefined
   }
 }

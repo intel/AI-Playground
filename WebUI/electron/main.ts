@@ -46,6 +46,7 @@ import {
   aiplaygroundApiServiceRegistry,
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
+import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
 import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -1002,8 +1003,12 @@ function initEventHandle() {
     return await comfyuiTools.isGitInstalled()
   })
 
-  ipcMain.handle('comfyui:isComfyUIInstalled', (_event, comfyUiRootPath: string) => {
-    return comfyuiTools.isComfyUIInstalled(comfyUiRootPath)
+  ipcMain.handle('comfyui:isComfyUIInstalled', () => {
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+    if (!comfyService) {
+      throw new Error('ComfyUI backend service not found')
+    }
+    return comfyuiTools.isComfyUIInstalled(comfyService.serviceDir)
   })
 
   ipcMain.handle('comfyui:getGitRef', async (_event, repoDir: string) => {
@@ -1026,8 +1031,12 @@ function initEventHandle() {
 
   ipcMain.handle(
     'comfyui:isCustomNodeInstalled',
-    (_event, nodeRepoRef: comfyuiTools.ComfyUICustomNodeRepoId, comfyUiRootPath: string) => {
-      return comfyuiTools.isCustomNodeInstalled(nodeRepoRef, comfyUiRootPath)
+    (_event, nodeRepoRef: comfyuiTools.ComfyUICustomNodeRepoId) => {
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+      if (!comfyService) {
+        throw new Error('ComfyUI backend service not found')
+      }
+      return comfyuiTools.isCustomNodeInstalled(nodeRepoRef, comfyService.serviceDir)
     },
   )
 
@@ -1036,9 +1045,12 @@ function initEventHandle() {
     async (
       _event,
       nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId,
-      comfyUiRootPath: string,
     ) => {
-      return await comfyuiTools.downloadCustomNode(nodeRepoData, comfyUiRootPath)
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+      if (!comfyService) {
+        throw new Error('ComfyUI backend service not found')
+      }
+      return await comfyuiTools.downloadCustomNode(nodeRepoData, comfyService.serviceDir)
     },
   )
 
@@ -1047,14 +1059,21 @@ function initEventHandle() {
     async (
       _event,
       nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId,
-      comfyUiRootPath: string,
     ) => {
-      return await comfyuiTools.uninstallCustomNode(nodeRepoData, comfyUiRootPath)
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+      if (!comfyService) {
+        throw new Error('ComfyUI backend service not found')
+      }
+      return await comfyuiTools.uninstallCustomNode(nodeRepoData, comfyService.serviceDir)
     },
   )
 
-  ipcMain.handle('comfyui:listInstalledCustomNodes', (_event, comfyUiRootPath: string) => {
-    return comfyuiTools.listInstalledCustomNodes(comfyUiRootPath)
+  ipcMain.handle('comfyui:listInstalledCustomNodes', () => {
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+    if (!comfyService) {
+      throw new Error('ComfyUI backend service not found')
+    }
+    return comfyuiTools.listInstalledCustomNodes(comfyService.serviceDir)
   })
 
   const getAssetPathFromUrl = (url: string) => {

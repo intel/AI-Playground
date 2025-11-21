@@ -197,7 +197,6 @@ export const useComfyUiPresets = defineStore(
     }
 
     async function checkPresetRequirements() {
-      const comfyUiRootPath = '../ComfyUI'
       const preset = imageGeneration.activePreset
       if (!preset || preset.type !== 'comfy') return false
 
@@ -213,7 +212,6 @@ export const useComfyUiPresets = defineStore(
         customNodes.map((node) =>
           window.electronAPI.comfyui.isCustomNodeInstalled(
             extractCustomNodeInfo(node),
-            comfyUiRootPath,
           ),
         ),
       )
@@ -256,13 +254,11 @@ export const useComfyUiPresets = defineStore(
       if (!preset || preset.type !== 'comfy') return false
 
       const requiredCustomNodes = preset.requiredCustomNodes ?? []
-      const comfyUiRootPath = '../ComfyUI'
 
       const nodesToInstall: ComfyUICustomNodesRequestParameters[] = []
       for (const node of requiredCustomNodes) {
         const isInstalled = await window.electronAPI.comfyui.isCustomNodeInstalled(
           extractCustomNodeInfo(node),
-          comfyUiRootPath,
         )
         if (!isInstalled) {
           nodesToInstall.push(extractCustomNodeInfo(node))
@@ -271,7 +267,7 @@ export const useComfyUiPresets = defineStore(
 
       const results = await Promise.all(
         nodesToInstall.map((node) =>
-          window.electronAPI.comfyui.downloadCustomNode(node, comfyUiRootPath),
+          window.electronAPI.comfyui.downloadCustomNode(node),
         ),
       )
 
