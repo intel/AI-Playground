@@ -103,6 +103,10 @@ const ComfyMessageSchema = z.discriminatedUnion('type', [
       })
       .passthrough(),
   }),
+  z.object({
+    type: z.literal('progress_state'),
+    data: z.object({}).passthrough(),
+  }),
 ])
 
 const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
@@ -464,6 +468,8 @@ export const useComfyUiPresets = defineStore(
                 imageGeneration.currentState = 'no_start'
                 break
               case 'execution_cached':
+                break
+              case 'progress_state':
                 break
             }
           }

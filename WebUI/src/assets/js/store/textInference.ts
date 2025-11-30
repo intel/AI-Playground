@@ -280,6 +280,7 @@ export const useTextInference = defineStore(
     const metricsEnabled = ref(false)
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
+    const temperature = ref<number>(0.7)
 
     const currentBackendUrl = computed(
       () =>
@@ -907,6 +908,11 @@ export const useTextInference = defineStore(
           maxTokens.value = preset.maxNewTokens
         }
 
+        // Apply temperature
+        if (preset.temperature !== undefined) {
+          temperature.value = preset.temperature
+        }
+
         // Apply embedding model (top-level or from RAG config)
         const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
         if (embeddingModelToUse && preset.backend) {
@@ -941,6 +947,7 @@ export const useTextInference = defineStore(
       metricsEnabled,
       maxTokens,
       contextSize,
+      temperature,
       fontSizeClass,
       nameSizeClass,
       iconSizeClass,
@@ -991,7 +998,7 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'ragList'],
+      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'temperature', 'ragList'],
     },
   },
 )

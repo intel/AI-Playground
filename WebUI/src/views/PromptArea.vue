@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
-import { mapModeToLabel } from '@/lib/utils.ts'
+import { mapModeToLabel, downscaleImageTo1MP } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
@@ -302,6 +302,34 @@ function isDocumentFile(file: File): boolean {
   return ext ? validDocumentExtensions.includes(ext as ValidFileExtension) : false
 }
 
+// Handle image files with downscaling for chat mode
+async function handleImageFiles(imageFiles: File[]) {
+  if (imageFiles.length === 0) return
+
+  // Downscale images if in chat mode (images are only sent to vision-capable models)
+  if (promptStore.getCurrentMode() === 'chat') {
+    try {
+      const downscaledFiles = await Promise.all(
+        imageFiles.map(file => downscaleImageTo1MP(file))
+      )
+      const imageFileList = new DataTransfer()
+      downscaledFiles.forEach(file => imageFileList.items.add(file))
+      openAiCompatibleChat.fileInput = imageFileList.files
+    } catch (error) {
+      console.error('Error downscaling images:', error)
+      // Fallback to original files if downscaling fails
+      const imageFileList = new DataTransfer()
+      imageFiles.forEach(file => imageFileList.items.add(file))
+      openAiCompatibleChat.fileInput = imageFileList.files
+    }
+  } else {
+    // For non-chat modes, use original files
+    const imageFileList = new DataTransfer()
+    imageFiles.forEach(file => imageFileList.items.add(file))
+    openAiCompatibleChat.fileInput = imageFileList.files
+  }
+}
+
 // Handle file input change
 async function handleFileInput(event: Event) {
   const target = event.target as HTMLInputElement
@@ -320,12 +348,8 @@ async function handleFileInput(event: Event) {
     }
   }
 
-  // Handle images (existing behavior)
-  if (imageFiles.length > 0) {
-    const imageFileList = new DataTransfer()
-    imageFiles.forEach(file => imageFileList.items.add(file))
-    openAiCompatibleChat.fileInput = imageFileList.files
-  }
+  // Handle images
+  await handleImageFiles(imageFiles)
 
   // Handle documents (add to RAG)
   if (documentFiles.length > 0) {
@@ -380,7 +404,7 @@ async function addDocumentsToRagList(files: File[]) {
 }
 
 // Handle drag and drop
-function onDrop(files: File[] | null) {
+async function onDrop(files: File[] | null) {
   if (!files || files.length === 0) return
 
   const imageFiles: File[] = []
@@ -396,11 +420,7 @@ function onDrop(files: File[] | null) {
   }
 
   // Handle images
-  if (imageFiles.length > 0) {
-    const imageFileList = new DataTransfer()
-    imageFiles.forEach(file => imageFileList.items.add(file))
-    openAiCompatibleChat.fileInput = imageFileList.files
-  }
+  await handleImageFiles(imageFiles)
 
   // Handle documents
   if (documentFiles.length > 0) {

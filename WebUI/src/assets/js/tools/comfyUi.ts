@@ -3,7 +3,7 @@ import { watch } from 'vue'
 import { useImageGenerationPresets, type ImageMediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
-import { usePresets } from '../store/presets'
+import { usePresets, type Preset } from '../store/presets'
 
 // Global defaults as fallback (matching imageGenerationPresets.ts)
 const globalDefaultSettings = {
@@ -14,6 +14,32 @@ const globalDefaultSettings = {
   resolution: '704x384',
   batchSize: 4,
   negativePrompt: 'nsfw',
+}
+
+// Helper function to get available workflows for the tool
+export function getAvailableWorkflows(): Array<{
+  name: string
+  mediaType?: 'image' | 'video' | 'model3d'
+  description?: string
+  toolInstructions?: string
+}> {
+  const presets = usePresets()
+  
+  return presets.presets
+    .filter((preset: Preset) => {
+      // Only ComfyUI presets
+      if (preset.type !== 'comfy' || preset.backend !== 'comfyui') {
+        return false
+      }
+      // Only presets with toolEnabled: true
+      return preset.toolEnabled === true
+    })
+    .map((preset: Preset) => ({
+      name: preset.name,
+      mediaType: preset.mediaType,
+      description: preset.description,
+      toolInstructions: preset.toolInstructions,
+    }))
 }
 
 // Helper function to execute ComfyUI generation for tool calls
@@ -204,17 +230,96 @@ export async function executeComfyGeneration(args: {
 }
 
 // Tool definition for AI SDK
+// Generate the tool description and schema dynamically based on available workflows
+function getToolDefinition() {
+  const availableWorkflows = getAvailableWorkflows()
+  const defaultWorkflow = 'SD1.5'
+  
+  // Fallback if no workflows are available yet (presets not loaded)
+  if (availableWorkflows.length === 0) {
+    return {
+      description: 'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\nIMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags.',
+      inputSchema: z.object({
+        workflow: z.string().describe(`Workflow name to use for generation. Use ${defaultWorkflow} (default, least resource intensive) unless user specifically requests higher quality or different model.`),
+        prompt: z.string().describe('Detailed text prompt describing the media to generate. Always expand simple requests into full, descriptive prompts with subject details, composition, style, lighting, colors, mood, and quality tags.'),
+        negativePrompt: z.string().optional().describe('Negative prompt for things to avoid'),
+        batchSize: z.number().describe('Number of images to generate. Use 1 if not explicitly specified by the user.'),
+      }),
+    }
+  }
+  
+  // Separate workflows by media type
+  const imageWorkflows = availableWorkflows.filter((w) => w.mediaType === 'image' || !w.mediaType)
+  const videoWorkflows = availableWorkflows.filter((w) => w.mediaType === 'video')
+  const model3dWorkflows = availableWorkflows.filter((w) => w.mediaType === 'model3d')
+  
+  // Build workflow description with available options
+  const workflowOptions = availableWorkflows.map((w) => {
+    const mediaTypeStr = w.mediaType ? ` (${w.mediaType})` : ''
+    const isDefault = w.name === defaultWorkflow ? ' (default, least resource intensive)' : ''
+    return `${w.name}${mediaTypeStr}${isDefault}`
+  }).join(', ')
+  
+  // Collect all unique tool instructions
+  const allInstructions = availableWorkflows
+    .map((w) => w.toolInstructions)
+    .filter((inst): inst is string => !!inst)
+  
+  // Base description with prompt generation instructions
+  let description = 'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\n'
+  description += 'IMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags. For example, if the user asks for "an elephant", expand it to something like "a majestic African elephant standing in golden hour sunlight, detailed wrinkles on skin, photorealistic, 8k, highly detailed, professional photography".\n\n'
+  
+  // Add preset-specific instructions if available
+  if (allInstructions.length > 0) {
+    description += 'Preset-specific prompt guidelines:\n'
+    allInstructions.forEach((inst, idx) => {
+      description += `${idx + 1}. ${inst}\n`
+    })
+    description += '\n'
+  }
+  
+  description += `Available workflows: ${workflowOptions}. Use ${defaultWorkflow} unless the user specifically requests higher quality, a different model, or a different media type.\n\n`
+  
+  // Add explicit warnings for video workflows
+  if (videoWorkflows.length > 0) {
+    description += `CRITICAL: Video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) should ONLY be used when the user explicitly requests video generation. Never use video workflows for image requests. Video generation is resource-intensive and should only be used when specifically asked for.`
+  }
+  
+  // Build workflow enum or string description
+  const workflowNames = availableWorkflows.map((w) => w.name)
+  const workflowEnum = workflowNames.length > 0 
+    ? z.enum(workflowNames as [string, ...string[]])
+    : z.string()
+  
+  let workflowDescription = `Workflow name to use for generation. Available options: ${workflowOptions}. `
+  workflowDescription += `Use ${defaultWorkflow} unless user specifically requests higher quality or different model. `
+  if (videoWorkflows.length > 0) {
+    workflowDescription += `IMPORTANT: Only use video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) when the user explicitly asks for video generation. Never use video workflows for image requests.`
+  }
+  
+  return {
+    description,
+    inputSchema: z.object({
+      workflow: workflowEnum.describe(workflowDescription),
+      prompt: z.string().describe('Detailed text prompt describing the media to generate. Always expand simple requests into full, descriptive prompts with subject details, composition, style, lighting, colors, mood, and quality tags.'),
+      negativePrompt: z.string().optional().describe('Negative prompt for things to avoid'),
+      // resolution: z.string().optional().describe('Image resolution (e.g., "512x512", "1024x768")'),
+      // inferenceSteps: z.number().optional().describe('Number of inference steps'),
+      // seed: z.number().optional().describe('Random seed for reproducibility'),
+      batchSize: z.number().describe('Number of images to generate. Use 1 if not explicitly specified by the user.'),
+    }),
+  }
+}
+
+// Tool definition for AI SDK
+// Use getters so the tool definition is computed when accessed (after presets are loaded)
 export const comfyUI = {
-  description: 'Use this tool to create, edit, or enhance images based on text prompts. Only use this tool if the user explicitly asks to create media content like images, videos, or 3D models.',
-  inputSchema: z.object({
-    workflow: z.string().describe('Workflow name or ID to use for generation. Always use exactly `SD1.5`'),
-    prompt: z.string().describe('Text prompt describing the image to generate'),
-    negativePrompt: z.string().optional().describe('Negative prompt for things to avoid'),
-    // resolution: z.string().optional().describe('Image resolution (e.g., "512x512", "1024x768")'),
-    // inferenceSteps: z.number().optional().describe('Number of inference steps'),
-    // seed: z.number().optional().describe('Random seed for reproducibility'),
-    batchSize: z.number().describe('Number of images to generate. Use 1 if not explicitly specified by the user.'),
-  }),
+  get description() {
+    return getToolDefinition().description
+  },
+  get inputSchema() {
+    return getToolDefinition().inputSchema
+  },
   execute: async (args: {
     workflow?: string
     prompt: string

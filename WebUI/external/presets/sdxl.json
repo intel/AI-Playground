@@ -6,6 +6,9 @@
   "backend": "comfyui",
   "category": "create-images",
   "description": "Stable Diffusion XL image generation using Juggernaut-XL-v9",
+  "mediaType": "image",
+  "toolEnabled": true,
+  "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. SDXL produces higher quality images than SD1.5, so emphasize photorealistic details and professional quality. Even if the user requests something simple like 'a cat', expand it to a full prompt like 'a beautiful orange tabby cat sitting on a windowsill, soft natural lighting, detailed fur texture, photorealistic, 8k, highly detailed, professional photography, shallow depth of field'.",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

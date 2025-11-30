@@ -85,6 +85,7 @@ export const useOpenAiCompatibleChat = defineStore(
         abortSignal: options.signal,
         system: systemPromptToUse,
         maxOutputTokens: textInference.maxTokens,
+        temperature: textInference.temperature,
         includeRawChunks: true,
         tools: {
           comfyUI,
@@ -212,6 +213,10 @@ export const useOpenAiCompatibleChat = defineStore(
       await chats[conversations.activeKey]?.stop()
     }
 
+    function regenerate(messageId: string) {
+      chats[conversations.activeKey]?.regenerate({messageId})
+    }
+
     function removeMessage(messageId: string) {
       const chat = chats[conversations.activeKey]
       if (!chat) return
@@ -239,6 +244,7 @@ export const useOpenAiCompatibleChat = defineStore(
       stop,
       processing,
       removeMessage,
+      regenerate,
       error,
     }
   },

@@ -105,3 +105,82 @@ export function mapModeToLabel(mode: ModeType) {
 export function getTranslationLabel(prefix: string, label: string) {
   return prefix + label.replace(/ - /g, '_').replace(/-/g, '_').replace(/ /g, '_').toUpperCase()
 }
+
+/**
+ * Downscales an image to <= 1MP (1,000,000 pixels) while maintaining aspect ratio.
+ * @param file - The image file to downscale
+ * @returns A Promise that resolves to the downscaled File, or the original file if downscaling fails
+ */
+export async function downscaleImageTo1MP(file: File): Promise<File> {
+  const MAX_PIXELS = 1_000_000 // 1MP
+
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+
+      const currentPixels = img.width * img.height
+
+      // If image is already <= 1MP, return original file
+      if (currentPixels <= MAX_PIXELS) {
+        resolve(file)
+        return
+      }
+
+      // Calculate new dimensions maintaining aspect ratio
+      const scale = Math.sqrt(MAX_PIXELS / currentPixels)
+      const newWidth = Math.round(img.width * scale)
+      const newHeight = Math.round(img.height * scale)
+
+      // Create canvas and draw resized image
+      const canvas = document.createElement('canvas')
+      canvas.width = newWidth
+      canvas.height = newHeight
+      const ctx = canvas.getContext('2d')
+
+      if (!ctx) {
+        console.error('Failed to get canvas context, using original file')
+        resolve(file)
+        return
+      }
+
+      ctx.drawImage(img, 0, 0, newWidth, newHeight)
+
+      // Determine file type and quality
+      const fileType = file.type || 'image/jpeg'
+      const isJPEG = fileType === 'image/jpeg' || fileType === 'image/jpg'
+      const isWebP = fileType === 'image/webp'
+      const mimeType = isJPEG ? 'image/jpeg' : isWebP ? 'image/webp' : 'image/png'
+      const quality = isJPEG || isWebP ? 0.92 : undefined
+
+      // Convert canvas to blob and then to File
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            console.error('Failed to create blob from canvas, using original file')
+            resolve(file)
+            return
+          }
+
+          const downscaledFile = new File([blob], file.name, {
+            type: mimeType,
+            lastModified: file.lastModified,
+          })
+          resolve(downscaledFile)
+        },
+        mimeType,
+        quality,
+      )
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      console.error('Failed to load image for downscaling, using original file')
+      resolve(file)
+    }
+
+    img.src = url
+  })
+}

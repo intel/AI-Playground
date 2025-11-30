@@ -93,6 +93,10 @@ const BasePresetFieldsSchema = z.object({
       }),
     )
     .optional(),
+  // Tool metadata for ComfyUI tool integration
+  mediaType: z.enum(['image', 'video', 'model3d']).optional(), // Specifies what type of media the preset generates
+  toolInstructions: z.string().optional(), // Instructions for the AI on how to generate prompts for this preset
+  toolEnabled: z.boolean().optional(), // Whether this preset should be available in the tool
 })
 
 // ComfyUI Preset Schema
@@ -114,6 +118,7 @@ const ChatPresetSchema = BasePresetFieldsSchema.extend({
   systemPrompt: z.string().optional(),
   contextSize: z.number().optional(),
   maxNewTokens: z.number().optional(),
+  temperature: z.number().optional(),
   supportedDevices: z.array(z.string()).optional(),
   embeddingModel: z.string().optional(), // Top-level embedding model for convenience
   rag: z

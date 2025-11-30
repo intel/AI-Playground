@@ -6,6 +6,9 @@
   "backend": "comfyui",
   "category": "create-images",
   "description": "Stable Diffusion 1.5 image generation using DreamShaper 8",
+  "mediaType": "image",
+  "toolEnabled": true,
+  "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Even if the user requests something simple like 'an elephant', expand it to a full prompt like 'a majestic African elephant standing in golden hour sunlight, detailed wrinkles on skin, photorealistic, 8k, highly detailed, professional photography'.",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

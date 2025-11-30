@@ -1,7 +1,7 @@
 <template>
   <model-viewer
     :src="src"
-    skybox-image="/src/assets/image/qwantani_moonrise_puresky_8k.jpg"
+    :skybox-image="skyboxImage"
     camera-controls
     auto-rotate
     class="w-full h-full"
@@ -12,6 +12,7 @@
 
 <script setup lang="ts">
 import '@google/model-viewer'
+import skyboxImage from '@/assets/image/qwantani_moonrise_puresky_8k.jpg'
 
 defineProps<{
   src: string

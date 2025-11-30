@@ -169,7 +169,7 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_REGENERATE"
-                @click="() => openAiCompatibleChat.chat.regenerate({messageId: message.id})"
+                @click="() => openAiCompatibleChat.regenerate(message.id)"
                 v-if="i + 1 == activeConversation.length"
                 :disabled="openAiCompatibleChat.processing"
                 :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
