@@ -25,6 +25,10 @@ export type Model = {
   type: ModelType
   default: boolean
   backend?: LlmBackend
+  supportsToolCalling?: boolean
+  supportsVision?: boolean
+  maxContextSize?: number
+  npuSupport?: boolean
 }
 
 export const useModels = defineStore(
@@ -37,7 +41,7 @@ export const useModels = defineStore(
     const downloadList = ref<DownloadModelParam[]>([])
 
     async function refreshModels() {
-      const predefinedModels = await window.electronAPI.loadModels()
+      const predefinedModels = (await window.electronAPI.loadModels()) as Model[]
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
       const openVINOLLMModels = await window.electronAPI.getDownloadedOpenVINOLLMModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
@@ -65,11 +69,22 @@ export const useModels = defineStore(
         ...downloadedModels,
         ...predefinedModels.filter(notYetDownloaded),
         ...models.value.filter(notPredefined).filter(notYetDownloaded),
-      ].map<Model>((m) => ({
-        ...m,
-        downloaded: downloadedModels.map((dm) => dm.name).includes(m.name),
-        default: predefinedModels.find((pm) => pm.name === m.name)?.default ?? false,
-      }))
+      ].map<Model>((m) => {
+        const predefinedModel = predefinedModels.find((pm) => pm.name === m.name)
+        const model: Model = {
+          name: m.name,
+          mmproj: 'mmproj' in m ? (m.mmproj as string | undefined) : undefined,
+          downloaded: downloadedModels.map((dm) => dm.name).includes(m.name),
+          type: m.type,
+          default: predefinedModel?.default ?? false,
+          backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : undefined,
+          supportsToolCalling: predefinedModel?.supportsToolCalling,
+          supportsVision: predefinedModel?.supportsVision,
+          maxContextSize: predefinedModel?.maxContextSize,
+          npuSupport: predefinedModel?.npuSupport,
+        }
+        return model
+      })
       console.log('Models refreshed', models.value)
     }
 

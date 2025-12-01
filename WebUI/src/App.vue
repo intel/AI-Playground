@@ -214,6 +214,8 @@
     />
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
+    <preset-requirements-dialog v-show="dialogStore.presetRequirementsDialogVisible"></preset-requirements-dialog>
+    <installation-progress-dialog v-show="dialogStore.installationProgressDialogVisible"></installation-progress-dialog>
   </main>
 
   <footer
@@ -297,6 +299,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useTheme } from './assets/js/store/theme.ts'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import WarningDialog from '@/components/WarningDialog.vue'
+import PresetRequirementsDialog from '@/components/PresetRequirementsDialog.vue'
+import InstallationProgressDialog from '@/components/InstallationProgressDialog.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
@@ -474,7 +478,7 @@ function openHistory() {
 }
 
 function openSpecificSettings() {
-  showSpecificSettings.value = true
+  showSpecificSettings.value = !showSpecificSettings.value
 }
 
 function openAppSettings() {

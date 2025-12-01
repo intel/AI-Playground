@@ -1,13 +1,13 @@
 {
   "type": "comfy",
-  "name": "FaceSwap-HD",
-  "displayPriority": 0,
+  "name": "Control Face",
+  "displayPriority": 200,
   "tags": [
     "SDXL",
-    "v2.5",
-    "LCM",
-    "non-com"
+    "JuggernautXL",
+    "1024x1024"
   ],
+  "description": "Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
   "backend": "comfyui",
   "category": "create-images",
   "requiredCustomNodes": [
@@ -65,8 +65,8 @@
     {
       "type": "string",
       "label": "Prompt",
-      "displayed": false,
-      "modifiable": false,
+      "displayed": true,
+      "modifiable": true,
       "defaultValue": "",
       "settingName": "prompt"
     },

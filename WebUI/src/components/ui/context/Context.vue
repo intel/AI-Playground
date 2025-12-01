@@ -8,6 +8,7 @@ import { HoverCard } from '../hover-card'
 export interface ContextProps extends HoverCardRootProps {
   usedTokens: number
   maxTokens: number
+  maxContextSize?: number
   usage?: {
     inputTokens?: number
     outputTokens?: number
@@ -28,12 +29,13 @@ const emits = defineEmits<HoverCardRootEmits>()
 provide('contextData', {
   usedTokens: computed(() => props.usedTokens),
   maxTokens: computed(() => props.maxTokens),
+  maxContextSize: computed(() => props.maxContextSize),
   usage: computed(() => props.usage),
   modelId: computed(() => props.modelId),
 })
 
 // Only pass HoverCard props to HoverCard, not our custom props
-const hoverCardProps = reactiveOmit(props, 'usedTokens', 'maxTokens', 'usage', 'modelId')
+const hoverCardProps = reactiveOmit(props, 'usedTokens', 'maxTokens', 'maxContextSize', 'usage', 'modelId')
 const forwarded = useForwardPropsEmits(hoverCardProps, emits)
 </script>
 

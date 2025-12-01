@@ -451,4 +451,7 @@ type Model = {
   default: boolean
   downloaded?: boolean | undefined
   backend?: 'openVINO' | 'llamaCPP' | 'ollama' | undefined
+  supportsToolCalling?: boolean
+  supportsVision?: boolean
+  maxContextSize?: number
 }

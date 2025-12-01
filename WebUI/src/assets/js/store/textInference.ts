@@ -26,6 +26,10 @@ export type LlmModel = {
   type: LlmBackend
   active: boolean
   downloaded: boolean
+  supportsToolCalling?: boolean
+  supportsVision?: boolean
+  maxContextSize?: number
+  npuSupport?: boolean
 }
 
 export type ValidFileExtension = 'txt' | 'doc' | 'docx' | 'md' | 'pdf'
@@ -141,6 +145,10 @@ export const useTextInference = defineStore(
           active:
             m.name === selectedModelForType ||
             (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
+          supportsToolCalling: m.supportsToolCalling,
+          supportsVision: m.supportsVision,
+          maxContextSize: m.maxContextSize,
+          npuSupport: m.npuSupport,
         }
       })
 
@@ -281,6 +289,25 @@ export const useTextInference = defineStore(
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)
+
+    // Get max context size from current model
+    const maxContextSizeFromModel = computed(() => {
+      const currentModel = llmModels.value.find((m) => m.active)
+      return currentModel?.maxContextSize
+    })
+
+    // Enforce maxContextSize as hard limit when contextSize changes
+    watch(
+      () => contextSize.value,
+      (newValue) => {
+        if (maxContextSizeFromModel.value && newValue > maxContextSizeFromModel.value) {
+          contextSize.value = maxContextSizeFromModel.value
+        }
+      },
+    )
+
+    // Per-preset settings persistence
+    const settingsPerPreset = ref<Record<string, Record<string, unknown>>>({})
 
     const currentBackendUrl = computed(
       () =>
@@ -834,6 +861,195 @@ export const useTextInference = defineStore(
       return null
     })
 
+    // Get setting key for current preset (includes variant if present)
+    function getSettingsKey(): string {
+      if (!activePreset.value?.name) return ''
+      const variantName = presetsStore.activeVariantName[activePreset.value.name]
+      return variantName ? `${activePreset.value.name}:${variantName}` : activePreset.value.name
+    }
+
+    // Get saved setting value or fallback to preset default or global default
+    function getSavedOrDefault(settingName: string, presetValue: unknown, globalDefault: unknown): unknown {
+      const settingsKey = getSettingsKey()
+      if (!settingsKey) return presetValue ?? globalDefault
+      const saved = settingsPerPreset.value[settingsKey]?.[settingName]
+      return saved ?? presetValue ?? globalDefault
+    }
+
+    // Load saved settings for the active preset
+    function loadSettingsForActivePreset() {
+      if (!activePreset.value) return
+
+      const settingsKey = getSettingsKey()
+      if (!settingsKey) return
+
+      // Set flag to prevent watcher from interfering
+      isLoadingSettings = true
+
+      const savedSettings = settingsPerPreset.value[settingsKey] || {}
+      const preset = activePreset.value
+
+      // Load backend
+      if (savedSettings.backend !== undefined) {
+        backend.value = savedSettings.backend as LlmBackend
+      } else if (preset.backend) {
+        backend.value = preset.backend
+      }
+
+      // Load selected models (per backend)
+      if (savedSettings.selectedModels !== undefined) {
+        selectedModels.value = { ...selectedModels.value, ...(savedSettings.selectedModels as LlmBackendKV) }
+      } else if (preset.model && preset.backend) {
+        selectModel(preset.backend, preset.model)
+      }
+
+      // Load selected embedding models (per backend)
+      if (savedSettings.selectedEmbeddingModels !== undefined) {
+        const savedEmbeddingModels = savedSettings.selectedEmbeddingModels as LlmBackendKV
+        // Update the embedding model for the current backend if it was saved
+        if (preset.backend && savedEmbeddingModels[preset.backend] !== undefined) {
+          selectEmbeddingModel(preset.backend, savedEmbeddingModels[preset.backend]!)
+        } else {
+          // Merge all saved embedding models
+          selectedEmbeddingModels.value = {
+            ...selectedEmbeddingModels.value,
+            ...savedEmbeddingModels,
+          }
+        }
+      } else {
+        const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
+        if (embeddingModelToUse && preset.backend) {
+          selectEmbeddingModel(preset.backend, embeddingModelToUse)
+        }
+      }
+
+      // Load max tokens
+      if (savedSettings.maxTokens !== undefined) {
+        maxTokens.value = savedSettings.maxTokens as number
+      } else if (preset.maxNewTokens !== undefined) {
+        maxTokens.value = preset.maxNewTokens
+      }
+
+      // Load context size
+      if (savedSettings.contextSize !== undefined) {
+        contextSize.value = savedSettings.contextSize as number
+      } else if (preset.contextSize !== undefined) {
+        contextSize.value = preset.contextSize
+      }
+
+      // Load temperature
+      if (savedSettings.temperature !== undefined) {
+        temperature.value = savedSettings.temperature as number
+      } else if (preset.temperature !== undefined) {
+        temperature.value = preset.temperature
+      }
+
+      // Load system prompt (only if user has modified it)
+      if (savedSettings.systemPrompt !== undefined) {
+        systemPrompt.value = savedSettings.systemPrompt as string
+      } else if (preset.systemPrompt) {
+        systemPrompt.value = preset.systemPrompt
+      }
+
+      // Load metrics enabled
+      if (savedSettings.metricsEnabled !== undefined) {
+        metricsEnabled.value = savedSettings.metricsEnabled as boolean
+      } else {
+        // Set default value when no saved value exists
+        metricsEnabled.value = false
+      }
+      
+      // Clear flag after loading
+      isLoadingSettings = false
+    }
+
+    // Reset settings for active preset to defaults
+    function resetActivePresetSettings() {
+      if (!activePreset.value) return
+
+      const settingsKey = getSettingsKey()
+      if (settingsKey) {
+        settingsPerPreset.value[settingsKey] = {}
+      }
+
+      // Reload settings (which will use preset defaults)
+      loadSettingsForActivePreset()
+    }
+
+    // Track current variant name for the active preset
+    const currentVariantName = computed(() => {
+      if (!activePreset.value?.name) return null
+      return presetsStore.activeVariantName[activePreset.value.name] || null
+    })
+
+    // Track the last preset name and variant to avoid unnecessary reloads
+    let lastPresetName: string | null = null
+    let lastVariantName: string | null = null
+
+    // Track if we're currently applying a preset to avoid watcher interference
+    let isApplyingPreset = false
+    
+    // Track if we're currently loading settings to prevent watcher from overwriting
+    let isLoadingSettings = false
+
+    // Watch for preset and variant changes to load saved settings
+    watch(
+      [activePreset, currentVariantName],
+      () => {
+        const currentPresetName = activePreset.value?.name ?? null
+        const currentVariant = currentVariantName.value
+
+        // Only reload if the preset or variant actually changed
+        if (currentPresetName === lastPresetName && currentVariant === lastVariantName) {
+          return
+        }
+
+        lastPresetName = currentPresetName
+        lastVariantName = currentVariant ?? null
+
+        // If we're applying a preset, don't load settings here - applyChatPreset will handle it
+        if (isApplyingPreset) {
+          return
+        }
+
+        // Load saved settings for the new preset/variant
+        loadSettingsForActivePreset()
+
+        // Update last used preset in unified store
+        if (activePreset.value && activePreset.value.type === 'chat' && activePreset.value.name && activePreset.value.category) {
+          presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
+        }
+      },
+    )
+
+    // Watch for setting changes and save them to settingsPerPreset
+    watch(
+      [backend, selectedModels, selectedEmbeddingModels, maxTokens, contextSize, temperature, systemPrompt, metricsEnabled],
+      () => {
+        // Don't save if we're applying a preset or loading settings
+        if (isApplyingPreset || isLoadingSettings) return
+        
+        const settingsKey = getSettingsKey()
+        // Allow saving when settingsKey exists (preset name is available)
+        // This handles cases where activePreset.value might be temporarily null during transitions
+        if (!settingsKey) return
+
+        // Save settings to per-preset storage
+        settingsPerPreset.value[settingsKey] = {
+          ...settingsPerPreset.value[settingsKey],
+          backend: backend.value,
+          selectedModels: { ...selectedModels.value },
+          selectedEmbeddingModels: { ...selectedEmbeddingModels.value },
+          maxTokens: maxTokens.value,
+          contextSize: contextSize.value,
+          temperature: temperature.value,
+          systemPrompt: systemPrompt.value,
+          metricsEnabled: metricsEnabled.value,
+        }
+      },
+      { deep: true },
+    )
+
     // Initialize with first chat preset if available and no preset is selected
     watch(
       () => presetsStore.chatPresets,
@@ -865,14 +1081,26 @@ export const useTextInference = defineStore(
           return
         }
 
+        // Set flag to prevent watcher from interfering
+        isApplyingPreset = true
+
+        // Update active preset name
+        presetsStore.activePresetName = preset.name
+
         // Apply the preset using existing applyChatPreset method
         await applyChatPreset(preset)
 
-        // Update active preset name in unified store
-        presetsStore.activePresetName = preset.name
+        // Clear flag after applying
+        isApplyingPreset = false
+
+        // Update last used preset in unified store
+        if (preset.category) {
+          presetsStore.setLastUsedPreset(preset.category, preset.name)
+        }
 
         console.log('Applied chat preset:', preset.name)
       } catch (error) {
+        isApplyingPreset = false
         console.error('Failed to apply chat preset:', error)
       }
     }
@@ -883,6 +1111,7 @@ export const useTextInference = defineStore(
 
     async function applyChatPreset(preset: ChatPreset) {
       try {
+        // First, apply preset defaults
         // Apply backend
         if (preset.backend) {
           backend.value = preset.backend
@@ -898,9 +1127,14 @@ export const useTextInference = defineStore(
           systemPrompt.value = preset.systemPrompt
         }
 
-        // Apply context size
+        // Apply context size (enforce model's maxContextSize limit)
         if (preset.contextSize) {
-          contextSize.value = preset.contextSize
+          const modelMaxContextSize = maxContextSizeFromModel.value
+          if (modelMaxContextSize && preset.contextSize > modelMaxContextSize) {
+            contextSize.value = modelMaxContextSize
+          } else {
+            contextSize.value = preset.contextSize
+          }
         }
 
         // Apply max tokens
@@ -927,6 +1161,10 @@ export const useTextInference = defineStore(
           }
         }
 
+        // After applying preset defaults, load any saved user settings
+        // This ensures user customizations override preset defaults
+        loadSettingsForActivePreset()
+
         // Prepare backend if needed after applying preset settings
         await prepareBackendIfNeeded()
 
@@ -947,6 +1185,7 @@ export const useTextInference = defineStore(
       metricsEnabled,
       maxTokens,
       contextSize,
+      maxContextSizeFromModel,
       temperature,
       fontSizeClass,
       nameSizeClass,
@@ -980,6 +1219,8 @@ export const useTextInference = defineStore(
       // Preset management
       activePreset,
       applyPreset,
+      resetActivePresetSettings,
+      settingsPerPreset,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),
@@ -998,7 +1239,7 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'temperature', 'ragList'],
+      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'temperature', 'ragList', 'settingsPerPreset'],
     },
   },
 )

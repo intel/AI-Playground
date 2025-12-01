@@ -127,6 +127,8 @@ const ChatPresetSchema = BasePresetFieldsSchema.extend({
       enabled: z.boolean().optional(),
     })
     .optional(),
+  requiresVision: z.boolean().optional(),
+  requiresToolCalling: z.boolean().optional(),
 })
 
 // Discriminated Union for all Preset types
@@ -192,6 +194,13 @@ export const usePresets = defineStore(
     // Variant Application
     // ========================================================================
 
+    function getFirstVariantName(preset: Preset): string | null {
+      if (!preset.variants || preset.variants.length === 0) {
+        return null
+      }
+      return preset.variants[0].name
+    }
+
     function applyVariant(basePreset: Preset, variantName: string): Preset {
       const variant = basePreset.variants?.find((v) => v.name === variantName)
       if (!variant) {
@@ -216,18 +225,47 @@ export const usePresets = defineStore(
       const preset = presets.value.find((p) => p.name === presetName)
       if (!preset) return null
 
-      const variantName = activeVariantName.value[presetName]
-      if (variantName) {
-        return applyVariant(preset, variantName)
+      // If preset has variants, ensure one is selected
+      if (preset.variants && preset.variants.length > 0) {
+        let variantName: string | undefined = activeVariantName.value[presetName]
+        
+        // Auto-select first variant if none is selected
+        if (!variantName) {
+          const firstVariant = getFirstVariantName(preset)
+          if (firstVariant) {
+            variantName = firstVariant
+            activeVariantName.value[presetName] = variantName
+          }
+        }
+        
+        if (variantName) {
+          return applyVariant(preset, variantName)
+        }
       }
+
+      // No variants or no variant selected (shouldn't happen if variants exist)
       return preset
     }
 
     function setActiveVariant(presetName: string, variantName: string | null): void {
+      const preset = presets.value.find((p) => p.name === presetName)
+      
+      // If preset has variants and null is passed, select first variant instead
+      if (variantName === null && preset && preset.variants && preset.variants.length > 0) {
+        const firstVariant = getFirstVariantName(preset)
+        if (firstVariant) {
+          activeVariantName.value[presetName] = firstVariant
+          return
+        }
+      }
+      
       if (variantName) {
         activeVariantName.value[presetName] = variantName
       } else {
-        delete activeVariantName.value[presetName]
+        // Only delete if preset has no variants
+        if (!preset || !preset.variants || preset.variants.length === 0) {
+          delete activeVariantName.value[presetName]
+        }
       }
     }
 
@@ -443,7 +481,7 @@ export const usePresets = defineStore(
         
         // If no categories specified but type is, return all of that type
         return true
-      }).sort((a, b) => a.displayPriority - b.displayPriority)
+      }).sort((a, b) => (b.displayPriority || 0) - (a.displayPriority || 0))
     }
 
     function getLastUsedPreset(categories: string[]): string | null {
@@ -588,6 +626,7 @@ export const usePresets = defineStore(
       getPresetWithVariant,
       setActiveVariant,
       applyVariant,
+      getFirstVariantName,
       loadPresetsFromFiles,
       loadUserPresets,
       loadPresetsFromIntel,

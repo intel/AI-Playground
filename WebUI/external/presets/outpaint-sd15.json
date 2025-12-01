@@ -1,11 +1,11 @@
 {
   "type": "comfy",
-  "name": "Outpaint SD1.5",
-  "displayPriority": 500,
+  "name": "Outpaint",
+  "displayPriority": 400,
   "tags": ["outpaint", "edit-images", "sd1.5"],
   "backend": "comfyui",
   "category": "edit-images",
-  "description": "Outpaint images using Stable Diffusion 1.5",
+  "description": "Extend an image beyond its borders by sizing and positioning an image in a new space, then generate new content around it",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

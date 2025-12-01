@@ -9,6 +9,7 @@ const PERCENT_MAX = 100
 type ContextData = {
   usedTokens: { value: number }
   maxTokens: { value: number }
+  maxContextSize?: { value?: number }
 }
 
 const props = defineProps<{
@@ -44,6 +45,15 @@ const total = computed(() => {
     notation: 'compact',
   }).format(contextData.maxTokens.value)
 })
+
+const maxContextSize = computed(() => {
+  return contextData.maxContextSize?.value
+})
+
+const maxContextSizeFormatted = computed(() => {
+  if (!maxContextSize.value) return null
+  return new Intl.NumberFormat('en-US').format(maxContextSize.value)
+})
 </script>
 
 <template>
@@ -51,9 +61,14 @@ const total = computed(() => {
     <slot>
       <div class="flex items-center justify-between gap-3 text-xs">
         <p>{{ displayPct }}</p>
-        <p class="font-mono text-muted-foreground">
-          {{ used }} / {{ total }}
-        </p>
+        <div class="flex items-center gap-2">
+          <p class="font-mono text-muted-foreground">
+            {{ used }} / {{ total }}
+          </p>
+          <p v-if="maxContextSizeFormatted" class="text-muted-foreground/70">
+            (max: {{ maxContextSizeFormatted }})
+          </p>
+        </div>
       </div>
       <div class="space-y-2">
         <Progress class="bg-muted" :model-value="usedPercent * PERCENT_MAX" />

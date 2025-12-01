@@ -13,6 +13,10 @@ export const ModelSchema = z.object({
   ]),
   default: z.boolean(),
   backend: z.enum(llmBackendTypes).optional(),
+  supportsToolCalling: z.boolean().optional(),
+  supportsVision: z.boolean().optional(),
+  maxContextSize: z.number().optional(),
+  npuSupport: z.boolean().optional(),
 })
 
 //type Model = z.infer<typeof ModelSchema>

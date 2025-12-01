@@ -81,7 +81,7 @@
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.ANSWER_METRICS }}</Label>
-          <Checkbox id="metrics" @click="textInference.toggleMetrics()" />
+          <Checkbox id="metrics" :checked="textInference.metricsEnabled" @update:checked="(checked: boolean) => textInference.metricsEnabled = checked" />
         </div>
 
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">

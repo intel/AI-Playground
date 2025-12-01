@@ -10,6 +10,7 @@
           v-if="promptStore.getCurrentMode() === 'chat'"
           :used-tokens="contextUsedTokens"
           :max-tokens="contextMaxTokens"
+          :max-context-size="textInference.maxContextSizeFromModel"
           :usage="contextUsage"
         >
           <ContextTrigger />
@@ -45,6 +46,7 @@
           </div>
         </div>
         <textarea
+          ref="textareaRef"
           class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
           :class="{ 
             [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
@@ -56,14 +58,24 @@
           @keydown="fastGenerate"
         ></textarea>
         <div class="absolute bottom-14 left-3 flex gap-2">
-          <img
+          <div
             v-for="preview in imagePreview"
             :key="preview.id"
-            :src="preview.url"
-            alt="Image Preview"
-            class="max-h-12 max-w-12 mr-2 aspect-square object-contain border border-dashed border-border rounded-md"
-          />
-          <!-- TODO: delete icon for loaded images -->
+            class="relative max-h-12 max-w-12 mr-2 aspect-square group"
+          >
+            <img
+              :src="preview.url"
+              alt="Image Preview"
+              class="w-full h-full object-contain border border-dashed border-border rounded-md"
+            />
+            <button
+              @click="removeImage(preview.id)"
+              class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+              title="Remove image"
+            >
+              <XMarkIcon class="size-4" />
+            </button>
+          </div>
           <div 
             ref="dropZoneRef"
             class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer"
@@ -140,7 +152,7 @@ import { useI18N } from '@/assets/js/store/i18n'
 import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
-import { useDropZone } from '@vueuse/core'
+import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
 import {
   Context,
@@ -160,6 +172,7 @@ const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
 const dropZoneRef = ref<HTMLDivElement>()
+const textareaRef = ref<HTMLTextAreaElement>()
 
 // Get checked RAG documents for display
 const checkedRagDocuments = computed(() => {
@@ -193,13 +206,33 @@ const imagePreview = computed(() => {
     let id = 0
     for (const file of openAiCompatibleChat.fileInput) {
       const url = URL.createObjectURL(file)
-      urls.push({ id, url })
+      urls.push({ id, url, file })
       id++
     }
     return urls
   }
   return []
 })
+
+// Remove image at specified index
+function removeImage(index: number) {
+  if (!openAiCompatibleChat.fileInput) return
+  
+  // Revoke object URL for the removed image
+  const preview = imagePreview.value.find(p => p.id === index)
+  if (preview) {
+    URL.revokeObjectURL(preview.url)
+  }
+  
+  // Convert FileList to array and remove the file at index
+  const files = Array.from(openAiCompatibleChat.fileInput)
+  files.splice(index, 1)
+  
+  // Create new FileList with remaining files
+  const fileList = new DataTransfer()
+  files.forEach(file => fileList.items.add(file))
+  openAiCompatibleChat.fileInput = fileList.files
+}
 
 const isProcessing = computed(() =>
   openAiCompatibleChat.processing || imageGeneration.processing
@@ -249,11 +282,39 @@ watch(isProcessing, (newValue, oldValue) => {
   }
 
   if (oldValue === true && newValue === false) {
-    processingDebounceTimer.value = window.setTimeout(() => {
-      prompt.value = ''
+    const currentMode = promptStore.getCurrentMode()
+    // Only clear prompt for chat mode; persist for ComfyUI modes (imageGen, imageEdit, video)
+    if (currentMode === 'chat') {
+      processingDebounceTimer.value = window.setTimeout(() => {
+        prompt.value = ''
+        promptStore.promptSubmitted = false
+        processingDebounceTimer.value = null
+      }, 1000)
+    } else {
+      // For ComfyUI modes, just reset the submitted flag but keep the prompt
       promptStore.promptSubmitted = false
-      processingDebounceTimer.value = null
-    }, 1000)
+    }
+  }
+})
+
+// Sync prompt from store to textarea when switching to ComfyUI modes
+watch(() => promptStore.getCurrentMode(), (newMode) => {
+  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+  if (comfyUiModes.includes(newMode)) {
+    // When switching to ComfyUI modes, sync the store prompt to the textarea
+    prompt.value = imageGeneration.prompt || ''
+  }
+})
+
+// Keep textarea in sync with imageGeneration.prompt for ComfyUI modes
+watch(() => imageGeneration.prompt, (newPrompt) => {
+  const currentMode = promptStore.getCurrentMode()
+  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+  if (comfyUiModes.includes(currentMode)) {
+    // Only sync if the prompt actually changed to avoid unnecessary updates
+    if (prompt.value !== newPrompt) {
+      prompt.value = newPrompt || ''
+    }
   }
 })
 
@@ -443,4 +504,27 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
   multiple: true,
   preventDefaultForUnhandled: false,
 })
+
+// Handle clipboard paste for images
+function handlePaste(event: ClipboardEvent) {
+  const items = event.clipboardData?.items
+  if (!items) return
+  
+  const imageFiles: File[] = []
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) imageFiles.push(file)
+    }
+  }
+  
+  if (imageFiles.length > 0) {
+    event.preventDefault() // Prevent default paste behavior for images
+    handleImageFiles(imageFiles)
+  }
+}
+
+// Attach paste event listener to textarea
+useEventListener(textareaRef, 'paste', handlePaste)
 </script>

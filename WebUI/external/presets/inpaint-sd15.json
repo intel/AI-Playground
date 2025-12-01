@@ -1,11 +1,11 @@
 {
   "type": "comfy",
-  "name": "Inpaint SD1.5",
+  "name": "Inpaint",
   "displayPriority": 500,
-  "tags": ["inpaint", "edit-images", "sd1.5"],
+  "tags": ["masking"],
   "backend": "comfyui",
   "category": "edit-images",
-  "description": "Inpaint images using Stable Diffusion 1.5",
+  "description": "Regenerate portions of an image by masking an area that will change based on your prompt",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

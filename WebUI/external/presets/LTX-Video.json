@@ -406,6 +406,10 @@
   },
   "variants": [
     {
+      "name": "Image2Video",
+      "overrides": {}
+    },
+    {
       "name": "Text2Video",
       "removeSettings": ["Reference Image"],
       "overrides": {

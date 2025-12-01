@@ -6,7 +6,7 @@ import { useModels } from './models'
 import { useBackendServices } from './backendServices'
 import { usePresets, type ComfyUiPreset, type ComfyInput, type Setting } from './presets'
 import { useUIStore } from './ui'
-import { useDialogStore } from './dialogs'
+import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
 
 export type GenerateState =
@@ -78,10 +78,12 @@ const globalDefaultSettings = {
   seed: -1,
   width: 512,
   height: 512,
-  inferenceSteps: 6,
-  resolution: '704x384',
-  batchSize: 4,
+  inferenceSteps: 4,
+  resolution: '512x512',
+  batchSize: 1,
   negativePrompt: 'nsfw',
+  imagePreview: true,
+  safetyCheck: true,
 }
 
 const generalDefaultSettings = {
@@ -203,6 +205,8 @@ export const useImageGenerationPresets = defineStore(
       resolution,
       batchSize,
       negativePrompt,
+      imagePreview,
+      safetyCheck,
     }
 
     const backend = computed(() => {
@@ -286,7 +290,16 @@ export const useImageGenerationPresets = defineStore(
     // Change the settings key to include variant
     function getSettingsKey(): string {
       if (!activePreset.value?.name) return ''
-      const variantName = presetsStore.activeVariantName[activePreset.value.name]
+      let variantName: string | undefined = presetsStore.activeVariantName[activePreset.value.name]
+      
+      // If preset has variants but no variant is selected, use first variant
+      if (!variantName && activePreset.value.variants && activePreset.value.variants.length > 0) {
+        const firstVariant = presetsStore.getFirstVariantName(activePreset.value)
+        if (firstVariant) {
+          variantName = firstVariant
+        }
+      }
+      
       return variantName ? `${activePreset.value.name}:${variantName}` : activePreset.value.name
     }
 
@@ -348,6 +361,8 @@ export const useImageGenerationPresets = defineStore(
       saveToSettingsPerPreset('resolution')
       saveToSettingsPerPreset('batchSize')
       saveToSettingsPerPreset('negativePrompt')
+      saveToSettingsPerPreset('imagePreview')
+      saveToSettingsPerPreset('safetyCheck')
     })
 
     const generatedImages = ref<MediaItem[]>([])
@@ -376,6 +391,8 @@ export const useImageGenerationPresets = defineStore(
       resolution.value = getSavedOrDefault('resolution') ?? globalDefaultSettings.resolution
       batchSize.value = getSavedOrDefault('batchSize') ?? globalDefaultSettings.batchSize
       negativePrompt.value = getSavedOrDefault('negativePrompt') ?? globalDefaultSettings.negativePrompt
+      imagePreview.value = getSavedOrDefault('imagePreview') ?? generalDefaultSettings.imagePreview
+      safetyCheck.value = getSavedOrDefault('safetyCheck') ?? generalDefaultSettings.safetyCheck
     }
 
     function updateImage(newImage: MediaItem) {
@@ -401,6 +418,79 @@ export const useImageGenerationPresets = defineStore(
           resolve()
         }
       })
+    }
+
+    /**
+     * Validates all requirements for the active preset
+     * @returns Object containing validation results for backend, custom nodes, Python packages, and models
+     */
+    async function validatePresetRequirements(): Promise<{
+      backendRunning: boolean
+      missingCustomNodes: string[]
+      missingPythonPackages: string[]
+      missingModels: DownloadModelParam[]
+      allRequirementsMet: boolean
+    }> {
+      if (!activePreset.value) {
+        return {
+          backendRunning: false,
+          missingCustomNodes: [],
+          missingPythonPackages: [],
+          missingModels: [],
+          allRequirementsMet: false,
+        }
+      }
+
+      // Check backend status
+      const backendServiceName = backendToService[backend.value]
+      const backendInfo = backendServices.info.find(
+        (s) => s.serviceName === backendServiceName,
+      )
+      const backendRunning = backendInfo?.status === 'running'
+
+      // Check custom nodes and Python packages (only for ComfyUI presets)
+      let missingCustomNodes: string[] = []
+      let missingPythonPackages: string[] = []
+      if (activePreset.value.type === 'comfy') {
+        const requirements = await comfyUi.checkPresetRequirements()
+        missingCustomNodes = requirements.missingCustomNodes
+        missingPythonPackages = requirements.missingPythonPackages
+      }
+
+      // Check models
+      const missingModels = await getMissingModels()
+
+      const allRequirementsMet =
+        backendRunning &&
+        missingCustomNodes.length === 0 &&
+        missingPythonPackages.length === 0 &&
+        missingModels.length === 0
+
+      return {
+        backendRunning,
+        missingCustomNodes,
+        missingPythonPackages,
+        missingModels,
+        allRequirementsMet,
+      }
+    }
+
+    /**
+     * Formats validation results into data structure for requirements dialog
+     */
+    function formatRequirementsForDialog(validation: {
+      missingCustomNodes: string[]
+      missingPythonPackages: string[]
+      missingModels: DownloadModelParam[]
+    }): PresetRequirementsData {
+      return {
+        missingModels: validation.missingModels.map((model) => ({
+          name: model.repo_id,
+          type: model.type,
+        })),
+        missingCustomNodes: validation.missingCustomNodes,
+        missingPythonPackages: validation.missingPythonPackages,
+      }
     }
 
 
@@ -484,7 +574,11 @@ export const useImageGenerationPresets = defineStore(
         if (presets.length > 0 && !activePreset.value) {
           const firstComfyPreset = presets.find((p) => p.type === 'comfy')
           if (firstComfyPreset) {
-            presetsStore.setActiveVariant(firstComfyPreset.name, null)
+            // If preset has variants, select first variant; otherwise pass null
+            const firstVariantName = firstComfyPreset.variants && firstComfyPreset.variants.length > 0
+              ? firstComfyPreset.variants[0].name
+              : null
+            presetsStore.setActiveVariant(firstComfyPreset.name, firstVariantName)
           }
         }
       },
@@ -514,6 +608,8 @@ export const useImageGenerationPresets = defineStore(
       resetActivePresetSettings,
       getMissingModels,
       ensureModelsAreAvailable,
+      validatePresetRequirements,
+      formatRequirementsForDialog,
       updateImage,
       generate,
       stopGeneration,

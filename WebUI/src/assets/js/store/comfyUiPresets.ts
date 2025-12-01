@@ -166,6 +166,16 @@ function modifySettingInWorkflow(
   }
 }
 
+import type { InstallationPhase } from './dialogs'
+
+export type InstallationProgressCallback = (progress: {
+  phase: InstallationPhase
+  currentItem?: string
+  completedItems: number
+  totalItems: number
+  statusMessage: string
+}) => void
+
 export const useComfyUiPresets = defineStore(
   'comfyUiPresets',
   () => {
@@ -187,11 +197,11 @@ export const useComfyUiPresets = defineStore(
     })
 
     async function installCustomNodesForActivePresetFully() {
-      const presetNeedsToBeInstalled = await checkPresetRequirements()
-      if (!presetNeedsToBeInstalled) return
+      const requirements = await checkPresetRequirements()
+      if (!requirements.hasMissingRequirements) return
       console.info('restarting comfyUI to finalize installation of required custom nodes')
       await backendServices.stopService('comfyui-backend')
-      await triggerInstallPythonPackagesForActivePreset()
+      await triggerInstallPythonPackagesForActivePreset() // Backend already stopped above
       await installCustomNodesForActivePreset()
       const startingResult = await backendServices.startService('comfyui-backend')
       if (startingResult !== 'running') {
@@ -200,9 +210,19 @@ export const useComfyUiPresets = defineStore(
       console.info('restart complete')
     }
 
-    async function checkPresetRequirements() {
+    async function checkPresetRequirements(): Promise<{
+      hasMissingRequirements: boolean
+      missingCustomNodes: string[]
+      missingPythonPackages: string[]
+    }> {
       const preset = imageGeneration.activePreset
-      if (!preset || preset.type !== 'comfy') return false
+      if (!preset || preset.type !== 'comfy') {
+        return {
+          hasMissingRequirements: false,
+          missingCustomNodes: [],
+          missingPythonPackages: [],
+        }
+      }
 
       const customNodes = preset.requiredCustomNodes ?? []
       const pythonPackages = preset.requiredPythonPackages ?? []
@@ -213,20 +233,34 @@ export const useComfyUiPresets = defineStore(
       })
 
       const nodeChecks = await Promise.all(
-        customNodes.map((node) =>
-          window.electronAPI.comfyui.isCustomNodeInstalled(
+        customNodes.map(async (node) => {
+          const isInstalled = await window.electronAPI.comfyui.isCustomNodeInstalled(
             extractCustomNodeInfo(node),
-          ),
-        ),
+          )
+          return { node, isInstalled }
+        }),
       )
-      const nodesNeedInstallation = nodeChecks.some((installed: boolean) => !installed)
+      const missingCustomNodes = nodeChecks
+        .filter((check) => !check.isInstalled)
+        .map((check) => check.node)
 
       const packageChecks = await Promise.all(
-        pythonPackages.map((pkg) => window.electronAPI.comfyui.isPackageInstalled(pkg)),
+        pythonPackages.map(async (pkg) => {
+          const isInstalled = await window.electronAPI.comfyui.isPackageInstalled(pkg)
+          return { package: pkg, isInstalled }
+        }),
       )
-      const packagesNeedInstallation = packageChecks.some((installed: boolean) => !installed)
+      const missingPythonPackages = packageChecks
+        .filter((check) => !check.isInstalled)
+        .map((check) => check.package)
 
-      return nodesNeedInstallation || packagesNeedInstallation
+      const hasMissingRequirements = missingCustomNodes.length > 0 || missingPythonPackages.length > 0
+
+      return {
+        hasMissingRequirements,
+        missingCustomNodes,
+        missingPythonPackages,
+      }
     }
 
     function extractCustomNodeInfo(
@@ -253,7 +287,9 @@ export const useComfyUiPresets = defineStore(
       return { username: username, repoName: repoName, gitRef: gitRef }
     }
 
-    async function installCustomNodesForActivePreset(): Promise<boolean> {
+    async function installCustomNodesForActivePreset(
+      callback?: InstallationProgressCallback,
+    ): Promise<boolean> {
       const preset = imageGeneration.activePreset
       if (!preset || preset.type !== 'comfy') return false
 
@@ -269,37 +305,158 @@ export const useComfyUiPresets = defineStore(
         }
       }
 
-      const results = await Promise.all(
-        nodesToInstall.map((node) =>
-          window.electronAPI.comfyui.downloadCustomNode(node),
-        ),
-      )
+      if (nodesToInstall.length === 0) return false
 
-      const failedNodes = nodesToInstall.filter((_, index) => !results[index])
-      if (failedNodes.length > 0) {
-        const failedNodeNames = failedNodes.map((n) => `${n.username}/${n.repoName}`).join(', ')
+      try {
+        for (let i = 0; i < nodesToInstall.length; i++) {
+          const node = nodesToInstall[i]
+          const nodeName = `${node.username}/${node.repoName}`
+          callback?.({
+            phase: 'installing_custom_nodes',
+            currentItem: nodeName,
+            completedItems: i,
+            totalItems: nodesToInstall.length,
+            statusMessage: `Installing custom node: ${nodeName}`,
+          })
+          const result = await window.electronAPI.comfyui.downloadCustomNode(node)
+          if (!result) {
+            throw new Error(`Failed to install custom node: ${nodeName}`)
+          }
+          callback?.({
+            phase: 'installing_custom_nodes',
+            currentItem: nodeName,
+            completedItems: i + 1,
+            totalItems: nodesToInstall.length,
+            statusMessage: `Installed custom node: ${nodeName}`,
+          })
+        }
+        return true
+      } catch (error) {
+        const failedNodeNames = nodesToInstall.map((n) => `${n.username}/${n.repoName}`).join(', ')
         throw new Error(`Failed to install required comfyUI custom nodes: ${failedNodeNames}`)
       }
-
-      return nodesToInstall.length > 0
     }
 
-    async function triggerInstallPythonPackagesForActivePreset() {
+    async function triggerInstallPythonPackagesForActivePreset(
+      callback?: InstallationProgressCallback,
+    ) {
       const preset = imageGeneration.activePreset
       if (!preset || preset.type !== 'comfy') return
 
       const toBeInstalledPackages = preset.requiredPythonPackages ?? []
       console.info('Installing python packages', { toBeInstalledPackages })
 
-      await backendServices.stopService('comfyui-backend')
+      if (toBeInstalledPackages.length === 0) return
+
+      // Note: Backend should already be stopped by installMissingRequirements if needed
 
       try {
-        await Promise.all(
-          toBeInstalledPackages.map((pkg) => window.electronAPI.comfyui.installPypiPackage(pkg)),
-        )
+        for (let i = 0; i < toBeInstalledPackages.length; i++) {
+          const pkg = toBeInstalledPackages[i]
+          callback?.({
+            phase: 'installing_python_packages',
+            currentItem: pkg,
+            completedItems: i,
+            totalItems: toBeInstalledPackages.length,
+            statusMessage: `Installing Python package: ${pkg}`,
+          })
+          await window.electronAPI.comfyui.installPypiPackage(pkg)
+          callback?.({
+            phase: 'installing_python_packages',
+            currentItem: pkg,
+            completedItems: i + 1,
+            totalItems: toBeInstalledPackages.length,
+            statusMessage: `Installed Python package: ${pkg}`,
+          })
+        }
         console.info('python package installation completed')
       } catch (error) {
         throw new Error(`Failed to install Python packages: ${error}`)
+      }
+    }
+
+    /**
+     * Installs missing requirements for the active preset (custom nodes and Python packages)
+     * This will restart the ComfyUI backend if needed
+     */
+    async function installMissingRequirements(
+      callback?: InstallationProgressCallback,
+    ): Promise<void> {
+      const preset = imageGeneration.activePreset
+      if (!preset || preset.type !== 'comfy') {
+        throw new Error('No ComfyUI preset is active')
+      }
+
+      // Check what's missing
+      const requirements = await checkPresetRequirements()
+      
+      if (!requirements.hasMissingRequirements) {
+        console.info('No missing requirements to install')
+        return
+      }
+
+      // Stop backend before installation
+      const wasRunning = backendServices.info.find(
+        (s) => s.serviceName === 'comfyui-backend',
+      )?.status === 'running'
+      
+      if (wasRunning) {
+        callback?.({
+          phase: 'stopping_backend',
+          completedItems: 0,
+          totalItems: 0,
+          statusMessage: 'Stopping ComfyUI backend...',
+        })
+        await backendServices.stopService('comfyui-backend')
+        callback?.({
+          phase: 'stopping_backend',
+          completedItems: 1,
+          totalItems: 1,
+          statusMessage: 'ComfyUI backend stopped',
+        })
+      }
+
+      try {
+        // Install Python packages first (if any)
+        if (requirements.missingPythonPackages.length > 0) {
+          console.info('Installing Python packages:', requirements.missingPythonPackages)
+          await triggerInstallPythonPackagesForActivePreset(callback)
+        }
+
+        // Install custom nodes (if any)
+        if (requirements.missingCustomNodes.length > 0) {
+          console.info('Installing custom nodes:', requirements.missingCustomNodes)
+          await installCustomNodesForActivePreset(callback)
+        }
+
+        // Restart backend if it was running
+        if (wasRunning) {
+          callback?.({
+            phase: 'starting_backend',
+            completedItems: 0,
+            totalItems: 0,
+            statusMessage: 'Starting ComfyUI backend...',
+          })
+          const startResult = await backendServices.startService('comfyui-backend')
+          if (startResult !== 'running') {
+            throw new Error('Failed to restart ComfyUI backend after installation')
+          }
+          callback?.({
+            phase: 'starting_backend',
+            completedItems: 1,
+            totalItems: 1,
+            statusMessage: 'ComfyUI backend started',
+          })
+        }
+      } catch (error) {
+        console.error('Error installing missing requirements:', error)
+        callback?.({
+          phase: 'error',
+          completedItems: 0,
+          totalItems: 0,
+          statusMessage: `Installation failed: ${error instanceof Error ? error.message : String(error)}`,
+        })
+        throw error
       }
     }
 
@@ -726,6 +883,8 @@ export const useComfyUiPresets = defineStore(
     return {
       generate,
       stop,
+      checkPresetRequirements,
+      installMissingRequirements,
     }
   },
   {

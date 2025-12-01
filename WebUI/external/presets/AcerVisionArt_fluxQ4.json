@@ -1,7 +1,7 @@
 {
   "type": "comfy",
   "name": "Acer VisionArt",
-  "displayPriority": 500,
+  "displayPriority": 150,
   "tags": [
     "Q4",
     "Fast"

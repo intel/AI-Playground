@@ -1,11 +1,9 @@
 {
   "type": "comfy",
-  "name": "SketchToPhoto-HD",
-  "displayPriority": 150,
-  "tags": [
-    "SDXL",
-    "20-Steps"
-  ],
+  "name": "Sketch to Photo",
+  "displayPriority": 700,
+  "tags": ["JuggernautXL", "ControlNet", "1024x1024"],
+  "description": "Turn rough sketches into stunning photos. Load a sketch and describe the location, weather and environment",
   "backend": "comfyui",
   "category": "edit-images",
   "requiredCustomNodes": [],
@@ -265,6 +263,10 @@
           "4-steps"
         ]
       }
+    },
+    {
+      "name": "Quality",
+      "overrides": {}
     }
   ],
   "comfyUiApiWorkflow": {

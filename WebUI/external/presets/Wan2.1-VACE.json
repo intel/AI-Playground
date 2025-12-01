@@ -115,6 +115,10 @@
   ],
   "variants": [
     {
+      "name": "Standard",
+      "overrides": {}
+    },
+    {
       "name": "Fast",
       "description": "Fast Image to Video generation using Wan2.1-VACE with CausVid LoRA",
       "overrides": {

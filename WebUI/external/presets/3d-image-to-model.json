@@ -1,11 +1,11 @@
 {
   "type": "comfy",
-  "name": "Image to 3D Model",
-  "displayPriority": 500,
-  "tags": ["3d", "image-edit"],
+  "name": "Image To 3D Model",
+  "displayPriority": 300,
+  "tags": ["Hunyuan3D", "no-prompt", "high-vram"],
   "backend": "comfyui",
-  "category": "create-images",
-  "description": "Create 3D models from images using Hunyuan 3D 2",
+  "category": "edit-images",
+  "description": "Create a 3D mesh from a 2D image ready for 3D printing or other 3D tools like Blender",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

@@ -9,6 +9,7 @@
   "systemPrompt": "You are a helpful AI assistant with vision capabilities. Analyze images carefully and provide detailed descriptions and answers about visual content.",
   "contextSize": 4096,
   "maxNewTokens": 1024,
-  "requiredModels": []
+  "requiredModels": [],
+  "requiresVision": true
 }
 

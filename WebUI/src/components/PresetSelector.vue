@@ -105,13 +105,7 @@ const activeVariantName = computed(() => {
 const variantSelectorOptions = computed<VariantOption[]>(() => {
   if (!selectedPreset.value?.variants) return []
   
-  const options: VariantOption[] = [
-    {
-      id: 'default',
-      name: 'Default',
-      value: '', // empty string for default (will be converted to null when setting)
-    },
-  ]
+  const options: VariantOption[] = []
   
   selectedPreset.value.variants.forEach((variant, index) => {
     options.push({
@@ -127,13 +121,17 @@ const variantSelectorOptions = computed<VariantOption[]>(() => {
 const selectedVariantValue = computed({
   get: () => {
     const variant = activeVariantName.value
+    // If no variant selected but preset has variants, return first variant name
+    if (!variant && selectedPreset.value?.variants && selectedPreset.value.variants.length > 0) {
+      return selectedPreset.value.variants[0].name
+    }
     return variant || ''
   },
   set: (value: string) => {
     if (!selectedPresetName.value) return
-    const variantName = value === '' ? null : value
-    presetsStore.setActiveVariant(selectedPresetName.value, variantName)
-    emits('update:variant', selectedPresetName.value, variantName)
+    // Value should never be empty string now since we removed Default option
+    presetsStore.setActiveVariant(selectedPresetName.value, value)
+    emits('update:variant', selectedPresetName.value, value)
   },
 })
 
@@ -146,6 +144,16 @@ function selectPreset(presetName: string) {
     const categoryKey = preset.category || (preset.type === 'chat' ? 'chat' : undefined)
     if (categoryKey) {
       presetsStore.setLastUsedPreset(categoryKey, presetName)
+    }
+    
+    // Auto-select first variant if preset has variants and none is selected
+    if (preset.variants && preset.variants.length > 0) {
+      const currentVariant = presetsStore.activeVariantName[presetName]
+      if (!currentVariant) {
+        const firstVariantName = preset.variants[0].name
+        presetsStore.setActiveVariant(presetName, firstVariantName)
+        emits('update:variant', presetName, firstVariantName)
+      }
     }
   }
 }

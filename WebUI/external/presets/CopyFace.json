@@ -1,13 +1,13 @@
 {
   "type": "comfy",
-  "name": "CopyFace",
-  "displayPriority": 0,
+  "name": "Change Face",
+  "displayPriority": 600,
   "tags": [
-    "non-com",
-    "v2.5"
+    "no-prompt"
   ],
   "backend": "comfyui",
   "category": "edit-images",
+  "description": "Edit an image to have a likeness you control. Load image with a face you want to change, then load a reference face to guide the likeness.",
   "requiredCustomNodes": [
     "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"
   ],

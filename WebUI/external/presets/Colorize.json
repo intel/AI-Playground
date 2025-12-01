@@ -1,11 +1,12 @@
 {
   "type": "comfy",
   "name": "Colorize",
-  "displayPriority": 0,
+  "displayPriority": 200,
   "tags": [
-    "BMG only"
+    "no-prompt", "BMG only"
   ],
   "backend": "comfyui",
+  "description": "Add color to a black and white photo",
   "category": "edit-images",
   "requiredCustomNodes": [
     "kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"
@@ -14,90 +15,16 @@
   "requiredModels": [],
   "settings": [
     {
-      "type": "string",
-      "label": "Prompt",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "",
-      "settingName": "prompt"
-    },
-    {
-      "type": "number",
-      "label": "Seed",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": -1,
-      "settingName": "seed"
-    },
-    {
-      "type": "number",
-      "label": "Inference Steps",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 4,
-      "settingName": "inferenceSteps"
-    },
-    {
-      "type": "number",
-      "label": "Width",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 896,
-      "settingName": "width"
-    },
-    {
-      "type": "number",
-      "label": "Height",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 896,
-      "settingName": "height"
-    },
-    {
-      "type": "string",
-      "label": "Resolution",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "896x896",
-      "settingName": "resolution"
-    },
-    {
-      "type": "number",
-      "label": "Batch Size",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 1,
-      "settingName": "batchSize"
-    },
-    {
-      "type": "string",
-      "label": "Negative Prompt",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": "nsfw",
-      "settingName": "negativePrompt"
-    },
-    {
-      "type": "boolean",
-      "label": "Image Preview",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": true,
-      "settingName": "imagePreview"
-    },
-    {
-      "type": "boolean",
-      "label": "Safety Check",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": true,
-      "settingName": "safetyCheck"
-    },
-    {
       "type": "stringList",
-      "label": "checkpoint model",
-      "displayed": false,
-      "modifiable": false,
+      "label": "Model",
+      "options": [
+        "ddcolor_paper_tiny.pth",
+        "ddcolor_paper.pth",
+        "ddcolor_modelscope.pth",
+        "ddcolor_artistic.pth"
+      ],
+      "displayed": true,
+      "modifiable": true,
       "defaultValue": "ddcolor_artistic.pth",
       "nodeTitle": "DDColor_Colorize",
       "nodeInput": "checkpoint"

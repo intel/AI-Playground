@@ -1,133 +1,23 @@
 {
   "type": "comfy",
-  "name": "HD Image",
-  "displayPriority": 400,
-  "tags": ["JuggernautXL", "1024x1024"],
+  "name": "Manual",
+  "displayPriority": 100,
+  "tags": ["Draft-SD1.5", "HD-SDXL"],
   "backend": "comfyui",
   "category": "create-images",
-  "description": "Generate high quality images using SDXL",
+  "description": "Advanced mode to manually control the model, CFG, sampler and more. But be sure resolution and settings fit the model selected",
   "mediaType": "image",
-  "toolEnabled": true,
-  "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. SDXL produces higher quality images than SD1.5, so emphasize photorealistic details and professional quality. Even if the user requests something simple like 'a cat', expand it to a full prompt like 'a beautiful orange tabby cat sitting on a windowsill, soft natural lighting, detailed fur texture, photorealistic, 8k, highly detailed, professional photography, shallow depth of field'.",
+  "toolEnabled": false,
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
       "type": "checkpoints",
       "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
-    }
-  ],
-  "variants": [
-    {
-      "name": "Fast",
-      "overrides": {
-        "requiredModels": [
-          {
-            "type": "checkpoints",
-            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
-          },
-          {
-            "type": "defaultLora",
-            "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
-          }
-        ],
-        "settings": [
-          {
-            "type": "number",
-            "label": "Inference Steps",
-            "displayed": true,
-            "modifiable": true,
-            "defaultValue": 4,
-            "settingName": "inferenceSteps"
-          }
-        ],
-        "comfyUiApiWorkflow": {
-          "3": {
-            "inputs": {
-              "steps": 4,
-              "cfg": 1.5,
-              "sampler_name": "lcm",
-              "scheduler": "simple",
-              "model": [
-                "10",
-                0
-              ]
-            }
-          },
-          "10": {
-            "inputs": {
-              "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
-              "strength_model": 1,
-              "strength_clip": 1,
-              "model": [
-                "4",
-                0
-              ],
-              "clip": [
-                "4",
-                1
-              ]
-            },
-            "class_type": "LoraLoader",
-            "_meta": {
-              "title": "Load LoRA"
-            }
-          },
-          "6": {
-            "inputs": {
-              "clip": [
-                "10",
-                1
-              ]
-            }
-          },
-          "7": {
-            "inputs": {
-              "clip": [
-                "10",
-                1
-              ]
-            }
-          }
-        }
-      }
     },
     {
-      "name": "Quality",
-      "overrides": {
-        "comfyUiApiWorkflow": {
-          "3": {
-            "inputs": {
-              "seed": 413053266758155,
-              "steps": 20,
-              "cfg": 7,
-              "sampler_name": "dpmpp_2m",
-              "scheduler": "normal",
-              "denoise": 1,
-              "model": [
-                "4",
-                0
-              ],
-              "positive": [
-                "6",
-                0
-              ],
-              "negative": [
-                "7",
-                0
-              ],
-              "latent_image": [
-                "5",
-                0
-              ]
-            },
-            "class_type": "KSampler",
-            "_meta": {
-              "title": "KSampler"
-            }
-          }
-        }
-      }
+      "type": "checkpoints",
+      "model": "Lykon/DreamShaper/DreamShaper_8_pruned.safetensors"
     }
   ],
   "settings": [
@@ -159,7 +49,7 @@
       "type": "number",
       "label": "Width",
       "displayed": false,
-      "modifiable": false,
+      "modifiable": true,
       "defaultValue": 1024,
       "settingName": "width"
     },
@@ -167,7 +57,7 @@
       "type": "number",
       "label": "Height",
       "displayed": false,
-      "modifiable": false,
+      "modifiable": true,
       "defaultValue": 1024,
       "settingName": "height"
     },
@@ -210,9 +100,112 @@
       "modifiable": false,
       "defaultValue": true,
       "settingName": "safetyCheck"
+    },
+    {
+      "type": "stringList",
+      "label": "Model",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
+      "nodeTitle": "Load Checkpoint",
+      "nodeInput": "ckpt_name",
+      "options": [
+        "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
+        "Lykon---DreamShaper\\DreamShaper_8_pruned.safetensors"
+      ]
+    },
+    {
+      "type": "stringList",
+      "label": "Sampler",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "dpmpp_2m",
+      "nodeTitle": "KSampler",
+      "nodeInput": "sampler_name",
+      "options": [
+        "euler",
+        "euler_ancestral",
+        "heun",
+        "dpm_2",
+        "dpm_2_ancestral",
+        "lms",
+        "dpm_fast",
+        "dpm_adaptive",
+        "dpmpp_2s_ancestral",
+        "dpmpp_sde",
+        "dpmpp_sde_gpu",
+        "dpmpp_2m",
+        "dpmpp_2m_sde",
+        "dpmpp_2m_sde_gpu",
+        "dpmpp_3m_sde",
+        "dpmpp_3m_sde_gpu",
+        "ddpm",
+        "lcm",
+        "uni_pc",
+        "uni_pc_bh2"
+      ]
+    },
+    {
+      "type": "stringList",
+      "label": "Scheduler",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "normal",
+      "nodeTitle": "KSampler",
+      "nodeInput": "scheduler",
+      "options": [
+        "normal",
+        "karras",
+        "exponential",
+        "sgm_uniform",
+        "simple",
+        "ddim_uniform"
+      ]
+    },
+    {
+      "type": "number",
+      "label": "CFG Scale",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 7,
+      "nodeTitle": "KSampler",
+      "nodeInput": "cfg",
+      "min": 1,
+      "max": 20,
+      "step": 0.5
     }
   ],
   "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 413053266758155,
+        "steps": 20,
+        "cfg": 7,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "normal",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
     "4": {
       "inputs": {
         "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"

@@ -1,10 +1,11 @@
 {
   "type": "comfy",
-  "name": "Flux.1-Schnell",
-  "displayPriority": 500,
+  "name": "Pro Image",
+  "displayPriority": 300,
   "tags": [
-    "Flux"
+    "Flux.1-Schnell"
   ],
+  "description": "Precisely generate images, with text and adherence to prompt using Flux.1-Schnell",
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",
@@ -116,7 +117,19 @@
   ],
   "variants": [
     {
-      "name": "High Quality",
+      "name": "Standard",
+      "overrides": {
+        "comfyUiApiWorkflow": {
+          "170": {
+            "inputs": {
+              "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q4_K_S.gguf"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Quality",
       "overrides": {
         "requiredModels": [
           {
@@ -190,15 +203,6 @@
       "class_type": "SamplerCustomAdvanced",
       "_meta": {
         "title": "SamplerCustomAdvanced"
-      }
-    },
-    "170": {
-      "inputs": {
-        "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q4_K_S.gguf"
-      },
-      "class_type": "UnetLoaderGGUF",
-      "_meta": {
-        "title": "Unet Loader (GGUF)"
       }
     },
     "171": {
