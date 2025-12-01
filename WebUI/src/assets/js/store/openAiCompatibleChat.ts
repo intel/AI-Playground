@@ -6,6 +6,7 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
 import { comfyUI } from '../tools/comfyUi'
+import { visualizeObjectDetections } from '../tools/visualizeObjectDetections'
 import z from 'zod'
 
 const LlamaCppRawValueTimingsSchema = z.object({
@@ -89,6 +90,7 @@ export const useOpenAiCompatibleChat = defineStore(
         includeRawChunks: true,
         tools: {
           comfyUI,
+          visualizeObjectDetections,
         },
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {

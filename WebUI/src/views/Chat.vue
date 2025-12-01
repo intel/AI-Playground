@@ -134,7 +134,7 @@
               <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
               
               <!-- Render tool parts -->
-              <template v-for="part in message.parts.filter((p) => p.type.startsWith('tool-'))" :key="part.type === 'tool-comfyUI' ? `tool-${(part as any).toolCallId}` : undefined">
+              <template v-for="part in message.parts.filter((p) => p.type.startsWith('tool-'))" :key="part.type === 'tool-comfyUI' ? `tool-${(part as any).toolCallId}` : part.type === 'tool-visualizeObjectDetections' ? `tool-${(part as any).toolCallId}` : undefined">
                 <span>I'm using the tool {{ part.type.replace('tool-', '') }}</span>
                 <template v-if="part.type === 'tool-comfyUI'">
                   <div class="mt-1 pt-1">
@@ -149,6 +149,20 @@
                       :stepText="getToolStepText(part)"
                       :toolCallId="(part as any).toolCallId"
                     />
+                  </div>
+                </template>
+                <template v-else-if="part.type === 'tool-visualizeObjectDetections'">
+                  <div class="mt-1 pt-1">
+                    <div v-if="part.state === 'output-available' && (part as any).output?.annotatedImageUrl">
+                      <img
+                        :src="(part as any).output.annotatedImageUrl"
+                        alt="Annotated image with object detections"
+                        class="max-w-full rounded-md border-2 border-border"
+                      />
+                    </div>
+                    <div v-else-if="part.state === 'input-streaming' || part.state === 'input-available'">
+                      <span class="text-muted-foreground">Visualizing object detections...</span>
+                    </div>
                   </div>
                 </template>
               </template>
