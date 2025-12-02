@@ -285,8 +285,8 @@ export const useTextInference = defineStore(
       }
     })
 
-    const metricsEnabled = ref(false)
-    const toolsEnabled = ref(false)
+    const metricsEnabled = ref(true)
+    const toolsEnabled = ref(true)
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)
@@ -583,28 +583,6 @@ export const useTextInference = defineStore(
       ragList.value.length = 0
     }
 
-    // Extract the thinking text from the model's output
-    function extractPreMarker(fullAnswer: string, model?: string): string {
-      const modelName = model || activeModel.value
-      if (modelName && thinkingModels[modelName]) {
-        const marker = thinkingModels[modelName]
-        const idx = fullAnswer.indexOf(marker)
-        return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
-      }
-      return fullAnswer
-    }
-
-    // Extract the final response after the thinking marker
-    function extractPostMarker(fullAnswer: string, model?: string): string {
-      const modelName = model || activeModel.value
-      if (modelName && thinkingModels[modelName]) {
-        const marker = thinkingModels[modelName]
-        const idx = fullAnswer.indexOf(marker)
-        return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
-      }
-      return ''
-    }
-
     // Define a type for document location information
     type DocumentLocation = {
       pageNumber?: number
@@ -899,6 +877,7 @@ export const useTextInference = defineStore(
       isLoadingSettings = true
 
       const savedSettings = settingsPerPreset.value[settingsKey] || {}
+      console.log('Loading settings for preset', settingsKey, savedSettings)
       const preset = activePreset.value
 
       // Load backend
@@ -1230,8 +1209,6 @@ export const useTextInference = defineStore(
       checkAllFiles,
       uncheckAllFiles,
       deleteAllFiles,
-      extractPreMarker,
-      extractPostMarker,
       formatRagSources,
       ensureBackendReadiness,
       checkModelAvailability,

@@ -81,8 +81,10 @@ export const useOpenAiCompatibleChat = defineStore(
       const messages = convertToModelMessages(m.messages)//.filter((m) => m.role !== 'tool')
 
       // Only enable tools if model supports tool calling and tools are enabled
+      console.log('textInference.modelSupportsToolCalling:', textInference.modelSupportsToolCalling, 'textInference.toolsEnabled:', textInference.toolsEnabled)
       const shouldEnableTools = textInference.modelSupportsToolCalling && textInference.toolsEnabled
 
+      console.log('customFetch called with messages:', {messages, systemPromptToUse, shouldEnableTools})
       const result = await streamText({
         model: model.value,
         messages,
@@ -141,7 +143,7 @@ export const useOpenAiCompatibleChat = defineStore(
         }
 
       })
-      console.log('streamText result:', result)
+      console.log('streamText finished:', { result, timings, usage })
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
         messageMetadata: (options) => {

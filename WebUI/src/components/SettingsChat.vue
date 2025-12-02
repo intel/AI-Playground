@@ -81,7 +81,7 @@
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.ANSWER_METRICS }}</Label>
-          <Checkbox id="metrics" :checked="textInference.metricsEnabled" @update:checked="(checked: boolean) => textInference.metricsEnabled = checked" />
+          <Checkbox id="metrics" :model-value="textInference.metricsEnabled" @click="() => textInference.metricsEnabled = !textInference.metricsEnabled" />
         </div>
         <div
           v-if="textInference.modelSupportsToolCalling"
@@ -90,8 +90,8 @@
           <Label class="whitespace-nowrap">Enable Tools</Label>
           <Checkbox
             id="tools"
-            :checked="textInference.toolsEnabled"
-            @update:checked="(checked: boolean) => textInference.toolsEnabled = checked"
+            :model-value="textInference.toolsEnabled"
+            @click="() => textInference.toolsEnabled = !textInference.toolsEnabled"
           />
         </div>
 
@@ -132,9 +132,6 @@ import { Slider } from '@/components/ui/slider'
 import {
   backendToService,
   LlmBackend,
-  textInferenceBackendDescription,
-  textInferenceBackendDisplayName,
-  textInferenceBackendTags,
   useTextInference,
 } from '@/assets/js/store/textInference.ts'
 import DeviceSelector from '@/components/DeviceSelector.vue'
@@ -144,7 +141,6 @@ import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useDemoMode } from '@/assets/js/store/demoMode.ts'
 import Rag from '@/components/Rag.vue'
-import { llmBackendTypes } from '@/types/shared.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
@@ -152,14 +148,6 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 
-type BackendInfo = {
-  displayName: string
-  description: string
-  tags: string[]
-  name: LlmBackend
-  isRunning: boolean
-  enabled: boolean
-}
 
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
@@ -218,38 +206,10 @@ function isBackendRunning(backend: LlmBackend): boolean {
   return backendServices.info.find((item) => item.serviceName === serviceName)?.status === 'running'
 }
 
-function isEnabled(name: LlmBackend) {
-  const backendName = mapBackendNames(name)
-  return backendServices.info.find((item) => item.serviceName === backendName) !== undefined
-}
-
-function isRunning(name: LlmBackend) {
-  const backendName = mapBackendNames(name)
-  return backendServices.info.find((item) => item.serviceName === backendName)?.status === 'running'
-}
-
 function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
   if (name === 'llamaCPP') return 'llamacpp-backend'
   if (name === 'openVINO') return 'openvino-backend'
   if (name === 'ollama') return 'ollama-backend' as BackendServiceName
   return undefined
-}
-
-function backendTypesToBackends() {
-  const result: Partial<Record<LlmBackend, BackendInfo>> = {}
-
-  llmBackendTypes
-    .forEach((llmBackend) => {
-      result[llmBackend] = {
-        displayName: textInferenceBackendDisplayName[llmBackend],
-        description: textInferenceBackendDescription[llmBackend],
-        tags: textInferenceBackendTags[llmBackend],
-        name: llmBackend,
-        isRunning: isRunning(llmBackend),
-        enabled: isEnabled(llmBackend),
-      }
-    })
-
-  return result
 }
 </script>

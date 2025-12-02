@@ -115,6 +115,10 @@
           "170": {
             "inputs": {
               "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q4_K_S.gguf"
+            },
+            "class_type": "UnetLoaderGGUF",
+            "_meta": {
+              "title": "Unet Loader (GGUF)"
             }
           }
         }
@@ -145,6 +149,10 @@
           "170": {
             "inputs": {
               "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q8_0.gguf"
+            },
+            "class_type": "UnetLoaderGGUF",
+            "_meta": {
+              "title": "Unet Loader (GGUF)"
             }
           }
         },
@@ -321,4 +329,3 @@
     }
   }
 }
-
