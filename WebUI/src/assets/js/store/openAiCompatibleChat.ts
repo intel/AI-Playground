@@ -80,6 +80,9 @@ export const useOpenAiCompatibleChat = defineStore(
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
       const messages = convertToModelMessages(m.messages)//.filter((m) => m.role !== 'tool')
 
+      // Only enable tools if model supports tool calling and tools are enabled
+      const shouldEnableTools = textInference.modelSupportsToolCalling && textInference.toolsEnabled
+
       const result = await streamText({
         model: model.value,
         messages,
@@ -88,10 +91,12 @@ export const useOpenAiCompatibleChat = defineStore(
         maxOutputTokens: textInference.maxTokens,
         temperature: textInference.temperature,
         includeRawChunks: true,
-        tools: {
-          comfyUI,
-          visualizeObjectDetections,
-        },
+        ...(shouldEnableTools ? {
+          tools: {
+            comfyUI,
+            visualizeObjectDetections,
+          },
+        } : {}),
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
             console.log(chunk.chunk)

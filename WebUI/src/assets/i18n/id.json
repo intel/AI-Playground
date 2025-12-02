@@ -79,7 +79,6 @@
   "SETTINGS_MODEL_SEED": "Benih",
   "SETTINGS_MODEL_GENERATE_NUMBER": "Buat Nomor Gambar",
   "SETTINGS_MODEL_LLM_MODEL": "Model Bahasa Besar",
-  "SETTINGS_MODEL_IMAGE_PREVIEW": "Pratinjau Gambar",
   "SETTINGS_MODEL_SAFE_CHECK": "Pemeriksaan Aman (Berlaku hanya pada SD 1.5)",
   "SETTINGS_MODEL_IMAGE_MODEL": "Model Gambar",
   "SETTINGS_MODEL_INPAINT_MODEL": "Model Inpaint/Outpaint",

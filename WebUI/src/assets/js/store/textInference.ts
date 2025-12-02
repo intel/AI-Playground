@@ -286,6 +286,7 @@ export const useTextInference = defineStore(
     })
 
     const metricsEnabled = ref(false)
+    const toolsEnabled = ref(false)
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)
@@ -294,6 +295,17 @@ export const useTextInference = defineStore(
     const maxContextSizeFromModel = computed(() => {
       const currentModel = llmModels.value.find((m) => m.active)
       return currentModel?.maxContextSize
+    })
+
+    // Check if the active model supports tool calling
+    const modelSupportsToolCalling = computed(() => {
+      const currentModel = llmModels.value.find((m) => m.active)
+      return currentModel?.supportsToolCalling === true
+    })
+
+    // Check if the active preset requires tool calling
+    const presetRequiresToolCalling = computed(() => {
+      return activePreset.value?.requiresToolCalling === true
     })
 
     // Enforce maxContextSize as hard limit when contextSize changes
@@ -958,6 +970,14 @@ export const useTextInference = defineStore(
         // Set default value when no saved value exists
         metricsEnabled.value = false
       }
+
+      // Load tools enabled
+      if (savedSettings.toolsEnabled !== undefined) {
+        toolsEnabled.value = savedSettings.toolsEnabled as boolean
+      } else {
+        // Set default value based on preset's requiresToolCalling
+        toolsEnabled.value = preset.requiresToolCalling === true
+      }
       
       // Clear flag after loading
       isLoadingSettings = false
@@ -1024,7 +1044,7 @@ export const useTextInference = defineStore(
 
     // Watch for setting changes and save them to settingsPerPreset
     watch(
-      [backend, selectedModels, selectedEmbeddingModels, maxTokens, contextSize, temperature, systemPrompt, metricsEnabled],
+      [backend, selectedModels, selectedEmbeddingModels, maxTokens, contextSize, temperature, systemPrompt, metricsEnabled, toolsEnabled],
       () => {
         // Don't save if we're applying a preset or loading settings
         if (isApplyingPreset || isLoadingSettings) return
@@ -1045,6 +1065,7 @@ export const useTextInference = defineStore(
           temperature: temperature.value,
           systemPrompt: systemPrompt.value,
           metricsEnabled: metricsEnabled.value,
+          toolsEnabled: toolsEnabled.value,
         }
       },
       { deep: true },
@@ -1183,6 +1204,7 @@ export const useTextInference = defineStore(
       llmEmbeddingModels,
       currentBackendUrl,
       metricsEnabled,
+      toolsEnabled,
       maxTokens,
       contextSize,
       maxContextSizeFromModel,
@@ -1221,6 +1243,10 @@ export const useTextInference = defineStore(
       applyPreset,
       resetActivePresetSettings,
       settingsPerPreset,
+
+      // Tool calling support
+      modelSupportsToolCalling,
+      presetRequiresToolCalling,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

@@ -31,7 +31,6 @@ export type GenerationSettings = Partial<{
   resolution: string
   batchSize: number
   negativePrompt: string
-  imagePreview: boolean
   safetyCheck: boolean
 }>
 
@@ -82,14 +81,12 @@ const globalDefaultSettings = {
   resolution: '512x512',
   batchSize: 1,
   negativePrompt: 'nsfw',
-  imagePreview: true,
   safetyCheck: true,
 }
 
 const generalDefaultSettings = {
   prompt: '',
   seed: -1,
-  imagePreview: true,
   safetyCheck: true,
 }
 
@@ -125,14 +122,12 @@ export const useImageGenerationPresets = defineStore(
     // general settings
     const prompt = ref<string>(generalDefaultSettings.prompt)
     const seed = ref<number>(generalDefaultSettings.seed)
-    const imagePreview = ref<boolean>(generalDefaultSettings.imagePreview)
     const safetyCheck = ref<boolean>(generalDefaultSettings.safetyCheck)
     const batchSize = ref<number>(globalDefaultSettings.batchSize)
 
     const resetActivePresetSettings = () => {
       prompt.value = generalDefaultSettings.prompt
       seed.value = generalDefaultSettings.seed
-      imagePreview.value = generalDefaultSettings.imagePreview
       safetyCheck.value = generalDefaultSettings.safetyCheck
       const settingsKey = getSettingsKey()
       if (settingsKey) {
@@ -186,7 +181,6 @@ export const useImageGenerationPresets = defineStore(
         height: height.value,
         width: width.value,
         resolution: resolution.value,
-        imagePreview: imagePreview.value,
         safetyCheck: safetyCheck.value,
       }
       return Object.fromEntries(
@@ -205,7 +199,6 @@ export const useImageGenerationPresets = defineStore(
       resolution,
       batchSize,
       negativePrompt,
-      imagePreview,
       safetyCheck,
     }
 
@@ -361,7 +354,6 @@ export const useImageGenerationPresets = defineStore(
       saveToSettingsPerPreset('resolution')
       saveToSettingsPerPreset('batchSize')
       saveToSettingsPerPreset('negativePrompt')
-      saveToSettingsPerPreset('imagePreview')
       saveToSettingsPerPreset('safetyCheck')
     })
 
@@ -391,7 +383,6 @@ export const useImageGenerationPresets = defineStore(
       resolution.value = getSavedOrDefault('resolution') ?? globalDefaultSettings.resolution
       batchSize.value = getSavedOrDefault('batchSize') ?? globalDefaultSettings.batchSize
       negativePrompt.value = getSavedOrDefault('negativePrompt') ?? globalDefaultSettings.negativePrompt
-      imagePreview.value = getSavedOrDefault('imagePreview') ?? generalDefaultSettings.imagePreview
       safetyCheck.value = getSavedOrDefault('safetyCheck') ?? generalDefaultSettings.safetyCheck
     }
 
@@ -594,7 +585,6 @@ export const useImageGenerationPresets = defineStore(
       currentState,
       stepText,
       stopping,
-      imagePreview,
       safetyCheck,
       inferenceSteps,
       seed,

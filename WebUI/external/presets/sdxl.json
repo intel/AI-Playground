@@ -52,6 +52,10 @@
                 "10",
                 0
               ]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
             }
           },
           "10": {
@@ -79,6 +83,10 @@
                 "10",
                 1
               ]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
             }
           },
           "7": {
@@ -87,6 +95,10 @@
                 "10",
                 1
               ]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
             }
           }
         }
@@ -95,38 +107,6 @@
     {
       "name": "Quality",
       "overrides": {
-        "comfyUiApiWorkflow": {
-          "3": {
-            "inputs": {
-              "seed": 413053266758155,
-              "steps": 20,
-              "cfg": 7,
-              "sampler_name": "dpmpp_2m",
-              "scheduler": "normal",
-              "denoise": 1,
-              "model": [
-                "4",
-                0
-              ],
-              "positive": [
-                "6",
-                0
-              ],
-              "negative": [
-                "7",
-                0
-              ],
-              "latent_image": [
-                "5",
-                0
-              ]
-            },
-            "class_type": "KSampler",
-            "_meta": {
-              "title": "KSampler"
-            }
-          }
-        }
       }
     }
   ],
@@ -197,14 +177,6 @@
     },
     {
       "type": "boolean",
-      "label": "Image Preview",
-      "displayed": true,
-      "modifiable": true,
-      "defaultValue": true,
-      "settingName": "imagePreview"
-    },
-    {
-      "type": "boolean",
       "label": "Safety Check",
       "displayed": false,
       "modifiable": false,
@@ -213,6 +185,36 @@
     }
   ],
   "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 413053266758155,
+        "steps": 20,
+        "cfg": 7,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "normal",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
     "4": {
       "inputs": {
         "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"

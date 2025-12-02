@@ -22,7 +22,6 @@ const StandardSettingNameSchema = z.enum([
   'resolution',
   'batchSize',
   'negativePrompt',
-  'imagePreview',
   'safetyCheck',
 ])
 
@@ -292,6 +291,24 @@ export const usePresets = defineStore(
             })
             ;(output as any)[key] = mergedSettings
           } else if (
+          //   // Special handling for comfyUiApiWorkflow - replace nodes by ID
+          //   key === 'comfyUiApiWorkflow' &&
+          //   sourceValue &&
+          //   typeof sourceValue === 'object' &&
+          //   !Array.isArray(sourceValue) &&
+          //   targetValue &&
+          //   typeof targetValue === 'object' &&
+          //   !Array.isArray(targetValue)
+          // ) {
+          //   // For workflow nodes, replace entire nodes by ID rather than merging properties
+          //   // This handles both: replacing existing nodes and adding new nodes from variant
+          //   const mergedWorkflow = { ...targetValue }
+          //   Object.keys(sourceValue).forEach((nodeId) => {
+          //     // Completely replace existing node or add new node with variant's version
+          //     mergedWorkflow[nodeId] = sourceValue[nodeId]
+          //   })
+          //   ;(output as any)[key] = mergedWorkflow
+          // } else if (
             sourceValue &&
             typeof sourceValue === 'object' &&
             !Array.isArray(sourceValue) &&

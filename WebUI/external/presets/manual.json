@@ -87,14 +87,6 @@
     },
     {
       "type": "boolean",
-      "label": "Image Preview",
-      "displayed": true,
-      "modifiable": true,
-      "defaultValue": true,
-      "settingName": "imagePreview"
-    },
-    {
-      "type": "boolean",
       "label": "Safety Check",
       "displayed": false,
       "modifiable": false,

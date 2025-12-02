@@ -79,7 +79,6 @@
   "SETTINGS_MODEL_SEED": "Seed",
   "SETTINGS_MODEL_GENERATE_NUMBER": "생성 이미지 수",
   "SETTINGS_MODEL_LLM_MODEL": "Large Language Model",
-  "SETTINGS_MODEL_IMAGE_PREVIEW": "이미지 미리보기",
   "SETTINGS_MODEL_SAFE_CHECK": "안전 검사",
   "SETTINGS_MODEL_IMAGE_MODEL": "이미지 모델",
   "SETTINGS_MODEL_INPAINT_MODEL": "Inpaint/Outpaint 모델",

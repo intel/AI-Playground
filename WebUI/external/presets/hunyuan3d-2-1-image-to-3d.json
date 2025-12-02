@@ -1,0 +1,192 @@
+{
+  "type": "comfy",
+  "name": "Image To 3D Model 2.1",
+  "displayPriority": 300,
+  "tags": ["Hunyuan3D", "3D", "image-edit", "high-vram"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Create a 3D mesh from a 2D image using Hunyuan3D-2.1",
+  "mediaType": "model3d",
+  "requiredCustomNodes": [
+    "visualbruno/ComfyUI-Hunyuan3d-2-1@9d7ef32509101495a7840b3ae8e718c8d1183305"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "diffusion_models",
+      "model": "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1/model.fp16.ckpt"
+    },
+    {
+      "type": "vae",
+      "model": "tencent/Hunyuan3D-2.1/hunyuan3d-vae-v2-1/model.fp16.ckpt"
+    }
+  ],
+  "settings": [
+    {
+      "type": "image",
+      "label": "Input Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 821578184512771,
+        "steps": 5,
+        "cfg": 5.1,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1,
+        "model": [
+          "70",
+          0
+        ],
+        "positive": [
+          "80",
+          0
+        ],
+        "negative": [
+          "80",
+          1
+        ],
+        "latent_image": [
+          "66",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "51": {
+      "inputs": {
+        "crop": "none",
+        "clip_vision": [
+          "54",
+          1
+        ],
+        "image": [
+          "56",
+          0
+        ]
+      },
+      "class_type": "CLIPVisionEncode",
+      "_meta": {
+        "title": "CLIP Vision Encode"
+      }
+    },
+    "54": {
+      "inputs": {
+        "ckpt_name": "tencent---Hunyuan3D-2.1\\hunyuan3d-dit-v2-1\\model.fp16.ckpt"
+      },
+      "class_type": "ImageOnlyCheckpointLoader",
+      "_meta": {
+        "title": "Image Only Checkpoint Loader (img2vid model)"
+      }
+    },
+    "56": {
+      "inputs": {
+        "image": ""
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "61": {
+      "inputs": {
+        "num_chunks": 1000,
+        "octree_resolution": 128,
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "54",
+          2
+        ]
+      },
+      "class_type": "VAEDecodeHunyuan3D",
+      "_meta": {
+        "title": "VAEDecodeHunyuan3D"
+      }
+    },
+    "66": {
+      "inputs": {
+        "resolution": 2048,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentHunyuan3Dv2",
+      "_meta": {
+        "title": "EmptyLatentHunyuan3Dv2"
+      }
+    },
+    "70": {
+      "inputs": {
+        "shift": 1.0000000000000002,
+        "model": [
+          "54",
+          0
+        ]
+      },
+      "class_type": "ModelSamplingAuraFlow",
+      "_meta": {
+        "title": "ModelSamplingAuraFlow"
+      }
+    },
+    "80": {
+      "inputs": {
+        "clip_vision_output": [
+          "51",
+          0
+        ]
+      },
+      "class_type": "Hunyuan3Dv2Conditioning",
+      "_meta": {
+        "title": "Hunyuan3Dv2Conditioning"
+      }
+    },
+    "81": {
+      "inputs": {
+        "algorithm": "surface net",
+        "threshold": 0.6,
+        "voxel": [
+          "61",
+          0
+        ]
+      },
+      "class_type": "VoxelToMesh",
+      "_meta": {
+        "title": "VoxelToMesh"
+      }
+    },
+    "82": {
+      "inputs": {
+        "filename_prefix": "AIPG_3D",
+        "image": "",
+        "mesh": [
+          "81",
+          0
+        ]
+      },
+      "class_type": "SaveGLB",
+      "_meta": {
+        "title": "SaveGLB"
+      }
+    }
+  }
+}
+

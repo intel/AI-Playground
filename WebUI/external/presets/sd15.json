@@ -46,14 +46,32 @@
         "comfyUiApiWorkflow": {
           "3": {
             "inputs": {
+              "seed": 413053266758155,
               "steps": 4,
               "cfg": 1.5,
               "sampler_name": "lcm",
               "scheduler": "simple",
+              "denoise": 1,
               "model": [
                 "10",
                 0
+              ],
+              "positive": [
+                "6",
+                0
+              ],
+              "negative": [
+                "7",
+                0
+              ],
+              "latent_image": [
+                "5",
+                0
               ]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
             }
           },
           "10": {
@@ -77,18 +95,28 @@
           },
           "6": {
             "inputs": {
+              "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
               "clip": [
                 "10",
                 1
               ]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
             }
           },
           "7": {
             "inputs": {
+              "text": "nsfw",
               "clip": [
                 "10",
                 1
               ]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
             }
           }
         }
@@ -97,38 +125,6 @@
     {
       "name": "Standard",
       "overrides": {
-        "comfyUiApiWorkflow": {
-          "3": {
-            "inputs": {
-              "seed": 413053266758155,
-              "steps": 20,
-              "cfg": 7,
-              "sampler_name": "dpmpp_2m",
-              "scheduler": "karras",
-              "denoise": 1,
-              "model": [
-                "4",
-                0
-              ],
-              "positive": [
-                "6",
-                0
-              ],
-              "negative": [
-                "7",
-                0
-              ],
-              "latent_image": [
-                "5",
-                0
-              ]
-            },
-            "class_type": "KSampler",
-            "_meta": {
-              "title": "KSampler"
-            }
-          }
-        }
       }
     }
   ],
@@ -199,14 +195,6 @@
     },
     {
       "type": "boolean",
-      "label": "Image Preview",
-      "displayed": true,
-      "modifiable": true,
-      "defaultValue": true,
-      "settingName": "imagePreview"
-    },
-    {
-      "type": "boolean",
       "label": "Safety Check",
       "displayed": true,
       "modifiable": true,
@@ -215,6 +203,36 @@
     }
   ],
   "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 413053266758155,
+        "steps": 20,
+        "cfg": 7,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
     "4": {
       "inputs": {
         "ckpt_name": "Lykon---DreamShaper\\DreamShaper_8_pruned.safetensors"
@@ -281,7 +299,7 @@
       "inputs": {
         "filename_prefix": "AIPG_Image",
         "images": [
-          "10",
+          "11",
           0
         ]
       },
@@ -290,7 +308,7 @@
         "title": "Save Image"
       }
     },
-    "10": {
+    "11": {
       "inputs": {
         "threshold": 0.97,
         "cuda": false,

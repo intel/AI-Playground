@@ -12,13 +12,7 @@
           :max-tokens="contextMaxTokens"
           :max-context-size="textInference.maxContextSizeFromModel"
           :usage="contextUsage"
-        >
-          <ContextTrigger />
-          <ContextContent>
-            <ContextContentHeader />
-            <ContextContentBody />
-          </ContextContent>
-        </Context>
+        />
       </div>
       <div class="relative w-full max-w-3xl">
         <!-- RAG Documents Display (only in chat mode) -->
@@ -154,13 +148,7 @@ import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
-import {
-  Context,
-  ContextTrigger,
-  ContextContent,
-  ContextContentHeader,
-  ContextContentBody,
-} from '@/components/ui/context'
+import { Context } from '@/components/ui/context'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages

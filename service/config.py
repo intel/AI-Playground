@@ -27,6 +27,7 @@ comfy_ui_model_paths = {
     "unet": f"{comfy_ui_root_path}/models/unet",
     "clip": f"{comfy_ui_root_path}/models/clip",
     "vae": f"{comfy_ui_root_path}/models/vae",
+    "diffusion_models": f"{comfy_ui_root_path}/models/diffusion_models",
     "faceswap": f"{comfy_ui_root_path}/models/insightface",
     "facerestore": f"{comfy_ui_root_path}/models/facerestore_models",
     "nsfwdetector": f"{comfy_ui_root_path}/models/nsfw_detector",

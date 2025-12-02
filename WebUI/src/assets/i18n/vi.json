@@ -79,7 +79,6 @@
   "SETTINGS_MODEL_SEED": "Seed",
   "SETTINGS_MODEL_GENERATE_NUMBER": "Số lượng ảnh tạo ra",
   "SETTINGS_MODEL_LLM_MODEL": "Mô hình ngôn ngữ lớn",
-  "SETTINGS_MODEL_IMAGE_PREVIEW": "Xem trước ảnh",
   "SETTINGS_MODEL_SAFE_CHECK": "Kiểm tra an toàn",
   "SETTINGS_MODEL_IMAGE_MODEL": "Mô hình ảnh",
   "SETTINGS_MODEL_INPAINT_MODEL": "Mô hình Inpaint/Outpaint",

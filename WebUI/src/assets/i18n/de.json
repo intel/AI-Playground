@@ -89,7 +89,6 @@
   "SETTINGS_MODEL_GENERATE_NUMBER": "Bildanzahl",
   "SETTINGS_MODEL_BATCH_COUNT": "Batch-Anzahl",
   "SETTINGS_MODEL_LLM_MODEL": "Großes Sprachmodell",
-  "SETTINGS_MODEL_IMAGE_PREVIEW": "Bildvorschau",
   "SETTINGS_MODEL_SAFE_CHECK": "Sicherheitsprüfung",
   "SETTINGS_MODEL_IMAGE_MODEL": "Bild-Modell",
   "SETTINGS_MODEL_INPAINT_MODEL": "Inpaint/Outpaint-Modell",

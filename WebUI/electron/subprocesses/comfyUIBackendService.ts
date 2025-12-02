@@ -10,12 +10,13 @@ import {
   patchFile,
   createEnhancedErrorDetails,
 } from './service.ts'
-import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
+import { aipgBaseDir, checkBackend, checkBackendWithDetails, installBackend } from './uvBasedBackends/uv.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
 import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
+import { downloadCustomNode } from './comfyuiTools.ts'
 type Device = Omit<InferenceDevice, 'selected'>
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
@@ -40,6 +41,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
   private revision = 'v0.3.66'
+  private environmentMismatchError: ErrorDetails | null = null
 
   private readonly comfyUIStartupParameters = process.platform !== 'win32' ?
     [] : this.settings.comfyUiParameters
@@ -61,9 +63,58 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       }
     })
 
-    const result = await checkBackend(this.serviceFolder).then(() => true).catch(() => false)
-    this.appLogger.info(`Service ${this.name} isSetUp: ${result}`, this.name)
-    return result
+    // For ComfyUI, only check if venv exists, not exact lockfile match
+    try {
+      const checkDetails = await checkBackendWithDetails(this.serviceFolder, this.pythonEnvDir)
+      
+      // If venv doesn't exist, service is not set up
+      if (!checkDetails.venvExists) {
+        this.appLogger.info(`Service ${this.name} venv does not exist, needs installation`, this.name)
+        return false
+      }
+
+      // If venv exists but environment mismatch detected, set error details and still allow startup
+      if (checkDetails.envMismatch) {
+        this.appLogger.warn(
+          `Service ${this.name} venv exists but environment doesn't match expected state. Will attempt startup but recommend reinstallation.`,
+          this.name,
+        )
+        
+        // Set error details recommending reinstallation
+        // Include stderr from uv check which contains helpful information about what packages would be changed
+        const stderrInfo = checkDetails.stderr 
+          ? `\n\n=== UV Check Output ===\n${checkDetails.stderr}`
+          : ''
+        const stdoutInfo = checkDetails.stdout
+          ? `\n\n=== UV Check Details ===\n${checkDetails.stdout}`
+          : ''
+        
+        this.environmentMismatchError = {
+          command: 'ComfyUI environment check',
+          exitCode: checkDetails.exitCode,
+          stdout: `Virtual environment detected at: ${this.pythonEnvDir}\n` +
+            `Environment check failed (exit code: ${checkDetails.exitCode})\n` +
+            `Sync action: ${checkDetails.action}\n\n` +
+            `The Python environment exists but doesn't match the expected configuration.\n` +
+            `This may cause ComfyUI to fail during startup.\n\n` +
+            `Recommendation: Reinstall ComfyUI to ensure the environment matches the expected state.${stdoutInfo}`,
+          stderr: `Environment mismatch detected. The virtual environment at ${this.pythonEnvDir} exists but doesn't match the expected lockfile state.${stderrInfo}`,
+          timestamp: new Date().toISOString(),
+          duration: 0,
+        }
+      } else {
+        // Clear environment mismatch error if environment is in sync
+        this.environmentMismatchError = null
+      }
+
+      // Venv exists, allow startup attempt (even if mismatch detected)
+      this.appLogger.info(`Service ${this.name} venv exists, allowing startup attempt`, this.name)
+      return true
+    } catch (error) {
+      // If check fails completely, assume not set up
+      this.appLogger.error(`Failed to check ${this.name} environment: ${error}`, this.name)
+      return false
+    }
   }
 
   isSetUp = false
@@ -91,6 +142,51 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
       return undefined
     }
+  }
+
+  get_info(): ApiServiceInformation {
+    const baseInfo = super.get_info()
+    
+    // Always show environment mismatch error if it exists, even if there's a startup error
+    // This guides users toward a potential fix (reinstallation)
+    if (this.environmentMismatchError) {
+      if (baseInfo.errorDetails) {
+        // Merge environment mismatch with startup error
+        const mergedError: ErrorDetails = {
+          command: baseInfo.errorDetails.command || this.environmentMismatchError.command,
+          exitCode: baseInfo.errorDetails.exitCode ?? this.environmentMismatchError.exitCode,
+          stdout: [
+            '=== Environment Mismatch Warning ===',
+            this.environmentMismatchError.stdout,
+            '',
+            '=== Startup Error Details ===',
+            baseInfo.errorDetails.stdout || 'No stdout output',
+          ].join('\n'),
+          stderr: [
+            '=== Environment Mismatch Warning ===',
+            this.environmentMismatchError.stderr,
+            '',
+            '=== Startup Error Details ===',
+            baseInfo.errorDetails.stderr || 'No stderr output',
+          ].join('\n'),
+          timestamp: baseInfo.errorDetails.timestamp || this.environmentMismatchError.timestamp,
+          duration: baseInfo.errorDetails.duration ?? this.environmentMismatchError.duration,
+          pipFreezeOutput: baseInfo.errorDetails.pipFreezeOutput || this.environmentMismatchError.pipFreezeOutput,
+        }
+        return {
+          ...baseInfo,
+          errorDetails: mergedError,
+        }
+      } else {
+        // Only environment mismatch error, no startup error
+        return {
+          ...baseInfo,
+          errorDetails: this.environmentMismatchError,
+        }
+      }
+    }
+    
+    return baseInfo
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -248,6 +344,33 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: `configured comfyUI base repo`,
       }
 
+      currentStep = 'install comfyUI manager'
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: 'installing ComfyUI Manager custom node',
+      }
+      try {
+        const managerNode = {
+          username: 'Comfy-Org',
+          repoName: 'ComfyUI-Manager',
+        }
+        await downloadCustomNode(managerNode, this.serviceDir)
+        yield {
+          serviceName: this.name,
+          step: currentStep,
+          status: 'executing',
+          debugMessage: 'ComfyUI Manager installation complete',
+        }
+      } catch (error) {
+        // Log warning but don't fail setup
+        this.appLogger.warn(
+          `Failed to install ComfyUI Manager: ${error}. Continuing setup.`,
+          this.name,
+        )
+      }
+
       // Device-specific requirements and extra wheels are no longer needed
       // as uv handles all dependencies through pyproject.toml and uv.lock
       yield {
@@ -293,6 +416,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       PIP_CONFIG_FILE: 'nul',
+      UV_NO_CONFIG: '1',
+      UV_TORCH_BACKEND: process.platform === 'win32' ? 'xpu' : undefined,
     }
   }
 

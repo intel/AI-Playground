@@ -1,27 +1,21 @@
 <script setup lang="ts">
-import { inject, computed } from 'vue'
+import { computed } from 'vue'
 
 const ICON_RADIUS = 10
 const ICON_VIEWBOX = 24
 const ICON_CENTER = 12
 const ICON_STROKE_WIDTH = 2
 
-type ContextData = {
-  usedTokens: { value: number }
-  maxTokens: { value: number }
-}
-
-const contextData = inject<ContextData>('contextData')
-
-if (!contextData) {
-  throw new Error('ContextIcon must be used within Context')
-}
+const props = defineProps<{
+  usedTokens: number
+  maxTokens: number
+}>()
 
 const circumference = computed(() => 2 * Math.PI * ICON_RADIUS)
 
 const usedPercent = computed(() => {
-  if (contextData.maxTokens.value === 0) return 0
-  return contextData.usedTokens.value / contextData.maxTokens.value
+  if (props.maxTokens === 0) return 0
+  return props.usedTokens / props.maxTokens
 })
 
 const dashOffset = computed(() => {

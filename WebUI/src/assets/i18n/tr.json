@@ -79,7 +79,6 @@
   "SETTINGS_MODEL_SEED": "Seed",
   "SETTINGS_MODEL_GENERATE_NUMBER": "Oluşturulacak Resim Sayısı",
   "SETTINGS_MODEL_LLM_MODEL": "Large Language Model",
-  "SETTINGS_MODEL_IMAGE_PREVIEW": "Resim Önizleme",
   "SETTINGS_MODEL_SAFE_CHECK": "Güvenlik Kontrolü",
   "SETTINGS_MODEL_IMAGE_MODEL": "Image Model",
   "SETTINGS_MODEL_INPAINT_MODEL": "Inpaint/Outpaint Model",

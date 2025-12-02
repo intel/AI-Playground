@@ -233,7 +233,7 @@ export async function executeComfyGeneration(args: {
 // Generate the tool description and schema dynamically based on available workflows
 function getToolDefinition() {
   const availableWorkflows = getAvailableWorkflows()
-  const defaultWorkflow = 'SD1.5'
+  const defaultWorkflow = 'Draft Image'
   
   // Fallback if no workflows are available yet (presets not loaded)
   if (availableWorkflows.length === 0) {

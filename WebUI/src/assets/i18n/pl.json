@@ -79,7 +79,6 @@
   "SETTINGS_MODEL_SEED": "Seed",
   "SETTINGS_MODEL_GENERATE_NUMBER": "Liczba generowanych obrazów",
   "SETTINGS_MODEL_LLM_MODEL": "Model językowy",
-  "SETTINGS_MODEL_IMAGE_PREVIEW": "Podgląd obrazu",
   "SETTINGS_MODEL_SAFE_CHECK": "Kontrola bezpieczeństwa",
   "SETTINGS_MODEL_IMAGE_MODEL": "Model obrazu",
   "SETTINGS_MODEL_INPAINT_MODEL": "Model Inpaint/Outpaint",
