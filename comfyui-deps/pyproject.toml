@@ -1,6 +1,6 @@
 [project]
 name = "aipg-comfyui"
-version = "0.3.66"
+version = "0.3.76"
 requires-python = "==3.12.*"
 dependencies = [
   "addict", 
@@ -10,9 +10,9 @@ dependencies = [
   "av>=14.2.0",
   "chardet",
   "color-matcher",
-  "comfyui-embedded-docs==0.3.0",
-  "comfyui-frontend-package==1.28.7",
-  "comfyui-workflow-templates==0.2.1",
+  "comfyui-embedded-docs==0.3.1",
+  "comfyui-frontend-package==1.33.10",
+  "comfyui-workflow-templates==0.7.25",
   "diffusers>=0.35.2",
   "einops",
   "filelock",
@@ -64,7 +64,7 @@ dependencies = [
   "torchsde",
   "torchvision>=0.24.0",
   "tqdm",
-  "transformers[timm]>=4.45.0",
+  "transformers[timm]>=4.50.3",
   "trimesh[easy]", 
   "typer",
   "typing-extensions",
