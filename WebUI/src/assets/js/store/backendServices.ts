@@ -220,7 +220,15 @@ export const useBackendServices = defineStore(
     }
 
     function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
-      return currentServiceInfo.value.filter((s) => s.serviceName === serviceName)[0]?.errorDetails
+      // First check service info (startup errors from main process)
+      const serviceError = currentServiceInfo.value.find(
+        (s) => s.serviceName === serviceName,
+      )?.errorDetails
+      if (serviceError) return serviceError
+
+      // Then check listener (installation errors captured in renderer)
+      const listener = serviceListeners.get(serviceName)
+      return listener?.getLastErrorDetails() ?? null
     }
 
     async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
@@ -391,7 +399,6 @@ class BackendServiceSetupProgressListener {
   private terminalUpdateReceived = false
   private installationSuccess: boolean = false
   private lastErrorDetails: ErrorDetails | null = null
-  private postInstallationErrorDetails: ErrorDetails | null = null
 
   constructor(associatedServiceName: string) {
     this.associatedServiceName = associatedServiceName
@@ -455,24 +462,11 @@ class BackendServiceSetupProgressListener {
     })
   }
 
-  // Clear error details when starting a new installation
   clearErrorDetails() {
     this.lastErrorDetails = null
-    this.postInstallationErrorDetails = null
   }
 
-  // Getter for current error details (for UI to access)
   getLastErrorDetails(): ErrorDetails | null {
-    return this.postInstallationErrorDetails || this.lastErrorDetails
-  }
-
-  // Set post-installation error details
-  setPostInstallationError(errorDetails: ErrorDetails) {
-    this.postInstallationErrorDetails = errorDetails
-  }
-
-  // Check if there are any errors (installation or post-installation)
-  hasErrors(): boolean {
-    return this.lastErrorDetails !== null || this.postInstallationErrorDetails !== null
+    return this.lastErrorDetails
   }
 }
