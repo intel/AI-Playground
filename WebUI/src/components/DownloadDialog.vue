@@ -141,11 +141,7 @@
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              class="v-checkbox-control flex-none w-5 h-5"
-              :class="{ 'v-checkbox-checked': readTerms }"
-              @click="readTerms = !readTerms"
-            ></button>
+            <Checkbox v-model="readTerms"/>
             <span class="text-sm text-left">{{ languages.DOWNLOADER_TERMS_TIP }}</span>
           </div>
           <div class="flex justify-center items-center gap-9">
@@ -184,6 +180,7 @@ import { ref, watch, nextTick, toRaw } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import ProgressBar from './ProgressBar.vue'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useI18N } from '@/assets/js/store/i18n'
 import { SSEProcessor } from '@/assets/js/sseProcessor'
 import * as util from '@/assets/js/util'

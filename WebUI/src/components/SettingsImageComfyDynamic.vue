@@ -103,16 +103,12 @@
       />
 
       <!--    Boolean    -->
-      <button
+      <Checkbox
         v-if="input.type === 'boolean'"
-        class="v-checkbox-control flex-none w-5 h-5"
-        :class="{ 
-          'v-checkbox-checked': input.current.value,
-          'opacity-50 cursor-not-allowed': !isModifiable(input)
-        }"
+        :model-value="Boolean(input.current.value)"
         :disabled="!isModifiable(input)"
-        @click="() => { if (isModifiable(input)) input.current.value = !input.current.value }"
-      ></button>
+        @update:model-value="(value: boolean | 'indeterminate') => input.current.value = value === true"
+      />
     </div>
   </template>
 </template>
@@ -127,6 +123,7 @@ import DropDownNew from '@/components/DropDownNew.vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import Slider from './ui/slider/Slider.vue'
 import { Label } from './ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import SettingsOutpaintDirection from './SettingsOutpaintDirection.vue'
 import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
 import SettingsInpaintMask from './SettingsInpaintMask.vue'

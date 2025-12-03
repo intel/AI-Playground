@@ -81,7 +81,7 @@
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.ANSWER_METRICS }}</Label>
-          <Checkbox id="metrics" :checked="textInference.metricsEnabled" @update:checked="(checked: boolean) => textInference.metricsEnabled = checked" />
+          <Checkbox id="metrics" :model-value="textInference.metricsEnabled" @update:model-value="(value: boolean | 'indeterminate') => textInference.metricsEnabled = value === true" />
         </div>
 
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
