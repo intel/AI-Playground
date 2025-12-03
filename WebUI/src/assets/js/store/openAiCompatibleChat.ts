@@ -101,7 +101,7 @@ export const useOpenAiCompatibleChat = defineStore(
         } : {}),
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
-            console.log(chunk.chunk)
+            console.debug(chunk.chunk)
             const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
             if (rawValue.success && rawValue.data.timings) {
               timings = rawValue.data.timings
@@ -143,7 +143,6 @@ export const useOpenAiCompatibleChat = defineStore(
         }
 
       })
-      console.log('streamText finished:', { result, timings, usage })
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
         messageMetadata: (options) => {
@@ -153,12 +152,18 @@ export const useOpenAiCompatibleChat = defineStore(
               reasoningFinished: options.part.providerMetadata?.aipg?.reasoningFinished,
             }
           }
-          return {
+          let totalUsage: LanguageModelUsage | undefined = undefined
+          if (options.part.type === 'finish') {
+            totalUsage = options.part.totalUsage
+          }
+          const metadata = {
             model: textInference.activeModel,
             timestamp: Date.now(),
             timings,
-            usage,
+            usage: totalUsage ?? usage,
           }
+          console.debug('producing metadata:', {options, metadata})
+          return metadata
         }
       })
     }

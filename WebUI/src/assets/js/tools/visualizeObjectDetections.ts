@@ -140,8 +140,8 @@ async function drawDetectionsOnImage(
         const padding = 4
 
         // Position label at top-left of bounding box (using clamped coordinates)
-        const labelX = clampedX1
-        const labelY = Math.max(0, clampedY1 - textHeight - padding * 2)
+        const labelX = clampedX1 + padding * 2
+        const labelY = Math.max(0, clampedY1 + textHeight + padding * 2)
 
         // Draw label background rectangle
         ctx.fillStyle = labelBgColor
