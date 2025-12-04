@@ -373,7 +373,11 @@ async function handlePromptSubmit(prompt: string) {
   try {
     await textInference.checkModelAvailability()
     await generate(question)
-  } catch {}
+  } catch (error) {
+    // Reset state on any error (including download cancellation)
+    promptStore.promptSubmitted = false
+    console.error('Error during text inference:', error)
+  }
 }
 
 async function handleCancel() {

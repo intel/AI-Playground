@@ -217,9 +217,16 @@ watch(
 )
 
 async function generateImage(prompt: string) {
-  imageGeneration.prompt = prompt
-  await imageGeneration.ensureModelsAreAvailable()
-  await imageGeneration.generate(props.mode)
+  try {
+    imageGeneration.prompt = prompt
+    await imageGeneration.ensureModelsAreAvailable()
+    await imageGeneration.generate(props.mode)
+  } catch (error) {
+    // Reset state on any error (including download cancellation)
+    promptStore.promptSubmitted = false
+    imageGeneration.processing = false
+    console.error('Error during image generation:', error)
+  }
 }
 
 function stopGeneration() {

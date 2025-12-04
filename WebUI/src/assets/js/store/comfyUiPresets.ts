@@ -5,6 +5,7 @@ import { useImageGenerationPresets, type MediaItem } from './imageGenerationPres
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { usePromptStore } from './promptArea'
 import { z } from 'zod'
 
 const WEBSOCKET_OPEN = 1
@@ -619,6 +620,8 @@ export const useComfyUiPresets = defineStore(
               case 'execution_error':
                 imageGeneration.processing = false
                 imageGeneration.currentState = 'error'
+                const promptStore = usePromptStore()
+                promptStore.promptSubmitted = false
                 if (msg.data.exception_message) toast.error(msg.data.exception_message)
                 break
               case 'execution_interrupted':
@@ -877,6 +880,8 @@ export const useComfyUiPresets = defineStore(
         toast.error('Backend could not generate image.')
         imageGeneration.processing = false
         imageGeneration.currentState = 'no_start'
+        const promptStore = usePromptStore()
+        promptStore.promptSubmitted = false
       }
     }
 
