@@ -108,10 +108,6 @@
   --svg: url('@/assets/svg/queue.svg');
 }
 
-.i-right {
-  --svg: url('@/assets/svg/right.svg');
-}
-
 .i-arrow-right {
   --svg: url('@/assets/svg/arrow-right.svg');
 }

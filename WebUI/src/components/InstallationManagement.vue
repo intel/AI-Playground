@@ -40,21 +40,21 @@
                 <p v-show="!getInfoURL(component.serviceName)">-</p>
               </td>
               <td>
-                <button
+                <Checkbox
                   v-if="component.status !== 'running' && !component.isLoading"
-                  class="v-checkbox-control-table flex-none w-5 h-5"
-                  :class="{ 'v-checkbox-checked-table': component.enabled }"
-                  @click="
-                    () => {
-                      if (component.enabled && !component.isSetUp) {
-                        toBeInstalledComponents.delete(component.serviceName)
-                      } else {
+                  class="mx-auto"
+                  :model-value="component.enabled"
+                  @update:model-value="
+                    (value: boolean | 'indeterminate') => {
+                      if (value === true) {
                         toBeInstalledComponents.add(component.serviceName)
+                      } else {
+                        toBeInstalledComponents.delete(component.serviceName)
                       }
                     }
                   "
                   :disabled="component.isRequired"
-                ></button>
+                />
                 <p v-else>-</p>
               </td>
               <td :style="{ color: mapStatusToColor(component.status) }" class="">
@@ -176,6 +176,7 @@ import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { ErrorDetails } from '../../electron/subprocesses/service'
 
 const emits = defineEmits<{
