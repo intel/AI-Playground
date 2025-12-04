@@ -52,6 +52,7 @@ dependencies = [
   "scipy",
   "segment-anything>=1.0",
   "sentencepiece",
+  "soxr<1.0.0",
   "spandrel",
   "SQLAlchemy",
   "stringzilla==3.12.6",
