@@ -160,8 +160,11 @@ function modifySettingInWorkflow(
     console.warn(`Multiple keys found for setting ${setting}. Using first one`)
   }
   const key = keys[0]
-  if (workflow[key]?.inputs?.[getInputNameBySettingAndKey(workflow, key, setting)] !== undefined) {
-    workflow[key].inputs[getInputNameBySettingAndKey(workflow, key, setting)] = value
+  const inputName = getInputNameBySettingAndKey(workflow, key, setting)
+  if (workflow[key]?.inputs?.[inputName] !== undefined) {
+    workflow[key].inputs[inputName] = value
+  } else if (workflow[key]?.inputs?.['a'] !== undefined) {
+    workflow[key].inputs['a'] = value
   }
 }
 
@@ -724,10 +727,7 @@ export const useComfyUiPresets = defineStore(
 
           const uploadImageHash = Array.from(
             new Uint8Array(
-              await window.crypto.subtle.digest(
-                'SHA-256',
-                new TextEncoder().encode(imageDataUri),
-              ),
+              await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(imageDataUri)),
             ),
           )
             .map((b) => b.toString(16).padStart(2, '0'))

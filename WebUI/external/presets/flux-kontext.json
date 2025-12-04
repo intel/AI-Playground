@@ -2,7 +2,10 @@
   "type": "comfy",
   "name": "Edit By Prompt",
   "displayPriority": 800,
-  "tags": ["maskless", "high-vram"],
+  "tags": [
+    "maskless",
+    "high-vram"
+  ],
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
@@ -14,6 +17,10 @@
     {
       "type": "unet",
       "model": "Comfy-Org/flux1-kontext-dev_ComfyUI/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors"
+    },
+    {
+      "type": "lora",
+      "model": "alimama-creative/FLUX.1-Turbo-Alpha/diffusion_pytorch_model.safetensors"
     },
     {
       "type": "clip",
@@ -50,7 +57,7 @@
       "label": "Inference Steps",
       "displayed": false,
       "modifiable": true,
-      "defaultValue": 20,
+      "defaultValue": 6,
       "settingName": "inferenceSteps"
     },
     {
@@ -59,7 +66,9 @@
       "displayed": false,
       "modifiable": false,
       "defaultValue": 512,
-      "settingName": "width"
+      "settingName": "width",
+      "nodeTitle": "width",
+      "nodeInput": "a"
     },
     {
       "type": "number",
@@ -67,7 +76,9 @@
       "displayed": false,
       "modifiable": false,
       "defaultValue": 512,
-      "settingName": "height"
+      "settingName": "height",
+      "nodeTitle": "height",
+      "nodeInput": "a"
     },
     {
       "type": "string",
@@ -109,55 +120,44 @@
       "defaultValue": false,
       "nodeTitle": "use_original_resolution",
       "nodeInput": "switch"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (left)",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "left_image",
+      "nodeInput": "image"
+    },
+    {
+      "type": "boolean",
+      "label": "Use Second Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": false,
+      "nodeTitle": "use_second_image",
+      "nodeInput": "switch"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (right)",
+      "displayed": true,
+      "modifiable": true,
+      "optional": true,
+      "defaultValue": "",
+      "nodeTitle": "right_image",
+      "nodeInput": "image"
     }
   ],
   "variants": [
     {
       "name": "Quality",
       "overrides": {
-        "settings": [
-          {
-            "type": "image",
-            "label": "Reference Image (left)",
-            "displayed": true,
-            "modifiable": true,
-            "defaultValue": "",
-            "nodeTitle": "left_image",
-            "nodeInput": "image"
-          },
-          {
-            "type": "boolean",
-            "label": "Use Second Reference Image",
-            "displayed": true,
-            "modifiable": true,
-            "defaultValue": false,
-            "nodeTitle": "use_second_image",
-            "nodeInput": "switch"
-          },
-          {
-            "type": "image",
-            "label": "Reference Image (right)",
-            "displayed": true,
-            "modifiable": true,
-            "optional": true,
-            "defaultValue": "",
-            "nodeTitle": "right_image",
-            "nodeInput": "image"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Fast",
-      "overrides": {
         "requiredModels": [
           {
             "type": "unet",
             "model": "Comfy-Org/flux1-kontext-dev_ComfyUI/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors"
-          },
-          {
-            "type": "lora",
-            "model": "alimama-creative/FLUX.1-Turbo-Alpha/diffusion_pytorch_model.safetensors"
           },
           {
             "type": "clip",
@@ -172,80 +172,15 @@
             "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
           }
         ],
-        "settings": [
-          {
-            "type": "number",
-            "label": "Inference Steps",
-            "displayed": false,
-            "modifiable": true,
-            "defaultValue": 6,
-            "settingName": "inferenceSteps"
-          },
-          {
-            "type": "boolean",
-            "label": "Safety Check",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": true,
-            "settingName": "safetyCheck"
-          },
-          {
-            "type": "image",
-            "label": "Reference Image",
-            "displayed": true,
-            "modifiable": true,
-            "defaultValue": "",
-            "nodeTitle": "Load Image",
-            "nodeInput": "image"
-          }
-        ],
         "comfyUiApiWorkflow": {
-          "1": {
-            "inputs": {
-              "sampler_name": "euler"
-            },
-            "class_type": "KSamplerSelect",
-            "_meta": {
-              "title": "KSamplerSelect"
-            }
-          },
-          "2": {
-            "inputs": {
-              "noise_seed": 1117880194943796
-            },
-            "class_type": "RandomNoise",
-            "_meta": {
-              "title": "RandomNoise"
-            }
-          },
-          "3": {
-            "inputs": {
-              "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
-            },
-            "class_type": "VAELoader",
-            "_meta": {
-              "title": "Load VAE"
-            }
-          },
-          "4": {
-            "inputs": {
-              "clip_name1": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors",
-              "clip_name2": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
-              "type": "flux",
-              "device": "default"
-            },
-            "class_type": "DualCLIPLoader",
-            "_meta": {
-              "title": "DualCLIPLoader"
-            }
-          },
+          "20": {},
           "6": {
             "inputs": {
-              "scheduler": "beta",
-              "steps": 6,
+              "scheduler": "simple",
+              "steps": 20,
               "denoise": 1,
               "model": [
-                "20",
+                "19",
                 0
               ]
             },
@@ -254,258 +189,231 @@
               "title": "BasicScheduler"
             }
           },
-          "7": {
-            "inputs": {
-              "guidance": 2.5,
-              "conditioning": [
-                "17",
-                0
-              ]
-            },
-            "class_type": "FluxGuidance",
-            "_meta": {
-              "title": "FluxGuidance"
-            }
-          },
-          "8": {
-            "inputs": {
-              "image": "Mollysmall.jpg"
-            },
-            "class_type": "LoadImage",
-            "_meta": {
-              "title": "Load Image"
-            }
-          },
-          "9": {
-            "inputs": {
-              "pixels": [
-                "8",
-                0
-              ],
-              "vae": [
-                "3",
-                0
-              ]
-            },
-            "class_type": "VAEEncode",
-            "_meta": {
-              "title": "VAE Encode"
-            }
-          },
-          "10": {
-            "inputs": {
-              "samples": [
-                "14",
-                0
-              ],
-              "vae": [
-                "3",
-                0
-              ]
-            },
-            "class_type": "VAEDecode",
-            "_meta": {
-              "title": "VAE Decode"
-            }
-          },
-          "11": {
-            "inputs": {
-              "model": [
-                "19",
-                0
-              ],
-              "conditioning": [
-                "12",
-                0
-              ]
-            },
-            "class_type": "BasicGuider",
-            "_meta": {
-              "title": "BasicGuider"
-            }
-          },
-          "12": {
-            "inputs": {
-              "conditioning": [
-                "7",
-                0
-              ],
-              "latent": [
-                "9",
-                0
-              ]
-            },
-            "class_type": "ReferenceLatent",
-            "_meta": {
-              "title": "ReferenceLatent"
-            }
-          },
-          "13": {
-            "inputs": {
-              "filename_prefix": "AIPG_Image",
-              "images": [
-                "10",
-                0
-              ]
-            },
-            "class_type": "SaveImage",
-            "_meta": {
-              "title": "Save Image"
-            }
-          },
-          "14": {
-            "inputs": {
-              "noise": [
-                "2",
-                0
-              ],
-              "guider": [
-                "11",
-                0
-              ],
-              "sampler": [
-                "1",
-                0
-              ],
-              "sigmas": [
-                "6",
-                0
-              ],
-              "latent_image": [
-                "15",
-                0
-              ]
-            },
-            "class_type": "SamplerCustomAdvanced",
-            "_meta": {
-              "title": "SamplerCustomAdvanced"
-            }
-          },
-          "15": {
-            "inputs": {
-              "width": [
-                "21",
-                0
-              ],
-              "height": [
-                "21",
-                1
-              ],
-              "batch_size": 1
-            },
-            "class_type": "EmptySD3LatentImage",
-            "_meta": {
-              "title": "EmptySD3LatentImage"
-            }
-          },
           "17": {
             "inputs": {
-              "text": "remove people",
+              "text": "make the banana blue but keep all other elements in the image, while adjusting to the new aspect ratio",
               "clip": [
-                "20",
-                1
+                "4",
+                0
               ]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
               "title": "prompt"
             }
-          },
-          "19": {
-            "inputs": {
-              "unet_name": "Comfy-Org---flux1-kontext-dev_ComfyUI\\split_files\\diffusion_models\\flux1-dev-kontext_fp8_scaled.safetensors",
-              "weight_dtype": "default"
-            },
-            "class_type": "UNETLoader",
-            "_meta": {
-              "title": "Load Diffusion Model"
-            }
-          },
-          "20": {
-            "inputs": {
-              "lora_name": "alimama-creative---FLUX.1-Turbo-Alpha\\diffusion_pytorch_model.safetensors",
-              "strength_model": 1,
-              "strength_clip": 1,
-              "model": [
-                "19",
-                0
-              ],
-              "clip": [
-                "4",
-                0
-              ]
-            },
-            "class_type": "LoraLoader",
-            "_meta": {
-              "title": "Load LoRA"
-            }
-          },
-          "21": {
-            "inputs": {
-              "image": [
-                "8",
-                0
-              ]
-            },
-            "class_type": "GetImageSize",
-            "_meta": {
-              "title": "Get Image Size"
-            }
           }
         }
       }
+    },
+    {
+      "name": "Fast",
+      "overrides": {}
     }
   ],
   "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
+    },
+    "2": {
+      "inputs": {
+        "noise_seed": 513740367680068
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
+    },
+    "3": {
+      "inputs": {
+        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "inputs": {
+        "clip_name1": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip_name2": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
+        "type": "flux",
+        "device": "default"
+      },
+      "class_type": "DualCLIPLoader",
+      "_meta": {
+        "title": "DualCLIPLoader"
+      }
+    },
     "6": {
       "inputs": {
-        "text": "Combine these images so the woman on the left is holding the small perfume bottle labled 'Optimum' on the right, presenting it in an elegant advertisment. Background is a beautiful art deco hotel ballroom. She has a wry smile",
-        "clip": ["38", 0]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "prompt"
-      }
-    },
-    "8": {
-      "inputs": {
-        "samples": ["31", 0],
-        "vae": ["39", 0]
-      },
-      "class_type": "VAEDecode",
-      "_meta": {
-        "title": "VAE Decode"
-      }
-    },
-    "31": {
-      "inputs": {
-        "seed": 14861845450765,
-        "steps": 20,
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
+        "scheduler": "beta",
+        "steps": 6,
         "denoise": 1,
-        "model": ["37", 0],
-        "positive": ["35", 0],
-        "negative": ["135", 0],
-        "latent_image": ["191", 0]
+        "model": [
+          "20",
+          0
+        ]
       },
-      "class_type": "KSampler",
+      "class_type": "BasicScheduler",
       "_meta": {
-        "title": "KSampler"
+        "title": "BasicScheduler"
       }
     },
-    "35": {
+    "7": {
       "inputs": {
         "guidance": 2.5,
-        "conditioning": ["177", 0]
+        "conditioning": [
+          "17",
+          0
+        ]
       },
       "class_type": "FluxGuidance",
       "_meta": {
         "title": "FluxGuidance"
       }
     },
-    "37": {
+    "9": {
+      "inputs": {
+        "pixels": [
+          "26",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode"
+      }
+    },
+    "10": {
+      "inputs": {
+        "samples": [
+          "14",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "11": {
+      "inputs": {
+        "model": [
+          "19",
+          0
+        ],
+        "conditioning": [
+          "12",
+          0
+        ]
+      },
+      "class_type": "BasicGuider",
+      "_meta": {
+        "title": "BasicGuider"
+      }
+    },
+    "12": {
+      "inputs": {
+        "conditioning": [
+          "7",
+          0
+        ],
+        "latent": [
+          "9",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent"
+      }
+    },
+    "13": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": [
+          "10",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "14": {
+      "inputs": {
+        "noise": [
+          "2",
+          0
+        ],
+        "guider": [
+          "11",
+          0
+        ],
+        "sampler": [
+          "1",
+          0
+        ],
+        "sigmas": [
+          "6",
+          0
+        ],
+        "latent_image": [
+          "28",
+          0
+        ]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "15": {
+      "inputs": {
+        "width": [
+          "21",
+          0
+        ],
+        "height": [
+          "21",
+          1
+        ],
+        "batch_size": 1
+      },
+      "class_type": "EmptySD3LatentImage",
+      "_meta": {
+        "title": "EmptySD3LatentImage"
+      }
+    },
+    "17": {
+      "inputs": {
+        "text": "make the banana blue but keep all other elements in the image, while adjusting to the new aspect ratio",
+        "clip": [
+          "20",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "19": {
       "inputs": {
         "unet_name": "Comfy-Org---flux1-kontext-dev_ComfyUI\\split_files\\diffusion_models\\flux1-dev-kontext_fp8_scaled.safetensors",
         "weight_dtype": "default"
@@ -515,122 +423,114 @@
         "title": "Load Diffusion Model"
       }
     },
-    "38": {
+    "20": {
       "inputs": {
-        "clip_name1": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
-        "clip_name2": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors",
-        "type": "flux",
-        "device": "default"
+        "lora_name": "alimama-creative---FLUX.1-Turbo-Alpha\\diffusion_pytorch_model.safetensors",
+        "strength_model": 1,
+        "strength_clip": 1,
+        "model": [
+          "19",
+          0
+        ],
+        "clip": [
+          "4",
+          0
+        ]
       },
-      "class_type": "DualCLIPLoader",
+      "class_type": "LoraLoader",
       "_meta": {
-        "title": "DualCLIPLoader"
+        "title": "Load LoRA"
       }
     },
-    "39": {
+    "21": {
       "inputs": {
-        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
+        "image": [
+          "23",
+          0
+        ]
       },
-      "class_type": "VAELoader",
+      "class_type": "GetImageSize",
       "_meta": {
-        "title": "Load VAE"
+        "title": "Get Image Size"
       }
     },
-    "42": {
+    "22": {
       "inputs": {
-        "image": ["192", 0]
-      },
-      "class_type": "FluxKontextImageScale",
-      "_meta": {
-        "title": "FluxKontextImageScale"
-      }
-    },
-    "124": {
-      "inputs": {
-        "pixels": ["42", 0],
-        "vae": ["39", 0]
-      },
-      "class_type": "VAEEncode",
-      "_meta": {
-        "title": "VAE Encode"
-      }
-    },
-    "135": {
-      "inputs": {
-        "conditioning": ["6", 0]
-      },
-      "class_type": "ConditioningZeroOut",
-      "_meta": {
-        "title": "ConditioningZeroOut"
-      }
-    },
-    "136": {
-      "inputs": {
-        "filename_prefix": "AIPG_Image",
-        "images": ["8", 0]
-      },
-      "class_type": "SaveImage",
-      "_meta": {
-        "title": "Save Image"
-      }
-    },
-    "142": {
-      "inputs": {
-        "image": "input_left.png",
-        "upload": "image"
-      },
-      "class_type": "LoadImage",
-      "_meta": {
-        "title": "left_image"
-      }
-    },
-    "146": {
-      "inputs": {
-        "direction": "right",
-        "match_image_size": true,
-        "spacing_width": 0,
-        "spacing_color": "white",
-        "image1": ["142", 0],
-        "image2": ["147", 0]
-      },
-      "class_type": "ImageStitch",
-      "_meta": {
-        "title": "Image Stitch"
-      }
-    },
-    "147": {
-      "inputs": {
-        "image": "input_right.png",
-        "upload": "image"
+        "image": "AIPG_Image_00004_.png"
       },
       "class_type": "LoadImage",
       "_meta": {
         "title": "right_image"
       }
     },
-    "173": {
+    "23": {
       "inputs": {
-        "images": ["42", 0]
+        "image": "bfa4a983e73a44fff2301c10f86a22a8367798477cb540b28761660691b38ac0.png"
       },
-      "class_type": "PreviewImage",
+      "class_type": "LoadImage",
       "_meta": {
-        "title": "Preview Image"
+        "title": "left_image"
       }
     },
-    "177": {
+    "24": {
       "inputs": {
-        "conditioning": ["6", 0],
-        "latent": ["124", 0]
+        "direction": "right",
+        "match_image_size": true,
+        "spacing_width": 0,
+        "spacing_color": "white",
+        "image1": [
+          "23",
+          0
+        ],
+        "image2": [
+          "22",
+          0
+        ]
       },
-      "class_type": "ReferenceLatent",
+      "class_type": "ImageStitch",
       "_meta": {
-        "title": "ReferenceLatent"
+        "title": "Image Stitch"
       }
     },
-    "190": {
+    "25": {
       "inputs": {
-        "width": 416,
-        "height": 624,
+        "switch": true,
+        "on_false": [
+          "23",
+          0
+        ],
+        "on_true": [
+          "24",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image"
+      }
+    },
+    "26": {
+      "inputs": {
+        "image": [
+          "25",
+          0
+        ]
+      },
+      "class_type": "FluxKontextImageScale",
+      "_meta": {
+        "title": "FluxKontextImageScale"
+      }
+    },
+    "27": {
+      "inputs": {
+        "width": [
+          "34",
+          0
+        ],
+        "height": [
+          "35",
+          0
+        ],
         "batch_size": 1
       },
       "class_type": "EmptySD3LatentImage",
@@ -638,26 +538,43 @@
         "title": "EmptySD3LatentImage"
       }
     },
-    "191": {
+    "28": {
       "inputs": {
         "switch": false,
-        "on_false": ["190", 0],
-        "on_true": ["124", 0]
+        "on_false": [
+          "27",
+          0
+        ],
+        "on_true": [
+          "15",
+          0
+        ]
       },
       "class_type": "InversionDemoLazySwitch",
       "_meta": {
         "title": "use_original_resolution"
       }
     },
-    "192": {
+    "34": {
       "inputs": {
-        "switch": false,
-        "on_false": ["142", 0],
-        "on_true": ["146", 0]
+        "a": 0,
+        "b": 0,
+        "operation": "add"
       },
-      "class_type": "InversionDemoLazySwitch",
+      "class_type": "IntMathOperation",
       "_meta": {
-        "title": "use_second_image"
+        "title": "width"
+      }
+    },
+    "35": {
+      "inputs": {
+        "a": 0,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "height"
       }
     }
   }

@@ -133,7 +133,7 @@
             "model": "Comfy-Org/Wan_2.1_ComfyUI_repackaged/split_files/vae/wan_2.1_vae.safetensors"
           },
           {
-            "type": "defaultLora",
+            "type": "lora",
             "model": "Kijai/WanVideo_comfy/Wan21_CausVid_14B_T2V_lora_rank32.safetensors"
           }
         ],

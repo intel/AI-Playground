@@ -34,7 +34,7 @@ comfy_ui_model_paths = {
     "controlNet": f"{comfy_ui_root_path}/models/controlnet",
     "upscale": f"{comfy_ui_root_path}/models/upscale_models",
     "defaultCheckpoint": "./models/stable_diffusion/checkpoints",
-    "defaultLora": "./models/stable_diffusion/lora",
+    "lora": f"{comfy_ui_root_path}/models/loras",
 }
 
 # Git configuration
@@ -69,6 +69,7 @@ def convert_model_type(type):
         108: "nsfwdetector",
         109: "checkpoints",
         110: "upscale",
+        111: "lora",
     }
     if type in type_map:
         return type_map[type]

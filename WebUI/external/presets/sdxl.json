@@ -27,7 +27,7 @@
             "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
           },
           {
-            "type": "defaultLora",
+            "type": "lora",
             "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
           }
         ],

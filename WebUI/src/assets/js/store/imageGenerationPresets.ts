@@ -71,7 +71,7 @@ export const is3D = (item: MediaItem): item is Model3DMediaItem => item.type ===
 
 export const isImage = (item: MediaItem): item is ImageMediaItem => item.type === 'image'
 
-const globalDefaultSettings: Record<string, unknown> = {
+const globalDefaultSettings = {
   seed: -1,
   width: 512,
   height: 512,
@@ -379,7 +379,8 @@ export const useImageGenerationPresets = defineStore(
         if (!settingsKey) return
         const saved = settingsPerPreset.value[settingsKey]?.[settingName]
         const presetValue = getSettingValue(settingName)
-        const globalDefaultValue = globalDefaultSettings[settingName]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const globalDefaultValue: any = globalDefaultSettings[settingName as keyof typeof globalDefaultSettings]
         console.log('### getSavedOrDefault', settingName, saved, presetValue, globalDefaultValue)
         return saved ?? presetValue ?? globalDefaultValue
       }
