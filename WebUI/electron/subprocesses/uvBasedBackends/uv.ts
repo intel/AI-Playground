@@ -35,12 +35,19 @@ const uv = (uvCommand: string[], logger: ReturnType<typeof loggerFor>) =>
     logger.info(`Spawning UV process with command: ${uvCommand.join(' ')}`)
     const uvProcess = spawn(uvPath, uvCommand, { env: { ...process.env, UV_NO_ENV_FILE: '1', UV_NO_CONFIG: '1', VIRTUAL_ENV: undefined } })
 
+    const stdoutChunks: string[] = []
+    const stderrChunks: string[] = []
+
     uvProcess.stdout.on('data', (data: Buffer) => {
-      logger.info(`UV: ${data.toString()}`)
+      const text = data.toString()
+      stdoutChunks.push(text)
+      logger.info(`UV: ${text}`)
     })
 
     uvProcess.stderr.on('data', (data: Buffer) => {
-      logger.error(`UV Error: ${data.toString()}`)
+      const text = data.toString()
+      stderrChunks.push(text)
+      logger.error(`UV Error: ${text}`)
     })
 
     uvProcess.on('close', (code: number) => {
@@ -48,8 +55,11 @@ const uv = (uvCommand: string[], logger: ReturnType<typeof loggerFor>) =>
         logger.info(`UV process completed successfully`)
         resolve()
       } else {
+        const stdout = stdoutChunks.join('').trim()
+        const stderr = stderrChunks.join('').trim()
+        const errorMessage = stderr || stdout || `UV process exited with code ${code}`
         logger.error(`UV process exited with code ${code}`)
-        reject(new Error(`UV process exited with code ${code}`))
+        reject(new Error(errorMessage))
       }
     })
   })
