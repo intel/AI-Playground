@@ -34,7 +34,9 @@ def get_model_path(type: str, backend: str):
     logging.info(f'getting model path for type {type} and backend {backend}')
     match backend:
         case "default":
-            return config.service_model_paths.get(type)
+            # Default backend (old ipexllm) is no longer supported
+            logging.warning(f'Default backend (ipexllm) is no longer supported. Cannot get model path for type {type}.')
+            return None
         case "llama_cpp":
             return config.llama_cpp_model_paths.get(type)
         case "openvino":
@@ -42,9 +44,13 @@ def get_model_path(type: str, backend: str):
         case "comfyui":
             return config.comfy_ui_model_paths.get(type)
 
-def check_mmodel_exist(type: str, repo_id: str, backend: str) -> bool:
+def check_mmodel_exist(type: str, repo_id: str, backend: str, model_path: str = None) -> bool:
     """Check if a model exists for a given type and backend"""
     logging.info(f'checking model {repo_id} of type {type} in backend {backend}')
+    if model_path:
+        # Use provided model_path directly
+        return check_model_exists_with_path(type, repo_id, model_path)
+    # Fallback to old behavior for backward compatibility
     match(backend):
         case "default":
             return check_defaultbackend_mmodel_exist(type, repo_id)
@@ -56,6 +62,32 @@ def check_mmodel_exist(type: str, repo_id: str, backend: str) -> bool:
             return check_llama_cpp_model_exists(type, repo_id)
         case _:
             raise NameError("Unknown Backend")
+
+def check_model_exists_with_path(type: str, repo_id: str, model_path: str) -> bool:
+    """Check if a model exists at the given path"""
+    # Resolve absolute path
+    model_path = os.path.abspath(model_path)
+    
+    if type == 'faceswap' or type == 'facerestore':
+        dir_to_look_for = os.path.join(model_path, flat_repo_local_dir_name(repo_id))
+    elif type == 'nsfwdetector':
+        dir_to_look_for = os.path.join(model_path, 'vit-base-nsfw-detector', extract_model_id_pathsegments(repo_id))
+    elif type == 'ggufLLM' or (isinstance(repo_id, str) and repo_id.endswith('.gguf')):
+        # For GGUF files, check if the file exists directly
+        dir_to_look_for = os.path.join(model_path, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
+        # Check if it's a direct file path
+        if os.path.isfile(dir_to_look_for):
+            return True
+        # Check if any .gguf file exists in the directory
+        parent_dir = os.path.dirname(dir_to_look_for)
+        if os.path.isdir(parent_dir):
+            for file in os.listdir(parent_dir):
+                if file.endswith('.gguf'):
+                    return True
+        return os.path.exists(dir_to_look_for)
+    else:
+        dir_to_look_for = os.path.join(model_path, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
+    return os.path.exists(dir_to_look_for)
 
 def check_openvino_model_exists(type: str, repo_id: str) -> bool:
     """Check if an OpenVINO model exists"""
@@ -82,17 +114,10 @@ def check_comfyui_model_exists(type: str, repo_id: str) -> bool:
 
 def check_defaultbackend_mmodel_exist(type: str, repo_id: str) -> bool:
     """Check if a default backend model exists"""
-    logging.info(f'checking default backend model {repo_id} of type {type}')
-    folder_name = repo_local_root_dir_name(repo_id)
-    if type == 'llm':
-        dir = config.service_model_paths.get("llm")
-        return os.path.exists(os.path.join(dir, folder_name))
-    elif type == 'embedding':
-        dir = config.service_model_paths.get("embedding")
-        logging.info(f'Checking embedding model {repo_id} of type {type} in {dir}')
-        return os.path.exists(os.path.join(dir, folder_name))
-    else:
-        return False
+    # Default backend (old ipexllm) is no longer supported
+    # This function is kept for backward compatibility but always returns False
+    logging.warning(f'Default backend (ipexllm) is no longer supported. Model {repo_id} of type {type} cannot be checked.')
+    return False
 
 # File operations
 def calculate_sha256(file_path: str):

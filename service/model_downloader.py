@@ -106,7 +106,7 @@ class HFPlaygroundDownloader:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
             return False
 
-    def download(self, repo_id: str, model_type: str, backend: str, thread_count: int = 4):
+    def download(self, repo_id: str, model_type: str, backend: str, model_path: str, thread_count: int = 4):
         print(f"at download {backend}")
         self.repo_id = repo_id
         self.total_size = 0
@@ -115,7 +115,7 @@ class HFPlaygroundDownloader:
         self.download_stop = False
         self.completed = False
         self.error = None
-        self.save_path = path.join(utils.get_model_path(model_type, backend))
+        self.save_path = path.abspath(model_path)
         logging.info(f"save_path: {self.save_path}")
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, getTmpPath(self.repo_id))

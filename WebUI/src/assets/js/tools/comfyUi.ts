@@ -377,7 +377,7 @@ function getToolDefinition() {
     description += '\n'
   }
 
-  description += `Available workflows: ${workflowOptions}. Use ${defaultWorkflow} unless the user specifically requests higher quality, a different model, or a different media type.\n\n`
+  description += `Available workflows: ${workflowOptions}. Use '${defaultWorkflow}' unless the user specifically requests higher quality, a different model, or a different media type.\n\n`
 
   // Add explicit warnings for video workflows
   if (videoWorkflows.length > 0) {

@@ -118,7 +118,7 @@ class Model_Downloader_Adapter:
                 if self.has_error:
                     break
                 else:
-                    self.hf_downloader.download(item.repo_id, item.type, item.backend)
+                    self.hf_downloader.download(item.repo_id, item.type, item.backend, item.model_path)
             self.put_msg({"type": "allComplete"})
             self.finish = True
         except Exception as ex:

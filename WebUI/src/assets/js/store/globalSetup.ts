@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ModelLists, ModelPaths } from './models'
+import { ModelLists } from './models'
+import { useModels } from './models'
 
 type GlobalSetupState = 'running' | 'verifyBackend' | 'manageInstallations' | 'loading' | 'failed'
 
@@ -13,14 +14,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
   const defaultBackendBaseUrl = ref('http://127.0.0.1:9999')
 
   const models = ref<ModelLists>({
-    llm: new Array<string>(),
     embedding: new Array<string>(),
-  })
-
-  const paths = ref<ModelPaths>({
-    llm: '',
-    ggufLLM: '',
-    embedding: '',
   })
 
   const loadingState = ref<GlobalSetupState>('verifyBackend')
@@ -29,8 +23,12 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
   async function initSetup() {
     const setupData = await window.electronAPI.getInitSetting()
     const apiServiceInformation = await window.electronAPI.getServices()
-    paths.value = setupData.modelPaths
+    
+    // Initialize model paths in models store
+    const modelsStore = useModels()
+    modelsStore.initPaths(setupData.modelPaths)
     models.value = setupData.modelLists
+    
     state.isAdminExec = setupData.isAdminExec
     state.version = setupData.version
     const aiBackendInfo = apiServiceInformation.find((item) => item.serviceName === 'ai-backend')
@@ -40,27 +38,12 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     defaultBackendBaseUrl.value = aiBackendInfo.baseUrl
   }
 
-  async function applyPathsSettings(newPaths: ModelPaths) {
-    models.value = await window.electronAPI.updateModelPaths(newPaths)
-    paths.value = newPaths
-  }
-
-  async function restorePathsSettings() {
-    await window.electronAPI.restorePathsSettings()
-    const setupData = await window.electronAPI.getInitSetting()
-    paths.value = setupData.modelPaths
-    models.value = setupData.modelLists
-  }
-
   return {
     state,
     models,
-    paths,
     apiHost: defaultBackendBaseUrl,
     loadingState,
     errorMessage,
     initSetup,
-    applyPathsSettings,
-    restorePathsSettings,
   }
 })

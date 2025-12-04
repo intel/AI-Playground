@@ -451,16 +451,14 @@ function initEventHandle() {
   ipcMain.handle('restorePathsSettings', (_event: IpcMainInvokeEvent) => {
     const paths = app.isPackaged
       ? {
-          llm: './resources/service/models/llm/checkpoints',
-          ggufLLM: './resources/service/models/llm/checkpoints/ggufLLM',
-          openvinoLLM: './resources/service/models/llm/checkpoints/openvinoLLM',
-          embedding: './resources/service/models/llm/embedding/ipexLLM',
+          ggufLLM: './resources/models/LLM/ggufLLM',
+          openvinoLLM: './resources/models/LLM/openvino',
+          embedding: './resources/models/LLM/embedding',
         }
       : {
-          llm: '../service/models/llm/checkpoints',
-          ggufLLM: '../service/models/llm/checkpoints/ggufLLM',
-          openvinoLLM: '../service/models/llm/checkpoints/openvinoLLM',
-          embedding: '../service/models/llm/embedding/ipexLLM',
+          ggufLLM: '../models/LLM/ggufLLM',
+          openvinoLLM: '../models/LLM/openvino',
+          embedding: '../models/LLM/embedding',
         }
     pathsManager.updateModelPaths(paths)
   })
@@ -586,11 +584,13 @@ function initEventHandle() {
   })
 
   ipcMain.handle('refreshLLMModles', (_event) => {
-    return pathsManager.scanLLMModels()
+    // Old ipexllm backend removed - return empty array
+    return []
   })
 
   ipcMain.handle('getDownloadedLLMs', (_event) => {
-    return pathsManager.scanLLMModels()
+    // Old ipexllm backend removed - return empty array
+    return []
   })
 
   ipcMain.handle('getDownloadedGGUFLLMs', (_event) => {

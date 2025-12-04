@@ -1,10 +1,17 @@
 {
-  "llm": "../service/models/llm/checkpoints",
-  "ggufLLM": "../service/models/llm/ggufLLM",
-  "openvinoLLM": "../service/models/llm/openvino",
-  "embedding": "../service/models/llm/embedding/ipexLLM",
-  "stableDiffusion": "../service/models/stable_diffusion/checkpoints",
-  "inpaint": "../service/models/stable_diffusion/inpaint",
-  "lora": "../service/models/stable_diffusion/lora",
-  "vae": "../service/models/stable_diffusion/vae"
+  "ggufLLM": "../models/LLM/ggufLLM",
+  "openvinoLLM": "../models/LLM/openvino",
+  "embedding": "../models/LLM/embedding",
+  "checkpoints": "../models/ComfyUI/checkpoints",
+  "unet": "../models/ComfyUI/unet",
+  "clip": "../models/ComfyUI/clip",
+  "vae": "../models/ComfyUI/vae",
+  "diffusion_models": "../models/ComfyUI/diffusion_models",
+  "faceswap": "../models/ComfyUI/insightface",
+  "facerestore": "../models/ComfyUI/facerestore_models",
+  "nsfwdetector": "../models/ComfyUI/nsfw_detector",
+  "controlNet": "../models/ComfyUI/controlnet",
+  "upscale": "../models/ComfyUI/upscale_models",
+  "lora": "../models/ComfyUI/loras",
+  "loras": "../models/ComfyUI/loras"
 }

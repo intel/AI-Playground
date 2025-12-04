@@ -26,3 +26,4 @@ OpenVINO/
 *-env/
 build-envs/
 portable-git/
+models/

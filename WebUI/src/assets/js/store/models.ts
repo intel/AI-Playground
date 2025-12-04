@@ -3,13 +3,12 @@ import { LlmBackend } from './textInference'
 import { useBackendServices } from './backendServices'
 
 export type ModelPaths = {
-  llm: string
   ggufLLM: string
+  openvinoLLM: string
   embedding: string
 } & StringKV
 
 export type ModelLists = {
-  llm: string[]
   embedding: string[]
 } & { [key: string]: Array<string> }
 
@@ -36,6 +35,13 @@ export const useModels = defineStore(
     const backendServices = useBackendServices()
 
     const downloadList = ref<DownloadModelParam[]>([])
+    
+    // Model paths - single source of truth for model directory locations
+    const paths = ref<ModelPaths>({
+      ggufLLM: '',
+      openvinoLLM: '',
+      embedding: '',
+    })
 
     async function refreshModels() {
       const predefinedModels = (await window.electronAPI.loadModels()) as Model[]
@@ -105,10 +111,103 @@ export const useModels = defineStore(
       return data.exists
     }
 
-    async function checkModelAlreadyLoaded(params: CheckModelAlreadyLoadedParameters[]) {
+    /**
+     * Maps model type and backend to the appropriate ModelPaths entry
+     * @param type - Model type (e.g., 'ggufLLM', 'checkpoints', 'embedding')
+     * @param backend - Backend name (e.g., 'llama_cpp', 'comfyui', 'openvino')
+     * @param modelPaths - Optional ModelPaths override, defaults to store's paths
+     */
+    function getModelPath(type: string, backend: string, modelPaths?: ModelPaths): string {
+      const pathsToUse = modelPaths || paths.value
+      
+      // Map ComfyUI model types
+      if (backend === 'comfyui') {
+        // ComfyUI types map directly to ModelPaths keys (checkpoints, vae, lora, etc.)
+        return pathsToUse[type] || pathsToUse['checkpoints'] || ''
+      }
+      
+      // Map LLM backends
+      if (backend === 'llama_cpp') {
+        if (type === 'ggufLLM') {
+          return pathsToUse.ggufLLM || ''
+        }
+        if (type === 'embedding') {
+          // Embedding path for llama_cpp is in embedding/llamaCPP subdirectory
+          const baseEmbedding = pathsToUse.embedding || ''
+          if (baseEmbedding) {
+            // Append backend-specific subdirectory
+            return baseEmbedding.replace(/\/embedding\/?$/, '/embedding/llamaCPP')
+          }
+          return ''
+        }
+      }
+      
+      if (backend === 'openvino') {
+        if (type === 'openvinoLLM') {
+          return pathsToUse.openvinoLLM || ''
+        }
+        if (type === 'embedding') {
+          // Embedding path for openvino is in embedding/openVINO subdirectory
+          const baseEmbedding = pathsToUse.embedding || ''
+          if (baseEmbedding) {
+            // Append backend-specific subdirectory
+            return baseEmbedding.replace(/\/embedding\/?$/, '/embedding/openVINO')
+          }
+          return ''
+        }
+      }
+      
+      // Fallback: try to find by type directly
+      return pathsToUse[type] || ''
+    }
+    
+    /**
+     * Initialize model paths from Electron
+     */
+    function initPaths(modelPaths: ModelPaths) {
+      paths.value = modelPaths
+    }
+    
+    /**
+     * Update model paths and sync with Electron
+     */
+    async function applyPathsSettings(newPaths: ModelPaths) {
+      const modelLists = await window.electronAPI.updateModelPaths(newPaths)
+      paths.value = newPaths
+      return modelLists
+    }
+    
+    /**
+     * Restore default model paths
+     */
+    async function restorePathsSettings() {
+      await window.electronAPI.restorePathsSettings()
+      const setupData = await window.electronAPI.getInitSetting()
+      paths.value = setupData.modelPaths
+      return setupData.modelLists
+    }
+
+    /**
+     * Check if models are already loaded. Automatically calculates model_path from type and backend.
+     * @param params - Array of model check parameters (without model_path - it's calculated automatically)
+     */
+    async function checkModelAlreadyLoaded(
+      params: Array<{
+        repo_id: string
+        type: string
+        backend: 'comfyui' | 'llama_cpp' | 'openvino'
+        additionalLicenseLink?: string
+      }>,
+    ) {
+      // Add model_path to each parameter before sending to backend
+      const paramsWithPaths: CheckModelAlreadyLoadedParameters[] = params.map((param) => ({
+        ...param,
+        model_path: getModelPath(param.type, param.backend),
+      }))
+
       const response = await fetch(`${aipgBackendUrl()}/api/checkModelAlreadyLoaded`, {
         method: 'POST',
-        body: JSON.stringify({ data: params }),
+        body: JSON.stringify({ data: paramsWithPaths }),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -116,7 +215,12 @@ export const useModels = defineStore(
       const parsedResponse = (await response.json()) as ApiResponse & {
         data: CheckModelAlreadyLoadedResult[]
       }
-      return parsedResponse.data
+      
+      // Backend doesn't return model_path in response, so we need to add it back
+      return parsedResponse.data.map((result, index) => ({
+        ...result,
+        model_path: paramsWithPaths[index].model_path,
+      }))
     }
 
     refreshModels()
@@ -126,11 +230,16 @@ export const useModels = defineStore(
       hfToken,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       downloadList,
+      paths,
       addModel,
       refreshModels,
       download,
       checkIfHuggingFaceUrlExists,
       checkModelAlreadyLoaded,
+      getModelPath,
+      initPaths,
+      applyPathsSettings,
+      restorePathsSettings,
     }
   },
   {

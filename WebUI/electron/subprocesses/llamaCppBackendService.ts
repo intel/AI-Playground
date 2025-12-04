@@ -738,7 +738,7 @@ export class LlamaCppBackendService implements ApiService {
 
   private resolveModelPath(modelRepoId: string): string {
     // Use the same logic as the Python backend
-    const modelBasePath = 'service/models/llm/ggufLLM'
+    const modelBasePath = 'models/LLM/ggufLLM'
     const [namespace, repo, ...model] = modelRepoId.split('/')
     const modelPath = path.resolve(
       path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
@@ -753,7 +753,7 @@ export class LlamaCppBackendService implements ApiService {
 
   private resolveEmbeddingModelPath(modelRepoId: string): string {
     // Use the same logic as the Python embedding backend
-    const modelBasePath = 'service/models/llm/embedding/llamaCPP'
+    const modelBasePath = 'models/LLM/embedding/llamaCPP'
     const [namespace, repo, ...model] = modelRepoId.split('/')
     const modelDir = path.resolve(
       path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),

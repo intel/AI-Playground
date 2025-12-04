@@ -381,6 +381,7 @@ type CheckModelAlreadyLoadedParameters = {
   repo_id: string
   type: string
   backend: 'comfyui' | 'llama_cpp' | 'openvino'
+  model_path: string
   additionalLicenseLink?: string
 }
 

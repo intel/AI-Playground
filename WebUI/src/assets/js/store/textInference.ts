@@ -345,18 +345,21 @@ export const useTextInference = defineStore(
       const modelMetaData = llmModels.value
         .filter((m) => m.type === backend.value)
         .find((m) => m.active)
+      const modelType = type === 'embedding' ? 'embedding' : backendToAipgModelType[backend.value]
+      const backendName = backendToAipgBackendName[backend.value]
+      
       const checkList = [
         {
           repo_id: model,
-          type: type === 'embedding' ? 'embedding' : backendToAipgModelType[backend.value],
-          backend: backendToAipgBackendName[backend.value],
+          type: modelType,
+          backend: backendName,
         },
       ]
       if (modelMetaData?.mmproj) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
           type: backendToAipgModelType[backend.value],
-          backend: backendToAipgBackendName[backend.value],
+          backend: backendName,
         })
       }
       const checkedModels = await models.checkModelAlreadyLoaded(checkList)

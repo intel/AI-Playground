@@ -31,11 +31,11 @@ function extractDownloadModelParamsFromString(requiredModel: {
   type: string
   model: string
   additionalLicenceLink?: string
-}): CheckModelAlreadyLoadedParameters {
+}) {
   return {
-    type: requiredModel.type,
     repo_id: requiredModel.model,
-    backend: 'comfyui',
+    type: requiredModel.type,
+    backend: 'comfyui' as const,
     additionalLicenseLink: requiredModel.additionalLicenceLink,
   }
 }
@@ -45,9 +45,7 @@ export async function getMissingComfyuiBackendModels(
 ): Promise<DownloadModelParam[]> {
   const models = useModels()
 
-  const checkList: CheckModelAlreadyLoadedParameters[] = requiredModels.map(
-    extractDownloadModelParamsFromString,
-  )
+  const checkList = requiredModels.map(extractDownloadModelParamsFromString)
   const checkedModels = await models.checkModelAlreadyLoaded(checkList)
   const modelsToBeLoaded = checkedModels.filter(
     (checkModelExistsResult) => !checkModelExistsResult.already_loaded,

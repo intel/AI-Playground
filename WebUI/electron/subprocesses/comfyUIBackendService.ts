@@ -278,13 +278,40 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
         this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
         const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')
+        const comfyUIModelsBasePath = path.resolve(this.baseDir, 'models/ComfyUI')
         const extraModelsYaml = `aipg:
-  base_path: ${path.resolve(this.baseDir, 'service/models/stable_diffusion')}
+  base_path: ${comfyUIModelsBasePath}
   checkpoints: checkpoints
-  clip: checkpoints
-  vae: checkpoints
-  unet: checkpoints
-  loras: lora`
+  loras: |
+    loras
+    lora
+  vae: vae
+  text_encoders: |
+    text_encoders
+    clip
+  clip_vision: clip_vision
+  style_models: style_models
+  embeddings: embeddings
+  diffusers: diffusers
+  vae_approx: vae_approx
+  controlnet: |
+    controlnet
+    t2i_adapter
+  gligen: gligen
+  upscale_models: |
+    upscale_models
+    latent_upscale_models
+  hypernetworks: hypernetworks
+  photomaker: photomaker
+  classifiers: classifiers
+  model_patches: model_patches
+  audio_encoders: audio_encoders
+  diffusion_models: |
+    diffusion_models
+    unet
+  insightface: insightface
+  facerestore_models: facerestore_models
+  nsfw_detector: nsfw_detector`
         fs.promises.writeFile(extraModelPathsYaml, extraModelsYaml, {
           encoding: 'utf-8',
           flag: 'w',

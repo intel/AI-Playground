@@ -81,7 +81,7 @@ try:
                 "repo_id": item.repo_id,
                 "type": item.type,
                 "backend": item.backend,
-                "already_loaded": utils.check_mmodel_exist(item.type, item.repo_id, item.backend),
+                "already_loaded": utils.check_mmodel_exist(item.type, item.repo_id, item.backend, item.model_path),
             }
 
             if (item.additionalLicenseLink is not None):

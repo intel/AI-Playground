@@ -5,7 +5,6 @@ import { llmBackendTypes } from '../src/types/shared'
 
 export class PathsManager {
   modelPaths: ModelPaths = {
-    llm: '',
     ggufLLM: '',
     openvinoLLM: '',
     embedding: '',
@@ -34,8 +33,16 @@ export class PathsManager {
     fs.writeFileSync(this.configPath, JSON.stringify(savePaths, null, 4))
   }
   private initModelPaths(modelPaths: ModelPaths) {
+    // Initialize base paths
     Object.keys(this.modelPaths).forEach((key) => {
       if (key in modelPaths) {
+        const modelPath = path.resolve(modelPaths[key])
+        this.modelPaths[key] = modelPath
+      }
+    })
+    // Copy all other paths (ComfyUI paths like lora, checkpoints, vae, etc.)
+    Object.keys(modelPaths).forEach((key) => {
+      if (!(key in this.modelPaths)) {
         const modelPath = path.resolve(modelPaths[key])
         this.modelPaths[key] = modelPath
       }
@@ -44,7 +51,6 @@ export class PathsManager {
   scanAll(): ModelLists {
     try {
       const model_settings: ModelLists = {
-        llm: this.scanLLMModels(),
         embedding: [],
       }
       return model_settings
@@ -52,22 +58,6 @@ export class PathsManager {
       fs.appendFileSync(path.join(path.dirname(this.configPath), 'debug.log'), `${ex}\r\n`)
       throw ex
     }
-  }
-  scanLLMModels() {
-    const dir = this.modelPaths.llm
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
-    const modelsSet = fs
-      .readdirSync(dir)
-      .filter((subDir) => {
-        const fullpath = path.join(dir, subDir)
-        return fs.statSync(fullpath).isDirectory() && fs.existsSync(path.join(fullpath))
-      })
-      .map((subDir) => subDir.replace('---', '/'))
-      .reduce((set, modelName) => set.add(modelName), new Set<string>())
-
-    return [...modelsSet]
   }
   scanGGUFLLMModels() {
     const dir = this.modelPaths.ggufLLM

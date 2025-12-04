@@ -11,6 +11,7 @@ class DownloadModelData:
     type : str
     repo_id : str
     backend : str
+    model_path : str
     additionalLicenseLink: Optional[str]
 
 @marshmallow_dataclass.dataclass

@@ -1,20 +1,18 @@
 # Shared configuration settings for all backends
 
 # Model paths for different backends
-service_model_paths = {
-    "llm": "./models/llm/checkpoints",
-    "embedding": "./models/llm/embedding/ipexLLM",
-}
+# NOTE: These are defaults/fallbacks only. Actual paths are passed via API calls.
+# service_model_paths removed - was part of old ipexllm inference backend
 
-# LlamaCPP model paths
+# LlamaCPP model paths (defaults only - fallback if not provided via API)
 llama_cpp_model_paths = {
-    "ggufLLM": "../service/models/llm/ggufLLM",
-    "embedding": "../service/models/llm/embedding/llamaCPP",
+    "ggufLLM": "../models/LLM/ggufLLM",
+    "embedding": "../models/LLM/embedding/llamaCPP",
 }
-# OpenVINO model paths
+# OpenVINO model paths (defaults only - fallback if not provided via API)
 openvino_model_paths = {
-    "openvinoLLM": "../service/models/llm/openvino",
-    "embedding": "../service/models/llm/embedding/openVINO",
+    "openvinoLLM": "../models/LLM/openvino",
+    "embedding": "../models/LLM/embedding/openVINO",
 }
 
 # ComfyUI related paths
@@ -22,19 +20,20 @@ comfy_ui_root_path = "../ComfyUI"
 comfyui_python_exe = "../comfyui-backend-env/python.exe"
 comfyui_python_env = "../comfyui-backend-env"
 
+# ComfyUI model paths (defaults only)
 comfy_ui_model_paths = {
-    "checkpoints": f"{comfy_ui_root_path}/models/checkpoints",
-    "unet": f"{comfy_ui_root_path}/models/unet",
-    "clip": f"{comfy_ui_root_path}/models/clip",
-    "vae": f"{comfy_ui_root_path}/models/vae",
-    "diffusion_models": f"{comfy_ui_root_path}/models/diffusion_models",
-    "faceswap": f"{comfy_ui_root_path}/models/insightface",
-    "facerestore": f"{comfy_ui_root_path}/models/facerestore_models",
-    "nsfwdetector": f"{comfy_ui_root_path}/models/nsfw_detector",
-    "controlNet": f"{comfy_ui_root_path}/models/controlnet",
-    "upscale": f"{comfy_ui_root_path}/models/upscale_models",
-    "defaultCheckpoint": "./models/stable_diffusion/checkpoints",
-    "lora": f"{comfy_ui_root_path}/models/loras",
+    "checkpoints": "../models/ComfyUI/checkpoints",
+    "unet": "../models/ComfyUI/unet",
+    "clip": "../models/ComfyUI/clip",
+    "vae": "../models/ComfyUI/vae",
+    "diffusion_models": "../models/ComfyUI/diffusion_models",
+    "faceswap": "../models/ComfyUI/insightface",
+    "facerestore": "../models/ComfyUI/facerestore_models",
+    "nsfwdetector": "../models/ComfyUI/nsfw_detector",
+    "controlNet": "../models/ComfyUI/controlnet",
+    "upscale": "../models/ComfyUI/upscale_models",
+    "lora": "../models/ComfyUI/loras",
+    "loras": "../models/ComfyUI/loras",
 }
 
 # Git configuration

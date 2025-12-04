@@ -2,7 +2,7 @@
 import config
 
 # Re-export all configuration from the shared module
-service_model_paths = config.service_model_paths
+# service_model_paths removed - was part of old ipexllm inference backend
 comfy_ui_root_path = config.comfy_ui_root_path
 git = config.git
 comfyui_python_exe = config.comfyui_python_exe
