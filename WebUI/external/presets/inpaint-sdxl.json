@@ -10,19 +10,19 @@
   "requiredPythonPackages": [],
   "requiredModels": [
     {
-      "type": "defaultCheckpoint",
+      "type": "unet",
       "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/unet/diffusion_pytorch_model.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder/model.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder_2/model.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "vae",
       "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/vae/diffusion_pytorch_model.safetensors"
     }
   ],

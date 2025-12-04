@@ -44,32 +44,3 @@ git = {
 
 # Default device
 device = "xpu"
-
-# Model type conversion mapping - deprecated, kept for backward compatibility
-# All model types are now strings, this function is a no-op identity function
-def convert_model_type(type):
-    """Convert model type - now a no-op since types are already strings"""
-    if isinstance(type, str):
-        return type
-    # Legacy support for numeric types (should not be used in new code)
-    type_map = {
-        0: "llm",
-        5: "embedding",
-        8: "ggufLLM",
-        9: "openvinoLLM",
-        100: "unet",
-        101: "clip",
-        102: "vae",
-        103: "defaultCheckpoint",
-        104: "defaultLora",
-        105: "controlNet",
-        106: "faceswap",
-        107: "facerestore",
-        108: "nsfwdetector",
-        109: "checkpoints",
-        110: "upscale",
-        111: "lora",
-    }
-    if type in type_map:
-        return type_map[type]
-    raise Exception(f"unknown model type value {type}")

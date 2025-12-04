@@ -5,7 +5,6 @@ import shlex
 from typing import Optional
 
 # Import from the shared modules
-import config
 import utils
 
 # Re-export all utility functions from the shared module
@@ -22,10 +21,6 @@ get_model_path = utils.get_model_path
 create_cache_path = utils.create_cache_path
 is_single_file = utils.is_single_file
 remove_existing_filesystem_resource = utils.remove_existing_filesystem_resource
-
-# Import the convert_model_type function from the config module
-convert_model_type = config.convert_model_type
-
 
 def call_subprocess(process_command: str, cwd: Optional[str] = None) -> str:
     args = shlex.split(process_command)

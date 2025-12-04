@@ -10,19 +10,19 @@
   "requiredPythonPackages": [],
   "requiredModels": [
     {
-      "type": "defaultCheckpoint",
+      "type": "unet",
       "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "vae",
       "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
     },
     {
@@ -146,24 +146,28 @@
       "overrides": {
         "requiredModels": [
           {
-            "type": "defaultCheckpoint",
+            "type": "unet",
             "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
           },
           {
-            "type": "defaultCheckpoint",
+            "type": "clip",
             "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
           },
           {
-            "type": "defaultCheckpoint",
+            "type": "clip",
             "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
           },
           {
-            "type": "defaultCheckpoint",
+            "type": "vae",
             "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
           },
           {
             "type": "lora",
             "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
+          },
+          {
+            "type": "controlNet",
+            "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
           }
         ],
         "settings": [

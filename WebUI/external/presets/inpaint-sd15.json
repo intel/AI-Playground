@@ -10,15 +10,15 @@
   "requiredPythonPackages": [],
   "requiredModels": [
     {
-      "type": "defaultCheckpoint",
+      "type": "unet",
       "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "vae",
       "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
     }
   ],

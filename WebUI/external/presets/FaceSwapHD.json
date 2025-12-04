@@ -14,19 +14,19 @@
   ],
   "requiredModels": [
     {
-      "type": "defaultCheckpoint",
+      "type": "unet",
       "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "clip",
       "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
     },
     {
-      "type": "defaultCheckpoint",
+      "type": "vae",
       "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
     },
     {
