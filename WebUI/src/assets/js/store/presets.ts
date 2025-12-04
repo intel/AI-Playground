@@ -56,6 +56,8 @@ const ComfyInputSchema = SettingSchema.extend({
   min: z.number().optional(),
   max: z.number().optional(),
   step: z.number().optional(),
+  // Optional flag for image inputs - when true and empty, injects black pixel
+  optional: z.boolean().optional(),
 })
 
 // Required Model Schema

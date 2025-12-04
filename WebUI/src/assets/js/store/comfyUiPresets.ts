@@ -659,6 +659,11 @@ export const useComfyUiPresets = defineStore(
       const missingInputs: string[] = []
 
       for (const input of imageGeneration.comfyInputs) {
+        // Skip optional image inputs - they will get black pixel injected
+        if (input.optional === true) {
+          continue
+        }
+
         // Check if this is a required image input
         const isImageType = input.type === 'image' || input.type === 'inpaintMask'
         const isDisplayed = input.displayed !== false // defaults to true
@@ -699,12 +704,29 @@ export const useComfyUiPresets = defineStore(
           }
         }
         if (input.type === 'image' || input.type === 'inpaintMask') {
-          if (typeof input.current.value !== 'string') continue
+          // Check if image is optional and empty - if so, use black pixel
+          const isEmpty =
+            typeof input.current.value !== 'string' ||
+            input.current.value === '' ||
+            !input.current.value.match(/^data:image\/(png|jpeg|webp);base64,/)
+          const isOptional = input.optional === true
+
+          let imageDataUri: string
+          if (isEmpty && isOptional && input.type === 'image') {
+            // Use black pixel image for optional empty images
+            imageDataUri =
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+          } else if (typeof input.current.value === 'string') {
+            imageDataUri = input.current.value
+          } else {
+            continue
+          }
+
           const uploadImageHash = Array.from(
             new Uint8Array(
               await window.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode(input.current.value),
+                new TextEncoder().encode(imageDataUri),
               ),
             ),
           )
@@ -714,7 +736,7 @@ export const useComfyUiPresets = defineStore(
           // For regular images, extract extension from data URI
           let uploadImageExtension = 'png'
           if (input.type === 'image') {
-            const match = input.current.value.match(/data:image\/(png|jpeg|webp);base64,/)
+            const match = imageDataUri.match(/data:image\/(png|jpeg|webp);base64,/)
             uploadImageExtension = match?.[1] || 'png'
           }
           const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`
@@ -723,7 +745,7 @@ export const useComfyUiPresets = defineStore(
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadImageName
           }
           const data = new FormData()
-          data.append('image', dataURItoBlob(input.current.value), uploadImageName)
+          data.append('image', dataURItoBlob(imageDataUri), uploadImageName)
           await fetch(`${comfyBaseUrl.value}/upload/image`, {
             method: 'POST',
             body: data,
