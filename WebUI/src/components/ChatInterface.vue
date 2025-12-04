@@ -21,7 +21,10 @@
     </div>
     <div class="min-w-512px px-4 pb-4">
       <InputGroup>
-        <InputGroupTextarea v-model="openAiCompatibleChat.messageInput" placeholder="Ask, Search or Chat..." />
+        <InputGroupTextarea
+          v-model="openAiCompatibleChat.messageInput"
+          placeholder="Ask, Search or Chat..."
+        />
         <InputGroupAddon align="block-end">
           <img
             v-for="preview in imagePreview"

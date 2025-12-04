@@ -1,9 +1,9 @@
 <template>
   <div id="prompt-area" class="text-foreground flex flex-col w-full pt-4">
     <div class="flex flex-col items-center gap-7 text-base px-4">
-        <div v-if="contextError" class="flex items-center gap-3">
-          <p class="text-red-500">{{ contextError }}</p>
-        </div>
+      <div v-if="contextError" class="flex items-center gap-3">
+        <p class="text-red-500">{{ contextError }}</p>
+      </div>
       <div class="grid grid-cols-3 items-center gap-3 h-10">
         <p class="text-2xl col-start-2 font-bold">Let's Generate</p>
         <Context
@@ -18,9 +18,9 @@
         <!-- RAG Documents Display (only in chat mode) -->
         <div
           v-if="promptStore.getCurrentMode() === 'chat' && checkedRagDocuments.length > 0"
-          class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1 "
+          class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1"
         >
-          <span class=" text-muted-foreground flex items-center gap-1">
+          <span class="text-muted-foreground flex items-center gap-1">
             <PaperClipIcon class="size-4" />
           </span>
           <div
@@ -42,9 +42,9 @@
         <textarea
           ref="textareaRef"
           class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
-          :class="{ 
+          :class="{
             [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
-            'opacity-50 cursor-not-allowed': !isPromptModifiable
+            'opacity-50 cursor-not-allowed': !isPromptModifiable,
           }"
           :placeholder="getTextAreaPlaceholder()"
           v-model="prompt"
@@ -70,7 +70,7 @@
               <XMarkIcon class="size-4" />
             </button>
           </div>
-          <div 
+          <div
             ref="dropZoneRef"
             class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer"
             :class="{ 'border-primary bg-primary/10': isOverDropZone }"
@@ -80,7 +80,11 @@
               type="file"
               class="hidden"
               id="file-attachment"
-              :accept="promptStore.getCurrentMode() === 'chat' ? 'image/*,.txt,.doc,.docx,.md,.pdf' : 'image/*'"
+              :accept="
+                promptStore.getCurrentMode() === 'chat'
+                  ? 'image/*,.txt,.doc,.docx,.md,.pdf'
+                  : 'image/*'
+              "
               multiple
               @change="handleFileInput"
             />
@@ -139,13 +143,17 @@
 import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel, downscaleImageTo1MP } from '@/lib/utils.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea'
-import { useImageGenerationPresets } from "@/assets/js/store/imageGenerationPresets.ts";
+import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
-import { useTextInference, type ValidFileExtension, type IndexedDocument } from '@/assets/js/store/textInference'
+import {
+  useTextInference,
+  type ValidFileExtension,
+  type IndexedDocument,
+} from '@/assets/js/store/textInference'
 import { useI18N } from '@/assets/js/store/i18n'
 import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
 import { Context } from '@/components/ui/context'
@@ -184,7 +192,7 @@ function getRagIconClass(type: ValidFileExtension): string {
 }
 
 const emits = defineEmits<{
-  (e: 'autoHideFooter'): void,
+  (e: 'autoHideFooter'): void
   (e: 'openSettings'): void
 }>()
 
@@ -205,41 +213,35 @@ const imagePreview = computed(() => {
 // Remove image at specified index
 function removeImage(index: number) {
   if (!openAiCompatibleChat.fileInput) return
-  
+
   // Revoke object URL for the removed image
-  const preview = imagePreview.value.find(p => p.id === index)
+  const preview = imagePreview.value.find((p) => p.id === index)
   if (preview) {
     URL.revokeObjectURL(preview.url)
   }
-  
+
   // Convert FileList to array and remove the file at index
   const files = Array.from(openAiCompatibleChat.fileInput)
   files.splice(index, 1)
-  
+
   // Create new FileList with remaining files
   const fileList = new DataTransfer()
-  files.forEach(file => fileList.items.add(file))
+  files.forEach((file) => fileList.items.add(file))
   openAiCompatibleChat.fileInput = fileList.files
 }
 
-const isProcessing = computed(() =>
-  openAiCompatibleChat.processing || imageGeneration.processing
-)
+const isProcessing = computed(() => openAiCompatibleChat.processing || imageGeneration.processing)
 
-const isStopping = computed(() =>
-  imageGeneration.stopping
-)
+const isStopping = computed(() => imageGeneration.stopping)
 
-const readyForNewSubmit = computed(() =>
-  !promptStore.promptSubmitted && !isProcessing.value
-)
+const readyForNewSubmit = computed(() => !promptStore.promptSubmitted && !isProcessing.value)
 
 // Check if prompt is modifiable for ComfyUI presets
 const isPromptModifiable = computed(() => {
   const mode = promptStore.getCurrentMode()
   // For chat mode, prompt is always modifiable
   if (mode === 'chat') return true
-  
+
   // For image/video modes, check if there's an active ComfyUI preset
   if (mode === 'imageGen' || mode === 'imageEdit' || mode === 'video') {
     // If there's an active preset, check if prompt is modifiable
@@ -249,7 +251,7 @@ const isPromptModifiable = computed(() => {
     // If no active preset, allow prompt input (fallback behavior)
     return true
   }
-  
+
   return true
 })
 
@@ -286,25 +288,31 @@ watch(isProcessing, (newValue, oldValue) => {
 })
 
 // Sync prompt from store to textarea when switching to ComfyUI modes
-watch(() => promptStore.getCurrentMode(), (newMode) => {
-  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
-  if (comfyUiModes.includes(newMode)) {
-    // When switching to ComfyUI modes, sync the store prompt to the textarea
-    prompt.value = imageGeneration.prompt || ''
-  }
-})
+watch(
+  () => promptStore.getCurrentMode(),
+  (newMode) => {
+    const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+    if (comfyUiModes.includes(newMode)) {
+      // When switching to ComfyUI modes, sync the store prompt to the textarea
+      prompt.value = imageGeneration.prompt || ''
+    }
+  },
+)
 
 // Keep textarea in sync with imageGeneration.prompt for ComfyUI modes
-watch(() => imageGeneration.prompt, (newPrompt) => {
-  const currentMode = promptStore.getCurrentMode()
-  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
-  if (comfyUiModes.includes(currentMode)) {
-    // Only sync if the prompt actually changed to avoid unnecessary updates
-    if (prompt.value !== newPrompt) {
-      prompt.value = newPrompt || ''
+watch(
+  () => imageGeneration.prompt,
+  (newPrompt) => {
+    const currentMode = promptStore.getCurrentMode()
+    const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+    if (comfyUiModes.includes(currentMode)) {
+      // Only sync if the prompt actually changed to avoid unnecessary updates
+      if (prompt.value !== newPrompt) {
+        prompt.value = newPrompt || ''
+      }
     }
-  }
-})
+  },
+)
 
 function getTextAreaPlaceholder() {
   switch (promptStore.getCurrentMode()) {
@@ -358,23 +366,21 @@ async function handleImageFiles(imageFiles: File[]) {
   // Downscale images if in chat mode (images are only sent to vision-capable models)
   if (promptStore.getCurrentMode() === 'chat') {
     try {
-      const downscaledFiles = await Promise.all(
-        imageFiles.map(file => downscaleImageTo1MP(file))
-      )
+      const downscaledFiles = await Promise.all(imageFiles.map((file) => downscaleImageTo1MP(file)))
       const imageFileList = new DataTransfer()
-      downscaledFiles.forEach(file => imageFileList.items.add(file))
+      downscaledFiles.forEach((file) => imageFileList.items.add(file))
       openAiCompatibleChat.fileInput = imageFileList.files
     } catch (error) {
       console.error('Error downscaling images:', error)
       // Fallback to original files if downscaling fails
       const imageFileList = new DataTransfer()
-      imageFiles.forEach(file => imageFileList.items.add(file))
+      imageFiles.forEach((file) => imageFileList.items.add(file))
       openAiCompatibleChat.fileInput = imageFileList.files
     }
   } else {
     // For non-chat modes, use original files
     const imageFileList = new DataTransfer()
-    imageFiles.forEach(file => imageFileList.items.add(file))
+    imageFiles.forEach((file) => imageFileList.items.add(file))
     openAiCompatibleChat.fileInput = imageFileList.files
   }
 }
@@ -424,7 +430,7 @@ async function addDocumentsToRagList(files: File[]) {
 
       // Check if document already exists in RAG list (by filepath)
       const existingDoc = textInference.ragList.find((doc) => doc.filepath === filePath)
-      
+
       if (existingDoc) {
         // Document already exists - just enable it if it's disabled
         if (!existingDoc.isChecked) {
@@ -475,9 +481,13 @@ async function onDrop(files: File[] | null) {
   if (documentFiles.length > 0) {
     // Validate document extensions
     const filePaths = documentFiles.map((file) => window.electronAPI.getFilePath(file))
-    const fileExtensions = filePaths.map((filePath) => filePath.split('.').pop()?.toLowerCase() ?? '')
-    
-    if (fileExtensions.some((ext) => !validDocumentExtensions.includes(ext as ValidFileExtension))) {
+    const fileExtensions = filePaths.map(
+      (filePath) => filePath.split('.').pop()?.toLowerCase() ?? '',
+    )
+
+    if (
+      fileExtensions.some((ext) => !validDocumentExtensions.includes(ext as ValidFileExtension))
+    ) {
       toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
       return
     }
@@ -497,7 +507,7 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
 function handlePaste(event: ClipboardEvent) {
   const items = event.clipboardData?.items
   if (!items) return
-  
+
   const imageFiles: File[] = []
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
@@ -506,7 +516,7 @@ function handlePaste(event: ClipboardEvent) {
       if (file) imageFiles.push(file)
     }
   }
-  
+
   if (imageFiles.length > 0) {
     event.preventDefault() // Prevent default paste behavior for images
     handleImageFiles(imageFiles)

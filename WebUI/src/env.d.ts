@@ -72,7 +72,9 @@ type electronAPI = {
   existsPath(path: string): Promise<boolean>
   addDocumentToRAGList(doc: IndexedDocument): Promise<IndexedDocument>
   embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<LangchainDocument[]>
-  getEmbeddingServerUrl(serviceName: string): Promise<{ success: boolean; url?: string; error?: string }>
+  getEmbeddingServerUrl(
+    serviceName: string,
+  ): Promise<{ success: boolean; url?: string; error?: string }>
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
@@ -119,15 +121,9 @@ type electronAPI = {
     getGitRef(repoDir: string): Promise<string | undefined>
     isPackageInstalled(packageSpecifier: string): Promise<boolean>
     installPypiPackage(packageSpecifier: string): Promise<void>
-    isCustomNodeInstalled(
-      nodeRepoRef: ComfyUICustomNodeRepoId,
-    ): Promise<boolean>
-    downloadCustomNode(
-      nodeRepoData: ComfyUICustomNodeRepoId,
-    ): Promise<boolean>
-    uninstallCustomNode(
-      nodeRepoData: ComfyUICustomNodeRepoId,
-    ): Promise<boolean>
+    isCustomNodeInstalled(nodeRepoRef: ComfyUICustomNodeRepoId): Promise<boolean>
+    downloadCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
+    uninstallCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     listInstalledCustomNodes(): Promise<string[]>
   }
 }
@@ -442,12 +438,7 @@ type ApiServiceInformation = {
 
 type Model = {
   name: string
-  type:
-    | 'undefined'
-    | 'embedding'
-    | 'openVINO'
-    | 'llamaCPP'
-    | 'ollama'
+  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP' | 'ollama'
   default: boolean
   downloaded?: boolean | undefined
   backend?: 'openVINO' | 'llamaCPP' | 'ollama' | undefined

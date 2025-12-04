@@ -145,14 +145,7 @@
       "defaultValue": "normal",
       "nodeTitle": "KSampler",
       "nodeInput": "scheduler",
-      "options": [
-        "normal",
-        "karras",
-        "exponential",
-        "sgm_uniform",
-        "simple",
-        "ddim_uniform"
-      ]
+      "options": ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"]
     },
     {
       "type": "number",
@@ -176,22 +169,10 @@
         "sampler_name": "dpmpp_2m",
         "scheduler": "normal",
         "denoise": 1,
-        "model": [
-          "4",
-          0
-        ],
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["4", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -221,10 +202,7 @@
     "6": {
       "inputs": {
         "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-        "clip": [
-          "4",
-          1
-        ]
+        "clip": ["4", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -234,10 +212,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "4",
-          1
-        ]
+        "clip": ["4", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -246,14 +221,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          2
-        ]
+        "samples": ["3", 0],
+        "vae": ["4", 2]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -263,10 +232,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "8",
-          0
-        ]
+        "images": ["8", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -275,4 +241,3 @@
     }
   }
 }
-

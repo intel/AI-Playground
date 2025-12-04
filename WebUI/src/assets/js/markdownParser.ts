@@ -9,25 +9,25 @@ const startMarker = '===ORIGINALCODE'
 const endMarker = 'ENDOFORIGINALCODE==='
 const replaceRegex = new RegExp(`${startMarker}(.*?)${endMarker}`, 'gs')
 
-
-
 let highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null
 createHighlighter({
-      langs,
-      themes: ['github-dark-dimmed'],
+  langs,
+  themes: ['github-dark-dimmed'],
 }).then((h) => {
   highlighter = h
 })
 
 const highlight = (code: string, lang: string, props: string[]) => {
-    const highlighted = highlighter ? highlighter.codeToHtml(code, {
-      lang: langs.includes(lang) ? lang : 'text',
-      theme: 'github-dark-dimmed',
-      meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
-    }) : code
-    return highlighted
-  }
- 
+  const highlighted = highlighter
+    ? highlighter.codeToHtml(code, {
+        lang: langs.includes(lang) ? lang : 'text',
+        theme: 'github-dark-dimmed',
+        meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
+      })
+    : code
+  return highlighted
+}
+
 const codeRenderer = markedShiki({
   highlight,
   container: `<div class=" rounded-md my-4 code-section">
@@ -39,7 +39,7 @@ const codeRenderer = markedShiki({
         </div>
         %s
       </div>`,
-  })
+})
 
 const htmlEscaper = {
   walkTokens: (token: Token) => {
@@ -84,8 +84,7 @@ export const parser = new Marked({
     hooks: {
       postprocess: dataCodeFixer,
     },
-  }
-)
+  })
 
 export const plainParser = new Marked({
   pedantic: false,

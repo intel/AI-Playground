@@ -56,11 +56,11 @@ export const EMBEDDABLE_PYTHON_URL =
 export const GET_PIP_SCRIPT_URL = 'https://bootstrap.pypa.io/get-pip.py'
 export const SEVEN_ZR_EXE_URL = {
   win32: 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe',
-  darwin: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz'
+  darwin: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz',
 }
 export const UV_URL = {
   win32: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-pc-windows-msvc.zip',
-  darwin: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-aarch64-apple-darwin.tar.gz'
+  darwin: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-aarch64-apple-darwin.tar.gz',
 }
 
 /**
@@ -131,8 +131,9 @@ export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
  * Log build paths for debugging
  */
 export function logBuildPaths(): void {
-
-  const target = z.enum(['win32', 'darwin']).safeParse(process.env.TARGET_PLATFORM || process.platform)
+  const target = z
+    .enum(['win32', 'darwin'])
+    .safeParse(process.env.TARGET_PLATFORM || process.platform)
   if (!target.success) {
     console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
     process.exit(1)

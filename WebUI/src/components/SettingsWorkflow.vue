@@ -8,7 +8,6 @@
     />
 
     <div class="flex flex-col gap-4">
-
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">
           {{ languages.DEVICE }}
@@ -67,9 +66,7 @@
       </div>
 
       <div v-if="modifiableOrDisplayed('seed')" class="flex flex-col gap-2">
-        <Label>
-          {{ languages.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }}
-        </Label>
+        <Label> {{ languages.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }} </Label>
         <random-number
           v-model:value="imageGeneration.seed"
           :default="-1"
@@ -88,14 +85,13 @@
         </button>
       </div>
 
-      <a v-if="currentPreset?.backend === 'comfyui'"
-         :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
-         target="_blank"
-         class="max-w-md mx-auto"
+      <a
+        v-if="currentPreset?.backend === 'comfyui'"
+        :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
+        target="_blank"
+        class="max-w-md mx-auto"
       >
-        <Button variant="outline" class="w-full">
-          Open ComfyUI
-        </Button>
+        <Button variant="outline" class="w-full"> Open ComfyUI </Button>
       </a>
 
       <!-- todo: needs to actually do something -->
@@ -105,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
@@ -113,25 +109,24 @@ import DeviceSelector from '@/components/DeviceSelector.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
 import {
   backendToService,
-  useImageGenerationPresets
-} from "@/assets/js/store/imageGenerationPresets.ts";
-import { useBackendServices } from "@/assets/js/store/backendServices.ts";
-import ComfyDynamic from "@/components/SettingsImageComfyDynamic.vue";
-import { usePresets } from "@/assets/js/store/presets";
-import AspectRatioPicker from "./AspectRatioPicker.vue";
-import PresetSelector from "./PresetSelector.vue";
+  useImageGenerationPresets,
+} from '@/assets/js/store/imageGenerationPresets.ts'
+import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import ComfyDynamic from '@/components/SettingsImageComfyDynamic.vue'
+import { usePresets } from '@/assets/js/store/presets'
+import AspectRatioPicker from './AspectRatioPicker.vue'
+import PresetSelector from './PresetSelector.vue'
 
 interface Props {
   categories: string[]
   title: string
 }
 
-const props = defineProps<Props>()
+const _props = defineProps<Props>()
 
 const imageGeneration = useImageGenerationPresets()
 const presetsStore = usePresets()
 const backendServices = useBackendServices()
-const fastMode = ref(true)
 
 const currentPreset = computed(() => {
   return presetsStore.activePreset
@@ -148,6 +143,5 @@ function handleVariantChange(presetName: string, variantName: string | null) {
 const modifiableOrDisplayed = (settingName: string) =>
   imageGeneration.settingIsRelevant(settingName)
 
-const modifiable = (settingName: string) =>
-  imageGeneration.isModifiable(settingName)
+const modifiable = (settingName: string) => imageGeneration.isModifiable(settingName)
 </script>

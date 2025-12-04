@@ -25,7 +25,10 @@
         v-for="(conversation, conversationKey) in conversations.conversationList"
         :key="'if' + conversationKey"
         @click="select(conversationKey)"
-        :title="conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION"
+        :title="
+          conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ??
+          languages.ANSWER_NEW_CONVERSATION
+        "
         class="group relative cursor-pointer text-muted-foreground"
       >
         <div class="flex justify-between items-center w-full h-10 px-3">
@@ -44,7 +47,11 @@
             </template>
             <template v-else>
               <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
-                {{ conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION }}
+                {{
+                  conversation?.[0]?.parts
+                    .find((part) => part.type === 'text')
+                    ?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION
+                }}
               </span>
             </template>
             <div v-if="!conversations.isNewConversation(conversationKey)">
@@ -157,7 +164,10 @@
         :key="'else' + conversationKey"
         :inVisibleKey="conversationKey"
         @click="select(conversationKey)"
-        :title="(conversation?.[0]?.parts.find((part) => part.type === 'text')?.text?.substring(0, 50)) ?? languages.ANSWER_NEW_CONVERSATION"
+        :title="
+          conversation?.[0]?.parts.find((part) => part.type === 'text')?.text?.substring(0, 50) ??
+          languages.ANSWER_NEW_CONVERSATION
+        "
         class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
         :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
       >
@@ -232,7 +242,9 @@ const renameTitle = ref('')
 
 function openRenameDialog(conversationKey: string) {
   renameKey.value = conversationKey
-  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.parts.find((part) => part.type === 'text')?.text
+  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.parts.find(
+    (part) => part.type === 'text',
+  )?.text
   renameTitle.value = existingTitle ?? ''
   renameDialogOpen.value = true
 }

@@ -19,12 +19,7 @@ const externalRes = path.resolve(
 const gitExePath = path.join(resourcesBaseDir, 'portable-git', 'cmd', 'git.exe')
 const presetDirTargetPath = path.join(externalRes, 'presets')
 const presetDirSpareGitRepoPath = path.join(externalRes, 'presets_intel')
-const intelPresetDirPath = path.join(
-  presetDirSpareGitRepoPath,
-  'WebUI',
-  'external',
-  'presets',
-)
+const intelPresetDirPath = path.join(presetDirSpareGitRepoPath, 'WebUI', 'external', 'presets')
 const presetDirBakTargetPath = path.join(externalRes, 'presets_bak')
 
 const gitRef = app.getVersion()
@@ -57,11 +52,7 @@ export async function updateIntelPresets(
     // Handle other errors as before
     logger.error(`updating intel presets failed due to ${e}`, logSourceName, true)
     if (!fs.existsSync(presetDirTargetPath)) {
-      logger.info(
-        `restoring previous presets from  ${presetDirBakTargetPath}`,
-        logSourceName,
-        true,
-      )
+      logger.info(`restoring previous presets from  ${presetDirBakTargetPath}`, logSourceName, true)
       await copyFileWithDirs(intelPresetDirPath, presetDirTargetPath)
     }
     return {
@@ -72,11 +63,7 @@ export async function updateIntelPresets(
 
 async function fetchNewIntelPresets(remoteRepository: string) {
   const remoteRepoUrl = `https://github.com/${remoteRepository}`
-  logger.info(
-    `fetching intel presets from ${remoteRepoUrl} and ref ${gitRef}`,
-    logSourceName,
-    true,
-  )
+  logger.info(`fetching intel presets from ${remoteRepoUrl} and ref ${gitRef}`, logSourceName, true)
   const gitExe = existingFileOrError(gitExePath)
   const gitWorkDir = presetDirSpareGitRepoPath
   await prepareSparseGitRepoDir(gitWorkDir)
@@ -105,11 +92,7 @@ async function fetchNewIntelPresets(remoteRepository: string) {
 
 async function backUpCurrentPresets() {
   await copyFileWithDirs(presetDirTargetPath, presetDirBakTargetPath)
-  logger.info(
-    `backed up current user presets at ${presetDirBakTargetPath}`,
-    logSourceName,
-    true,
-  )
+  logger.info(`backed up current user presets at ${presetDirBakTargetPath}`, logSourceName, true)
   return
 }
 
@@ -236,4 +219,3 @@ async function getFromRegistry(regPath: string, key: string) {
     return false
   }
 }
-

@@ -14,7 +14,7 @@ interface Props {
   options: VariantOption[]
   modelValue?: string
   defaultValue?: string
-  columns?: 1 | 2 | 3 | 4 | 5 | 6
+  columns?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,16 +47,9 @@ const gridClass = computed(() => {
 </script>
 
 <template>
-  <RadioGroup
-    v-model="selectedValue"
-    :class="gridClass"
-  >
+  <RadioGroup v-model="selectedValue" :class="gridClass">
     <div v-for="option in options" :key="option.id">
-      <RadioGroupItem
-        :id="option.id"
-        :value="option.value"
-        class="peer sr-only"
-      />
+      <RadioGroupItem :id="option.id" :value="option.value" class="peer sr-only" />
       <Label
         :for="option.id"
         class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
@@ -66,4 +59,3 @@ const gridClass = computed(() => {
     </div>
   </RadioGroup>
 </template>
-

@@ -71,7 +71,7 @@ function addNewConversationIfLatestIsNotEmpty(
   list: Record<string, AipgUiMessage[]>,
   conversationKey?: string,
 ): string {
-  console.log('Checking if new conversation is needed', {list, conversationKey})
+  console.log('Checking if new conversation is needed', { list, conversationKey })
 
   const lastKey = Object.keys(list).at(-1)
   if (lastKey && list[lastKey].length === 0) {

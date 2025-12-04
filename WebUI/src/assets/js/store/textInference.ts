@@ -101,7 +101,8 @@ export const useTextInference = defineStore(
     const i18nState = useI18N().state
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
-    const systemPrompt = ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
+    const systemPrompt =
+      ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
       You assist users by answering questions and providing information based on your training data and any additional context provided.`)
 
     const selectedModels = ref<LlmBackendKV>({
@@ -347,10 +348,7 @@ export const useTextInference = defineStore(
       const checkList = [
         {
           repo_id: model,
-          type:
-            type === 'embedding'
-              ? 'embedding'
-              : backendToAipgModelType[backend.value],
+          type: type === 'embedding' ? 'embedding' : backendToAipgModelType[backend.value],
           backend: backendToAipgBackendName[backend.value],
         },
       ]
@@ -454,7 +452,8 @@ export const useTextInference = defineStore(
           backendBaseUrl = embeddingUrlResult.url
         } else {
           throw new Error(
-            embeddingUrlResult.error || 'Embedding server not available. Please ensure the embedding model is loaded.',
+            embeddingUrlResult.error ||
+              'Embedding server not available. Please ensure the embedding model is loaded.',
           )
         }
       }
@@ -503,13 +502,13 @@ export const useTextInference = defineStore(
         if (!activeEmbeddingModel.value) {
           throw new Error('No embedding model selected for RAG')
         }
-        
+
         // Verify embedding server is available
         const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
         if (!embeddingUrlResult.success || !embeddingUrlResult.url) {
           throw new Error(
-            embeddingUrlResult.error || 
-            'Embedding server not ready. Please ensure the embedding model is loaded and try again.'
+            embeddingUrlResult.error ||
+              'Embedding server not ready. Please ensure the embedding model is loaded and try again.',
           )
         }
       }
@@ -526,10 +525,10 @@ export const useTextInference = defineStore(
         if (ragResults && ragResults.length > 0) {
           // Build RAG context from retrieved documents
           const ragContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
-          
+
           // Enhance system prompt with RAG context
           const enhancedSystemPrompt = `${systemPrompt.value}\n\nUse the following context from your knowledge base to answer the question:\n\n${ragContext}`
-          
+
           // Format RAG sources for display
           const ragSourceText = formatRagSources(ragResults)
 
@@ -858,14 +857,6 @@ export const useTextInference = defineStore(
       return variantName ? `${activePreset.value.name}:${variantName}` : activePreset.value.name
     }
 
-    // Get saved setting value or fallback to preset default or global default
-    function getSavedOrDefault(settingName: string, presetValue: unknown, globalDefault: unknown): unknown {
-      const settingsKey = getSettingsKey()
-      if (!settingsKey) return presetValue ?? globalDefault
-      const saved = settingsPerPreset.value[settingsKey]?.[settingName]
-      return saved ?? presetValue ?? globalDefault
-    }
-
     // Load saved settings for the active preset
     function loadSettingsForActivePreset() {
       if (!activePreset.value) return
@@ -889,7 +880,10 @@ export const useTextInference = defineStore(
 
       // Load selected models (per backend)
       if (savedSettings.selectedModels !== undefined) {
-        selectedModels.value = { ...selectedModels.value, ...(savedSettings.selectedModels as LlmBackendKV) }
+        selectedModels.value = {
+          ...selectedModels.value,
+          ...(savedSettings.selectedModels as LlmBackendKV),
+        }
       } else if (preset.model && preset.backend) {
         selectModel(preset.backend, preset.model)
       }
@@ -957,7 +951,7 @@ export const useTextInference = defineStore(
         // Set default value based on preset's requiresToolCalling
         toolsEnabled.value = preset.requiresToolCalling === true
       }
-      
+
       // Clear flag after loading
       isLoadingSettings = false
     }
@@ -987,47 +981,59 @@ export const useTextInference = defineStore(
 
     // Track if we're currently applying a preset to avoid watcher interference
     let isApplyingPreset = false
-    
+
     // Track if we're currently loading settings to prevent watcher from overwriting
     let isLoadingSettings = false
 
     // Watch for preset and variant changes to load saved settings
-    watch(
-      [activePreset, currentVariantName],
-      () => {
-        const currentPresetName = activePreset.value?.name ?? null
-        const currentVariant = currentVariantName.value
+    watch([activePreset, currentVariantName], () => {
+      const currentPresetName = activePreset.value?.name ?? null
+      const currentVariant = currentVariantName.value
 
-        // Only reload if the preset or variant actually changed
-        if (currentPresetName === lastPresetName && currentVariant === lastVariantName) {
-          return
-        }
+      // Only reload if the preset or variant actually changed
+      if (currentPresetName === lastPresetName && currentVariant === lastVariantName) {
+        return
+      }
 
-        lastPresetName = currentPresetName
-        lastVariantName = currentVariant ?? null
+      lastPresetName = currentPresetName
+      lastVariantName = currentVariant ?? null
 
-        // If we're applying a preset, don't load settings here - applyChatPreset will handle it
-        if (isApplyingPreset) {
-          return
-        }
+      // If we're applying a preset, don't load settings here - applyChatPreset will handle it
+      if (isApplyingPreset) {
+        return
+      }
 
-        // Load saved settings for the new preset/variant
-        loadSettingsForActivePreset()
+      // Load saved settings for the new preset/variant
+      loadSettingsForActivePreset()
 
-        // Update last used preset in unified store
-        if (activePreset.value && activePreset.value.type === 'chat' && activePreset.value.name && activePreset.value.category) {
-          presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
-        }
-      },
-    )
+      // Update last used preset in unified store
+      if (
+        activePreset.value &&
+        activePreset.value.type === 'chat' &&
+        activePreset.value.name &&
+        activePreset.value.category
+      ) {
+        presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
+      }
+    })
 
     // Watch for setting changes and save them to settingsPerPreset
     watch(
-      [backend, selectedModels, selectedEmbeddingModels, maxTokens, contextSize, temperature, systemPrompt, metricsEnabled, toolsEnabled],
+      [
+        backend,
+        selectedModels,
+        selectedEmbeddingModels,
+        maxTokens,
+        contextSize,
+        temperature,
+        systemPrompt,
+        metricsEnabled,
+        toolsEnabled,
+      ],
       () => {
         // Don't save if we're applying a preset or loading settings
         if (isApplyingPreset || isLoadingSettings) return
-        
+
         const settingsKey = getSettingsKey()
         // Allow saving when settingsKey exists (preset name is available)
         // This handles cases where activePreset.value might be temporarily null during transitions
@@ -1072,12 +1078,9 @@ export const useTextInference = defineStore(
         const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
 
         if (!backendInfo || backendInfo.status !== 'running') {
-          dialogStore.showWarningDialog(
-            i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET,
-            () => {
-              globalSetup.loadingState = 'manageInstallations'
-            },
-          )
+          dialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
+            globalSetup.loadingState = 'manageInstallations'
+          })
           return
         }
 
@@ -1242,7 +1245,15 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'temperature', 'ragList', 'settingsPerPreset'],
+      pick: [
+        'backend',
+        'selectedModels',
+        'maxTokens',
+        'contextSize',
+        'temperature',
+        'ragList',
+        'settingsPerPreset',
+      ],
     },
   },
 )

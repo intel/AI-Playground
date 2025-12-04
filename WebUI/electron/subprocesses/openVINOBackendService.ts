@@ -538,10 +538,7 @@ export class OpenVINOBackendService implements ApiService {
         // Server not ready yet, continue waiting
         // But check if process is still alive
         if (!process || process.killed) {
-          this.appLogger.warn(
-            `Process for ${this.name} exited during health check wait`,
-            this.name,
-          )
+          this.appLogger.warn(`Process for ${this.name} exited during health check wait`, this.name)
           throw new Error(`Process exited during server startup`)
         }
       }

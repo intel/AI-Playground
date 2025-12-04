@@ -2,18 +2,14 @@
   "type": "comfy",
   "name": "Pro Image",
   "displayPriority": 300,
-  "tags": [
-    "Flux.1-Schnell"
-  ],
+  "tags": ["Flux.1-Schnell"],
   "description": "Precisely generate images, with text and adherence to prompt using Flux.1-Schnell",
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",
   "toolEnabled": true,
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Flux.1-Schnell produces very high quality images with excellent prompt understanding, so be specific about artistic style, composition, and visual details. Even if the user requests something simple like 'a landscape', expand it to a full prompt like 'a breathtaking mountain landscape at sunset, dramatic clouds, golden hour lighting, cinematic composition, highly detailed, photorealistic, 8k, professional photography, wide angle view'.",
-  "requiredCustomNodes": [
-    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"
-  ],
+  "requiredCustomNodes": ["city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
@@ -156,10 +152,7 @@
             }
           }
         },
-        "tags": [
-          "Flux",
-          "Q8"
-        ]
+        "tags": ["Flux", "Q8"]
       }
     }
   ],
@@ -167,10 +160,7 @@
     "167": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "179",
-          0
-        ]
+        "images": ["179", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -179,26 +169,11 @@
     },
     "169": {
       "inputs": {
-        "noise": [
-          "184",
-          0
-        ],
-        "guider": [
-          "178",
-          0
-        ],
-        "sampler": [
-          "185",
-          0
-        ],
-        "sigmas": [
-          "181",
-          0
-        ],
-        "latent_image": [
-          "180",
-          0
-        ]
+        "noise": ["184", 0],
+        "guider": ["178", 0],
+        "sampler": ["185", 0],
+        "sigmas": ["181", 0],
+        "latent_image": ["180", 0]
       },
       "class_type": "SamplerCustomAdvanced",
       "_meta": {
@@ -217,10 +192,7 @@
     "174": {
       "inputs": {
         "guidance": 1,
-        "conditioning": [
-          "177",
-          0
-        ]
+        "conditioning": ["177", 0]
       },
       "class_type": "FluxGuidance",
       "_meta": {
@@ -230,10 +202,7 @@
     "177": {
       "inputs": {
         "text": "A cool llama wearing a pair of sunglasses, holding a blue and purple neon sign that says \"Lunar Lake\" in front, vibrant colors, blurry cyberpunk gaming background.",
-        "clip": [
-          "188",
-          0
-        ]
+        "clip": ["188", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -242,14 +211,8 @@
     },
     "178": {
       "inputs": {
-        "model": [
-          "170",
-          0
-        ],
-        "conditioning": [
-          "174",
-          0
-        ]
+        "model": ["170", 0],
+        "conditioning": ["174", 0]
       },
       "class_type": "BasicGuider",
       "_meta": {
@@ -258,14 +221,8 @@
     },
     "179": {
       "inputs": {
-        "samples": [
-          "169",
-          1
-        ],
-        "vae": [
-          "171",
-          0
-        ]
+        "samples": ["169", 1],
+        "vae": ["171", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -288,10 +245,7 @@
         "scheduler": "normal",
         "steps": 4,
         "denoise": 1,
-        "model": [
-          "170",
-          0
-        ]
+        "model": ["170", 0]
       },
       "class_type": "BasicScheduler",
       "_meta": {

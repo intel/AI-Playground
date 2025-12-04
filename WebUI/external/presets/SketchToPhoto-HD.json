@@ -192,10 +192,7 @@
               "cfg": 1.5,
               "sampler_name": "lcm",
               "scheduler": "simple",
-              "model": [
-                "19",
-                0
-              ]
+              "model": ["19", 0]
             }
           },
           "5": {
@@ -206,18 +203,12 @@
           },
           "6": {
             "inputs": {
-              "clip": [
-                "19",
-                1
-              ]
+              "clip": ["19", 1]
             }
           },
           "7": {
             "inputs": {
-              "clip": [
-                "19",
-                1
-              ]
+              "clip": ["19", 1]
             }
           },
           "18": {
@@ -230,14 +221,8 @@
               "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
               "strength_model": 1,
               "strength_clip": 1,
-              "model": [
-                "23",
-                0
-              ],
-              "clip": [
-                "24",
-                0
-              ]
+              "model": ["23", 0],
+              "clip": ["24", 0]
             },
             "class_type": "LoraLoader",
             "_meta": {
@@ -250,10 +235,7 @@
             }
           }
         },
-        "tags": [
-          "SDXL",
-          "4-steps"
-        ]
+        "tags": ["SDXL", "4-steps"]
       }
     },
     {
@@ -270,22 +252,10 @@
         "sampler_name": "heun",
         "scheduler": "sgm_uniform",
         "denoise": 1,
-        "model": [
-          "23",
-          0
-        ],
-        "positive": [
-          "18",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["23", 0],
+        "positive": ["18", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler"
     },
@@ -300,10 +270,7 @@
     "6": {
       "inputs": {
         "text": "modern apartment high rise downtown New York City, highly detailed, ultra realistic, film grain, depth of field",
-        "clip": [
-          "24",
-          0
-        ]
+        "clip": ["24", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -313,10 +280,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "24",
-          0
-        ]
+        "clip": ["24", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -325,14 +289,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "22",
-          0
-        ]
+        "samples": ["3", 0],
+        "vae": ["22", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -342,10 +300,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "8",
-          0
-        ]
+        "images": ["8", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -364,10 +319,7 @@
     },
     "16": {
       "inputs": {
-        "images": [
-          "20",
-          0
-        ]
+        "images": ["20", 0]
       },
       "class_type": "PreviewImage",
       "_meta": {
@@ -386,18 +338,9 @@
     "18": {
       "inputs": {
         "strength": 0.9,
-        "conditioning": [
-          "6",
-          0
-        ],
-        "control_net": [
-          "17",
-          0
-        ],
-        "image": [
-          "20",
-          0
-        ]
+        "conditioning": ["6", 0],
+        "control_net": ["17", 0],
+        "image": ["20", 0]
       },
       "class_type": "ControlNetApply",
       "_meta": {
@@ -408,10 +351,7 @@
       "inputs": {
         "low_threshold": 0.2,
         "high_threshold": 0.8,
-        "image": [
-          "15",
-          0
-        ]
+        "image": ["15", 0]
       },
       "class_type": "Canny",
       "_meta": {
@@ -450,4 +390,3 @@
     }
   }
 }
-

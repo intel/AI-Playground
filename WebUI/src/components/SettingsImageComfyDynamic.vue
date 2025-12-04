@@ -1,5 +1,8 @@
 <template>
-  <template v-for="input in displayedComfyInputs" :key="`${input.label}${input.nodeTitle}${input.nodeInput}`">
+  <template
+    v-for="input in displayedComfyInputs"
+    :key="`${input.label}${input.nodeTitle}${input.nodeInput}`"
+  >
     <!-- Outpaint Canvas - special handling -->
     <div
       v-if="input.type === 'outpaintCanvas'"
@@ -38,17 +41,11 @@
       <Label>
         {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
       </Label>
-      <SettingsInpaintMask
-        :image-url="imageUrl"
-        @update:image="(v) => updateMaskImage(input, v)"
-      />
+      <SettingsInpaintMask :image-url="imageUrl" @update:image="(v) => updateMaskImage(input, v)" />
     </div>
 
     <!-- Regular inputs -->
-    <div
-      v-else
-      class="grid grid-cols-[120px_1fr] items-center gap-4"
-    >
+    <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
       <Label>
         {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
       </Label>
@@ -87,16 +84,15 @@
         :disabled="!isModifiable(input)"
       ></Input>
 
-      <!--    StringList    -->
-      <SettingsOutpaintDirection
-        v-if="input.type === 'stringList' && input.nodeInput === 'direction'"
-        :model-value="(input.current.value as 'top' | 'right' | 'bottom' | 'left')"
-        :disabled="!isModifiable(input)"
-        @update:model-value="(value) => (input.current.value = value)"
-      />
       <drop-down-new
         v-else-if="input.type === 'stringList'"
-        :items="(input.options || []).map((opt) => ({ label: String(opt), value: String(opt), active: true }))"
+        :items="
+          (input.options || []).map((opt) => ({
+            label: String(opt),
+            value: String(opt),
+            active: true,
+          }))
+        "
         :value="String(input.current.value)"
         :disabled="!isModifiable(input)"
         @change="(value) => (input.current.value = value)"
@@ -107,7 +103,9 @@
         v-if="input.type === 'boolean'"
         :model-value="Boolean(input.current.value)"
         :disabled="!isModifiable(input)"
-        @update:model-value="(value: boolean | 'indeterminate') => input.current.value = value === true"
+        @update:model-value="
+          (value: boolean | 'indeterminate') => (input.current.value = value === true)
+        "
       />
     </div>
   </template>
@@ -124,7 +122,6 @@ import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPres
 import Slider from './ui/slider/Slider.vue'
 import { Label } from './ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import SettingsOutpaintDirection from './SettingsOutpaintDirection.vue'
 import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
 import SettingsInpaintMask from './SettingsInpaintMask.vue'
 
@@ -139,7 +136,7 @@ const displayedComfyInputs = computed(() => {
 })
 
 // Helper to check if input is modifiable (default to true if not specified)
-const isModifiable = (input: typeof imageGeneration.comfyInputs[0]) => {
+const isModifiable = (input: (typeof imageGeneration.comfyInputs)[0]) => {
   // Default to true if modifiable is not specified (backward compatibility)
   return input.modifiable !== false
 }
@@ -147,7 +144,8 @@ const isModifiable = (input: typeof imageGeneration.comfyInputs[0]) => {
 // Find the image input to get the image URL
 const imageInput = computed(() => {
   return imageGeneration.comfyInputs.find(
-    (input) => input.type === 'image' && input.nodeTitle === 'Load Image' && input.nodeInput === 'image',
+    (input) =>
+      input.type === 'image' && input.nodeTitle === 'Load Image' && input.nodeInput === 'image',
   )
 })
 
@@ -244,7 +242,7 @@ function updateValue(nodeTitle: string, nodeInput: string, value: number) {
   }
 }
 
-function updateMaskImage(input: any, value: string) {
+function updateMaskImage(input: (typeof imageGeneration.comfyInputs)[0], value: string) {
   if (input && input.current) {
     input.current.value = value
   } else {

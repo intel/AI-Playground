@@ -42,7 +42,10 @@
           </div>
 
           <!-- Error Display -->
-          <div v-if="progressData.error" class="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+          <div
+            v-if="progressData.error"
+            class="p-4 bg-red-500/10 border border-red-500/50 rounded-lg"
+          >
             <p class="text-red-500 font-semibold mb-2">
               {{ i18nState.INSTALLATION_PROGRESS_ERROR || 'Installation Error' }}
             </p>
@@ -51,14 +54,19 @@
 
           <!-- Model Download Phase Indicator -->
           <div
-            v-if="progressData.currentPhase === 'downloading_models' && progressData.showModelDownload"
+            v-if="
+              progressData.currentPhase === 'downloading_models' && progressData.showModelDownload
+            "
             class="p-4 bg-primary/10 border border-primary/50 rounded-lg text-center"
           >
             <p class="text-sm">
               {{ i18nState.INSTALLATION_PROGRESS_DOWNLOADING_MODELS || 'Downloading models...' }}
             </p>
             <p class="text-xs text-muted-foreground mt-2">
-              {{ i18nState.INSTALLATION_PROGRESS_DOWNLOAD_DIALOG || 'The download dialog will appear next.' }}
+              {{
+                i18nState.INSTALLATION_PROGRESS_DOWNLOAD_DIALOG ||
+                'The download dialog will appear next.'
+              }}
             </p>
           </div>
         </div>
@@ -125,6 +133,3 @@ function closeDialog() {
   dialogStore.closeInstallationProgressDialog()
 }
 </script>
-
-
-

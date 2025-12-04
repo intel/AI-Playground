@@ -7,12 +7,7 @@
     {
       "from": "../service",
       "to": "service",
-      "filter": [
-        "*.py",
-        "model_config.json",
-        "pyproject.toml",
-        "uv.lock"
-      ]
+      "filter": ["*.py", "model_config.json", "pyproject.toml", "uv.lock"]
     },
     {
       "from": "external/presets",

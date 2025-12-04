@@ -1,6 +1,4 @@
 import { defineStore } from 'pinia'
-import * as util from '../util'
-import { useI18N } from './i18n'
 import { ModelLists, ModelPaths } from './models'
 
 type GlobalSetupState = 'running' | 'verifyBackend' | 'manageInstallations' | 'loading' | 'failed'
@@ -19,13 +17,11 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     embedding: new Array<string>(),
   })
 
-
   const paths = ref<ModelPaths>({
     llm: '',
     ggufLLM: '',
     embedding: '',
   })
-
 
   const loadingState = ref<GlobalSetupState>('verifyBackend')
   const errorMessage = ref('')
@@ -43,8 +39,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     }
     defaultBackendBaseUrl.value = aiBackendInfo.baseUrl
   }
-
-
 
   async function applyPathsSettings(newPaths: ModelPaths) {
     models.value = await window.electronAPI.updateModelPaths(newPaths)

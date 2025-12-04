@@ -2,17 +2,11 @@
   "type": "comfy",
   "name": "Control Face",
   "displayPriority": 200,
-  "tags": [
-    "SDXL",
-    "JuggernautXL",
-    "1024x1024"
-  ],
+  "tags": ["SDXL", "JuggernautXL", "1024x1024"],
   "description": "Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
   "backend": "comfyui",
   "category": "create-images",
-  "requiredCustomNodes": [
-    "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"
-  ],
+  "requiredCustomNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
   "requiredPythonPackages": [
     "stringzilla==3.12.6",
     "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
@@ -162,22 +156,10 @@
         "sampler_name": "lcm",
         "scheduler": "simple",
         "denoise": 1,
-        "model": [
-          "19",
-          0
-        ],
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["19", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -198,10 +180,7 @@
     "6": {
       "inputs": {
         "text": "a photograph of a dude",
-        "clip": [
-          "19",
-          1
-        ]
+        "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -211,10 +190,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "19",
-          1
-        ]
+        "clip": ["19", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -223,14 +199,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "22",
-          0
-        ]
+        "samples": ["3", 0],
+        "vae": ["22", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -240,10 +210,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "25",
-          0
-        ]
+        "images": ["25", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -265,14 +232,8 @@
         "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
         "strength_model": 1,
         "strength_clip": 1,
-        "model": [
-          "23",
-          0
-        ],
-        "clip": [
-          "24",
-          0
-        ]
+        "model": ["23", 0],
+        "clip": ["24", 0]
       },
       "class_type": "LoraLoader",
       "_meta": {
@@ -322,14 +283,8 @@
         "input_faces_index": "0",
         "source_faces_index": "0",
         "console_log_level": 1,
-        "input_image": [
-          "8",
-          0
-        ],
-        "source_image": [
-          "15",
-          0
-        ]
+        "input_image": ["8", 0],
+        "source_image": ["15", 0]
       },
       "class_type": "ReActorFaceSwap",
       "_meta": {

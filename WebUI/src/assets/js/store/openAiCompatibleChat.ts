@@ -1,42 +1,52 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { Chat } from '@ai-sdk/vue'
-import { convertToModelMessages, DefaultChatTransport, LanguageModelUsage, streamText, UIMessage } from 'ai'
+import {
+  convertToModelMessages,
+  DefaultChatTransport,
+  LanguageModelUsage,
+  streamText,
+  UIDataTypes,
+  UIMessage,
+} from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
 import { comfyUI } from '../tools/comfyUi'
 import { visualizeObjectDetections } from '../tools/visualizeObjectDetections'
 import z from 'zod'
+import { AipgTools } from '../tools/tools'
 
 const LlamaCppRawValueTimingsSchema = z.object({
-        cache_n: z.number(),
-        prompt_n: z.number(),
-        prompt_ms: z.number(),
-        prompt_per_token_ms: z.number(),
-        prompt_per_second: z.number(),
-        predicted_n: z.number(),
-        predicted_ms: z.number(),
-        predicted_per_token_ms: z.number(),
-        predicted_per_second: z.number()
-    })
-
-const LlamaCppRawValueSchema = z.object({
-    choices: z.array(z.any()).optional(),
-    created: z.number(),
-    id: z.string(),
-    model: z.string(),
-    system_fingerprint: z.string().optional(),
-    object: z.string().optional(),
-    usage: z.object({
-        completion_tokens: z.number(),
-        prompt_tokens: z.number(),
-        total_tokens: z.number()
-    }).optional(),
-    timings: LlamaCppRawValueTimingsSchema.optional(),
+  cache_n: z.number(),
+  prompt_n: z.number(),
+  prompt_ms: z.number(),
+  prompt_per_token_ms: z.number(),
+  prompt_per_second: z.number(),
+  predicted_n: z.number(),
+  predicted_ms: z.number(),
+  predicted_per_token_ms: z.number(),
+  predicted_per_second: z.number(),
 })
 
-export type AipgUiMessage = UIMessage<{
+const LlamaCppRawValueSchema = z.object({
+  choices: z.array(z.any()).optional(),
+  created: z.number(),
+  id: z.string(),
+  model: z.string(),
+  system_fingerprint: z.string().optional(),
+  object: z.string().optional(),
+  usage: z
+    .object({
+      completion_tokens: z.number(),
+      prompt_tokens: z.number(),
+      total_tokens: z.number(),
+    })
+    .optional(),
+  timings: LlamaCppRawValueTimingsSchema.optional(),
+})
+
+export type AipgMetadata = {
   reasoningStarted?: number
   reasoningFinished?: number
   model?: string
@@ -45,7 +55,9 @@ export type AipgUiMessage = UIMessage<{
   timings?: z.infer<typeof LlamaCppRawValueTimingsSchema>
   ragSource?: string
   usage?: LanguageModelUsage
-}>
+}
+
+export type AipgUiMessage = UIMessage<AipgMetadata, UIDataTypes, AipgTools>
 
 export const useOpenAiCompatibleChat = defineStore(
   'openAiCompatibleChat',
@@ -78,13 +90,22 @@ export const useOpenAiCompatibleChat = defineStore(
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
-      const messages = convertToModelMessages(m.messages)//.filter((m) => m.role !== 'tool')
+      const messages = convertToModelMessages(m.messages) //.filter((m) => m.role !== 'tool')
 
       // Only enable tools if model supports tool calling and tools are enabled
-      console.log('textInference.modelSupportsToolCalling:', textInference.modelSupportsToolCalling, 'textInference.toolsEnabled:', textInference.toolsEnabled)
+      console.log(
+        'textInference.modelSupportsToolCalling:',
+        textInference.modelSupportsToolCalling,
+        'textInference.toolsEnabled:',
+        textInference.toolsEnabled,
+      )
       const shouldEnableTools = textInference.modelSupportsToolCalling && textInference.toolsEnabled
 
-      console.log('customFetch called with messages:', {messages, systemPromptToUse, shouldEnableTools})
+      console.log('customFetch called with messages:', {
+        messages,
+        systemPromptToUse,
+        shouldEnableTools,
+      })
       const result = await streamText({
         model: model.value,
         messages,
@@ -93,12 +114,14 @@ export const useOpenAiCompatibleChat = defineStore(
         maxOutputTokens: textInference.maxTokens,
         temperature: textInference.temperature,
         includeRawChunks: true,
-        ...(shouldEnableTools ? {
-          tools: {
-            comfyUI,
-            visualizeObjectDetections,
-          },
-        } : {}),
+        ...(shouldEnableTools
+          ? {
+              tools: {
+                comfyUI,
+                visualizeObjectDetections,
+              },
+            }
+          : {}),
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
             console.debug(chunk.chunk)
@@ -107,18 +130,21 @@ export const useOpenAiCompatibleChat = defineStore(
               timings = rawValue.data.timings
             }
           }
-          if (!firstTokenTime && (chunk.chunk.type === 'reasoning-delta' || chunk.chunk.type === 'text-delta')) {
+          if (
+            !firstTokenTime &&
+            (chunk.chunk.type === 'reasoning-delta' || chunk.chunk.type === 'text-delta')
+          ) {
             firstTokenTime = Date.now()
           }
           if (chunk.chunk.type === 'reasoning-delta' && !reasoningStarted) {
             reasoningStarted = Date.now()
             console.log('Reasoning started at:', reasoningStarted)
-            chunk.chunk.providerMetadata = { aipg: {reasoningStarted} }
+            chunk.chunk.providerMetadata = { aipg: { reasoningStarted } }
           }
           if (chunk.chunk.type === 'text-delta' && reasoningStarted && !reasoningFinished) {
             reasoningFinished = Date.now()
             console.log('Reasoning finished at:', reasoningFinished)
-            chunk.chunk.providerMetadata = { aipg: {reasoningStarted, reasoningFinished} }
+            chunk.chunk.providerMetadata = { aipg: { reasoningStarted, reasoningFinished } }
           }
         },
         onFinish: (result) => {
@@ -128,26 +154,33 @@ export const useOpenAiCompatibleChat = defineStore(
             usage = result.usage
           }
           if (!timings) {
-             timings = {
+            timings = {
               cache_n: result.usage?.cachedInputTokens ?? 0,
               prompt_n: result.usage?.inputTokens ?? 0,
               prompt_ms: firstTokenTime - startOfRequestTime,
-              prompt_per_token_ms: result.usage?.inputTokens ? (firstTokenTime - startOfRequestTime) / result.usage.inputTokens : 0,
-              prompt_per_second: result.usage?.inputTokens ? (result.usage.inputTokens / ((firstTokenTime - startOfRequestTime) / 1000)) : 0,
+              prompt_per_token_ms: result.usage?.inputTokens
+                ? (firstTokenTime - startOfRequestTime) / result.usage.inputTokens
+                : 0,
+              prompt_per_second: result.usage?.inputTokens
+                ? result.usage.inputTokens / ((firstTokenTime - startOfRequestTime) / 1000)
+                : 0,
               predicted_n: result.usage?.outputTokens ?? 0,
               predicted_ms: finishTime - firstTokenTime,
-              predicted_per_token_ms: result.usage?.outputTokens ? (finishTime - firstTokenTime) / result.usage.outputTokens : 0,
-              predicted_per_second: result.usage?.outputTokens ? (result.usage.outputTokens / ((finishTime - firstTokenTime) / 1000)) : 0,
-             }
+              predicted_per_token_ms: result.usage?.outputTokens
+                ? (finishTime - firstTokenTime) / result.usage.outputTokens
+                : 0,
+              predicted_per_second: result.usage?.outputTokens
+                ? result.usage.outputTokens / ((finishTime - firstTokenTime) / 1000)
+                : 0,
+            }
           }
-        }
-
+        },
       })
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
         messageMetadata: (options) => {
           if (options.part.type === 'text-delta' || options.part.type === 'reasoning-delta') {
-          return {
+            return {
               reasoningStarted: options.part.providerMetadata?.aipg?.reasoningStarted,
               reasoningFinished: options.part.providerMetadata?.aipg?.reasoningFinished,
             }
@@ -162,9 +195,9 @@ export const useOpenAiCompatibleChat = defineStore(
             timings,
             usage: totalUsage ?? usage,
           }
-          console.debug('producing metadata:', {options, metadata})
+          console.debug('producing metadata:', { options, metadata })
           return metadata
-        }
+        },
       })
     }
 
@@ -175,16 +208,27 @@ export const useOpenAiCompatibleChat = defineStore(
       (activeKey) => {
         if (activeKey in chats) return
         const chat = new Chat<AipgUiMessage>({
-          transport: new DefaultChatTransport({ fetch: customFetch, body: { timings_per_token: true } }),
+          transport: new DefaultChatTransport({
+            fetch: customFetch,
+            body: { timings_per_token: true },
+          }),
           messages: conversations.conversationList[activeKey],
         })
         chats[activeKey] = chat
-        console.log('Created new chat for key:', {activeKey, chat, messages: conversations.conversationList[activeKey]})
-    })
+        console.log('Created new chat for key:', {
+          activeKey,
+          chat,
+          messages: conversations.conversationList[activeKey],
+        })
+      },
+    )
 
-    watch(() => chats[conversations.activeKey]?.messages, () => {
-      console.log('chat messages changed:', chats[conversations.activeKey]?.messages)
-    })
+    watch(
+      () => chats[conversations.activeKey]?.messages,
+      () => {
+        console.log('chat messages changed:', chats[conversations.activeKey]?.messages)
+      },
+    )
 
     const messages = computed(() => chats[conversations.activeKey]?.messages)
 
@@ -204,7 +248,10 @@ export const useOpenAiCompatibleChat = defineStore(
     async function generate(systemPromptOverride?: string) {
       await textInference.prepareBackendIfNeeded()
       temporarySystemPrompt.value = systemPromptOverride || null
-      console.log('before generate', {chat: chats[conversations.activeKey], messages: chats[conversations.activeKey]?.messages})
+      console.log('before generate', {
+        chat: chats[conversations.activeKey],
+        messages: chats[conversations.activeKey]?.messages,
+      })
       try {
         await chats[conversations.activeKey]?.sendMessage({
           text: messageInput.value,
@@ -219,7 +266,10 @@ export const useOpenAiCompatibleChat = defineStore(
       }
       messageInput.value = ''
       fileInput.value = null
-      console.log('after generate', {chat: chats[conversations.activeKey], messages: chats[conversations.activeKey]?.messages})
+      console.log('after generate', {
+        chat: chats[conversations.activeKey],
+        messages: chats[conversations.activeKey]?.messages,
+      })
       return
     }
 
@@ -228,14 +278,14 @@ export const useOpenAiCompatibleChat = defineStore(
     }
 
     function regenerate(messageId: string) {
-      chats[conversations.activeKey]?.regenerate({messageId})
+      chats[conversations.activeKey]?.regenerate({ messageId })
     }
 
     function removeMessage(messageId: string) {
       const chat = chats[conversations.activeKey]
       if (!chat) return
       const indexOfAssistantMeessage = chat.messages.findIndex((m) => m.id === messageId)
-      console.log('removeMessage', {messageId, indexOfAssistantMeessage, messages: chat.messages})
+      console.log('removeMessage', { messageId, indexOfAssistantMeessage, messages: chat.messages })
       // remove also the user message before the assistant message
       if (indexOfAssistantMeessage > 0) {
         chat.messages.splice(indexOfAssistantMeessage - 1, 2)

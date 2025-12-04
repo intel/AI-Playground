@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePresets } from "@/assets/js/store/presets";
+import { usePresets } from '@/assets/js/store/presets'
 
 export const usePromptStore = defineStore('prompt', () => {
   const presetsStore = usePresets()
@@ -55,7 +55,7 @@ export const usePromptStore = defineStore('prompt', () => {
   }
 
   function submitPrompt(promptText: string) {
-  const callback = submitCallbacks.value[currentMode.value]
+    const callback = submitCallbacks.value[currentMode.value]
     if (callback) {
       promptSubmitted.value = true
       callback(promptText)

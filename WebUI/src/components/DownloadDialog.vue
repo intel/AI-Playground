@@ -141,7 +141,7 @@
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <Checkbox v-model="readTerms"/>
+            <Checkbox v-model="readTerms" />
             <span class="text-sm text-left">{{ languages.DOWNLOADER_TERMS_TIP }}</span>
           </div>
           <div class="flex justify-center items-center gap-9">

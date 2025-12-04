@@ -29,7 +29,11 @@
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{
             languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', value.label)] ?? value.label
           }}</span>
-          <img v-if="value.type === 'image'" :src="String(value.current ?? '')" class="info-params-image" />
+          <img
+            v-if="value.type === 'image'"
+            :src="String(value.current ?? '')"
+            class="info-params-image"
+          />
           <span v-else class="px-4 flex-auto break-word">{{ String(value.current ?? '') }}</span>
         </li>
       </ul>
@@ -37,7 +41,10 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ComfyDynamicInputWithCurrent, GenerationSettings } from '@/assets/js/store/imageGenerationPresets'
+import {
+  ComfyDynamicInputWithCurrent,
+  GenerationSettings,
+} from '@/assets/js/store/imageGenerationPresets'
 import { getTranslationLabel } from '@/lib/utils'
 
 const props = defineProps<{

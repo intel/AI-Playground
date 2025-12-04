@@ -6,7 +6,11 @@
         :title="'Megapixels'"
         :value="megaPixelsIndex.toString()"
         :items="megaPixelsDropdownItems"
-        @change="(value) => { megaPixelsIndex = parseInt(value) }"
+        @change="
+          (value) => {
+            megaPixelsIndex = parseInt(value)
+          }
+        "
       />
     </div>
 
@@ -43,10 +47,9 @@
             }
           "
           :className="
-            clsx(
-              'flex flex-col items-center gap-1 transition-colors',
-              { 'cursor-pointer': !props.disabled },
-            )
+            clsx('flex flex-col items-center gap-1 transition-colors', {
+              'cursor-pointer': !props.disabled,
+            })
           "
         >
           <div
@@ -58,7 +61,8 @@
             "
             :style="
               (() => {
-                const aspectRatio = aspectRatios.find(ar => ar.label === res.aspectRatio)?.value ?? 1
+                const aspectRatio =
+                  aspectRatios.find((ar) => ar.label === res.aspectRatio)?.value ?? 1
                 const area = 600
                 const width = Math.sqrt(area * aspectRatio)
                 const height = area / width
@@ -89,7 +93,10 @@
 import { computed } from 'vue'
 import { type SliderRootProps } from 'radix-vue'
 import { clsx } from 'clsx'
-import { findBestResolution, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import {
+  findBestResolution,
+  useImageGenerationPresets,
+} from '@/assets/js/store/imageGenerationPresets'
 import { Label } from '@/components/ui/label'
 import DropDownNew from '@/components/DropDownNew.vue'
 

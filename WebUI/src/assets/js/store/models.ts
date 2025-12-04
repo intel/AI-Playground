@@ -13,10 +13,7 @@ export type ModelLists = {
   embedding: string[]
 } & { [key: string]: Array<string> }
 
-export type ModelType =
-  | 'embedding'
-  | 'undefined'
-  | LlmBackend
+export type ModelType = 'embedding' | 'undefined' | LlmBackend
 
 export type Model = {
   name: string

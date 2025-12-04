@@ -2,15 +2,11 @@
   "type": "comfy",
   "name": "Change Face",
   "displayPriority": 600,
-  "tags": [
-    "no-prompt"
-  ],
+  "tags": ["no-prompt"],
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Edit an image to have a likeness you control. Load image with a face you want to change, then load a reference face to guide the likeness.",
-  "requiredCustomNodes": [
-    "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"
-  ],
+  "requiredCustomNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
   "requiredPythonPackages": [
     "stringzilla==3.12.6",
     "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
@@ -144,10 +140,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "25",
-          0
-        ]
+        "images": ["25", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -177,14 +170,8 @@
         "input_faces_index": "0",
         "source_faces_index": "0",
         "console_log_level": 1,
-        "input_image": [
-          "26",
-          0
-        ],
-        "source_image": [
-          "15",
-          0
-        ]
+        "input_image": ["26", 0],
+        "source_image": ["15", 0]
       },
       "class_type": "ReActorFaceSwap",
       "_meta": {

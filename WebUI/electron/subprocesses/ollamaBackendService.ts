@@ -3,15 +3,9 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import {
-  ApiService,
-  DeviceService,
-  createEnhancedErrorDetails,
-  ErrorDetails,
-} from './service.ts'
+import { ApiService, DeviceService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { getBestDevice } from './deviceArch.ts'
 import { LocalSettings } from '../main.ts'
 
 const execAsync = promisify(exec)
@@ -213,10 +207,7 @@ export class OllamaBackendService implements ApiService {
       this.setStatus('installationFailed')
 
       // Create detailed error information for any type of error
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
 
       yield {
         serviceName: this.name,
@@ -354,10 +345,7 @@ export class OllamaBackendService implements ApiService {
         const startupError = new Error(
           `Server ${this.name} failed to boot - health check timeout or early process exit`,
         )
-        const errorDetails = await createEnhancedErrorDetails(
-          startupError,
-          'service startup',
-        )
+        const errorDetails = await createEnhancedErrorDetails(startupError, 'service startup')
         this.setLastStartupError(errorDetails)
       }
     } catch (error) {
@@ -368,10 +356,7 @@ export class OllamaBackendService implements ApiService {
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
       // Capture detailed error information for startup exception
-      const errorDetails = await createEnhancedErrorDetails(
-        error,
-        'service startup',
-      )
+      const errorDetails = await createEnhancedErrorDetails(error, 'service startup')
       this.setLastStartupError(errorDetails)
     } finally {
       this.win.webContents.send('serviceInfoUpdate', this.get_info())
@@ -515,10 +500,7 @@ export class OllamaBackendService implements ApiService {
     const processStartupFailedDueToEarlyExit = new Promise<boolean>((resolve) => {
       didProcessExitEarlyTracker.then((earlyExit) => {
         if (earlyExit) {
-          this.appLogger.error(
-            `Process for ${this.name} exited early during startup`,
-            this.name,
-          )
+          this.appLogger.error(`Process for ${this.name} exited early during startup`, this.name)
           resolve(false)
         }
         // If process didn't exit early, this promise never resolves

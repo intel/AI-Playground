@@ -1,4 +1,3 @@
-
 export function levelZeroDeviceSelectorEnv(id?: string): { ONEAPI_DEVICE_SELECTOR: string } {
   return { ONEAPI_DEVICE_SELECTOR: `level_zero:${id ?? '*'}` }
 }

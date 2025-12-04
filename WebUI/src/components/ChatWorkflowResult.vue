@@ -1,20 +1,14 @@
 <template>
-  <div
-    v-if="processing || currentImage"
-    class="flex flex-col gap-3"
-  >
+  <div v-if="processing || currentImage" class="flex flex-col gap-3">
     <!-- Horizontal Thumbnail Gallery -->
-    <div
-      v-if="imagesWithPreview.length > 1"
-      class="flex gap-2 overflow-x-auto pb-2"
-    >
+    <div v-if="imagesWithPreview.length > 1" class="flex gap-2 overflow-x-auto pb-2">
       <div
         v-for="image in imagesWithPreview"
         :key="image.id"
         class="flex-shrink-0 cursor-pointer relative border-3 shadow-foreground/40 shadow-md transition-colors rounded-sm overflow-hidden"
         :class="selectedImageId === image.id ? 'border-primary' : 'border-transparent'"
         @click="selectedImageId = image.id"
-        style="width: 80px; height: 60px;"
+        style="width: 80px; height: 60px"
       >
         <div
           class="relative w-full h-full flex items-center justify-center bg-background"
@@ -22,13 +16,13 @@
           @dragstart="(e) => dragImage(image)(e)"
         >
           <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
-          <Model3DViewer
-            v-else-if="is3D(image)"
-            :src="image.model3dUrl"
-            class="w-full h-full"
+          <Model3DViewer v-else-if="is3D(image)" :src="image.model3dUrl" class="w-full h-full" />
+          <img
+            v-else-if="image.type === 'image'"
+            :src="image.imageUrl"
+            class="w-full h-full object-cover"
           />
-          <img v-else-if="image.type === 'image'" :src="image.imageUrl" class="w-full h-full object-cover" />
-          
+
           <!-- State indicator overlay -->
           <div
             v-if="image.state === 'generating' || image.state === 'queued'"
@@ -42,10 +36,7 @@
 
     <!-- Main Image Display -->
     <div class="flex justify-center items-center relative">
-      <div
-        class="flex justify-center items-center relative bg-accent rounded-lg gap-2"
-        style=""
-      >
+      <div class="flex justify-center items-center relative bg-accent rounded-lg gap-2" style="">
         <div
           v-show="images.length > 0 && currentImage"
           class="flex justify-center items-center"
@@ -70,20 +61,17 @@
             class=""
           />
         </div>
-        <div
-          v-show="processing"
-          class="w-full h-full flex justify-center items-center"
-        >
+        <div v-show="processing" class="w-full h-full flex justify-center items-center">
           <loading-bar
             v-if="
-                currentState &&
-                [
-                  'load_model',
-                  'load_model_components',
-                  'install_workflow_components',
-                  'load_workflow_components',
-                ].includes(currentState as string)
-              "
+              currentState &&
+              [
+                'load_model',
+                'load_model_components',
+                'install_workflow_components',
+                'load_workflow_components',
+              ].includes(currentState as string)
+            "
             :text="loadingStateToText(currentState as string)"
             class="w-3/4"
           ></loading-bar>
@@ -93,8 +81,8 @@
           >
             <span class="svg-icon i-loading w-8 h-8"></span>
             <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-                stepText || 'Generating...'
-              }}</span>
+              stepText || 'Generating...'
+            }}</span>
           </div>
           <div
             v-else
@@ -102,15 +90,12 @@
           >
             <span class="svg-icon i-loading w-8 h-8"></span>
             <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-                stepText || 'Preparing...'
-              }}</span>
+              stepText || 'Preparing...'
+            }}</span>
           </div>
         </div>
         <div
-          v-show="
-              currentImage &&
-              (!(currentImage?.state === 'generating') || !processing)
-            "
+          v-show="currentImage && (!(currentImage?.state === 'generating') || !processing)"
           class="flex flex-col items-center justify-center gap-2"
         >
           <button
@@ -150,7 +135,7 @@
       <info-table
         v-show="showInfoParams"
         :generationParameters="currentImage?.settings ?? {}"
-        :dynamicInputs="(currentImage?.dynamicSettings as any)"
+        :dynamicInputs="currentImage?.dynamicSettings as any"
         @close="showInfoParams = false"
       ></info-table>
     </div>
@@ -165,7 +150,12 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from './LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { MediaItem, isVideo, is3D, type GenerateState } from '@/assets/js/store/imageGenerationPresets'
+import {
+  MediaItem,
+  isVideo,
+  is3D,
+  type GenerateState,
+} from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 
 interface Props {
@@ -187,7 +177,7 @@ const selectedImageId = ref<string | null>(null)
 
 // Filter images to only show those with valid URLs
 const imagesWithPreview = computed(() => {
-  return props.images.filter(img => {
+  return props.images.filter((img) => {
     if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
     if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
     if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
@@ -202,14 +192,14 @@ watch(
     if (images.length > 0) {
       // Select the last image (most recent) if none selected or selected image is not in list
       const lastImage = images[images.length - 1]
-      if (!selectedImageId.value || !images.find(img => img.id === selectedImageId.value)) {
+      if (!selectedImageId.value || !images.find((img) => img.id === selectedImageId.value)) {
         selectedImageId.value = lastImage.id
       }
     } else {
       selectedImageId.value = null
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 const currentImage = computed<MediaItem | null>(() => {
@@ -268,4 +258,3 @@ function getMediaUrl(image: MediaItem) {
   }
 }
 </script>
-

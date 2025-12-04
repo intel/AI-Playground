@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import type { SliderRootProps } from "reka-ui"
-import type { HTMLAttributes } from "vue"
-import { reactiveOmit } from "@vueuse/core"
-import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from "reka-ui"
-import { cn } from "@/lib/utils"
-import { computed } from "vue"
+import type { SliderRootProps } from 'reka-ui'
+import type { HTMLAttributes } from 'vue'
+import { reactiveOmit } from '@vueuse/core'
+import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'reka-ui'
+import { cn } from '@/lib/utils'
+import { computed } from 'vue'
 
 interface SingleValueSliderProps extends Omit<SliderRootProps, 'modelValue'> {
   modelValue?: number | number[]
-  class?: HTMLAttributes["class"]
+  class?: HTMLAttributes['class']
 }
 
 const props = defineProps<SingleValueSliderProps>()
 
 const emits = defineEmits<{
   'update:modelValue': [value: number | number[]]
-  'valueCommit': [value: number[]]
+  valueCommit: [value: number[]]
 }>()
 
-const delegatedProps = reactiveOmit(props, "class", "modelValue")
+const delegatedProps = reactiveOmit(props, 'class', 'modelValue')
 
 // Convert single value to array for internal use
 const internalModelValue = computed({
@@ -32,7 +32,7 @@ const internalModelValue = computed({
     if (value && value.length > 0) {
       emits('update:modelValue', value[0])
     }
-  }
+  },
 })
 
 // Handle valueCommit event
@@ -43,16 +43,20 @@ const handleValueCommit = (value: number[]) => {
 
 <template>
   <SliderRoot
-    :class="cn(
-      'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full',
-      props.class,
-    )"
+    :class="
+      cn(
+        'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full',
+        props.class,
+      )
+    "
     v-bind="delegatedProps"
     :model-value="internalModelValue"
-    @update:model-value="(value) => internalModelValue = value"
+    @update:model-value="(value) => (internalModelValue = value)"
     @value-commit="handleValueCommit"
   >
-    <SliderTrack class="relative h-2 w-full data-[orientation=vertical]:w-2 grow overflow-hidden rounded-full bg-secondary">
+    <SliderTrack
+      class="relative h-2 w-full data-[orientation=vertical]:w-2 grow overflow-hidden rounded-full bg-secondary"
+    >
       <SliderRange class="absolute h-full data-[orientation=vertical]:w-full bg-primary" />
     </SliderTrack>
     <SliderThumb

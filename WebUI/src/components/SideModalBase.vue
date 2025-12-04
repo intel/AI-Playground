@@ -14,7 +14,11 @@
           <slot name="header-buttons" />
           <button
             @click="$emit('close')"
-            :class="['svg-icon w-6 h-6', '!hidden 2xl:!inline-block', side === 'left' ? 'i-arrow-left' : 'i-arrow-right']"
+            :class="[
+              'svg-icon w-6 h-6',
+              '!hidden 2xl:!inline-block',
+              side === 'left' ? 'i-arrow-left' : 'i-arrow-right',
+            ]"
           />
           <button
             @click="$emit('close')"

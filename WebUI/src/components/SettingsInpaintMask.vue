@@ -7,35 +7,29 @@
           <button
             :class="[
               'px-3 py-1 rounded border',
-              mode === 'brush' 
-                ? 'bg-primary text-primary-foreground border-primary' 
-                : 'bg-background text-foreground border-border'
+              mode === 'brush'
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-foreground border-border',
             ]"
             @click="mode = 'brush'"
           >
-          <PaintBrushIcon class="size-4"></PaintBrushIcon>
+            <PaintBrushIcon class="size-4"></PaintBrushIcon>
           </button>
           <button
             :class="[
               'px-3 py-1 rounded border',
-              mode === 'eraser' 
-                ? 'bg-primary text-primary-foreground border-primary' 
-                : 'bg-background text-foreground border-border'
+              mode === 'eraser'
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-foreground border-border',
             ]"
             @click="mode = 'eraser'"
           >
-          <TrashIcon class="size-4"></TrashIcon>
+            <TrashIcon class="size-4"></TrashIcon>
           </button>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <Slider
-          v-model="brushSize"
-          :min="10"
-          :max="100"
-          :step="5"
-          class="w-16"
-        />
+        <Slider v-model="brushSize" :min="10" :max="100" :step="5" class="w-16" />
         <span class="text-sm text-foreground/60 w-12">{{ brushSize }}px</span>
       </div>
       <button
@@ -67,7 +61,7 @@
           @load="onImageLoad"
           @error="onImageError"
         />
-        
+
         <!-- Mask canvas (drawing layer) -->
         <canvas
           v-if="imageLoaded"
@@ -79,12 +73,12 @@
             cursor: mode === 'brush' ? 'crosshair' : 'crosshair',
             width: `${canvasDisplayWidth}px`,
             height: `${canvasDisplayHeight}px`,
-            imageRendering: 'pixelated'
+            imageRendering: 'pixelated',
           }"
           @pointerdown="startDrawing"
           @pointermove="updateCursor"
         />
-        
+
         <!-- Preview overlay (red tint on masked areas) -->
         <canvas
           v-if="imageLoaded"
@@ -95,31 +89,36 @@
           :style="{
             width: `${canvasDisplayWidth}px`,
             height: `${canvasDisplayHeight}px`,
-            imageRendering: 'pixelated'
+            imageRendering: 'pixelated',
           }"
         />
-        
+
         <!-- Loading/Empty states -->
         <div
-          v-if="(originalImageUrl || imageUrl) && (originalImageUrl || imageUrl).trim() !== '' && !imageLoaded"
+          v-if="
+            (originalImageUrl || imageUrl) &&
+            (originalImageUrl || imageUrl).trim() !== '' &&
+            !imageLoaded
+          "
           class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
           Loading image...
         </div>
         <div
-          v-else-if="(!originalImageUrl && !imageUrl) || (originalImageUrl || imageUrl || '').trim() === ''"
+          v-else-if="
+            (!originalImageUrl && !imageUrl) || (originalImageUrl || imageUrl || '').trim() === ''
+          "
           class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
           Load an image to draw mask
         </div>
       </div>
     </div>
-    
+
     <!-- Info -->
     <div class="text-sm text-foreground/60 text-center">
       <span v-if="imageUrl && imageLoaded">
-        Image: {{ imageWidth }} × {{ imageHeight }}px
-        | Draw on areas you want to inpaint
+        Image: {{ imageWidth }} × {{ imageHeight }}px | Draw on areas you want to inpaint
       </span>
     </div>
   </div>
@@ -127,9 +126,8 @@
 
 <script setup lang="ts">
 import { computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { Label } from './ui/label'
 import Slider from './ui/slider/Slider.vue'
-import { NoSymbolIcon, PaintBrushIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { NoSymbolIcon, PaintBrushIcon, TrashIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps<{
   imageUrl: string
@@ -171,7 +169,7 @@ onMounted(() => {
       }
     })
     resizeObserver.observe(parentContainer.value)
-    
+
     // Initial size
     containerWidth.value = parentContainer.value.clientWidth
     containerHeight.value = parentContainer.value.clientHeight
@@ -187,7 +185,13 @@ onUnmounted(() => {
 
 // Canvas display size (scaled to fit parent container width, height calculated from aspect ratio)
 const canvasScale = computed(() => {
-  console.log('### canvasScale', imageWidth.value, imageHeight.value, containerWidth.value, containerHeight.value)
+  console.log(
+    '### canvasScale',
+    imageWidth.value,
+    imageHeight.value,
+    containerWidth.value,
+    containerHeight.value,
+  )
   if (!imageWidth.value || !imageHeight.value || !containerWidth.value) return 1
   // Use container width minus some padding (e.g., 20px on each side)
   const availableWidth = containerWidth.value - 40
@@ -213,7 +217,7 @@ function onImageLoad() {
   sourceImageHeight.value = sourceImage.value.naturalHeight
   imageWidth.value = sourceImageWidth.value
   imageHeight.value = sourceImageHeight.value
-  
+
   // Store the original image URL for display purposes
   originalImageUrl.value = props.imageUrl
 
@@ -231,36 +235,36 @@ function onImageError() {
 
 function initializeMaskCanvas() {
   if (!maskCanvas.value) return
-  
+
   const ctx = maskCanvas.value.getContext('2d', { willReadFrequently: true })
   if (!ctx) return
-  
+
   // Clear mask canvas (transparent)
   ctx.clearRect(0, 0, imageWidth.value, imageHeight.value)
 }
 
 function getCanvasCoordinates(e: PointerEvent): { x: number; y: number } | null {
   if (!maskCanvas.value || !canvasContainer.value) return null
-  
+
   const rect = canvasContainer.value.getBoundingClientRect()
   const scaleX = imageWidth.value / canvasDisplayWidth.value
   const scaleY = imageHeight.value / canvasDisplayHeight.value
-  
+
   return {
     x: (e.clientX - rect.left) * scaleX,
-    y: (e.clientY - rect.top) * scaleY
+    y: (e.clientY - rect.top) * scaleY,
   }
 }
 
 function startDrawing(e: PointerEvent) {
   if (!maskCanvas.value || !imageLoaded.value) return
-  
+
   isDrawing.value = true
   const coords = getCanvasCoordinates(e)
   if (!coords) return
-  
+
   drawAt(coords.x, coords.y)
-  
+
   maskCanvas.value.setPointerCapture(e.pointerId)
   maskCanvas.value.addEventListener('pointermove', onDrawing)
   maskCanvas.value.addEventListener('pointerup', stopDrawing, { once: true })
@@ -268,10 +272,10 @@ function startDrawing(e: PointerEvent) {
 
 function onDrawing(e: PointerEvent) {
   if (!isDrawing.value || !maskCanvas.value) return
-  
+
   const coords = getCanvasCoordinates(e)
   if (!coords) return
-  
+
   drawAt(coords.x, coords.y)
 }
 
@@ -286,45 +290,45 @@ function stopDrawing() {
 
 function drawAt(x: number, y: number) {
   if (!maskCanvas.value) return
-  
+
   const ctx = maskCanvas.value.getContext('2d', { willReadFrequently: true })
   if (!ctx) return
-  
+
   ctx.globalCompositeOperation = mode.value === 'brush' ? 'source-over' : 'destination-out'
-  
+
   if (mode.value === 'brush') {
     // Draw white (will become alpha=255 in final image)
     ctx.fillStyle = 'rgba(255, 255, 255, 255)'
   }
-  
+
   ctx.beginPath()
   ctx.arc(x, y, brushSize.value / 2, 0, 2 * Math.PI)
   ctx.fill()
-  
+
   // Update preview in real-time
   drawPreview()
 }
 
 function drawPreview() {
   if (!previewCanvas.value || !maskCanvas.value || !sourceImage.value) return
-  
+
   const previewCtx = previewCanvas.value.getContext('2d')
   const maskCtx = maskCanvas.value.getContext('2d', { willReadFrequently: true })
   if (!previewCtx || !maskCtx) return
-  
+
   // Clear preview
   previewCtx.clearRect(0, 0, imageWidth.value, imageHeight.value)
-  
+
   // Get mask data
   const maskData = maskCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
-  
+
   // Draw red tint overlay on masked areas
   previewCtx.fillStyle = 'rgba(255, 0, 0, 0.4)' // Red tint with transparency
   for (let i = 0; i < maskData.data.length; i += 4) {
     const alpha = maskData.data[i + 3]
     if (alpha > 0) {
       const x = (i / 4) % imageWidth.value
-      const y = Math.floor((i / 4) / imageWidth.value)
+      const y = Math.floor(i / 4 / imageWidth.value)
       previewCtx.fillRect(x, y, 1, 1)
     }
   }
@@ -332,39 +336,39 @@ function drawPreview() {
 
 function clearMask() {
   if (!maskCanvas.value) return
-  
+
   const ctx = maskCanvas.value.getContext('2d', { willReadFrequently: true })
   if (!ctx) return
-  
+
   ctx.clearRect(0, 0, imageWidth.value, imageHeight.value)
   drawPreview()
   emitMaskedImage()
 }
 
-function updateCursor(e: PointerEvent) {
+function updateCursor(_e: PointerEvent) {
   // Could add cursor preview here if needed
 }
 
 function emitMaskedImage() {
   if (!sourceImage.value || !maskCanvas.value || !imageLoaded.value) return
-  
+
   // Create a new canvas to combine image and mask
   const outputCanvas = document.createElement('canvas')
   outputCanvas.width = imageWidth.value
   outputCanvas.height = imageHeight.value
   const outputCtx = outputCanvas.getContext('2d')
   if (!outputCtx) return
-  
+
   // Draw the original image
   outputCtx.drawImage(sourceImage.value, 0, 0, imageWidth.value, imageHeight.value)
-  
+
   // Get mask data
   const maskCtx = maskCanvas.value.getContext('2d', { willReadFrequently: true })
   if (!maskCtx) return
-  
+
   const maskData = maskCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
   const imageData = outputCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
-  
+
   // Check if there's any mask drawn
   let hasMask = false
   for (let i = 3; i < maskData.data.length; i += 4) {
@@ -373,7 +377,7 @@ function emitMaskedImage() {
       break
     }
   }
-  
+
   // If no mask is drawn, emit the original image with full opacity (no inpainting)
   if (!hasMask) {
     // Set all alpha to 255 (fully opaque = no inpainting)
@@ -392,60 +396,65 @@ function emitMaskedImage() {
       imageData.data[i + 3] = maskAlpha > 0 ? 0 : 255
     }
   }
-  
+
   outputCtx.putImageData(imageData, 0, 0)
-  
+
   // Convert to PNG data URI (PNG preserves alpha channel)
   const dataUri = outputCanvas.toDataURL('image/png')
   emits('update:image', dataUri)
 }
 
 // Watch for image URL changes (only reload if it's a different original image, not a mask update)
-watch(() => props.imageUrl, (newUrl, oldUrl) => {
-  // If we already have an original image URL stored, check if this is just a mask update
-  if (originalImageUrl.value && newUrl) {
-    const isDataUri = newUrl.startsWith('data:')
-    const originalIsDataUri = originalImageUrl.value.startsWith('data:')
-    
-    // If the new URL is a data URI and we have an original, it's likely a mask update
-    // Only reload if the original image part changed
-    if (isDataUri && originalIsDataUri) {
-      // Extract the image data part (after the comma) and compare first few bytes
-      // If it's the same base image, don't reload
-      const newImageData = newUrl.split(',')[1]?.substring(0, 100)
-      const originalImageData = originalImageUrl.value.split(',')[1]?.substring(0, 100)
-      if (newImageData === originalImageData) {
-        // Same base image, just different mask - don't reload
+watch(
+  () => props.imageUrl,
+  (newUrl, oldUrl) => {
+    // If we already have an original image URL stored, check if this is just a mask update
+    if (originalImageUrl.value && newUrl) {
+      const isDataUri = newUrl.startsWith('data:')
+      const originalIsDataUri = originalImageUrl.value.startsWith('data:')
+
+      // If the new URL is a data URI and we have an original, it's likely a mask update
+      // Only reload if the original image part changed
+      if (isDataUri && originalIsDataUri) {
+        // Extract the image data part (after the comma) and compare first few bytes
+        // If it's the same base image, don't reload
+        const newImageData = newUrl.split(',')[1]?.substring(0, 100)
+        const originalImageData = originalImageUrl.value.split(',')[1]?.substring(0, 100)
+        if (newImageData === originalImageData) {
+          // Same base image, just different mask - don't reload
+          return
+        }
+      } else if (isDataUri && !originalIsDataUri) {
+        // New URL is data URI but original wasn't - this is a mask update, don't reload
         return
       }
-    } else if (isDataUri && !originalIsDataUri) {
-      // New URL is data URI but original wasn't - this is a mask update, don't reload
-      return
     }
-  }
-  
-  // Only reload if this is a genuinely different image
-  if (newUrl && newUrl.trim() !== '' && newUrl !== oldUrl) {
-    // Check if it's a file URL or different source (not a masked version)
-    const isFileUrl = newUrl.startsWith('file://') || newUrl.startsWith('blob:') || (!newUrl.startsWith('data:'))
-    if (isFileUrl || !originalImageUrl.value) {
+
+    // Only reload if this is a genuinely different image
+    if (newUrl && newUrl.trim() !== '' && newUrl !== oldUrl) {
+      // Check if it's a file URL or different source (not a masked version)
+      const isFileUrl =
+        newUrl.startsWith('file://') || newUrl.startsWith('blob:') || !newUrl.startsWith('data:')
+      if (isFileUrl || !originalImageUrl.value) {
+        imageLoaded.value = false
+        originalImageUrl.value = '' // Reset original URL
+        nextTick(() => {
+          if (sourceImage.value) {
+            sourceImage.value.src = newUrl
+          }
+        })
+      }
+    } else if (!newUrl || newUrl.trim() === '') {
       imageLoaded.value = false
-      originalImageUrl.value = '' // Reset original URL
-      nextTick(() => {
-        if (sourceImage.value) {
-          sourceImage.value.src = newUrl
-        }
-      })
+      originalImageUrl.value = ''
+      imageWidth.value = 0
+      imageHeight.value = 0
+      sourceImageWidth.value = 0
+      sourceImageHeight.value = 0
     }
-  } else if (!newUrl || newUrl.trim() === '') {
-    imageLoaded.value = false
-    originalImageUrl.value = ''
-    imageWidth.value = 0
-    imageHeight.value = 0
-    sourceImageWidth.value = 0
-    sourceImageHeight.value = 0
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   if (props.imageUrl && props.imageUrl.trim() !== '') {
@@ -457,5 +466,3 @@ onMounted(() => {
   }
 })
 </script>
-
-

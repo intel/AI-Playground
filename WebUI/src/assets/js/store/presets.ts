@@ -27,7 +27,16 @@ const StandardSettingNameSchema = z.enum([
 
 // Base Setting Schema - can be either a standard setting or a generic setting
 const SettingSchema = z.object({
-  type: z.enum(['number', 'string', 'boolean', 'image', 'video', 'stringList', 'outpaintCanvas', 'inpaintMask']),
+  type: z.enum([
+    'number',
+    'string',
+    'boolean',
+    'image',
+    'video',
+    'stringList',
+    'outpaintCanvas',
+    'inpaintMask',
+  ]),
   label: z.string(),
   displayed: z.boolean(),
   modifiable: z.boolean(),
@@ -131,10 +140,7 @@ const ChatPresetSchema = BasePresetFieldsSchema.extend({
 })
 
 // Discriminated Union for all Preset types
-export const PresetSchema = z.discriminatedUnion('type', [
-  ComfyUiPresetSchema,
-  ChatPresetSchema,
-])
+export const PresetSchema = z.discriminatedUnion('type', [ComfyUiPresetSchema, ChatPresetSchema])
 
 // ============================================================================
 // Type Inference from Schemas
@@ -209,14 +215,14 @@ export const usePresets = defineStore(
 
       // Deep merge variant overrides into base preset
       const merged = deepMerge(basePreset, variant.overrides as DeepPartial<Preset>)
-      
+
       // Remove settings specified in removeSettings array
       if (variant.removeSettings && variant.removeSettings.length > 0 && merged.settings) {
         merged.settings = merged.settings.filter(
-          (setting) => !variant.removeSettings!.includes(setting.label)
+          (setting) => !variant.removeSettings!.includes(setting.label),
         )
       }
-      
+
       return validatePreset(merged) || basePreset
     }
 
@@ -227,7 +233,7 @@ export const usePresets = defineStore(
       // If preset has variants, ensure one is selected
       if (preset.variants && preset.variants.length > 0) {
         let variantName: string | undefined = activeVariantName.value[presetName]
-        
+
         // Auto-select first variant if none is selected
         if (!variantName) {
           const firstVariant = getFirstVariantName(preset)
@@ -236,7 +242,7 @@ export const usePresets = defineStore(
             activeVariantName.value[presetName] = variantName
           }
         }
-        
+
         if (variantName) {
           return applyVariant(preset, variantName)
         }
@@ -248,7 +254,7 @@ export const usePresets = defineStore(
 
     function setActiveVariant(presetName: string, variantName: string | null): void {
       const preset = presets.value.find((p) => p.name === presetName)
-      
+
       // If preset has variants and null is passed, select first variant instead
       if (variantName === null && preset && preset.variants && preset.variants.length > 0) {
         const firstVariant = getFirstVariantName(preset)
@@ -257,7 +263,7 @@ export const usePresets = defineStore(
           return
         }
       }
-      
+
       if (variantName) {
         activeVariantName.value[presetName] = variantName
       } else {
@@ -269,19 +275,19 @@ export const usePresets = defineStore(
     }
 
     // Deep merge utility function
-    function deepMerge<T extends Record<string, any>>(target: T, source: DeepPartial<T>): T {
+    function deepMerge<T extends Record<string, unknown>>(target: T, source: DeepPartial<T>): T {
       const output = { ...target } as T
       if (source && typeof source === 'object') {
         Object.keys(source).forEach((key) => {
-          const sourceValue = (source as any)[key]
-          const targetValue = (output as any)[key]
+          const sourceValue = (source as Record<string, unknown>)[key]
+          const targetValue = (output as Record<string, unknown>)[key]
 
           // Special handling for settings arrays - merge by label
           if (key === 'settings' && Array.isArray(sourceValue) && Array.isArray(targetValue)) {
             const mergedSettings = [...targetValue]
-            sourceValue.forEach((sourceSetting: any) => {
+            sourceValue.forEach((sourceSetting: Record<string, unknown>) => {
               const index = mergedSettings.findIndex(
-                (s: any) => s.label === sourceSetting.label
+                (s: Record<string, unknown>) => s.label === sourceSetting.label,
               )
               if (index >= 0) {
                 mergedSettings[index] = { ...mergedSettings[index], ...sourceSetting }
@@ -289,26 +295,8 @@ export const usePresets = defineStore(
                 mergedSettings.push(sourceSetting)
               }
             })
-            ;(output as any)[key] = mergedSettings
+            ;(output as Record<string, unknown>)[key] = mergedSettings
           } else if (
-          //   // Special handling for comfyUiApiWorkflow - replace nodes by ID
-          //   key === 'comfyUiApiWorkflow' &&
-          //   sourceValue &&
-          //   typeof sourceValue === 'object' &&
-          //   !Array.isArray(sourceValue) &&
-          //   targetValue &&
-          //   typeof targetValue === 'object' &&
-          //   !Array.isArray(targetValue)
-          // ) {
-          //   // For workflow nodes, replace entire nodes by ID rather than merging properties
-          //   // This handles both: replacing existing nodes and adding new nodes from variant
-          //   const mergedWorkflow = { ...targetValue }
-          //   Object.keys(sourceValue).forEach((nodeId) => {
-          //     // Completely replace existing node or add new node with variant's version
-          //     mergedWorkflow[nodeId] = sourceValue[nodeId]
-          //   })
-          //   ;(output as any)[key] = mergedWorkflow
-          // } else if (
             sourceValue &&
             typeof sourceValue === 'object' &&
             !Array.isArray(sourceValue) &&
@@ -316,15 +304,17 @@ export const usePresets = defineStore(
             typeof targetValue === 'object' &&
             !Array.isArray(targetValue)
           ) {
-            ;(output as any)[key] = deepMerge(targetValue, sourceValue as DeepPartial<typeof targetValue>)
+            ;(output as Record<string, unknown>)[key] = deepMerge(
+              targetValue as Record<string, unknown>,
+              sourceValue as DeepPartial<Record<string, unknown>>,
+            )
           } else if (sourceValue !== undefined) {
-            ;(output as any)[key] = sourceValue
+            ;(output as Record<string, unknown>)[key] = sourceValue
           }
         })
       }
       return output
     }
-
 
     // ========================================================================
     // Preset Loading
@@ -338,8 +328,7 @@ export const usePresets = defineStore(
         for (const presetFile of presetFiles) {
           try {
             // Handle both old format (string) and new format (object with content and image)
-            const fileContent =
-              typeof presetFile === 'string' ? presetFile : presetFile.content
+            const fileContent = typeof presetFile === 'string' ? presetFile : presetFile.content
             const imageFromFile =
               typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
 
@@ -373,8 +362,7 @@ export const usePresets = defineStore(
         for (const presetFile of userPresetFiles) {
           try {
             // Handle both old format (string) and new format (object with content and image)
-            const fileContent =
-              typeof presetFile === 'string' ? presetFile : presetFile.content
+            const fileContent = typeof presetFile === 'string' ? presetFile : presetFile.content
             const imageFromFile =
               typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
 
@@ -409,8 +397,7 @@ export const usePresets = defineStore(
           const validatedPresets: Preset[] = []
           for (const presetFile of presetFiles) {
             try {
-              const fileContent =
-                typeof presetFile === 'string' ? presetFile : presetFile.content
+              const fileContent = typeof presetFile === 'string' ? presetFile : presetFile.content
               const imageFromFile =
                 typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
               const parsed = JSON.parse(fileContent)
@@ -432,8 +419,7 @@ export const usePresets = defineStore(
           const validatedPresets: Preset[] = []
           for (const presetFile of userPresetFiles) {
             try {
-              const fileContent =
-                typeof presetFile === 'string' ? presetFile : presetFile.content
+              const fileContent = typeof presetFile === 'string' ? presetFile : presetFile.content
               const imageFromFile =
                 typeof presetFile === 'object' && presetFile.image ? presetFile.image : null
               const parsed = JSON.parse(fileContent)
@@ -486,19 +472,21 @@ export const usePresets = defineStore(
     // ========================================================================
 
     function getPresetsByCategories(categories: string[], type?: string): Preset[] {
-      return presets.value.filter((preset) => {
-        // If type is specified, filter by type
-        if (type && preset.type !== type) return false
-        
-        // If categories are specified, filter by category
-        if (categories.length > 0) {
-          const presetCategory = preset.category || 'uncategorized'
-          return categories.includes(presetCategory)
-        }
-        
-        // If no categories specified but type is, return all of that type
-        return true
-      }).sort((a, b) => (b.displayPriority || 0) - (a.displayPriority || 0))
+      return presets.value
+        .filter((preset) => {
+          // If type is specified, filter by type
+          if (type && preset.type !== type) return false
+
+          // If categories are specified, filter by category
+          if (categories.length > 0) {
+            const presetCategory = preset.category || 'uncategorized'
+            return categories.includes(presetCategory)
+          }
+
+          // If no categories specified but type is, return all of that type
+          return true
+        })
+        .sort((a, b) => (b.displayPriority || 0) - (a.displayPriority || 0))
     }
 
     function getLastUsedPreset(categories: string[]): string | null {
@@ -666,4 +654,3 @@ export const usePresets = defineStore(
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(usePresets, import.meta.hot))
 }
-

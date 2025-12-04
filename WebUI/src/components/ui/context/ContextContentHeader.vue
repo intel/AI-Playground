@@ -62,9 +62,7 @@ const maxContextSizeFormatted = computed(() => {
       <div class="flex items-center justify-between gap-3 text-xs">
         <p>{{ displayPct }}</p>
         <div class="flex items-center gap-2">
-          <p class="font-mono text-muted-foreground">
-            {{ used }} / {{ total }}
-          </p>
+          <p class="font-mono text-muted-foreground">{{ used }} / {{ total }}</p>
           <p v-if="maxContextSizeFormatted" class="text-muted-foreground/70">
             (max: {{ maxContextSizeFormatted }})
           </p>
@@ -76,4 +74,3 @@ const maxContextSizeFormatted = computed(() => {
     </slot>
   </div>
 </template>
-

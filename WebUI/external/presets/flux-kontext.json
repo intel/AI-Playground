@@ -2,9 +2,7 @@
   "type": "comfy",
   "name": "Edit By Prompt",
   "displayPriority": 800,
-  "tags": [
-    "maskless", "high-vram"
-  ],
+  "tags": ["maskless", "high-vram"],
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
@@ -106,8 +104,8 @@
     {
       "type": "boolean",
       "label": "Use resolution of reference image(s)",
-      "displayed": false,
-      "modifiable": false,
+      "displayed": true,
+      "modifiable": true,
       "defaultValue": false,
       "nodeTitle": "use_original_resolution",
       "nodeInput": "switch"
@@ -144,10 +142,7 @@
     "6": {
       "inputs": {
         "text": "Combine these images so the woman on the left is holding the small perfume bottle labled 'Optimum' on the right, presenting it in an elegant advertisment. Background is a beautiful art deco hotel ballroom. She has a wry smile",
-        "clip": [
-          "38",
-          0
-        ]
+        "clip": ["38", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -156,14 +151,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "31",
-          0
-        ],
-        "vae": [
-          "39",
-          0
-        ]
+        "samples": ["31", 0],
+        "vae": ["39", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -178,22 +167,10 @@
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1,
-        "model": [
-          "37",
-          0
-        ],
-        "positive": [
-          "35",
-          0
-        ],
-        "negative": [
-          "135",
-          0
-        ],
-        "latent_image": [
-          "191",
-          0
-        ]
+        "model": ["37", 0],
+        "positive": ["35", 0],
+        "negative": ["135", 0],
+        "latent_image": ["191", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -203,10 +180,7 @@
     "35": {
       "inputs": {
         "guidance": 2.5,
-        "conditioning": [
-          "177",
-          0
-        ]
+        "conditioning": ["177", 0]
       },
       "class_type": "FluxGuidance",
       "_meta": {
@@ -246,10 +220,7 @@
     },
     "42": {
       "inputs": {
-        "image": [
-          "192",
-          0
-        ]
+        "image": ["192", 0]
       },
       "class_type": "FluxKontextImageScale",
       "_meta": {
@@ -258,14 +229,8 @@
     },
     "124": {
       "inputs": {
-        "pixels": [
-          "42",
-          0
-        ],
-        "vae": [
-          "39",
-          0
-        ]
+        "pixels": ["42", 0],
+        "vae": ["39", 0]
       },
       "class_type": "VAEEncode",
       "_meta": {
@@ -274,10 +239,7 @@
     },
     "135": {
       "inputs": {
-        "conditioning": [
-          "6",
-          0
-        ]
+        "conditioning": ["6", 0]
       },
       "class_type": "ConditioningZeroOut",
       "_meta": {
@@ -287,10 +249,7 @@
     "136": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "8",
-          0
-        ]
+        "images": ["8", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -313,14 +272,8 @@
         "match_image_size": true,
         "spacing_width": 0,
         "spacing_color": "white",
-        "image1": [
-          "142",
-          0
-        ],
-        "image2": [
-          "147",
-          0
-        ]
+        "image1": ["142", 0],
+        "image2": ["147", 0]
       },
       "class_type": "ImageStitch",
       "_meta": {
@@ -339,10 +292,7 @@
     },
     "173": {
       "inputs": {
-        "images": [
-          "42",
-          0
-        ]
+        "images": ["42", 0]
       },
       "class_type": "PreviewImage",
       "_meta": {
@@ -351,14 +301,8 @@
     },
     "177": {
       "inputs": {
-        "conditioning": [
-          "6",
-          0
-        ],
-        "latent": [
-          "124",
-          0
-        ]
+        "conditioning": ["6", 0],
+        "latent": ["124", 0]
       },
       "class_type": "ReferenceLatent",
       "_meta": {
@@ -379,14 +323,8 @@
     "191": {
       "inputs": {
         "switch": false,
-        "on_false": [
-          "190",
-          0
-        ],
-        "on_true": [
-          "124",
-          0
-        ]
+        "on_false": ["190", 0],
+        "on_true": ["124", 0]
       },
       "class_type": "InversionDemoLazySwitch",
       "_meta": {
@@ -396,14 +334,8 @@
     "192": {
       "inputs": {
         "switch": false,
-        "on_false": [
-          "142",
-          0
-        ],
-        "on_true": [
-          "146",
-          0
-        ]
+        "on_false": ["142", 0],
+        "on_true": ["146", 0]
       },
       "class_type": "InversionDemoLazySwitch",
       "_meta": {

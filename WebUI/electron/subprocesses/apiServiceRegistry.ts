@@ -87,20 +87,23 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
     const setupChecks = await Promise.all(
       this.registeredServices.map(async (service) => {
         // Check if service has async setup check method
-        if ('serviceIsSetUp' in service && typeof (service as unknown as { serviceIsSetUp?: unknown }).serviceIsSetUp === 'function') {
-          const isSetUp = await (service as { serviceIsSetUp: () => Promise<boolean> }).serviceIsSetUp()
+        if (
+          'serviceIsSetUp' in service &&
+          typeof (service as unknown as { serviceIsSetUp?: unknown }).serviceIsSetUp === 'function'
+        ) {
+          const isSetUp = await (
+            service as { serviceIsSetUp: () => Promise<boolean> }
+          ).serviceIsSetUp()
           return { service, isSetUp }
         }
         // For services without async check, use the isSetUp property directly
         return { service, isSetUp: service.isSetUp }
       }),
     )
-    
+
     // Filter to only services that are set up
-    const setUpServices = setupChecks
-      .filter(({ isSetUp }) => isSetUp)
-      .map(({ service }) => service)
-    
+    const setUpServices = setupChecks.filter(({ isSetUp }) => isSetUp).map(({ service }) => service)
+
     if (setUpServices.length === 0) {
       appLoggerInstance.info('No services are set up to start', 'apiServiceRegistry')
       return
@@ -110,10 +113,7 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
       `Starting ${setUpServices.length} backend service(s) automatically:`,
       'apiServiceRegistry',
     )
-    appLoggerInstance.info(
-      setUpServices.map((s) => s.name).join(', '),
-      'apiServiceRegistry',
-    )
+    appLoggerInstance.info(setUpServices.map((s) => s.name).join(', '), 'apiServiceRegistry')
 
     // Start all services in parallel, but don't block
     Promise.all(
@@ -122,7 +122,7 @@ export class ApiServiceRegistryImpl implements ApiServiceRegistry {
           // Detect devices first
           await service.detectDevices()
           await new Promise((resolve) => setTimeout(resolve, 100)) // Brief delay for device detection to settle
-          
+
           // Start the service
           const status = await service.start()
           appLoggerInstance.info(

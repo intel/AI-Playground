@@ -13,7 +13,9 @@ import z from 'zod'
 import { execSync } from 'child_process'
 import AdmZip from 'adm-zip'
 
-const target = z.enum(['win32', 'darwin']).safeParse(process.env.TARGET_PLATFORM || process.platform)
+const target = z
+  .enum(['win32', 'darwin'])
+  .safeParse(process.env.TARGET_PLATFORM || process.platform)
 if (!target.success) {
   console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
   process.exit(1)
@@ -130,11 +132,14 @@ async function main(): Promise<void> {
       process.exit(1)
     }
 
-    // extract uv binary from downloaded archive and move to 
+    // extract uv binary from downloaded archive and move to
 
     // extract downloads if packed - handle tar.gz, tar.xz on darwin, zip on win32
     for (const download of downloads) {
-      if (target.data === 'darwin' && (download.filePath.endsWith('.tar.gz') || download.filePath.endsWith('.tar.xz'))) {
+      if (
+        target.data === 'darwin' &&
+        (download.filePath.endsWith('.tar.gz') || download.filePath.endsWith('.tar.xz'))
+      ) {
         console.log(`📦 Extracting ${download.filePath}...`)
         const extractCommand = `tar -xf ${download.filePath} -C ${path.join(buildPaths.tmpDir)}`
         try {

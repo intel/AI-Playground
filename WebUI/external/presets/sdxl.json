@@ -48,10 +48,7 @@
               "cfg": 1.5,
               "sampler_name": "lcm",
               "scheduler": "simple",
-              "model": [
-                "10",
-                0
-              ]
+              "model": ["10", 0]
             },
             "class_type": "KSampler",
             "_meta": {
@@ -63,14 +60,8 @@
               "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
               "strength_model": 1,
               "strength_clip": 1,
-              "model": [
-                "4",
-                0
-              ],
-              "clip": [
-                "4",
-                1
-              ]
+              "model": ["4", 0],
+              "clip": ["4", 1]
             },
             "class_type": "LoraLoader",
             "_meta": {
@@ -79,10 +70,7 @@
           },
           "6": {
             "inputs": {
-              "clip": [
-                "10",
-                1
-              ]
+              "clip": ["10", 1]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -91,10 +79,7 @@
           },
           "7": {
             "inputs": {
-              "clip": [
-                "10",
-                1
-              ]
+              "clip": ["10", 1]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -106,8 +91,7 @@
     },
     {
       "name": "Quality",
-      "overrides": {
-      }
+      "overrides": {}
     }
   ],
   "settings": [
@@ -193,22 +177,10 @@
         "sampler_name": "dpmpp_2m",
         "scheduler": "normal",
         "denoise": 1,
-        "model": [
-          "4",
-          0
-        ],
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["4", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -238,10 +210,7 @@
     "6": {
       "inputs": {
         "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-        "clip": [
-          "4",
-          1
-        ]
+        "clip": ["4", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -251,10 +220,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "4",
-          1
-        ]
+        "clip": ["4", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -263,14 +229,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          2
-        ]
+        "samples": ["3", 0],
+        "vae": ["4", 2]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -280,10 +240,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "8",
-          0
-        ]
+        "images": ["8", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -292,4 +249,3 @@
     }
   }
 }
-

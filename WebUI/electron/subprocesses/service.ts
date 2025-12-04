@@ -308,7 +308,6 @@ abstract class ExecutableService extends GenericServiceImpl {
   }
 }
 
-
 export class GitService extends ExecutableService {
   constructor() {
     super('git', '')
@@ -554,7 +553,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
   }
 
   abstract set_up(): AsyncIterable<SetupProgress>
-
 
   async uninstall(): Promise<void> {
     this.stop()
@@ -808,10 +806,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     const processStartupFailedDueToEarlyExit = new Promise<boolean>((resolve) => {
       didProcessExitEarlyTracker.then((earlyExit) => {
         if (earlyExit) {
-          this.appLogger.error(
-            `Process for ${this.name} exited early during startup`,
-            this.name,
-          )
+          this.appLogger.error(`Process for ${this.name} exited early during startup`, this.name)
           resolve(false)
         }
         // If process didn't exit early, this promise never resolves

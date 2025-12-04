@@ -172,22 +172,10 @@
         "sampler_name": "dpmpp_2m",
         "scheduler": "normal",
         "denoise": 1.0,
-        "model": [
-          "11",
-          0
-        ],
-        "positive": [
-          "12",
-          0
-        ],
-        "negative": [
-          "12",
-          1
-        ],
-        "latent_image": [
-          "12",
-          2
-        ]
+        "model": ["11", 0],
+        "positive": ["12", 0],
+        "negative": ["12", 1],
+        "latent_image": ["12", 2]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -205,14 +193,8 @@
     },
     "5": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ]
+        "samples": ["3", 0],
+        "vae": ["4", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -222,10 +204,7 @@
     "6": {
       "inputs": {
         "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-        "clip": [
-          "9",
-          0
-        ]
+        "clip": ["9", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -235,10 +214,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "9",
-          0
-        ]
+        "clip": ["9", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -247,10 +223,7 @@
     },
     "11": {
       "inputs": {
-        "model": [
-          "10",
-          0
-        ]
+        "model": ["10", 0]
       },
       "class_type": "DifferentialDiffusion",
       "_meta": {
@@ -260,26 +233,11 @@
     "12": {
       "inputs": {
         "noise_mask": false,
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ],
-        "pixels": [
-          "23",
-          0
-        ],
-        "mask": [
-          "14",
-          0
-        ]
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "vae": ["4", 0],
+        "pixels": ["23", 0],
+        "mask": ["14", 0]
       },
       "class_type": "InpaintModelConditioning",
       "_meta": {
@@ -289,10 +247,7 @@
     "14": {
       "inputs": {
         "channel": "red",
-        "image": [
-          "25",
-          0
-        ]
+        "image": ["25", 0]
       },
       "class_type": "ImageToMask",
       "_meta": {
@@ -301,10 +256,7 @@
     },
     "15": {
       "inputs": {
-        "mask": [
-          "1",
-          1
-        ]
+        "mask": ["1", 1]
       },
       "class_type": "MaskToImage",
       "_meta": {
@@ -314,19 +266,10 @@
     "23": {
       "inputs": {
         "upscale_method": "bicubic",
-        "width": [
-          "27",
-          0
-        ],
-        "height": [
-          "28",
-          0
-        ],
+        "width": ["27", 0],
+        "height": ["28", 0],
         "crop": "center",
-        "image": [
-          "1",
-          0
-        ]
+        "image": ["1", 0]
       },
       "class_type": "ImageScale",
       "_meta": {
@@ -336,19 +279,10 @@
     "25": {
       "inputs": {
         "upscale_method": "bicubic",
-        "width": [
-          "27",
-          0
-        ],
-        "height": [
-          "28",
-          0
-        ],
+        "width": ["27", 0],
+        "height": ["28", 0],
         "crop": "center",
-        "image": [
-          "15",
-          0
-        ]
+        "image": ["15", 0]
       },
       "class_type": "ImageScale",
       "_meta": {
@@ -376,10 +310,7 @@
     "8": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "5",
-          0
-        ]
+        "images": ["5", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -409,5 +340,3 @@
     }
   }
 }
-
-

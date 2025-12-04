@@ -824,27 +824,33 @@ function initEventHandle() {
     },
   )
 
-  ipcMain.handle('getEmbeddingServerUrl', async (_event: IpcMainInvokeEvent, serviceName: string) => {
-    if (!serviceRegistry) {
-      return { success: false, error: 'Service registry not ready' }
-    }
-    const service = serviceRegistry.getService(serviceName)
-    if (!service) {
-      return { success: false, error: `Service ${serviceName} not found` }
-    }
-
-    // Check if service has getEmbeddingServerUrl method (llamaCPP backend)
-    if ('getEmbeddingServerUrl' in service && typeof service.getEmbeddingServerUrl === 'function') {
-      const embeddingUrl = service.getEmbeddingServerUrl()
-      if (embeddingUrl) {
-        return { success: true, url: embeddingUrl }
+  ipcMain.handle(
+    'getEmbeddingServerUrl',
+    async (_event: IpcMainInvokeEvent, serviceName: string) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
       }
-      return { success: false, error: 'Embedding server not running' }
-    }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        return { success: false, error: `Service ${serviceName} not found` }
+      }
 
-    // For other backends, return the base URL (they might use the same server)
-    return { success: true, url: service.baseUrl }
-  })
+      // Check if service has getEmbeddingServerUrl method (llamaCPP backend)
+      if (
+        'getEmbeddingServerUrl' in service &&
+        typeof service.getEmbeddingServerUrl === 'function'
+      ) {
+        const embeddingUrl = service.getEmbeddingServerUrl()
+        if (embeddingUrl) {
+          return { success: true, url: embeddingUrl }
+        }
+        return { success: false, error: 'Embedding server not running' }
+      }
+
+      // For other backends, return the base URL (they might use the same server)
+      return { success: true, url: service.baseUrl }
+    },
+  )
 
   ipcMain.on('ondragstart', async (event, filePath) => {
     const imagePath = getAssetPathFromUrl(filePath)
@@ -878,10 +884,9 @@ function initEventHandle() {
       const presetFiles = files.filter((file) => file.endsWith('.json'))
       const presets = await Promise.all(
         presetFiles.map(async (file) => {
-          const presetContent = await fs.promises.readFile(
-            path.join(presetsDir, file),
-            { encoding: 'utf-8' },
-          )
+          const presetContent = await fs.promises.readFile(path.join(presetsDir, file), {
+            encoding: 'utf-8',
+          })
           const osSpecificPreset =
             process.platform !== 'win32' ? presetContent.replaceAll('\\\\', '/') : presetContent
 
@@ -899,7 +904,10 @@ function initEventHandle() {
                 imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
                 break
               } catch (error) {
-                appLogger.warn(`Failed to read image file ${imagePath}: ${error}`, 'electron-backend')
+                appLogger.warn(
+                  `Failed to read image file ${imagePath}: ${error}`,
+                  'electron-backend',
+                )
               }
             }
           }
@@ -936,10 +944,9 @@ function initEventHandle() {
       const presetFiles = files.filter((file) => file.endsWith('.json'))
       const presets = await Promise.all(
         presetFiles.map(async (file) => {
-          const presetContent = await fs.promises.readFile(
-            path.join(presetsPath, file),
-            { encoding: 'utf-8' },
-          )
+          const presetContent = await fs.promises.readFile(path.join(presetsPath, file), {
+            encoding: 'utf-8',
+          })
 
           // Check for image file with same name
           const presetNameWithoutExt = path.basename(file, '.json')
@@ -955,7 +962,10 @@ function initEventHandle() {
                 imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
                 break
               } catch (error) {
-                appLogger.warn(`Failed to read image file ${imagePath}: ${error}`, 'electron-backend')
+                appLogger.warn(
+                  `Failed to read image file ${imagePath}: ${error}`,
+                  'electron-backend',
+                )
               }
             }
           }
@@ -1004,7 +1014,9 @@ function initEventHandle() {
   })
 
   ipcMain.handle('comfyui:isComfyUIInstalled', () => {
-    const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
     if (!comfyService) {
       throw new Error('ComfyUI backend service not found')
     }
@@ -1015,24 +1027,20 @@ function initEventHandle() {
     return await comfyuiTools.getGitRef(repoDir)
   })
 
-  ipcMain.handle(
-    'comfyui:isPackageInstalled',
-    async (_event, packageSpecifier: string) => {
-      return await comfyuiTools.isPackageInstalled(packageSpecifier)
-    },
-  )
+  ipcMain.handle('comfyui:isPackageInstalled', async (_event, packageSpecifier: string) => {
+    return await comfyuiTools.isPackageInstalled(packageSpecifier)
+  })
 
-  ipcMain.handle(
-    'comfyui:installPypiPackage',
-    async (_event, packageSpecifier: string) => {
-      return await comfyuiTools.installPypiPackage(packageSpecifier)
-    },
-  )
+  ipcMain.handle('comfyui:installPypiPackage', async (_event, packageSpecifier: string) => {
+    return await comfyuiTools.installPypiPackage(packageSpecifier)
+  })
 
   ipcMain.handle(
     'comfyui:isCustomNodeInstalled',
     (_event, nodeRepoRef: comfyuiTools.ComfyUICustomNodeRepoId) => {
-      const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as
+        | ComfyUiBackendService
+        | undefined
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
       }
@@ -1042,11 +1050,10 @@ function initEventHandle() {
 
   ipcMain.handle(
     'comfyui:downloadCustomNode',
-    async (
-      _event,
-      nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId,
-    ) => {
-      const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+    async (_event, nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId) => {
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as
+        | ComfyUiBackendService
+        | undefined
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
       }
@@ -1056,11 +1063,10 @@ function initEventHandle() {
 
   ipcMain.handle(
     'comfyui:uninstallCustomNode',
-    async (
-      _event,
-      nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId,
-    ) => {
-      const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+    async (_event, nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId) => {
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as
+        | ComfyUiBackendService
+        | undefined
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
       }
@@ -1069,7 +1075,9 @@ function initEventHandle() {
   )
 
   ipcMain.handle('comfyui:listInstalledCustomNodes', () => {
-    const comfyService = serviceRegistry?.getService('comfyui-backend') as ComfyUiBackendService | undefined
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
     if (!comfyService) {
       throw new Error('ComfyUI backend service not found')
     }

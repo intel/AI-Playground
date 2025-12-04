@@ -41,7 +41,7 @@
           v-if="selectedPreset.variants && selectedPreset.variants.length > 0"
           v-model="selectedVariantValue"
           :options="variantSelectorOptions"
-          :columns="(variantSelectorOptions.length <= 3 ? variantSelectorOptions.length : 3) as 1 | 2 | 3"
+          :columns="Math.min(variantSelectorOptions.length, 3)"
         />
       </div>
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
@@ -57,12 +57,12 @@
         </span>
       </div>
     </div>
-</div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
-import { usePresets, type Preset } from '@/assets/js/store/presets'
+import { usePresets } from '@/assets/js/store/presets'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
 import { Card } from '@/components/ui/card'
 interface Props {
@@ -104,9 +104,9 @@ const activeVariantName = computed(() => {
 
 const variantSelectorOptions = computed<VariantOption[]>(() => {
   if (!selectedPreset.value?.variants) return []
-  
+
   const options: VariantOption[] = []
-  
+
   selectedPreset.value.variants.forEach((variant, index) => {
     options.push({
       id: `variant-${index}`,
@@ -114,7 +114,7 @@ const variantSelectorOptions = computed<VariantOption[]>(() => {
       value: variant.name,
     })
   })
-  
+
   return options
 })
 
@@ -137,7 +137,7 @@ const selectedVariantValue = computed({
 
 function selectPreset(presetName: string) {
   emits('update:modelValue', presetName)
-  
+
   // Update lastUsed for the preset's category (or use type as fallback)
   const preset = filteredPresets.value.find((p) => p.name === presetName)
   if (preset) {
@@ -145,7 +145,7 @@ function selectPreset(presetName: string) {
     if (categoryKey) {
       presetsStore.setLastUsedPreset(categoryKey, presetName)
     }
-    
+
     // Auto-select first variant if preset has variants and none is selected
     if (preset.variants && preset.variants.length > 0) {
       const currentVariant = presetsStore.activeVariantName[presetName]
@@ -161,10 +161,13 @@ function selectPreset(presetName: string) {
 // Auto-select lastUsed preset on mount if no preset is selected
 onMounted(() => {
   if (!selectedPresetName.value) {
-    const categories = props.categories && props.categories.length > 0 
-      ? props.categories 
-      : (props.type === 'chat' ? ['chat'] : [])
-    
+    const categories =
+      props.categories && props.categories.length > 0
+        ? props.categories
+        : props.type === 'chat'
+          ? ['chat']
+          : []
+
     if (categories.length > 0) {
       const lastUsed = presetsStore.getLastUsedPreset(categories)
       if (lastUsed) {
@@ -186,21 +189,31 @@ watch(
   filteredPresets,
   (newPresets, oldPresets) => {
     // Only proceed if the selection actually changed (preset names differ)
-    const newPresetNames = newPresets.map(p => p.name).sort().join(',')
-    const oldPresetNames = oldPresets?.map(p => p.name).sort().join(',') || ''
-    
+    const newPresetNames = newPresets
+      .map((p) => p.name)
+      .sort()
+      .join(',')
+    const oldPresetNames =
+      oldPresets
+        ?.map((p) => p.name)
+        .sort()
+        .join(',') || ''
+
     // Skip if preset names haven't actually changed (just array reference changed)
     if (newPresetNames === oldPresetNames && selectedPresetName.value) {
       return
     }
-    
+
     if (selectedPresetName.value) {
       const stillExists = newPresets.some((p) => p.name === selectedPresetName.value)
       if (!stillExists) {
         // Current selection is no longer in the filtered list
-        const categories = props.categories && props.categories.length > 0 
-          ? props.categories 
-          : (props.type === 'chat' ? ['chat'] : [])
+        const categories =
+          props.categories && props.categories.length > 0
+            ? props.categories
+            : props.type === 'chat'
+              ? ['chat']
+              : []
         const lastUsed = categories.length > 0 ? presetsStore.getLastUsedPreset(categories) : null
         if (lastUsed && newPresets.some((p) => p.name === lastUsed)) {
           emits('update:modelValue', lastUsed)
@@ -210,7 +223,6 @@ watch(
       }
     }
   },
-  { deep: false } // Don't deep watch, we'll do our own comparison
+  { deep: false }, // Don't deep watch, we'll do our own comparison
 )
 </script>
-

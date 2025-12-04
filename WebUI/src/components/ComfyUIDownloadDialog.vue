@@ -1,5 +1,7 @@
 <template>
-  <div class="bg-card max-w-md p-7 items-center justify-center rounded-lg shadow-lg text-foreground">
+  <div
+    class="bg-card max-w-md p-7 items-center justify-center rounded-lg shadow-lg text-foreground"
+  >
     <p class="mb-4">
       {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM }}
     </p>

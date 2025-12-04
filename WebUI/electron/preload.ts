@@ -121,7 +121,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('comfyui:downloadCustomNode', nodeRepoData),
     uninstallCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId) =>
       ipcRenderer.invoke('comfyui:uninstallCustomNode', nodeRepoData),
-    listInstalledCustomNodes: () =>
-      ipcRenderer.invoke('comfyui:listInstalledCustomNodes'),
+    listInstalledCustomNodes: () => ipcRenderer.invoke('comfyui:listInstalledCustomNodes'),
   },
 })

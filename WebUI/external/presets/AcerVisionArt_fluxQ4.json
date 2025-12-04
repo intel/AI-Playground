@@ -2,10 +2,7 @@
   "type": "comfy",
   "name": "Acer VisionArt",
   "displayPriority": 150,
-  "tags": [
-    "Q4",
-    "Fast"
-  ],
+  "tags": ["Q4", "Fast"],
   "backend": "comfyui",
   "category": "create-images",
   "requiredCustomNodes": [
@@ -252,4 +249,3 @@
     }
   }
 }
-

@@ -5,7 +5,6 @@ import { useImageGenerationPresets, type MediaItem } from './imageGenerationPres
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
-import { usePresets, type ComfyUiPreset, type ComfyInput } from './presets'
 import { z } from 'zod'
 
 const WEBSOCKET_OPEN = 1
@@ -180,7 +179,6 @@ export const useComfyUiPresets = defineStore(
   'comfyUiPresets',
   () => {
     const imageGeneration = useImageGenerationPresets()
-    const presetsStore = usePresets()
     const i18nState = useI18N().state
     const comfyPort = computed(() => comfyUiState.value?.port)
     const comfyBaseUrl = computed(() => comfyUiState.value?.baseUrl)
@@ -254,7 +252,8 @@ export const useComfyUiPresets = defineStore(
         .filter((check) => !check.isInstalled)
         .map((check) => check.package)
 
-      const hasMissingRequirements = missingCustomNodes.length > 0 || missingPythonPackages.length > 0
+      const hasMissingRequirements =
+        missingCustomNodes.length > 0 || missingPythonPackages.length > 0
 
       return {
         hasMissingRequirements,
@@ -331,7 +330,7 @@ export const useComfyUiPresets = defineStore(
           })
         }
         return true
-      } catch (error) {
+      } catch (_error) {
         const failedNodeNames = nodesToInstall.map((n) => `${n.username}/${n.repoName}`).join(', ')
         throw new Error(`Failed to install required comfyUI custom nodes: ${failedNodeNames}`)
       }
@@ -389,17 +388,16 @@ export const useComfyUiPresets = defineStore(
 
       // Check what's missing
       const requirements = await checkPresetRequirements()
-      
+
       if (!requirements.hasMissingRequirements) {
         console.info('No missing requirements to install')
         return
       }
 
       // Stop backend before installation
-      const wasRunning = backendServices.info.find(
-        (s) => s.serviceName === 'comfyui-backend',
-      )?.status === 'running'
-      
+      const wasRunning =
+        backendServices.info.find((s) => s.serviceName === 'comfyui-backend')?.status === 'running'
+
       if (wasRunning) {
         callback?.({
           phase: 'stopping_backend',
@@ -659,27 +657,27 @@ export const useComfyUiPresets = defineStore(
 
     function validateRequiredImageInputs(): string[] {
       const missingInputs: string[] = []
-      
+
       for (const input of imageGeneration.comfyInputs) {
         // Check if this is a required image input
         const isImageType = input.type === 'image' || input.type === 'inpaintMask'
         const isDisplayed = input.displayed !== false // defaults to true
         const isModifiable = input.modifiable !== false // defaults to true
         const hasNoDefault = input.defaultValue === '' || input.defaultValue === undefined
-        
+
         if (isImageType && isDisplayed && isModifiable && hasNoDefault) {
           // Check if current value is empty or invalid
           const value = input.current.value
           const isEmpty = value === '' || value === undefined || value === null
           const isString = typeof value === 'string'
           const isValidDataUri = isString && value.match(/^data:image\/(png|jpeg|webp);base64,/)
-          
+
           if (isEmpty || !isString || !isValidDataUri) {
             missingInputs.push(input.label)
           }
         }
       }
-      
+
       return missingInputs
     }
 
@@ -761,11 +759,7 @@ export const useComfyUiPresets = defineStore(
       }
     }
 
-    async function generate(
-      imageIds: string[],
-      mode: WorkflowModeType,
-      sourceImage?: string,
-    ) {
+    async function generate(imageIds: string[], mode: WorkflowModeType, sourceImage?: string) {
       const preset = imageGeneration.activePreset
       if (!preset || preset.type !== 'comfy') {
         console.warn('The selected preset is not a comfyui preset')
@@ -897,4 +891,3 @@ export const useComfyUiPresets = defineStore(
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useComfyUiPresets, import.meta.hot))
 }
-

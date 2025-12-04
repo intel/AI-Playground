@@ -27,9 +27,11 @@ export function findBestResolution(totalPixels: number, aspectRatio: number) {
   return { width: bestWidth, height: bestHeight, totalPixels: bestWidth * bestHeight }
 }
 
-function extractDownloadModelParamsFromString(
-  requiredModel: { type: string; model: string; additionalLicenceLink?: string },
-): CheckModelAlreadyLoadedParameters {
+function extractDownloadModelParamsFromString(requiredModel: {
+  type: string
+  model: string
+  additionalLicenceLink?: string
+}): CheckModelAlreadyLoadedParameters {
   return {
     type: requiredModel.type,
     repo_id: requiredModel.model,
@@ -43,7 +45,9 @@ export async function getMissingComfyuiBackendModels(
 ): Promise<DownloadModelParam[]> {
   const models = useModels()
 
-  const checkList: CheckModelAlreadyLoadedParameters[] = requiredModels.map(extractDownloadModelParamsFromString)
+  const checkList: CheckModelAlreadyLoadedParameters[] = requiredModels.map(
+    extractDownloadModelParamsFromString,
+  )
   const checkedModels = await models.checkModelAlreadyLoaded(checkList)
   const modelsToBeLoaded = checkedModels.filter(
     (checkModelExistsResult) => !checkModelExistsResult.already_loaded,
@@ -56,4 +60,3 @@ export async function getMissingComfyuiBackendModels(
   }
   return modelsToBeLoaded
 }
-

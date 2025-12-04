@@ -260,10 +260,7 @@
       "inputs": {
         "upscale_method": "bicubic",
         "scale_by": 1.0,
-        "image": [
-          "1",
-          0
-        ]
+        "image": ["1", 0]
       },
       "class_type": "ImageScaleBy",
       "_meta": {
@@ -276,10 +273,7 @@
         "height": 512,
         "x": 0,
         "y": 0,
-        "image": [
-          "2",
-          0
-        ]
+        "image": ["2", 0]
       },
       "class_type": "ImageCrop",
       "_meta": {
@@ -293,10 +287,7 @@
         "right": 0,
         "bottom": 0,
         "feathering": 24,
-        "image": [
-          "13",
-          0
-        ]
+        "image": ["13", 0]
       },
       "class_type": "ImagePadForOutpaint",
       "_meta": {
@@ -311,22 +302,10 @@
         "sampler_name": "dpmpp_2m",
         "scheduler": "karras",
         "denoise": 1.0,
-        "model": [
-          "11",
-          0
-        ],
-        "positive": [
-          "12",
-          0
-        ],
-        "negative": [
-          "12",
-          1
-        ],
-        "latent_image": [
-          "12",
-          2
-        ]
+        "model": ["11", 0],
+        "positive": ["12", 0],
+        "negative": ["12", 1],
+        "latent_image": ["12", 2]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -344,14 +323,8 @@
     },
     "5": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ]
+        "samples": ["3", 0],
+        "vae": ["4", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -361,10 +334,7 @@
     "6": {
       "inputs": {
         "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-        "clip": [
-          "9",
-          0
-        ]
+        "clip": ["9", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -374,10 +344,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "9",
-          0
-        ]
+        "clip": ["9", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -386,10 +353,7 @@
     },
     "11": {
       "inputs": {
-        "model": [
-          "10",
-          0
-        ]
+        "model": ["10", 0]
       },
       "class_type": "DifferentialDiffusion",
       "_meta": {
@@ -399,26 +363,11 @@
     "12": {
       "inputs": {
         "noise_mask": false,
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ],
-        "pixels": [
-          "14",
-          0
-        ],
-        "mask": [
-          "14",
-          1
-        ]
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "vae": ["4", 0],
+        "pixels": ["14", 0],
+        "mask": ["14", 1]
       },
       "class_type": "InpaintModelConditioning",
       "_meta": {
@@ -428,10 +377,7 @@
     "8": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "5",
-          0
-        ]
+        "images": ["5", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -461,4 +407,3 @@
     }
   }
 }
-

@@ -39,14 +39,23 @@
       </tbody>
     </table>
     <div class="flex flex-col pt-5">
-      <button @click="globalSetup.loadingState = 'manageInstallations'" class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm">
+      <button
+        @click="globalSetup.loadingState = 'manageInstallations'"
+        class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm"
+      >
         {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
       </button>
     </div>
   </div>
   <div class="flex flex-col gap-3 pt-6 border-t border-border">
     <div class="flex justify-between items-center">
-      <p>{{ i18nState.SETTINGS_PRESETS_MANAGEMENT || languages.SETTINGS_PRESETS_MANAGEMENT || 'Presets Management' }}</p>
+      <p>
+        {{
+          i18nState.SETTINGS_PRESETS_MANAGEMENT ||
+          languages.SETTINGS_PRESETS_MANAGEMENT ||
+          'Presets Management'
+        }}
+      </p>
       <div class="flex gap-2 items-center">
         <div :data-tooltip="i18nState.PRESET_RELOAD_INFO">
           <button
@@ -100,10 +109,6 @@ async function loadPresetsFromIntel() {
   } else {
     toast.error('Synchronisation failed')
   }
-}
-
-function openDebug() {
-  window.electronAPI.openDevTools()
 }
 </script>
 

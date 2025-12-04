@@ -68,15 +68,15 @@
           <div v-if="errorDetails.stdout" class="bg-gray-900 rounded-lg p-4">
             <h3 class="text-lg font-medium text-primary mb-2">Standard Output</h3>
             <div class="bg-black rounded p-3 max-h-64 overflow-y-auto">
-              <pre class="text-primary/80 text-sm whitespace-pre-wrap">{{ errorDetails.stdout }}</pre>
+              <pre class="text-primary/80 text-sm whitespace-pre-wrap">{{
+                errorDetails.stdout
+              }}</pre>
             </div>
           </div>
 
           <!-- Pip Freeze Output -->
           <div v-if="errorDetails.pipFreezeOutput" class="bg-gray-900 rounded-lg p-4">
-            <h3 class="text-lg font-medium text-primary mb-2">
-              Python Environment (pip freeze)
-            </h3>
+            <h3 class="text-lg font-medium text-primary mb-2">Python Environment (pip freeze)</h3>
             <div class="bg-black rounded p-3 max-h-64 overflow-y-auto">
               <pre class="text-primary/80 text-sm whitespace-pre-wrap">{{
                 errorDetails.pipFreezeOutput

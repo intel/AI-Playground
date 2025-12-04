@@ -76,10 +76,7 @@ export const useDialogStore = defineStore('dialog', () => {
     downloadDialogVisible.value = false
   }
 
-  function showPresetRequirementsDialog(
-    data: PresetRequirementsData,
-    confirmFunction: () => void,
-  ) {
+  function showPresetRequirementsDialog(data: PresetRequirementsData, confirmFunction: () => void) {
     presetRequirementsData.value = data
     presetRequirementsConfirmFunction.value = confirmFunction
     presetRequirementsDialogVisible.value = true

@@ -6,9 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Increase resolution of an image up to 4X",
-  "requiredCustomNodes": [
-    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
-  ],
+  "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
@@ -51,10 +49,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "ComfyUI",
-        "images": [
-          "16",
-          0
-        ]
+        "images": ["16", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -72,14 +67,8 @@
     },
     "14": {
       "inputs": {
-        "upscale_model": [
-          "13",
-          0
-        ],
-        "image": [
-          "15",
-          0
-        ]
+        "upscale_model": ["13", 0],
+        "image": ["15", 0]
       },
       "class_type": "ImageUpscaleWithModel",
       "_meta": {
@@ -98,14 +87,8 @@
     "16": {
       "inputs": {
         "upscale_method": "bicubic",
-        "scale_by": [
-          "22",
-          0
-        ],
-        "image": [
-          "14",
-          0
-        ]
+        "scale_by": ["22", 0],
+        "image": ["14", 0]
       },
       "class_type": "ImageScaleBy",
       "_meta": {
@@ -115,10 +98,7 @@
     "22": {
       "inputs": {
         "op": "Div",
-        "a": [
-          "24",
-          0
-        ],
+        "a": ["24", 0],
         "b": 4
       },
       "class_type": "CM_FloatBinaryOperation",

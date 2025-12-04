@@ -10,7 +10,7 @@ import {
   patchFile,
   createEnhancedErrorDetails,
 } from './service.ts'
-import { aipgBaseDir, checkBackend, checkBackendWithDetails, installBackend } from './uvBasedBackends/uv.ts'
+import { aipgBaseDir, checkBackendWithDetails, installBackend } from './uvBasedBackends/uv.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
 import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
@@ -43,15 +43,16 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private revision = 'v0.3.66'
   private environmentMismatchError: ErrorDetails | null = null
 
-  private readonly comfyUIStartupParameters = process.platform !== 'win32' ?
-    [] : this.settings.comfyUiParameters
-      ? this.settings.comfyUiParameters
-      : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
+  private readonly comfyUIStartupParameters =
+    process.platform !== 'win32'
+      ? []
+      : this.settings.comfyUiParameters
+        ? this.settings.comfyUiParameters
+        : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
   async serviceIsSetUp(): Promise<boolean> {
     this.appLogger.info(`Checking if comfyUI directories exist`, this.name)
-    const dirsExist =
-      filesystem.existsSync(this.serviceDir)
+    const dirsExist = filesystem.existsSync(this.serviceDir)
     this.appLogger.info(`Checking if comfyUI directories exist: ${dirsExist}`, this.name)
     if (!dirsExist) return false
 
@@ -66,10 +67,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     // For ComfyUI, only check if venv exists, not exact lockfile match
     try {
       const checkDetails = await checkBackendWithDetails(this.serviceFolder, this.pythonEnvDir)
-      
+
       // If venv doesn't exist, service is not set up
       if (!checkDetails.venvExists) {
-        this.appLogger.info(`Service ${this.name} venv does not exist, needs installation`, this.name)
+        this.appLogger.info(
+          `Service ${this.name} venv does not exist, needs installation`,
+          this.name,
+        )
         return false
       }
 
@@ -79,20 +83,21 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           `Service ${this.name} venv exists but environment doesn't match expected state. Will attempt startup but recommend reinstallation.`,
           this.name,
         )
-        
+
         // Set error details recommending reinstallation
         // Include stderr from uv check which contains helpful information about what packages would be changed
-        const stderrInfo = checkDetails.stderr 
+        const stderrInfo = checkDetails.stderr
           ? `\n\n=== UV Check Output ===\n${checkDetails.stderr}`
           : ''
         const stdoutInfo = checkDetails.stdout
           ? `\n\n=== UV Check Details ===\n${checkDetails.stdout}`
           : ''
-        
+
         this.environmentMismatchError = {
           command: 'ComfyUI environment check',
           exitCode: checkDetails.exitCode,
-          stdout: `Virtual environment detected at: ${this.pythonEnvDir}\n` +
+          stdout:
+            `Virtual environment detected at: ${this.pythonEnvDir}\n` +
             `Environment check failed (exit code: ${checkDetails.exitCode})\n` +
             `Sync action: ${checkDetails.action}\n\n` +
             `The Python environment exists but doesn't match the expected configuration.\n` +
@@ -146,7 +151,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   get_info(): ApiServiceInformation {
     const baseInfo = super.get_info()
-    
+
     // Always show environment mismatch error if it exists, even if there's a startup error
     // This guides users toward a potential fix (reinstallation)
     if (this.environmentMismatchError) {
@@ -171,7 +176,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           ].join('\n'),
           timestamp: baseInfo.errorDetails.timestamp || this.environmentMismatchError.timestamp,
           duration: baseInfo.errorDetails.duration ?? this.environmentMismatchError.duration,
-          pipFreezeOutput: baseInfo.errorDetails.pipFreezeOutput || this.environmentMismatchError.pipFreezeOutput,
+          pipFreezeOutput:
+            baseInfo.errorDetails.pipFreezeOutput || this.environmentMismatchError.pipFreezeOutput,
         }
         return {
           ...baseInfo,
@@ -185,7 +191,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         }
       }
     }
-    
+
     return baseInfo
   }
 
@@ -392,10 +398,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
       yield {
         serviceName: this.name,
         step: currentStep,
@@ -425,7 +428,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     return path.join(
       this.pythonEnvDir,
       process.platform === 'win32' ? 'Scripts' : 'bin',
-      process.platform === 'win32' ? 'python.exe' : 'python'
+      process.platform === 'win32' ? 'python.exe' : 'python',
     )
   }
 
@@ -458,8 +461,16 @@ except Exception as e:
       const pythonBinary = this.getPythonBinaryPath()
       while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
         const env = { ...this.getEnvVars(), ONEAPI_DEVICE_SELECTOR: `level_zero:${i}` }
-        this.appLogger.info(`Detecting level_zero devices with ONEAPI_DEVICE_SELECTOR=${env.ONEAPI_DEVICE_SELECTOR}`, this.name)
-        const result = await spawnProcessAsync(pythonBinary, ['-c', pythonScript], (d) => this.appLogger.info(d, this.name), env)
+        this.appLogger.info(
+          `Detecting level_zero devices with ONEAPI_DEVICE_SELECTOR=${env.ONEAPI_DEVICE_SELECTOR}`,
+          this.name,
+        )
+        const result = await spawnProcessAsync(
+          pythonBinary,
+          ['-c', pythonScript],
+          (d) => this.appLogger.info(d, this.name),
+          env,
+        )
         this.appLogger.info(`Device detection result: ${result}`, this.name)
 
         // Parse the output
@@ -491,7 +502,8 @@ except Exception as e:
       console.error('Error detecting level_zero devices:', error)
     }
     this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
-    this.devices = allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
+    this.devices =
+      allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
     this.updateStatus()
   }
 
@@ -546,4 +558,3 @@ except Exception as e:
 function checkProject(_serviceDir: string) {
   throw new Error('Function not implemented.')
 }
-

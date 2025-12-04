@@ -4,7 +4,10 @@ import { type SliderRootProps } from 'radix-vue'
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'radix-vue'
 import { cn } from '@/lib/utils'
 import { clsx } from 'clsx'
-import { findBestResolution, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import {
+  findBestResolution,
+  useImageGenerationPresets,
+} from '@/assets/js/store/imageGenerationPresets'
 import { usePresets } from '@/assets/js/store/presets'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
@@ -148,8 +151,7 @@ const sliderModel = computed({
       </select>
       Megapixels
     </div>
-    <span
-      class="w-[90px] text-center rounded-xs border border-border py-0.5 px-2 bg-muted"
+    <span class="w-[90px] text-center rounded-xs border border-border py-0.5 px-2 bg-muted"
       >{{ imageGeneration.width }} x {{ imageGeneration.height }}</span
     >
   </div>

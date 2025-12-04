@@ -10,10 +10,7 @@
     </svg>
   </button>
   <div
-    v-if="
-      (activeConversation && activeConversation.length > 0) ||
-      openAiCompatibleChat.processing
-    "
+    v-if="(activeConversation && activeConversation.length > 0) || openAiCompatibleChat.processing"
     id="chatPanel"
     ref="chatPanel"
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 relative"
@@ -37,11 +34,23 @@
               {{ languages.ANSWER_USER_NAME }}
             </p>
             <img
-              v-if="message.parts.find((part) => part.type === 'file' && part.mediaType?.startsWith('image/'))"
-              :src="(message.parts.find((part) => part.type === 'file' && part.mediaType?.startsWith('image/')) as { url?: string })?.url"
+              v-if="
+                message.parts.find(
+                  (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
+                )
+              "
+              :src="
+                (
+                  message.parts.find(
+                    (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
+                  ) as { url?: string }
+                )?.url
+              "
               alt="Generated Image"
             />
-            <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
+            <div
+              v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"
+            ></div>
             <button
               class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
               :title="languages.COM_COPY"
@@ -61,21 +70,30 @@
               <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_AI_NAME }}
               </p>
-              <div v-if="(message.metadata as { model?: string }).model" class="flex items-center gap-2">
+              <div
+                v-if="(message.metadata as { model?: string }).model"
+                class="flex items-center gap-2"
+              >
                 <span
                   class="bg-secondary text-foreground font-sans rounded-md px-1 py-1"
                   :class="textInference.nameSizeClass"
                 >
                   {{
-                    (message.metadata as { model?: string }).model?.endsWith('.gguf')
-                      ? ((message.metadata as { model?: string }).model?.split('/').at(-1)?.split('.gguf')[0] ?? (message.metadata as { model?: string }).model)
-                      : (message.metadata as { model?: string }).model
+                    message.metadata?.model?.endsWith('.gguf')
+                      ? (message.metadata?.model?.split('/').at(-1)?.split('.gguf')[0] ??
+                        message.metadata?.model)
+                      : message.metadata?.model
                   }}
                 </span>
                 <!-- Display RAG source if available -->
                 <span
-                  v-if="(message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id]"
-                  @click="showRagSourcePerMessageId[message.id] = !showRagSourcePerMessageId[message.id]"
+                  v-if="
+                    (message.metadata as { ragSource?: string })?.ragSource ||
+                    ragSourcePerMessageId[message.id]
+                  "
+                  @click="
+                    showRagSourcePerMessageId[message.id] = !showRagSourcePerMessageId[message.id]
+                  "
                   class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
                   :class="textInference.nameSizeClass"
                 >
@@ -94,27 +112,36 @@
 
             <!-- RAG Source Details (collapsible) -->
             <div
-              v-if="((message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id]) && showRagSourcePerMessageId[message.id]"
+              v-if="
+                message.metadata?.ragSource ||
+                (ragSourcePerMessageId[message.id] && showRagSourcePerMessageId[message.id])
+              "
               class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-              <div class="whitespace-pre-wrap">{{ (message.metadata as { ragSource?: string })?.ragSource || ragSourcePerMessageId[message.id] }}</div>
+              <div class="whitespace-pre-wrap">
+                {{ message.metadata?.ragSource || ragSourcePerMessageId[message.id] }}
+              </div>
             </div>
             <div class="ai-answer chat-content">
               <template v-if="message.parts.some((part) => part.type === 'reasoning')">
                 <div class="mb-2 flex items-center">
-                   <span class="italic text-muted-foreground">
+                  <span class="italic text-muted-foreground">
                     {{
                       message.metadata?.reasoningFinished && message.metadata?.reasoningStarted
                         ? `Done Reasoning after ${((message.metadata.reasoningFinished - message.metadata.reasoningStarted) / 1000).toFixed(1)} seconds`
-                        : `Reasoned for ${
-                            ((Date.now() - (message.metadata?.reasoningStarted ?? 0)) / 1000).toFixed(1)
-                          } seconds`
+                        : `Reasoned for ${(
+                            (Date.now() - (message.metadata?.reasoningStarted ?? 0)) /
+                            1000
+                          ).toFixed(1)} seconds`
                     }}
                   </span>
                   <button
-                    @click="showThinkingTextPerMessageId[message.id] = !showThinkingTextPerMessageId[message.id]"
+                    @click="
+                      showThinkingTextPerMessageId[message.id] =
+                        !showThinkingTextPerMessageId[message.id]
+                    "
                     class="ml-1"
                   >
                     <img
@@ -128,20 +155,38 @@
                 <div
                   v-if="showThinkingTextPerMessageId[message.id]"
                   class="border-l-2 border-border pl-4 text-muted-foreground"
-                  v-html="parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '')"
+                  v-html="
+                    parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '')
+                  "
                 ></div>
               </template>
-              <div v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"></div>
-              
+              <div
+                v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"
+              ></div>
+
               <!-- Render tool parts -->
-              <template v-for="part in message.parts.filter((p) => p.type.startsWith('tool-'))" :key="part.type === 'tool-comfyUI' ? `tool-${(part as any).toolCallId}` : part.type === 'tool-visualizeObjectDetections' ? `tool-${(part as any).toolCallId}` : undefined">
+              <template
+                v-for="part in message.parts.filter((p) => p.type.startsWith('tool-'))"
+                :key="
+                  part.type === 'tool-comfyUI'
+                    ? `tool-${part.toolCallId}`
+                    : part.type === 'tool-visualizeObjectDetections'
+                      ? `tool-${part.toolCallId}`
+                      : undefined
+                "
+              >
                 <span>I'm using the tool {{ part.type.replace('tool-', '') }}</span>
                 <template v-if="part.type === 'tool-comfyUI'">
                   <div class="mt-1 pt-1">
-                    <span>Generating using the preset <b>{{ (part as any).input?.workflow ?? 'unknown' }}</b></span>
+                    <span
+                      >Generating using the preset
+                      <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
+                    >
                     <br />
                     <br />
-                    <span><em>{{ (part as any).input?.prompt ?? '' }}</em></span>
+                    <span
+                      ><em>{{ part.input?.prompt ?? '' }}</em></span
+                    >
                     <ChatWorkflowResult
                       :images="getToolImages(part)"
                       :processing="getToolProcessing(part)"
@@ -153,14 +198,22 @@
                 </template>
                 <template v-else-if="part.type === 'tool-visualizeObjectDetections'">
                   <div class="mt-1 pt-1">
-                    <div v-if="part.state === 'output-available' && (part as any).output?.annotatedImageUrl">
+                    <div
+                      v-if="
+                        part.state === 'output-available' && (part as any).output?.annotatedImageUrl
+                      "
+                    >
                       <img
                         :src="(part as any).output.annotatedImageUrl"
                         alt="Annotated image with object detections"
                         class="max-w-full rounded-md border-2 border-border"
                       />
                     </div>
-                    <div v-else-if="part.state === 'input-streaming' || part.state === 'input-available'">
+                    <div
+                      v-else-if="
+                        part.state === 'input-streaming' || part.state === 'input-available'
+                      "
+                    >
                       <span class="text-muted-foreground">Visualizing object detections...</span>
                     </div>
                   </div>
@@ -171,11 +224,7 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_COPY"
-                @click="
-                  copyText(
-                    message.parts.find((part) => part.type === 'text')?.text || ''
-                  )
-                "
+                @click="copyText(message.parts.find((part) => part.type === 'text')?.text || '')"
               >
                 <span class="svg-icon i-copy w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
@@ -194,7 +243,11 @@
               <button
                 class="flex items-end"
                 :title="languages.COM_DELETE"
-                @click="() => {openAiCompatibleChat.removeMessage(message.id)}"
+                @click="
+                  () => {
+                    openAiCompatibleChat.removeMessage(message.id)
+                  }
+                "
               >
                 <span class="svg-icon i-delete w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
@@ -230,10 +283,16 @@ import { useConversations } from '@/assets/js/store/conversations.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { parse } from '@/assets/js/markdownParser.ts'
 import LoadingBar from '@/components/LoadingBar.vue'
-import { usePromptStore } from "@/assets/js/store/promptArea.ts";
+import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
-import { useImageGenerationPresets, type MediaItem, type GenerateState } from '@/assets/js/store/imageGenerationPresets'
+import {
+  useImageGenerationPresets,
+  type MediaItem,
+  type GenerateState,
+} from '@/assets/js/store/imageGenerationPresets'
+import { ToolUIPart } from 'ai'
+import { AipgTools } from '@/assets/js/tools/tools'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
@@ -256,13 +315,18 @@ const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 const ragSourcePerMessageId = reactive<Record<string, string>>({})
 
 // Track progress for active tool calls
-const toolProgressMap = reactive<Record<string, {
-  processing: boolean
-  currentState?: GenerateState
-  stepText?: string
-  images: MediaItem[]
-  initialImageIds: Set<string> // Track which image IDs existed when tool call started
-}>>({})
+const toolProgressMap = reactive<
+  Record<
+    string,
+    {
+      processing: boolean
+      currentState?: GenerateState
+      stepText?: string
+      images: MediaItem[]
+      initialImageIds: Set<string> // Track which image IDs existed when tool call started
+    }
+  >
+>({})
 
 defineExpose({
   scrollToBottom,
@@ -292,12 +356,12 @@ watch(
         }
       })
     }
-    
+
     if (autoScrollEnabled.value) {
       nextTick(() => scrollToBottom())
     }
   },
-  { deep: true, immediate: true }
+  { deep: true, immediate: true },
 )
 
 async function handlePromptSubmit(prompt: string) {
@@ -317,7 +381,6 @@ async function handleCancel() {
     openAiCompatibleChat.stop()
   }
 }
-
 
 async function generate(question: string) {
   try {
@@ -351,10 +414,10 @@ async function generate(question: string) {
     const ragContext = await textInference.prepareRagContext(question)
 
     openAiCompatibleChat.messageInput = question
-    
+
     // Generate response with RAG-enhanced system prompt (if RAG was used)
     await openAiCompatibleChat.generate(ragContext.systemPrompt)
-    
+
     // Store RAG source information for the latest assistant message
     const latestMessage = openAiCompatibleChat.messages?.[openAiCompatibleChat.messages.length - 1]
     if (latestMessage && latestMessage.role === 'assistant' && ragContext.ragSourceText) {
@@ -365,7 +428,7 @@ async function generate(question: string) {
       ragSourcePerMessageId[latestMessage.id] = ragContext.ragSourceText
       showRagSourcePerMessageId[latestMessage.id] = true
     }
-    
+
     conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
 
     await nextTick()
@@ -409,76 +472,57 @@ function copyText(text: string) {
 }
 
 // Helper functions for tool rendering
-function getToolImages(part: any): MediaItem[] {
+function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {
+  if (part.type !== 'tool-comfyUI') return []
   const toolCallId = part.toolCallId
   const progress = toolProgressMap[toolCallId]
-  
+
   // If we have progress tracking with images, use those
   if (progress && progress.images.length > 0) {
     return progress.images
   }
-  
+
   // Otherwise, use output images if available
-  if (part.state === 'output-available' && part.output?.images) {
-    return part.output.images
-      .filter((img: any) => {
-        // Filter out items without a valid URL based on type
-        if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
-        if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
-        if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
-        // Fallback for old format
-        return img.imageUrl && img.imageUrl.trim() !== ''
-      })
-      .map((img: any) => {
-        // If already has type, return as-is
-        if (img.type) return img
-        // Otherwise, create as image type (legacy format)
-        return {
-          id: img.id,
-          type: 'image' as const,
-          imageUrl: img.imageUrl,
-          mode: img.mode || 'imageGen',
-          state: 'done' as const,
-          settings: img.settings || {},
-        }
-      })
+  if (part.state === 'output-available') {
+    if (!part.output) return []
+    return part.output.images.map((img) => ({ ...img, state: 'done' as const }))
   }
-  
+
   return []
 }
 
-function getToolProcessing(part: any): boolean {
+function getToolProcessing(part: ToolUIPart<AipgTools>): boolean {
   const toolCallId = part.toolCallId
   const progress = toolProgressMap[toolCallId]
-  
+
   // If we have progress tracking, use that
   if (progress) {
     return progress.processing
   }
-  
+
   // Otherwise, check part state
   return part.state === 'input-streaming' || part.state === 'input-available'
 }
 
-function getToolCurrentState(part: any): GenerateState | undefined {
+function getToolCurrentState(part: ToolUIPart<AipgTools>): GenerateState | undefined {
   const toolCallId = part.toolCallId
   const progress = toolProgressMap[toolCallId]
-  
+
   if (progress && progress.currentState) {
     return progress.currentState as GenerateState
   }
-  
+
   return undefined
 }
 
-function getToolStepText(part: any): string | undefined {
+function getToolStepText(part: ToolUIPart<AipgTools>): string | undefined {
   const toolCallId = part.toolCallId
   const progress = toolProgressMap[toolCallId]
-  
+
   if (progress && progress.stepText) {
     return progress.stepText
   }
-  
+
   return undefined
 }
 
@@ -487,18 +531,21 @@ watch(
   () => activeConversation.value,
   (messages) => {
     if (!messages) return
-    
+
     // Find tool calls that just started (input-streaming or input-available)
-    messages.forEach(msg => {
-      msg.parts.forEach(part => {
+    messages.forEach((msg) => {
+      msg.parts.forEach((part) => {
         if (part.type === 'tool-comfyUI') {
-          const toolCallId = (part as any).toolCallId
-          const state = (part as any).state
-          
+          const toolCallId = part.toolCallId
+          const state = part.state
+
           // If this tool call just started and we haven't initialized it yet
-          if ((state === 'input-streaming' || state === 'input-available') && !toolProgressMap[toolCallId]) {
+          if (
+            (state === 'input-streaming' || state === 'input-available') &&
+            !toolProgressMap[toolCallId]
+          ) {
             // Record the current set of image IDs to exclude them from this tool call's images
-            const currentImageIds = new Set(imageGeneration.generatedImages.map(img => img.id))
+            const currentImageIds = new Set(imageGeneration.generatedImages.map((img) => img.id))
             toolProgressMap[toolCallId] = {
               processing: true,
               images: [],
@@ -509,48 +556,59 @@ watch(
       })
     })
   },
-  { deep: true }
+  { deep: true },
 )
 
 // Watch imageGeneration store to track progress for active tool calls
 watch(
-  () => [imageGeneration.generatedImages, imageGeneration.processing, imageGeneration.currentState, imageGeneration.stepText],
+  () => [
+    imageGeneration.generatedImages,
+    imageGeneration.processing,
+    imageGeneration.currentState,
+    imageGeneration.stepText,
+  ],
   () => {
     // Find active tool calls that are processing
-    const activeToolParts = activeConversation.value
-      ?.flatMap(msg => msg.parts)
-      .filter(part => part.type === 'tool-comfyUI' && 
-        ((part as any).state === 'input-streaming' || (part as any).state === 'input-available'))
-      .map(part => ({
-        toolCallId: (part as any).toolCallId,
-        part,
-      })) || []
-    
+    const activeToolParts =
+      activeConversation.value
+        ?.flatMap((msg) => msg.parts)
+        .filter(
+          (part) =>
+            part.type === 'tool-comfyUI' &&
+            (part.state === 'input-streaming' || part.state === 'input-available'),
+        )
+        .map((part) => ({
+          toolCallId: part.toolCallId,
+          part,
+        })) || []
+
     // Update progress for each active tool call
     activeToolParts.forEach(({ toolCallId }) => {
       const progress = toolProgressMap[toolCallId]
       if (!progress) return
-      
+
       // Only get images that were created for this tool call (not in initial set)
       const toolCallImages = imageGeneration.generatedImages
-        .filter(img => !progress.initialImageIds.has(img.id))
-        .filter(img => img.state === 'queued' || img.state === 'generating' || img.state === 'done')
+        .filter((img) => !progress.initialImageIds.has(img.id))
+        .filter(
+          (img) => img.state === 'queued' || img.state === 'generating' || img.state === 'done',
+        )
         // Filter out items without valid URL based on type
-        .filter(img => {
+        .filter((img) => {
           if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
           if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
           if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
           return false
         })
-        .map(img => ({ ...img }))
-      
+        .map((img) => ({ ...img }))
+
       progress.images = toolCallImages
       progress.processing = imageGeneration.processing
       progress.currentState = imageGeneration.currentState
       progress.stepText = imageGeneration.stepText
     })
   },
-  { deep: true }
+  { deep: true },
 )
 
 // Also watch processing state
@@ -558,26 +616,26 @@ watch(
   () => imageGeneration.processing,
   (processing) => {
     // Update all active tool calls
-    Object.keys(toolProgressMap).forEach(toolCallId => {
+    Object.keys(toolProgressMap).forEach((toolCallId) => {
       const progress = toolProgressMap[toolCallId]
       if (progress) {
         progress.processing = processing
         if (!processing) {
           // When processing stops, mark images as done and filter out any without valid URL
           progress.images = progress.images
-            .filter(img => {
+            .filter((img) => {
               if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
               if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
               if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
               return false
             })
-            .map(img => ({
+            .map((img) => ({
               ...img,
               state: 'done' as const,
             }))
         }
       }
     })
-  }
+  },
 )
 </script>

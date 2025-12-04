@@ -3,7 +3,12 @@ import { promisify } from 'node:util'
 import path from 'node:path'
 import fs from 'fs'
 import { appLoggerInstance } from '../logging/logger'
-import { isPackageInstalled as uvIsPackageInstalled, installPypiPackage as uvInstallPackage, installRequirementsTxt, aipgBaseDir } from './uvBasedBackends/uv'
+import {
+  isPackageInstalled as uvIsPackageInstalled,
+  installPypiPackage as uvInstallPackage,
+  installRequirementsTxt,
+  aipgBaseDir,
+} from './uvBasedBackends/uv'
 
 const execAsync = promisify(exec)
 
@@ -143,7 +148,10 @@ export async function getGitRef(repoDir: string): Promise<string | undefined> {
     return stdout.trim()
   } catch (error) {
     const absoluteRepoDir = path.resolve(repoDir)
-    appLoggerInstance.warn(`Resolving git ref in ${absoluteRepoDir} failed due to: ${error}`, 'comfyui-tools')
+    appLoggerInstance.warn(
+      `Resolving git ref in ${absoluteRepoDir} failed due to: ${error}`,
+      'comfyui-tools',
+    )
     return undefined
   }
 }
@@ -206,7 +214,10 @@ export async function installPypiPackage(packageSpecifier: string): Promise<void
     await uvInstallPackage(COMFYUI_BACKEND, packageSpecifier)
     appLoggerInstance.info('Python package installation completed', 'comfyui-tools')
   } catch (error) {
-    appLoggerInstance.error(`Failed to install package ${packageSpecifier}: ${error}`, 'comfyui-tools')
+    appLoggerInstance.error(
+      `Failed to install package ${packageSpecifier}: ${error}`,
+      'comfyui-tools',
+    )
     throw error
   }
 }
@@ -218,11 +229,7 @@ export function isCustomNodeInstalled(
   nodeRepoRef: ComfyUICustomNodeRepoId,
   comfyUiRootPath: string,
 ): boolean {
-  const expectedCustomNodePath = path.join(
-    comfyUiRootPath,
-    'custom_nodes',
-    nodeRepoRef.repoName,
-  )
+  const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoRef.repoName)
   return fs.existsSync(expectedCustomNodePath)
 }
 
@@ -252,17 +259,16 @@ export async function downloadCustomNode(
   comfyUiRootPath: string,
 ): Promise<boolean> {
   if (isCustomNodeInstalled(nodeRepoData, comfyUiRootPath)) {
-    appLoggerInstance.info(`Node repo ${JSON.stringify(nodeRepoData)} already exists. Omitting`, 'comfyui-tools')
+    appLoggerInstance.info(
+      `Node repo ${JSON.stringify(nodeRepoData)} already exists. Omitting`,
+      'comfyui-tools',
+    )
     return true
   }
 
   try {
     const expectedGitUrl = `https://github.com/${nodeRepoData.username}/${nodeRepoData.repoName}`
-    const expectedCustomNodePath = path.join(
-      comfyUiRootPath,
-      'custom_nodes',
-      nodeRepoData.repoName,
-    )
+    const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
     const potentialNodeRequirements = path.join(expectedCustomNodePath, 'requirements.txt')
 
     // Install the git repo

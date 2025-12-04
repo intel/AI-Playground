@@ -1,19 +1,14 @@
 <script setup lang="ts">
-import type { RadioGroupItemProps } from "reka-ui"
-import type { HTMLAttributes } from "vue"
-import { reactiveOmit } from "@vueuse/core"
+import type { RadioGroupItemProps } from 'reka-ui'
+import type { HTMLAttributes } from 'vue'
+import { reactiveOmit } from '@vueuse/core'
 import { CheckIcon } from '@radix-icons/vue'
-import {
-  RadioGroupIndicator,
-  RadioGroupItem,
+import { RadioGroupIndicator, RadioGroupItem, useForwardProps } from 'reka-ui'
+import { cn } from '@/lib/utils'
 
-  useForwardProps,
-} from "reka-ui"
-import { cn } from "@/lib/utils"
+const props = defineProps<RadioGroupItemProps & { class?: HTMLAttributes['class'] }>()
 
-const props = defineProps<RadioGroupItemProps & { class?: HTMLAttributes["class"] }>()
-
-const delegatedProps = reactiveOmit(props, "class")
+const delegatedProps = reactiveOmit(props, 'class')
 
 const forwardedProps = useForwardProps(delegatedProps)
 </script>

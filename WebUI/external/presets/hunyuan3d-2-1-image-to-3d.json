@@ -49,22 +49,10 @@
         "sampler_name": "euler",
         "scheduler": "normal",
         "denoise": 1,
-        "model": [
-          "70",
-          0
-        ],
-        "positive": [
-          "80",
-          0
-        ],
-        "negative": [
-          "80",
-          1
-        ],
-        "latent_image": [
-          "66",
-          0
-        ]
+        "model": ["70", 0],
+        "positive": ["80", 0],
+        "negative": ["80", 1],
+        "latent_image": ["66", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -74,14 +62,8 @@
     "51": {
       "inputs": {
         "crop": "none",
-        "clip_vision": [
-          "54",
-          1
-        ],
-        "image": [
-          "56",
-          0
-        ]
+        "clip_vision": ["54", 1],
+        "image": ["56", 0]
       },
       "class_type": "CLIPVisionEncode",
       "_meta": {
@@ -110,14 +92,8 @@
       "inputs": {
         "num_chunks": 1000,
         "octree_resolution": 128,
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "54",
-          2
-        ]
+        "samples": ["3", 0],
+        "vae": ["54", 2]
       },
       "class_type": "VAEDecodeHunyuan3D",
       "_meta": {
@@ -137,10 +113,7 @@
     "70": {
       "inputs": {
         "shift": 1.0000000000000002,
-        "model": [
-          "54",
-          0
-        ]
+        "model": ["54", 0]
       },
       "class_type": "ModelSamplingAuraFlow",
       "_meta": {
@@ -149,10 +122,7 @@
     },
     "80": {
       "inputs": {
-        "clip_vision_output": [
-          "51",
-          0
-        ]
+        "clip_vision_output": ["51", 0]
       },
       "class_type": "Hunyuan3Dv2Conditioning",
       "_meta": {
@@ -163,10 +133,7 @@
       "inputs": {
         "algorithm": "surface net",
         "threshold": 0.6,
-        "voxel": [
-          "61",
-          0
-        ]
+        "voxel": ["61", 0]
       },
       "class_type": "VoxelToMesh",
       "_meta": {
@@ -177,10 +144,7 @@
       "inputs": {
         "filename_prefix": "AIPG_3D",
         "image": "",
-        "mesh": [
-          "81",
-          0
-        ]
+        "mesh": ["81", 0]
       },
       "class_type": "SaveGLB",
       "_meta": {
@@ -189,4 +153,3 @@
     }
   }
 }
-

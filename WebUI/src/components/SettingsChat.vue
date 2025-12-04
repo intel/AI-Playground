@@ -17,7 +17,6 @@
       />
 
       <div class="flex flex-col gap-4">
-
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
@@ -57,13 +56,10 @@
           />
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">Temperature: {{ textInference.temperature.toFixed(1) }}</Label>
-          <Slider
-            v-model="textInference.temperature"
-            :min="0"
-            :max="2"
-            :step="0.1"
-          />
+          <Label class="whitespace-nowrap"
+            >Temperature: {{ textInference.temperature.toFixed(1) }}</Label
+          >
+          <Slider v-model="textInference.temperature" :min="0" :max="2" :step="0.1" />
         </div>
         <div
           v-if="textInference.contextSizeSettingSupported"
@@ -81,7 +77,11 @@
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.ANSWER_METRICS }}</Label>
-          <Checkbox id="metrics" :model-value="textInference.metricsEnabled" @click="() => textInference.metricsEnabled = !textInference.metricsEnabled" />
+          <Checkbox
+            id="metrics"
+            :model-value="textInference.metricsEnabled"
+            @click="() => (textInference.metricsEnabled = !textInference.metricsEnabled)"
+          />
         </div>
         <div
           v-if="textInference.modelSupportsToolCalling"
@@ -91,7 +91,7 @@
           <Checkbox
             id="tools"
             :model-value="textInference.toolsEnabled"
-            @click="() => textInference.toolsEnabled = !textInference.toolsEnabled"
+            @click="() => (textInference.toolsEnabled = !textInference.toolsEnabled)"
           />
         </div>
 
@@ -117,7 +117,9 @@
           ></drop-down-new>
         </div>
         <!-- todo: needs to actually do something-->
-        <Button variant="secondary" class="max-w-md mx-auto px-3 py-1.5 rounded text-sm"> Create New Preset</Button>
+        <Button variant="secondary" class="max-w-md mx-auto px-3 py-1.5 rounded text-sm">
+          Create New Preset</Button
+        >
       </div>
       <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
@@ -129,11 +131,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import {
-  backendToService,
-  LlmBackend,
-  useTextInference,
-} from '@/assets/js/store/textInference.ts'
+import { backendToService, LlmBackend, useTextInference } from '@/assets/js/store/textInference.ts'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
@@ -148,7 +146,6 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 
-
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
 const processing = ref(false)
@@ -159,7 +156,6 @@ const demoMode = useDemoMode()
 const backendServices = useBackendServices()
 const globalSetup = useGlobalSetup()
 const warningDialogStore = useDialogStore()
-
 
 function handlePresetChange(presetName: string) {
   const preset = presetsStore.chatPresets.find((p) => p.name === presetName)
@@ -184,14 +180,14 @@ const documentButtonText = computed(() => {
 const documentStats = computed(() => {
   const totalDocs = textInference.ragList.length
   const enabledDocs = textInference.ragList.filter((doc) => doc.isChecked).length
-  return {total: totalDocs, enabled: enabledDocs}
+  return { total: totalDocs, enabled: enabledDocs }
 })
 
 async function handlePresetSelectionClick(preset: ChatPreset) {
   if (isBackendRunning(preset.backend)) {
     // Update active preset name in unified store
     presetsStore.activePresetName = preset.name
-    
+
     // Apply the preset using textInference store
     await textInference.applyPreset(preset)
   } else {

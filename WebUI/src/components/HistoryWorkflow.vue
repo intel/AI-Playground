@@ -16,12 +16,12 @@
         @dragstart="(e) => dragImage(image)(e)"
       >
         <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
-        <Model3DViewer
-          v-else-if="is3D(image)"
-          :src="image.model3dUrl"
-          class="w-full h-full"
+        <Model3DViewer v-else-if="is3D(image)" :src="image.model3dUrl" class="w-full h-full" />
+        <img
+          v-else-if="image.type === 'image'"
+          :src="image.imageUrl"
+          class="w-full h-full object-cover"
         />
-        <img v-else-if="image.type === 'image'" :src="image.imageUrl" class="w-full h-full object-cover" />
 
         <div
           v-if="image.type === 'image' && image.sourceImageUrl === image.imageUrl"
@@ -39,9 +39,7 @@
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" class="w-28">
-            <DropdownMenuItem @click.stop="reloadImage(image)">
-              Reload
-            </DropdownMenuItem>
+            <DropdownMenuItem @click.stop="reloadImage(image)"> Reload </DropdownMenuItem>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
@@ -70,9 +68,7 @@
       </div>
     </div>
   </div>
-  <div v-else class="text-muted-foreground text-center p-5 italic">
-    No images generated yet.
-  </div>
+  <div v-else class="text-muted-foreground text-center p-5 italic">No images generated yet.</div>
 </template>
 
 <script setup lang="ts">
@@ -95,7 +91,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { useImageGenerationPresets, MediaItem, isVideo, is3D } from '@/assets/js/store/imageGenerationPresets'
+import {
+  useImageGenerationPresets,
+  MediaItem,
+  isVideo,
+  is3D,
+} from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 
 const props = defineProps<{
@@ -105,9 +106,7 @@ const props = defineProps<{
 const imageGeneration = useImageGenerationPresets()
 
 const nonQueuedImages = computed(() =>
-  imageGeneration.generatedImages.filter(
-    (i) => i.state !== 'queued' && i.mode === props.mode
-  )
+  imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === props.mode),
 )
 
 const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
@@ -126,7 +125,6 @@ const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   window.electronAPI.startDrag(url)
 }
 
-
 // todo: not used
 function reloadImage(image: MediaItem) {
   console.log('Reloading image:', image.id)
@@ -138,24 +136,17 @@ function deleteImage(image: MediaItem) {
 }
 
 function isSelected(id: string) {
-  if (props.mode === 'imageGen')
-    return imageGeneration.selectedGeneratedImageId === id
-  if (props.mode === 'imageEdit')
-    return imageGeneration.selectedEditedImageId === id
-  if (props.mode === 'video')
-    return imageGeneration.selectedVideoId === id
+  if (props.mode === 'imageGen') return imageGeneration.selectedGeneratedImageId === id
+  if (props.mode === 'imageEdit') return imageGeneration.selectedEditedImageId === id
+  if (props.mode === 'video') return imageGeneration.selectedVideoId === id
   return false
 }
 
 function selectImage(id: string) {
-  if (props.mode === 'imageGen')
-    imageGeneration.selectedGeneratedImageId = id
-  else if (props.mode === 'imageEdit')
-    imageGeneration.selectedEditedImageId = id
-  else if (props.mode === 'video')
-    imageGeneration.selectedVideoId = id
+  if (props.mode === 'imageGen') imageGeneration.selectedGeneratedImageId = id
+  else if (props.mode === 'imageEdit') imageGeneration.selectedEditedImageId = id
+  else if (props.mode === 'video') imageGeneration.selectedVideoId = id
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

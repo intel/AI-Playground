@@ -82,27 +82,26 @@ const selectedItem = computed(() => {
 </script>
 
 <template>
-    <DropdownMenu>
-      <DropdownMenuTrigger as-child>
-        <button>
+  <DropdownMenu>
+    <DropdownMenuTrigger as-child>
+      <button>
+        <div
+          class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between"
+        >
           <div
-            class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between"
-          >
-            <div
-              class="w-2 h-2 rounded-full shrink-0"
-              :class="selectedItem.active ? 'bg-primary' : 'bg-muted-foreground'"
-            ></div>
-            <span class="text-xs flex-grow text-left px-3 text-nowrap">
-              {{ selectedItem.label }}
-            </span>
-            <div class="flex items-center gap-1">
-              
-              <ModelCapabilities v-if="currentModel" :model="currentModel" />
-              <ChevronDownIcon class="size-4 text-muted-foreground"></ChevronDownIcon>
-            </div>
+            class="w-2 h-2 rounded-full shrink-0"
+            :class="selectedItem.active ? 'bg-primary' : 'bg-muted-foreground'"
+          ></div>
+          <span class="text-xs flex-grow text-left px-3 text-nowrap">
+            {{ selectedItem.label }}
+          </span>
+          <div class="flex items-center gap-1">
+            <ModelCapabilities v-if="currentModel" :model="currentModel" />
+            <ChevronDownIcon class="size-4 text-muted-foreground"></ChevronDownIcon>
           </div>
-        </button>
-      </DropdownMenuTrigger>
+        </div>
+      </button>
+    </DropdownMenuTrigger>
     <DropdownMenuContent
       :align="'start'"
       :align-offset="-20"
@@ -139,20 +138,20 @@ const selectedItem = computed(() => {
             ></div>
             <span class="flex-1 truncate">{{ item.label }}</span>
             <div class="flex gap-1 ml-2 shrink-0">
-                  <ModelCapabilities
-                    :model="{
-                      name: item.label,
-                      supportsVision: item.supportsVision,
-                      supportsToolCalling: item.supportsToolCalling,
-                      maxContextSize: item.maxContextSize,
-                      npuSupport: item.npuSupport,
-                    }"
-                    icon-size="size-3.5"
-                  />
+              <ModelCapabilities
+                :model="{
+                  name: item.label,
+                  supportsVision: item.supportsVision,
+                  supportsToolCalling: item.supportsToolCalling,
+                  maxContextSize: item.maxContextSize,
+                  npuSupport: item.npuSupport,
+                }"
+                icon-size="size-3.5"
+              />
             </div>
           </div>
         </DropdownMenuItem>
       </div>
     </DropdownMenuContent>
-    </DropdownMenu>
+  </DropdownMenu>
 </template>

@@ -1,4 +1,4 @@
-import { FilePart, ImagePart, ModelMessage, tool } from 'ai'
+import { FilePart, ModelMessage, tool } from 'ai'
 import { z } from 'zod'
 
 // Type for detection data
@@ -18,7 +18,9 @@ async function convertFilePartDataToUrl(data: FilePart['data']): Promise<string>
       return data
     }
     // If it's a regular URL, we can't handle it for now
-    throw new Error('Only data URL images are supported. Please ensure the image is provided as a data URL.')
+    throw new Error(
+      'Only data URL images are supported. Please ensure the image is provided as a data URL.',
+    )
   }
 
   // For now, only support string data URLs
@@ -31,10 +33,7 @@ async function convertFilePartDataToUrl(data: FilePart['data']): Promise<string>
  * @param detections - Array of detections with labels and bounding box coordinates
  * @returns Data URL of the annotated image
  */
-async function drawDetectionsOnImage(
-  imageUrl: string,
-  detections: Detection[],
-): Promise<string> {
+async function drawDetectionsOnImage(imageUrl: string, detections: Detection[]): Promise<string> {
   console.log('[visualizeObjectDetections] drawDetectionsOnImage called', {
     imageUrl,
     imageUrlType: typeof imageUrl,
@@ -102,20 +101,20 @@ async function drawDetectionsOnImage(
       // Draw each detection
       detections.forEach((detection, index) => {
         const [x1Relative, y1Relative, x2Relative, y2Relative] = detection.location
-        
+
         // Convert from relative coordinates (0-1000) to pixel coordinates
         // The coordinates are in a 0-1000 range, so we scale them to the actual image dimensions
         const x1 = (x1Relative / 1000) * imageWidth
         const y1 = (y1Relative / 1000) * imageHeight
         const x2 = (x2Relative / 1000) * imageWidth
         const y2 = (y2Relative / 1000) * imageHeight
-        
+
         // Clamp coordinates to ensure they're within image bounds
         const clampedX1 = Math.max(0, Math.min(x1, imageWidth))
         const clampedY1 = Math.max(0, Math.min(y1, imageHeight))
         const clampedX2 = Math.max(0, Math.min(x2, imageWidth))
         const clampedY2 = Math.max(0, Math.min(y2, imageHeight))
-        
+
         console.log(`[visualizeObjectDetections] Drawing detection ${index}`, {
           label: detection.label,
           relativeLocation: [x1Relative, y1Relative, x2Relative, y2Relative],
@@ -185,9 +184,12 @@ async function drawDetectionsOnImage(
 /**
  * Executes the object detection visualization
  */
-export async function executeVisualizeObjectDetections(args: {
-  detections: Detection[]
-}, messages: ModelMessage[]): Promise<{ annotatedImageUrl: string }> {
+export async function executeVisualizeObjectDetections(
+  args: {
+    detections: Detection[]
+  },
+  messages: ModelMessage[],
+): Promise<{ annotatedImageUrl: string }> {
   console.log('[visualizeObjectDetections] Tool execution started', {
     detectionsCount: args.detections?.length ?? 0,
     messagesCount: messages?.length ?? 0,
@@ -214,11 +216,18 @@ export async function executeVisualizeObjectDetections(args: {
     })
 
     if (typeof lastUserMessage?.content === 'string') {
-      console.error('[visualizeObjectDetections] Last user message content is a string, expected array')
+      console.error(
+        '[visualizeObjectDetections] Last user message content is a string, expected array',
+      )
       throw new Error('Image is required')
     }
 
-    if (!lastUserMessage || !lastUserMessage.content.some((part) => part.type === 'file' && part.mediaType?.startsWith('image/'))) {
+    if (
+      !lastUserMessage ||
+      !lastUserMessage.content.some(
+        (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
+      )
+    ) {
       console.error('[visualizeObjectDetections] No image found in last user message', {
         hasLastUserMessage: !!lastUserMessage,
         contentParts: lastUserMessage?.content?.map((part) => ({
@@ -297,10 +306,10 @@ export async function executeVisualizeObjectDetections(args: {
         detection.location.length !== 4 ||
         !detection.location.every((coord) => typeof coord === 'number')
       ) {
-        console.error(`[visualizeObjectDetections] Detection ${i} has invalid location`, { detection })
-        throw new Error(
-          `Detection ${i} must have a location array with 4 numbers [x1, y1, x2, y2]`,
-        )
+        console.error(`[visualizeObjectDetections] Detection ${i} has invalid location`, {
+          detection,
+        })
+        throw new Error(`Detection ${i} must have a location array with 4 numbers [x1, y1, x2, y2]`)
       }
     }
 
@@ -309,10 +318,7 @@ export async function executeVisualizeObjectDetections(args: {
       detectionsCount: args.detections.length,
     })
 
-    const annotatedImageUrl = await drawDetectionsOnImage(
-      imageUrl,
-      args.detections,
-    )
+    const annotatedImageUrl = await drawDetectionsOnImage(imageUrl, args.detections)
 
     console.log('[visualizeObjectDetections] Image annotation completed', {
       annotatedImageUrlLength: annotatedImageUrl?.length ?? 0,
@@ -348,13 +354,14 @@ export const visualizeObjectDetections = tool({
             ),
         }),
       )
-      .describe(
-        'Array of detected objects with their labels and bounding box locations',
-      ),
+      .describe('Array of detected objects with their labels and bounding box locations'),
   }),
-  execute: async (args: {
-    detections: Detection[]
-  }, {messages}) => {
+  execute: async (
+    args: {
+      detections: Detection[]
+    },
+    { messages },
+  ) => {
     console.log('[visualizeObjectDetections] Tool execute called from AI SDK', {
       args,
       messagesCount: messages?.length ?? 0,
@@ -363,4 +370,3 @@ export const visualizeObjectDetections = tool({
     return await executeVisualizeObjectDetections(args, messages)
   },
 })
-

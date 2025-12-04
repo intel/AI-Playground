@@ -11,7 +11,10 @@
           {{ i18nState.PRESET_REQUIREMENTS_TITLE || 'Preset Requirements' }}
         </h2>
         <p class="text-center text-muted-foreground">
-          {{ i18nState.PRESET_REQUIREMENTS_MESSAGE || 'In order to use this preset we need to install some additional components:' }}
+          {{
+            i18nState.PRESET_REQUIREMENTS_MESSAGE ||
+            'In order to use this preset we need to install some additional components:'
+          }}
         </p>
 
         <div class="w-full flex flex-col gap-4 max-h-96 overflow-y-auto">
@@ -21,7 +24,9 @@
             <ul class="list-disc list-inside ml-4 space-y-1">
               <li v-for="model in requirementsData.missingModels" :key="model.name">
                 {{ model.name }}
-                <span v-if="model.type" class="text-muted-foreground text-sm">({{ model.type }})</span>
+                <span v-if="model.type" class="text-muted-foreground text-sm"
+                  >({{ model.type }})</span
+                >
               </li>
             </ul>
           </div>
@@ -74,12 +79,6 @@ import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { storeToRefs } from 'pinia'
 
-type PresetRequirementsData = {
-  missingModels: Array<{ name: string; type: string }>
-  missingCustomNodes: string[]
-  missingPythonPackages: string[]
-}
-
 const i18nState = useI18N().state
 const dialogStore = useDialogStore()
 const animate = ref(false)
@@ -87,11 +86,13 @@ const animate = ref(false)
 const { presetRequirementsData, presetRequirementsDialogVisible } = storeToRefs(dialogStore)
 
 const requirementsData = computed(() => {
-  return presetRequirementsData.value || {
-    missingModels: [],
-    missingCustomNodes: [],
-    missingPythonPackages: [],
-  }
+  return (
+    presetRequirementsData.value || {
+      missingModels: [],
+      missingCustomNodes: [],
+      missingPythonPackages: [],
+    }
+  )
 })
 
 watch(presetRequirementsDialogVisible, (newValue) => {
@@ -110,7 +111,7 @@ function formatCustomNodeName(nodeString: string): string {
   const parts = nodeString.split('@')
   const repoPart = parts[0]
   const gitRef = parts[1]
-  
+
   if (gitRef) {
     return `${repoPart} (${gitRef})`
   }
@@ -126,4 +127,3 @@ function cancelConfirm() {
   dialogStore.closePresetRequirementsDialog()
 }
 </script>
-

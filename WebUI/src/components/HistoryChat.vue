@@ -158,7 +158,13 @@ const images = (conversation: AipgUiMessage[]) => {
     msg.parts
       .filter((part) => part.type === 'tool-comfyUI' && part.state === 'output-available')
       .map((part, partIndex) => {
-        if (part.type === 'tool-comfyUI' && 'output' in part && part.output && typeof part.output === 'object' && 'images' in part.output) {
+        if (
+          part.type === 'tool-comfyUI' &&
+          'output' in part &&
+          part.output &&
+          typeof part.output === 'object' &&
+          'images' in part.output
+        ) {
           const images = (part.output as { images?: Array<{ imageUrl?: string }> }).images ?? []
           return images.map((img, imgIndex) => ({
             id: `${msgIndex}-${partIndex}-${imgIndex}`,
@@ -168,14 +174,15 @@ const images = (conversation: AipgUiMessage[]) => {
         return []
       })
       .flat()
-      .filter((img): img is { id: string; imageUrl: string } => 
-        img !== null && 
-        img !== undefined && 
-        'imageUrl' in img && 
-        typeof img.imageUrl === 'string' && 
-        img.imageUrl.trim() !== '' &&
-        'id' in img &&
-        typeof img.id === 'string'
+      .filter(
+        (img): img is { id: string; imageUrl: string } =>
+          img !== null &&
+          img !== undefined &&
+          'imageUrl' in img &&
+          typeof img.imageUrl === 'string' &&
+          img.imageUrl.trim() !== '' &&
+          'id' in img &&
+          typeof img.id === 'string',
       ),
   )
 }

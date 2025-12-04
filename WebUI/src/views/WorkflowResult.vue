@@ -7,7 +7,7 @@
     <div class="image-panel justify-center items-center flex-auto flex relative pr-6">
       <div
         class="flex justify-center items-center relative bg-accent rounded-lg border border-border"
-        style="width: min(768px, 100%); height: min(512px, 100%); aspect-ratio: 3/2;"
+        style="width: min(768px, 100%); height: min(512px, 100%); aspect-ratio: 3/2"
       >
         <!-- eslint-disable vue/require-v-for-key -->
         <div
@@ -41,13 +41,13 @@
         >
           <loading-bar
             v-if="
-                [
-                  'load_model',
-                  'load_model_components',
-                  'install_workflow_components',
-                  'load_workflow_components',
-                ].includes(imageGeneration.currentState)
-              "
+              [
+                'load_model',
+                'load_model_components',
+                'install_workflow_components',
+                'load_workflow_components',
+              ].includes(imageGeneration.currentState)
+            "
             :text="loadingStateToText(imageGeneration.currentState)"
             class="w-3/4"
           ></loading-bar>
@@ -57,21 +57,18 @@
           >
             <span class="svg-icon i-loading w-8 h-8"></span>
             <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-                imageGeneration.stepText
-              }}</span>
+              imageGeneration.stepText
+            }}</span>
           </div>
         </div>
         <div
           v-show="
-              currentImage &&
-              (!(currentImage?.state === 'generating') || !imageGeneration.processing)
-            "
+            currentImage && (!(currentImage?.state === 'generating') || !imageGeneration.processing)
+          "
           class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
         >
           <button
-            v-if="
-                currentImage && currentImage?.state !== 'generating' && props.mode === 'imageGen'
-              "
+            v-if="currentImage && currentImage?.state !== 'generating' && props.mode === 'imageGen'"
             @click="postImageToMode(currentImage, 'imageEdit')"
             :title="languages.COM_POST_TO_IMAGE_EDIT"
             class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
@@ -80,8 +77,11 @@
           </button>
           <button
             v-if="
-                currentImage && currentImage?.state !== 'generating' && (props.mode === 'imageGen' || props.mode === 'imageEdit') && !is3D(currentImage)
-              "
+              currentImage &&
+              currentImage?.state !== 'generating' &&
+              (props.mode === 'imageGen' || props.mode === 'imageEdit') &&
+              !is3D(currentImage)
+            "
             @click="postImageToMode(currentImage, 'video')"
             :title="languages.COM_POST_TO_VIDEO"
             class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
@@ -146,9 +146,14 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
-import { MediaItem, isVideo, is3D, useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import {
+  MediaItem,
+  isVideo,
+  is3D,
+  useImageGenerationPresets,
+} from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
-import { usePromptStore } from "@/assets/js/store/promptArea.ts"
+import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 
 interface Props {
   mode: WorkflowModeType
@@ -161,21 +166,22 @@ const i18nState = useI18N().state
 const showInfoParams = ref(false)
 
 const selectedImageIdKey = computed(() => {
-    switch (props.mode) {
-      case 'imageGen':
-        return 'selectedGeneratedImageId'
-      case 'imageEdit':
-        return 'selectedEditedImageId'
-      case 'video':
-        return 'selectedVideoId'
-    }
+  switch (props.mode) {
+    case 'imageGen':
+      return 'selectedGeneratedImageId'
+    case 'imageEdit':
+      return 'selectedEditedImageId'
+    case 'video':
+      return 'selectedVideoId'
   }
-)
+})
 
 const currentImage = computed<MediaItem | null>(() => {
-  return imageGeneration.generatedImages.find(
-    (image) => image.id === imageGeneration[selectedImageIdKey.value]
-  ) ?? null
+  return (
+    imageGeneration.generatedImages.find(
+      (image) => image.id === imageGeneration[selectedImageIdKey.value],
+    ) ?? null
+  )
 })
 
 const dragImage = (item: MediaItem | null) => (event: Event) => {
@@ -199,7 +205,7 @@ watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
     const nonQueuedImages = imageGeneration.generatedImages.filter(
-      (i) => i.state !== 'queued' && i.mode === props.mode
+      (i) => i.state !== 'queued' && i.mode === props.mode,
     )
     if (nonQueuedImages.length > 0) {
       imageGeneration[selectedImageIdKey.value] = nonQueuedImages[nonQueuedImages.length - 1].id
@@ -223,7 +229,7 @@ function stopGeneration() {
 async function postImageToMode(image: MediaItem, mode: WorkflowModeType) {
   promptStore.setCurrentMode(mode)
 
-  const mewImage: MediaItem = {...image}
+  const mewImage: MediaItem = { ...image }
   mewImage.mode = mode
   if (image.type === 'image') {
     mewImage.sourceImageUrl = image.imageUrl

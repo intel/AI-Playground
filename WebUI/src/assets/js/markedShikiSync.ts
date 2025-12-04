@@ -1,4 +1,4 @@
-import { MarkedExtension } from "marked"
+import { MarkedExtension } from 'marked'
 
 /**
  * A [marked](https://marked.js.org/) extension for integrating [Shiki](https://shiki.style/) syntax highlighting.
@@ -40,11 +40,7 @@ type Options = {
    * @param props - Additional properties for code highlighting.
    * @returns A string representing the highlighted code.
    */
-  highlight?: (
-    code: string,
-    lang: string,
-    props: string[]
-  ) => string
+  highlight?: (code: string, lang: string, props: string[]) => string
 
   /**
    * The container template for the highlighted code.
@@ -76,8 +72,8 @@ export function markedShiki(options: Options = {}): MarkedExtension {
       Object.assign(token, {
         type: 'html',
         block: true,
-        text: `${htmlText}\n`
+        text: `${htmlText}\n`,
       })
-    }
+    },
   }
 }

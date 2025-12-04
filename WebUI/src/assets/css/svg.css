@@ -113,7 +113,7 @@
 }
 
 .i-arrow-left {
-    --svg: url('@/assets/svg/arrow-left.svg');
+  --svg: url('@/assets/svg/arrow-left.svg');
 }
 
 .i-loading {
@@ -156,7 +156,7 @@
 }
 
 .i-video {
-    --svg: url('@/assets/svg/video.svg');
+  --svg: url('@/assets/svg/video.svg');
 }
 
 .i-zoom-in {

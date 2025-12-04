@@ -2,15 +2,11 @@
   "type": "comfy",
   "name": "Colorize",
   "displayPriority": 200,
-  "tags": [
-    "no-prompt", "BMG only"
-  ],
+  "tags": ["no-prompt", "BMG only"],
   "backend": "comfyui",
   "description": "Add color to a black and white photo",
   "category": "edit-images",
-  "requiredCustomNodes": [
-    "kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"
-  ],
+  "requiredCustomNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
   "requiredPythonPackages": [],
   "requiredModels": [],
   "settings": [
@@ -53,10 +49,7 @@
     "5": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "6",
-          0
-        ]
+        "images": ["6", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -67,10 +60,7 @@
       "inputs": {
         "model_input_size": 512,
         "checkpoint": "ddcolor_artistic.pth",
-        "image": [
-          "2",
-          0
-        ]
+        "image": ["2", 0]
       },
       "class_type": "DDColor_Colorize",
       "_meta": {

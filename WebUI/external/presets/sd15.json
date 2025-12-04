@@ -9,7 +9,9 @@
   "mediaType": "image",
   "toolEnabled": true,
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Even if the user requests something simple like 'an elephant', expand it to a full prompt like 'a majestic African elephant standing in golden hour sunlight, detailed wrinkles on skin, photorealistic, 8k, highly detailed, professional photography'.",
-  "requiredCustomNodes": ["BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d"],
+  "requiredCustomNodes": [
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d"
+  ],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
@@ -18,7 +20,6 @@
     }
   ],
   "variants": [
-
     {
       "name": "Fast",
       "overrides": {
@@ -52,22 +53,10 @@
               "sampler_name": "lcm",
               "scheduler": "simple",
               "denoise": 1,
-              "model": [
-                "10",
-                0
-              ],
-              "positive": [
-                "6",
-                0
-              ],
-              "negative": [
-                "7",
-                0
-              ],
-              "latent_image": [
-                "5",
-                0
-              ]
+              "model": ["10", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "latent_image": ["5", 0]
             },
             "class_type": "KSampler",
             "_meta": {
@@ -79,14 +68,8 @@
               "lora_name": "latent-consistency---lcm-lora-sdv1-5\\pytorch_lora_weights.safetensors",
               "strength_model": 1,
               "strength_clip": 1,
-              "model": [
-                "4",
-                0
-              ],
-              "clip": [
-                "4",
-                1
-              ]
+              "model": ["4", 0],
+              "clip": ["4", 1]
             },
             "class_type": "LoraLoader",
             "_meta": {
@@ -96,10 +79,7 @@
           "6": {
             "inputs": {
               "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-              "clip": [
-                "10",
-                1
-              ]
+              "clip": ["10", 1]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -109,10 +89,7 @@
           "7": {
             "inputs": {
               "text": "nsfw",
-              "clip": [
-                "10",
-                1
-              ]
+              "clip": ["10", 1]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -124,8 +101,7 @@
     },
     {
       "name": "Standard",
-      "overrides": {
-      }
+      "overrides": {}
     }
   ],
   "settings": [
@@ -211,22 +187,10 @@
         "sampler_name": "dpmpp_2m",
         "scheduler": "karras",
         "denoise": 1,
-        "model": [
-          "4",
-          0
-        ],
-        "positive": [
-          "6",
-          0
-        ],
-        "negative": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "5",
-          0
-        ]
+        "model": ["4", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -256,10 +220,7 @@
     "6": {
       "inputs": {
         "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-        "clip": [
-          "4",
-          1
-        ]
+        "clip": ["4", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -269,10 +230,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": [
-          "4",
-          1
-        ]
+        "clip": ["4", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -281,14 +239,8 @@
     },
     "8": {
       "inputs": {
-        "samples": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          2
-        ]
+        "samples": ["3", 0],
+        "vae": ["4", 2]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -298,10 +250,7 @@
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "11",
-          0
-        ]
+        "images": ["11", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -312,10 +261,7 @@
       "inputs": {
         "threshold": 0.97,
         "cuda": false,
-        "image": [
-          "8",
-          0
-        ]
+        "image": ["8", 0]
       },
       "class_type": "YetAnotherSafetyChecker",
       "_meta": {

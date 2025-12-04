@@ -413,8 +413,11 @@ export class LlamaCppBackendService implements ApiService {
     try {
       await extract(this.zipPath, this.llamaCppDir)
       if (process.platform !== 'win32') {
-        filesystem.readdirSync(path.join(this.llamaCppDir, 'build/bin')).forEach(file => {
-          filesystem.renameSync(path.join(this.llamaCppDir, 'build/bin', file), path.join(this.llamaCppDir, file))
+        filesystem.readdirSync(path.join(this.llamaCppDir, 'build/bin')).forEach((file) => {
+          filesystem.renameSync(
+            path.join(this.llamaCppDir, 'build/bin', file),
+            path.join(this.llamaCppDir, file),
+          )
         })
       }
 
@@ -488,7 +491,7 @@ export class LlamaCppBackendService implements ApiService {
         '--ctx-size',
         ctxSize.toString(),
         '--log-prefix',
-        '--jinja'
+        '--jinja',
       ]
 
       const modelFolder = path.dirname(modelPath)
@@ -807,10 +810,7 @@ export class LlamaCppBackendService implements ApiService {
         // Server not ready yet, continue waiting
         // But check if process is still alive
         if (!process || process.killed) {
-          this.appLogger.warn(
-            `Process for ${this.name} exited during health check wait`,
-            this.name,
-          )
+          this.appLogger.warn(`Process for ${this.name} exited during health check wait`, this.name)
           throw new Error(`Process exited during server startup`)
         }
       }

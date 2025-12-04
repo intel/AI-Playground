@@ -1,12 +1,6 @@
 <template>
-  <div
-    v-if="theme.active === 'lnl'"
-    class="lnl-grid lnl-top-grid"
-  ></div>
-  <div
-    v-if="theme.active === 'lnl'"
-    class="lnl-grid lnl-bottom-grid"
-  ></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-top-grid"></div>
+  <div v-if="theme.active === 'lnl'" class="lnl-grid lnl-bottom-grid"></div>
   <div v-if="theme.active === 'lnl'" class="lnl-gradient"></div>
   <div
     v-if="theme.active === 'bmg'"
@@ -137,10 +131,10 @@
     v-if="globalSetup.loadingState === 'running'"
     class="flex-1 flex relative min-h-0"
     :class="{
-    'bg-black/50': theme.active === 'lnl',
-    'bg-black/80': theme.active === 'bmg',
-    'border-t border-border': theme.active === 'dark',
-  }"
+      'bg-black/50': theme.active === 'lnl',
+      'bg-black/80': theme.active === 'bmg',
+      'border-t border-border': theme.active === 'dark',
+    }"
   >
     <SideModalHistory
       :isVisible="uiStore.showHistory"
@@ -164,7 +158,7 @@
         class="fixed left-4 z-5 flex items-center gap-3"
         :class="{
           'bottom-4': !footerExpanded,
-          'bottom-27': footerExpanded
+          'bottom-27': footerExpanded,
         }"
       >
         <button
@@ -182,22 +176,16 @@
       <WorkflowResult
         v-if="promptStore.getCurrentMode() === 'imageGen'"
         ref="imageGenRef"
-        mode='imageGen'
+        mode="imageGen"
       />
       <WorkflowResult
         v-if="promptStore.getCurrentMode() === 'imageEdit'"
         ref="imageEditRef"
-        mode='imageEdit'
+        mode="imageEdit"
       />
-      <WorkflowResult
-        v-if="promptStore.getCurrentMode() === 'video'"
-        ref="videoRef"
-        mode='video'
-      />
+      <WorkflowResult v-if="promptStore.getCurrentMode() === 'video'" ref="videoRef" mode="video" />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
-      <div
-        v-if="!footerExpanded"
-        class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
+      <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
         <button
           @click="footerExpanded = !footerExpanded"
           class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
@@ -214,8 +202,12 @@
     />
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
-    <preset-requirements-dialog v-show="dialogStore.presetRequirementsDialogVisible"></preset-requirements-dialog>
-    <installation-progress-dialog v-show="dialogStore.installationProgressDialogVisible"></installation-progress-dialog>
+    <preset-requirements-dialog
+      v-show="dialogStore.presetRequirementsDialogVisible"
+    ></preset-requirements-dialog>
+    <installation-progress-dialog
+      v-show="dialogStore.installationProgressDialogVisible"
+    ></installation-progress-dialog>
   </main>
 
   <footer
@@ -226,8 +218,7 @@
       'border-t border-border': theme.active === 'dark',
     }"
   >
-    <div v-if="footerExpanded"
-         class="w-full relative flex items-center justify-center pb-1">
+    <div v-if="footerExpanded" class="w-full relative flex items-center justify-center pb-1">
       <button
         @click="footerExpanded = !footerExpanded"
         class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
@@ -240,7 +231,7 @@
         <p>
           Al Playground from Intel Corporation
           <a href="https://github.com/intel/ai-playground" target="_blank" class="text-primary"
-          >https://github.com/intel/ai-playground</a
+            >https://github.com/intel/ai-playground</a
           >
         </p>
         <p>
@@ -311,8 +302,8 @@ import { ref } from 'vue'
 import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
-import { usePromptStore } from "@/assets/js/store/promptArea.ts";
-import SideModalSpecificSettings from "@/components/SideModalSpecificSettings.vue";
+import { usePromptStore } from '@/assets/js/store/promptArea.ts'
+import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { useUIStore } from '@/assets/js/store/ui.ts'
 
 const backendServices = useBackendServices()
@@ -365,7 +356,7 @@ onBeforeMount(async () => {
   window.addEventListener('keydown', zoomIn, true)
   window.removeEventListener('wheel', wheelZoom)
   window.addEventListener('wheel', wheelZoom, true)
-  window.electronAPI.onDebugLog(({level, source, message}) => {
+  window.electronAPI.onDebugLog(({ level, source, message }) => {
     if (level == 'error') {
       if (message.startsWith('onednn_verbose')) return
       console.error(`[${source}] ${message}`)
@@ -390,16 +381,19 @@ onBeforeMount(async () => {
 
 onMounted(() => {
   // Apply theme class to document root for CSS variables
-  watch(() => theme.active, (newTheme) => {
-    const root = document.documentElement
-    // Remove all theme classes
-    root.classList.remove('dark', 'lnl', 'bmg', 'light')
-    // Add current theme class (light theme is default via :root, so no class needed)
-    if (newTheme !== 'light') {
-      root.classList.add(newTheme)
-    }
-  }, { immediate: true })
-
+  watch(
+    () => theme.active,
+    (newTheme) => {
+      const root = document.documentElement
+      // Remove all theme classes
+      root.classList.remove('dark', 'lnl', 'bmg', 'light')
+      // Add current theme class (light theme is default via :root, so no class needed)
+      if (newTheme !== 'light') {
+        root.classList.add(newTheme)
+      }
+    },
+    { immediate: true },
+  )
 })
 
 async function setInitalLoadingState() {
@@ -427,7 +421,7 @@ async function setInitalLoadingState() {
   // This ensures they start regardless of frontend state or UI mode
   globalSetup.loadingState = 'running'
   await globalSetup.initSetup()
-  
+
   // Optional: Frontend can still trigger startup as a fallback or for manual restarts
   // but it's no longer required since services start automatically
   backendServices.startAllSetUpServicesInBackground()
@@ -442,7 +436,6 @@ async function concludeLoadingStateAfterManagedInstallationDialog() {
   // This call is kept as a fallback for manual restarts after installation
   backendServices.startAllSetUpServicesInBackground()
 }
-
 
 function miniWindow() {
   window.electronAPI.miniWindow()

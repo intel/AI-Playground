@@ -6,11 +6,7 @@ export const ModelSchema = z.object({
   name: z.string(),
   mmproj: z.string().optional(),
   downloaded: z.boolean().optional(),
-  type: z.enum([
-    'embedding',
-    'undefined',
-    ...llmBackendTypes,
-  ]),
+  type: z.enum(['embedding', 'undefined', ...llmBackendTypes]),
   default: z.boolean(),
   backend: z.enum(llmBackendTypes).optional(),
   supportsToolCalling: z.boolean().optional(),

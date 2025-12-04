@@ -12,7 +12,9 @@ import AdmZip from 'adm-zip'
 import { getBuildPaths } from './build-paths.mts'
 import z from 'zod'
 
-const target = z.enum(['win32', 'darwin']).safeParse(process.env.TARGET_PLATFORM || process.platform)
+const target = z
+  .enum(['win32', 'darwin'])
+  .safeParse(process.env.TARGET_PLATFORM || process.platform)
 if (!target.success) {
   console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
   process.exit(1)

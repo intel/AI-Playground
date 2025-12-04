@@ -307,7 +307,7 @@ export const useBackendServices = defineStore(
       // Wait a moment for async setup checks to complete in the main process
       // Services like ai-backend check setup asynchronously, so we need to give them time
       await new Promise((resolve) => setTimeout(resolve, 500))
-      
+
       // Re-fetch service info to get the latest setup status
       try {
         const latestServices = await window.electronAPI.getServices()
@@ -315,7 +315,7 @@ export const useBackendServices = defineStore(
       } catch (error) {
         console.warn('Failed to refresh service info for installation check:', error)
       }
-      
+
       // Only show if required backends are missing or have errors
       const requiredServices = currentServiceInfo.value.filter((s) => s.isRequired)
       return requiredServices.some(
@@ -328,14 +328,14 @@ export const useBackendServices = defineStore(
         console.log('Backend startup already in progress, skipping')
         return
       }
-      
+
       // Check if there are any services to start
       const servicesToStart = currentServiceInfo.value.filter((s) => s.isSetUp)
       if (servicesToStart.length === 0) {
         console.log('No services are set up to start')
         return
       }
-      
+
       console.log(
         `Starting ${servicesToStart.length} backend service(s) in background:`,
         servicesToStart.map((s) => s.serviceName),
