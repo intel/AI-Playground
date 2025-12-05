@@ -91,23 +91,18 @@
           </div>
         </div>
         <div class="absolute bottom-4 left-3 flex gap-2">
-          <button
+          <Button
             v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
+            :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
             :key="mode"
             @click="promptStore.setCurrentMode(mode)"
-            :class="
-              promptStore.getCurrentMode() === mode
-                ? 'bg-primary hover:bg-primary/80'
-                : 'bg-muted hover:bg-muted/80'
-            "
-            class="px-3 py-1.5 rounded-lg text-sm"
           >
             {{ mapModeToLabel(mode) }}
-          </button>
+          </Button>
         </div>
         <div class="absolute bottom-4 right-3 flex gap-2">
           <Button
-            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg p-2"
+            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
             variant="secondary"
             v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
@@ -135,33 +130,33 @@
               ></div>
             </div>
           </Button>
-          <button
-            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"
+          <Button
+            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-normal"
             @click="$emit('openSettings')"
           >
             {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
-          </button>
-          <button
+          </Button>
+          <Button
             v-if="readyForNewSubmit"
             @click="handleSubmitPromptClick"
             class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
           >
             →
-          </button>
-          <button
+          </Button>
+          <Button
             v-else-if="!isStopping"
             @click="handleCancelClick"
             class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
           >
             <i class="svg-icon w-4 h-4 i-stop"></i>
-          </button>
-          <button
+          </Button>
+          <Button
             v-else
             disabled
             class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
           >
             <i class="svg-icon w-4 h-4 i-loading"></i>
-          </button>
+          </Button>
         </div>
       </div>
     </div>
