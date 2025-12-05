@@ -7,6 +7,7 @@ import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { LocalSettings } from '../main.ts'
+import getPort, { portNumbers } from 'get-port'
 
 const execAsync = promisify(exec)
 
@@ -14,8 +15,10 @@ interface OvmsServerProcess {
   process: ChildProcess
   port: number
   modelRepoId: string
+  type: 'llm' | 'embedding' | 'transcription'
   contextSize?: number
   isReady: boolean
+  healthEndpointUrl: string
 }
 
 export class OpenVINOBackendService implements ApiService {
@@ -43,10 +46,14 @@ export class OpenVINOBackendService implements ApiService {
   isSetUp: boolean = false
   desiredStatus: BackendStatus = 'uninitializedStatus'
 
-  // Model server process
-  private ovmsProcess: OvmsServerProcess | null = null
+  // Model server processes
+  private ovmsLlmProcess: OvmsServerProcess | null = null
+  private ovmsEmbeddingProcess: OvmsServerProcess | null = null
+  private ovmsTranscriptionProcess: OvmsServerProcess | null = null
   private currentModel: string | null = null
   private currentContextSize: number | null = null
+  private currentEmbeddingModel: string | null = null
+  private currentTranscriptionModel: string | null = null
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
@@ -82,36 +89,79 @@ export class OpenVINOBackendService implements ApiService {
 
   async ensureBackendReadiness(
     llmModelName: string,
-    _embeddingModelName?: string,
+    embeddingModelName?: string,
     contextSize?: number,
+    transcriptionModelName?: string,
   ): Promise<void> {
+    if (!transcriptionModelName) {
+      transcriptionModelName = 'OpenVINO/whisper-large-v3-int4-ov'
+    }
     this.appLogger.info(
-      `Ensuring OpenVINO backend readiness for LLM: ${llmModelName}, Context: ${contextSize ?? 'default'}`,
+      `Ensuring OpenVINO backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Transcription: ${transcriptionModelName ?? 'none'}, Context: ${contextSize ?? 'default'}`,
       this.name,
     )
 
     try {
-      // Handle model and context size changes
-      const needsRestart =
+      // Handle LLM model
+      const needsLlmRestart =
         this.currentModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
-        !this.ovmsProcess?.isReady
+        !this.ovmsLlmProcess?.isReady
 
-      if (needsRestart) {
-        await this.stopOvmsServer()
-        await this.startOvmsServer(llmModelName, contextSize)
-        this.appLogger.info(`OpenVINO server ready with model: ${llmModelName}`, this.name)
+      if (needsLlmRestart) {
+        await this.stopOvmsLlmServer()
+        await this.startOvmsLlmServer(llmModelName, contextSize)
+        this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
-        this.appLogger.info(
-          `OpenVINO server already running with model: ${llmModelName}`,
-          this.name,
-        )
+        this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
       }
 
-      this.appLogger.info(`OpenVINO backend fully ready - LLM: ${llmModelName}`, this.name)
+      // Handle embedding model if provided
+      if (embeddingModelName) {
+        const needsEmbeddingRestart =
+          this.currentEmbeddingModel !== embeddingModelName ||
+          !this.ovmsEmbeddingProcess?.isReady
+
+        if (needsEmbeddingRestart) {
+          await this.stopOvmsEmbeddingServer()
+          await this.startOvmsEmbeddingServer(embeddingModelName)
+          this.appLogger.info(`Embedding server ready with model: ${embeddingModelName}`, this.name)
+        } else {
+          this.appLogger.info(
+            `Embedding server already running with model: ${embeddingModelName}`,
+            this.name,
+          )
+        }
+      }
+
+      // Handle transcription model if provided
+      if (transcriptionModelName) {
+        const needsTranscriptionRestart =
+          this.currentTranscriptionModel !== transcriptionModelName ||
+          !this.ovmsTranscriptionProcess?.isReady
+
+        if (needsTranscriptionRestart) {
+          await this.stopOvmsTranscriptionServer()
+          await this.startOvmsTranscriptionServer(transcriptionModelName)
+          this.appLogger.info(
+            `Transcription server ready with model: ${transcriptionModelName}`,
+            this.name,
+          )
+        } else {
+          this.appLogger.info(
+            `Transcription server already running with model: ${transcriptionModelName}`,
+            this.name,
+          )
+        }
+      }
+
+      this.appLogger.info(
+        `OpenVINO backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Transcription: ${transcriptionModelName ?? 'none'}`,
+        this.name,
+      )
     } catch (error) {
       this.appLogger.error(
-        `Failed to ensure backend readiness - LLM: ${llmModelName}: ${error}`,
+        `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Transcription: ${transcriptionModelName ?? 'none'}: ${error}`,
         this.name,
       )
       throw error
@@ -264,8 +314,7 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   private async downloadOvms(): Promise<void> {
-    // const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.3/ovms_windows_python_on.zip`
-    const downloadUrl = `https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/weekly/2025.4.0.15ce0188/ovms_windows_python_on.zip`
+    const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.4/ovms_windows_python_on.zip`
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
@@ -360,15 +409,39 @@ export class OpenVINOBackendService implements ApiService {
     this.desiredStatus = 'stopped'
     this.setStatus('stopping')
 
-    // Stop model server
-    await this.stopOvmsServer()
+    // Stop all model servers
+    await this.stopOvmsLlmServer()
+    await this.stopOvmsEmbeddingServer()
+    await this.stopOvmsTranscriptionServer()
 
     this.setStatus('stopped')
     return 'stopped'
   }
 
+  /**
+   * Get the embedding server URL if an embedding server is running
+   * @returns The embedding server base URL, or null if no embedding server is running
+   */
+  getEmbeddingServerUrl(): string | null {
+    if (this.ovmsEmbeddingProcess?.isReady) {
+      return `http://127.0.0.1:${this.ovmsEmbeddingProcess.port}/v3`
+    }
+    return null
+  }
+
+  /**
+   * Get the transcription server URL if a transcription server is running
+   * @returns The transcription server base URL, or null if no transcription server is running
+   */
+  getTranscriptionServerUrl(): string | null {
+    if (this.ovmsTranscriptionProcess?.isReady) {
+      return `http://127.0.0.1:${this.ovmsTranscriptionProcess.port}/v3`
+    }
+    return null
+  }
+
   // Model server management methods
-  private async startOvmsServer(
+  private async startOvmsLlmServer(
     modelRepoId: string,
     contextSize?: number,
   ): Promise<OvmsServerProcess> {
@@ -420,45 +493,48 @@ export class OpenVINOBackendService implements ApiService {
         },
       })
 
+      const healthUrl = `http://127.0.0.1:${this.port}/v2/health/ready`
       const ovmsProcess: OvmsServerProcess = {
         process: childProcess,
         port: this.port,
         modelRepoId,
+        type: 'llm',
         contextSize,
         isReady: false,
+        healthEndpointUrl: healthUrl,
       }
 
       // Set up process event handlers
       childProcess.stdout!.on('data', (message) => {
-        this.appLogger.info(`[OVMS] ${message}`, this.name)
+        this.appLogger.info(`[OVMS LLM] ${message}`, this.name)
       })
 
       childProcess.stderr!.on('data', (message) => {
-        this.appLogger.error(`[OVMS] ${message}`, this.name)
+        this.appLogger.error(`[OVMS LLM] ${message}`, this.name)
       })
 
       childProcess.on('error', (error: Error) => {
-        this.appLogger.error(`OVMS server process error: ${error}`, this.name)
+        this.appLogger.error(`OVMS LLM server process error: ${error}`, this.name)
       })
 
       childProcess.on('exit', (code: number | null) => {
-        this.appLogger.info(`OVMS server process exited with code: ${code}`, this.name)
-        if (this.ovmsProcess === ovmsProcess) {
-          this.ovmsProcess = null
+        this.appLogger.info(`OVMS LLM server process exited with code: ${code}`, this.name)
+        if (this.ovmsLlmProcess === ovmsProcess) {
+          this.ovmsLlmProcess = null
           this.currentModel = null
           this.currentContextSize = null
         }
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(this.healthEndpointUrl, childProcess)
+      await this.waitForServerReady(healthUrl, childProcess)
       ovmsProcess.isReady = true
 
-      this.ovmsProcess = ovmsProcess
+      this.ovmsLlmProcess = ovmsProcess
       this.currentModel = modelRepoId
       this.currentContextSize = contextSize ?? null
 
-      this.appLogger.info(`OVMS server ready for model: ${modelRepoId}`, this.name)
+      this.appLogger.info(`OVMS LLM server ready for model: ${modelRepoId}`, this.name)
       return ovmsProcess
     } catch (error) {
       this.appLogger.error(
@@ -469,17 +545,17 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
-  private async stopOvmsServer(): Promise<void> {
-    if (this.ovmsProcess) {
-      this.appLogger.info(`Stopping OVMS server for model: ${this.currentModel}`, this.name)
-      this.ovmsProcess.process.kill('SIGTERM')
+  private async stopOvmsLlmServer(): Promise<void> {
+    if (this.ovmsLlmProcess) {
+      this.appLogger.info(`Stopping OVMS LLM server for model: ${this.currentModel}`, this.name)
+      this.ovmsLlmProcess.process.kill('SIGTERM')
 
       // Wait a bit for graceful shutdown, then force kill if needed
       await new Promise<void>((resolve) => {
-        const currentProcess = this.ovmsProcess
+        const currentProcess = this.ovmsLlmProcess
         const timeout = setTimeout(() => {
           if (currentProcess) {
-            this.appLogger.warn(`Force killing OVMS server process`, this.name)
+            this.appLogger.warn(`Force killing OVMS LLM server process`, this.name)
             currentProcess.process.kill('SIGKILL')
           }
           resolve()
@@ -496,10 +572,307 @@ export class OpenVINOBackendService implements ApiService {
         }
       })
 
-      this.ovmsProcess = null
+      this.ovmsLlmProcess = null
       this.currentModel = null
       this.currentContextSize = null
     }
+  }
+
+  private async startOvmsEmbeddingServer(modelRepoId: string): Promise<OvmsServerProcess> {
+    try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const port = await getPort({ port: portNumbers(29100, 29199) })
+      // Validate model path exists
+      this.resolveEmbeddingModelPath(modelRepoId)
+
+      this.appLogger.info(
+        `Starting OVMS embedding server for model: ${modelRepoId} on port ${port} with device ${selectedDevice}`,
+        this.name,
+      )
+
+      const args = [
+        '--rest_bind_address',
+        '127.0.0.1',
+        '--rest_port',
+        port.toString(),
+        '--rest_workers',
+        '4',
+        '--source_model',
+        modelRepoId.split('/').join('---'),
+        '--model_repository_path',
+        path.resolve(path.join(this.baseDir, 'models', 'LLM', 'embedding')),
+        '--target_device',
+        selectedDevice,
+        '--task',
+        'embeddings',
+        '--pooling',
+        'LAST',
+      ]
+
+      this.appLogger.info(`OVMS embedding launch args: ${args.join(' ')}`, this.name)
+
+      // Set up environment variables as per setupvars.ps1
+      const pythonDir = path.join(this.ovmsDir, 'python')
+      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
+
+      const childProcess = spawn(this.ovmsExePath, args, {
+        cwd: this.ovmsDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          OVMS_DIR: this.ovmsDir,
+          PYTHONHOME: pythonDir,
+          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+        },
+      })
+
+      const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
+      const ovmsProcess: OvmsServerProcess = {
+        process: childProcess,
+        port,
+        modelRepoId,
+        type: 'embedding',
+        isReady: false,
+        healthEndpointUrl: healthUrl,
+      }
+
+      // Set up process event handlers
+      childProcess.stdout!.on('data', (message) => {
+        this.appLogger.info(`[OVMS Embedding] ${message}`, this.name)
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        this.appLogger.error(`[OVMS Embedding] ${message}`, this.name)
+      })
+
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`OVMS embedding server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`OVMS embedding server process exited with code: ${code}`, this.name)
+        if (this.ovmsEmbeddingProcess === ovmsProcess) {
+          this.ovmsEmbeddingProcess = null
+          this.currentEmbeddingModel = null
+        }
+      })
+
+      // Wait for server to be ready
+      await this.waitForServerReady(healthUrl, childProcess)
+      ovmsProcess.isReady = true
+
+      this.ovmsEmbeddingProcess = ovmsProcess
+      this.currentEmbeddingModel = modelRepoId
+
+      this.appLogger.info(`OVMS embedding server ready for model: ${modelRepoId}`, this.name)
+      return ovmsProcess
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start OVMS embedding server for model ${modelRepoId}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  private async stopOvmsEmbeddingServer(): Promise<void> {
+    if (this.ovmsEmbeddingProcess) {
+      this.appLogger.info(
+        `Stopping OVMS embedding server for model: ${this.currentEmbeddingModel}`,
+        this.name,
+      )
+      this.ovmsEmbeddingProcess.process.kill('SIGTERM')
+
+      // Wait a bit for graceful shutdown, then force kill if needed
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.ovmsEmbeddingProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing OVMS embedding server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+
+      this.ovmsEmbeddingProcess = null
+      this.currentEmbeddingModel = null
+    }
+  }
+
+  private async startOvmsTranscriptionServer(modelRepoId: string): Promise<OvmsServerProcess> {
+    try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const port = await getPort({ port: portNumbers(29200, 29299) })
+      // Validate model path exists
+      this.resolveTranscriptionModelPath(modelRepoId)
+      const modelName = modelRepoId.split('/').join('---')
+
+      this.appLogger.info(
+        `Starting OVMS transcription server for model: ${modelRepoId} on port ${port} with device ${selectedDevice}`,
+        this.name,
+      )
+
+      const args = [
+        '--rest_bind_address',
+        '127.0.0.1',
+        '--rest_port',
+        port.toString(),
+        '--rest_workers',
+        '2',
+        '--source_model',
+        modelName,
+        '--model_repository_path',
+        path.resolve(path.join(this.baseDir, 'models', 'STT')),
+        '--model_name',
+        modelName,
+        '--target_device',
+        selectedDevice,
+        // '--cache_size',
+        // '2',
+        '--task',
+        'speech2text',
+      ]
+
+      this.appLogger.info(`OVMS transcription launch args: ${args.join(' ')}`, this.name)
+
+      // Set up environment variables as per setupvars.ps1
+      const pythonDir = path.join(this.ovmsDir, 'python')
+      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
+
+      const childProcess = spawn(this.ovmsExePath, args, {
+        cwd: this.ovmsDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          OVMS_DIR: this.ovmsDir,
+          PYTHONHOME: pythonDir,
+          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+        },
+      })
+
+      const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
+      const ovmsProcess: OvmsServerProcess = {
+        process: childProcess,
+        port,
+        modelRepoId,
+        type: 'transcription',
+        isReady: false,
+        healthEndpointUrl: healthUrl,
+      }
+
+      // Set up process event handlers
+      childProcess.stdout!.on('data', (message) => {
+        this.appLogger.info(`[OVMS Transcription] ${message}`, this.name)
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        this.appLogger.error(`[OVMS Transcription] ${message}`, this.name)
+      })
+
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`OVMS transcription server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`OVMS transcription server process exited with code: ${code}`, this.name)
+        if (this.ovmsTranscriptionProcess === ovmsProcess) {
+          this.ovmsTranscriptionProcess = null
+          this.currentTranscriptionModel = null
+        }
+      })
+
+      // Wait for server to be ready
+      await this.waitForServerReady(healthUrl, childProcess)
+      ovmsProcess.isReady = true
+
+      this.ovmsTranscriptionProcess = ovmsProcess
+      this.currentTranscriptionModel = modelRepoId
+
+      this.appLogger.info(`OVMS transcription server ready for model: ${modelRepoId}`, this.name)
+      return ovmsProcess
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start OVMS transcription server for model ${modelRepoId}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  private async stopOvmsTranscriptionServer(): Promise<void> {
+    if (this.ovmsTranscriptionProcess) {
+      this.appLogger.info(
+        `Stopping OVMS transcription server for model: ${this.currentTranscriptionModel}`,
+        this.name,
+      )
+      this.ovmsTranscriptionProcess.process.kill('SIGTERM')
+
+      // Wait a bit for graceful shutdown, then force kill if needed
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.ovmsTranscriptionProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing OVMS transcription server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+
+      this.ovmsTranscriptionProcess = null
+      this.currentTranscriptionModel = null
+    }
+  }
+
+  private resolveEmbeddingModelPath(modelRepoId: string): string {
+    // Use the same logic as the Python backend
+    const modelBasePath = 'models/LLM/embedding'
+    const [namespace, repo, ...model] = modelRepoId.split('/')
+    const modelDir = path.resolve(
+      path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
+    )
+
+    if (!filesystem.existsSync(modelDir)) {
+      throw new Error(`Embedding model directory not found: ${modelDir}`)
+    }
+
+    return modelDir
+  }
+
+  private resolveTranscriptionModelPath(modelRepoId: string): string {
+    // Use the same logic as LLM models - transcription models are stored in the same location
+    const modelBasePath = 'models/STT'
+    const [namespace, repo, ...model] = modelRepoId.split('/')
+    const modelDir = path.resolve(
+      path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
+    )
+
+    if (!filesystem.existsSync(modelDir)) {
+      throw new Error(`Transcription model directory not found: ${modelDir}`)
+    }
+
+    return modelDir
   }
 
   private async waitForServerReady(healthUrl: string, process: ChildProcess): Promise<void> {
