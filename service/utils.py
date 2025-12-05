@@ -28,6 +28,28 @@ def is_single_file(filename: str):
     """Check if a filename is a single file (not a directory)"""
     return filename.endswith(".safetensors") or filename.endswith(".bin") or filename.endswith(".gguf")
 
+def get_comfyui_faceswap_facerestore_path(type: str, repo_id: str) -> str:
+    """
+    Get the ComfyUI directory path for a faceswap or facerestore model.
+    
+    Args:
+        type: Model type ('faceswap' or 'facerestore')
+        repo_id: Repository ID of the model
+    
+    Returns:
+        Absolute path to the model in ComfyUI's models directory
+    """
+    if type not in ('faceswap', 'facerestore'):
+        raise ValueError(f'Invalid type for ComfyUI path: {type}')
+    
+    comfy_ui_root = os.path.abspath(config.comfy_ui_root_path)
+    flat_name = flat_repo_local_dir_name(repo_id)
+    
+    if type == 'faceswap':
+        return os.path.join(comfy_ui_root, 'models', 'insightface', flat_name)
+    else:  # facerestore
+        return os.path.join(comfy_ui_root, 'models', 'facerestore_models', flat_name)
+
 # Model path and existence checking
 def get_model_path(type: str, backend: str):
     """Get the model path for a given type and backend"""
@@ -64,12 +86,26 @@ def check_mmodel_exist(type: str, repo_id: str, backend: str, model_path: str = 
             raise NameError("Unknown Backend")
 
 def check_model_exists_with_path(type: str, repo_id: str, model_path: str) -> bool:
-    """Check if a model exists at the given path"""
+    """Check if a model exists at the given path, and restore to ComfyUI if needed for faceswap/facerestore"""
     # Resolve absolute path
     model_path = os.path.abspath(model_path)
     
     if type == 'faceswap' or type == 'facerestore':
-        dir_to_look_for = os.path.join(model_path, flat_repo_local_dir_name(repo_id))
+        storage_path = os.path.join(model_path, flat_repo_local_dir_name(repo_id))
+        
+        # Check if model exists in storage
+        if not os.path.exists(storage_path):
+            return False
+        
+        # For faceswap/facerestore, also check and restore to ComfyUI directory
+        comfy_ui_path = get_comfyui_faceswap_facerestore_path(type, repo_id)
+        
+        # If not in ComfyUI directory, restore from storage
+        if not os.path.exists(comfy_ui_path):
+            logging.info(f'Restoring {type} model {repo_id} from storage to ComfyUI directory')
+            copy_faceswap_facerestore_to_comfyui(type, repo_id, model_path)
+        
+        return True
     elif type == 'nsfwdetector':
         dir_to_look_for = os.path.join(model_path, 'vit-base-nsfw-detector', extract_model_id_pathsegments(repo_id))
     elif type == 'ggufLLM' or (isinstance(repo_id, str) and repo_id.endswith('.gguf')):
@@ -102,13 +138,36 @@ def check_llama_cpp_model_exists(type: str, repo_id: str) -> bool:
     return os.path.exists(dir_to_look_for)
 
 def check_comfyui_model_exists(type: str, repo_id: str) -> bool:
-    """Check if a ComfyUI model exists"""
-    model_dir = config.comfy_ui_model_paths.get(type)
+    """Check if a ComfyUI model exists, and restore from storage if missing in ComfyUI directory"""
+    # For faceswap and facerestore, check ComfyUI's models directory first
     if type == 'faceswap' or type == 'facerestore':
-        dir_to_look_for = os.path.join(model_dir, flat_repo_local_dir_name(repo_id))
+        # Check ComfyUI's models directory first
+        comfy_ui_path = get_comfyui_faceswap_facerestore_path(type, repo_id)
+        
+        # If exists in ComfyUI directory, return True
+        if os.path.exists(comfy_ui_path):
+            return True
+        
+        # If not in ComfyUI directory, check storage and restore if found
+        model_dir = config.comfy_ui_model_paths.get(type)
+        flat_name = flat_repo_local_dir_name(repo_id)
+        storage_path = os.path.join(os.path.abspath(model_dir), flat_name)
+        
+        if os.path.exists(storage_path):
+            # Restore from storage to ComfyUI directory
+            logging.info(f'Restoring {type} model {repo_id} from storage to ComfyUI directory')
+            if copy_faceswap_facerestore_to_comfyui(type, repo_id):
+                return True
+            else:
+                # Even if copy failed, model exists in storage
+                logging.warning(f'Model exists in storage but failed to copy to ComfyUI: {repo_id}')
+                return True  # Return True because model exists, just not in ComfyUI location
+        
+        return False
     elif type == 'nsfwdetector':
-        dir_to_look_for = os.path.join(model_dir, 'vit-base-nsfw-detector', extract_model_id_pathsegments(repo_id))
+        dir_to_look_for = os.path.join(config.comfy_ui_model_paths.get(type), 'vit-base-nsfw-detector', extract_model_id_pathsegments(repo_id))
     else:
+        model_dir = config.comfy_ui_model_paths.get(type)
         dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
     return os.path.exists(dir_to_look_for)
 
@@ -158,3 +217,60 @@ def remove_existing_filesystem_resource(path: str):
             shutil.rmtree(path)
         else:
             os.remove(path)
+
+def copy_faceswap_facerestore_to_comfyui(type: str, repo_id: str, storage_model_path: str = None) -> bool:
+    """
+    Copy faceswap or facerestore models from our storage location to ComfyUI's models directory.
+    
+    Args:
+        type: Model type ('faceswap' or 'facerestore')
+        repo_id: Repository ID of the model
+        storage_model_path: Optional path to the storage location (defaults to config path)
+    
+    Returns:
+        True if copy was successful, False otherwise
+    """
+    if type not in ('faceswap', 'facerestore'):
+        logging.warning(f'copy_faceswap_facerestore_to_comfyui called for unsupported type: {type}')
+        return False
+    
+    try:
+        # Get storage path (where models are downloaded)
+        if storage_model_path:
+            storage_path = os.path.abspath(storage_model_path)
+        else:
+            storage_path = os.path.abspath(config.comfy_ui_model_paths.get(type))
+        
+        # Construct source and destination paths
+        flat_name = flat_repo_local_dir_name(repo_id)
+        source_path = os.path.join(storage_path, flat_name)
+        dest_path = get_comfyui_faceswap_facerestore_path(type, repo_id)
+        dest_dir = os.path.dirname(dest_path)
+        
+        # Check if source exists
+        if not os.path.exists(source_path):
+            logging.warning(f'Source model not found at {source_path}, cannot copy to ComfyUI')
+            return False
+        
+        # Create destination directory if it doesn't exist
+        os.makedirs(dest_dir, exist_ok=True)
+        
+        # Remove existing destination if it exists
+        if os.path.exists(dest_path):
+            if os.path.isdir(dest_path):
+                shutil.rmtree(dest_path)
+            else:
+                os.remove(dest_path)
+        
+        # Copy model (file or directory)
+        if os.path.isdir(source_path):
+            shutil.copytree(source_path, dest_path)
+            logging.info(f'Copied directory {source_path} to {dest_path}')
+        else:
+            shutil.copy2(source_path, dest_path)
+            logging.info(f'Copied file {source_path} to {dest_path}')
+        
+        return True
+    except Exception as e:
+        logging.error(f'Failed to copy {type} model {repo_id} to ComfyUI: {e}')
+        return False

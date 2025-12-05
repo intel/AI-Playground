@@ -20,12 +20,14 @@ class Model_Downloader_Adapter:
     hf_downloader: HFPlaygroundDownloader
     has_error: bool
     user_stop: bool
+    current_download_item: DownloadModelData
 
     def __init__(self, hf_token=None):
         self.msg_queue = Queue(-1)
         self.finish = False
         self.user_stop = False
         self.singal = threading.Event()
+        self.current_download_item = None
         self.file_downloader = FileDownloader()
         self.file_downloader.on_download_progress = (
             self.download_model_progress_callback
@@ -72,6 +74,16 @@ class Model_Downloader_Adapter:
             self.finish = True
         else:
             self.put_msg({"type": "download_model_completed", "repo_id": repo_id})
+            
+            # Copy faceswap/facerestore models to ComfyUI directory after successful download
+            if self.current_download_item and self.current_download_item.backend == "comfyui":
+                if self.current_download_item.type in ('faceswap', 'facerestore'):
+                    utils.copy_faceswap_facerestore_to_comfyui(
+                        self.current_download_item.type,
+                        self.current_download_item.repo_id,
+                        self.current_download_item.model_path
+                    )
+        
         _adapter = None
 
     def error_callback(self, ex: Exception):
@@ -118,6 +130,8 @@ class Model_Downloader_Adapter:
                 if self.has_error:
                     break
                 else:
+                    # Store current item for use in callback
+                    self.current_download_item = item
                     self.hf_downloader.download(item.repo_id, item.type, item.backend, item.model_path)
             self.put_msg({"type": "allComplete"})
             self.finish = True

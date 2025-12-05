@@ -81,9 +81,18 @@ export const ComfyUiToolOutputSchema = z
 
 export type ComfyUiToolOutput = z.infer<typeof ComfyUiToolOutputSchema>
 
+// Helper function to find Fast variant in a preset
+function findFastVariant(preset: Preset): string | null {
+  if (!preset.variants || preset.variants.length === 0) return null
+  const fastVariant = preset.variants.find((v) => v.name.toLowerCase().includes('fast'))
+  console.log('### findFastVariant', { preset, fastVariant })
+  return fastVariant ? fastVariant.name : null
+}
+
 // Helper function to execute ComfyUI generation for tool calls
 export async function executeComfyGeneration(args: {
   workflow?: string
+  variant?: string
   prompt: string
   negativePrompt?: string
   resolution?: string
@@ -91,6 +100,7 @@ export async function executeComfyGeneration(args: {
   seed?: number
   batchSize?: number
 }): Promise<ComfyUiToolOutput> {
+  console.log('### executeComfyGeneration', args)
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
@@ -103,9 +113,9 @@ export async function executeComfyGeneration(args: {
   }
 
   // Find preset by name
-  let preset = null
+  let preset: Preset | null = null
   if (args.workflow) {
-    preset = presets.presets.find((p) => p.name === args.workflow)
+    preset = presets.presets.find((p) => p.name === args.workflow) || null
     if (!preset) {
       throw new Error(`Preset "${args.workflow}" not found`)
     }
@@ -116,11 +126,44 @@ export async function executeComfyGeneration(args: {
     throw new Error('Workflow name is required')
   }
 
-  // Helper function to get default value from preset settings
+  // Select variant (use provided variant, or prefer Fast variant if available)
+  let selectedVariant: string | null = null
+  if (preset.variants && preset.variants.length > 0) {
+    if (args.variant) {
+      // Validate that the specified variant exists
+      const variantExists = preset.variants.some((v) => v.name === args.variant)
+      if (!variantExists) {
+        throw new Error(
+          `Variant "${args.variant}" not found in preset "${preset.name}". Available variants: ${preset.variants.map((v) => v.name).join(', ')}`,
+        )
+      }
+      selectedVariant = args.variant
+    } else {
+      // Prefer Fast variant if no variant specified
+      const fastVariant = findFastVariant(preset)
+      selectedVariant = fastVariant || preset.variants[0].name
+    }
+  }
+
+  // Get preset with variant applied (important for reading correct settings)
+  // Set variant in store first so getPresetWithVariant can find it
+  if (selectedVariant) {
+    presets.setActiveVariant(preset.name, selectedVariant)
+  }
+  const presetWithVariant = presets.getPresetWithVariant(preset.name)
+  if (!presetWithVariant) {
+    throw new Error(`Failed to get preset "${preset.name}" with variant`)
+  }
+  // Update preset reference to use the variant-applied preset
+  preset = presetWithVariant
+
+  // Helper function to get default value from preset settings (now uses variant-applied preset)
   const getPresetDefault = (settingName: string): unknown => {
     console.log('### getPresetDefault', { settingName, preset })
     if (!preset) return null
-    const setting = preset.settings.find((s) => 'settingName' in s && s.settingName === settingName)
+    const setting = preset.settings.find(
+      (s: { settingName?: string }) => 'settingName' in s && s.settingName === settingName,
+    )
     console.log('### getPresetDefault', { settingName, preset, setting })
     return setting?.defaultValue ?? null
   }
@@ -171,10 +214,14 @@ export async function executeComfyGeneration(args: {
   const originalSeed = imageGeneration.seed
   const originalBatchSize = imageGeneration.batchSize
   const originalActivePresetName = presets.activePresetName
+  const originalActiveVariant = originalActivePresetName
+    ? presets.activeVariantName[originalActivePresetName] || null
+    : null
 
   try {
-    // Set the active preset first
+    // Set the active preset and variant first
     if (args.workflow) {
+      // Variant is already set above, just set the active preset name
       presets.activePresetName = args.workflow
       // Wait for preset to be loaded and settings to be applied
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -312,6 +359,10 @@ export async function executeComfyGeneration(args: {
     imageGeneration.seed = originalSeed
     imageGeneration.batchSize = originalBatchSize
     presets.activePresetName = originalActivePresetName
+    // Restore original variant if preset was restored
+    if (originalActivePresetName) {
+      presets.setActiveVariant(originalActivePresetName, originalActiveVariant)
+    }
   }
 }
 
@@ -320,17 +371,24 @@ export async function executeComfyGeneration(args: {
 function getToolDefinition() {
   const availableWorkflows = getAvailableWorkflows()
   const defaultWorkflow = 'Draft Image'
+  const defaultWorkflowWithVariant = 'Draft Image - Fast'
 
   // Fallback if no workflows are available yet (presets not loaded)
   if (availableWorkflows.length === 0) {
     return {
       description:
-        'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\nIMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags.',
+        'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\nIMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags.\n\nVARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive. The default preset is "Draft Image" with "Fast" variant. You can optionally specify a variant name if the user requests a specific quality level.',
       inputSchema: z.object({
         workflow: z
           .string()
           .describe(
-            `Workflow name to use for generation. Use ${defaultWorkflow} (default, least resource intensive) unless user specifically requests higher quality or different model.`,
+            `Workflow name to use for generation. Use ${defaultWorkflow} (default, will automatically use "Fast" variant if available, least resource intensive) unless user specifically requests higher quality or different model.`,
+          ),
+        variant: z
+          .string()
+          .optional()
+          .describe(
+            'Optional variant name to use (e.g., "Fast", "Standard", "Quality"). If not specified, "Fast" variant will be used by default when available. Only specify if user explicitly requests a specific quality level.',
           ),
         prompt: z
           .string()
@@ -367,6 +425,8 @@ function getToolDefinition() {
     'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\n'
   description +=
     'IMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags. For example, if the user asks for "an elephant", expand it to something like "a majestic African elephant standing in golden hour sunlight, detailed wrinkles on skin, photorealistic, 8k, highly detailed, professional photography".\n\n'
+  description +=
+    'VARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive. The default preset is "Draft Image" with "Fast" variant. The tool will automatically select the "Fast" variant when available. You can optionally specify a variant name in the variant parameter if the user requests a specific quality level.\n\n'
 
   // Add preset-specific instructions if available
   if (allInstructions.length > 0) {
@@ -377,11 +437,12 @@ function getToolDefinition() {
     description += '\n'
   }
 
-  description += `Available workflows: ${workflowOptions}. Use '${defaultWorkflow}' unless the user specifically requests higher quality, a different model, or a different media type.\n\n`
+  description += `Available workflows: ${workflowOptions}.`
+  description += `IMPORTANT: You MUST use '${defaultWorkflow}' (which will automatically use the "Fast" variant, equivalent to '${defaultWorkflowWithVariant}') unless the user explicitly requests higher quality, a different model, or a different media type.\n\n`
 
   // Add explicit warnings for video workflows
   if (videoWorkflows.length > 0) {
-    description += `CRITICAL: Video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) should ONLY be used when the user explicitly requests video generation. Never use video workflows for image requests. Video generation is resource-intensive and should only be used when specifically asked for.`
+    description += `IMPORTANT: Video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) should ONLY be used when the user explicitly requests video generation. Never use video workflows for image requests. Video generation is resource-intensive and should only be used when specifically asked for.`
   }
 
   // Build workflow enum or string description
@@ -390,7 +451,7 @@ function getToolDefinition() {
     workflowNames.length > 0 ? z.enum(workflowNames as [string, ...string[]]) : z.string()
 
   let workflowDescription = `Workflow name to use for generation. Available options: ${workflowOptions}. `
-  workflowDescription += `Use ${defaultWorkflow} unless user specifically requests higher quality or different model. `
+  workflowDescription += `Use ${defaultWorkflow} (will automatically use "Fast" variant if available, equivalent to '${defaultWorkflowWithVariant}') unless user specifically requests higher quality or different model. `
   if (videoWorkflows.length > 0) {
     workflowDescription += `IMPORTANT: Only use video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) when the user explicitly asks for video generation. Never use video workflows for image requests.`
   }
@@ -399,6 +460,12 @@ function getToolDefinition() {
     description,
     inputSchema: z.object({
       workflow: workflowEnum.describe(workflowDescription),
+      variant: z
+        .string()
+        .optional()
+        .describe(
+          'Optional variant name to use (e.g., "Fast", "Standard", "Quality"). If not specified, "Fast" variant will be used by default when available. Only specify if user explicitly requests a specific quality level.',
+        ),
       prompt: z
         .string()
         .describe(
@@ -427,6 +494,7 @@ export const comfyUI = tool({
   outputSchema: ComfyUiToolOutputSchema,
   execute: async (args: {
     workflow?: string
+    variant?: string
     prompt: string
     negativePrompt?: string
     resolution?: string
