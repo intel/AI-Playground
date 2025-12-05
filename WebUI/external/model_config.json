@@ -2,6 +2,7 @@
   "ggufLLM": "./resources/models/LLM/ggufLLM",
   "openvinoLLM": "./resources/models/LLM/openvino",
   "embedding": "./resources/models/LLM/embedding",
+  "STT": "./resources/models/STT",
   "checkpoints": "./resources/models/ComfyUI/checkpoints",
   "unet": "./resources/models/ComfyUI/unet",
   "clip": "./resources/models/ComfyUI/clip",

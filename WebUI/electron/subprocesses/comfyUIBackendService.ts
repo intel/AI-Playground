@@ -149,6 +149,29 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
   }
 
+  async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
+    if (!this.isSetUp) return undefined
+    try {
+      const versionFilePath = path.join(this.serviceDir, 'comfyui_version.py')
+      if (filesystem.existsSync(versionFilePath)) {
+        const versionFileContent = await filesystem.readFile(versionFilePath, 'utf-8')
+        const versionMatch = versionFileContent.match(/__version__\s*=\s*["']([^"']+)["']/)
+        if (versionMatch && versionMatch[1]) {
+          const version = versionMatch[1]
+          // Check if it's a version tag (v0.3.76) or git hash
+          if (version.startsWith('v')) {
+            return { version }
+          } else {
+            return { version: `v${version}` }
+          }
+        }
+      }
+    } catch (e) {
+      this.appLogger.error(`failed to get installed ComfyUI version: ${e}`, this.name)
+    }
+    return undefined
+  }
+
   get_info(): ApiServiceInformation {
     const baseInfo = super.get_info()
 

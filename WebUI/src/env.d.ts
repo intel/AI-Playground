@@ -40,6 +40,9 @@ type electronAPI = {
   resolveBackendVersion(
     serviceName: string,
   ): Promise<{ releaseTag: string; version: string } | undefined>
+  getInstalledBackendVersion(
+    serviceName: string,
+  ): Promise<{ releaseTag?: string; version?: string } | undefined>
   openDevTools(): void
   openUrl(url: string): void
   changeWindowMessageFilter(): void
@@ -114,6 +117,9 @@ type electronAPI = {
     embeddingModelName?: string,
     contextSize?: number,
   ): Promise<{ success: boolean; error?: string }>
+  startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
+  stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
+  getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
   // ComfyUI Tools - uses uv for Python package management
   comfyui: {
     isGitInstalled(): Promise<boolean>

@@ -85,11 +85,15 @@ export const useBackendServices = defineStore(
       })
       .then((services) => {
         currentServiceInfo.value = services
+        // One-time initial version check after services are loaded
+        updateInstalledVersions()
       })
     setTimeout(() => {
       window.electronAPI.getServices().then((services) => {
         console.log('getServices', services)
         currentServiceInfo.value = services
+        // One-time version check after delayed service fetch
+        updateInstalledVersions()
       })
     }, 5000)
     window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
@@ -97,6 +101,41 @@ export const useBackendServices = defineStore(
         oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo,
       )
     })
+
+    // Update installed version for a single service
+    const updateInstalledVersionForService = async (serviceName: BackendServiceName) => {
+      const service = currentServiceInfo.value.find((s) => s.serviceName === serviceName)
+      if (!service || !service.isSetUp) {
+        versionState.value[serviceName].installed = undefined
+        return
+      }
+
+      try {
+        const installedVersion = await window.electronAPI.getInstalledBackendVersion(serviceName)
+        if (installedVersion && typeof installedVersion.version === 'string') {
+          versionState.value[serviceName].installed = {
+            version: installedVersion.version,
+            ...(installedVersion.releaseTag && { releaseTag: installedVersion.releaseTag }),
+          }
+        } else {
+          versionState.value[serviceName].installed = undefined
+        }
+      } catch (error) {
+        console.warn(`Failed to get installed version for ${serviceName}:`, error)
+        versionState.value[serviceName].installed = undefined
+      }
+    }
+
+    // Populate installed versions for all services (used during initial startup)
+    const updateInstalledVersions = async () => {
+      for (const service of currentServiceInfo.value) {
+        if (service.isSetUp) {
+          await updateInstalledVersionForService(service.serviceName)
+        } else {
+          versionState.value[service.serviceName].installed = undefined
+        }
+      }
+    }
 
     window.electronAPI.onServiceSetUpProgress(async (data) => {
       const associatedListener = serviceListeners.get(data.serviceName)
@@ -215,7 +254,11 @@ export const useBackendServices = defineStore(
       await updateServiceSettings({ serviceName, ...targetVersionSettings })
       window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
-      if (result.success) await detectDevices(serviceName)
+      if (result.success) {
+        await detectDevices(serviceName)
+        // Check installed version after successful installation
+        await updateInstalledVersionForService(serviceName)
+      }
       return result
     }
 
@@ -303,6 +346,43 @@ export const useBackendServices = defineStore(
       }
     }
 
+    async function startTranscriptionServer(modelName: string): Promise<void> {
+      try {
+        const result = await window.electronAPI.startTranscriptionServer(modelName)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to start transcription server')
+        }
+      } catch (error) {
+        console.error(`Failed to start transcription server:`, error)
+        throw error
+      }
+    }
+
+    async function stopTranscriptionServer(): Promise<void> {
+      try {
+        const result = await window.electronAPI.stopTranscriptionServer()
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to stop transcription server')
+        }
+      } catch (error) {
+        console.error(`Failed to stop transcription server:`, error)
+        throw error
+      }
+    }
+
+    async function getTranscriptionServerUrl(): Promise<string | null> {
+      try {
+        const result = await window.electronAPI.getTranscriptionServerUrl()
+        if (result.success && result.url) {
+          return result.url
+        }
+        return null
+      } catch (error) {
+        console.error(`Failed to get transcription server URL:`, error)
+        return null
+      }
+    }
+
     async function shouldShowInstallationDialog(): Promise<boolean> {
       // Wait a moment for async setup checks to complete in the main process
       // Services like ai-backend check setup asynchronously, so we need to give them time
@@ -379,6 +459,9 @@ export const useBackendServices = defineStore(
       detectDevices,
       selectDevice,
       ensureBackendReadiness,
+      startTranscriptionServer,
+      stopTranscriptionServer,
+      getTranscriptionServerUrl,
       getServiceErrorDetails,
       shouldShowInstallationDialog,
       startAllSetUpServicesInBackground,

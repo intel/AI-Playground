@@ -852,6 +852,93 @@ function initEventHandle() {
     },
   )
 
+  ipcMain.handle(
+    'startTranscriptionServer',
+    async (_event: IpcMainInvokeEvent, modelName: string) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
+      }
+      const service = serviceRegistry.getService('openvino-backend')
+      if (!service) {
+        return { success: false, error: 'OpenVINO backend service not found' }
+      }
+
+      // Check if service has startTranscriptionServer method
+      if (
+        'startTranscriptionServer' in service &&
+        typeof service.startTranscriptionServer === 'function'
+      ) {
+        try {
+          await service.startTranscriptionServer(modelName)
+          return { success: true }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          appLogger.error(
+            `Failed to start transcription server: ${errorMessage}`,
+            'electron-backend',
+          )
+          return { success: false, error: errorMessage }
+        }
+      }
+
+      return { success: false, error: 'Transcription server not supported' }
+    },
+  )
+
+  ipcMain.handle('stopTranscriptionServer', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    // Check if service has stopTranscriptionServer method
+    if (
+      'stopTranscriptionServer' in service &&
+      typeof service.stopTranscriptionServer === 'function'
+    ) {
+      try {
+        await service.stopTranscriptionServer()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(
+          `Failed to stop transcription server: ${errorMessage}`,
+          'electron-backend',
+        )
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Transcription server not supported' }
+  })
+
+  ipcMain.handle('getTranscriptionServerUrl', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    // Check if service has getTranscriptionServerUrl method
+    if (
+      'getTranscriptionServerUrl' in service &&
+      typeof service.getTranscriptionServerUrl === 'function'
+    ) {
+      const transcriptionUrl = service.getTranscriptionServerUrl()
+      if (transcriptionUrl) {
+        return { success: true, url: transcriptionUrl }
+      }
+      return { success: false, error: 'Transcription server not running' }
+    }
+
+    return { success: false, error: 'Transcription server not supported' }
+  })
+
   ipcMain.on('ondragstart', async (event, filePath) => {
     const imagePath = getAssetPathFromUrl(filePath)
     if (!imagePath) return
@@ -1006,6 +1093,23 @@ function initEventHandle() {
   // Version management IPC handlers for frontend store integration
   ipcMain.handle('resolveBackendVersion', async (_event, serviceName: BackendServiceName) => {
     return await resolveBackendVersion(serviceName, settings)
+  })
+
+  ipcMain.handle('getInstalledBackendVersion', async (_event, serviceName: BackendServiceName) => {
+    if (!serviceRegistry) {
+      appLogger.warn('Service registry not ready', 'electron-backend')
+      return undefined
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (!service || !('getInstalledVersion' in service) || typeof service.getInstalledVersion !== 'function') {
+      return undefined
+    }
+    try {
+      return await service.getInstalledVersion()
+    } catch (error) {
+      appLogger.error(`Failed to get installed version for ${serviceName}: ${error}`, 'electron-backend')
+      return undefined
+    }
   })
 
   // ComfyUI Tools IPC handlers

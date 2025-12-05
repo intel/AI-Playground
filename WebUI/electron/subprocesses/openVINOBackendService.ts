@@ -91,13 +91,9 @@ export class OpenVINOBackendService implements ApiService {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
-    transcriptionModelName?: string,
   ): Promise<void> {
-    if (!transcriptionModelName) {
-      transcriptionModelName = 'OpenVINO/whisper-large-v3-int4-ov'
-    }
     this.appLogger.info(
-      `Ensuring OpenVINO backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Transcription: ${transcriptionModelName ?? 'none'}, Context: ${contextSize ?? 'default'}`,
+      `Ensuring OpenVINO backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context: ${contextSize ?? 'default'}`,
       this.name,
     )
 
@@ -134,34 +130,13 @@ export class OpenVINOBackendService implements ApiService {
         }
       }
 
-      // Handle transcription model if provided
-      if (transcriptionModelName) {
-        const needsTranscriptionRestart =
-          this.currentTranscriptionModel !== transcriptionModelName ||
-          !this.ovmsTranscriptionProcess?.isReady
-
-        if (needsTranscriptionRestart) {
-          await this.stopOvmsTranscriptionServer()
-          await this.startOvmsTranscriptionServer(transcriptionModelName)
-          this.appLogger.info(
-            `Transcription server ready with model: ${transcriptionModelName}`,
-            this.name,
-          )
-        } else {
-          this.appLogger.info(
-            `Transcription server already running with model: ${transcriptionModelName}`,
-            this.name,
-          )
-        }
-      }
-
       this.appLogger.info(
-        `OpenVINO backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Transcription: ${transcriptionModelName ?? 'none'}`,
+        `OpenVINO backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
         this.name,
       )
     } catch (error) {
       this.appLogger.error(
-        `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Transcription: ${transcriptionModelName ?? 'none'}: ${error}`,
+        `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`,
         this.name,
       )
       throw error
@@ -230,6 +205,23 @@ export class OpenVINOBackendService implements ApiService {
       version: this.version,
       serviceName: this.name,
     }
+  }
+
+  async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
+    if (!this.isSetUp) return undefined
+    try {
+      const result = await execAsync(`"${this.ovmsExePath}" --version`, {
+        timeout: 5000,
+      })
+      // Parse output like "OpenVINO backend 2025.4.0.0rc3"
+      const versionMatch = result.stdout.match(/OpenVINO backend\s+([\d.]+(?:rc\d+)?)/)
+      if (versionMatch && versionMatch[1]) {
+        return { version: versionMatch[1] }
+      }
+    } catch (e) {
+      this.appLogger.error(`failed to get installed OpenVINO version: ${e}`, this.name)
+    }
+    return undefined
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -438,6 +430,57 @@ export class OpenVINOBackendService implements ApiService {
       return `http://127.0.0.1:${this.ovmsTranscriptionProcess.port}/v3`
     }
     return null
+  }
+
+  /**
+   * Start transcription server independently
+   * @param modelName - The transcription model name (e.g., 'OpenVINO/whisper-large-v3-int4-ov')
+   */
+  async startTranscriptionServer(modelName: string): Promise<void> {
+    try {
+      this.appLogger.info(`Starting transcription server for model: ${modelName}`, this.name)
+
+      // Check if already running with the same model
+      if (
+        this.ovmsTranscriptionProcess?.isReady &&
+        this.currentTranscriptionModel === modelName
+      ) {
+        this.appLogger.info(
+          `Transcription server already running with model: ${modelName}`,
+          this.name,
+        )
+        return
+      }
+
+      // Stop existing server if running different model
+      if (this.ovmsTranscriptionProcess) {
+        await this.stopOvmsTranscriptionServer()
+      }
+
+      // Start new server
+      await this.startOvmsTranscriptionServer(modelName)
+      this.appLogger.info(`Transcription server started successfully for model: ${modelName}`, this.name)
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start transcription server for model ${modelName}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Stop transcription server independently
+   */
+  async stopTranscriptionServer(): Promise<void> {
+    try {
+      this.appLogger.info('Stopping transcription server', this.name)
+      await this.stopOvmsTranscriptionServer()
+      this.appLogger.info('Transcription server stopped successfully', this.name)
+    } catch (error) {
+      this.appLogger.error(`Failed to stop transcription server: ${error}`, this.name)
+      throw error
+    }
   }
 
   // Model server management methods

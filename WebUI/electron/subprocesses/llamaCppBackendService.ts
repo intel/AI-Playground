@@ -293,6 +293,28 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
+  async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
+    if (!this.isSetUp) return undefined
+    try {
+      const result = await execAsync(`"${this.llamaCppExePath}" --version`, {
+        cwd: this.llamaCppDir,
+        env: {
+          ...process.env,
+        },
+        timeout: 10000, // 10 second timeout
+      })
+      // Parse output like "version: 7278 (03d9a77b8)"
+      const versionMatch = result.stderr.match(/version:\s*(\d+)\s*\([^)]+\)/m)
+      this.appLogger.info(`getInstalledVersion: ${result.stdout}, ${result.stderr}, ${versionMatch}`, this.name)
+      if (versionMatch && versionMatch[1]) {
+        return { version: `b${versionMatch[1]}` }
+      }
+    } catch (e) {
+      this.appLogger.error(`failed to get installed LlamaCPP version: ${e}`, this.name)
+    }
+    return undefined
+  }
+
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)

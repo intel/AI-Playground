@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveUserPreset: (presetContent: string) => ipcRenderer.invoke('saveUserPreset', presetContent),
   resolveBackendVersion: (serviceName: string) =>
     ipcRenderer.invoke('resolveBackendVersion', serviceName),
+  getInstalledBackendVersion: (serviceName: string) =>
+    ipcRenderer.invoke('getInstalledBackendVersion', serviceName),
   openDevTools: () => ipcRenderer.send('openDevTools'),
   openUrl: (url: string) => ipcRenderer.send('openUrl', url),
   getLocaleSettings: () => ipcRenderer.invoke('getLocaleSettings'),
@@ -106,6 +108,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       embeddingModelName,
       contextSize,
     ),
+  startTranscriptionServer: (modelName: string) =>
+    ipcRenderer.invoke('startTranscriptionServer', modelName),
+  stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),
+  getTranscriptionServerUrl: () => ipcRenderer.invoke('getTranscriptionServerUrl'),
   // ComfyUI Tools
   comfyui: {
     isGitInstalled: () => ipcRenderer.invoke('comfyui:isGitInstalled'),

@@ -13,6 +13,7 @@ llama_cpp_model_paths = {
 openvino_model_paths = {
     "openvinoLLM": "../models/LLM/openvino",
     "embedding": "../models/LLM/embedding/openVINO",
+    "STT": "../models/STT",
 }
 
 # ComfyUI related paths

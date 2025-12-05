@@ -18,6 +18,7 @@
               <td>{{ languages.BACKEND_TYPE }}</td>
               <td>{{ languages.BACKEND_INFORMATION }}</td>
               <td>{{ languages.BACKEND_ENABLE }}</td>
+              <td>Version</td>
               <td>{{ languages.BACKEND_STATUS }}</td>
               <td>{{ languages.BACKEND_ACTION }}</td>
               <td class="w-6"></td>
@@ -56,6 +57,27 @@
                   :disabled="component.isRequired"
                 />
                 <p v-else>-</p>
+              </td>
+              <td class="text-center">
+                <div class="flex items-center justify-center gap-2">
+                  <span>{{ formatInstalledVersion(component.serviceName) }}</span>
+                  <TooltipProvider :delay-duration="100" v-if="hasVersionMismatch(component.serviceName)">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button type="button" class="p-0.5">
+                          <span class="svg-icon i-info w-5 h-5 text-muted-foreground"></span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent class="bg-card border border-border text-foreground p-3 z-[200]">
+                        <p class="text-sm">
+                          The installed version {{ formatInstalledVersion(component.serviceName) }} is
+                          different from the latest tested version
+                          {{ formatTargetVersion(component.serviceName) }}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </td>
               <td :style="{ color: mapStatusToColor(component.status) }" class="">
                 <div class="flex items-center gap-2">
@@ -177,6 +199,7 @@ import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import type { ErrorDetails } from '../../electron/subprocesses/service'
 
 const emits = defineEmits<{
@@ -357,6 +380,51 @@ function closeErrorModal() {
   errorModalOpen.value = false
   selectedServiceName.value = ''
   selectedErrorDetails.value = null
+}
+
+// Format version string for display
+function formatVersion(version: { version?: string; releaseTag?: string } | null | undefined): string {
+  if (!version) return '-'
+  if (version.releaseTag && version.version) {
+    return `${version.releaseTag} / ${version.version}`
+  }
+  return version.version || '-'
+}
+
+// Format installed version for display
+function formatInstalledVersion(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.installed) {
+    return formatVersion(versionState.installed)
+  }
+  return '-'
+}
+
+// Format target version for display
+function formatTargetVersion(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.target) {
+    return formatVersion(versionState.target)
+  }
+  return '-'
+}
+
+// Check if installed version differs from target version
+function hasVersionMismatch(serviceName: BackendServiceName): boolean {
+  const versionState = backendServices.versionState[serviceName]
+  if (!versionState.target || !versionState.installed) return false
+
+  // For Ollama, compare both version and releaseTag
+  if (serviceName === 'ollama-backend') {
+    const target = versionState.target
+    const installed = versionState.installed
+    return (
+      installed.version !== target.version || installed.releaseTag !== target.releaseTag
+    )
+  }
+
+  // For other backends, compare version only
+  return versionState.installed.version !== versionState.target.version
 }
 </script>
 

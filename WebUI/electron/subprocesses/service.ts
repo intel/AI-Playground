@@ -454,6 +454,7 @@ export interface ApiService {
   stop(): Promise<BackendStatus>
   updateSettings(settings: ServiceSettings): Promise<void>
   getSettings(): Promise<ServiceSettings>
+  getInstalledVersion?(): Promise<{ version?: string; releaseTag?: string } | undefined>
   uninstall(): Promise<void>
   get_info(): ApiServiceInformation
   ensureBackendReadiness(

@@ -155,10 +155,55 @@ export const useModels = defineStore(
           }
           return ''
         }
+        if (type === 'STT') {
+          // STT path for openvino transcription models
+          return pathsToUse['STT'] || ''
+        }
       }
       
       // Fallback: try to find by type directly
       return pathsToUse[type] || ''
+    }
+
+    /**
+     * Check if a transcription model exists
+     * @param modelName - The model name (e.g., 'OpenVINO/whisper-large-v3-int4-ov')
+     * @returns Promise<boolean> - True if model exists
+     */
+    async function checkTranscriptionModelExists(modelName: string): Promise<boolean> {
+      const checkParams = [
+        {
+          repo_id: modelName,
+          type: 'STT',
+          backend: 'openvino' as const,
+        },
+      ]
+      const results = await checkModelAlreadyLoaded(checkParams)
+      return results.length > 0 && results[0].already_loaded
+    }
+
+    /**
+     * Get missing transcription model download parameters
+     * @param modelName - The model name (e.g., 'OpenVINO/whisper-large-v3-int4-ov')
+     * @returns Promise<DownloadModelParam[]> - Array with model if missing, empty if exists
+     */
+    async function getMissingTranscriptionModel(
+      modelName: string,
+    ): Promise<DownloadModelParam[]> {
+      const exists = await checkTranscriptionModelExists(modelName)
+      if (exists) {
+        return []
+      }
+
+      const modelPath = getModelPath('STT', 'openvino')
+      return [
+        {
+          repo_id: modelName,
+          type: 'STT',
+          backend: 'openvino',
+          model_path: modelPath,
+        },
+      ]
     }
     
     /**
@@ -228,6 +273,8 @@ export const useModels = defineStore(
     return {
       models,
       hfToken,
+      checkTranscriptionModelExists,
+      getMissingTranscriptionModel,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       downloadList,
       paths,
