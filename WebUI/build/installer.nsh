@@ -16,7 +16,7 @@
       inetc::get /CAPTION " " /BANNER "Downloading Microsoft Visual C++ Redistributable..." "https://aka.ms/vs/17/release/vc_redist.x64.exe" "$TEMP\vc_redist.x64.exe"
       ExecWait "$TEMP\vc_redist.x64.exe /install /norestart"
     ${EndIf}
-
+      
     SetDetailsPrint both
 
     StrCpy $0 "$INSTDIR"
@@ -25,28 +25,32 @@
     IfFileExists "$2" recoverModels end
 
     recoverModels:
-        DetailPrint "Recovering model files..."
-        nsExec::ExecToLog '"$INSTDIR\resources\uv.exe" "run" "--script" "$INSTDIR\resources\service\tools\move_model_files.py" "$2" "$INSTDIR\resources\service\models"'
-        Pop $0
-        ${if} $0 == 0
-          RMDir /r "$2"
-          Goto end
-        ${endIf}
+      DetailPrint "Recovering model files..."
+      nsExec::ExecToLog '"$INSTDIR\resources\uv.exe" "run" "--script" "$INSTDIR\resources\service\move_model_files.py" "$2" "$INSTDIR\resources\models"'
+      Pop $0
+      ${if} $0 == 0
+        RMDir /r "$2"
+        Goto end
+      ${endIf}
 
-        MessageBox MB_OK "WARNING: Failed to recover model files from $2. You can manually copy the contents from $2 to $INSTDIR\resources\service\models"
+      IfSilent +2
+      MessageBox MB_OK "WARNING: Failed to recover model files from $2. You can manually copy the contents from $2 to $INSTDIR\resources\models"
 
     end:
         DetailPrint "Installation completed."
-
+          
 !macroend
 
 
 !macro customRemoveFiles
+
+  IfSilent keepModels
   SetDetailsPrint both
   DetailPrint "Uninstalling existing files..."
 
   ; Ask the user if they want to keep the models
   MessageBox MB_YESNO "Do you want to keep the models directory?" IDYES keepModels IDNO deleteAll
+
 
   keepModels:
     ; If the user clicked "Yes", move the models directory to a temporary location in the same drive, delete the installation directory, and then move back the models directory
@@ -57,8 +61,8 @@
     StrCpy $2 "$0$1"
 
     IfFileExists "$INSTDIR\resources\uv.exe" 0 slowBackup
-    IfFileExists "$INSTDIR\resources\service\tools\move_model_files.py" 0 slowBackup
-    nsExec::ExecToLog '"$INSTDIR\resources\uv.exe" "run" "--script" "$INSTDIR\resources\service\tools\move_model_files.py" "$INSTDIR\resources\service\models" "$2"'
+    IfFileExists "$INSTDIR\resources\service\move_model_files.py" 0 slowBackup
+    nsExec::ExecToLog '"$INSTDIR\resources\uv.exe" "run" "--script" "$INSTDIR\resources\service\move_model_files.py" "$INSTDIR\resources\models" "$2"'
     Pop $0
     ${if} $0 == 0
       Goto deleteAll
