@@ -1,0 +1,12 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g id="recording">
+        <circle id="pulse-ring" cx="10" cy="10" r="9.5" stroke="#EF4444" stroke-width="1.5" fill="none" opacity="0.6">
+            <animate attributeName="r" values="8.5;10;8.5" dur="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite"/>
+        </circle>
+
+        <circle cx="10" cy="10" r="7.5" stroke="#EF4444" stroke-width="1" fill="none" opacity="0.4"/>
+
+        <circle cx="10" cy="10" r="4" fill="#EF4444"/>
+    </g>
+</svg>

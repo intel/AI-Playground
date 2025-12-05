@@ -38,6 +38,14 @@
         </tr>
       </tbody>
     </table>
+
+    <div class="pt-4">
+      <p>{{ languages.SETTINGS_AUDIO }}</p>
+      <div class="pl-2 pt-4">
+        <MicrophoneSettings />
+      </div>
+    </div>
+
     <div class="flex flex-col pt-5">
       <button
         @click="globalSetup.loadingState = 'manageInstallations'"
@@ -85,6 +93,7 @@ import { useI18N } from '@/assets/js/store/i18n.ts'
 import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
+import MicrophoneSettings from "@/components/MicrophoneSettings.vue"
 
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()

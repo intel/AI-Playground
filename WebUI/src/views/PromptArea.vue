@@ -107,6 +107,32 @@
         </div>
         <div class="absolute bottom-4 right-3 flex gap-2">
           <button
+            v-if="promptStore.getCurrentMode() === 'chat'"
+            @click="handleRecordingClick"
+            :disabled="audioRecorder.isTranscribing"
+            class="relative px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
+          >
+            <i
+              v-if="!audioRecorder.isTranscribing"
+              class="svg-icon w-5 h-5"
+              :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
+            ></i>
+            <div
+              v-if="audioRecorder.isRecording"
+              class="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-1 items-end h-10"
+            >
+              <div
+                v-for="i in 5"
+                :key="i"
+                class="w-1.5 bg-primary rounded-full transition-all duration-100"
+                :style="{
+                  height: `${Math.max(6, (audioRecorder.audioLevel / 100) * 40 * (i / 5))}px`,
+                  opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.35
+                }"
+              ></div>
+            </div>
+          </button>
+          <button
             class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"
             @click="$emit('openSettings')"
           >
@@ -142,6 +168,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel, downscaleImageTo1MP } from '@/lib/utils.ts'
+import { useAudioRecorder } from "@/assets/js/store/audioRecorder";
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
@@ -159,6 +186,7 @@ import * as toast from '@/assets/js/toast'
 import { Context } from '@/components/ui/context'
 
 const instance = getCurrentInstance()
+const audioRecorder = useAudioRecorder()
 const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
 const prompt = ref('')
@@ -336,6 +364,18 @@ function handleSubmitPromptClick() {
 
 function handleCancelClick() {
   promptStore.cancelProcessing()
+}
+
+async function handleRecordingClick() {
+  if (audioRecorder.isRecording) {
+    audioRecorder.stopRecording()
+  } else {
+    await audioRecorder.startRecording()
+
+    if (audioRecorder.error) {
+      toast.error(audioRecorder.error)
+    }
+  }
 }
 
 function fastGenerate(e: KeyboardEvent) {
