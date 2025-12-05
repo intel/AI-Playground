@@ -106,11 +106,14 @@
           </button>
         </div>
         <div class="absolute bottom-4 right-3 flex gap-2">
-          <button
+          <Button
+            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg p-2"
+            variant="secondary"
             v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
-            :disabled="audioRecorder.isTranscribing"
-            class="relative px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center transition-colors"
+            :disabled="false && !speechToText.enabled || audioRecorder.isTranscribing"
+            :title="!speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''"
+            
           >
             <i
               v-if="!audioRecorder.isTranscribing"
@@ -119,7 +122,7 @@
             ></i>
             <div
               v-if="audioRecorder.isRecording"
-              class="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-1 items-end h-10"
+              class="absolute -top-11 flex gap-1 items-end h-10"
             >
               <div
                 v-for="i in 5"
@@ -131,7 +134,7 @@
                 }"
               ></div>
             </div>
-          </button>
+          </Button>
           <button
             class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm"
             @click="$emit('openSettings')"
@@ -168,7 +171,8 @@
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
 import { mapModeToLabel, downscaleImageTo1MP } from '@/lib/utils.ts'
-import { useAudioRecorder } from "@/assets/js/store/audioRecorder";
+import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
+import { useSpeechToText } from '@/assets/js/store/speechToText'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
@@ -184,9 +188,11 @@ import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
 import { Context } from '@/components/ui/context'
+import Button from '@/components/ui/button/Button.vue'
 
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
+const speechToText = useSpeechToText()
 const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
 const prompt = ref('')

@@ -44,11 +44,12 @@
       <div class="pl-2 pt-4">
         <div class="grid grid-cols-[120px_1fr] items-center gap-4 mb-4">
           <Label class="whitespace-nowrap">Speech To Text</Label>
-          <Checkbox
+          <Checkbox v-if="!backendStarting"
             id="speech-to-text"
             :modelValue="speechToText.enabled"
             @update:modelValue="handleSpeechToTextToggle"
           />
+          <Spinner v-else class="justify-self-start" />
         </div>
         <MicrophoneSettings v-if="speechToText.enabled" />
       </div>
@@ -106,6 +107,7 @@ import MicrophoneSettings from '@/components/MicrophoneSettings.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { useI18N } from '@/assets/js/store/i18n'
+import { Spinner } from './ui/spinner'
 
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
@@ -114,6 +116,7 @@ const theme = useTheme()
 const presetsStore = usePresets()
 const i18nState = useI18N().state
 const speechToText = useSpeechToText()
+const backendStarting = ref(false)
 
 const displayComponents = computed(() => {
   return backendServices.info.map((item) => ({
@@ -151,7 +154,14 @@ onMounted(async () => {
 
 // Handle toggle using store method
 async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {
-  await speechToText.toggle(enabled === true)
+  backendStarting.value = true
+  try {
+    await speechToText.toggle(enabled === true)
+  } catch (_error) {
+    toast.error(`Failed to ${enabled ? 'enable' : 'disable'} Speech To Text`)
+  } finally {
+    backendStarting.value = false
+  }
 }
 </script>
 

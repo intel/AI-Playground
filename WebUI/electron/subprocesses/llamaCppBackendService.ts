@@ -61,7 +61,7 @@ export class LlamaCppBackendService implements ApiService {
   // Logger
   readonly appLogger = appLoggerInstance
 
-  private version = 'b6202'
+  private version = 'b7278'
 
   updatePort(newPort: number) {
     this.port = newPort
