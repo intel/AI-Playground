@@ -105,7 +105,7 @@ async function loadDocument(type: string, filepath: string) {
 async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[]> {
   console.log('embedInputUsingRag', embedInquiry)
 
-  const model = embedInquiry.embeddingModel
+  const model = embedInquiry.embeddingModel.split('/').join('---')
   const baseURL = `${embedInquiry.backendBaseUrl}/v1`
   const maxResults = embedInquiry.maxResults ?? 6
 

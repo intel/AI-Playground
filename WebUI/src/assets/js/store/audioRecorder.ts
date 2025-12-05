@@ -1,6 +1,9 @@
-import { defineStore } from 'pinia'
+import { createOpenAI } from '@ai-sdk/openai'
+import { IMediaRecorder, MediaRecorder, register } from 'extendable-media-recorder'
+import { connect } from 'extendable-media-recorder-wav-encoder';
+import { experimental_transcribe as transcribe } from 'ai';
+import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 
 export interface AudioRecorderConfig {
   echoCancellation: boolean
@@ -14,10 +17,10 @@ export interface AudioRecorderConfig {
 
 export const useAudioRecorder = defineStore('audioRecorder', () => {
 
+
   const isRecording = ref(false)
   const recordingTime = ref(0)
   const audioBlob = ref<Blob | null>(null)
-  const audioUrl = ref<string | null>(null)
   const error = ref<string | null>(null)
   const isTranscribing = ref(false)
   const audioLevel = ref(0)
@@ -36,7 +39,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   })
 
 
-  let mediaRecorder: MediaRecorder | null = null
+  let mediaRecorder: IMediaRecorder | null = null
   let audioChunks: Blob[] = []
   let timerInterval: number | null = null
   let stream: MediaStream | null = null
@@ -76,6 +79,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   }
 
   async function startRecording() {
+    
     if (!canRecord.value) return
 
     try {
@@ -100,7 +104,12 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         startSilenceDetection()
       }
 
-      const mimeType = getSupportedMimeType()
+      const mimeType = 'audio/wav'
+      try {
+        await register(await connect());
+      } catch (err) {
+        console.error('Failed to register WAV encoder:', err)
+      }
       mediaRecorder = new MediaRecorder(stream, { mimeType })
       audioChunks = []
 
@@ -113,7 +122,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       mediaRecorder.onstop = async () => {
         const blob = new Blob(audioChunks, { type: mimeType })
         audioBlob.value = blob
-        audioUrl.value = URL.createObjectURL(blob)
 
         cleanupStream()
         await transcribeAudio()
@@ -151,26 +159,22 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     stopAudioMeter()
   }
 
-  function cancelRecording() {
-    if (mediaRecorder && isRecording.value) {
-      mediaRecorder.ondataavailable = null
-      mediaRecorder.onstop = null
-      mediaRecorder.stop()
-    }
+  // function cancelRecording() {
+  //   if (mediaRecorder && isRecording.value) {
+  //     mediaRecorder.ondataavailable = null
+  //     mediaRecorder.onstop = null
+  //     mediaRecorder.stop()
+  //   }
 
-    stopTimer()
-    stopSilenceDetection()
-    stopAudioMeter()
-    cleanupStream()
-    reset()
-  }
+  //   stopTimer()
+  //   stopSilenceDetection()
+  //   stopAudioMeter()
+  //   cleanupStream()
+  //   reset()
+  // }
 
   function reset() {
-    if (audioUrl.value) {
-      URL.revokeObjectURL(audioUrl.value)
-    }
     audioBlob.value = null
-    audioUrl.value = null
     recordingTime.value = 0
     error.value = null
     isRecording.value = false
@@ -254,36 +258,28 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     error.value = null
 
     try {
-      if (audioUrl.value) {
-        const audio = new Audio(audioUrl.value)
-        await audio.play()
+      const model = 'OpenVINO/whisper-large-v3-int4-ov'
+      const whisperOvms = createOpenAI({
+              name: 'model',
+              baseURL: `http://localhost:29200/v3`,
+              apiKey: 'asdf',
+            })
+      const transcriptionModel = whisperOvms.transcriptionModel?.(model.split('/').join('---'))
+      if (!transcriptionModel) {
+        throw new Error('Transcription model not initialized')
       }
-
-      const formData = new FormData()
-      const extension = audioBlob.value.type.includes('webm') ? 'webm' :
-                        audioBlob.value.type.includes('ogg') ? 'ogg' : 'mp4'
-
-      formData.append('file', audioBlob.value, `recording.${extension}`)
-      formData.append('model', 'whisper-1')
-
-      const response = await fetch(`${useGlobalSetup().apiHost}/api/audio/transcriptions`, {
-        method: 'POST',
-        body: formData
+      
+      const transcript = await transcribe({
+        model: transcriptionModel,
+        audio: await audioBlob.value.arrayBuffer(),
       })
 
-      if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      const transcribedText = data.text || ''
-
-      if (transcriptionCallback && transcribedText) {
-        transcriptionCallback(transcribedText)
+      if (transcriptionCallback && transcript.text) {
+        transcriptionCallback(transcript.text)
       }
 
       reset()
-      return transcribedText
+      return transcript.text
     } catch (err) {
       reset()
       error.value = err instanceof Error ? err.message : 'Transcription failed'
@@ -295,6 +291,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   }
 
   function registerTranscriptionCallback(callback: (text: string) => void) {
+    console.log('Registering transcription callback')
     transcriptionCallback = callback
   }
 
@@ -330,26 +327,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     }
   }
 
-  function getSupportedMimeType() {
-    const types = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/ogg',
-      'audio/mp4'
-    ]
-    for (const t of types) {
-      if (MediaRecorder.isTypeSupported(t)) return t
-    }
-    return 'audio/webm'
-  }
-
-  function $dispose() {
-    cancelRecording()
-    if (audioUrl.value) {
-      URL.revokeObjectURL(audioUrl.value)
-    }
-  }
 
   function updateSelectedDevice(id: string | null) {
     selectedDeviceId.value = id
@@ -361,7 +338,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     isRecording,
     recordingTime,
     audioBlob,
-    audioUrl,
     error,
     isTranscribing,
     config,
@@ -379,3 +355,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     updateConfig,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useAudioRecorder, import.meta.hot))
+}

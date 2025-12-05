@@ -198,6 +198,8 @@ const textInference = useTextInference()
 const dropZoneRef = ref<HTMLDivElement>()
 const textareaRef = ref<HTMLTextAreaElement>()
 
+audioRecorder.registerTranscriptionCallback((text) => prompt.value = text)
+
 // Get checked RAG documents for display
 const checkedRagDocuments = computed(() => {
   return textInference.ragList.filter((doc) => doc.isChecked)

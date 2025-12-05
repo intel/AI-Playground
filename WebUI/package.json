@@ -19,6 +19,7 @@
     "format:ci": "prettier --check ."
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.77",
     "@ai-sdk/openai-compatible": "^1.0.19",
     "@ai-sdk/vue": "^2.0.54",
     "@google/model-viewer": "^4.1.0",
@@ -36,6 +37,8 @@
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",
     "express": "^4.21.2",
+    "extendable-media-recorder": "^9.2.31",
+    "extendable-media-recorder-wav-encoder": "^7.0.132",
     "extract-zip": "^2.0.1",
     "get-port": "^7.1.0",
     "koffi": "^2.14.1",
