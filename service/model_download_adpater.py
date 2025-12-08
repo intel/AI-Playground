@@ -2,7 +2,7 @@ import os
 import threading
 from queue import Empty, Queue
 import json
-from typing import List
+from typing import List, Optional
 
 from file_downloader import FileDownloader
 from model_downloader import NotEnoughDiskSpaceException, DownloadException
@@ -66,7 +66,7 @@ class Model_Downloader_Adapter:
         }
         self.put_msg(data)
 
-    def download_model_completed_callback(self, repo_id: str, ex: Exception):
+    def download_model_completed_callback(self, repo_id: str, ex: Optional[Exception]):
         global _adapter
         if ex is not None:
             self.put_msg({"type": "error", "err_type": "download_exception"})

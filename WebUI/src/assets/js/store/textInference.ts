@@ -446,9 +446,9 @@ export const useTextInference = defineStore(
         throw new Error('No embedding model selected')
       }
 
-      // For llamaCPP backend, get the embedding server URL (runs on different port)
+      // For llamaCPP and openVINO backends, get the embedding server URL (runs on different port)
       let backendBaseUrl = currentBackendUrl.value
-      if (backend.value === 'llamaCPP') {
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         const serviceName = backendToService[backend.value]
         const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
         if (embeddingUrlResult.success && embeddingUrlResult.url) {
@@ -499,8 +499,8 @@ export const useTextInference = defineStore(
         }
       }
 
-      // For llamaCPP, ensure embedding server is ready before attempting RAG retrieval
-      if (backend.value === 'llamaCPP') {
+      // For llamaCPP and openVINO, ensure embedding server is ready before attempting RAG retrieval
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         const serviceName = backendToService[backend.value]
         if (!activeEmbeddingModel.value) {
           throw new Error('No embedding model selected for RAG')
