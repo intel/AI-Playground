@@ -643,7 +643,7 @@ export class OpenVINOBackendService implements ApiService {
         '--source_model',
         modelRepoId.split('/').join('---'),
         '--model_repository_path',
-        path.resolve(path.join(this.baseDir, 'models', 'LLM', 'embedding')),
+        path.resolve(path.join(this.baseDir, 'models', 'LLM', 'embedding', 'openVINO')),
         '--target_device',
         selectedDevice,
         '--task',
@@ -890,7 +890,7 @@ export class OpenVINOBackendService implements ApiService {
 
   private resolveEmbeddingModelPath(modelRepoId: string): string {
     // Use the same logic as the Python backend
-    const modelBasePath = 'models/LLM/embedding'
+    const modelBasePath = 'models/LLM/embedding/openVINO'
     const [namespace, repo, ...model] = modelRepoId.split('/')
     const modelDir = path.resolve(
       path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),

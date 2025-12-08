@@ -94,7 +94,7 @@ export class PathsManager {
   scanEmbedding(): Model[] {
     const embeddingModels: Model[] = []
     llmBackendTypes.forEach((backend) => {
-      const dir = path.join(this.modelPaths.embedding, '..', backend)
+      const dir = path.join(this.modelPaths.embedding, backend)
       if (fs.existsSync(dir)) {
         fs.readdirSync(dir).forEach((item) => {
           embeddingModels.push({

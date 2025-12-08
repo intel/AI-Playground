@@ -615,7 +615,13 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      const args = ['--embedding', '--model', modelPath, '--port', port.toString(), '--log-prefix']
+      const args = ['--embedding',
+        '--model',
+        modelPath,
+        '--port',
+        port.toString(),
+        '--log-prefix',
+      ]
 
       const childProcess = spawn(this.llamaCppExePath, args, {
         cwd: this.llamaCppDir,
