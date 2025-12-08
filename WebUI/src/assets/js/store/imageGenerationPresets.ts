@@ -633,6 +633,24 @@ export const useImageGenerationPresets = defineStore(
     persist: {
       debug: true,
       pick: ['settingsPerPreset', 'comfyInputsPerPreset'],
+      serializer: {
+        // Custom serializer to filter out large data URIs from persistence
+        serialize: (state) => {
+          if (!state.comfyInputsPerPreset) return JSON.stringify(state)
+          const comfyInputsPerPreset = state.comfyInputsPerPreset as Record<string, Record<string, unknown> | undefined>
+          
+            const filteredInputs: typeof comfyInputsPerPreset = {}
+            Object.entries(comfyInputsPerPreset)
+            .filter(([_, inputs]) => inputs !== undefined)
+            .map(([presetName, inputs]) => [presetName, Object.fromEntries(Object.entries(inputs as Record<string, unknown>).filter(([key]) => ['image', 'inpaintMask', 'video'].includes(key)))]
+            )
+          return JSON.stringify({
+            ...state,
+            comfyInputsPerPreset: filteredInputs,
+          })
+        },
+        deserialize: (value) => JSON.parse(value),
+      },
     },
   },
 )

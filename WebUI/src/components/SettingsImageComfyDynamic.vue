@@ -3,45 +3,30 @@
     v-for="input in displayedComfyInputs"
     :key="`${input.label}${input.nodeTitle}${input.nodeInput}`"
   >
-    <!-- Outpaint Canvas - special handling -->
+    <!-- Outpaint Canvas - button to open editor -->
     <div
       v-if="input.type === 'outpaintCanvas'"
-      class="grid grid-cols-[120px_1fr] items-start gap-4"
+      class="grid grid-cols-[120px_1fr] items-center gap-4"
     >
       <Label>
         {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
       </Label>
-      <SettingsOutpaintCanvas
-        :image-url="imageUrl"
-        :target-width="imageGeneration.width"
-        :target-height="imageGeneration.height"
-        :left="leftValue"
-        :top="topValue"
-        :right="rightValue"
-        :bottom="bottomValue"
-        :feathering="featheringValue"
-        @update:left="(v) => updatePaddingValue('left', v)"
-        @update:top="(v) => updatePaddingValue('top', v)"
-        @update:right="(v) => updatePaddingValue('right', v)"
-        @update:bottom="(v) => updatePaddingValue('bottom', v)"
-        @update:feathering="(v) => updatePaddingValue('feathering', v)"
-        @update:scaleBy="(v) => updateValue('ScaleImage', 'scale_by', v)"
-        @update:cropWidth="(v) => updateValue('CropImage', 'width', v)"
-        @update:cropHeight="(v) => updateValue('CropImage', 'height', v)"
-        @update:cropX="(v) => updateValue('CropImage', 'x', v)"
-        @update:cropY="(v) => updateValue('CropImage', 'y', v)"
-      />
+      <Button variant="outline" @click="dialogStore.showMaskEditorDialog('outpaint')">
+        Open Mask Editor
+      </Button>
     </div>
 
-    <!-- Inpaint Mask - special handling -->
+    <!-- Inpaint Mask - button to open editor -->
     <div
       v-else-if="input.type === 'inpaintMask'"
-      class="grid grid-cols-[120px_1fr] items-start gap-4"
+      class="grid grid-cols-[120px_1fr] items-center gap-4"
     >
       <Label>
         {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
       </Label>
-      <SettingsInpaintMask :image-url="imageUrl" @update:image="(v) => updateMaskImage(input, v)" />
+      <Button variant="outline" @click="dialogStore.showMaskEditorDialog('inpaint')">
+        Open Mask Editor
+      </Button>
     </div>
 
     <!-- Regular inputs -->
@@ -62,10 +47,17 @@
         <span>{{ input.current.value }}</span>
       </div>
 
-      <!--    Image    -->
-      <LoadImage
+      <!--    Image (with preview support for inpaint/outpaint)    -->
+      <LoadImageWithPreview
+        v-if="input.type === 'image' && hasMaskEditing"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
-        v-if="input.type === 'image'"
+        :image-url-ref="input.current as WritableComputedRef<string>"
+      ></LoadImageWithPreview>
+
+      <!--    Image (standard)    -->
+      <LoadImage
+        v-else-if="input.type === 'image'"
+        :id="`${input.nodeTitle}.${input.nodeInput}`"
         :image-url-ref="input.current as WritableComputedRef<string>"
       ></LoadImage>
 
@@ -112,20 +104,63 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick } from 'vue'
+import { computed, watch } from 'vue'
 import { Input } from './ui/aipgInput'
-import { LoadImage } from '../components/ui/loadImage'
+import { LoadImage, LoadImageWithPreview } from '../components/ui/loadImage'
 import { LoadVideo } from '../components/ui/loadVideo'
 import { getTranslationLabel } from '@/lib/utils'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { useDialogStore } from '@/assets/js/store/dialogs'
+import { usePresets } from '@/assets/js/store/presets'
 import Slider from './ui/slider/Slider.vue'
 import { Label } from './ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
-import SettingsInpaintMask from './SettingsInpaintMask.vue'
+import { Button } from '@/components/ui/button'
 
 const imageGeneration = useImageGenerationPresets()
+const dialogStore = useDialogStore()
+const presetsStore = usePresets()
+
+// Clear preview state when preset changes
+watch(
+  () => presetsStore.activePresetName,
+  () => {
+    dialogStore.clearMaskEditorPreview()
+  },
+)
+
+// Regenerate outpaint preview when resolution changes (and dialog is closed)
+watch(
+  [() => imageGeneration.width, () => imageGeneration.height],
+  async ([newWidth, newHeight]) => {
+    // Only regenerate if:
+    // 1. There's an active outpaint preview
+    // 2. The dialog is closed (when open, the canvas component handles updates)
+    if (
+      dialogStore.maskEditorMode !== 'outpaint' ||
+      !dialogStore.maskEditorIsModified ||
+      dialogStore.maskEditorDialogVisible
+    ) {
+      return
+    }
+
+    // Get the padding values from comfyInputs
+    const findPaddingValue = (nodeInput: string): number => {
+      const input = imageGeneration.comfyInputs.find(
+        (input) => input.nodeTitle === 'OutpaintDirection' && input.nodeInput === nodeInput,
+      )
+      return (input?.current.value as number) ?? 0
+    }
+
+    const left = findPaddingValue('left')
+    const top = findPaddingValue('top')
+    const right = findPaddingValue('right')
+    const bottom = findPaddingValue('bottom')
+
+    await dialogStore.regenerateOutpaintPreview(newWidth, newHeight, left, top, right, bottom)
+  },
+)
 
 // Filter inputs based on displayed attribute (default to true if not specified)
 const displayedComfyInputs = computed(() => {
@@ -141,120 +176,10 @@ const isModifiable = (input: (typeof imageGeneration.comfyInputs)[0]) => {
   return input.modifiable !== false
 }
 
-// Find the image input to get the image URL
-const imageInput = computed(() => {
-  return imageGeneration.comfyInputs.find(
-    (input) =>
-      input.type === 'image' && input.nodeTitle === 'Load Image' && input.nodeInput === 'image',
+// Check if current preset has mask editing (inpaint or outpaint)
+const hasMaskEditing = computed(() => {
+  return imageGeneration.comfyInputs.some(
+    (input) => input.type === 'inpaintMask' || input.type === 'outpaintCanvas',
   )
 })
-
-const imageUrl = computed(() => {
-  return (imageInput.value?.current.value as string) || ''
-})
-
-// Find padding inputs
-const findPaddingInput = (nodeInput: string) => {
-  return imageGeneration.comfyInputs.find(
-    (input) => input.nodeTitle === 'OutpaintDirection' && input.nodeInput === nodeInput,
-  )
-}
-
-// Use toRef to ensure reactivity when inputs change
-const leftInput = computed(() => findPaddingInput('left'))
-const topInput = computed(() => findPaddingInput('top'))
-const rightInput = computed(() => findPaddingInput('right'))
-const bottomInput = computed(() => findPaddingInput('bottom'))
-
-const leftValue = computed(() => {
-  const input = leftInput.value
-  if (input?.current) {
-    // Access the value to track reactivity
-    const value = input.current.value
-    return (value as number) ?? 0
-  }
-  return 0
-})
-
-const topValue = computed(() => {
-  const input = topInput.value
-  if (input?.current) {
-    const value = input.current.value
-    return (value as number) ?? 0
-  }
-  return 0
-})
-
-const rightValue = computed(() => {
-  const input = rightInput.value
-  if (input?.current) {
-    const value = input.current.value
-    return (value as number) ?? 0
-  }
-  return 0
-})
-
-const bottomValue = computed(() => {
-  const input = bottomInput.value
-  if (input?.current) {
-    const value = input.current.value
-    return (value as number) ?? 0
-  }
-  return 0
-})
-
-const featheringValue = computed(() => {
-  const input = findPaddingInput('feathering')
-  return (input?.current.value as number) ?? 24
-})
-
-function updatePaddingValue(nodeInput: string, value: number) {
-  const input = findPaddingInput(nodeInput)
-  if (input && input.current) {
-    input.current.value = value
-  } else {
-    // Input might not be loaded yet, try again on next tick
-    nextTick(() => {
-      const retryInput = findPaddingInput(nodeInput)
-      if (retryInput && retryInput.current) {
-        retryInput.current.value = value
-      }
-    })
-  }
-}
-
-function updateValue(nodeTitle: string, nodeInput: string, value: number) {
-  const input = imageGeneration.comfyInputs.find(
-    (input) => input.nodeTitle === nodeTitle && input.nodeInput === nodeInput,
-  )
-  if (input) {
-    input.current.value = value
-  } else {
-    // Input might not be loaded yet, try again on next tick
-    nextTick(() => {
-      const retryInput = imageGeneration.comfyInputs.find(
-        (input) => input.nodeTitle === nodeTitle && input.nodeInput === nodeInput,
-      )
-      if (retryInput) {
-        retryInput.current.value = value
-      }
-    })
-  }
-}
-
-function updateMaskImage(input: (typeof imageGeneration.comfyInputs)[0], value: string) {
-  if (input && input.current) {
-    input.current.value = value
-  } else {
-    // Input might not be loaded yet, try again on next tick
-    nextTick(() => {
-      const retryInput = imageGeneration.comfyInputs.find(
-        (i) => i.nodeTitle === input.nodeTitle && i.nodeInput === input.nodeInput,
-      )
-      if (retryInput && retryInput.current) {
-        retryInput.current.value = value
-      }
-    })
-  }
-}
 </script>

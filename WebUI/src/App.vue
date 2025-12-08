@@ -208,6 +208,7 @@
     <installation-progress-dialog
       v-show="dialogStore.installationProgressDialogVisible"
     ></installation-progress-dialog>
+    <MaskEditorDialog />
   </main>
 
   <footer
@@ -292,6 +293,7 @@ import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import WarningDialog from '@/components/WarningDialog.vue'
 import PresetRequirementsDialog from '@/components/PresetRequirementsDialog.vue'
 import InstallationProgressDialog from '@/components/InstallationProgressDialog.vue'
+import MaskEditorDialog from '@/components/MaskEditorDialog.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'

@@ -135,6 +135,7 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (e: 'update:image', value: string): void
+  (e: 'update:preview', value: string): void
 }>()
 
 const parentContainer = useTemplateRef<HTMLDivElement>('parentContainer')
@@ -402,6 +403,32 @@ function emitMaskedImage() {
   // Convert to PNG data URI (PNG preserves alpha channel)
   const dataUri = outputCanvas.toDataURL('image/png')
   emits('update:image', dataUri)
+
+  // Also emit preview (original image with red mask overlay)
+  emitPreviewImage(hasMask)
+}
+
+function emitPreviewImage(hasMask: boolean) {
+  if (!sourceImage.value || !previewCanvas.value || !imageLoaded.value) return
+
+  // Create a preview canvas that combines original image + red mask overlay
+  const previewOutputCanvas = document.createElement('canvas')
+  previewOutputCanvas.width = imageWidth.value
+  previewOutputCanvas.height = imageHeight.value
+  const previewOutputCtx = previewOutputCanvas.getContext('2d')
+  if (!previewOutputCtx) return
+
+  // Draw the original image
+  previewOutputCtx.drawImage(sourceImage.value, 0, 0, imageWidth.value, imageHeight.value)
+
+  // Draw the red mask overlay on top (if there's a mask)
+  if (hasMask) {
+    previewOutputCtx.drawImage(previewCanvas.value, 0, 0)
+  }
+
+  // Convert to PNG data URI
+  const previewDataUri = previewOutputCanvas.toDataURL('image/png')
+  emits('update:preview', previewDataUri)
 }
 
 // Watch for image URL changes (only reload if it's a different original image, not a mask update)

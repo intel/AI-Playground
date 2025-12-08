@@ -44,14 +44,14 @@
         </div>
       </div>
     </div>
-    <div class="text-sm text-foreground/60 text-center">
+    <!-- <div class="text-sm text-foreground/60 text-center">
       Target: {{ targetWidth }} × {{ targetHeight }}px
       <span v-if="imageUrl && imageLoaded">
         | Original: {{ sourceImageWidth }} × {{ sourceImageHeight }}px | Scale:
         {{ (scaleBy * 100).toFixed(1) }}% | Crop: {{ cropWidth }} × {{ cropHeight }}px | Padding:
         L:{{ computedLeft }} T:{{ computedTop }} R:{{ computedRight }} B:{{ bottom }}
       </span>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -80,6 +80,7 @@ const emits = defineEmits<{
   (e: 'update:cropHeight', value: number): void
   (e: 'update:cropX', value: number): void
   (e: 'update:cropY', value: number): void
+  (e: 'update:preview', value: string): void
 }>()
 
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
@@ -239,6 +240,87 @@ function emitAllValues() {
   emits('update:cropY', cy)
 
   isEmitting.value = false
+
+  // Emit preview image
+  emitPreviewImage()
+}
+
+// Generate and emit a clean preview image (positioned image without UI elements)
+function emitPreviewImage() {
+  if (!sourceImage.value || !imageLoaded.value) return
+
+  // Create a preview canvas
+  const previewCanvas = document.createElement('canvas')
+  previewCanvas.width = props.targetWidth
+  previewCanvas.height = props.targetHeight
+  const ctx = previewCanvas.getContext('2d')
+  if (!ctx) return
+
+  // Draw neutral background
+  ctx.fillStyle = '#f5f5f5'
+  ctx.fillRect(0, 0, props.targetWidth, props.targetHeight)
+
+  // Draw grid (lighter for preview)
+  ctx.strokeStyle = '#e8e8e8'
+  ctx.lineWidth = 1
+  const gridSize = 64
+  for (let x = 0; x < props.targetWidth; x += gridSize) {
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, props.targetHeight)
+    ctx.stroke()
+  }
+  for (let y = 0; y < props.targetHeight; y += gridSize) {
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(props.targetWidth, y)
+    ctx.stroke()
+  }
+
+  // Calculate source crop coordinates (in original image pixels)
+  const sourceCropX = (cropX.value / imageWidth.value) * sourceImageWidth.value
+  const sourceCropY = (cropY.value / imageHeight.value) * sourceImageHeight.value
+  const sourceCropWidth = (cropWidth.value / imageWidth.value) * sourceImageWidth.value
+  const sourceCropHeight = (cropHeight.value / imageHeight.value) * sourceImageHeight.value
+
+  // Draw the cropped portion of the image
+  ctx.drawImage(
+    sourceImage.value,
+    sourceCropX,
+    sourceCropY,
+    sourceCropWidth,
+    sourceCropHeight,
+    imageX.value + cropX.value,
+    imageY.value + cropY.value,
+    cropWidth.value,
+    cropHeight.value,
+  )
+
+  // Draw subtle padding indicator (lighter than main canvas)
+  ctx.fillStyle = 'rgba(156, 163, 175, 0.15)'
+
+  // Top padding
+  if (imageY.value > 0) {
+    ctx.fillRect(0, 0, props.targetWidth, imageY.value)
+  }
+  // Bottom padding
+  const imageBottom = imageY.value + imageHeight.value
+  if (imageBottom < props.targetHeight) {
+    ctx.fillRect(0, imageBottom, props.targetWidth, props.targetHeight - imageBottom)
+  }
+  // Left padding
+  if (imageX.value > 0) {
+    ctx.fillRect(0, imageY.value, imageX.value, imageHeight.value)
+  }
+  // Right padding
+  const imageRight = imageX.value + imageWidth.value
+  if (imageRight < props.targetWidth) {
+    ctx.fillRect(imageRight, imageY.value, props.targetWidth - imageRight, imageHeight.value)
+  }
+
+  // Convert to PNG data URI
+  const previewDataUri = previewCanvas.toDataURL('image/png')
+  emits('update:preview', previewDataUri)
 }
 
 // Emit initial values when image loads
@@ -253,6 +335,8 @@ watch(imageLoaded, (loaded) => {
 watch([() => props.targetWidth, () => props.targetHeight], () => {
   if (imageLoaded.value) {
     constrainImagePosition()
+    // Emit updated values including preview when resolution changes
+    emitAllValues()
   }
   drawCanvas()
 })
