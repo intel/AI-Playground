@@ -55,7 +55,7 @@
     {
       "type": "number",
       "label": "Inference Steps",
-      "displayed": false,
+      "displayed": true,
       "modifiable": true,
       "defaultValue": 6,
       "settingName": "inferenceSteps"
@@ -152,6 +152,10 @@
   ],
   "variants": [
     {
+      "name": "Fast",
+      "overrides": {}
+    },
+    {
       "name": "Quality",
       "overrides": {
         "requiredModels": [
@@ -170,6 +174,16 @@
           {
             "type": "vae",
             "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 20,
+            "settingName": "inferenceSteps"
           }
         ],
         "comfyUiApiWorkflow": {
@@ -204,10 +218,6 @@
           }
         }
       }
-    },
-    {
-      "name": "Fast",
-      "overrides": {}
     }
   ],
   "comfyUiApiWorkflow": {
@@ -222,7 +232,7 @@
     },
     "2": {
       "inputs": {
-        "noise_seed": 513740367680068
+        "noise_seed": 543530871310725
       },
       "class_type": "RandomNoise",
       "_meta": {
@@ -386,11 +396,11 @@
     "15": {
       "inputs": {
         "width": [
-          "21",
+          "38",
           0
         ],
         "height": [
-          "21",
+          "38",
           1
         ],
         "batch_size": 1
@@ -456,7 +466,7 @@
     },
     "22": {
       "inputs": {
-        "image": "AIPG_Image_00004_.png"
+        "image": "bc9b95d56518f5a1bae581992072b01c58749feb5c37d6198a7da377e58dc7a3.png"
       },
       "class_type": "LoadImage",
       "_meta": {
@@ -465,7 +475,7 @@
     },
     "23": {
       "inputs": {
-        "image": "bfa4a983e73a44fff2301c10f86a22a8367798477cb540b28761660691b38ac0.png"
+        "image": "8f09dd33db9f459fe997ce469b3d249b668a6ff510d765fa04a1332415ab4e22.jpeg"
       },
       "class_type": "LoadImage",
       "_meta": {
@@ -494,7 +504,7 @@
     },
     "25": {
       "inputs": {
-        "switch": true,
+        "switch": false,
         "on_false": [
           "23",
           0
@@ -540,7 +550,7 @@
     },
     "28": {
       "inputs": {
-        "switch": false,
+        "switch": true,
         "on_false": [
           "27",
           0
@@ -557,7 +567,7 @@
     },
     "34": {
       "inputs": {
-        "a": 0,
+        "a": 512,
         "b": 0,
         "operation": "add"
       },
@@ -568,13 +578,25 @@
     },
     "35": {
       "inputs": {
-        "a": 0,
+        "a": 512,
         "b": 0,
         "operation": "add"
       },
       "class_type": "IntMathOperation",
       "_meta": {
         "title": "height"
+      }
+    },
+    "38": {
+      "inputs": {
+        "image": [
+          "26",
+          0
+        ]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
       }
     }
   }
