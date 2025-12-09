@@ -304,6 +304,12 @@ export const useTextInference = defineStore(
       return currentModel?.supportsToolCalling === true
     })
 
+    // Check if the active model supports vision
+    const modelSupportsVision = computed(() => {
+      const currentModel = llmModels.value.find((m) => m.active)
+      return currentModel?.supportsVision === true
+    })
+
     // Check if the active preset requires tool calling
     const presetRequiresToolCalling = computed(() => {
       return activePreset.value?.requiresToolCalling === true
@@ -1230,6 +1236,9 @@ export const useTextInference = defineStore(
       // Tool calling support
       modelSupportsToolCalling,
       presetRequiresToolCalling,
+
+      // Vision support
+      modelSupportsVision,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

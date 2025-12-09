@@ -16,6 +16,7 @@ import { comfyUI } from '../tools/comfyUi'
 import { visualizeObjectDetections } from '../tools/visualizeObjectDetections'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
+import * as toast from '../toast'
 
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
@@ -90,7 +91,24 @@ export const useOpenAiCompatibleChat = defineStore(
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
-      const messages = convertToModelMessages(m.messages) //.filter((m) => m.role !== 'tool')
+      let messages = convertToModelMessages(m.messages) //.filter((m) => m.role !== 'tool')
+
+      // Filter out image parts from messages if model doesn't support vision
+      if (!textInference.modelSupportsVision) {
+        messages = messages.map((msg) => {
+          if (msg.role === 'user' && Array.isArray(msg.content)) {
+            const filteredContent = msg.content.filter(
+              (part) => part.type === 'text',
+            )
+            // If all content was images, keep at least an empty text
+            if (filteredContent.length === 0) {
+              return { ...msg, content: [{ type: 'text' as const, text: 'This message contained an image, but the model does not support vision.' }] }
+            }
+            return { ...msg, content: filteredContent }
+          }
+          return msg
+        })
+      }
 
       // Only enable tools if model supports tool calling and tools are enabled
       console.log(
@@ -248,6 +266,18 @@ export const useOpenAiCompatibleChat = defineStore(
     async function generate(systemPromptOverride?: string) {
       await textInference.prepareBackendIfNeeded()
       temporarySystemPrompt.value = systemPromptOverride || null
+
+      // Block generation if trying to attach images to a non-vision model
+      if (fileInput.value && !textInference.modelSupportsVision) {
+        const hasImageFiles = Array.from(fileInput.value).some((file) =>
+          file.type.startsWith('image/'),
+        )
+        if (hasImageFiles) {
+          toast.error('The selected model does not support image inputs. Please remove the images or select a vision-capable model.')
+          return
+        }
+      }
+
       console.log('before generate', {
         chat: chats[conversations.activeKey],
         messages: chats[conversations.activeKey]?.messages,
