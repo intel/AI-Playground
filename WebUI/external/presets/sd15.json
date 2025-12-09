@@ -158,7 +158,7 @@
       "label": "Batch Size",
       "displayed": false,
       "modifiable": true,
-      "defaultValue": 1,
+      "defaultValue": 4,
       "settingName": "batchSize"
     },
     {

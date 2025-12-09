@@ -114,7 +114,6 @@ async function addModel() {
 
   addModelError.value = false
 
-  const isLlm = await isLLM(modelRequest.value)
   const downloadNewModel = async () => {
     await models.addModel({
       name: modelRequest.value,
@@ -127,17 +126,7 @@ async function addModel() {
     closeAdd()
   }
 
-  if (!isLlm) {
-    warningDialogStore.showWarningDialog(i18nState.WARNING_MODEL_TYPE_WRONG, downloadNewModel)
-  } else {
-    downloadNewModel()
-  }
-}
-
-async function isLLM(repo_id: string) {
-  const response = await fetch(`${globalSetup.apiHost}/api/isLLM?repo_id=${repo_id}`)
-  const data = await response.json()
-  return data.isllm
+  downloadNewModel()
 }
 
 function closeAdd() {
