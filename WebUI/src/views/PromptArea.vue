@@ -15,6 +15,28 @@
         />
       </div>
       <div class="relative w-full max-w-3xl">
+        <!-- Zoom Controls (only in chat mode) -->
+        <div
+          v-if="promptStore.getCurrentMode() === 'chat'"
+          class="absolute -top-8 right-0 flex gap-1 z-10"
+        >
+          <button
+            @click="textInference.decreaseFontSize()"
+            :disabled="textInference.isMinSize"
+            class="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Decrease font size"
+          >
+            <MagnifyingGlassMinusIcon class="size-5" />
+          </button>
+          <button
+            @click="textInference.increaseFontSize()"
+            :disabled="textInference.isMaxSize"
+            class="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Increase font size"
+          >
+            <MagnifyingGlassPlusIcon class="size-5" />
+          </button>
+        </div>
         <!-- RAG Documents Display (only in chat mode) -->
         <div
           v-if="promptStore.getCurrentMode() === 'chat' && checkedRagDocuments.length > 0"
@@ -177,7 +199,7 @@ import {
   type IndexedDocument,
 } from '@/assets/js/store/textInference'
 import { useI18N } from '@/assets/js/store/i18n'
-import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, PaperClipIcon, XMarkIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon } from '@heroicons/vue/24/outline'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'

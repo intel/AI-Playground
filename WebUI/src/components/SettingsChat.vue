@@ -8,7 +8,6 @@
       />
     </teleport>
     <div class="flex flex-col gap-6 p-1">
-      <h2 class="text-xl font-semibold text-center">Chat Presets</h2>
       <PresetSelector
         type="chat"
         :model-value="presetsStore.activePresetName || undefined"

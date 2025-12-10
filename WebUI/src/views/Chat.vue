@@ -24,12 +24,12 @@
     </div>
 
     <!-- eslint-disable vue/require-v-for-key -->
-    <div class="w-full max-w-3xl mx-auto flex flex-col gap-6">
+    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6">
       <template v-for="(message, i) in activeConversation">
         <!-- eslint-enable -->
         <div v-if="message.role === 'user'" class="flex items-start gap-3">
-          <img :class="textInference.iconSizeClass" src="../assets/svg/user-icon.svg" />
-          <div class="flex flex-col gap-3 max-w-3/4">
+          <UserCircleIcon :class="textInference.iconSizeClass" class="text-foreground/90" />
+          <div class="flex flex-col gap-3 max-w-4/5 bg-muted rounded-md px-4 py-3">
             <p class="text-muted-foreground" :class="textInference.nameSizeClass">
               {{ languages.ANSWER_USER_NAME }}
             </p>
@@ -49,6 +49,7 @@
               alt="Generated Image"
             />
             <div
+              :class="textInference.fontSizeClass"
               v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"
             ></div>
             <button
@@ -64,7 +65,7 @@
         <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
           <div
-            class="flex flex-col gap-3 bg-muted rounded-md px-4 py-3 max-w-3/4 text-wrap break-words"
+            class="flex flex-col gap-3 max-w-[90%] text-wrap break-words"
           >
             <div class="flex items-center gap-2">
               <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
@@ -124,7 +125,7 @@
                 {{ message.metadata?.ragSource || ragSourcePerMessageId[message.id] }}
               </div>
             </div>
-            <div class="ai-answer chat-content">
+            <div class="ai-answer chat-content" :class="textInference.fontSizeClass">
               <template v-if="message.parts.some((part) => part.type === 'reasoning')">
                 <div class="mb-2 flex items-center">
                   <span class="italic text-muted-foreground">
@@ -293,6 +294,8 @@ import {
 } from '@/assets/js/store/imageGenerationPresets'
 import { ToolUIPart } from 'ai'
 import { AipgTools } from '@/assets/js/tools/tools'
+import { base64ToString } from 'uint8array-extras'
+import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
@@ -360,6 +363,16 @@ watch(
     if (autoScrollEnabled.value) {
       nextTick(() => scrollToBottom())
     }
+    nextTick(() => {
+    if (chatPanel.value) {
+      chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
+        console.log('setting copycode listeners for', item)
+        const el = item as HTMLElement
+        el.classList.remove('hidden')
+        el.removeEventListener('click', copyCode)
+        el.addEventListener('click', copyCode)
+      })
+    }})
   },
   { deep: true, immediate: true },
 )
@@ -437,6 +450,15 @@ async function generate(question: string) {
     conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
 
     await nextTick()
+    if (chatPanel.value) {
+      chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
+        console.log('setting copycode listeners for', item)
+        const el = item as HTMLElement
+        el.classList.remove('hidden')
+        el.removeEventListener('click', copyCode)
+        el.addEventListener('click', copyCode)
+      })
+    }
     if (autoScrollEnabled.value) {
       scrollToBottom(false)
     }
@@ -461,11 +483,11 @@ function scrollToBottom(smooth = true) {
   }
 }
 
-// function copyCode(e: MouseEvent) {
-//   if (!(e.target instanceof HTMLElement)) return
-//   if (!e.target?.dataset?.code) return
-//   copyText(base64ToString(e.target?.dataset?.code))
-// }
+function copyCode(e: MouseEvent) {
+  if (!(e.target instanceof HTMLElement)) return
+  if (!e.target?.dataset?.code) return
+  copyText(base64ToString(e.target?.dataset?.code))
+}
 
 function copyText(text: string) {
   navigator.clipboard
@@ -660,3 +682,11 @@ watch(
   },
 )
 </script>
+
+<style>
+  .shiki {
+    padding-left: 0.5rem;
+    border-bottom-left-radius: calc(var(--radius) - 2px);
+    border-bottom-right-radius: calc(var(--radius) - 2px);
+  }
+</style>

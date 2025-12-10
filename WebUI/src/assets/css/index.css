@@ -138,6 +138,12 @@
 }
 
 @theme inline {
+  --text-4xl--line-height: 1.2;
+  --text-5xl--line-height: 1.2;
+  --text-6xl--line-height: 1.2;
+  --text-7xl--line-height: 1.2;
+  --text-8xl--line-height: 1.2;
+  --text-9xl--line-height: 1.2;
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   @keyframes accordion-down {
