@@ -215,6 +215,46 @@
             "_meta": {
               "title": "prompt"
             }
+          },
+          "26": {
+            "inputs": {
+              "image": [
+                "25",
+                0
+              ]
+            },
+            "class_type": "FluxKontextImageScale",
+            "_meta": {
+              "title": "FluxKontextImageScale"
+            }
+          },
+          "38": {
+            "inputs": {
+              "image": [
+                "26",
+                0
+              ]
+            },
+            "class_type": "GetImageSize",
+            "_meta": {
+              "title": "Get Image Size"
+            }
+          },
+          "9": {
+            "inputs": {
+              "pixels": [
+                "26",
+                0
+              ],
+              "vae": [
+                "3",
+                0
+              ]
+            },
+            "class_type": "VAEEncode",
+            "_meta": {
+              "title": "VAE Encode"
+            }
           }
         }
       }
@@ -291,7 +331,7 @@
     "9": {
       "inputs": {
         "pixels": [
-          "26",
+          "25",
           0
         ],
         "vae": [
@@ -519,18 +559,6 @@
         "title": "use_second_image"
       }
     },
-    "26": {
-      "inputs": {
-        "image": [
-          "25",
-          0
-        ]
-      },
-      "class_type": "FluxKontextImageScale",
-      "_meta": {
-        "title": "FluxKontextImageScale"
-      }
-    },
     "27": {
       "inputs": {
         "width": [
@@ -590,7 +618,7 @@
     "38": {
       "inputs": {
         "image": [
-          "26",
+          "25",
           0
         ]
       },
