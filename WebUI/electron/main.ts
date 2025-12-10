@@ -36,7 +36,6 @@ import {
   utilityProcess,
   UtilityProcess,
 } from 'electron'
-import { ChildProcess, fork } from 'child_process'
 import path from 'node:path'
 import fs from 'fs'
 import { exec } from 'node:child_process'
@@ -52,7 +51,7 @@ import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
 import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
-import getPort, { portNumbers } from 'get-port'
+import getPort from 'get-port'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
@@ -81,11 +80,8 @@ const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
-let mediaServerChild: ChildProcess | null = null
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
-let mediaServerPort: number = 58000
-createMediaServer()
 let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -247,40 +243,6 @@ async function createWindow() {
   return win
 }
 
-export async function createMediaServer() {
-  appLogger.info('Starting media server', 'electron-backend')
-  mediaServerPort = await getPort({ port: portNumbers(58000, 58999) })
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    PORT_NUMBER: String(mediaServerPort),
-    MEDIA_DIRECTORY: mediaDir,
-  }
-  mediaServerChild = fork(path.join(__dirname, '../media/mediaServer.js'), undefined, {
-    env,
-    stdio: 'pipe',
-  })
-  mediaServerChild.stdout?.on('data', (data) => {
-    appLogger.info(data.toString(), 'media-server')
-  })
-  mediaServerChild.stderr?.on('data', (data) => {
-    appLogger.error(data.toString(), 'media-server')
-  })
-  mediaServerChild.on('exit', (code) => {
-    if (code !== 0) {
-      appLogger.error(`Media server exited with code ${code}`, 'electron-backend')
-    }
-    setTimeout(() => {
-      createMediaServer()
-    }, 1000)
-    mediaServerChild = null
-  })
-}
-
-function stopMediaServer() {
-  appLogger.info('Stopping media server', 'electron-backend')
-  mediaServerChild?.kill()
-}
-
 function spawnLangchainUtilityProcess() {
   if (langchainChild) {
     appLogger.info('Langchain utility process already running', 'electron-backend')
@@ -371,12 +333,10 @@ app.on('quit', async () => {
 app.on('window-all-closed', async () => {
   try {
     await serviceRegistry?.stopAllServices()
-    stopMediaServer()
   } catch {}
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
-    mediaServerChild = null
   }
 })
 
@@ -528,10 +488,6 @@ function initEventHandle() {
     } catch (error) {
       appLogger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend')
     }
-  })
-
-  ipcMain.handle('getMediaUrlBase', () => {
-    return `http://127.0.0.1:${mediaServerPort}/`
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
@@ -1359,11 +1315,8 @@ app.whenReady().then(async () => {
       
       const fullPath = path.join(mediaDir, decodedUrl)
   
-      console.log('fullPath', fullPath)
-      const normalizedPath = path.normalize(fullPath.replace(/\/$/, ''))
-      console.log('normalizedPath', normalizedPath)
+      const normalizedPath = path.normalize(fullPath.replace(/(\/|\\)$/, ''))
       const response = await net.fetch(`file://${normalizedPath}`)
-      console.log('response', response)
       return response
     })
     const window = await createWindow()

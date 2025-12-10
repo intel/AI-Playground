@@ -50,7 +50,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setIgnoreMouseEvents: (igrnore: boolean) => ipcRenderer.send('setIgnoreMouseEvents', igrnore),
   miniWindow: () => ipcRenderer.send('miniWindow'),
   exitApp: () => ipcRenderer.send('exitApp'),
-  getMediaUrlBase: () => ipcRenderer.invoke('getMediaUrlBase'),
   getInitialPage: () => ipcRenderer.invoke('getInitialPage'),
   getDemoModeSettings: () => ipcRenderer.invoke('getDemoModeSettings'),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>

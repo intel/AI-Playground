@@ -64,7 +64,6 @@ type electronAPI = {
   setIgnoreMouseEvents(ignore: boolean): void
   miniWindow(): void
   exitApp(): void
-  getMediaUrlBase(): Promise<string>
   getInitialPage(): Promise<AipgPage>
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
