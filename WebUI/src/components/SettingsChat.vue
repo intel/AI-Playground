@@ -17,6 +17,19 @@
       />
 
       <div class="flex flex-col gap-4">
+        <!-- Backend selector - only shown when multiple backends are available -->
+        <div
+          v-if="!isBackendLocked"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">Backend</Label>
+          <drop-down-new
+            title="Select Backend"
+            @change="handleBackendChange"
+            :value="textInference.backend"
+            :items="availableBackendItems"
+          ></drop-down-new>
+        </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
@@ -131,7 +144,12 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { backendToService, LlmBackend, useTextInference } from '@/assets/js/store/textInference.ts'
+import {
+  backendToService,
+  LlmBackend,
+  useTextInference,
+  textInferenceBackendDisplayName,
+} from '@/assets/js/store/textInference.ts'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
@@ -156,6 +174,37 @@ const demoMode = useDemoMode()
 const backendServices = useBackendServices()
 const globalSetup = useGlobalSetup()
 const warningDialogStore = useDialogStore()
+
+// Get the active chat preset
+const activeChatPreset = computed(() => {
+  const preset = presetsStore.activePresetWithVariant
+  if (preset?.type === 'chat') return preset as ChatPreset
+  return null
+})
+
+// Check if backend is locked (only one backend allowed)
+const isBackendLocked = computed(() => {
+  return activeChatPreset.value?.backends?.length === 1
+})
+
+// Get available backends from preset
+const availableBackends = computed(() => {
+  return activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO', 'ollama'] as LlmBackend[])
+})
+
+// Backend items for dropdown
+const availableBackendItems = computed(() => {
+  return availableBackends.value.map((backend) => ({
+    label: textInferenceBackendDisplayName[backend] || backend,
+    value: backend,
+    active: isBackendRunning(backend),
+  }))
+})
+
+// Handle backend change from dropdown
+function handleBackendChange(newBackend: string) {
+  textInference.backend = newBackend as LlmBackend
+}
 
 function handlePresetChange(presetName: string) {
   const preset = presetsStore.chatPresets.find((p) => p.name === presetName)
@@ -184,7 +233,10 @@ const documentStats = computed(() => {
 })
 
 async function handlePresetSelectionClick(preset: ChatPreset) {
-  if (isBackendRunning(preset.backend)) {
+  // Check if at least one of the allowed backends is running
+  const hasRunningBackend = preset.backends.some((backend) => isBackendRunning(backend))
+
+  if (hasRunningBackend) {
     // Update active preset name in unified store
     presetsStore.activePresetName = preset.name
 

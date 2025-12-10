@@ -1,0 +1,13 @@
+{
+  "type": "chat",
+  "name": "Coding",
+  "description": "Using models that are good at coding. Defaults to GPT-OSS for excellent code generation and understanding.",
+  "displayPriority": 92,
+  "tags": ["Coding", "Programming", "Development"],
+  "backends": ["llamaCPP"],
+  "model": "unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0.gguf",
+  "systemPrompt": "You are an expert coding assistant. Help users write, debug, and understand code. Provide clear explanations and well-structured code examples. Follow best practices and suggest improvements when appropriate.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "requiredModels": []
+}

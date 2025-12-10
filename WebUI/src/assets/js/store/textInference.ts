@@ -28,6 +28,7 @@ export type LlmModel = {
   downloaded: boolean
   supportsToolCalling?: boolean
   supportsVision?: boolean
+  supportsReasoning?: boolean
   maxContextSize?: number
   npuSupport?: boolean
 }
@@ -148,6 +149,7 @@ export const useTextInference = defineStore(
             (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
           supportsToolCalling: m.supportsToolCalling,
           supportsVision: m.supportsVision,
+          supportsReasoning: m.supportsReasoning,
           maxContextSize: m.maxContextSize,
           npuSupport: m.npuSupport,
         }
@@ -880,11 +882,20 @@ export const useTextInference = defineStore(
       console.log('Loading settings for preset', settingsKey, savedSettings)
       const preset = activePreset.value
 
+      // Get the first backend from the preset's backends array for defaults
+      const presetDefaultBackend = preset.backends?.[0]
+
       // Load backend
       if (savedSettings.backend !== undefined) {
-        backend.value = savedSettings.backend as LlmBackend
-      } else if (preset.backend) {
-        backend.value = preset.backend
+        const savedBackend = savedSettings.backend as LlmBackend
+        // Only apply saved backend if it's in the preset's allowed backends
+        if (preset.backends?.includes(savedBackend)) {
+          backend.value = savedBackend
+        } else if (presetDefaultBackend) {
+          backend.value = presetDefaultBackend
+        }
+      } else if (presetDefaultBackend) {
+        backend.value = presetDefaultBackend
       }
 
       // Load selected models (per backend)
@@ -893,16 +904,16 @@ export const useTextInference = defineStore(
           ...selectedModels.value,
           ...(savedSettings.selectedModels as LlmBackendKV),
         }
-      } else if (preset.model && preset.backend) {
-        selectModel(preset.backend, preset.model)
+      } else if (preset.model) {
+        selectModel(backend.value, preset.model)
       }
 
       // Load selected embedding models (per backend)
       if (savedSettings.selectedEmbeddingModels !== undefined) {
         const savedEmbeddingModels = savedSettings.selectedEmbeddingModels as LlmBackendKV
         // Update the embedding model for the current backend if it was saved
-        if (preset.backend && savedEmbeddingModels[preset.backend] !== undefined) {
-          selectEmbeddingModel(preset.backend, savedEmbeddingModels[preset.backend]!)
+        if (savedEmbeddingModels[backend.value] !== undefined) {
+          selectEmbeddingModel(backend.value, savedEmbeddingModels[backend.value]!)
         } else {
           // Merge all saved embedding models
           selectedEmbeddingModels.value = {
@@ -912,8 +923,8 @@ export const useTextInference = defineStore(
         }
       } else {
         const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
-        if (embeddingModelToUse && preset.backend) {
-          selectEmbeddingModel(preset.backend, embeddingModelToUse)
+        if (embeddingModelToUse) {
+          selectEmbeddingModel(backend.value, embeddingModelToUse)
         }
       }
 
@@ -1082,11 +1093,14 @@ export const useTextInference = defineStore(
 
     async function applyPreset(preset: ChatPreset) {
       try {
-        // Check if backend is running
-        const serviceName = backendToService[preset.backend] as BackendServiceName
-        const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+        // Check if at least one of the allowed backends is running
+        const runningBackend = preset.backends.find((b) => {
+          const serviceName = backendToService[b] as BackendServiceName
+          const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+          return backendInfo && backendInfo.status === 'running'
+        })
 
-        if (!backendInfo || backendInfo.status !== 'running') {
+        if (!runningBackend) {
           dialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
             globalSetup.loadingState = 'manageInstallations'
           })
@@ -1124,14 +1138,26 @@ export const useTextInference = defineStore(
     async function applyChatPreset(preset: ChatPreset) {
       try {
         // First, apply preset defaults
-        // Apply backend
-        if (preset.backend) {
-          backend.value = preset.backend
+        // Apply backend based on backends array
+        if (preset.backends && preset.backends.length > 0) {
+          // If single backend, auto-select it
+          if (preset.backends.length === 1) {
+            backend.value = preset.backends[0]
+          } else if (!preset.backends.includes(backend.value)) {
+            // If current backend not in allowed list, select first allowed that's running
+            const runningBackend = preset.backends.find((b) => {
+              const serviceName = backendToService[b] as BackendServiceName
+              const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+              return backendInfo && backendInfo.status === 'running'
+            })
+            backend.value = runningBackend || preset.backends[0]
+          }
+          // Otherwise keep current backend if it's in the allowed list
         }
 
         // Apply model selection if specified
-        if (preset.model && preset.backend) {
-          selectModel(preset.backend, preset.model)
+        if (preset.model) {
+          selectModel(backend.value, preset.model)
         }
 
         // Apply system prompt
@@ -1159,10 +1185,15 @@ export const useTextInference = defineStore(
           temperature.value = preset.temperature
         }
 
+        // Apply tools enabled default
+        if (preset.toolsEnabledByDefault !== undefined) {
+          toolsEnabled.value = preset.toolsEnabledByDefault
+        }
+
         // Apply embedding model (top-level or from RAG config)
         const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
-        if (embeddingModelToUse && preset.backend) {
-          selectEmbeddingModel(preset.backend, embeddingModelToUse)
+        if (embeddingModelToUse) {
+          selectEmbeddingModel(backend.value, embeddingModelToUse)
         }
 
         // Apply RAG settings

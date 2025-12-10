@@ -368,6 +368,7 @@ async function handlePromptSubmit(prompt: string) {
   const question = prompt.trim()
   if (question == '') {
     toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
+    promptStore.promptSubmitted = false
     return
   }
   try {

@@ -9,6 +9,7 @@ export const ModelSchema = z.object({
   type: z.enum(['embedding', 'undefined', ...llmBackendTypes]),
   default: z.boolean(),
   backend: z.enum(llmBackendTypes).optional(),
+  supportsReasoning: z.boolean().optional(),
   supportsToolCalling: z.boolean().optional(),
   supportsVision: z.boolean().optional(),
   maxContextSize: z.number().optional(),

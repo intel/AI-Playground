@@ -6,6 +6,7 @@ import { InformationCircleIcon } from '@heroicons/vue/24/outline'
 interface ModelCapabilities {
   supportsToolCalling?: boolean
   supportsVision?: boolean
+  supportsReasoning?: boolean
   maxContextSize?: number
   name?: string
   npuSupport?: boolean
@@ -27,6 +28,7 @@ const formatCapabilities = () => {
   const caps: string[] = []
   if (props.model.supportsVision) caps.push('Vision')
   if (props.model.supportsToolCalling) caps.push('Tool Calling')
+  if (props.model.supportsReasoning) caps.push('Reasoning')
   if (props.model.npuSupport) caps.push('NPU Support')
   return caps
 }

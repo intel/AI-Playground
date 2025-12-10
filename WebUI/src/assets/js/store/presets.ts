@@ -120,10 +120,13 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
   settings: z.array(z.union([ComfyInputSchema, SettingSchema])).default([]),
 })
 
-// Chat Preset Schema
-const ChatPresetSchema = BasePresetFieldsSchema.extend({
+// LLM Backend enum for chat presets
+const LlmBackendEnum = z.enum(['llamaCPP', 'openVINO', 'ollama'])
+
+// Chat Preset Schema - uses 'backends' array instead of single 'backend'
+const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   type: z.literal('chat'),
-  backend: z.enum(['llamaCPP', 'openVINO', 'ollama']),
+  backends: z.array(LlmBackendEnum).min(1), // Array of allowed backends
   model: z.string().optional(), // Explicit model selection
   systemPrompt: z.string().optional(),
   contextSize: z.number().optional(),
@@ -139,6 +142,9 @@ const ChatPresetSchema = BasePresetFieldsSchema.extend({
     .optional(),
   requiresVision: z.boolean().optional(),
   requiresToolCalling: z.boolean().optional(),
+  requiresReasoning: z.boolean().optional(),
+  requiresNpuSupport: z.boolean().optional(), // Filter models to only show NPU-compatible ones
+  toolsEnabledByDefault: z.boolean().optional(), // Explicit default for tools toggle
 })
 
 // Discriminated Union for all Preset types
@@ -539,10 +545,14 @@ export const usePresets = defineStore(
     const presetsByBackend = computed(() => {
       const grouped: Record<string, Preset[]> = {}
       for (const preset of presets.value) {
-        if (!grouped[preset.backend]) {
-          grouped[preset.backend] = []
+        // For chat presets, use first backend from backends array
+        // For comfy presets, use backend directly
+        const backendKey =
+          preset.type === 'chat' ? (preset as ChatPreset).backends[0] : preset.backend
+        if (!grouped[backendKey]) {
+          grouped[backendKey] = []
         }
-        grouped[preset.backend].push(preset)
+        grouped[backendKey].push(preset)
       }
       return grouped
     })
@@ -568,16 +578,29 @@ export const usePresets = defineStore(
     })
 
     const chatPresets = computed(() => {
-      // Get backend services to check if ollama is available
+      // Get backend services to check availability
       const backendServices = useBackendServices()
       const ollamaServiceExists = backendServices.info.some(
         (s) => s.serviceName === 'ollama-backend',
       )
+      // Check if NPU device is available
+      const hasNpuDevice = backendServices.info
+        .find((s) => s.serviceName === 'openvino-backend')
+        ?.devices?.some((d) => d.id.includes('NPU'))
 
       return presets.value.filter((p) => {
         if (p.type !== 'chat') return false
-        // Filter out ollama presets if experimental features are disabled
-        if ((p as ChatPreset).backend === 'ollama' && !ollamaServiceExists) {
+        const chatPreset = p as ChatPreset
+        // Filter out ollama-only presets if ollama service doesn't exist
+        if (
+          chatPreset.backends.length === 1 &&
+          chatPreset.backends[0] === 'ollama' &&
+          !ollamaServiceExists
+        ) {
+          return false
+        }
+        // Filter out NPU preset if no NPU device available
+        if (chatPreset.requiresNpuSupport && !hasNpuDevice) {
           return false
         }
         return true

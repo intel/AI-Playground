@@ -1,0 +1,14 @@
+{
+  "type": "chat",
+  "name": "NPU",
+  "description": "Run an LLM on the AI Boost accelerator, for the best in power efficiency. Only available when an NPU device is present.",
+  "displayPriority": 95,
+  "tags": ["NPU", "AI Boost", "Power Efficient", "Intel"],
+  "backends": ["openVINO"],
+  "supportedDevices": ["NPU"],
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 4096,
+  "maxNewTokens": 1024,
+  "requiresNpuSupport": true,
+  "requiredModels": []
+}

@@ -46,6 +46,8 @@ const items = computed(() => {
   const requirements = {
     vision: activePreset?.type === 'chat' && activePreset.requiresVision === true,
     toolCalling: activePreset?.type === 'chat' && activePreset.requiresToolCalling === true,
+    reasoning: activePreset?.type === 'chat' && activePreset.requiresReasoning === true,
+    npuSupport: activePreset?.type === 'chat' && activePreset.requiresNpuSupport === true,
   }
 
   return textInference.llmModels
@@ -54,6 +56,8 @@ const items = computed(() => {
       // Filter by preset requirements
       if (requirements.vision && !m.supportsVision) return false
       if (requirements.toolCalling && !m.supportsToolCalling) return false
+      if (requirements.reasoning && !m.supportsReasoning) return false
+      if (requirements.npuSupport && !m.npuSupport) return false
       return true
     })
     .filter((m) =>
@@ -65,6 +69,7 @@ const items = computed(() => {
       active: item.downloaded,
       supportsToolCalling: item.supportsToolCalling,
       supportsVision: item.supportsVision,
+      supportsReasoning: item.supportsReasoning,
       maxContextSize: item.maxContextSize,
       npuSupport: item.npuSupport,
     }))
@@ -143,6 +148,7 @@ const selectedItem = computed(() => {
                   name: item.label,
                   supportsVision: item.supportsVision,
                   supportsToolCalling: item.supportsToolCalling,
+                  supportsReasoning: item.supportsReasoning,
                   maxContextSize: item.maxContextSize,
                   npuSupport: item.npuSupport,
                 }"

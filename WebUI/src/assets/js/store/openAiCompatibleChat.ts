@@ -273,8 +273,10 @@ export const useOpenAiCompatibleChat = defineStore(
           file.type.startsWith('image/'),
         )
         if (hasImageFiles) {
-          toast.error('The selected model does not support image inputs. Please remove the images or select a vision-capable model.')
-          return
+          const errorMessage =
+            'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
+          toast.error(errorMessage)
+          throw new Error(errorMessage)
         }
       }
 

@@ -5,7 +5,7 @@ from typing import Optional
 
 import requests
 
-import aipg_utils
+import utils
 import service_config
 from web_request_bodies import ComfyUICustomNodesGithubRepoId
 
@@ -20,12 +20,12 @@ def is_git_installed() -> bool:
 
 def _install_git_repo(git_repo_url: str, target_dir: str):
     try:
-        aipg_utils.remove_existing_filesystem_resource(target_dir)
-        aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} clone {git_repo_url} '{target_dir}'")
+        utils.remove_existing_filesystem_resource(target_dir)
+        utils.call_subprocess(f"{service_config.git.get('exePath')} clone {git_repo_url} '{target_dir}'")
         logging.info(f"Cloned {git_repo_url} into {target_dir}")
     except Exception as e:
         logging.warning(f"git cloned failed with exception {e}. Cleaning up failed resources.")
-        aipg_utils.remove_existing_filesystem_resource(target_dir)
+        utils.remove_existing_filesystem_resource(target_dir)
         raise e
 
 
@@ -35,7 +35,7 @@ def _checkout_git_ref(repo_dir: str, git_ref: Optional[str]):
         logging.warning(f"Repo {repo_dir} remains in ref {get_git_ref(repo_dir)}.")
         return
     try:
-        aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} checkout {git_ref}", cwd=repo_dir)
+        utils.call_subprocess(f"{service_config.git.get('exePath')} checkout {git_ref}", cwd=repo_dir)
         logging.info(f"checked out {git_ref} in {repo_dir}")
     except Exception as e:
         logging.warning(f"git checkout of {git_ref} failed for rep {repo_dir} due to {e}.")
@@ -44,7 +44,7 @@ def _checkout_git_ref(repo_dir: str, git_ref: Optional[str]):
 
 def get_git_ref(repo_dir: str) -> Optional[str]:
     try:
-        git_ref = aipg_utils.call_subprocess(f"{service_config.git.get('exePath')} rev-parse HEAD", cwd=repo_dir)
+        git_ref = utils.call_subprocess(f"{service_config.git.get('exePath')} rev-parse HEAD", cwd=repo_dir)
         return git_ref
     except Exception as e:
         logging.warning(f"Resolving git ref in {repo_dir} failed due to {e}")
@@ -55,7 +55,7 @@ def _install_pip_requirements(requirements_txt_path: str):
     logging.info(f"installing python requirements from {requirements_txt_path} using {sys.executable}")
     if os.path.exists(requirements_txt_path):
         python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-        aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
+        utils.call_subprocess(f"{python_exe_callable_path} -m pip install -r '{requirements_txt_path}'")
         logging.info("python requirements installation completed.")
     else:
         logging.warning(f"specified {requirements_txt_path} does not exist.")
@@ -84,13 +84,13 @@ def install_pypi_package(packageSpecifier: str):
 
     logging.info(f"installing python package {packageSpecifier} using {sys.executable}")
     python_exe_callable_path = "'" + os.path.abspath(service_config.comfyui_python_exe) + "'" # this returns the abs path and may contain spaces. Escape the spaces with "ticks"
-    aipg_utils.call_subprocess(f"{python_exe_callable_path} -m pip install '{pip_specifier}'")
-    aipg_utils.remove_existing_filesystem_resource('./dep.whl')
+    utils.call_subprocess(f"{python_exe_callable_path} -m pip install '{pip_specifier}'")
+    utils.remove_existing_filesystem_resource('./dep.whl')
     logging.info("python package installation completed.")
 
 
 def is_package_installed(packageSpecifier: str):
-    installed_packages = aipg_utils.call_subprocess(f"{service_config.comfyui_python_exe} -m pip list")
+    installed_packages = utils.call_subprocess(f"{service_config.comfyui_python_exe} -m pip list")
     if packageSpecifier.endswith(".whl"):
         package_name = packageSpecifier.split("/")[-1].split("-")[0]
     else:
@@ -117,7 +117,7 @@ def download_custom_node(node_repo_data: ComfyUICustomNodesGithubRepoId) -> bool
             expected_custom_node_path = os.path.join(service_config.comfy_ui_root_path, "custom_nodes", node_repo_data.repoName)
             potential_node_requirements = os.path.join(expected_custom_node_path, "requirements.txt")
 
-            aipg_utils.remove_existing_filesystem_resource(expected_custom_node_path)
+            utils.remove_existing_filesystem_resource(expected_custom_node_path)
             _install_git_repo(expected_git_url, expected_custom_node_path)
             _checkout_git_ref(expected_custom_node_path, node_repo_data.gitRef)
             _patch_custom_node_if_required(expected_custom_node_path, node_repo_data)

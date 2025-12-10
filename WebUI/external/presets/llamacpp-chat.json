@@ -1,0 +1,12 @@
+{
+  "type": "chat",
+  "name": "Llama.cpp",
+  "description": "Select from a list of GGUF models such as GPT-OSS to run on your GPU. Lightweight and portable AI solutions.",
+  "displayPriority": 97,
+  "tags": ["GGUF", "Lightweight", "Portable"],
+  "backends": ["llamaCPP"],
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "requiredModels": []
+}

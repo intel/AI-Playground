@@ -1,8 +1,10 @@
 import hashlib
 import logging
 import os
+import shlex
 import shutil
-from typing import IO, List
+import subprocess
+from typing import IO, List, Optional
 
 # Import from the backend_shared package
 import config
@@ -274,3 +276,15 @@ def copy_faceswap_facerestore_to_comfyui(type: str, repo_id: str, storage_model_
     except Exception as e:
         logging.error(f'Failed to copy {type} model {repo_id} to ComfyUI: {e}')
         return False
+
+# Subprocess utilities
+def call_subprocess(process_command: str, cwd: Optional[str] = None) -> str:
+    """Execute a subprocess command and return its output"""
+    args = shlex.split(process_command)
+    try:
+        logging.info(f"calling cmd process: {args}")
+        output = subprocess.check_output(args, cwd=cwd, env={**os.environ, "PIP_CONFIG_FILE": os.devnull})
+        return output.decode("utf-8").strip()
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to call subprocess {process_command} with error {e}")
+        raise e

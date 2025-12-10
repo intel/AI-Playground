@@ -23,6 +23,7 @@ export type Model = {
   backend?: LlmBackend
   supportsToolCalling?: boolean
   supportsVision?: boolean
+  supportsReasoning?: boolean
   maxContextSize?: number
   npuSupport?: boolean
 }
@@ -83,6 +84,7 @@ export const useModels = defineStore(
           backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : undefined,
           supportsToolCalling: predefinedModel?.supportsToolCalling,
           supportsVision: predefinedModel?.supportsVision,
+          supportsReasoning: predefinedModel?.supportsReasoning,
           maxContextSize: predefinedModel?.maxContextSize,
           npuSupport: predefinedModel?.npuSupport,
         }

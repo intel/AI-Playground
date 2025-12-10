@@ -16,7 +16,7 @@ import requests
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
 from psutil._common import bytes2human
 
-import aipg_utils as utils
+import utils
 from exceptions import DownloadException
 
 model_list_cache = dict()

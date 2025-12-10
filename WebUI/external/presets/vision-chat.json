@@ -1,0 +1,14 @@
+{
+  "type": "chat",
+  "name": "Vision",
+  "description": "Use Vision Language Models in GGUF format with image understanding. Load images and ask questions about the image.",
+  "displayPriority": 93,
+  "tags": ["Vision", "Image", "Multimodal", "VLM"],
+  "backends": ["llamaCPP", "openVINO"],
+  "systemPrompt": "You are a helpful AI assistant with vision capabilities. Analyze images carefully and provide detailed descriptions and answers about visual content.",
+  "contextSize": 4096,
+  "maxNewTokens": 1024,
+  "requiresVision": true,
+  "toolsEnabledByDefault": false,
+  "requiredModels": []
+}

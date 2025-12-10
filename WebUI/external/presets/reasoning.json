@@ -1,0 +1,14 @@
+{
+  "type": "chat",
+  "name": "Reasoning",
+  "description": "Use large reasoning models to get deeper and more accurate responses. Provides step-by-step thinking and detailed analysis.",
+  "displayPriority": 96,
+  "tags": ["Reasoning", "Analysis", "Step-by-step"],
+  "backends": ["llamaCPP", "openVINO"],
+  "systemPrompt": "You are a helpful AI assistant. When solving problems, show your reasoning step by step. Think through the problem carefully before providing your answer.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "requiresReasoning": true,
+  "toolsEnabledByDefault": false,
+  "requiredModels": []
+}

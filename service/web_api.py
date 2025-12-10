@@ -50,7 +50,7 @@ try:
     from apiflask import APIFlask
 
     import model_download_adpater
-    import aipg_utils as utils
+    import utils
     from model_downloader import HFPlaygroundDownloader
     from psutil._common import bytes2human
     import traceback
