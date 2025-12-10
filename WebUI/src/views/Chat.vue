@@ -620,25 +620,41 @@ watch(
 watch(
   () => imageGeneration.processing,
   (processing) => {
-    // Update all active tool calls
+    // Get the set of currently active tool call IDs (input-streaming or input-available)
+    const activeToolCallIds = new Set(
+      activeConversation.value
+        ?.flatMap((msg) => msg.parts)
+        .filter(
+          (part) =>
+            part.type === 'tool-comfyUI' &&
+            (part.state === 'input-streaming' || part.state === 'input-available'),
+        )
+        .map((part) => part.toolCallId) || [],
+    )
+
+    // Only update tool calls that are still active
     Object.keys(toolProgressMap).forEach((toolCallId) => {
       const progress = toolProgressMap[toolCallId]
-      if (progress) {
+      if (!progress) return
+
+      // Only update processing state for active tool calls
+      if (activeToolCallIds.has(toolCallId)) {
         progress.processing = processing
-        if (!processing) {
-          // When processing stops, mark images as done and filter out any without valid URL
-          progress.images = progress.images
-            .filter((img) => {
-              if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
-              if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
-              if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
-              return false
-            })
-            .map((img) => ({
-              ...img,
-              state: 'done' as const,
-            }))
-        }
+      }
+
+      if (!processing && activeToolCallIds.has(toolCallId)) {
+        // When processing stops, mark images as done and filter out any without valid URL
+        progress.images = progress.images
+          .filter((img) => {
+            if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
+            if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
+            if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
+            return false
+          })
+          .map((img) => ({
+            ...img,
+            state: 'done' as const,
+          }))
       }
     })
   },

@@ -271,11 +271,8 @@
         <p class="text-muted-foreground text-lg mr-2">Powered by</p>
         <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
       </div>
-      <div v-if="theme.active === 'light'" class="flex gap-2 items-center">
-        <p class="text-muted-foreground text-lg mr-2">Powered by</p>
-        <img class="size-12" src="@/assets/image/arc_graphics_badge.png" />
-      </div>
-      <img v-else-if="theme.active === 'dark'" src="@/assets/svg/intel.svg" />
+      <img v-if="theme.active === 'light'" class="h-8" src="@/assets/svg/intel-dark.svg" />
+      <img v-else-if="theme.active === 'dark'" class="h-8" src="@/assets/svg/intel.svg" />
     </div>
   </footer>
 </template>
