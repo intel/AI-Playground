@@ -190,9 +190,7 @@ const images = (conversation: AipgUiMessage[]) => {
 const overlap = (i: number, length: number) => {
   if (i === 0) return 0
   const reversed = length - i
-  // overlap should be 1 for the last 4 images and then increase by 1 for each image before that up to 8
   const overlap = Math.min(Math.max(4, reversed), 8)
-  console.log('overlap', i, length, overlap)
   return 4 * overlap
 }
 

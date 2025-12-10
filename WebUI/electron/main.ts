@@ -28,7 +28,9 @@ import {
   MessageBoxOptions,
   MessageBoxSyncOptions,
   nativeImage,
+  net,
   OpenDialogSyncOptions,
+  protocol,
   screen,
   shell,
   utilityProcess,
@@ -112,6 +114,18 @@ const LocalSettingsSchema = z.object({
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 
 let settings = LocalSettingsSchema.parse({})
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'aipg-media',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true, // impotant
+      standard: true,
+      bypassCSP: true, // impotant
+      stream: true 
+    }
+  }
+])
 
 async function loadSettings() {
   const settingPath = app.isPackaged
@@ -1335,6 +1349,23 @@ app.whenReady().then(async () => {
   } else {
     const settings = await loadSettings()
     initEventHandle()
+
+    // Custom protocol docking is file protocol
+    protocol.handle('aipg-media', async (request) => {
+      console.log('request', request)
+      const decodedUrl = decodeURIComponent(
+        request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/')
+      )
+      
+      const fullPath = path.join(mediaDir, decodedUrl)
+  
+      console.log('fullPath', fullPath)
+      const normalizedPath = path.normalize(fullPath.replace(/\/$/, ''))
+      console.log('normalizedPath', normalizedPath)
+      const response = await net.fetch(`file://${normalizedPath}`)
+      console.log('response', response)
+      return response
+    })
     const window = await createWindow()
     await initServiceRegistry(window, settings)
     spawnLangchainUtilityProcess()
