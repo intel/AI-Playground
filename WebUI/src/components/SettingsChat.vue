@@ -126,8 +126,16 @@
                   active: item.downloaded,
                 }))
             "
-          ></drop-down-new>
+          >        </drop-down-new>
         </div>
+
+        <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
+          <button class="mt-4" @click="textInference.resetActivePresetSettings">
+            <div class="svg-icon i-refresh">Reset</div>
+            {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
+          </button>
+        </div>
+
         <!-- todo: needs to actually do something-->
         <Button variant="secondary" class="max-w-md mx-auto px-3 py-1.5 rounded text-sm">
           Create New Preset</Button
