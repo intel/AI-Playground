@@ -7,7 +7,7 @@ export const ModelSchema = z.object({
   mmproj: z.string().optional(),
   downloaded: z.boolean().optional(),
   type: z.enum(['embedding', 'undefined', ...llmBackendTypes]),
-  default: z.boolean(),
+  default: z.boolean().optional(), // No longer required - priority is determined by position in models.json
   backend: z.enum(llmBackendTypes).optional(),
   supportsReasoning: z.boolean().optional(),
   supportsToolCalling: z.boolean().optional(),

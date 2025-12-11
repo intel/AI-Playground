@@ -283,7 +283,9 @@ function removeImage(index: number) {
   openAiCompatibleChat.fileInput = fileList.files
 }
 
-const isProcessing = computed(() => openAiCompatibleChat.processing || imageGeneration.processing)
+const isProcessing = computed(() => {
+  console.log('### isProcessing', { openAiCompatibleChatProcessing: openAiCompatibleChat.processing, imageGenerationProcessing: imageGeneration.processing })
+  return openAiCompatibleChat.processing || imageGeneration.processing})
 
 const isStopping = computed(() => imageGeneration.stopping)
 

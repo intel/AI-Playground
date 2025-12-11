@@ -4,6 +4,7 @@ import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerat
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
 import { usePresets, type Preset } from '../store/presets'
+import { usePromptStore } from '../store/promptArea'
 import { tool } from 'ai'
 
 // Global defaults as fallback (matching imageGenerationPresets.ts)
@@ -349,6 +350,21 @@ export async function executeComfyGeneration(args: {
         stopWatcher()
       }, 300000)
     })
+  } catch (error) {
+    // Reset prompt state on error
+    const promptStore = usePromptStore()
+    promptStore.promptSubmitted = false
+    
+    // Clean up queued images if they exist
+    imageIds.forEach(id => {
+      const existingImage = imageGeneration.generatedImages.find(img => img.id === id)
+      if (existingImage && existingImage.state === 'queued') {
+        imageGeneration.generatedImages = imageGeneration.generatedImages.filter(img => img.id !== id)
+      }
+    })
+    
+    // Re-throw so the AI SDK can handle it
+    throw error
   } finally {
     // Restore original values
     imageGeneration.prompt = originalPrompt

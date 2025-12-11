@@ -899,6 +899,9 @@ export const useComfyUiPresets = defineStore(
           'Content-Type': 'application/json',
         },
       })
+      // Immediately reset processing state to unblock UI
+      imageGeneration.processing = false
+      imageGeneration.currentState = 'no_start'
     }
 
     return {

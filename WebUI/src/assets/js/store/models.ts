@@ -19,13 +19,13 @@ export type Model = {
   mmproj?: string
   downloaded: boolean
   type: ModelType
-  default: boolean
   backend?: LlmBackend
   supportsToolCalling?: boolean
   supportsVision?: boolean
   supportsReasoning?: boolean
   maxContextSize?: number
   npuSupport?: boolean
+  isPredefined?: boolean // true if model is defined in models.json
 }
 
 export const useModels = defineStore(
@@ -62,34 +62,42 @@ export const useModels = defineStore(
         ...embeddingModels,
       ]
 
-      const notYetDownloaded = (model: { name: string }) =>
-        !downloadedModels.map((m) => m.name).includes(model.name)
-      const notPredefined = (model: { name: string }) =>
-        !predefinedModels.map((m) => m.name).includes(model.name)
+      const downloadedModelNames = new Set(downloadedModels.map((m) => m.name))
+      const predefinedModelNames = new Set(predefinedModels.map((m) => m.name))
+
+      const notPredefined = (model: { name: string }) => !predefinedModelNames.has(model.name)
+      const notYetDownloaded = (model: { name: string }) => !downloadedModelNames.has(model.name)
 
       console.log('downloadedModels', downloadedModels)
 
+      // Helper to check if a model name is an mmproj vision helper (not directly selectable)
+      const isMmprojHelper = (name: string) => name.toLowerCase().includes('mmproj')
+
+      // Preserve models.json order: predefined models first, then non-predefined downloads
       models.value = [
-        ...downloadedModels,
-        ...predefinedModels.filter(notYetDownloaded),
+        ...predefinedModels, // Keep models.json order (first = highest priority)
+        ...downloadedModels.filter(notPredefined), // Add non-predefined downloads at end
         ...models.value.filter(notPredefined).filter(notYetDownloaded),
-      ].map<Model>((m) => {
-        const predefinedModel = predefinedModels.find((pm) => pm.name === m.name)
-        const model: Model = {
-          name: m.name,
-          mmproj: 'mmproj' in m ? (m.mmproj as string | undefined) : undefined,
-          downloaded: downloadedModels.map((dm) => dm.name).includes(m.name),
-          type: m.type,
-          default: predefinedModel?.default ?? false,
-          backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : undefined,
-          supportsToolCalling: predefinedModel?.supportsToolCalling,
-          supportsVision: predefinedModel?.supportsVision,
-          supportsReasoning: predefinedModel?.supportsReasoning,
-          maxContextSize: predefinedModel?.maxContextSize,
-          npuSupport: predefinedModel?.npuSupport,
-        }
-        return model
-      })
+      ]
+        .map<Model>((m) => {
+          const predefinedModel = predefinedModels.find((pm) => pm.name === m.name)
+          const model: Model = {
+            name: m.name,
+            mmproj: 'mmproj' in m ? (m.mmproj as string | undefined) : undefined,
+            downloaded: downloadedModelNames.has(m.name),
+            type: m.type,
+            backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : undefined,
+            supportsToolCalling: predefinedModel?.supportsToolCalling,
+            supportsVision: predefinedModel?.supportsVision,
+            supportsReasoning: predefinedModel?.supportsReasoning,
+            maxContextSize: predefinedModel?.maxContextSize,
+            npuSupport: predefinedModel?.npuSupport,
+            isPredefined: !!predefinedModel, // true if model is defined in models.json
+          }
+          return model
+        })
+        // Filter out mmproj vision helper models (these are not directly selectable)
+        .filter((m) => !isMmprojHelper(m.name))
       console.log('Models refreshed', models.value)
     }
 

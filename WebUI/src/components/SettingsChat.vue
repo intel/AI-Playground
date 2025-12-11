@@ -132,6 +132,16 @@
           ></drop-down-new>
         </div>
 
+        <!-- System Prompt - only shown in advanced mode -->
+        <div v-if="advancedMode" class="grid grid-cols-[120px_1fr] items-start gap-4">
+          <Label class="whitespace-nowrap pt-2">System Prompt</Label>
+          <Textarea
+            v-model="textInference.systemPrompt"
+            placeholder="You are a helpful AI assistant."
+            class="min-h-[100px] text-sm"
+          />
+        </div>
+
         <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
           <button class="mt-4" @click="textInference.resetActivePresetSettings">
             <div class="svg-icon i-refresh">Reset</div>
@@ -154,6 +164,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import { Textarea } from '@/components/ui/textarea'
 import {
   backendToService,
   LlmBackend,
@@ -201,6 +212,7 @@ const isBackendLocked = computed(() => {
 const enableRAG = computed(() => activeChatPreset.value?.enableRAG ?? false)
 const showTools = computed(() => activeChatPreset.value?.showTools ?? false)
 const lockDeviceToNpu = computed(() => activeChatPreset.value?.lockDeviceToNpu ?? false)
+const advancedMode = computed(() => activeChatPreset.value?.advancedMode ?? false)
 
 // Get available backends from preset
 const availableBackends = computed(() => {

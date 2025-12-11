@@ -1,0 +1,13 @@
+{
+  "type": "chat",
+  "name": "Advanced Chat",
+  "description": "Full control over model selection and system prompts. Access all downloaded models including manually added ones.",
+  "displayPriority": 90,
+  "tags": ["Advanced", "Manual", "Expert"],
+  "backends": ["llamaCPP", "openVINO", "ollama"],
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "advancedMode": true,
+  "requiredModels": []
+}

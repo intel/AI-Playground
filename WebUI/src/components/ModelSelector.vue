@@ -49,6 +49,7 @@ const items = computed(() => {
     reasoning: activePreset?.type === 'chat' && activePreset.requiresReasoning === true,
     npuSupport: activePreset?.type === 'chat' && activePreset.requiresNpuSupport === true,
     txt2TxtOnly: activePreset?.type === 'chat' && activePreset.filterTxt2TxtOnly === true,
+    advancedMode: activePreset?.type === 'chat' && activePreset.advancedMode === true,
   }
 
   return textInference.llmModels
@@ -61,6 +62,8 @@ const items = computed(() => {
       if (requirements.npuSupport && !m.npuSupport) return false
       // Filter out vision and reasoning models for txt2txt only presets
       if (requirements.txt2TxtOnly && (m.supportsVision || m.supportsReasoning)) return false
+      // Only show predefined models unless advancedMode is enabled
+      if (!requirements.advancedMode && !m.isPredefined) return false
       return true
     })
     .filter((m) =>
@@ -86,6 +89,17 @@ const selectedItem = computed(() => {
       active: false,
     }
   )
+})
+
+// Auto-select first model when current selection is not in the filtered list
+watchEffect(() => {
+  const currentValue = value.value
+  const availableItems = items.value
+
+  // If current selection is not in the filtered list, select the first available
+  if (availableItems.length > 0 && !availableItems.some((item) => item.value === currentValue)) {
+    textInference.selectModel(textInference.backend, availableItems[0].value)
+  }
 })
 </script>
 

@@ -65,8 +65,11 @@ export const useOpenAiCompatibleChat = defineStore(
   () => {
     const textInference = useTextInference()
     const conversations = useConversations()
+    const manuallyStopped = ref(false)
 
     const processing = computed(() => {
+      // If manually stopped, immediately return false to unblock UI
+      if (manuallyStopped.value) return false
       const status = chats[conversations.activeKey]?.status
       return status === 'submitted' || status === 'streaming'
     })
@@ -142,7 +145,6 @@ export const useOpenAiCompatibleChat = defineStore(
           : {}),
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
-            console.debug(chunk.chunk)
             const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
             if (rawValue.success && rawValue.data.timings) {
               timings = rawValue.data.timings
@@ -197,24 +199,28 @@ export const useOpenAiCompatibleChat = defineStore(
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
         messageMetadata: (options) => {
-          if (options.part.type === 'text-delta' || options.part.type === 'reasoning-delta') {
-            return {
-              reasoningStarted: options.part.providerMetadata?.aipg?.reasoningStarted,
-              reasoningFinished: options.part.providerMetadata?.aipg?.reasoningFinished,
-            }
+          // Always include reasoning timing from outer scope if available
+          const baseMetadata = {
+            reasoningStarted: reasoningStarted || undefined,
+            reasoningFinished: reasoningFinished || undefined,
           }
+          
+          if (options.part.type === 'text-delta' || options.part.type === 'reasoning-delta') {
+            return baseMetadata
+          }
+          
           let totalUsage: LanguageModelUsage | undefined = undefined
           if (options.part.type === 'finish') {
             totalUsage = options.part.totalUsage
           }
-          const metadata = {
+          
+          return {
+            ...baseMetadata,
             model: textInference.activeModel,
             timestamp: Date.now(),
             timings,
             usage: totalUsage ?? usage,
           }
-          console.debug('producing metadata:', { options, metadata })
-          return metadata
         },
       })
     }
@@ -266,6 +272,8 @@ export const useOpenAiCompatibleChat = defineStore(
     async function generate(systemPromptOverride?: string) {
       await textInference.prepareBackendIfNeeded()
       temporarySystemPrompt.value = systemPromptOverride || null
+      // Reset manual stop flag when starting new generation
+      manuallyStopped.value = false
 
       // Block generation if trying to attach images to a non-vision model
       if (fileInput.value && !textInference.modelSupportsVision) {
@@ -306,6 +314,8 @@ export const useOpenAiCompatibleChat = defineStore(
     }
 
     async function stop() {
+      // Set manual stop flag to immediately show as not processing
+      manuallyStopped.value = true
       await chats[conversations.activeKey]?.stop()
     }
 

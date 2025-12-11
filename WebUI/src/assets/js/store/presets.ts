@@ -150,6 +150,7 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   showTools: z.boolean().optional(), // Show "Enable Tools" toggle (default: false)
   filterTxt2TxtOnly: z.boolean().optional(), // Filter out vision AND reasoning models
   lockDeviceToNpu: z.boolean().optional(), // Lock device selector to NPU
+  advancedMode: z.boolean().optional(), // Show unspecified models + system prompt editing
 })
 
 // Discriminated Union for all Preset types

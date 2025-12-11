@@ -31,6 +31,7 @@ export type LlmModel = {
   supportsReasoning?: boolean
   maxContextSize?: number
   npuSupport?: boolean
+  isPredefined?: boolean
 }
 
 export type ValidFileExtension = 'txt' | 'doc' | 'docx' | 'md' | 'pdf'
@@ -137,21 +138,32 @@ export const useTextInference = defineStore(
       const llmTypeModels = models.models.filter((m) =>
         ['llamaCPP', 'openVINO', 'ollama'].includes(m.type),
       )
+
+      // Find first model for each type (already in priority order from models.json)
+      const firstModelByType = new Map<string, string>()
+      for (const m of llmTypeModels) {
+        if (!firstModelByType.has(m.type)) {
+          firstModelByType.set(m.type, m.name)
+        }
+      }
+
       const newModels = llmTypeModels.map((m) => {
         const selectedModelForType = selectedModels.value[m.type as LlmBackend]
+        const hasValidSelection = llmTypeModels.some((model) => model.name === selectedModelForType)
+        const isFirstForType = m.name === firstModelByType.get(m.type)
+
         return {
           name: m.name,
           mmproj: m.mmproj,
           type: m.type as LlmBackend,
           downloaded: m.downloaded ?? false,
-          active:
-            m.name === selectedModelForType ||
-            (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
+          active: m.name === selectedModelForType || (!hasValidSelection && isFirstForType),
           supportsToolCalling: m.supportsToolCalling,
           supportsVision: m.supportsVision,
           supportsReasoning: m.supportsReasoning,
           maxContextSize: m.maxContextSize,
           npuSupport: m.npuSupport,
+          isPredefined: m.isPredefined,
         }
       })
 
@@ -162,16 +174,26 @@ export const useTextInference = defineStore(
     const llmEmbeddingModels: Ref<LlmModel[]> = computed(() => {
       const llmEmbeddingTypeModels = models.models.filter((m) => m.type === 'embedding')
       console.log('llmEmbeddingTypeModels', llmEmbeddingTypeModels)
+
+      // Find first embedding model for each backend (already in priority order from models.json)
+      const firstEmbeddingByBackend = new Map<string, string>()
+      for (const m of llmEmbeddingTypeModels) {
+        const backendKey = m.backend as string
+        if (backendKey && !firstEmbeddingByBackend.has(backendKey)) {
+          firstEmbeddingByBackend.set(backendKey, m.name)
+        }
+      }
+
       const newEmbeddingModels = llmEmbeddingTypeModels.map((m) => {
         const selectedEmbeddingModelForType = selectedEmbeddingModels.value[m.backend as LlmBackend]
+        const hasValidSelection = llmEmbeddingTypeModels.some((model) => model.name === selectedEmbeddingModelForType)
+        const isFirstForBackend = m.name === firstEmbeddingByBackend.get(m.backend as string)
+
         return {
           name: m.name,
           type: m.backend as LlmBackend,
           downloaded: m.downloaded ?? false,
-          active:
-            m.name === selectedEmbeddingModelForType ||
-            (!llmEmbeddingTypeModels.some((m) => m.name === selectedEmbeddingModelForType) &&
-              m.default),
+          active: m.name === selectedEmbeddingModelForType || (!hasValidSelection && isFirstForBackend),
         }
       })
 

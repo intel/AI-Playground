@@ -292,6 +292,7 @@ import {
   type MediaItem,
   type GenerateState,
 } from '@/assets/js/store/imageGenerationPresets'
+import { useComfyUiPresets } from '@/assets/js/store/comfyUiPresets'
 import { ToolUIPart } from 'ai'
 import { AipgTools } from '@/assets/js/tools/tools'
 import { base64ToString } from 'uint8array-extras'
@@ -305,6 +306,7 @@ const conversations = useConversations()
 const backendServices = useBackendServices()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
+const comfyUi = useComfyUiPresets()
 
 const i18nState = useI18N().state
 const autoScrollEnabled = ref(true)
@@ -366,7 +368,6 @@ watch(
     nextTick(() => {
     if (chatPanel.value) {
       chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
-        console.log('setting copycode listeners for', item)
         const el = item as HTMLElement
         el.classList.remove('hidden')
         el.removeEventListener('click', copyCode)
@@ -394,10 +395,16 @@ async function handlePromptSubmit(prompt: string) {
   }
 }
 
-async function handleCancel() {
+function handleCancel() {
+  // Fire off stop requests without awaiting to immediately unblock UI
   if (openAiCompatibleChat.processing) {
     openAiCompatibleChat.stop()
   }
+  // Also cancel any ongoing ComfyUI inference from tool calls
+  comfyUi.stop()
+  
+  // Immediately reset prompt state to unblock UI
+  promptStore.promptSubmitted = false
 }
 
 async function generate(question: string) {
@@ -452,7 +459,6 @@ async function generate(question: string) {
     await nextTick()
     if (chatPanel.value) {
       chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
-        console.log('setting copycode listeners for', item)
         const el = item as HTMLElement
         el.classList.remove('hidden')
         el.removeEventListener('click', copyCode)

@@ -35,9 +35,9 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+    <div class="grid grid-cols-[120px_1fr] items-end gap-4">
       <Label class="whitespace-nowrap">Aspect Ratio</Label>
-      <div class="flex flex-row justify-between">
+      <div class="flex flex-row justify-between items-stretch">
         <div
           v-for="(res, i) in resolutionsPerMegaPixelsOption[megaPixelsIndex]"
           :key="`res-${i}`"
@@ -47,16 +47,17 @@
             }
           "
           :className="
-            clsx('flex flex-col items-center gap-1 transition-colors', {
+            clsx('flex flex-col items-center justify-end gap-1 transition-colors', {
               'cursor-pointer': !props.disabled,
             })
           "
         >
           <div
             :className="
-              clsx('bg-background border-2 transition-colors', {
-                'border-border': resolutionIndex !== i || disabled,
-                'border-primary': resolutionIndex === i && !disabled,
+              clsx('transition-colors', {
+                'bg-background border-2': i % 2 === 0,
+                'border-border': (resolutionIndex !== i || disabled) && i % 2 === 0,
+                'border-primary': resolutionIndex === i && !disabled && i % 2 === 0,
               })
             "
             :style="
@@ -93,10 +94,12 @@
 import { computed } from 'vue'
 import { type SliderRootProps } from 'radix-vue'
 import { clsx } from 'clsx'
+import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import {
+  RESOLUTION_TABLE,
+  getResolutionFromTable,
   findBestResolution,
-  useImageGenerationPresets,
-} from '@/assets/js/store/imageGenerationPresets'
+} from '@/assets/js/store/imageGenerationUtils'
 import { Label } from '@/components/ui/label'
 import DropDownNew from '@/components/DropDownNew.vue'
 
@@ -104,36 +107,55 @@ const props = defineProps<SliderRootProps & { class?: string }>()
 
 const imageGeneration = useImageGenerationPresets()
 
+// All aspect ratios (landscape to portrait order)
 const aspectRatios = [
+  { label: '21/9', value: 21 / 9 },
   { label: '16/9', value: 16 / 9 },
+  { label: '3/2', value: 3 / 2 },
   { label: '4/3', value: 4 / 3 },
   { label: '1/1', value: 1 / 1 },
   { label: '3/4', value: 3 / 4 },
+  { label: '2/3', value: 2 / 3 },
   { label: '9/16', value: 9 / 16 },
+  { label: '9/21', value: 9 / 21 },
 ]
 
 const megaPixelsOptions = computed(() => {
   const tags = imageGeneration.activePreset?.tags ?? []
-  if (tags.includes('sd1.5')) {
+  // Draft tier (sd1.5): 0.5, 0.8 MP only
+  if (tags.includes('DreamShaper')) {
     return [
-      { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
+      { label: '0.8', totalPixels: 896 * 896 },
     ]
-  } else if (tags.includes('LTX Video')) {
+  }
+  // LTX Video: custom tiers (uses dynamic calculation)
+  if (tags.includes('LTX Video')) {
     return [
       { label: '0.1', totalPixels: 320 * 320 },
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.35', totalPixels: 605 * 605 },
       { label: '0.5', totalPixels: 704 * 704 },
     ]
-  } else {
+  }
+  // Pro tier (flux): 0.25, 0.5, 0.8, 1.0, 1.2, 1.5 MP
+  if (tags.some((tag) => tag.toLowerCase().includes('flux'))) {
     return [
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
       { label: '0.8', totalPixels: 896 * 896 },
       { label: '1.0', totalPixels: 1024 * 1024 },
+      { label: '1.2', totalPixels: 1120 * 1120 },
+      { label: '1.5', totalPixels: 1248 * 1248 },
     ]
   }
+  // HD tier (default/sdxl): 0.25, 0.5, 0.8, 1.0 MP
+  return [
+    { label: '0.25', totalPixels: 512 * 512 },
+    { label: '0.5', totalPixels: 704 * 704 },
+    { label: '0.8', totalPixels: 896 * 896 },
+    { label: '1.0', totalPixels: 1024 * 1024 },
+  ]
 })
 
 const megaPixelsDropdownItems = computed(() =>
@@ -144,12 +166,32 @@ const megaPixelsDropdownItems = computed(() =>
   })),
 )
 
+// Check if we should use the lookup table or dynamic calculation
+const useLookupTable = computed(() => {
+  const tags = imageGeneration.activePreset?.tags ?? []
+  // LTX Video uses dynamic calculation due to custom MP tiers
+  return !tags.includes('LTX Video')
+})
+
 const resolutionsPerMegaPixelsOption = computed(() =>
   megaPixelsOptions.value.map((megaPixels) =>
-    aspectRatios.map((aspectRatio) => ({
-      aspectRatio: aspectRatio.label,
-      ...findBestResolution(megaPixels.totalPixels, aspectRatio.value),
-    })),
+    aspectRatios.map((aspectRatio) => {
+      // Try lookup table first for standard presets
+      if (useLookupTable.value && RESOLUTION_TABLE[megaPixels.label]) {
+        const tableRes = getResolutionFromTable(megaPixels.label, aspectRatio.label)
+        if (tableRes) {
+          return {
+            aspectRatio: aspectRatio.label,
+            ...tableRes,
+          }
+        }
+      }
+      // Fall back to dynamic calculation
+      return {
+        aspectRatio: aspectRatio.label,
+        ...findBestResolution(megaPixels.totalPixels, aspectRatio.value),
+      }
+    }),
   ),
 )
 
