@@ -86,7 +86,7 @@
       </div>
 
       <a
-        v-if="currentPreset?.backend === 'comfyui'"
+        v-if="currentPreset?.type === 'comfy' && currentPreset?.backend === 'comfyui'"
         :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
         target="_blank"
         class="max-w-md mx-auto"

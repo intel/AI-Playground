@@ -19,12 +19,6 @@
             :src="preset.image"
             :alt="preset.name"
           />
-          <img
-            v-else-if="preset.type === 'chat'"
-            class="absolute inset-0 w-full h-full object-cover"
-            :src="`/src/assets/image/${preset.backend}.png`"
-            :alt="preset.name"
-          />
           <div class="absolute bottom-0 w-full bg-background/60 text-center py-2">
             <span class="text-foreground text-sm font-semibold">
               {{ preset.name }}

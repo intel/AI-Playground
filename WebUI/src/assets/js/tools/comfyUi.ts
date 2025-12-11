@@ -120,7 +120,7 @@ export async function executeComfyGeneration(args: {
     if (!preset) {
       throw new Error(`Preset "${args.workflow}" not found`)
     }
-    if (preset.backend !== 'comfyui' || preset.type !== 'comfy') {
+    if (preset.type !== 'comfy') {
       throw new Error(`Preset "${args.workflow}" is not a ComfyUI preset`)
     }
   } else {
