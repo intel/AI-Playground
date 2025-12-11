@@ -1,14 +1,16 @@
 {
   "type": "chat",
-  "name": "Multi-Modal",
-  "description": "Using agentic tool calling, mix vision, text and image modalities in the same discussion. Generate images and analyze content seamlessly.",
-  "displayPriority": 94,
-  "tags": ["Agentic", "Tools", "Multi-Modal", "Function Calling"],
+  "name": "Agentic",
+  "description": "Agentic AI with tool calling capabilities. Can generate images and perform various tasks through function calls.",
+  "displayPriority": 93,
+  "tags": ["Agentic", "Tools", "Function Calling"],
   "backends": ["llamaCPP", "openVINO"],
   "systemPrompt": "You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help users accomplish their goals.",
   "contextSize": 8192,
   "maxNewTokens": 2048,
   "requiresToolCalling": true,
+  "enableRAG": true,
+  "showTools": true,
   "toolsEnabledByDefault": true,
   "requiredModels": []
 }

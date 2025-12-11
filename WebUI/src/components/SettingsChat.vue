@@ -29,7 +29,7 @@
             :items="availableBackendItems"
           ></drop-down-new>
         </div>
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <div v-if="!lockDeviceToNpu" class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
           <DeviceSelector :backend="backendToService[textInference.backend]" />
         </div>
@@ -45,8 +45,9 @@
           {{ languages.COM_ADD + ' ' + languages.MODEL }}
         </Button>
 
-        <!-- todo: processing -->
+        <!-- Add Documents button - only shown when RAG is enabled -->
         <Button
+          v-if="enableRAG"
           variant="secondary"
           class="self-start w-auto px-3 py-1.5 rounded text-sm"
           @click="showUploader = !showUploader"
@@ -95,8 +96,9 @@
             @click="() => (textInference.metricsEnabled = !textInference.metricsEnabled)"
           />
         </div>
+        <!-- Enable Tools toggle - only shown when preset has showTools enabled -->
         <div
-          v-if="textInference.modelSupportsToolCalling"
+          v-if="showTools && textInference.modelSupportsToolCalling"
           class="grid grid-cols-[120px_1fr] items-center gap-4"
         >
           <Label class="whitespace-nowrap">Enable Tools</Label>
@@ -107,7 +109,8 @@
           />
         </div>
 
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <!-- Embeddings selector - only shown when RAG is enabled -->
+        <div v-if="enableRAG" class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">Embeddings</Label>
           <drop-down-new
             :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
@@ -126,7 +129,7 @@
                   active: item.downloaded,
                 }))
             "
-          >        </drop-down-new>
+          ></drop-down-new>
         </div>
 
         <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
@@ -193,6 +196,11 @@ const activeChatPreset = computed(() => {
 const isBackendLocked = computed(() => {
   return activeChatPreset.value?.backends?.length === 1
 })
+
+// UI visibility flags from preset
+const enableRAG = computed(() => activeChatPreset.value?.enableRAG ?? false)
+const showTools = computed(() => activeChatPreset.value?.showTools ?? false)
+const lockDeviceToNpu = computed(() => activeChatPreset.value?.lockDeviceToNpu ?? false)
 
 // Get available backends from preset
 const availableBackends = computed(() => {

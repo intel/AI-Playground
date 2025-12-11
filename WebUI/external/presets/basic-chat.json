@@ -1,0 +1,13 @@
+{
+  "type": "chat",
+  "name": "Basic Chat",
+  "description": "Simple text-to-text chat. Select your preferred backend and model for general conversation.",
+  "displayPriority": 98,
+  "tags": ["Chat", "Text", "General"],
+  "backends": ["llamaCPP", "openVINO"],
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "filterTxt2TxtOnly": true,
+  "requiredModels": []
+}

@@ -145,6 +145,11 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   requiresReasoning: z.boolean().optional(),
   requiresNpuSupport: z.boolean().optional(), // Filter models to only show NPU-compatible ones
   toolsEnabledByDefault: z.boolean().optional(), // Explicit default for tools toggle
+  // UI visibility controls
+  enableRAG: z.boolean().optional(), // Show "Add Documents" + embeddings selector (default: false)
+  showTools: z.boolean().optional(), // Show "Enable Tools" toggle (default: false)
+  filterTxt2TxtOnly: z.boolean().optional(), // Filter out vision AND reasoning models
+  lockDeviceToNpu: z.boolean().optional(), // Lock device selector to NPU
 })
 
 // Discriminated Union for all Preset types

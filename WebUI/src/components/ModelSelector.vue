@@ -48,6 +48,7 @@ const items = computed(() => {
     toolCalling: activePreset?.type === 'chat' && activePreset.requiresToolCalling === true,
     reasoning: activePreset?.type === 'chat' && activePreset.requiresReasoning === true,
     npuSupport: activePreset?.type === 'chat' && activePreset.requiresNpuSupport === true,
+    txt2TxtOnly: activePreset?.type === 'chat' && activePreset.filterTxt2TxtOnly === true,
   }
 
   return textInference.llmModels
@@ -58,6 +59,8 @@ const items = computed(() => {
       if (requirements.toolCalling && !m.supportsToolCalling) return false
       if (requirements.reasoning && !m.supportsReasoning) return false
       if (requirements.npuSupport && !m.npuSupport) return false
+      // Filter out vision and reasoning models for txt2txt only presets
+      if (requirements.txt2TxtOnly && (m.supportsVision || m.supportsReasoning)) return false
       return true
     })
     .filter((m) =>
