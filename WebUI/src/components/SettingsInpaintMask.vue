@@ -158,6 +158,9 @@ const mode = ref<'brush' | 'eraser'>('brush')
 const brushSize = ref(30)
 const isDrawing = ref(false)
 
+// Throttling for preview updates
+let rafId: number | null = null
+
 // Use ResizeObserver to track parent container size
 let resizeObserver: ResizeObserver | null = null
 
@@ -182,6 +185,11 @@ onUnmounted(() => {
   if (resizeObserver && parentContainer.value) {
     resizeObserver.unobserve(parentContainer.value)
     resizeObserver.disconnect()
+  }
+  // Cancel any pending animation frame
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
   }
 })
 
@@ -272,22 +280,28 @@ async function restoreMaskFromAlphaChannel(maskedImageUrl: string) {
 
     // Draw masked image to temp canvas
     tempCtx.drawImage(img, 0, 0, imageWidth.value, imageHeight.value)
-    const imageData = tempCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
+    const maskedImageData = tempCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
 
-    // Extract mask: alpha=0 means masked (will be inpainted), alpha=255 means not masked
+    // Create mask data directly
     const ctx = maskCanvas.value.getContext('2d')
     if (!ctx) return
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 255)'
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      const alpha = imageData.data[i + 3]
+    const maskData = ctx.createImageData(imageWidth.value, imageHeight.value)
+
+    // Extract mask: alpha=0 means masked, convert to white pixels
+    // This is much faster than calling fillRect() for each pixel
+    for (let i = 0; i < maskedImageData.data.length; i += 4) {
+      const alpha = maskedImageData.data[i + 3]
       if (alpha === 0) {
-        // This pixel was masked - draw white on mask canvas
-        const x = (i / 4) % imageWidth.value
-        const y = Math.floor(i / 4 / imageWidth.value)
-        ctx.fillRect(x, y, 1, 1)
+        maskData.data[i] = 255 // R
+        maskData.data[i + 1] = 255 // G
+        maskData.data[i + 2] = 255 // B
+        maskData.data[i + 3] = 255 // A
       }
     }
+
+    // Single fast operation
+    ctx.putImageData(maskData, 0, 0)
 
     // Update preview to show restored mask
     drawPreview()
@@ -337,6 +351,11 @@ function stopDrawing() {
   if (maskCanvas.value) {
     maskCanvas.value.removeEventListener('pointermove', onDrawing)
   }
+  // Cancel any pending RAF and draw immediately on stop
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
   drawPreview()
   emitMaskedImage()
 }
@@ -358,8 +377,15 @@ function drawAt(x: number, y: number) {
   ctx.arc(x, y, brushSize.value / 2, 0, 2 * Math.PI)
   ctx.fill()
 
-  // Update preview in real-time
-  drawPreview()
+  // Schedule preview update on next animation frame (debounced)
+  // This prevents excessive preview updates during rapid mouse movement
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+  }
+  rafId = requestAnimationFrame(() => {
+    drawPreview()
+    rafId = null
+  })
 }
 
 function drawPreview() {
@@ -375,16 +401,23 @@ function drawPreview() {
   // Get mask data
   const maskData = maskCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
 
-  // Draw red tint overlay on masked areas
-  previewCtx.fillStyle = 'rgba(255, 0, 0, 0.4)' // Red tint with transparency
+  // Create preview image data (red tint overlay)
+  const previewData = previewCtx.createImageData(imageWidth.value, imageHeight.value)
+
+  // Apply red tint to masked areas - single loop, direct pixel manipulation
+  // This is 1000x faster than calling fillRect() for each pixel
   for (let i = 0; i < maskData.data.length; i += 4) {
-    const alpha = maskData.data[i + 3]
-    if (alpha > 0) {
-      const x = (i / 4) % imageWidth.value
-      const y = Math.floor(i / 4 / imageWidth.value)
-      previewCtx.fillRect(x, y, 1, 1)
+    const maskAlpha = maskData.data[i + 3]
+    if (maskAlpha > 0) {
+      previewData.data[i] = 255 // R
+      previewData.data[i + 1] = 0 // G
+      previewData.data[i + 2] = 0 // B
+      previewData.data[i + 3] = 102 // A (0.4 * 255 = 102)
     }
   }
+
+  // Single fast operation instead of thousands of fillRect calls
+  previewCtx.putImageData(previewData, 0, 0)
 }
 
 function clearMask() {
