@@ -47,9 +47,9 @@
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
         {{ presetsStore.activePresetWithVariant?.description || selectedPreset.description }}
       </p>
-      <div v-if="selectedPreset.tags && selectedPreset.tags.length > 0" class="flex gap-2">
+      <div v-if="presetsStore.activePresetWithVariant?.tags && presetsStore.activePresetWithVariant.tags.length > 0" class="flex gap-2">
         <span
-          v-for="tag in selectedPreset.tags"
+          v-for="tag in presetsStore.activePresetWithVariant.tags"
           :key="tag"
           class="px-3 py-1 text-xs bg-primary rounded-full"
         >

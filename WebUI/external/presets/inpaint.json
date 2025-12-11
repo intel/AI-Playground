@@ -8,18 +8,137 @@
   "description": "Regenerate portions of an image by masking an area that will change based on your prompt",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
-  "requiredModels": [
+  "variants": [
     {
-      "type": "unet",
-      "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+      "name": "Draft",
+      "overrides": {
+        "tags": ["inpaint", "edit-images", "SD1.5"],
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+          }
+        ]
+      }
     },
     {
-      "type": "clip",
-      "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
-    },
-    {
-      "type": "vae",
-      "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+      "name": "HD",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/unet/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder/model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder_2/model.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/vae/diffusion_pytorch_model.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "height"
+          },
+          {
+            "type": "number",
+            "label": "Target Width",
+            "nodeTitle": "width",
+            "nodeInput": "value",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Target Height",
+            "nodeTitle": "height",
+            "nodeInput": "value",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "1024x1024",
+            "settingName": "resolution"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "scheduler": "normal"
+            }
+          },
+          "4": {
+            "inputs": {
+              "vae_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\vae\\diffusion_pytorch_model.safetensors"
+            }
+          },
+          "9": {
+            "inputs": {
+              "clip_name1": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder\\model.safetensors",
+              "clip_name2": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder_2\\model.safetensors",
+              "type": "sdxl"
+            },
+            "class_type": "DualCLIPLoader",
+            "_meta": {
+              "title": "DualCLIPLoader"
+            }
+          },
+          "10": {
+            "inputs": {
+              "unet_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\unet\\diffusion_pytorch_model.safetensors"
+            }
+          },
+          "27": {
+            "inputs": {
+              "value": 1024
+            }
+          },
+          "28": {
+            "inputs": {
+              "value": 1024
+            }
+          }
+        }
+      }
     }
   ],
   "settings": [

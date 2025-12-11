@@ -123,10 +123,10 @@ const aspectRatios = [
 const megaPixelsOptions = computed(() => {
   const tags = imageGeneration.activePreset?.tags ?? []
   // Draft tier (sd1.5): 0.5, 0.8 MP only
-  if (tags.includes('DreamShaper')) {
+  if (tags.includes('DreamShaper') || tags.includes('SD1.5')) {
     return [
+      { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
-      { label: '0.8', totalPixels: 896 * 896 },
     ]
   }
   // LTX Video: custom tiers (uses dynamic calculation)

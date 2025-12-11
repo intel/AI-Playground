@@ -2,24 +2,188 @@
   "type": "comfy",
   "name": "Outpaint",
   "displayPriority": 400,
-  "tags": ["outpaint", "edit-images", "sd1.5"],
+  "tags": ["outpaint", "edit-images"],
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Extend an image beyond its borders by sizing and positioning an image in a new space, then generate new content around it",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
-  "requiredModels": [
+  "variants": [
     {
-      "type": "unet",
-      "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+      "name": "Draft",
+      "overrides": {
+        "tags": ["outpaint", "edit-images", "SD1.5"],
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+          }
+        ]
+      }
     },
     {
-      "type": "clip",
-      "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
-    },
-    {
-      "type": "vae",
-      "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+      "name": "HD",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/unet/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder/model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder_2/model.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/vae/diffusion_pytorch_model.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "height"
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "1024x1024",
+            "settingName": "resolution"
+          },
+          {
+            "type": "number",
+            "label": "Left Padding",
+            "nodeTitle": "OutpaintDirection",
+            "nodeInput": "left",
+            "min": 0,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 0,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Top Padding",
+            "nodeTitle": "OutpaintDirection",
+            "nodeInput": "top",
+            "min": 0,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 0,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Right Padding",
+            "nodeTitle": "OutpaintDirection",
+            "nodeInput": "right",
+            "min": 0,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 0,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Bottom Padding",
+            "nodeTitle": "OutpaintDirection",
+            "nodeInput": "bottom",
+            "min": 0,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 0,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Crop Width",
+            "nodeTitle": "CropImage",
+            "nodeInput": "width",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Crop Height",
+            "nodeTitle": "CropImage",
+            "nodeInput": "height",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "scheduler": "normal",
+              "model": ["10", 0]
+            }
+          },
+          "4": {
+            "inputs": {
+              "vae_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\vae\\diffusion_pytorch_model.safetensors"
+            }
+          },
+          "9": {
+            "inputs": {
+              "clip_name1": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder\\model.safetensors",
+              "clip_name2": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder_2\\model.safetensors",
+              "type": "sdxl"
+            },
+            "class_type": "DualCLIPLoader",
+            "_meta": {
+              "title": "DualCLIPLoader"
+            }
+          },
+          "10": {
+            "inputs": {
+              "unet_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\unet\\diffusion_pytorch_model.safetensors"
+            }
+          },
+          "13": {
+            "inputs": {
+              "width": 1024,
+              "height": 1024
+            }
+          }
+        }
+      }
     }
   ],
   "settings": [

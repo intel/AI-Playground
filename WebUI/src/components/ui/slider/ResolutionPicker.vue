@@ -35,7 +35,7 @@ const megaPixelsOptions = computed(() => {
   const tags = activePreset?.tags ?? []
 
   // Draft tier (DreamShaper/sd1.5): 0.5, 0.8 MP only
-  if (tags.includes('DreamShaper')) {
+  if (tags.includes('DreamShaper') || tags.includes('SD1.5')) {
     return [
       { label: '0.5', totalPixels: 704 * 704 },
       { label: '0.8', totalPixels: 896 * 896 },
