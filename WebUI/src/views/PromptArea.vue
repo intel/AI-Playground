@@ -18,7 +18,7 @@
         <!-- Zoom Controls (only in chat mode) -->
         <div
           v-if="promptStore.getCurrentMode() === 'chat'"
-          class="absolute -top-8 right-0 flex gap-1 z-10"
+          class="absolute -top-8 right-0 flex gap-1 z-[5]"
         >
           <button
             @click="textInference.decreaseFontSize()"

@@ -987,11 +987,14 @@ export const useTextInference = defineStore(
       }
 
       // Load tools enabled
-      if (savedSettings.toolsEnabled !== undefined) {
+      // Only allow tools to be enabled if preset has showTools enabled
+      if (preset.showTools !== true) {
+        // Force disable tools when preset hides the toggle
+        toolsEnabled.value = false
+      } else if (savedSettings.toolsEnabled !== undefined) {
         toolsEnabled.value = savedSettings.toolsEnabled as boolean
       } else {
-        // Set default value based on preset's requiresToolCalling
-        toolsEnabled.value = preset.requiresToolCalling === true
+        toolsEnabled.value = preset.toolsEnabledByDefault ?? (preset.requiresToolCalling === true)
       }
 
       // Clear flag after loading
@@ -1175,6 +1178,20 @@ export const useTextInference = defineStore(
             backend.value = runningBackend || preset.backends[0]
           }
           // Otherwise keep current backend if it's in the allowed list
+        }
+
+        // Auto-select NPU device if preset locks to NPU
+        if (preset.lockDeviceToNpu) {
+          const serviceName = backendToService[backend.value] as BackendServiceName
+          const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+          const npuDevice = serviceInfo?.devices.find((d) => d.id.includes('NPU'))
+
+          if (npuDevice && !npuDevice.selected) {
+            await backendServices.selectDevice(serviceName, npuDevice.id)
+            // Restart backend for device change to take effect
+            await backendServices.stopService(serviceName)
+            await backendServices.startService(serviceName)
+          }
         }
 
         // Apply model selection if specified

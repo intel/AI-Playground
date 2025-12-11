@@ -77,7 +77,7 @@
     Goto deleteAll
 
   moveToBackup:
-    Rename "$INSTDIR\resources\service\models" "$2"
+    Rename "$INSTDIR\resources\models" "$2"
     DetailPrint "backup model directory at $2"
 
   deleteAll:

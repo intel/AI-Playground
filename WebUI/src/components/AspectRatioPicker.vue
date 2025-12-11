@@ -139,7 +139,7 @@ const megaPixelsOptions = computed(() => {
     ]
   }
   // Pro tier (flux): 0.25, 0.5, 0.8, 1.0, 1.2, 1.5 MP
-  if (tags.some((tag) => tag.toLowerCase().includes('flux'))) {
+  if (tags.some((tag) => tag.toLowerCase().includes('flux') || tag.toLowerCase().includes('z-image'))) {
     return [
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
