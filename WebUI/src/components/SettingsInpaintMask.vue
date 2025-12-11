@@ -131,6 +131,7 @@ import { NoSymbolIcon, PaintBrushIcon, TrashIcon } from '@heroicons/vue/24/outli
 
 const props = defineProps<{
   imageUrl: string
+  maskedImageUrl?: string
 }>()
 
 const emits = defineEmits<{
@@ -242,6 +243,57 @@ function initializeMaskCanvas() {
 
   // Clear mask canvas (transparent)
   ctx.clearRect(0, 0, imageWidth.value, imageHeight.value)
+
+  // Check if there's an existing masked image to restore from
+  if (props.maskedImageUrl && props.maskedImageUrl.trim() !== '') {
+    restoreMaskFromAlphaChannel(props.maskedImageUrl)
+  }
+}
+
+async function restoreMaskFromAlphaChannel(maskedImageUrl: string) {
+  if (!maskCanvas.value) return
+
+  try {
+    // Load the masked image
+    const img = new Image()
+    img.src = maskedImageUrl
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to load masked image'))
+    })
+
+    // Create temporary canvas to extract alpha channel
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = imageWidth.value
+    tempCanvas.height = imageHeight.value
+    const tempCtx = tempCanvas.getContext('2d')
+    if (!tempCtx) return
+
+    // Draw masked image to temp canvas
+    tempCtx.drawImage(img, 0, 0, imageWidth.value, imageHeight.value)
+    const imageData = tempCtx.getImageData(0, 0, imageWidth.value, imageHeight.value)
+
+    // Extract mask: alpha=0 means masked (will be inpainted), alpha=255 means not masked
+    const ctx = maskCanvas.value.getContext('2d')
+    if (!ctx) return
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 255)'
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const alpha = imageData.data[i + 3]
+      if (alpha === 0) {
+        // This pixel was masked - draw white on mask canvas
+        const x = (i / 4) % imageWidth.value
+        const y = Math.floor(i / 4 / imageWidth.value)
+        ctx.fillRect(x, y, 1, 1)
+      }
+    }
+
+    // Update preview to show restored mask
+    drawPreview()
+  } catch (error) {
+    console.error('Failed to restore mask from alpha channel:', error)
+  }
 }
 
 function getCanvasCoordinates(e: PointerEvent): { x: number; y: number } | null {

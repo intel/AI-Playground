@@ -49,7 +49,8 @@
           <!-- Inpaint Mask Editor -->
           <SettingsInpaintMask
             v-else-if="dialogStore.maskEditorMode === 'inpaint'"
-            :image-url="imageUrl"
+            :image-url="dialogStore.maskEditorOriginalImageUrl || imageUrl"
+            :masked-image-url="maskedImageUrl"
             @update:image="updateMaskImage"
             @update:preview="handlePreviewUpdate"
           />
@@ -197,6 +198,11 @@ function updateValue(nodeTitle: string, nodeInput: string, value: number) {
 // Find the inpaint mask input
 const inpaintMaskInput = computed(() => {
   return imageGeneration.comfyInputs.find((input) => input.type === 'inpaintMask')
+})
+
+// Get the masked image URL (existing mask with alpha channel)
+const maskedImageUrl = computed(() => {
+  return (inpaintMaskInput.value?.current.value as string) || ''
 })
 
 function updateMaskImage(value: string) {
