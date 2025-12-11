@@ -519,9 +519,10 @@ export const useTextInference = defineStore(
       ragResults: Document[] | null
       ragSourceText: string | null
     }> {
+
       const hasRagDocuments = ragList.value.some((item) => item.isChecked)
 
-      if (!hasRagDocuments) {
+      if (!hasRagDocuments || activePreset.value?.enableRAG !== true) {
         return {
           systemPrompt: systemPrompt.value,
           ragResults: null,

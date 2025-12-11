@@ -37,9 +37,9 @@
             <MagnifyingGlassPlusIcon class="size-5" />
           </button>
         </div>
-        <!-- RAG Documents Display (only in chat mode) -->
+        <!-- RAG Documents Display (only when RAG is enabled and has documents) -->
         <div
-          v-if="promptStore.getCurrentMode() === 'chat' && checkedRagDocuments.length > 0"
+          v-if="promptStore.getCurrentMode() === 'chat' && canAttachDocuments && checkedRagDocuments.length > 0"
           class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1"
         >
           <span class="text-muted-foreground flex items-center gap-1">
@@ -65,7 +65,7 @@
           ref="textareaRef"
           class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
           :class="{
-            [`pt-${checkedRagDocuments.length > 0 && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
+            [`pt-${checkedRagDocuments.length > 0 && canAttachDocuments && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
             'opacity-50 cursor-not-allowed': !isPromptModifiable,
           }"
           :placeholder="getTextAreaPlaceholder()"
@@ -93,6 +93,7 @@
             </button>
           </div>
           <div
+            v-if="canAttachFiles"
             ref="dropZoneRef"
             class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer"
             :class="{ 'border-primary bg-primary/10': isOverDropZone }"
@@ -102,11 +103,7 @@
               type="file"
               class="hidden"
               id="file-attachment"
-              :accept="
-                promptStore.getCurrentMode() === 'chat'
-                  ? 'image/*,.txt,.doc,.docx,.md,.pdf'
-                  : 'image/*'
-              "
+              :accept="getAcceptedFileTypes()"
               multiple
               @change="handleFileInput"
             />
@@ -199,6 +196,7 @@ import {
   type IndexedDocument,
 } from '@/assets/js/store/textInference'
 import { useI18N } from '@/assets/js/store/i18n'
+import { usePresets, type ChatPreset } from '@/assets/js/store/presets'
 import { PlusIcon, PaperClipIcon, XMarkIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon } from '@heroicons/vue/24/outline'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -220,8 +218,31 @@ const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
 const dropZoneRef = ref<HTMLDivElement>()
 const textareaRef = ref<HTMLTextAreaElement>()
+const presetsStore = usePresets()
 
 audioRecorder.registerTranscriptionCallback((text) => prompt.value = text)
+
+// Get active chat preset
+const activeChatPreset = computed(() => {
+  const preset = presetsStore.activePresetWithVariant
+  if (preset?.type === 'chat') return preset as ChatPreset
+  return null
+})
+
+// Check if images can be attached (vision model selected)
+const canAttachImages = computed(() => {
+  if (promptStore.getCurrentMode() !== 'chat') return true // Allow for image modes
+  return textInference.modelSupportsVision
+})
+
+// Check if documents can be attached (RAG enabled)
+const canAttachDocuments = computed(() => {
+  if (promptStore.getCurrentMode() !== 'chat') return false
+  return activeChatPreset.value?.enableRAG === true
+})
+
+// Check if any attachments are allowed
+const canAttachFiles = computed(() => canAttachImages.value || canAttachDocuments.value)
 
 // Get checked RAG documents for display
 const checkedRagDocuments = computed(() => {
@@ -426,6 +447,17 @@ function isDocumentFile(file: File): boolean {
   return ext ? validDocumentExtensions.includes(ext as ValidFileExtension) : false
 }
 
+// Get accepted file types based on preset capabilities
+function getAcceptedFileTypes(): string {
+  if (promptStore.getCurrentMode() !== 'chat') return 'image/*'
+
+  const types: string[] = []
+  if (canAttachImages.value) types.push('image/*')
+  if (canAttachDocuments.value) types.push('.txt,.doc,.docx,.md,.pdf')
+
+  return types.join(',') || 'none'
+}
+
 // Handle image files with downscaling for chat mode
 async function handleImageFiles(imageFiles: File[]) {
   if (imageFiles.length === 0) return
@@ -470,8 +502,22 @@ async function handleFileInput(event: Event) {
     }
   }
 
+  // Validate image attachments
+  if (imageFiles.length > 0 && !canAttachImages.value) {
+    toast.error('The current model does not support image attachments. Select a vision model to attach images.')
+    imageFiles.length = 0
+  }
+
+  // Validate document attachments
+  if (documentFiles.length > 0 && !canAttachDocuments.value) {
+    toast.error('Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.')
+    documentFiles.length = 0
+  }
+
   // Handle images
-  await handleImageFiles(imageFiles)
+  if (imageFiles.length > 0) {
+    await handleImageFiles(imageFiles)
+  }
 
   // Handle documents (add to RAG)
   if (documentFiles.length > 0) {
@@ -541,8 +587,22 @@ async function onDrop(files: File[] | null) {
     }
   }
 
+  // Validate image attachments
+  if (imageFiles.length > 0 && !canAttachImages.value) {
+    toast.error('The current model does not support image attachments. Select a vision model to attach images.')
+    imageFiles.length = 0
+  }
+
+  // Validate document attachments
+  if (documentFiles.length > 0 && !canAttachDocuments.value) {
+    toast.error('Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.')
+    documentFiles.length = 0
+  }
+
   // Handle images
-  await handleImageFiles(imageFiles)
+  if (imageFiles.length > 0) {
+    await handleImageFiles(imageFiles)
+  }
 
   // Handle documents
   if (documentFiles.length > 0) {
@@ -572,6 +632,9 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
 
 // Handle clipboard paste for images
 function handlePaste(event: ClipboardEvent) {
+  // Block image paste when vision is not supported
+  if (!canAttachImages.value) return
+
   const items = event.clipboardData?.items
   if (!items) return
 
