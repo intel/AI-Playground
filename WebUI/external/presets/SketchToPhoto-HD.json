@@ -10,20 +10,8 @@
   "requiredPythonPackages": [],
   "requiredModels": [
     {
-      "type": "unet",
-      "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
-    },
-    {
-      "type": "clip",
-      "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
-    },
-    {
-      "type": "clip",
-      "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
-    },
-    {
-      "type": "vae",
-      "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+      "type": "checkpoints",
+      "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
     },
     {
       "type": "controlNet",
@@ -106,28 +94,37 @@
     {
       "type": "number",
       "label": "Canny - Low Threshold",
-      "displayed": false,
-      "modifiable": false,
+      "displayed": true,
+      "modifiable": true,
       "defaultValue": 0.2,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05,
       "nodeTitle": "Canny",
       "nodeInput": "low_threshold"
     },
     {
       "type": "number",
       "label": "Canny - High Threshold",
-      "displayed": false,
-      "modifiable": false,
+      "displayed": true,
+      "modifiable": true,
       "defaultValue": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05,
       "nodeTitle": "Canny",
       "nodeInput": "high_threshold"
     },
     {
       "type": "number",
       "label": "ControlNet - Strength",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": 0.6,
-      "nodeTitle": "Apply ControlNet (OLD)",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.1,
+      "nodeTitle": "Apply ControlNet",
       "nodeInput": "strength"
     },
     {
@@ -146,20 +143,8 @@
       "overrides": {
         "requiredModels": [
           {
-            "type": "unet",
-            "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
-          },
-          {
-            "type": "clip",
-            "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
-          },
-          {
-            "type": "clip",
-            "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
-          },
-          {
-            "type": "vae",
-            "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+            "type": "checkpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
           },
           {
             "type": "lora",
@@ -178,15 +163,6 @@
             "modifiable": true,
             "defaultValue": 4,
             "settingName": "inferenceSteps"
-          },
-          {
-            "type": "number",
-            "label": "ControlNet - Strength",
-            "displayed": false,
-            "modifiable": false,
-            "defaultValue": 0.5,
-            "nodeTitle": "Apply ControlNet (OLD)",
-            "nodeInput": "strength"
           }
         ],
         "comfyUiApiWorkflow": {
@@ -196,28 +172,10 @@
               "cfg": 1.5,
               "sampler_name": "lcm",
               "scheduler": "simple",
-              "model": ["19", 0]
-            }
-          },
-          "5": {
-            "inputs": {
-              "width": 1024,
-              "height": 1024
-            }
-          },
-          "6": {
-            "inputs": {
-              "clip": ["19", 1]
-            }
-          },
-          "7": {
-            "inputs": {
-              "clip": ["19", 1]
-            }
-          },
-          "18": {
-            "inputs": {
-              "strength": 0.5
+              "model": ["19", 0],
+              "positive": ["25", 0],
+              "negative": ["25", 1],
+              "latent_image": ["5", 0]
             }
           },
           "19": {
@@ -225,17 +183,12 @@
               "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
               "strength_model": 1,
               "strength_clip": 1,
-              "model": ["23", 0],
-              "clip": ["24", 0]
+              "model": ["26", 0],
+              "clip": ["26", 1]
             },
             "class_type": "LoraLoader",
             "_meta": {
               "title": "Load LoRA"
-            }
-          },
-          "20": {
-            "inputs": {
-              "high_threshold": 0.8
             }
           }
         },
@@ -250,18 +203,21 @@
   "comfyUiApiWorkflow": {
     "3": {
       "inputs": {
-        "seed": 322974,
+        "seed": 585751536870838,
         "steps": 20,
         "cfg": 6,
-        "sampler_name": "heun",
-        "scheduler": "sgm_uniform",
+        "sampler_name": "dpmpp_2m_sde",
+        "scheduler": "karras",
         "denoise": 1,
-        "model": ["23", 0],
-        "positive": ["18", 0],
-        "negative": ["7", 0],
+        "model": ["26", 0],
+        "positive": ["25", 0],
+        "negative": ["25", 1],
         "latent_image": ["5", 0]
       },
-      "class_type": "KSampler"
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
     },
     "5": {
       "inputs": {
@@ -269,12 +225,15 @@
         "height": 896,
         "batch_size": 1
       },
-      "class_type": "EmptyLatentImage"
+      "class_type": "EmptyLatentImage",
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
     },
     "6": {
       "inputs": {
-        "text": "modern apartment high rise downtown New York City, highly detailed, ultra realistic, film grain, depth of field",
-        "clip": ["24", 0]
+        "text": "a rose",
+        "clip": ["26", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -284,7 +243,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": ["24", 0]
+        "clip": ["26", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -294,7 +253,7 @@
     "8": {
       "inputs": {
         "samples": ["3", 0],
-        "vae": ["22", 0]
+        "vae": ["26", 2]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -313,8 +272,7 @@
     },
     "15": {
       "inputs": {
-        "image": "input.png",
-        "upload": "image"
+        "image": "outpaint.png"
       },
       "class_type": "LoadImage",
       "_meta": {
@@ -339,22 +297,10 @@
         "title": "Load ControlNet Model"
       }
     },
-    "18": {
-      "inputs": {
-        "strength": 0.9,
-        "conditioning": ["6", 0],
-        "control_net": ["17", 0],
-        "image": ["20", 0]
-      },
-      "class_type": "ControlNetApply",
-      "_meta": {
-        "title": "Apply ControlNet (OLD)"
-      }
-    },
     "20": {
       "inputs": {
-        "low_threshold": 0.2,
-        "high_threshold": 0.8,
+        "low_threshold": 0.14,
+        "high_threshold": 0.4,
         "image": ["15", 0]
       },
       "class_type": "Canny",
@@ -362,34 +308,29 @@
         "title": "Canny"
       }
     },
-    "22": {
+    "25": {
       "inputs": {
-        "vae_name": "RunDiffusion---Juggernaut-XL-v9\\vae\\diffusion_pytorch_model.fp16.safetensors"
+        "strength": 1,
+        "start_percent": 0,
+        "end_percent": 1,
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "control_net": ["17", 0],
+        "image": ["20", 0],
+        "vae": ["26", 2]
       },
-      "class_type": "VAELoader",
+      "class_type": "ControlNetApplyAdvanced",
       "_meta": {
-        "title": "Load VAE"
+        "title": "Apply ControlNet"
       }
     },
-    "23": {
+    "26": {
       "inputs": {
-        "unet_name": "RunDiffusion---Juggernaut-XL-v9\\unet\\diffusion_pytorch_model.fp16.safetensors",
-        "weight_dtype": "default"
+        "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
       },
-      "class_type": "UNETLoader",
+      "class_type": "CheckpointLoaderSimple",
       "_meta": {
-        "title": "Load Diffusion Model"
-      }
-    },
-    "24": {
-      "inputs": {
-        "clip_name1": "RunDiffusion---Juggernaut-XL-v9\\text_encoder\\model.fp16.safetensors",
-        "clip_name2": "RunDiffusion---Juggernaut-XL-v9\\text_encoder_2\\model.fp16.safetensors",
-        "type": "sdxl"
-      },
-      "class_type": "DualCLIPLoader",
-      "_meta": {
-        "title": "DualCLIPLoader"
+        "title": "Load Checkpoint"
       }
     }
   }

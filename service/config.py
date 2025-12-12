@@ -35,6 +35,7 @@ comfy_ui_model_paths = {
     "upscale": "../models/ComfyUI/upscale_models",
     "lora": "../models/ComfyUI/loras",
     "loras": "../models/ComfyUI/loras",
+    "inpaint": "../models/ComfyUI/inpaint",
 }
 
 # Git configuration

@@ -4,6 +4,7 @@
   "embedding": "../models/LLM/embedding",
   "STT": "../models/STT",
   "checkpoints": "../models/ComfyUI/checkpoints",
+  "inpaint": "../models/ComfyUI/inpaint",
   "unet": "../models/ComfyUI/unet",
   "clip": "../models/ComfyUI/clip",
   "vae": "../models/ComfyUI/vae",

@@ -334,7 +334,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     unet
   insightface: insightface
   facerestore_models: facerestore_models
-  nsfw_detector: nsfw_detector`
+  nsfw_detector: nsfw_detector
+  inpaint: inpaint`
         fs.promises.writeFile(extraModelPathsYaml, extraModelsYaml, {
           encoding: 'utf-8',
           flag: 'w',

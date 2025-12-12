@@ -14,20 +14,8 @@
   ],
   "requiredModels": [
     {
-      "type": "unet",
-      "model": "RunDiffusion/Juggernaut-XL-v9/unet/diffusion_pytorch_model.fp16.safetensors"
-    },
-    {
-      "type": "clip",
-      "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder/model.fp16.safetensors"
-    },
-    {
-      "type": "clip",
-      "model": "RunDiffusion/Juggernaut-XL-v9/text_encoder_2/model.fp16.safetensors"
-    },
-    {
-      "type": "vae",
-      "model": "RunDiffusion/Juggernaut-XL-v9/vae/diffusion_pytorch_model.fp16.safetensors"
+      "type": "checkpoints",
+      "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
     },
     {
       "type": "lora",
@@ -131,8 +119,8 @@
     {
       "type": "boolean",
       "label": "Activate FaceSwap",
-      "displayed": false,
-      "modifiable": false,
+      "displayed": true,
+      "modifiable": true,
       "defaultValue": true,
       "nodeTitle": "ReActor 🌌 Fast Face Swap",
       "nodeInput": "enabled"
@@ -200,7 +188,7 @@
     "8": {
       "inputs": {
         "samples": ["3", 0],
-        "vae": ["22", 0]
+        "vae": ["26", 2]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -232,42 +220,21 @@
         "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
         "strength_model": 1,
         "strength_clip": 1,
-        "model": ["23", 0],
-        "clip": ["24", 0]
+        "model": ["26", 0],
+        "clip": ["26", 1]
       },
       "class_type": "LoraLoader",
       "_meta": {
         "title": "Load LoRA"
       }
     },
-    "22": {
+    "26": {
       "inputs": {
-        "vae_name": "RunDiffusion---Juggernaut-XL-v9\\vae\\diffusion_pytorch_model.fp16.safetensors"
+        "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
       },
-      "class_type": "VAELoader",
+      "class_type": "CheckpointLoaderSimple",
       "_meta": {
-        "title": "Load VAE"
-      }
-    },
-    "23": {
-      "inputs": {
-        "unet_name": "RunDiffusion---Juggernaut-XL-v9\\unet\\diffusion_pytorch_model.fp16.safetensors",
-        "weight_dtype": "default"
-      },
-      "class_type": "UNETLoader",
-      "_meta": {
-        "title": "Load Diffusion Model"
-      }
-    },
-    "24": {
-      "inputs": {
-        "clip_name1": "RunDiffusion---Juggernaut-XL-v9\\text_encoder\\model.fp16.safetensors",
-        "clip_name2": "RunDiffusion---Juggernaut-XL-v9\\text_encoder_2\\model.fp16.safetensors",
-        "type": "sdxl"
-      },
-      "class_type": "DualCLIPLoader",
-      "_meta": {
-        "title": "DualCLIPLoader"
+        "title": "Load Checkpoint"
       }
     },
     "25": {
