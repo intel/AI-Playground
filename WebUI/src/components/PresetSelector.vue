@@ -5,13 +5,14 @@
         <div
           v-for="preset in filteredPresets"
           :key="preset.name"
-          class="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border-2 aspect-square shadow-md"
+          class="relative rounded-lg overflow-hidden transition-all duration-200 border-2 aspect-square shadow-md"
           :class="[
             selectedPresetName === preset.name
               ? 'border-primary ring-2 ring-primary'
               : 'border-transparent hover:border-primary',
+            isPresetDisabled(preset) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
           ]"
-          @click="selectPreset(preset.name)"
+          @click="isPresetDisabled(preset) ? showDisabledReason(preset) : selectPreset(preset.name)"
         >
           <img
             v-if="preset.image"
@@ -56,9 +57,12 @@
 
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
-import { usePresets } from '@/assets/js/store/presets'
+import { usePresets, type Preset, type ChatPreset } from '@/assets/js/store/presets'
+import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useTextInference, backendToService } from '@/assets/js/store/textInference'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
 import { Card } from '@/components/ui/card'
+import * as toast from '@/assets/js/toast'
 interface Props {
   categories?: string[]
   type?: string
@@ -77,6 +81,8 @@ const emits = defineEmits<{
 }>()
 
 const presetsStore = usePresets()
+const backendServices = useBackendServices()
+const textInference = useTextInference()
 
 const filteredPresets = computed(() => {
   return presetsStore.getPresetsByCategories(props.categories || [], props.type)
@@ -129,25 +135,81 @@ const selectedVariantValue = computed({
   },
 })
 
+function isPresetDisabled(preset: Preset): boolean {
+  if (preset.type === 'chat') {
+    const chatPreset = preset as ChatPreset
+    
+    // Check if NPU is required but not available
+    if (chatPreset.requiresNpuSupport) {
+      const hasNpuDevice = backendServices.info
+        .find((s) => s.serviceName === 'openvino-backend')
+        ?.devices?.some((d) => d.id.includes('NPU'))
+      
+      if (!hasNpuDevice) {
+        return true // Disable if NPU required but not available
+      }
+    }
+    
+    // Check if any backend is available
+    const hasAvailableBackend = chatPreset.backends.some((backend) => {
+      const serviceName = backendToService[backend]
+      return backendServices.info.find((s) => s.serviceName === serviceName)
+    })
+    return !hasAvailableBackend
+  }
+  return false
+}
+
+function showDisabledReason(preset: Preset) {
+  if (preset.type === 'chat') {
+    const chatPreset = preset as ChatPreset
+    if (chatPreset.requiresNpuSupport) {
+      toast.show('NPU device not available. This preset requires an Intel NPU.', {
+        style: {
+          content: { background: '#3b82f6', color: '#ffffff' },
+        },
+      })
+    } else {
+      toast.show(`Required backend not available for ${preset.name}`, {
+        style: {
+          content: { background: '#3b82f6', color: '#ffffff' },
+        },
+      })
+    }
+  }
+}
+
 function selectPreset(presetName: string) {
+  // Don't allow selecting if preset switching is in progress
+  if (textInference?.isPresetSwitching) {
+    toast.warning('Please wait for current preset change to complete')
+    return
+  }
+
+  const preset = filteredPresets.value.find((p) => p.name === presetName)
+  if (!preset) return
+
+  // Check if preset is actually available
+  if (isPresetDisabled(preset)) {
+    showDisabledReason(preset)
+    return
+  }
+
   emits('update:modelValue', presetName)
 
   // Update lastUsed for the preset's category (or use type as fallback)
-  const preset = filteredPresets.value.find((p) => p.name === presetName)
-  if (preset) {
-    const categoryKey = preset.category || (preset.type === 'chat' ? 'chat' : undefined)
-    if (categoryKey) {
-      presetsStore.setLastUsedPreset(categoryKey, presetName)
-    }
+  const categoryKey = preset.category || (preset.type === 'chat' ? 'chat' : undefined)
+  if (categoryKey) {
+    presetsStore.setLastUsedPreset(categoryKey, presetName)
+  }
 
-    // Auto-select first variant if preset has variants and none is selected
-    if (preset.variants && preset.variants.length > 0) {
-      const currentVariant = presetsStore.activeVariantName[presetName]
-      if (!currentVariant) {
-        const firstVariantName = preset.variants[0].name
-        presetsStore.setActiveVariant(presetName, firstVariantName)
-        emits('update:variant', presetName, firstVariantName)
-      }
+  // Auto-select first variant if preset has variants and none is selected
+  if (preset.variants && preset.variants.length > 0) {
+    const currentVariant = presetsStore.activeVariantName[presetName]
+    if (!currentVariant) {
+      const firstVariantName = preset.variants[0].name
+      presetsStore.setActiveVariant(presetName, firstVariantName)
+      emits('update:variant', presetName, firstVariantName)
     }
   }
 }

@@ -134,6 +134,9 @@ export const useTextInference = defineStore(
       isPreparingBackend: false,
     })
 
+    // Track if we're currently switching presets (for UI feedback)
+    const isPresetSwitching = ref(false)
+
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
         ['llamaCPP', 'openVINO', 'ollama'].includes(m.type),
@@ -1118,12 +1121,19 @@ export const useTextInference = defineStore(
     )
 
     async function applyPreset(preset: ChatPreset) {
+      // Prevent concurrent preset changes
+      if (isPresetSwitching.value) {
+        throw new Error('Preset change already in progress. Please wait...')
+      }
+
+      isPresetSwitching.value = true
+
       try {
-        // Check if at least one of the allowed backends is running
+        // Check if at least one of the allowed backends is running OR can be started
         const runningBackend = preset.backends.find((b) => {
           const serviceName = backendToService[b] as BackendServiceName
           const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-          return backendInfo && backendInfo.status === 'running'
+          return backendInfo && (backendInfo.status === 'running' || backendInfo.status === 'stopped')
         })
 
         if (!runningBackend) {
@@ -1154,6 +1164,9 @@ export const useTextInference = defineStore(
       } catch (error) {
         isApplyingPreset = false
         console.error('Failed to apply chat preset:', error)
+        throw error // Re-throw to allow UI to handle the error
+      } finally {
+        isPresetSwitching.value = false
       }
     }
 
@@ -1189,9 +1202,31 @@ export const useTextInference = defineStore(
 
           if (npuDevice && !npuDevice.selected) {
             await backendServices.selectDevice(serviceName, npuDevice.id)
-            // Restart backend for device change to take effect
+
+            // Restart backend with timeout protection
             await backendServices.stopService(serviceName)
+
+            // Wait for backend to fully start with timeout
+            const startTimeout = 30000 // 30 seconds
+            const startTime = Date.now()
             await backendServices.startService(serviceName)
+
+            // Poll until backend is actually running
+            while (Date.now() - startTime < startTimeout) {
+              const currentInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+              if (currentInfo?.status === 'running') {
+                break
+              }
+              if (currentInfo?.status === 'failed') {
+                throw new Error(`Backend failed to start: ${serviceName}`)
+              }
+              await new Promise((resolve) => setTimeout(resolve, 500))
+            }
+
+            const finalInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+            if (finalInfo?.status !== 'running') {
+              throw new Error(`Backend restart timeout: ${serviceName}`)
+            }
           }
         }
 
@@ -1303,6 +1338,7 @@ export const useTextInference = defineStore(
       applyPreset,
       resetActivePresetSettings,
       settingsPerPreset,
+      isPresetSwitching: computed(() => isPresetSwitching.value),
 
       // Tool calling support
       modelSupportsToolCalling,

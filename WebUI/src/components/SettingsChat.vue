@@ -184,6 +184,7 @@ import DropDownNew from '@/components/DropDownNew.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
+import * as toast from '@/assets/js/toast'
 
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
@@ -260,15 +261,36 @@ const documentStats = computed(() => {
 })
 
 async function handlePresetSelectionClick(preset: ChatPreset) {
+  // Check if preset switching is already in progress
+  if (textInference.isPresetSwitching) {
+    toast.warning('Preset change in progress, please wait...')
+    return
+  }
+
   // Check if at least one of the allowed backends is running
   const hasRunningBackend = preset.backends.some((backend) => isBackendRunning(backend))
 
   if (hasRunningBackend) {
-    // Update active preset name in unified store
-    presetsStore.activePresetName = preset.name
+    // Store previous preset name for error recovery
+    const previousPresetName = presetsStore.activePresetName
 
-    // Apply the preset using textInference store
-    await textInference.applyPreset(preset)
+    try {
+      // Update active preset name in unified store
+      presetsStore.activePresetName = preset.name
+
+      // Apply the preset using textInference store
+      await textInference.applyPreset(preset)
+
+      toast.success(`Switched to ${preset.name}`)
+    } catch (error) {
+      console.error('Failed to apply preset:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      toast.error(`Failed to switch preset: ${errorMessage}`)
+      // Revert to previous preset on error
+      if (previousPresetName) {
+        presetsStore.activePresetName = previousPresetName
+      }
+    }
   } else {
     warningDialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
       globalSetup.loadingState = 'manageInstallations'
