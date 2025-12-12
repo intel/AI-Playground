@@ -9,5 +9,7 @@
   "contextSize": 8192,
   "maxNewTokens": 2048,
   "advancedMode": true,
+  "enableRAG": true,
+  "showTools": true,
   "requiredModels": []
 }

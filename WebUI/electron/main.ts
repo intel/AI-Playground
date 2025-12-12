@@ -1159,6 +1159,15 @@ function initEventHandle() {
   })
 
   const getAssetPathFromUrl = (url: string) => {
+    // Handle aipg-media:// URLs
+    if (url.startsWith('aipg-media://')) {
+      const decodedUrl = decodeURIComponent(
+        url.replace(/^aipg-media:\/\//i, '')
+      )
+      return path.join(mediaDir, decodedUrl)
+    }
+
+    // Existing logic for HTTP URLs
     const imageUrl = URL.parse(url)
     if (!imageUrl) {
       console.error('Could not find image for URL', { url })

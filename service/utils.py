@@ -30,6 +30,10 @@ def is_single_file(filename: str):
     """Check if a filename is a single file (not a directory)"""
     return filename.endswith(".safetensors") or filename.endswith(".bin") or filename.endswith(".gguf")
 
+def is_specific_file_reference(repo_id: str) -> bool:
+    """Check if repo_id references a specific file (has file extension)"""
+    return repo_id.endswith(('.gguf', '.safetensors', '.bin', '.pt', '.pth'))
+
 def get_comfyui_faceswap_facerestore_path(type: str, repo_id: str) -> str:
     """
     Get the ComfyUI directory path for a faceswap or facerestore model.
@@ -111,21 +115,31 @@ def check_model_exists_with_path(type: str, repo_id: str, model_path: str) -> bo
     elif type == 'nsfwdetector':
         dir_to_look_for = os.path.join(model_path, 'vit-base-nsfw-detector', extract_model_id_pathsegments(repo_id))
     elif type == 'ggufLLM' or (isinstance(repo_id, str) and repo_id.endswith('.gguf')):
-        # For GGUF files, check if the file exists directly
+        # For GGUF files, distinguish between specific file references and repo-only references
         dir_to_look_for = os.path.join(model_path, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
-        # Check if it's a direct file path
-        if os.path.isfile(dir_to_look_for):
-            return True
-        # Check if any .gguf file exists in the directory
-        parent_dir = os.path.dirname(dir_to_look_for)
-        if os.path.isdir(parent_dir):
-            for file in os.listdir(parent_dir):
-                if file.endswith('.gguf'):
-                    return True
-        return os.path.exists(dir_to_look_for)
+        
+        # Check if repo_id specifies a specific file
+        if is_specific_file_reference(repo_id):
+            # For specific file references, check for exact file match
+            return os.path.isfile(dir_to_look_for)
+        else:
+            # For repo-only references, check if any .gguf file exists in the directory
+            if os.path.isdir(dir_to_look_for):
+                for file in os.listdir(dir_to_look_for):
+                    if file.endswith('.gguf'):
+                        return True
+            return False
     else:
+        # For other model types, apply the same logic
         dir_to_look_for = os.path.join(model_path, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
-    return os.path.exists(dir_to_look_for)
+        
+        # Check if repo_id specifies a specific file
+        if is_specific_file_reference(repo_id):
+            # For specific file references, check for exact file match
+            return os.path.isfile(dir_to_look_for)
+        else:
+            # For repo-only references, check if directory exists
+            return os.path.exists(dir_to_look_for)
 
 def check_openvino_model_exists(type: str, repo_id: str) -> bool:
     """Check if an OpenVINO model exists"""

@@ -122,6 +122,27 @@ export const useModels = defineStore(
     }
 
     /**
+     * Helper function to join paths with proper separator handling
+     * @param basePath - The base path
+     * @param subPath - The sub-path to append
+     * @returns Combined path with proper separators
+     */
+    function joinPath(basePath: string, subPath: string): string {
+      if (!basePath) return subPath
+      if (!subPath) return basePath
+      
+      // Normalize separators to forward slashes for consistency
+      const normalizedBase = basePath.replace(/\\/g, '/')
+      const normalizedSub = subPath.replace(/\\/g, '/')
+      
+      // Remove trailing slash from base and leading slash from sub
+      const cleanBase = normalizedBase.replace(/\/+$/, '')
+      const cleanSub = normalizedSub.replace(/^\/+/, '')
+      
+      return `${cleanBase}/${cleanSub}`
+    }
+
+    /**
      * Maps model type and backend to the appropriate ModelPaths entry
      * @param type - Model type (e.g., 'ggufLLM', 'checkpoints', 'embedding')
      * @param backend - Backend name (e.g., 'llama_cpp', 'comfyui', 'openvino')
@@ -145,8 +166,7 @@ export const useModels = defineStore(
           // Embedding path for llama_cpp is in embedding/llamaCPP subdirectory
           const baseEmbedding = pathsToUse.embedding || ''
           if (baseEmbedding) {
-            // Append backend-specific subdirectory
-            return baseEmbedding.replace(/\/embedding\/?$/, '/embedding/llamaCPP')
+            return joinPath(baseEmbedding, 'llamaCPP')
           }
           return ''
         }
@@ -160,8 +180,7 @@ export const useModels = defineStore(
           // Embedding path for openvino is in embedding/openVINO subdirectory
           const baseEmbedding = pathsToUse.embedding || ''
           if (baseEmbedding) {
-            // Append backend-specific subdirectory
-            return baseEmbedding.replace(/\/embedding\/?$/, '/embedding/openVINO')
+            return joinPath(baseEmbedding, 'openVINO')
           }
           return ''
         }
