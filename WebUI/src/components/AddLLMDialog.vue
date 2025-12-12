@@ -119,7 +119,6 @@ async function addModel() {
       name: modelRequest.value,
       type: textInference.backend,
       downloaded: false,
-      default: false,
     })
     textInference.selectModel(textInference.backend, modelRequest.value)
     await textInference.checkModelAvailability()

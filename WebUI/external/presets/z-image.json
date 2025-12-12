@@ -137,7 +137,7 @@
     },
     "39": {
       "inputs": {
-        "clip_name": "Comfy-Org---z_image_turbo/split_files/text_encoders/qwen_3_4b.safetensors",
+        "clip_name": "Comfy-Org---z_image_turbo\\split_files\\text_encoders\\qwen_3_4b.safetensors",
         "type": "lumina2",
         "device": "default"
       },
@@ -148,7 +148,7 @@
     },
     "40": {
       "inputs": {
-        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
+        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
       },
       "class_type": "VAELoader",
       "_meta": {
@@ -239,7 +239,7 @@
     },
     "46": {
       "inputs": {
-        "unet_name": "Comfy-Org---z_image_turbo/split_files/diffusion_models/z_image_turbo_bf16.safetensors",
+        "unet_name": "Comfy-Org---z_image_turbo\\split_files\\diffusion_models\\z_image_turbo_bf16.safetensors",
         "weight_dtype": "default"
       },
       "class_type": "UNETLoader",
