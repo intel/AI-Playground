@@ -179,10 +179,9 @@ import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useDemoMode } from '@/assets/js/store/demoMode.ts'
 import Rag from '@/components/Rag.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
-import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
+import { usePresetSwitching } from '@/assets/js/store/presetSwitching.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 import * as toast from '@/assets/js/toast'
 
@@ -192,10 +191,9 @@ const processing = ref(false)
 const i18nState = useI18N().state
 const textInference = useTextInference()
 const presetsStore = usePresets()
+const presetSwitching = usePresetSwitching()
 const demoMode = useDemoMode()
 const backendServices = useBackendServices()
-const globalSetup = useGlobalSetup()
-const warningDialogStore = useDialogStore()
 
 // Get the active chat preset
 const activeChatPreset = computed(() => {
@@ -234,15 +232,29 @@ function handleBackendChange(newBackend: string) {
   textInference.backend = newBackend as LlmBackend
 }
 
-function handlePresetChange(presetName: string) {
-  const preset = presetsStore.chatPresets.find((p) => p.name === presetName)
-  if (preset) {
-    handlePresetSelectionClick(preset)
+async function handlePresetChange(presetName: string) {
+  const result = await presetSwitching.switchPreset(presetName, {
+    skipModeSwitch: true, // We're already in chat mode
+  })
+
+  if (result.success) {
+    toast.success(`Switched to ${presetName}`)
+  } else if (result.error) {
+    toast.error(`Failed to switch preset: ${result.error}`)
   }
 }
 
-function handleVariantChange(presetName: string, variantName: string | null) {
-  presetsStore.setActiveVariant(presetName, variantName)
+async function handleVariantChange(presetName: string, variantName: string | null) {
+  if (variantName) {
+    const result = await presetSwitching.switchPreset(presetName, {
+      variant: variantName,
+      skipModeSwitch: true,
+    })
+
+    if (!result.success && result.error) {
+      toast.error(`Failed to switch variant: ${result.error}`)
+    }
+  }
 }
 
 const documentButtonText = computed(() => {
@@ -260,53 +272,8 @@ const documentStats = computed(() => {
   return { total: totalDocs, enabled: enabledDocs }
 })
 
-async function handlePresetSelectionClick(preset: ChatPreset) {
-  // Check if preset switching is already in progress
-  if (textInference.isPresetSwitching) {
-    toast.warning('Preset change in progress, please wait...')
-    return
-  }
-
-  // Check if at least one of the allowed backends is running
-  const hasRunningBackend = preset.backends.some((backend) => isBackendRunning(backend))
-
-  if (hasRunningBackend) {
-    // Store previous preset name for error recovery
-    const previousPresetName = presetsStore.activePresetName
-
-    try {
-      // Update active preset name in unified store
-      presetsStore.activePresetName = preset.name
-
-      // Apply the preset using textInference store
-      await textInference.applyPreset(preset)
-
-      toast.success(`Switched to ${preset.name}`)
-    } catch (error) {
-      console.error('Failed to apply preset:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      toast.error(`Failed to switch preset: ${errorMessage}`)
-      // Revert to previous preset on error
-      if (previousPresetName) {
-        presetsStore.activePresetName = previousPresetName
-      }
-    }
-  } else {
-    warningDialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
-      globalSetup.loadingState = 'manageInstallations'
-    })
-  }
-}
-
 function isBackendRunning(backend: LlmBackend): boolean {
-  const serviceName = mapBackendNames(backend)
+  const serviceName = backendToService[backend]
   return backendServices.info.find((item) => item.serviceName === serviceName)?.status === 'running'
-}
-
-function mapBackendNames(name: LlmBackend): BackendServiceName | undefined {
-  if (name === 'llamaCPP') return 'llamacpp-backend'
-  if (name === 'openVINO') return 'openvino-backend'
-  if (name === 'ollama') return 'ollama-backend' as BackendServiceName
-  return undefined
 }
 </script>

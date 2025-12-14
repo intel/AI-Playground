@@ -59,7 +59,8 @@
 import { computed, watch, onMounted } from 'vue'
 import { usePresets, type Preset, type ChatPreset } from '@/assets/js/store/presets'
 import { useBackendServices } from '@/assets/js/store/backendServices'
-import { useTextInference, backendToService } from '@/assets/js/store/textInference'
+import { backendToService } from '@/assets/js/store/textInference'
+import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
 import { Card } from '@/components/ui/card'
 import * as toast from '@/assets/js/toast'
@@ -82,7 +83,7 @@ const emits = defineEmits<{
 
 const presetsStore = usePresets()
 const backendServices = useBackendServices()
-const textInference = useTextInference()
+const presetSwitching = usePresetSwitching()
 
 const filteredPresets = computed(() => {
   return presetsStore.getPresetsByCategories(props.categories || [], props.type)
@@ -129,8 +130,7 @@ const selectedVariantValue = computed({
   },
   set: (value: string) => {
     if (!selectedPresetName.value) return
-    // Value should never be empty string now since we removed Default option
-    presetsStore.setActiveVariant(selectedPresetName.value, value)
+    // Emit variant change for parent to handle via orchestrator
     emits('update:variant', selectedPresetName.value, value)
   },
 })
@@ -181,7 +181,7 @@ function showDisabledReason(preset: Preset) {
 
 function selectPreset(presetName: string) {
   // Don't allow selecting if preset switching is in progress
-  if (textInference?.isPresetSwitching) {
+  if (presetSwitching.isSwitching) {
     toast.warning('Please wait for current preset change to complete')
     return
   }
@@ -197,21 +197,8 @@ function selectPreset(presetName: string) {
 
   emits('update:modelValue', presetName)
 
-  // Update lastUsed for the preset's category (or use type as fallback)
-  const categoryKey = preset.category || (preset.type === 'chat' ? 'chat' : undefined)
-  if (categoryKey) {
-    presetsStore.setLastUsedPreset(categoryKey, presetName)
-  }
-
-  // Auto-select first variant if preset has variants and none is selected
-  if (preset.variants && preset.variants.length > 0) {
-    const currentVariant = presetsStore.activeVariantName[presetName]
-    if (!currentVariant) {
-      const firstVariantName = preset.variants[0].name
-      presetsStore.setActiveVariant(presetName, firstVariantName)
-      emits('update:variant', presetName, firstVariantName)
-    }
-  }
+  // Note: lastUsed tracking and variant selection are now handled by the orchestrator
+  // when the parent component calls switchPreset()
 }
 
 // Auto-select lastUsed preset on mount if no preset is selected

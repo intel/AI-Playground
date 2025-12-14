@@ -4,6 +4,7 @@ import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerat
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
 import { usePresets, type Preset } from '../store/presets'
+import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { tool } from 'ai'
 
@@ -77,6 +78,9 @@ const MediaOutputSchema = z.discriminatedUnion('type', [
 export const ComfyUiToolOutputSchema = z
   .object({
     images: z.array(MediaOutputSchema),
+    // Optional fields for error handling
+    success: z.boolean().optional(),
+    message: z.string().optional(),
   })
   .passthrough()
 
@@ -101,50 +105,65 @@ export async function executeComfyGeneration(args: {
   seed?: number
   batchSize?: number
 }): Promise<ComfyUiToolOutput> {
-  console.log('### executeComfyGeneration', args)
+  console.log('[ComfyUI Tool] Starting generation with args:', args)
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
   const presets = usePresets()
 
-  // Ensure ComfyUI backend is running
+  // Helper to create error result instead of throwing
+  const createErrorResult = (message: string): ComfyUiToolOutput => ({
+    success: false,
+    message,
+    images: [],
+  })
+
+  // Ensure ComfyUI backend is running - this is unrecoverable
   const comfyUiService = backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
   if (!comfyUiService || comfyUiService.status !== 'running') {
-    throw new Error('ComfyUI backend is not running. Please start it first.')
+    console.error('[ComfyUI Tool] Backend not running')
+    return createErrorResult('ComfyUI backend is not running. Please start it first.')
   }
 
-  // Find preset by name
+  // Find preset by name - fall back to default workflow if not found
   let preset: Preset | null = null
-  if (args.workflow) {
-    preset = presets.presets.find((p) => p.name === args.workflow) || null
+  const requestedWorkflow = args.workflow || 'Draft Image'
+
+  preset = presets.presets.find((p) => p.name === requestedWorkflow) || null
+  if (!preset || preset.type !== 'comfy') {
+    // Try to find any available ComfyUI preset as fallback
+    console.warn(`[ComfyUI Tool] Preset "${requestedWorkflow}" not found or not a ComfyUI preset, trying fallback`)
+    preset = presets.presets.find((p) => p.type === 'comfy') || null
     if (!preset) {
-      throw new Error(`Preset "${args.workflow}" not found`)
+      return createErrorResult('No ComfyUI presets available')
     }
-    if (preset.type !== 'comfy') {
-      throw new Error(`Preset "${args.workflow}" is not a ComfyUI preset`)
-    }
-  } else {
-    throw new Error('Workflow name is required')
+    console.log(`[ComfyUI Tool] Using fallback preset: ${preset.name}`)
   }
 
-  // Select variant (use provided variant, or prefer Fast variant if available)
+  // Select variant - fall back to first variant or Fast variant if requested variant is invalid
   let selectedVariant: string | null = null
   if (preset.variants && preset.variants.length > 0) {
     if (args.variant) {
-      // Validate that the specified variant exists
+      // Check if the specified variant exists
       const variantExists = preset.variants.some((v) => v.name === args.variant)
-      if (!variantExists) {
-        throw new Error(
-          `Variant "${args.variant}" not found in preset "${preset.name}". Available variants: ${preset.variants.map((v) => v.name).join(', ')}`,
+      if (variantExists) {
+        selectedVariant = args.variant
+      } else {
+        // Fall back to Fast variant or first variant instead of throwing
+        console.warn(
+          `[ComfyUI Tool] Variant "${args.variant}" not found in preset "${preset.name}", falling back to default`,
         )
+        const fastVariant = findFastVariant(preset)
+        selectedVariant = fastVariant || preset.variants[0].name
       }
-      selectedVariant = args.variant
     } else {
       // Prefer Fast variant if no variant specified
       const fastVariant = findFastVariant(preset)
       selectedVariant = fastVariant || preset.variants[0].name
     }
   }
+
+  console.log(`[ComfyUI Tool] Using preset: ${preset.name}, variant: ${selectedVariant || 'none'}`)
 
   // Get preset with variant applied (important for reading correct settings)
   // Set variant in store first so getPresetWithVariant can find it
@@ -153,19 +172,18 @@ export async function executeComfyGeneration(args: {
   }
   const presetWithVariant = presets.getPresetWithVariant(preset.name)
   if (!presetWithVariant) {
-    throw new Error(`Failed to get preset "${preset.name}" with variant`)
+    console.error(`[ComfyUI Tool] Failed to get preset "${preset.name}" with variant`)
+    return createErrorResult(`Failed to apply preset "${preset.name}"`)
   }
   // Update preset reference to use the variant-applied preset
   preset = presetWithVariant
 
   // Helper function to get default value from preset settings (now uses variant-applied preset)
   const getPresetDefault = (settingName: string): unknown => {
-    console.log('### getPresetDefault', { settingName, preset })
     if (!preset) return null
     const setting = preset.settings.find(
       (s: { settingName?: string }) => 'settingName' in s && s.settingName === settingName,
     )
-    console.log('### getPresetDefault', { settingName, preset, setting })
     return setting?.defaultValue ?? null
   }
 
@@ -219,14 +237,44 @@ export async function executeComfyGeneration(args: {
     ? presets.activeVariantName[originalActivePresetName] || null
     : null
 
-  try {
-    // Set the active preset and variant first
-    if (args.workflow) {
-      // Variant is already set above, just set the active preset name
-      presets.activePresetName = args.workflow
-      // Wait for preset to be loaded and settings to be applied
-      await new Promise((resolve) => setTimeout(resolve, 100))
+  // Helper to restore state and clean up
+  const restoreState = async () => {
+    imageGeneration.prompt = originalPrompt
+    imageGeneration.negativePrompt = originalNegativePrompt
+    imageGeneration.inferenceSteps = originalInferenceSteps
+    imageGeneration.width = originalWidth
+    imageGeneration.height = originalHeight
+    imageGeneration.seed = originalSeed
+    imageGeneration.batchSize = originalBatchSize
+
+    // Restore original preset using orchestrator
+    if (originalActivePresetName) {
+      const presetSwitching = usePresetSwitching()
+      await presetSwitching.switchPreset(originalActivePresetName, {
+        variant: originalActiveVariant ?? undefined,
+        skipModeSwitch: true,
+        skipLastUsedUpdate: true,
+      })
     }
+  }
+
+  try {
+    // Set the active preset and variant using the orchestrator
+    // Use the resolved preset name (which might differ from args.workflow if we fell back)
+    const presetSwitching = usePresetSwitching()
+    const switchResult = await presetSwitching.switchPreset(preset.name, {
+      variant: selectedVariant ?? undefined,
+      skipModeSwitch: true, // Tool calls shouldn't change the UI mode
+      skipLastUsedUpdate: true, // Don't update last-used for tool-initiated switches
+    })
+
+    if (!switchResult.success) {
+      console.error(`[ComfyUI Tool] Failed to switch to preset: ${switchResult.error}`)
+      await restoreState()
+      return createErrorResult(`Failed to switch to preset "${preset.name}"`)
+    }
+
+    console.log('[ComfyUI Tool] Ensuring models are available')
 
     // Ensure required models are available before proceeding
     await imageGeneration.ensureModelsAreAvailable()
@@ -281,11 +329,18 @@ export async function executeComfyGeneration(args: {
       }
     })
 
+    console.log('[ComfyUI Tool] Starting generation with imageIds:', imageIds)
+    // Reset progress state before starting (this is done in imageGenerationPresets.generate() but we're calling comfyUi.generate() directly)
+    imageGeneration.currentState = 'no_start'
+    imageGeneration.stepText = '' // Empty string will show "Preparing..." in the UI
+
     // Start generation
     await comfyUi.generate(imageIds, 'imageGen')
 
+    console.log('[ComfyUI Tool] Generation started, waiting for completion')
+
     // Wait for all images to complete
-    return new Promise((resolve, reject) => {
+    const result = await new Promise<ComfyUiToolOutput>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Image generation timed out after 5 minutes'))
       }, 300000) // 5 minute timeout
@@ -350,35 +405,32 @@ export async function executeComfyGeneration(args: {
         stopWatcher()
       }, 300000)
     })
+
+    // Restore state after successful completion
+    await restoreState()
+    console.log('[ComfyUI Tool] Generation completed successfully')
+    return result
   } catch (error) {
+    console.error('[ComfyUI Tool] Generation error:', error)
+
     // Reset prompt state on error
     const promptStore = usePromptStore()
     promptStore.promptSubmitted = false
-    
+
     // Clean up queued images if they exist
-    imageIds.forEach(id => {
-      const existingImage = imageGeneration.generatedImages.find(img => img.id === id)
+    imageIds.forEach((id) => {
+      const existingImage = imageGeneration.generatedImages.find((img) => img.id === id)
       if (existingImage && existingImage.state === 'queued') {
-        imageGeneration.generatedImages = imageGeneration.generatedImages.filter(img => img.id !== id)
+        imageGeneration.generatedImages = imageGeneration.generatedImages.filter((img) => img.id !== id)
       }
     })
-    
-    // Re-throw so the AI SDK can handle it
-    throw error
-  } finally {
-    // Restore original values
-    imageGeneration.prompt = originalPrompt
-    imageGeneration.negativePrompt = originalNegativePrompt
-    imageGeneration.inferenceSteps = originalInferenceSteps
-    imageGeneration.width = originalWidth
-    imageGeneration.height = originalHeight
-    imageGeneration.seed = originalSeed
-    imageGeneration.batchSize = originalBatchSize
-    presets.activePresetName = originalActivePresetName
-    // Restore original variant if preset was restored
-    if (originalActivePresetName) {
-      presets.setActiveVariant(originalActivePresetName, originalActiveVariant)
-    }
+
+    // Restore state
+    await restoreState()
+
+    // Return error result instead of throwing
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return createErrorResult(`ComfyUI generation failed: ${errorMessage}`)
   }
 }
 
@@ -518,6 +570,8 @@ export const comfyUI = tool({
     seed?: number
     batchSize?: number
   }) => {
-    return await executeComfyGeneration(args)
+    const result = await executeComfyGeneration(args)
+    console.log('### comfyUI.execute', args, result)
+    return result
   },
 })

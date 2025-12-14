@@ -295,44 +295,10 @@ export const useImageGenerationPresets = defineStore(
       return variantName ? `${activePreset.value.name}:${variantName}` : activePreset.value.name
     }
 
-    // Watch for variant changes by watching the variant name for the current preset
-    const currentVariantName = computed(() => {
-      console.log('### computing currentVariantName', activePreset.value?.name)
-      if (!activePreset.value?.name) return null
-      return presetsStore.activeVariantName[activePreset.value.name] || null
-    })
+    // Note: Preset/variant changes are now handled by the orchestrator (usePresetSwitching),
+    // which calls loadSettingsForActivePreset() explicitly. No watcher needed.
 
-    // Track the last preset name to avoid unnecessary reloads
-    let lastPresetName: string | null = null
-    let lastVariantName: string | null = null
-
-    watch([activePreset, currentVariantName], () => {
-      console.log('### watch activePreset and currentVariantName', {
-        activePreset: activePreset.value,
-        currentVariantName: currentVariantName.value,
-      })
-      const currentPresetName = activePreset.value?.name ?? null
-      const currentVariant = currentVariantName.value
-
-      // Only reload if the preset or variant actually changed
-      if (currentPresetName === lastPresetName && currentVariant === lastVariantName) {
-        return
-      }
-
-      lastPresetName = currentPresetName
-      lastVariantName = currentVariant ?? null
-
-      loadSettingsForActivePreset()
-      if (
-        activePreset.value &&
-        activePreset.value.type === 'comfy' &&
-        activePreset.value.name &&
-        activePreset.value.category
-      ) {
-        presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
-      }
-    })
-
+    // Keep resolution in sync with width/height
     watch(resolution, () => {
       const [w, h] = resolution.value.split('x').map(Number)
       settings.width.value = w
@@ -573,7 +539,6 @@ export const useImageGenerationPresets = defineStore(
         console.log('### watch presets', {
           presets: presetsStore.presets,
           activePreset: activePreset.value,
-          currentVariantName: currentVariantName.value,
           activeVariantName: presetsStore.activeVariantName,
         })
         if (presets.length > 0 && !activePreset.value) {
@@ -627,6 +592,7 @@ export const useImageGenerationPresets = defineStore(
       selectedVideoId,
       settingIsRelevant,
       isModifiable,
+      loadSettingsForActivePreset,
     }
   },
   {

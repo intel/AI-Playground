@@ -1,9 +1,28 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePresets } from '@/assets/js/store/presets'
+import { usePresetSwitching } from './presetSwitching'
+
+/**
+ * Maps a mode to its corresponding preset categories.
+ */
+const modeToCategories: Record<ModeType, string[]> = {
+  chat: ['chat'],
+  imageGen: ['create-images'],
+  imageEdit: ['edit-images'],
+  video: ['create-videos'],
+}
+
+/**
+ * Maps a mode to its corresponding preset type.
+ */
+const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
+  chat: 'chat',
+  imageGen: 'comfy',
+  imageEdit: 'comfy',
+  video: 'comfy',
+}
 
 export const usePromptStore = defineStore('prompt', () => {
-  const presetsStore = usePresets()
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
 
@@ -14,44 +33,24 @@ export const usePromptStore = defineStore('prompt', () => {
     return currentMode.value
   }
 
+  /**
+   * Set the current mode and switch to the last-used preset for that mode.
+   * Uses the preset switching orchestrator to ensure proper settings loading.
+   */
   function setCurrentMode(mode: ModeType) {
+    const presetSwitching = usePresetSwitching()
+
+    // Set the mode first
     currentMode.value = mode
 
-    // Map modes to categories and set active preset from lastUsed
-    switch (mode) {
-      case 'chat': {
-        const categories = ['chat']
-        const lastUsed = presetsStore.getLastUsedPreset(categories)
-        if (lastUsed) {
-          presetsStore.activePresetName = lastUsed
-        }
-        break
-      }
-      case 'imageGen': {
-        const categories = ['create-images']
-        const lastUsed = presetsStore.getLastUsedPreset(categories)
-        if (lastUsed) {
-          presetsStore.activePresetName = lastUsed
-        }
-        break
-      }
-      case 'imageEdit': {
-        const categories = ['edit-images']
-        const lastUsed = presetsStore.getLastUsedPreset(categories)
-        if (lastUsed) {
-          presetsStore.activePresetName = lastUsed
-        }
-        break
-      }
-      case 'video': {
-        const categories = ['create-videos']
-        const lastUsed = presetsStore.getLastUsedPreset(categories)
-        if (lastUsed) {
-          presetsStore.activePresetName = lastUsed
-        }
-        break
-      }
-    }
+    // Get categories for this mode
+    const categories = modeToCategories[mode]
+    const presetType = modeToPresetType[mode]
+
+    // Switch to last-used preset for this mode using orchestrator
+    presetSwitching.switchToLastUsedForCategory(categories, presetType, {
+      skipModeSwitch: true, // We already set the mode above
+    })
   }
 
   function submitPrompt(promptText: string) {
@@ -86,10 +85,20 @@ export const usePromptStore = defineStore('prompt', () => {
     delete cancelCallbacks.value[mode]
   }
 
+  /**
+   * Set the current mode without triggering preset switching.
+   * Used by the preset switching orchestrator when it handles preset selection itself.
+   */
+  function setModeOnly(mode: ModeType) {
+    currentMode.value = mode
+  }
+
   return {
+    currentMode,
     promptSubmitted,
     getCurrentMode,
     setCurrentMode,
+    setModeOnly,
     submitPrompt,
     cancelProcessing,
     registerSubmitCallback,

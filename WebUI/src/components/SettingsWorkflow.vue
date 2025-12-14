@@ -114,6 +114,7 @@ import {
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import ComfyDynamic from '@/components/SettingsImageComfyDynamic.vue'
 import { usePresets } from '@/assets/js/store/presets'
+import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import AspectRatioPicker from './AspectRatioPicker.vue'
 import PresetSelector from './PresetSelector.vue'
 
@@ -126,18 +127,26 @@ const _props = defineProps<Props>()
 
 const imageGeneration = useImageGenerationPresets()
 const presetsStore = usePresets()
+const presetSwitching = usePresetSwitching()
 const backendServices = useBackendServices()
 
 const currentPreset = computed(() => {
   return presetsStore.activePreset
 })
 
-function handlePresetChange(presetName: string) {
-  presetsStore.activePresetName = presetName
+async function handlePresetChange(presetName: string) {
+  await presetSwitching.switchPreset(presetName, {
+    skipModeSwitch: true, // We're already in the correct mode
+  })
 }
 
-function handleVariantChange(presetName: string, variantName: string | null) {
-  presetsStore.setActiveVariant(presetName, variantName)
+async function handleVariantChange(presetName: string, variantName: string | null) {
+  if (variantName) {
+    await presetSwitching.switchPreset(presetName, {
+      variant: variantName,
+      skipModeSwitch: true,
+    })
+  }
 }
 
 const modifiableOrDisplayed = (settingName: string) =>

@@ -114,6 +114,8 @@ def check_model_exists_with_path(type: str, repo_id: str, model_path: str) -> bo
         return True
     elif type == 'nsfwdetector':
         dir_to_look_for = os.path.join(model_path, 'vit-base-nsfw-detector', extract_model_id_pathsegments(repo_id))
+        # Check if the specific file exists
+        return os.path.isfile(dir_to_look_for)
     elif type == 'ggufLLM' or (isinstance(repo_id, str) and repo_id.endswith('.gguf')):
         # For GGUF files, distinguish between specific file references and repo-only references
         dir_to_look_for = os.path.join(model_path, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))

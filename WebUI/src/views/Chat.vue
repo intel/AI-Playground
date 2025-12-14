@@ -281,7 +281,6 @@ import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
 import { useConversations } from '@/assets/js/store/conversations.ts'
-import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { parse } from '@/assets/js/markdownParser.ts'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
@@ -303,7 +302,6 @@ const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const textInference = useTextInference()
 const conversations = useConversations()
-const backendServices = useBackendServices()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const comfyUi = useComfyUiPresets()
@@ -409,33 +407,13 @@ function handleCancel() {
 
 async function generate(question: string) {
   try {
-    if (textInference.needsBackendPreparation) {
-      textInference.startBackendPreparation()
-
-      try {
-        await textInference.ensureBackendReadiness()
-      } catch (error) {
-        throw error
-      } finally {
-        textInference.completeBackendPreparation()
-      }
-    } else {
-      await textInference.ensureBackendReadiness()
-    }
-
-    const backendToInferenceService = {
-      llamaCPP: 'llamacpp-backend',
-      openVINO: 'openvino-backend',
-      ipexLLM: 'ai-backend',
-      ollama: 'ollama-backend' as BackendServiceName,
-    } as const
-    const inferenceBackendService = backendToInferenceService[textInference.backend]
-    await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-    backendServices.updateLastUsedBackend(inferenceBackendService)
+    // Prepare backend first (loads LLM and embedding models if needed)
+    await textInference.prepareBackendIfNeeded()
 
     nextTick(scrollToBottom)
 
     // Prepare RAG context (handles retrieval and system prompt enhancement)
+    // This must happen AFTER prepareBackendIfNeeded so embedding server is ready
     const ragContext = await textInference.prepareRagContext(question)
 
     openAiCompatibleChat.messageInput = question

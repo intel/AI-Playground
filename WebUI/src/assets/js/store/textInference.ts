@@ -6,8 +6,6 @@ import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from './presets'
-import { useGlobalSetup } from './globalSetup'
-import { useI18N } from './i18n'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -99,8 +97,6 @@ export const useTextInference = defineStore(
     const dialogStore = useDialogStore()
     const models = useModels()
     const presetsStore = usePresets()
-    const globalSetup = useGlobalSetup()
-    const i18nState = useI18N().state
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
     const systemPrompt =
@@ -135,7 +131,6 @@ export const useTextInference = defineStore(
     })
 
     // Track if we're currently switching presets (for UI feedback)
-    const isPresetSwitching = ref(false)
 
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
@@ -533,25 +528,37 @@ export const useTextInference = defineStore(
         }
       }
 
-      // For llamaCPP and openVINO, ensure embedding server is ready before attempting RAG retrieval
-      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
-        const serviceName = backendToService[backend.value]
-        if (!activeEmbeddingModel.value) {
-          throw new Error('No embedding model selected for RAG')
-        }
-
-        // Verify embedding server is available
-        const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
-        if (!embeddingUrlResult.success || !embeddingUrlResult.url) {
-          throw new Error(
-            embeddingUrlResult.error ||
-              'Embedding server not ready. Please ensure the embedding model is loaded and try again.',
-          )
-        }
-      }
-
       try {
         ragRetrievalState.inProgress = true
+
+        // For llamaCPP and openVINO, ensure embedding server is ready before attempting RAG retrieval
+        if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
+          const serviceName = backendToService[backend.value]
+          if (!activeEmbeddingModel.value) {
+            console.warn('No embedding model selected for RAG, skipping RAG retrieval')
+            ragRetrievalState.inProgress = false
+            return {
+              systemPrompt: systemPrompt.value,
+              ragResults: null,
+              ragSourceText: null,
+            }
+          }
+
+          // Verify embedding server is available
+          const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
+          if (!embeddingUrlResult.success || !embeddingUrlResult.url) {
+            console.warn(
+              'Embedding server not ready, skipping RAG retrieval:',
+              embeddingUrlResult.error || 'Unknown error',
+            )
+            ragRetrievalState.inProgress = false
+            return {
+              systemPrompt: systemPrompt.value,
+              ragResults: null,
+              ragSourceText: null,
+            }
+          }
+        }
 
         // Perform RAG retrieval
         const ragResults = await embedInputUsingRag(prompt)
@@ -584,7 +591,7 @@ export const useTextInference = defineStore(
       } catch (error) {
         console.error('Error retrieving RAG documents:', error)
         ragRetrievalState.inProgress = false
-        // Return base system prompt on error
+        // Return base system prompt on error - generation can continue without RAG
         return {
           systemPrompt: systemPrompt.value,
           ragResults: null,
@@ -846,6 +853,54 @@ export const useTextInference = defineStore(
     async function prepareBackendIfNeeded() {
       console.log('in prepareBackendIfNeeded')
 
+      // Handle NPU device selection if preset locks to NPU
+      // This must happen before backend readiness check
+      if (activePreset.value?.lockDeviceToNpu) {
+        const serviceName = backendToService[backend.value] as BackendServiceName
+        const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+        const npuDevice = serviceInfo?.devices.find((d) => d.id.includes('NPU'))
+
+        if (npuDevice && !npuDevice.selected) {
+          console.log('Selecting NPU device for preset:', activePreset.value.name)
+          startBackendPreparation()
+
+          try {
+            await backendServices.selectDevice(serviceName, npuDevice.id)
+
+            // Restart backend with timeout protection
+            await backendServices.stopService(serviceName)
+
+            // Wait for backend to fully start with timeout
+            const startTimeout = 30000 // 30 seconds
+            const startTime = Date.now()
+            await backendServices.startService(serviceName)
+
+            // Poll until backend is actually running
+            while (Date.now() - startTime < startTimeout) {
+              const currentInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+              if (currentInfo?.status === 'running') {
+                break
+              }
+              if (currentInfo?.status === 'failed') {
+                throw new Error(`Backend failed to start: ${serviceName}`)
+              }
+              await new Promise((resolve) => setTimeout(resolve, 500))
+            }
+
+            const finalInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+            if (finalInfo?.status !== 'running') {
+              throw new Error(`Backend restart timeout: ${serviceName}`)
+            }
+
+            // NPU handling completed successfully
+            completeBackendPreparation()
+          } catch (error) {
+            completeBackendPreparation() // Reset state on error
+            throw error
+          }
+        }
+      }
+
       if (needsBackendPreparation.value) {
         console.log('preparing backend due to', preparationReason.value)
         startBackendPreparation()
@@ -908,20 +963,43 @@ export const useTextInference = defineStore(
       console.log('Loading settings for preset', settingsKey, savedSettings)
       const preset = activePreset.value
 
-      // Get the first backend from the preset's backends array for defaults
-      const presetDefaultBackend = preset.backends?.[0]
-
-      // Load backend
+      // Load backend - smart selection based on what's running
       if (savedSettings.backend !== undefined) {
         const savedBackend = savedSettings.backend as LlmBackend
         // Only apply saved backend if it's in the preset's allowed backends
         if (preset.backends?.includes(savedBackend)) {
           backend.value = savedBackend
-        } else if (presetDefaultBackend) {
-          backend.value = presetDefaultBackend
+        } else {
+          // Fall through to smart selection below
+          selectBestBackend(preset)
         }
-      } else if (presetDefaultBackend) {
-        backend.value = presetDefaultBackend
+      } else {
+        selectBestBackend(preset)
+      }
+
+      // Helper to select the best available backend from preset's allowed list
+      function selectBestBackend(preset: ChatPreset) {
+        if (!preset.backends || preset.backends.length === 0) return
+
+        // If single backend, auto-select it
+        if (preset.backends.length === 1) {
+          backend.value = preset.backends[0]
+          return
+        }
+
+        // If current backend is in allowed list, keep it
+        if (preset.backends.includes(backend.value)) {
+          return
+        }
+
+        // Try to find a running backend from the allowed list
+        const runningBackend = preset.backends.find((b) => {
+          const serviceName = backendToService[b] as BackendServiceName
+          const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+          return backendInfo && backendInfo.status === 'running'
+        })
+
+        backend.value = runningBackend || preset.backends[0]
       }
 
       // Load selected models (per backend)
@@ -1018,55 +1096,11 @@ export const useTextInference = defineStore(
       loadSettingsForActivePreset()
     }
 
-    // Track current variant name for the active preset
-    const currentVariantName = computed(() => {
-      if (!activePreset.value?.name) return null
-      return presetsStore.activeVariantName[activePreset.value.name] || null
-    })
-
-    // Track the last preset name and variant to avoid unnecessary reloads
-    let lastPresetName: string | null = null
-    let lastVariantName: string | null = null
-
-    // Track if we're currently applying a preset to avoid watcher interference
-    let isApplyingPreset = false
-
-    // Track if we're currently loading settings to prevent watcher from overwriting
+    // Track if we're currently loading settings to prevent watcher from saving during load
     let isLoadingSettings = false
 
-    // Watch for preset and variant changes to load saved settings
-    watch([activePreset, currentVariantName], () => {
-      const currentPresetName = activePreset.value?.name ?? null
-      const currentVariant = currentVariantName.value
-
-      // Only reload if the preset or variant actually changed
-      if (currentPresetName === lastPresetName && currentVariant === lastVariantName) {
-        return
-      }
-
-      lastPresetName = currentPresetName
-      lastVariantName = currentVariant ?? null
-
-      // If we're applying a preset, don't load settings here - applyChatPreset will handle it
-      if (isApplyingPreset) {
-        return
-      }
-
-      // Load saved settings for the new preset/variant
-      loadSettingsForActivePreset()
-
-      // Update last used preset in unified store
-      if (
-        activePreset.value &&
-        activePreset.value.type === 'chat' &&
-        activePreset.value.name &&
-        activePreset.value.category
-      ) {
-        presetsStore.setLastUsedPreset(activePreset.value.category, activePreset.value.name)
-      }
-    })
-
     // Watch for setting changes and save them to settingsPerPreset
+    // Note: Preset/variant changes are now handled by the orchestrator, not by watchers
     watch(
       [
         backend,
@@ -1080,12 +1114,11 @@ export const useTextInference = defineStore(
         toolsEnabled,
       ],
       () => {
-        // Don't save if we're applying a preset or loading settings
-        if (isApplyingPreset || isLoadingSettings) return
+        // Don't save if we're loading settings (prevents overwriting during preset switch)
+        if (isLoadingSettings) return
 
         const settingsKey = getSettingsKey()
         // Allow saving when settingsKey exists (preset name is available)
-        // This handles cases where activePreset.value might be temporarily null during transitions
         if (!settingsKey) return
 
         // Save settings to per-preset storage
@@ -1119,179 +1152,6 @@ export const useTextInference = defineStore(
       },
       { immediate: true },
     )
-
-    async function applyPreset(preset: ChatPreset) {
-      // Prevent concurrent preset changes
-      if (isPresetSwitching.value) {
-        throw new Error('Preset change already in progress. Please wait...')
-      }
-
-      isPresetSwitching.value = true
-
-      try {
-        // Check if at least one of the allowed backends is running OR can be started
-        const runningBackend = preset.backends.find((b) => {
-          const serviceName = backendToService[b] as BackendServiceName
-          const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-          return backendInfo && (backendInfo.status === 'running' || backendInfo.status === 'stopped')
-        })
-
-        if (!runningBackend) {
-          dialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
-            globalSetup.loadingState = 'manageInstallations'
-          })
-          return
-        }
-
-        // Set flag to prevent watcher from interfering
-        isApplyingPreset = true
-
-        // Update active preset name
-        presetsStore.activePresetName = preset.name
-
-        // Apply the preset using existing applyChatPreset method
-        await applyChatPreset(preset)
-
-        // Clear flag after applying
-        isApplyingPreset = false
-
-        // Update last used preset in unified store
-        if (preset.category) {
-          presetsStore.setLastUsedPreset(preset.category, preset.name)
-        }
-
-        console.log('Applied chat preset:', preset.name)
-      } catch (error) {
-        isApplyingPreset = false
-        console.error('Failed to apply chat preset:', error)
-        throw error // Re-throw to allow UI to handle the error
-      } finally {
-        isPresetSwitching.value = false
-      }
-    }
-
-    // ========================================================================
-    // Chat Preset Application
-    // ========================================================================
-
-    async function applyChatPreset(preset: ChatPreset) {
-      try {
-        // First, apply preset defaults
-        // Apply backend based on backends array
-        if (preset.backends && preset.backends.length > 0) {
-          // If single backend, auto-select it
-          if (preset.backends.length === 1) {
-            backend.value = preset.backends[0]
-          } else if (!preset.backends.includes(backend.value)) {
-            // If current backend not in allowed list, select first allowed that's running
-            const runningBackend = preset.backends.find((b) => {
-              const serviceName = backendToService[b] as BackendServiceName
-              const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-              return backendInfo && backendInfo.status === 'running'
-            })
-            backend.value = runningBackend || preset.backends[0]
-          }
-          // Otherwise keep current backend if it's in the allowed list
-        }
-
-        // Auto-select NPU device if preset locks to NPU
-        if (preset.lockDeviceToNpu) {
-          const serviceName = backendToService[backend.value] as BackendServiceName
-          const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-          const npuDevice = serviceInfo?.devices.find((d) => d.id.includes('NPU'))
-
-          if (npuDevice && !npuDevice.selected) {
-            await backendServices.selectDevice(serviceName, npuDevice.id)
-
-            // Restart backend with timeout protection
-            await backendServices.stopService(serviceName)
-
-            // Wait for backend to fully start with timeout
-            const startTimeout = 30000 // 30 seconds
-            const startTime = Date.now()
-            await backendServices.startService(serviceName)
-
-            // Poll until backend is actually running
-            while (Date.now() - startTime < startTimeout) {
-              const currentInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-              if (currentInfo?.status === 'running') {
-                break
-              }
-              if (currentInfo?.status === 'failed') {
-                throw new Error(`Backend failed to start: ${serviceName}`)
-              }
-              await new Promise((resolve) => setTimeout(resolve, 500))
-            }
-
-            const finalInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-            if (finalInfo?.status !== 'running') {
-              throw new Error(`Backend restart timeout: ${serviceName}`)
-            }
-          }
-        }
-
-        // Apply model selection if specified
-        if (preset.model) {
-          selectModel(backend.value, preset.model)
-        }
-
-        // Apply system prompt
-        if (preset.systemPrompt) {
-          systemPrompt.value = preset.systemPrompt
-        }
-
-        // Apply context size (enforce model's maxContextSize limit)
-        if (preset.contextSize) {
-          const modelMaxContextSize = maxContextSizeFromModel.value
-          if (modelMaxContextSize && preset.contextSize > modelMaxContextSize) {
-            contextSize.value = modelMaxContextSize
-          } else {
-            contextSize.value = preset.contextSize
-          }
-        }
-
-        // Apply max tokens
-        if (preset.maxNewTokens) {
-          maxTokens.value = preset.maxNewTokens
-        }
-
-        // Apply temperature
-        if (preset.temperature !== undefined) {
-          temperature.value = preset.temperature
-        }
-
-        // Apply tools enabled default
-        if (preset.toolsEnabledByDefault !== undefined) {
-          toolsEnabled.value = preset.toolsEnabledByDefault
-        }
-
-        // Apply embedding model (top-level or from RAG config)
-        const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
-        if (embeddingModelToUse) {
-          selectEmbeddingModel(backend.value, embeddingModelToUse)
-        }
-
-        // Apply RAG settings
-        if (preset.rag) {
-          if (preset.rag.enabled !== undefined) {
-            // RAG enabled state would need to be tracked separately if needed
-            // For now, we just apply the embedding model (already done above)
-          }
-        }
-
-        // After applying preset defaults, load any saved user settings
-        // This ensures user customizations override preset defaults
-        loadSettingsForActivePreset()
-
-        // Prepare backend if needed after applying preset settings
-        await prepareBackendIfNeeded()
-
-        console.log('Applied chat preset:', preset.name)
-      } catch (error) {
-        console.error('Failed to apply chat preset:', error)
-        throw error
-      }
-    }
 
     return {
       backend,
@@ -1330,15 +1190,13 @@ export const useTextInference = defineStore(
       formatRagSources,
       ensureBackendReadiness,
       checkModelAvailability,
-      applyChatPreset,
       prepareRagContext,
 
       // Preset management
       activePreset,
-      applyPreset,
       resetActivePresetSettings,
       settingsPerPreset,
-      isPresetSwitching: computed(() => isPresetSwitching.value),
+      loadSettingsForActivePreset,
 
       // Tool calling support
       modelSupportsToolCalling,
