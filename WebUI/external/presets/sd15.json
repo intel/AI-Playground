@@ -9,6 +9,13 @@
   "mediaType": "image",
   "toolEnabled": true,
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Even if the user requests something simple like 'an elephant', expand it to a full prompt like 'a majestic African elephant standing in golden hour sunlight, detailed wrinkles on skin, photorealistic, 8k, highly detailed, professional photography'.",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
+  },
   "requiredCustomNodes": [
     "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d"
   ],

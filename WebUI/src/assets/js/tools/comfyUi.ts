@@ -3,9 +3,16 @@ import { watch } from 'vue'
 import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
-import { usePresets, type Preset } from '../store/presets'
+import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
+import {
+  DEFAULT_RESOLUTION_CONFIG,
+  getResolutionsFromConfig,
+  getResolutionForConfig,
+  findClosestResolutionInConfig,
+} from '../store/imageGenerationUtils'
+import type { ResolutionConfig, MegapixelOption } from '../store/presets'
 import { tool } from 'ai'
 
 // Global defaults as fallback (matching imageGenerationPresets.ts)
@@ -19,12 +26,21 @@ const globalDefaultSettings = {
   negativePrompt: 'nsfw',
 }
 
+// Helper function to get a sensible default megapixel tier from resolution config
+function getDefaultMegapixelLabel(config: ResolutionConfig): string {
+  const labels = config.megapixels.map((m: MegapixelOption) => m.label)
+  // Prefer "1.0" if available (HD quality), otherwise pick middle tier
+  if (labels.includes('1.0')) return '1.0'
+  return labels[Math.floor(labels.length / 2)] ?? '0.5'
+}
+
 // Helper function to get available workflows for the tool
 export function getAvailableWorkflows(): Array<{
   name: string
   mediaType?: 'image' | 'video' | 'model3d'
   description?: string
   toolInstructions?: string
+  resolutions?: Array<{ width: number; height: number; aspectRatio: string; megapixels: string; totalPixels: number }>
 }> {
   const presets = usePresets()
 
@@ -37,12 +53,69 @@ export function getAvailableWorkflows(): Array<{
       // Only presets with toolEnabled: true
       return preset.toolEnabled === true
     })
-    .map((preset: Preset) => ({
-      name: preset.name,
-      mediaType: preset.mediaType,
-      description: preset.description,
-      toolInstructions: preset.toolInstructions,
-    }))
+    .map((preset: Preset) => {
+      const comfyPreset = preset as ComfyUiPreset
+      const config = comfyPreset.resolutionConfig ?? DEFAULT_RESOLUTION_CONFIG
+      const resolutions = getResolutionsFromConfig(config)
+
+      return {
+        name: preset.name,
+        mediaType: preset.mediaType,
+        description: preset.description,
+        toolInstructions: preset.toolInstructions,
+        resolutions,
+      }
+    })
+}
+
+// Helper function to get resolution examples for tool description
+function getResolutionExamplesForWorkflow(workflowName: string): string {
+  const workflows = getAvailableWorkflows()
+  const workflow = workflows.find((w) => w.name === workflowName)
+  if (!workflow?.resolutions || workflow.resolutions.length === 0) {
+    return '512x512, 1024x1024'
+  }
+
+  // Get unique aspect ratios and pick one example from each major megapixel tier
+  const examples: string[] = []
+  const seenAspectRatios = new Set<string>()
+
+  // Prioritize common aspect ratios: 1/1 (square), 16/9 (wide), 9/16 (tall)
+  const priorityRatios = ['1/1', '16/9', '9/16']
+
+  for (const ratio of priorityRatios) {
+    // Find highest MP resolution for this ratio
+    const resForRatio = workflow.resolutions
+      .filter((r) => r.aspectRatio === ratio)
+      .sort((a, b) => b.totalPixels - a.totalPixels)[0]
+
+    if (resForRatio && !seenAspectRatios.has(ratio)) {
+      examples.push(`${resForRatio.width}x${resForRatio.height}`)
+      seenAspectRatios.add(ratio)
+    }
+  }
+
+  return examples.slice(0, 5).join(', ')
+}
+
+// Helper function to find best resolution for a given aspect ratio and quality preference
+function findBestResolutionForAspectRatio(
+  workflowName: string,
+  aspectRatio: string,
+  preferHighRes: boolean = false,
+): string | null {
+  const workflows = getAvailableWorkflows()
+  const workflow = workflows.find((w) => w.name === workflowName)
+  if (!workflow?.resolutions) return null
+
+  const matchingResolutions = workflow.resolutions.filter((r) => r.aspectRatio === aspectRatio)
+  if (matchingResolutions.length === 0) return null
+
+  // Sort by total pixels and pick highest or middle
+  const sorted = [...matchingResolutions].sort((a, b) => b.totalPixels - a.totalPixels)
+  const selected = preferHighRes ? sorted[0] : sorted[Math.floor(sorted.length / 2)]
+
+  return `${selected.width}x${selected.height}`
 }
 
 const ImageOutputSchema = z.object({
@@ -100,6 +173,8 @@ export async function executeComfyGeneration(args: {
   variant?: string
   prompt: string
   negativePrompt?: string
+  aspectRatio?: string
+  megapixels?: string
   resolution?: string
   inferenceSteps?: number
   seed?: number
@@ -187,14 +262,73 @@ export async function executeComfyGeneration(args: {
     return setting?.defaultValue ?? null
   }
 
-  // Parse resolution if provided, otherwise use preset default
+  // Get resolution config from preset
+  const comfyPreset = preset as ComfyUiPreset
+  const resolutionConfig = comfyPreset.resolutionConfig ?? DEFAULT_RESOLUTION_CONFIG
+
+  // Resolve resolution from args, finding closest valid match
+  // Priority: 1. aspectRatio and/or megapixels, 2. resolution WxH, 3. preset default
   let width: number
   let height: number
-  if (args.resolution) {
+
+  if (args.aspectRatio || args.megapixels) {
+    // Handle aspectRatio and/or megapixels (fill in defaults for missing values)
+    const ar = args.aspectRatio ?? '1/1' // default to square if only MP provided
+    const mp = args.megapixels ?? getDefaultMegapixelLabel(resolutionConfig) // pick sensible default if only AR provided
+
+    // Try exact match first
+    const exactMatch = getResolutionForConfig(resolutionConfig, mp, ar)
+    if (exactMatch) {
+      width = exactMatch.width
+      height = exactMatch.height
+      console.log(`[ComfyUI Tool] Exact resolution match for ${ar} @ ${mp}MP: ${width}x${height}`)
+    } else {
+      // Find closest by aspect ratio - get all resolutions with matching AR, pick closest by MP
+      const allResolutions = getResolutionsFromConfig(resolutionConfig)
+      const matchingAR = allResolutions.filter((r) => r.aspectRatio === ar)
+
+      if (matchingAR.length > 0) {
+        // Find closest megapixel tier
+        const targetMP = parseFloat(mp)
+        const closest = matchingAR.reduce((prev, curr) => {
+          const prevDiff = Math.abs(parseFloat(prev.megapixels) - targetMP)
+          const currDiff = Math.abs(parseFloat(curr.megapixels) - targetMP)
+          return currDiff < prevDiff ? curr : prev
+        })
+        width = closest.width
+        height = closest.height
+        console.log(
+          `[ComfyUI Tool] Closest resolution match for ${ar}: ${width}x${height} (requested ${mp}MP, got ${closest.megapixels}MP)`,
+        )
+      } else {
+        // AR not found, use default
+        const defaultResolution = getPresetDefault('resolution') as string | null
+        if (defaultResolution) {
+          const [dw, dh] = defaultResolution.split('x').map(Number)
+          width = dw || imageGeneration.width
+          height = dh || imageGeneration.height
+        } else {
+          width = imageGeneration.width
+          height = imageGeneration.height
+        }
+        console.log(`[ComfyUI Tool] Aspect ratio ${ar} not found, using default: ${width}x${height}`)
+      }
+    }
+  } else if (args.resolution) {
+    // Parse resolution WxH and find closest valid match
     const [w, h] = args.resolution.split('x').map(Number)
     if (w && h) {
-      width = w
-      height = h
+      // Find closest match from valid resolutions
+      const closestMatch = findClosestResolutionInConfig(resolutionConfig, w, h)
+      if (closestMatch) {
+        width = closestMatch.width
+        height = closestMatch.height
+        console.log(`[ComfyUI Tool] Closest resolution match for ${args.resolution}: ${width}x${height}`)
+      } else {
+        width = w
+        height = h
+        console.log(`[ComfyUI Tool] No close match found, using requested: ${width}x${height}`)
+      }
     } else {
       // Fallback to preset default if parsing fails
       const defaultResolution = getPresetDefault('resolution') as string | null
@@ -441,11 +575,24 @@ function getToolDefinition() {
   const defaultWorkflow = 'Draft Image'
   const defaultWorkflowWithVariant = 'Draft Image - Fast'
 
+  // Get resolution examples for the default workflow
+  const defaultResolutionExamples = getResolutionExamplesForWorkflow(defaultWorkflow)
+  const highRes16x9 = findBestResolutionForAspectRatio(defaultWorkflow, '16/9', true) || '1376x768'
+  const highRes9x16 = findBestResolutionForAspectRatio(defaultWorkflow, '9/16', true) || '768x1376'
+
   // Fallback if no workflows are available yet (presets not loaded)
   if (availableWorkflows.length === 0) {
     return {
       description:
-        'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\nIMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags.\n\nVARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive. The default preset is "Draft Image" with "Fast" variant. You can optionally specify a variant name if the user requests a specific quality level.',
+        'Use this tool to create, edit, or enhance media content (images, videos, or 3D models) based on text prompts. Only use this tool if the user explicitly asks to create media content.\n\n' +
+        'IMPORTANT: Always generate a detailed, descriptive prompt even if the user provides a simple request. Expand simple requests into full prompts with subject details, composition, style, lighting, colors, mood, and quality tags.\n\n' +
+        'VARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive.\n\n' +
+        'RESOLUTION: Specify image size using EITHER:\n' +
+        '  - aspectRatio + megapixels (e.g., aspectRatio="16/9", megapixels="1.0")\n' +
+        '  - OR resolution directly (e.g., resolution="1376x768")\n' +
+        'Available aspect ratios: 1/1 (square), 16/9 (widescreen), 9/16 (portrait), 3/2, 2/3, 4/3, 3/4, 21/9, 9/21\n' +
+        'Available megapixels: 0.25 (small), 0.5 (medium), 0.8, 1.0 (HD), 1.2, 1.5 (high-res)\n\n' +
+        'CRITICAL: Do NOT include resolution, aspect ratio, dimensions, or size information in the prompt text itself. These should ONLY be passed as separate parameters (aspectRatio, megapixels, or resolution).',
       inputSchema: z.object({
         workflow: z
           .string()
@@ -461,9 +608,33 @@ function getToolDefinition() {
         prompt: z
           .string()
           .describe(
-            'Detailed text prompt describing the media to generate. Always expand simple requests into full, descriptive prompts with subject details, composition, style, lighting, colors, mood, and quality tags.',
+            'Detailed text prompt describing the media to generate. Always expand simple requests into full, descriptive prompts with subject details, composition, style, lighting, colors, mood, and quality tags. Do NOT include resolution or size information in the prompt.',
           ),
         negativePrompt: z.string().optional().describe('Negative prompt for things to avoid'),
+        aspectRatio: z
+          .string()
+          .optional()
+          .describe(
+            'Aspect ratio for the image. Options: "1/1" (square), "16/9" (widescreen/landscape), "9/16" (portrait/vertical), "3/2", "2/3", "4/3", "3/4", "21/9" (ultra-wide), "9/21". Use with megapixels parameter.',
+          ),
+        megapixels: z
+          .string()
+          .optional()
+          .describe(
+            'Megapixel tier for image quality/size. Options: "0.25" (small), "0.5" (medium), "0.8", "1.0" (HD), "1.2", "1.5" (high-res). Use with aspectRatio parameter. Higher = better quality but slower.',
+          ),
+        resolution: z
+          .string()
+          .optional()
+          .describe(
+            `Direct resolution in WxH format (alternative to aspectRatio+megapixels). Examples: ${defaultResolutionExamples}. The closest valid resolution will be selected.`,
+          ),
+        seed: z
+          .number()
+          .optional()
+          .describe(
+            'Random seed for reproducible generation. Use -1 for random seed. Only specify if user wants to reproduce a specific result.',
+          ),
         batchSize: z
           .number()
           .describe('Number of images to generate. Use 1 if not explicitly specified by the user.'),
@@ -473,6 +644,7 @@ function getToolDefinition() {
 
   // Separate workflows by media type
   const videoWorkflows = availableWorkflows.filter((w) => w.mediaType === 'video')
+  const imageWorkflows = availableWorkflows.filter((w) => w.mediaType === 'image' || !w.mediaType)
 
   // Build workflow description with available options
   const workflowOptions = availableWorkflows
@@ -496,6 +668,16 @@ function getToolDefinition() {
   description +=
     'VARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive. The default preset is "Draft Image" with "Fast" variant. The tool will automatically select the "Fast" variant when available. You can optionally specify a variant name in the variant parameter if the user requests a specific quality level.\n\n'
 
+  // Add resolution guidance
+  description += 'RESOLUTION: Specify image size using EITHER:\n'
+  description += '  - aspectRatio + megapixels parameters (recommended): e.g., aspectRatio="16/9", megapixels="1.0"\n'
+  description += '  - OR resolution parameter directly: e.g., resolution="1376x768"\n\n'
+  description += 'Available aspect ratios: 1/1 (square), 16/9 (widescreen/landscape), 9/16 (portrait/vertical), 3/2, 2/3, 4/3, 3/4, 21/9 (ultra-wide), 9/21\n'
+  description += 'Available megapixels: 0.25 (small/fast), 0.5 (medium), 0.8, 1.0 (HD), 1.2, 1.5 (high-res/slower)\n\n'
+  description += 'When user asks for "high resolution", "HD", or "large" image, use megapixels="1.0" or higher.\n'
+  description += 'When user asks for specific aspect ratio (e.g., "16:9", "widescreen", "landscape"), set aspectRatio accordingly.\n\n'
+  description += 'CRITICAL: Do NOT include resolution, aspect ratio, dimensions, or size information in the prompt text itself. These should ONLY be passed as separate parameters (aspectRatio, megapixels, or resolution).\n\n'
+
   // Add preset-specific instructions if available
   if (allInstructions.length > 0) {
     description += 'Preset-specific prompt guidelines:\n'
@@ -505,7 +687,7 @@ function getToolDefinition() {
     description += '\n'
   }
 
-  description += `Available workflows: ${workflowOptions}.`
+  description += `Available workflows: ${workflowOptions}. `
   description += `IMPORTANT: You MUST use '${defaultWorkflow}' (which will automatically use the "Fast" variant, equivalent to '${defaultWorkflowWithVariant}') unless the user explicitly requests higher quality, a different model, or a different media type.\n\n`
 
   // Add explicit warnings for video workflows
@@ -524,6 +706,13 @@ function getToolDefinition() {
     workflowDescription += `IMPORTANT: Only use video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) when the user explicitly asks for video generation. Never use video workflows for image requests.`
   }
 
+  // Build resolution description with examples from available workflows
+  const resolutionExamples = imageWorkflows.length > 0
+    ? getResolutionExamplesForWorkflow(imageWorkflows[0].name)
+    : defaultResolutionExamples
+
+  const resolutionDescription = `Direct resolution in WxH format (alternative to aspectRatio+megapixels). Examples: ${resolutionExamples}. The closest valid resolution will be selected.`
+
   return {
     description,
     inputSchema: z.object({
@@ -537,12 +726,31 @@ function getToolDefinition() {
       prompt: z
         .string()
         .describe(
-          'Detailed text prompt describing the media to generate. Always expand simple requests into full, descriptive prompts with subject details, composition, style, lighting, colors, mood, and quality tags.',
+          'Detailed text prompt describing the media to generate. Always expand simple requests into full, descriptive prompts with subject details, composition, style, lighting, colors, mood, and quality tags. Do NOT include resolution or size information in the prompt.',
         ),
       negativePrompt: z.string().optional().describe('Negative prompt for things to avoid'),
-      // resolution: z.string().optional().describe('Image resolution (e.g., "512x512", "1024x768")'),
-      // inferenceSteps: z.number().optional().describe('Number of inference steps'),
-      // seed: z.number().optional().describe('Random seed for reproducibility'),
+      aspectRatio: z
+        .string()
+        .optional()
+        .describe(
+          'Aspect ratio for the image. Options: "1/1" (square), "16/9" (widescreen/landscape), "9/16" (portrait/vertical), "3/2", "2/3", "4/3", "3/4", "21/9" (ultra-wide), "9/21". Use with megapixels parameter.',
+        ),
+      megapixels: z
+        .string()
+        .optional()
+        .describe(
+          'Megapixel tier for image quality/size. Options: "0.25" (small/fast), "0.5" (medium), "0.8", "1.0" (HD), "1.2", "1.5" (high-res/slower). Use with aspectRatio parameter.',
+        ),
+      resolution: z
+        .string()
+        .optional()
+        .describe(resolutionDescription),
+      seed: z
+        .number()
+        .optional()
+        .describe(
+          'Random seed for reproducible generation. Use -1 for random seed. Only specify if user wants to reproduce a specific result.',
+        ),
       batchSize: z
         .number()
         .describe('Number of images to generate. Use 1 if not explicitly specified by the user.'),
@@ -565,6 +773,8 @@ export const comfyUI = tool({
     variant?: string
     prompt: string
     negativePrompt?: string
+    aspectRatio?: string
+    megapixels?: string
     resolution?: string
     inferenceSteps?: number
     seed?: number

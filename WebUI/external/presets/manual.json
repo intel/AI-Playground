@@ -8,6 +8,15 @@
   "description": "Advanced mode to manually control the model, CFG, sampler and more. But be sure resolution and settings fit the model selected",
   "mediaType": "image",
   "toolEnabled": false,
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 },
+      { "label": "0.8", "totalPixels": 802816 },
+      { "label": "1.0", "totalPixels": 1048576 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
+  },
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [

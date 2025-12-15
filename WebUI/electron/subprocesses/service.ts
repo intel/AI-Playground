@@ -490,6 +490,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
 
+  // Cached installed version for inclusion in service info updates
+  protected cachedInstalledVersion: { version: string; releaseTag?: string } | undefined = undefined
+
   // Buffer for capturing startup logs
   private startupLogBuffer: { stdout: string[]; stderr: string[] } = { stdout: [], stderr: [] }
   private isCapturingStartupLogs: boolean = false
@@ -527,6 +530,31 @@ export abstract class LongLivedPythonApiService implements ApiService {
     return Promise.resolve({ serviceName: this.name })
   }
 
+  /**
+   * Updates the cached installed version by calling getInstalledVersion() if available.
+   * This should be called after setup completes to ensure version is included in serviceInfoUpdate.
+   */
+  protected async updateCachedVersion(): Promise<void> {
+    // Check if this instance has getInstalledVersion method (defined in subclasses)
+    const self = this as ApiService
+    if (typeof self.getInstalledVersion === 'function') {
+      try {
+        const version = await self.getInstalledVersion()
+        if (version && version.version) {
+          this.cachedInstalledVersion = {
+            version: version.version,
+            ...(version.releaseTag && { releaseTag: version.releaseTag }),
+          }
+        } else {
+          this.cachedInstalledVersion = undefined
+        }
+      } catch (error) {
+        this.appLogger.warn(`Failed to get installed version: ${error}`, this.name)
+        this.cachedInstalledVersion = undefined
+      }
+    }
+  }
+
   setStatus(status: BackendStatus) {
     this.currentStatus = status
     this.updateStatus()
@@ -550,6 +578,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
       isRequired: this.isRequired,
       devices: this.devices,
       errorDetails: this.lastStartupErrorDetails,
+      installedVersion: this.cachedInstalledVersion,
     }
   }
 

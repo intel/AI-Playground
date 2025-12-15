@@ -71,6 +71,7 @@ declare interface ApiServiceInformation {
   isRequired: boolean
   devices: InferenceDevice[]
   errorDetails: ErrorDetails | null
+  installedVersion?: { version: string; releaseTag?: string }
 }
 
 // Declare ComfyUICustomNodeRepoId type

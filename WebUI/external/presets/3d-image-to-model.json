@@ -9,9 +9,65 @@
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [
+  ],
+  "variants": [
     {
-      "type": "checkpoints",
-      "model": "tencent/Hunyuan3D-2mini/hunyuan3d-dit-v2-mini-turbo/model.fp16.safetensors"
+      "name": "Standard",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "tencent/Hunyuan3D-2/hunyuan3d-dit-v2-0/model.fp16.safetensors"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "54": {
+            "inputs": {
+              "ckpt_name": "tencent---Hunyuan3D-2\\hunyuan3d-dit-v2-0\\model.fp16.safetensors"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Preview",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "tencent/Hunyuan3D-2mini/hunyuan3d-dit-v2-mini-turbo/model.fp16.safetensors"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "54": {
+            "inputs": {
+              "ckpt_name": "tencent---Hunyuan3D-2mini\\hunyuan3d-dit-v2-mini-turbo\\model.fp16.safetensors"
+            }
+          }
+        },
+        "settings": [
+          {
+            "label": "Latent Resolution",
+            "defaultValue": 1536
+          },
+          {
+            "label": "Number of Chunks",
+            "defaultValue": 3000
+          },
+          {
+            "label": "Steps",
+            "defaultValue": 6
+          },
+          {
+            "label": "CFG Scale",
+            "defaultValue": 5
+          },
+          {
+            "label": "Voxel Algorithm",
+            "defaultValue": "basic"
+          }
+        ]
+      }
     }
   ],
   "settings": [
@@ -31,6 +87,76 @@
       "modifiable": false,
       "defaultValue": 1,
       "settingName": "batchSize"
+    },
+    {
+      "type": "number",
+      "label": "Number of Chunks",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 8000,
+      "min": 1000,
+      "max": 12000,
+      "step": 250,
+      "nodeTitle": "VAEDecodeHunyuan3D",
+      "nodeInput": "num_chunks"
+    },
+    {
+      "type": "number",
+      "label": "Latent Resolution",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 3072,
+      "min": 1024,
+      "max": 3072,
+      "step": 512,
+      "nodeTitle": "VAEDecodeHunyuan3D",
+      "nodeInput": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Octree Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 256,
+      "min": 128,
+      "max": 512,
+      "step": 128,
+      "nodeTitle": "VAEDecodeHunyuan3D",
+      "nodeInput": "octree_resolution"
+    },
+    {
+      "type": "number",
+      "label": "Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "min": 1,
+      "max": 50,
+      "step": 1,
+      "nodeTitle": "KSampler",
+      "nodeInput": "steps"
+    },
+    {
+      "type": "number",
+      "label": "CFG Scale",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 8,
+      "min": 1,
+      "max": 20,
+      "step": 0.5,
+      "nodeTitle": "KSampler",
+      "nodeInput": "cfg"
+    },
+    {
+      "type": "stringList",
+      "label": "Voxel Algorithm",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "surface net",
+      "nodeTitle": "VoxelToMesh",
+      "nodeInput": "algorithm",
+      "options": ["surface net", "basic"]
     }
   ],
   "comfyUiApiWorkflow": {

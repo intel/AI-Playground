@@ -42,6 +42,9 @@ export class OllamaBackendService implements ApiService {
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
 
+  // Cached installed version for inclusion in service info updates
+  private cachedInstalledVersion: { version: string; releaseTag?: string } | undefined = undefined
+
   // Logger
   readonly appLogger = appLoggerInstance
 
@@ -64,6 +67,13 @@ export class OllamaBackendService implements ApiService {
 
     // Check if already set up
     this.isSetUp = this.serviceIsSetUp()
+
+    // Cache version on startup if already set up
+    if (this.isSetUp) {
+      this.updateCachedVersion().then(() => {
+        this.updateStatus()
+      })
+    }
   }
 
   async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
@@ -104,6 +114,33 @@ export class OllamaBackendService implements ApiService {
       isRequired: this.isRequired,
       devices: this.devices,
       errorDetails: this.lastStartupErrorDetails,
+      installedVersion: this.cachedInstalledVersion,
+    }
+  }
+
+  async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
+    if (!this.isSetUp) return undefined
+    // Ollama uses the stored version and releaseTag
+    return { version: this.version, releaseTag: this.releaseTag }
+  }
+
+  /**
+   * Updates the cached installed version for inclusion in service info updates.
+   */
+  private async updateCachedVersion(): Promise<void> {
+    try {
+      const version = await this.getInstalledVersion()
+      if (version && version.version) {
+        this.cachedInstalledVersion = {
+          version: version.version,
+          ...(version.releaseTag && { releaseTag: version.releaseTag }),
+        }
+      } else {
+        this.cachedInstalledVersion = undefined
+      }
+    } catch (error) {
+      this.appLogger.warn(`Failed to get installed version: ${error}`, this.name)
+      this.cachedInstalledVersion = undefined
     }
   }
 
@@ -192,8 +229,9 @@ export class OllamaBackendService implements ApiService {
         debugMessage: 'extraction complete',
       }
 
-      this.setStatus('notYetStarted')
       this.isSetUp = true
+      await this.updateCachedVersion()
+      this.setStatus('notYetStarted')
 
       currentStep = 'end'
       yield {

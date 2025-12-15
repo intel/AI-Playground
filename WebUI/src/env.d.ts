@@ -440,6 +440,7 @@ type ApiServiceInformation = {
   isRequired: boolean
   devices: InferenceDevice[]
   errorDetails: ErrorDetails | null
+  installedVersion?: { version: string; releaseTag?: string }
 }
 
 type Model = {

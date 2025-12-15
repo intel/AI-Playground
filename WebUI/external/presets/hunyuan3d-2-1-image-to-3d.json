@@ -38,13 +38,45 @@
       "modifiable": false,
       "defaultValue": 1,
       "settingName": "batchSize"
+    },
+    {
+      "type": "number",
+      "label": "Number of Chunks",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1000,
+      "min": 500,
+      "max": 2000,
+      "step": 250,
+      "nodeTitle": "VAEDecodeHunyuan3D",
+      "nodeInput": "num_chunks"
+    },
+    {
+      "type": "number",
+      "label": "Octree Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 256,
+      "min": 128,
+      "max": 512,
+      "step": 128,
+      "nodeTitle": "VAEDecodeHunyuan3D",
+      "nodeInput": "octree_resolution"
+    },
+    {
+      "type": "number",
+      "label": "Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 6,
+      "settingName": "steps"
     }
   ],
   "comfyUiApiWorkflow": {
     "3": {
       "inputs": {
         "seed": 821578184512771,
-        "steps": 5,
+        "steps": 6,
         "cfg": 5.1,
         "sampler_name": "euler",
         "scheduler": "normal",
@@ -91,7 +123,7 @@
     "61": {
       "inputs": {
         "num_chunks": 1000,
-        "octree_resolution": 128,
+        "octree_resolution": 256,
         "samples": ["3", 0],
         "vae": ["54", 2]
       },

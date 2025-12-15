@@ -131,8 +131,8 @@ export const useImageGenerationPresets = defineStore(
       const settingsKey = getSettingsKey()
       if (settingsKey) {
         settingsPerPreset.value[settingsKey] = {}
+        comfyInputsPerPreset.value[settingsKey] = undefined
       }
-      comfyInputsPerPreset.value[activePreset.value?.name ?? ''] = undefined
       loadSettingsForActivePreset()
     }
 
@@ -211,15 +211,17 @@ export const useImageGenerationPresets = defineStore(
       if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
       const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
       const savePerPreset = (input: ComfyInput, newValue: unknown) => {
-        if (!activePreset.value?.name) return
-        comfyInputsPerPreset.value[activePreset.value.name] = {
-          ...comfyInputsPerPreset.value[activePreset.value.name],
+        const settingsKey = getSettingsKey()
+        if (!settingsKey) return
+        comfyInputsPerPreset.value[settingsKey] = {
+          ...comfyInputsPerPreset.value[settingsKey],
           [inputRef(input)]: newValue,
         }
       }
       const getSavedOrDefault = (input: ComfyInput) => {
-        if (!activePreset.value?.name) return input.defaultValue
-        const saved = comfyInputsPerPreset.value[activePreset.value.name]?.[inputRef(input)]
+        const settingsKey = getSettingsKey()
+        if (!settingsKey) return input.defaultValue
+        const saved = comfyInputsPerPreset.value[settingsKey]?.[inputRef(input)]
         return saved ?? input.defaultValue
       }
 

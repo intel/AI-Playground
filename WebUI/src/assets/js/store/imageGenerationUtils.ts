@@ -197,3 +197,171 @@ export async function getMissingComfyuiBackendModels(
   }
   return modelsToBeLoaded
 }
+
+// ============================================================================
+// Resolution Configuration Utilities
+// ============================================================================
+
+import type { ResolutionConfig, MegapixelOption } from './presets'
+
+/**
+ * Default aspect ratios available for image generation (landscape to portrait order)
+ */
+export const DEFAULT_ASPECT_RATIOS = [
+  '21/9',
+  '16/9',
+  '3/2',
+  '4/3',
+  '1/1',
+  '3/4',
+  '2/3',
+  '9/16',
+  '9/21',
+]
+
+/**
+ * Default SDXL resolution configuration (fallback when preset has no config)
+ */
+export const DEFAULT_RESOLUTION_CONFIG: ResolutionConfig = {
+  megapixels: [
+    { label: '0.25', totalPixels: 512 * 512 },
+    { label: '0.5', totalPixels: 704 * 704 },
+    { label: '0.8', totalPixels: 896 * 896 },
+    { label: '1.0', totalPixels: 1024 * 1024 },
+  ],
+  aspectRatios: DEFAULT_ASPECT_RATIOS,
+  useLookupTable: true,
+}
+
+/**
+ * Parse an aspect ratio string (e.g., "16/9") to a numeric value
+ * @param aspectRatio - The aspect ratio string in fractional notation
+ * @returns The numeric aspect ratio value (width / height)
+ */
+export function parseAspectRatio(aspectRatio: string): number {
+  const parts = aspectRatio.split('/')
+  if (parts.length !== 2) return 1
+  const [w, h] = parts.map(Number)
+  if (!w || !h || h === 0) return 1
+  return w / h
+}
+
+/**
+ * Compute resolution from megapixel config and aspect ratio
+ * Uses lookup table or dynamic calculation based on config
+ */
+export function computeResolution(
+  megapixels: MegapixelOption,
+  aspectRatio: string,
+  useLookupTable: boolean,
+): { width: number; height: number; totalPixels: number } {
+  // Try lookup table first if enabled
+  if (useLookupTable && RESOLUTION_TABLE[megapixels.label]) {
+    const tableRes = getResolutionFromTable(megapixels.label, aspectRatio)
+    if (tableRes) {
+      return tableRes
+    }
+  }
+
+  // Fall back to dynamic calculation
+  const aspectValue = parseAspectRatio(aspectRatio)
+  return findBestResolution(megapixels.totalPixels, aspectValue)
+}
+
+/**
+ * Get all available resolutions from a resolution configuration
+ * @param config - The resolution configuration from a preset
+ * @returns Array of all resolution combinations
+ */
+export function getResolutionsFromConfig(config: ResolutionConfig): Array<{
+  aspectRatio: string
+  megapixels: string
+  width: number
+  height: number
+  totalPixels: number
+}> {
+  const resolutions: Array<{
+    aspectRatio: string
+    megapixels: string
+    width: number
+    height: number
+    totalPixels: number
+  }> = []
+
+  const useLookup = config.useLookupTable !== false
+
+  for (const mp of config.megapixels) {
+    for (const ar of config.aspectRatios) {
+      const { width, height, totalPixels } = computeResolution(mp, ar, useLookup)
+      resolutions.push({
+        aspectRatio: ar,
+        megapixels: mp.label,
+        width,
+        height,
+        totalPixels,
+      })
+    }
+  }
+
+  return resolutions
+}
+
+/**
+ * Get a specific resolution for a megapixel tier and aspect ratio
+ * @param config - The resolution configuration
+ * @param megapixelLabel - The megapixel label (e.g., "1.0")
+ * @param aspectRatio - The aspect ratio (e.g., "16/9")
+ * @returns Resolution object or null if not found
+ */
+export function getResolutionForConfig(
+  config: ResolutionConfig,
+  megapixelLabel: string,
+  aspectRatio: string,
+): { width: number; height: number; totalPixels: number } | null {
+  const mp = config.megapixels.find((m) => m.label === megapixelLabel)
+  if (!mp) return null
+
+  if (!config.aspectRatios.includes(aspectRatio)) return null
+
+  const useLookup = config.useLookupTable !== false
+  return computeResolution(mp, aspectRatio, useLookup)
+}
+
+/**
+ * Find the best matching resolution from a config given target dimensions
+ * @param config - The resolution configuration
+ * @param targetWidth - Target width
+ * @param targetHeight - Target height
+ * @returns The closest matching resolution
+ */
+export function findClosestResolutionInConfig(
+  config: ResolutionConfig,
+  targetWidth: number,
+  targetHeight: number,
+): {
+  megapixelLabel: string
+  aspectRatio: string
+  width: number
+  height: number
+} | null {
+  const allResolutions = getResolutionsFromConfig(config)
+  if (allResolutions.length === 0) return null
+
+  let bestMatch = allResolutions[0]
+  let minDiff = Math.abs(allResolutions[0].width - targetWidth) + Math.abs(allResolutions[0].height - targetHeight)
+
+  for (const res of allResolutions) {
+    const diff = Math.abs(res.width - targetWidth) + Math.abs(res.height - targetHeight)
+    if (diff < minDiff) {
+      minDiff = diff
+      bestMatch = res
+    }
+  }
+
+  return {
+    megapixelLabel: bestMatch.megapixels,
+    aspectRatio: bestMatch.aspectRatio,
+    width: bestMatch.width,
+    height: bestMatch.height,
+  }
+}

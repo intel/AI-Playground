@@ -67,6 +67,18 @@ const RequiredModelSchema = z.object({
   additionalLicenceLink: z.string().optional(),
 })
 
+// Resolution Configuration Schema - defines available megapixels and aspect ratios per preset
+const MegapixelOptionSchema = z.object({
+  label: z.string(), // e.g., "0.5", "1.0"
+  totalPixels: z.number(), // e.g., 495616 (704*704)
+})
+
+export const ResolutionConfigSchema = z.object({
+  megapixels: z.array(MegapixelOptionSchema),
+  aspectRatios: z.array(z.string()), // e.g., ["1/1", "16/9", "9/16"]
+  useLookupTable: z.boolean().optional().default(true), // false for LTX Video dynamic calculation
+})
+
 // ComfyUI API Workflow Schema (reused from imageGeneration)
 const ComfyUIApiWorkflowSchema = z.record(
   z.string(),
@@ -118,6 +130,8 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
   requiredPythonPackages: z.array(z.string()).optional(),
   // ComfyUI-specific settings can be ComfyInput
   settings: z.array(z.union([ComfyInputSchema, SettingSchema])).default([]),
+  // Resolution configuration for aspect ratio and megapixel options
+  resolutionConfig: ResolutionConfigSchema.optional(),
 })
 
 // LLM Backend enum for chat presets
@@ -163,6 +177,8 @@ export const PresetSchema = z.discriminatedUnion('type', [ComfyUiPresetSchema, C
 export type Setting = z.infer<typeof SettingSchema>
 export type ComfyInput = z.infer<typeof ComfyInputSchema>
 export type RequiredModel = z.infer<typeof RequiredModelSchema>
+export type ResolutionConfig = z.infer<typeof ResolutionConfigSchema>
+export type MegapixelOption = z.infer<typeof MegapixelOptionSchema>
 export type ComfyUIApiWorkflow = z.infer<typeof ComfyUIApiWorkflowSchema>
 export type Preset = z.infer<typeof PresetSchema>
 export type ComfyUiPreset = z.infer<typeof ComfyUiPresetSchema>

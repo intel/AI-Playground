@@ -48,7 +48,7 @@
   "comfyUiApiWorkflow": {
     "9": {
       "inputs": {
-        "filename_prefix": "ComfyUI",
+        "filename_prefix": "AIPG_Image",
         "images": ["16", 0]
       },
       "class_type": "SaveImage",

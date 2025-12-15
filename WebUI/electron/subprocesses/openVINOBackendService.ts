@@ -58,6 +58,9 @@ export class OpenVINOBackendService implements ApiService {
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
 
+  // Cached installed version for inclusion in service info updates
+  private cachedInstalledVersion: { version: string; releaseTag?: string } | undefined = undefined
+
   // Logger
   readonly appLogger = appLoggerInstance
 
@@ -80,6 +83,13 @@ export class OpenVINOBackendService implements ApiService {
     // Check if already set up
     this.isSetUp = this.serviceIsSetUp()
     console.log('OVMS isSetUp:', this.isSetUp)
+
+    // Cache version on startup if already set up
+    if (this.isSetUp) {
+      this.updateCachedVersion().then(() => {
+        this.updateStatus()
+      })
+    }
   }
 
   serviceIsSetUp(): boolean {
@@ -180,6 +190,7 @@ export class OpenVINOBackendService implements ApiService {
       isRequired: this.isRequired,
       devices: this.devices,
       errorDetails: this.lastStartupErrorDetails,
+      installedVersion: this.cachedInstalledVersion,
     }
   }
 
@@ -222,6 +233,26 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.error(`failed to get installed OpenVINO version: ${e}`, this.name)
     }
     return undefined
+  }
+
+  /**
+   * Updates the cached installed version for inclusion in service info updates.
+   */
+  private async updateCachedVersion(): Promise<void> {
+    try {
+      const version = await this.getInstalledVersion()
+      if (version && version.version) {
+        this.cachedInstalledVersion = {
+          version: version.version,
+          ...(version.releaseTag && { releaseTag: version.releaseTag }),
+        }
+      } else {
+        this.cachedInstalledVersion = undefined
+      }
+    } catch (error) {
+      this.appLogger.warn(`Failed to get installed version: ${error}`, this.name)
+      this.cachedInstalledVersion = undefined
+    }
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -279,8 +310,9 @@ export class OpenVINOBackendService implements ApiService {
         debugMessage: 'extraction complete',
       }
 
-      this.setStatus('notYetStarted')
       this.isSetUp = true
+      await this.updateCachedVersion()
+      this.setStatus('notYetStarted')
 
       currentStep = 'end'
       yield {

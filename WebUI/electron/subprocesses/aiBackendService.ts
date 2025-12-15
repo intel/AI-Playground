@@ -11,9 +11,10 @@ export class AiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     super(name, port, win, settings)
 
-    this.serviceIsSetUp().then((setUp) => {
+    this.serviceIsSetUp().then(async (setUp) => {
       this.isSetUp = setUp
       if (this.isSetUp) {
+        await this.updateCachedVersion()
         this.setStatus('notYetStarted')
       }
       this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)

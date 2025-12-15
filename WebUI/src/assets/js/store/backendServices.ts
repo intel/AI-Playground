@@ -85,57 +85,40 @@ export const useBackendServices = defineStore(
       })
       .then((services) => {
         currentServiceInfo.value = services
-        // One-time initial version check after services are loaded
-        updateInstalledVersions()
+        // Extract installed versions from service info
+        for (const service of services) {
+          const serviceName = service.serviceName as BackendServiceName
+          if (service.installedVersion) {
+            versionState.value[serviceName].installed = service.installedVersion
+          }
+        }
       })
     setTimeout(() => {
       window.electronAPI.getServices().then((services) => {
         console.log('getServices', services)
         currentServiceInfo.value = services
-        // One-time version check after delayed service fetch
-        updateInstalledVersions()
+        // Extract installed versions from service info
+        for (const service of services) {
+          const serviceName = service.serviceName as BackendServiceName
+          if (service.installedVersion) {
+            versionState.value[serviceName].installed = service.installedVersion
+          }
+        }
       })
     }, 5000)
     window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
       currentServiceInfo.value = currentServiceInfo.value.map((oldInfo) =>
         oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo,
       )
+      // Update installed version from service info
+      const serviceName = updatedInfo.serviceName as BackendServiceName
+      if (updatedInfo.installedVersion) {
+        versionState.value[serviceName].installed = updatedInfo.installedVersion
+      } else if (!updatedInfo.isSetUp) {
+        // Clear installed version if service is not set up
+        versionState.value[serviceName].installed = undefined
+      }
     })
-
-    // Update installed version for a single service
-    const updateInstalledVersionForService = async (serviceName: BackendServiceName) => {
-      const service = currentServiceInfo.value.find((s) => s.serviceName === serviceName)
-      if (!service || !service.isSetUp) {
-        versionState.value[serviceName].installed = undefined
-        return
-      }
-
-      try {
-        const installedVersion = await window.electronAPI.getInstalledBackendVersion(serviceName)
-        if (installedVersion && typeof installedVersion.version === 'string') {
-          versionState.value[serviceName].installed = {
-            version: installedVersion.version,
-            ...(installedVersion.releaseTag && { releaseTag: installedVersion.releaseTag }),
-          }
-        } else {
-          versionState.value[serviceName].installed = undefined
-        }
-      } catch (error) {
-        console.warn(`Failed to get installed version for ${serviceName}:`, error)
-        versionState.value[serviceName].installed = undefined
-      }
-    }
-
-    // Populate installed versions for all services (used during initial startup)
-    const updateInstalledVersions = async () => {
-      for (const service of currentServiceInfo.value) {
-        if (service.isSetUp) {
-          await updateInstalledVersionForService(service.serviceName)
-        } else {
-          versionState.value[service.serviceName].installed = undefined
-        }
-      }
-    }
 
     window.electronAPI.onServiceSetUpProgress(async (data) => {
       const associatedListener = serviceListeners.get(data.serviceName)
@@ -256,8 +239,7 @@ export const useBackendServices = defineStore(
       const result = await listener!.awaitFinalizationAndResetData()
       if (result.success) {
         await detectDevices(serviceName)
-        // Check installed version after successful installation
-        await updateInstalledVersionForService(serviceName)
+        // Installed version is now automatically updated via serviceInfoUpdate
       }
       return result
     }

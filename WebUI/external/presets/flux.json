@@ -9,6 +9,17 @@
   "mediaType": "image",
   "toolEnabled": true,
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Flux.1-Schnell produces very high quality images with excellent prompt understanding, so be specific about artistic style, composition, and visual details. Even if the user requests something simple like 'a landscape', expand it to a full prompt like 'a breathtaking mountain landscape at sunset, dramatic clouds, golden hour lighting, cinematic composition, highly detailed, photorealistic, 8k, professional photography, wide angle view'.",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 },
+      { "label": "0.8", "totalPixels": 802816 },
+      { "label": "1.0", "totalPixels": 1048576 },
+      { "label": "1.2", "totalPixels": 1254400 },
+      { "label": "1.5", "totalPixels": 1557504 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
+  },
   "requiredCustomNodes": ["city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"],
   "requiredPythonPackages": [],
   "requiredModels": [],
