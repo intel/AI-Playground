@@ -49,6 +49,7 @@ type BaseMediaItem = {
 export type ImageMediaItem = BaseMediaItem & {
   type: 'image'
   imageUrl: string
+  isNsfwBlocked?: boolean
 }
 
 export type VideoMediaItem = BaseMediaItem & {

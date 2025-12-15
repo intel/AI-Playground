@@ -18,7 +18,9 @@
   },
   "requiredCustomNodes": [
     "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
-    "AcerPartner/VisionArt@AI-Playground"
+    "AcerPartner/VisionArt@AI-Playground",
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
   "requiredModels": [
@@ -111,6 +113,18 @@
       "modifiable": false,
       "defaultValue": true,
       "settingName": "safetyCheck"
+    },
+    {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
     }
   ],
   "comfyUiApiWorkflow": {
@@ -241,7 +255,7 @@
       "inputs": {
         "animation_mode": 2,
         "performance_mode": 0,
-        "image": ["179", 0]
+        "image": ["98", 0]
       },
       "class_type": "Acer",
       "_meta": {
@@ -256,6 +270,28 @@
       "class_type": "AcerSaveImage",
       "_meta": {
         "title": "VisionArt SaveImage Node"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["179", 0]
+      },
+      "class_type": "YetAnotherSafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
       }
     }
   }

@@ -6,7 +6,10 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Regenerate portions of an image by masking an area that will change based on your prompt",
-  "requiredCustomNodes": [],
+  "requiredCustomNodes": [
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
   "requiredPythonPackages": [],
   "variants": [
     {
@@ -239,6 +242,18 @@
       "settingName": "safetyCheck"
     },
     {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
+    },
+    {
       "type": "image",
       "label": "Input Image",
       "nodeTitle": "Load Image",
@@ -425,11 +440,33 @@
     "8": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": ["5", 0]
+        "images": ["98", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
         "title": "Save Image"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["5", 0]
+      },
+      "class_type": "YetAnotherSafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
       }
     },
     "9": {

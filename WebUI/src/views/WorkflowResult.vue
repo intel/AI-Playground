@@ -12,7 +12,7 @@
         <!-- eslint-disable vue/require-v-for-key -->
         <div
           v-show="imageGeneration.generatedImages.length > 0 && currentImage"
-          class="flex justify-center items-center w-full h-full"
+          class="flex justify-center items-center w-full h-full relative"
           :draggable="currentImage && !is3D(currentImage) ? true : false"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
@@ -22,6 +22,15 @@
             class="w-full h-full object-contain p-2"
             :src="currentImage.imageUrl"
           />
+          <!-- NSFW Blocked Overlay -->
+          <div
+            v-if="currentImage && currentImage.type === 'image' && isCurrentImageNsfwBlocked"
+            class="absolute inset-0 flex items-center justify-center m-2 rounded"
+          >
+            <div class="text-center">
+              <span class="text-white text-3xl font-medium">NSFW Result<br />Blocked</span>
+            </div>
+          </div>
           <video
             v-else-if="currentImage && isVideo(currentImage)"
             :src="currentImage?.videoUrl as string"
@@ -154,6 +163,7 @@ import {
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
+import { checkIfNsfwBlocked } from '@/lib/utils'
 
 interface Props {
   mode: WorkflowModeType
@@ -164,6 +174,7 @@ const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
+const isCurrentImageNsfwBlocked = ref(false)
 
 const selectedImageIdKey = computed(() => {
   switch (props.mode) {
@@ -183,6 +194,30 @@ const currentImage = computed<MediaItem | null>(() => {
     ) ?? null
   )
 })
+
+// Check if current image is NSFW blocked when it changes
+watch(
+  () => currentImage.value,
+  async (newImage) => {
+    if (newImage && newImage.type === 'image' && newImage.state === 'done') {
+      // Check if already marked
+      if (newImage.isNsfwBlocked !== undefined) {
+        isCurrentImageNsfwBlocked.value = newImage.isNsfwBlocked
+      } else {
+        // Check the image and cache the result
+        const isBlocked = await checkIfNsfwBlocked(newImage.imageUrl)
+        isCurrentImageNsfwBlocked.value = isBlocked
+        if (isBlocked) {
+          // Update the image in the store with the cached result
+          newImage.isNsfwBlocked = true
+        }
+      }
+    } else {
+      isCurrentImageNsfwBlocked.value = false
+    }
+  },
+  { immediate: true },
+)
 
 const dragImage = (item: MediaItem | null) => (event: Event) => {
   if (!item) return

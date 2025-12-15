@@ -14,27 +14,6 @@
       />
     </div>
 
-    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label class="whitespace-nowrap">Resolution</Label>
-      <div class="flex gap-2 items-center">
-        <input
-          v-model.number="widthInput"
-          type="number"
-          min="1"
-          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled"
-        />
-        <span class="text-muted-foreground">×</span>
-        <input
-          v-model.number="heightInput"
-          type="number"
-          min="1"
-          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled"
-        />
-      </div>
-    </div>
-
     <div class="grid grid-cols-[120px_1fr] items-end gap-4">
       <Label class="whitespace-nowrap">Aspect Ratio</Label>
       <div class="flex flex-row justify-between items-stretch">
@@ -85,6 +64,27 @@
             {{ res.aspectRatio }}
           </span>
         </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+      <Label class="whitespace-nowrap">Resolution</Label>
+      <div class="flex gap-2 items-center">
+        <input
+          v-model.number="widthInput"
+          type="number"
+          min="1"
+          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          :disabled="props.disabled"
+        />
+        <span class="text-muted-foreground">×</span>
+        <input
+          v-model.number="heightInput"
+          type="number"
+          min="1"
+          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          :disabled="props.disabled"
+        />
       </div>
     </div>
   </div>

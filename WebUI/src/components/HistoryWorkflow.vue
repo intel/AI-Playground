@@ -23,8 +23,16 @@
           class="w-full h-full object-cover"
         />
 
+        <!-- NSFW Blocked Overlay -->
         <div
-          v-if="image.type === 'image' && image.sourceImageUrl === image.imageUrl"
+          v-if="image.type === 'image' && nsfwBlockedImages.has(image.id)"
+          class="absolute inset-0 flex items-center justify-center bg-black/80"
+        >
+          <span class="text-white text-xs font-medium text-center px-1">NSFW Blocked</span>
+        </div>
+
+        <div
+          v-else-if="image.type === 'image' && image.sourceImageUrl === image.imageUrl"
           class="absolute bottom-0 w-full bg-background/60 text-foreground text-[14px] text-center py-[2px]"
         >
           {{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}
@@ -72,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -98,6 +106,7 @@ import {
   is3D,
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
+import { checkIfNsfwBlocked } from '@/lib/utils'
 
 const props = defineProps<{
   mode: WorkflowModeType
@@ -105,8 +114,37 @@ const props = defineProps<{
 
 const imageGeneration = useImageGenerationPresets()
 
+// Track which images are NSFW blocked
+const nsfwBlockedImages = ref<Set<string>>(new Set())
+
 const nonQueuedImages = computed(() =>
   imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === props.mode),
+)
+
+// Check new images for NSFW blocking
+watch(
+  nonQueuedImages,
+  async (images) => {
+    for (const image of images) {
+      if (image.type === 'image' && image.state === 'done' && !nsfwBlockedImages.value.has(image.id)) {
+        // Check if already marked in the image object
+        if (image.isNsfwBlocked !== undefined) {
+          if (image.isNsfwBlocked) {
+            nsfwBlockedImages.value.add(image.id)
+          }
+        } else {
+          // Check the image
+          const isBlocked = await checkIfNsfwBlocked(image.imageUrl)
+          if (isBlocked) {
+            nsfwBlockedImages.value.add(image.id)
+            // Cache the result in the image object
+            image.isNsfwBlocked = true
+          }
+        }
+      }
+    }
+  },
+  { immediate: true, deep: true },
 )
 
 const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
