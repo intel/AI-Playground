@@ -479,6 +479,18 @@ export const useComfyUiPresets = defineStore(
             const buffer = event.data.slice(4)
             switch (eventType) {
               case 1:
+                // Always update the image state to 'generating' for progress display
+                const currentImage = queuedImages[generateIdx]
+                if (currentImage && currentImage.state !== 'generating') {
+                  imageGeneration.updateImage({
+                    ...currentImage,
+                    state: 'generating',
+                  })
+                }
+
+                // Skip preview image if showPreview is disabled
+                if (!imageGeneration.showPreview) break
+
                 const view2 = new DataView(event.data)
                 const imageType = view2.getUint32(0)
                 let imageMime

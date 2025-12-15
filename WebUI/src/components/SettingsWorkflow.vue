@@ -76,6 +76,21 @@
           :disabled="!modifiable('seed')"
         ></random-number>
       </div>
+
+      <div
+        v-if="modifiableOrDisplayed('showPreview')"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label class="whitespace-nowrap">
+          {{ languages.SETTINGS_MODEL_SHOW_PREVIEW || 'Show Preview' }}
+        </Label>
+        <Checkbox
+          :model-value="imageGeneration.showPreview"
+          :disabled="!modifiable('showPreview')"
+          @update:model-value="(value) => (imageGeneration.showPreview = value === true)"
+        />
+      </div>
+
       <ComfyDynamic></ComfyDynamic>
 
       <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
@@ -103,6 +118,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import DeviceSelector from '@/components/DeviceSelector.vue'

@@ -61,6 +61,7 @@ const settingToTranslationKey: Record<keyof GenerationSettings, string> = {
   inferenceSteps: 'SETTINGS_MODEL_IMAGE_STEPS',
   seed: 'SETTINGS_MODEL_SEED',
   safetyCheck: 'SETTINGS_MODEL_SAFE_CHECK',
+  showPreview: 'SETTINGS_MODEL_SHOW_PREVIEW',
   batchSize: 'SETTINGS_MODEL_GENERATE_NUMBER',
   width: 'SETTINGS_MODEL_IMAGE_WIDTH',
   height: 'SETTINGS_MODEL_IMAGE_HEIGHT',

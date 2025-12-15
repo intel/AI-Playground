@@ -115,6 +115,14 @@
       "settingName": "safetyCheck"
     },
     {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "showPreview"
+    },
+    {
       "type": "number",
       "label": "Safety Checker Strength",
       "nodeTitle": "SafetyCheckerStrength",
