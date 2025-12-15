@@ -70,6 +70,7 @@ declare interface ApiServiceInformation {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
   installedVersion?: { version: string; releaseTag?: string }
 }

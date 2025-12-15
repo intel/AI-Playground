@@ -37,6 +37,7 @@ export class OpenVINOBackendService implements ApiService {
 
   readonly zipPath: string
   devices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+  sttDevices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
 
   // Health endpoint
   healthEndpointUrl: string
@@ -159,20 +160,156 @@ export class OpenVINOBackendService implements ApiService {
     this.updateStatus()
   }
 
+  async selectSttDevice(deviceId: string): Promise<void> {
+    if (!this.sttDevices.find((d) => d.id === deviceId)) return
+    this.sttDevices = this.sttDevices.map((d) => ({ ...d, selected: d.id === deviceId }))
+    this.updateStatus()
+  }
+
   async detectDevices() {
+    const defaultDevices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+
+    if (!this.isSetUp) {
+      this.appLogger.info('OpenVINO not set up, using default devices', this.name)
+      this.devices = defaultDevices
+      this.sttDevices = [...defaultDevices]
+      this.updateStatus()
+      return
+    }
+
     try {
-      // For now, we use a simple device list. Could enhance later with ovms device detection
-      this.appLogger.info('Setting up OpenVINO device options', this.name)
-      this.devices = [
+      this.appLogger.info('Detecting OpenVINO devices using ovms.exe', this.name)
+
+      // Get a temporary port for device detection
+      const tempPort = await getPort({ port: portNumbers(57300, 57399) })
+
+      const detectedDevices = await new Promise<string[]>((resolve, reject) => {
+        const args = ['--config_path', '.', '--rest_port', tempPort.toString()]
+
+        this.appLogger.info(`Running device detection: ${this.ovmsExePath} ${args.join(' ')}`, this.name)
+
+        // Set up environment variables as per setupvars.ps1
+        const pythonDir = path.join(this.ovmsDir, 'python')
+        const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
+
+        const childProcess = spawn(this.ovmsExePath, args, {
+          cwd: this.ovmsDir,
+          windowsHide: true,
+          env: {
+            ...process.env,
+            OVMS_DIR: this.ovmsDir,
+            PYTHONHOME: pythonDir,
+            PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+          },
+        })
+
+        let resolved = false
+        const devicePattern = /Available devices for Open VINO:\s*(.+)/
+
+        const parseOutput = (data: string) => {
+          if (resolved) return
+
+          const lines = data.split('\n')
+          for (const line of lines) {
+            const match = line.match(devicePattern)
+            if (match && match[1]) {
+              resolved = true
+              const devices = match[1]
+                .split(',')
+                .map((d) => d.trim())
+                .filter((d) => d.length > 0)
+              this.appLogger.info(`Detected OpenVINO devices: ${devices.join(', ')}`, this.name)
+
+              // Kill the process since we have what we need
+              childProcess.kill('SIGTERM')
+              resolve(devices)
+              return
+            }
+          }
+        }
+
+        childProcess.stdout?.on('data', (data: Buffer) => parseOutput(data.toString()))
+        childProcess.stderr?.on('data', (data: Buffer) => parseOutput(data.toString()))
+
+        childProcess.on('error', (error: Error) => {
+          if (!resolved) {
+            resolved = true
+            this.appLogger.error(`Device detection process error: ${error}`, this.name)
+            reject(error)
+          }
+        })
+
+        childProcess.on('exit', (code: number | null) => {
+          if (!resolved) {
+            resolved = true
+            this.appLogger.warn(`Device detection process exited with code ${code} before finding devices`, this.name)
+            reject(new Error(`Process exited with code ${code} before detecting devices`))
+          }
+        })
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true
+            this.appLogger.warn('Device detection timed out after 10 seconds', this.name)
+            childProcess.kill('SIGTERM')
+            reject(new Error('Device detection timed out'))
+          }
+        }, 10000)
+      })
+
+      // Map detected devices to InferenceDevice format
+      const deviceNameMap: Record<string, string> = {
+        CPU: 'CPU',
+        GPU: 'GPU (Intel)',
+        NPU: 'NPU (Intel)',
+      }
+
+      const mappedDevices: InferenceDevice[] = detectedDevices.map((deviceId) => ({
+        id: deviceId,
+        name: deviceNameMap[deviceId] || deviceId,
+        selected: false,
+      }))
+
+      // Create base device list with AUTO option
+      const baseDevices: InferenceDevice[] = [
         { id: 'AUTO', name: 'Auto select device', selected: false },
-        { id: 'GPU', name: 'GPU (Intel)', selected: true },
-        { id: 'CPU', name: 'CPU', selected: false },
+        ...mappedDevices,
       ]
-      this.appLogger.info(`Available devices: ${JSON.stringify(this.devices, null, 2)}`, this.name)
+
+      // Helper function to select device by priority
+      const selectByPriority = (
+        devices: InferenceDevice[],
+        priority: string[],
+      ): InferenceDevice[] => {
+        const result = devices.map((d) => ({ ...d, selected: false }))
+        const selectedDevice = priority
+          .map((id) => result.find((d) => d.id === id))
+          .find((d) => d !== undefined)
+        if (selectedDevice) {
+          selectedDevice.selected = true
+        } else {
+          result[0].selected = true // Fallback to AUTO
+        }
+        return result
+      }
+
+      // LLM devices: priority GPU > AUTO
+      this.devices = selectByPriority(baseDevices, ['GPU'])
+
+      // STT devices: priority NPU > CPU > GPU > AUTO
+      this.sttDevices = selectByPriority(
+        baseDevices.map((d) => ({ ...d })),
+        ['NPU', 'CPU', 'GPU'],
+      )
+
+      this.appLogger.info(`Available LLM devices: ${JSON.stringify(this.devices, null, 2)}`, this.name)
+      this.appLogger.info(`Available STT devices: ${JSON.stringify(this.sttDevices, null, 2)}`, this.name)
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       // Fallback to default device on error
-      this.devices = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+      this.devices = defaultDevices
+      this.sttDevices = [...defaultDevices]
     }
     this.updateStatus()
   }
@@ -189,6 +326,7 @@ export class OpenVINOBackendService implements ApiService {
       isSetUp: this.isSetUp,
       isRequired: this.isRequired,
       devices: this.devices,
+      sttDevices: this.sttDevices,
       errorDetails: this.lastStartupErrorDetails,
       installedVersion: this.cachedInstalledVersion,
     }
@@ -787,7 +925,7 @@ export class OpenVINOBackendService implements ApiService {
 
   private async startOvmsTranscriptionServer(modelRepoId: string): Promise<OvmsServerProcess> {
     try {
-      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const selectedDevice = this.sttDevices.find((d) => d.selected)?.id || 'AUTO'
       const port = await getPort({ port: portNumbers(29200, 29299) })
       // Validate model path exists
       this.resolveTranscriptionModelPath(modelRepoId)

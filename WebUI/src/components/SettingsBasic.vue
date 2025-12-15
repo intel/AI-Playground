@@ -52,6 +52,15 @@
           <Spinner v-else class="justify-self-start" />
         </div>
         <MicrophoneSettings v-if="speechToText.enabled" />
+        <div v-if="speechToText.enabled && sttDevices.length > 0" class="grid grid-cols-[120px_1fr] items-center gap-4 mt-4">
+          <Label class="whitespace-nowrap">Device</Label>
+          <drop-down-new
+            title="STT Device"
+            @change="selectSttDevice"
+            :value="selectedSttDevice?.id"
+            :items="sttDeviceItems"
+          />
+        </div>
       </div>
     </div>
 
@@ -104,6 +113,7 @@ import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
 import MicrophoneSettings from '@/components/MicrophoneSettings.vue'
+import DropDownNew from '@/components/DropDownNew.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { useI18N } from '@/assets/js/store/i18n'
@@ -124,6 +134,26 @@ const displayComponents = computed(() => {
     status: item.status,
   }))
 })
+
+// STT device selection
+const sttDevices = computed(
+  () =>
+    backendServices.info.find((bs) => bs.serviceName === 'openvino-backend')?.sttDevices ?? [],
+)
+const selectedSttDevice = computed(
+  () => sttDevices.value.find((d: InferenceDevice) => d.selected) ?? sttDevices.value[0],
+)
+const sttDeviceItems = computed(() =>
+  sttDevices.value.map((d: InferenceDevice) => ({
+    label: `${d.id}: ${d.name}`,
+    value: d.id,
+    active: true,
+  })),
+)
+
+async function selectSttDevice(deviceId: string) {
+  await backendServices.selectSttDevice('openvino-backend', deviceId)
+}
 
 async function loadPresetsFromIntel() {
   const syncStatus = await presetsStore.loadPresetsFromIntel()

@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
   selectDevice: (serviceName: string, deviceId: string) =>
     ipcRenderer.invoke('selectDevice', serviceName, deviceId),
+  selectSttDevice: (serviceName: string, deviceId: string) =>
+    ipcRenderer.invoke('selectSttDevice', serviceName, deviceId),
   detectDevices: (serviceName: string) => ipcRenderer.invoke('detectDevices', serviceName),
   startService: (serviceName: string) => ipcRenderer.invoke('startService', serviceName),
   stopService: (serviceName: string) => ipcRenderer.invoke('stopService', serviceName),

@@ -104,6 +104,7 @@ type electronAPI = {
   getServiceSettings(serviceName: string): Promise<ServiceSettings[BackendServiceName]>
   uninstall(serviceName: string): Promise<void>
   selectDevice(serviceName: string, deviceId: string): Promise<void>
+  selectSttDevice(serviceName: string, deviceId: string): Promise<void>
   detectDevices(serviceName: string): Promise<void>
   startService(serviceName: string): Promise<BackendStatus>
   stopService(serviceName: string): Promise<BackendStatus>
@@ -439,6 +440,7 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
   installedVersion?: { version: string; releaseTag?: string }
 }

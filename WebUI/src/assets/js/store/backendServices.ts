@@ -271,6 +271,10 @@ export const useBackendServices = defineStore(
       return window.electronAPI.selectDevice(serviceName, deviceId)
     }
 
+    function selectSttDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
+      return window.electronAPI.selectSttDevice(serviceName, deviceId)
+    }
+
     async function detectDevices(serviceName: BackendServiceName): Promise<void> {
       return window.electronAPI.detectDevices(serviceName)
     }
@@ -440,6 +444,7 @@ export const useBackendServices = defineStore(
       uninstallService,
       detectDevices,
       selectDevice,
+      selectSttDevice,
       ensureBackendReadiness,
       startTranscriptionServer,
       stopTranscriptionServer,
