@@ -337,6 +337,13 @@ export const useTextInference = defineStore(
       return activePreset.value?.requiresToolCalling === true
     })
 
+    // Determine if RAG will be used - single source of truth
+    const willUseRag = computed(() => {
+      const hasCheckedDocuments = ragList.value.some((item) => item.isChecked)
+      const presetEnablesRag = activePreset.value?.enableRAG === true
+      return hasCheckedDocuments && presetEnablesRag
+    })
+
     // Enforce maxContextSize as hard limit when contextSize changes
     watch(
       () => contextSize.value,
@@ -517,10 +524,7 @@ export const useTextInference = defineStore(
       ragResults: Document[] | null
       ragSourceText: string | null
     }> {
-
-      const hasRagDocuments = ragList.value.some((item) => item.isChecked)
-
-      if (!hasRagDocuments || activePreset.value?.enableRAG !== true) {
+      if (!willUseRag.value) {
         return {
           systemPrompt: systemPrompt.value,
           ragResults: null,
@@ -818,10 +822,9 @@ export const useTextInference = defineStore(
           throw new Error('No active LLM model selected')
         }
 
-        const ragDocumentsSelected = ragList.value.some((doc) => doc.isChecked)
-        const embeddingModelToSend = ragDocumentsSelected ? embeddingModelName : undefined
+        const embeddingModelToSend = willUseRag.value ? embeddingModelName : undefined
 
-        if (ragDocumentsSelected && !embeddingModelName) {
+        if (willUseRag.value && !embeddingModelName) {
           throw new Error('No embedding model selected but RAG documents are enabled')
         }
 
@@ -838,7 +841,7 @@ export const useTextInference = defineStore(
       // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
       return new Promise<void>(async (resolve, reject) => {
         const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
-        if (ragList.value.length > 0) {
+        if (willUseRag.value) {
           const requiredEmbeddingModelDownloads =
             await getDownloadParamsForCurrentModelIfRequired('embedding')
           requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
@@ -1223,6 +1226,7 @@ export const useTextInference = defineStore(
       ensureReadyForInference,
 
       // RAG state
+      willUseRag,
       ragRetrievalInProgress: computed(() => ragRetrievalState.inProgress),
       lastRagResults: computed(() => ragRetrievalState.lastResults),
     }

@@ -116,6 +116,7 @@ import MicrophoneSettings from '@/components/MicrophoneSettings.vue'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { useI18N } from '@/assets/js/store/i18n'
 import { Spinner } from './ui/spinner'
 
