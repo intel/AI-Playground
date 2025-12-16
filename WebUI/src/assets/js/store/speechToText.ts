@@ -7,12 +7,13 @@ import { useDialogStore } from './dialogs'
 import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast'
 
-const WHISPER_MODEL_NAME = 'OpenVINO/distil-whisper-large-v3-int4-ov'
+export const WHISPER_MODEL_NAME = 'OpenVINO/distil-whisper-large-v3-int4-ov'
 
 export const useSpeechToText = defineStore(
   'speechToText',
   () => {
     const enabled = ref(false)
+    const initializing = ref(false)
     const backendServices = useBackendServices()
     const models = useModels()
     const dialogStore = useDialogStore()
@@ -21,6 +22,7 @@ export const useSpeechToText = defineStore(
     /**
      * Ensures the transcription server is running when STT is enabled.
      * This method checks if the server is already running and starts it if needed.
+     * Unlike initialize(), this method does NOT auto-disable STT on failure.
      */
     async function ensureTranscriptionServerRunning(): Promise<void> {
       if (!enabled.value) return
@@ -48,10 +50,49 @@ export const useSpeechToText = defineStore(
 
     /**
      * Initialize the transcription server on app startup if STT is enabled.
-     * This should be called once during app initialization.
+     * This validates all prerequisites and auto-disables STT if they are not met,
+     * providing user feedback via toast notifications.
+     * 
+     * This should be called once during app initialization after backends are started.
      */
     async function initialize(): Promise<void> {
-      await ensureTranscriptionServerRunning()
+      if (!enabled.value) return
+
+      initializing.value = true
+
+      try {
+        // Check OpenVINO backend setup
+        const openVinoService = backendServices.info.find(
+          (s) => s.serviceName === 'openvino-backend',
+        )
+
+        if (!openVinoService?.isSetUp) {
+          enabled.value = false
+          toast.warning('Speech To Text disabled: OpenVINO backend is not installed')
+          return
+        }
+
+        // Check model exists
+        const modelExists = await models.checkTranscriptionModelExists(WHISPER_MODEL_NAME)
+        if (!modelExists) {
+          enabled.value = false
+          toast.warning('Speech To Text disabled: Whisper model not found')
+          return
+        }
+
+        // Check if server is already running
+        const url = await backendServices.getTranscriptionServerUrl()
+        if (!url) {
+          // Start transcription server
+          await backendServices.startTranscriptionServer(WHISPER_MODEL_NAME)
+        }
+      } catch (error) {
+        enabled.value = false
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        toast.error(`Speech To Text disabled: ${errorMessage}`)
+      } finally {
+        initializing.value = false
+      }
     }
 
     /**
@@ -129,6 +170,7 @@ export const useSpeechToText = defineStore(
 
     return {
       enabled,
+      initializing,
       toggle,
       initialize,
       ensureTranscriptionServerRunning,

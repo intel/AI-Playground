@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
@@ -176,11 +176,6 @@ watch(
   },
   { immediate: false },
 )
-
-// Initialize transcription server on mount if enabled
-onMounted(async () => {
-  await speechToText.initialize()
-})
 
 // Handle toggle using store method
 async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {

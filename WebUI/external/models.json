@@ -90,6 +90,14 @@
     "maxContextSize": 40960
   },
   {
+    "name": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": false,
+    "maxContextSize": 262144
+  },
+  {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": false,
@@ -198,14 +206,33 @@
     "maxContextSize": 32768
   },
   {
-    "name": "ChristianAzinn/bge-small-en-v1.5-gguf",
+    "name": "ChristianAzinn/bge-small-en-v1.5-gguf/bge-small-en-v1.5.Q8_0.gguf",
     "type": "embedding",
-    "backend": "llamaCPP"
+    "backend": "llamaCPP",
+    "maxContextSize": 512
   },
   {
-    "name": "nomic-ai/nomic-embed-text-v1-GGUF",
+    "name": "nomic-ai/nomic-embed-text-v1-GGUF/nomic-embed-text-v1.Q8_0.gguf",
     "type": "embedding",
-    "backend": "llamaCPP"
+    "backend": "llamaCPP",
+    "maxContextSize": 8192
+  },
+  {
+    "name": "nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q8_0.gguf",
+    "type": "embedding",
+    "backend": "llamaCPP",
+    "maxContextSize": 8192
+  },
+  {
+    "name": "Qwen/Qwen3-Embedding-0.6B-GGUF/Qwen3-Embedding-0.6B-Q8_0.gguf",
+    "type": "embedding",
+    "backend": "llamaCPP",
+    "maxContextSize": 32768
+  },
+  {
+    "name": "OpenVINO/Qwen3-Embedding-0.6B-int8-ov",
+    "type": "embedding",
+    "backend": "openVINO"
   },
   {
     "name": "OpenVINO/bge-base-en-v1.5-fp16-ov",

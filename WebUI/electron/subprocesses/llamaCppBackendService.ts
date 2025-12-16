@@ -6,7 +6,7 @@ import { appLoggerInstance } from '../logging/logger.ts'
 import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { vulkanDeviceSelectorEnv } from './deviceDetection.ts'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { binary, extract } from './tools.ts'
@@ -566,9 +566,7 @@ export class LlamaCppBackendService implements ApiService {
         windowsHide: true,
         env: {
           ...process.env,
-          SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-          SYCL_CACHE_PERSISTENT: '1',
-          ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+          ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
         },
       })
 
@@ -653,6 +651,10 @@ export class LlamaCppBackendService implements ApiService {
         '--port',
         port.toString(),
         '--log-prefix',
+        '-b',
+        '1024',
+        '-ub',
+        '1024',
       ]
 
       const childProcess = spawn(this.llamaCppExePath, args, {
@@ -660,9 +662,7 @@ export class LlamaCppBackendService implements ApiService {
         windowsHide: true,
         env: {
           ...process.env,
-          SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-          SYCL_CACHE_PERSISTENT: '1',
-          ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+          ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
         },
       })
 
@@ -812,26 +812,18 @@ export class LlamaCppBackendService implements ApiService {
   }
 
   private resolveEmbeddingModelPath(modelRepoId: string): string {
-    // Use the same logic as the Python embedding backend
+    // Use the same logic as resolveModelPath but with embedding model path
     const modelBasePath = 'models/LLM/embedding/llamaCPP'
     const [namespace, repo, ...model] = modelRepoId.split('/')
-    const modelDir = path.resolve(
+    const modelPath = path.resolve(
       path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
     )
 
-    if (!filesystem.existsSync(modelDir)) {
-      throw new Error(`Embedding model directory not found: ${modelDir}`)
+    if (!filesystem.existsSync(modelPath)) {
+      throw new Error(`Embedding model file not found: ${modelPath}`)
     }
 
-    // Find the first .gguf file in the directory
-    const files = filesystem.readdirSync(modelDir)
-    const ggufFile = files.find((f) => f.endsWith('.gguf'))
-
-    if (!ggufFile) {
-      throw new Error(`No GGUF file found in embedding model directory: ${modelDir}`)
-    }
-
-    return path.join(modelDir, ggufFile)
+    return modelPath
   }
 
   private async waitForServerReady(healthUrl: string, process: ChildProcess): Promise<void> {

@@ -67,6 +67,7 @@
           :class="{
             [`pt-${checkedRagDocuments.length > 0 && canAttachDocuments && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
             'opacity-50 cursor-not-allowed': !isPromptModifiable,
+            'border-primary bg-primary/10': isOverDropZone
           }"
           :placeholder="getTextAreaPlaceholder()"
           v-model="prompt"
@@ -94,12 +95,11 @@
           </div>
           <div
             v-if="canAttachFiles"
-            ref="dropZoneRef"
-            class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer"
+            class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer origin-bottom-left"
             :class="{ 'border-primary bg-primary/10': isOverDropZone }"
           >
             <Label htmlFor="file-attachment"><PlusIcon class="size-4 cursor-pointer" /></Label>
-            <Input
+            <input
               type="file"
               class="hidden"
               id="file-attachment"
@@ -198,7 +198,6 @@ import {
 import { useI18N } from '@/assets/js/store/i18n'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets'
 import { PlusIcon, PaperClipIcon, XMarkIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon } from '@heroicons/vue/24/outline'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
@@ -216,7 +215,6 @@ const imageGeneration = useImageGenerationPresets()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
-const dropZoneRef = ref<HTMLDivElement>()
 const textareaRef = ref<HTMLTextAreaElement>()
 const presetsStore = usePresets()
 
@@ -624,7 +622,7 @@ async function onDrop(files: File[] | null) {
 }
 
 // Set up drag and drop zone
-const { isOverDropZone } = useDropZone(dropZoneRef, {
+const { isOverDropZone } = useDropZone(textareaRef, {
   onDrop,
   multiple: true,
   preventDefaultForUnhandled: false,

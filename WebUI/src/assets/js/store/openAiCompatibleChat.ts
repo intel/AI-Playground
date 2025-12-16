@@ -269,13 +269,14 @@ export const useOpenAiCompatibleChat = defineStore(
     const fileInput = ref<FileList | null>(null)
     const temporarySystemPrompt = ref<string | null>(null)
 
-    async function generate(systemPromptOverride?: string) {
-      await textInference.prepareBackendIfNeeded()
-      temporarySystemPrompt.value = systemPromptOverride || null
-      // Reset manual stop flag when starting new generation
+    async function generate(question: string) {
+      // 1. Ensure backend and models are ready
+      await textInference.ensureReadyForInference()
+
+      // Reset manual stop flag
       manuallyStopped.value = false
 
-      // Block generation if trying to attach images to a non-vision model
+      // 2. Block if images attached to non-vision model
       if (fileInput.value && !textInference.modelSupportsVision) {
         const hasImageFiles = Array.from(fileInput.value).some((file) =>
           file.type.startsWith('image/'),
@@ -288,10 +289,13 @@ export const useOpenAiCompatibleChat = defineStore(
         }
       }
 
-      console.log('before generate', {
-        chat: chats[conversations.activeKey],
-        messages: chats[conversations.activeKey]?.messages,
-      })
+      // 3. Prepare RAG context (if RAG is enabled)
+      const ragContext = await textInference.prepareRagContext(question)
+      console.log('ragContext', ragContext)
+      temporarySystemPrompt.value = ragContext.systemPrompt
+
+      // 4. Set message input and send
+      messageInput.value = question
       try {
         await chats[conversations.activeKey]?.sendMessage({
           text: messageInput.value,
@@ -304,13 +308,21 @@ export const useOpenAiCompatibleChat = defineStore(
       } finally {
         temporarySystemPrompt.value = null
       }
+
+      // 5. Store RAG source in message metadata
+      if (ragContext.ragSourceText) {
+        const latestMessage = messages.value?.[messages.value.length - 1]
+        if (latestMessage && latestMessage.role === 'assistant' && latestMessage.metadata) {
+          latestMessage.metadata.ragSource = ragContext.ragSourceText
+        }
+      }
+
+      // 6. Persist conversation
+      conversations.updateConversation(messages.value, conversations.activeKey)
+
+      // 7. Clear inputs
       messageInput.value = ''
       fileInput.value = null
-      console.log('after generate', {
-        chat: chats[conversations.activeKey],
-        messages: chats[conversations.activeKey]?.messages,
-      })
-      return
     }
 
     async function stop() {
@@ -319,7 +331,9 @@ export const useOpenAiCompatibleChat = defineStore(
       await chats[conversations.activeKey]?.stop()
     }
 
-    function regenerate(messageId: string) {
+    async function regenerate(messageId: string) {
+      await textInference.ensureReadyForInference()
+      manuallyStopped.value = false
       chats[conversations.activeKey]?.regenerate({ messageId })
     }
 

@@ -52,8 +52,6 @@ process.parentPort.on('message', async (message) => {
 setInterval(() => {}, 10000)
 
 async function addDocumentToRAGList(document: IndexedDocument): Promise<IndexedDocument> {
-  //try {
-
   console.log(document)
   const rawDocument = await loadDocument(document.type, document.filepath)
   console.log(rawDocument)
@@ -68,10 +66,6 @@ async function addDocumentToRAGList(document: IndexedDocument): Promise<IndexedD
     hash: await generateFileMD5Hash(document.filepath),
   }
   return newDocument
-  // } catch (error) {
-  //   console.error('Failed to add document to RAG list')
-  //   throw new Error('Failed to add document to RAG list')
-  // }
 }
 
 async function loadDocument(type: string, filepath: string) {

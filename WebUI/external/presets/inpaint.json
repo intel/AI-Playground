@@ -7,6 +7,7 @@
   "category": "edit-images",
   "description": "Regenerate portions of an image by masking an area that will change based on your prompt",
   "requiredCustomNodes": [
+    "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
     "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
@@ -29,28 +30,80 @@
             "type": "vae",
             "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
           }
-        ]
+        ],
+        "comfyUiApiWorkflow": {
+          "4": {
+            "inputs": {
+              "vae_name": "Lykon---dreamshaper-8-inpainting\\vae\\diffusion_pytorch_model.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+              "title": "Load VAE"
+            }
+          },
+          "9": {
+            "inputs": {
+              "clip_name": "Lykon---dreamshaper-8-inpainting\\text_encoder\\model.safetensors",
+              "type": "stable_diffusion",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": {
+              "title": "CLIPLoader"
+            }
+          },
+          "10": {
+            "inputs": {
+              "unet_name": "Lykon---dreamshaper-8-inpainting\\unet\\diffusion_pytorch_model.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+              "title": "Load Diffusion Model"
+            }
+          },
+          "11": {
+            "inputs": {
+              "model": ["10", 0]
+            },
+            "class_type": "DifferentialDiffusion",
+            "_meta": {
+              "title": "Differential Diffusion"
+            }
+          },
+          "12": {
+            "inputs": {
+              "noise_mask": false,
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "vae": ["4", 0],
+              "pixels": ["23", 0],
+              "mask": ["14", 0]
+            },
+            "class_type": "InpaintModelConditioning",
+            "_meta": {
+              "title": "InpaintModelConditioning"
+            }
+          }
+        }
       }
     },
     {
       "name": "HD",
       "overrides": {
+        "tags": ["inpaint", "edit-images", "SDXL"],
         "requiredModels": [
           {
-            "type": "unet",
-            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/unet/diffusion_pytorch_model.safetensors"
+            "type": "checkpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
           },
           {
-            "type": "clip",
-            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder/model.safetensors"
+            "type": "inpaint",
+            "model": "lllyasviel/fooocus_inpaint/fooocus_inpaint_head.pth"
           },
           {
-            "type": "clip",
-            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/text_encoder_2/model.safetensors"
-          },
-          {
-            "type": "vae",
-            "model": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1/vae/diffusion_pytorch_model.safetensors"
+            "type": "inpaint",
+            "model": "lllyasviel/fooocus_inpaint/inpaint_v26.fooocus.patch"
           }
         ],
         "settings": [
@@ -106,28 +159,50 @@
         "comfyUiApiWorkflow": {
           "3": {
             "inputs": {
-              "scheduler": "normal"
-            }
-          },
-          "4": {
-            "inputs": {
-              "vae_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\vae\\diffusion_pytorch_model.safetensors"
-            }
-          },
-          "9": {
-            "inputs": {
-              "clip_name1": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder\\model.safetensors",
-              "clip_name2": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\text_encoder_2\\model.safetensors",
-              "type": "sdxl"
+              "seed": 582157188645489,
+              "steps": 20,
+              "cfg": 5,
+              "sampler_name": "dpmpp_2m_sde",
+              "scheduler": "karras",
+              "denoise": 1,
+              "model": ["103", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "latent_image": ["104", 0]
             },
-            "class_type": "DualCLIPLoader",
+            "class_type": "KSampler",
             "_meta": {
-              "title": "DualCLIPLoader"
+              "title": "KSampler"
             }
           },
-          "10": {
+          "5": {
             "inputs": {
-              "unet_name": "diffusers---stable-diffusion-xl-1.0-inpainting-0.1\\unet\\diffusion_pytorch_model.safetensors"
+              "samples": ["3", 0],
+              "vae": ["102", 2]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "6": {
+            "inputs": {
+              "text": "a beach",
+              "clip": ["102", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "nsfw",
+              "clip": ["102", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
             }
           },
           "27": {
@@ -138,6 +213,48 @@
           "28": {
             "inputs": {
               "value": 1024
+            }
+          },
+          "101": {
+            "inputs": {
+              "head": "lllyasviel---fooocus_inpaint\\fooocus_inpaint_head.pth",
+              "patch": "lllyasviel---fooocus_inpaint\\inpaint_v26.fooocus.patch"
+            },
+            "class_type": "INPAINT_LoadFooocusInpaint",
+            "_meta": {
+              "title": "Load Fooocus Inpaint"
+            }
+          },
+          "102": {
+            "inputs": {
+              "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple",
+            "_meta": {
+              "title": "Load Checkpoint"
+            }
+          },
+          "103": {
+            "inputs": {
+              "model": ["102", 0],
+              "patch": ["101", 0],
+              "latent": ["104", 0]
+            },
+            "class_type": "INPAINT_ApplyFooocusInpaint",
+            "_meta": {
+              "title": "Apply Fooocus Inpaint"
+            }
+          },
+          "104": {
+            "inputs": {
+              "grow_mask_by": 16,
+              "pixels": ["23", 0],
+              "vae": ["102", 2],
+              "mask": ["14", 0]
+            },
+            "class_type": "VAEEncodeForInpaint",
+            "_meta": {
+              "title": "VAE Encode (for Inpainting)"
             }
           }
         }
@@ -320,15 +437,6 @@
         "title": "KSampler"
       }
     },
-    "4": {
-      "inputs": {
-        "vae_name": "Lykon---dreamshaper-8-inpainting\\vae\\diffusion_pytorch_model.safetensors"
-      },
-      "class_type": "VAELoader",
-      "_meta": {
-        "title": "Load VAE"
-      }
-    },
     "5": {
       "inputs": {
         "samples": ["3", 0],
@@ -357,29 +465,6 @@
       "class_type": "CLIPTextEncode",
       "_meta": {
         "title": "negativePrompt"
-      }
-    },
-    "11": {
-      "inputs": {
-        "model": ["10", 0]
-      },
-      "class_type": "DifferentialDiffusion",
-      "_meta": {
-        "title": "Differential Diffusion"
-      }
-    },
-    "12": {
-      "inputs": {
-        "noise_mask": false,
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "vae": ["4", 0],
-        "pixels": ["23", 0],
-        "mask": ["14", 0]
-      },
-      "class_type": "InpaintModelConditioning",
-      "_meta": {
-        "title": "InpaintModelConditioning"
       }
     },
     "14": {
@@ -475,27 +560,6 @@
       "class_type": "CM_FloatBinaryOperation",
       "_meta": {
         "title": "SafetyCheckerStrength"
-      }
-    },
-    "9": {
-      "inputs": {
-        "clip_name": "Lykon---dreamshaper-8-inpainting\\text_encoder\\model.safetensors",
-        "type": "stable_diffusion",
-        "device": "default"
-      },
-      "class_type": "CLIPLoader",
-      "_meta": {
-        "title": "CLIPLoader"
-      }
-    },
-    "10": {
-      "inputs": {
-        "unet_name": "Lykon---dreamshaper-8-inpainting\\unet\\diffusion_pytorch_model.safetensors",
-        "weight_dtype": "default"
-      },
-      "class_type": "UNETLoader",
-      "_meta": {
-        "title": "Load Diffusion Model"
       }
     }
   }

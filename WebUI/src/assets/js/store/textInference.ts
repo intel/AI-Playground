@@ -562,6 +562,7 @@ export const useTextInference = defineStore(
 
         // Perform RAG retrieval
         const ragResults = await embedInputUsingRag(prompt)
+        console.log('textInference.ts: prepareRagContext: ragResults', ragResults)
         ragRetrievalState.lastResults = ragResults
 
         ragRetrievalState.inProgress = false
@@ -931,6 +932,11 @@ export const useTextInference = defineStore(
       backendServices.updateLastUsedBackend(inferenceBackendService)
     }
 
+    async function ensureReadyForInference() {
+      await checkModelAvailability()
+      await prepareBackendIfNeeded()
+    }
+
     // ========================================================================
     // Chat Preset Management
     // ========================================================================
@@ -1214,6 +1220,7 @@ export const useTextInference = defineStore(
       completeBackendPreparation,
       updateLastUsedConfig,
       prepareBackendIfNeeded,
+      ensureReadyForInference,
 
       // RAG state
       ragRetrievalInProgress: computed(() => ragRetrievalState.inProgress),

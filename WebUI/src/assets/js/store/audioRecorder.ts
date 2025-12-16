@@ -5,6 +5,7 @@ import { experimental_transcribe as transcribe } from 'ai';
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useBackendServices } from './backendServices'
+import { WHISPER_MODEL_NAME } from './speechToText'
 
 export interface AudioRecorderConfig {
   echoCancellation: boolean
@@ -266,7 +267,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         throw new Error('Transcription server is not running. Please enable Speech To Text in settings.')
       }
 
-      const model = 'OpenVINO/whisper-large-v3-int4-ov'
+      const model = WHISPER_MODEL_NAME
       const whisperOvms = createOpenAI({
         name: 'model',
         baseURL: transcriptionServerUrl,

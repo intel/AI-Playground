@@ -114,8 +114,8 @@
             <!-- RAG Source Details (collapsible) -->
             <div
               v-if="
-                message.metadata?.ragSource ||
-                (ragSourcePerMessageId[message.id] && showRagSourcePerMessageId[message.id])
+                showRagSourcePerMessageId[message.id] &&
+                (message.metadata?.ragSource || ragSourcePerMessageId[message.id])
               "
               class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
@@ -280,7 +280,6 @@ import { getCurrentInstance } from 'vue'
 import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
-import { useConversations } from '@/assets/js/store/conversations.ts'
 import { parse } from '@/assets/js/markdownParser.ts'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
@@ -301,7 +300,6 @@ const openAiCompatibleChat = useOpenAiCompatibleChat()
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 const textInference = useTextInference()
-const conversations = useConversations()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const comfyUi = useComfyUiPresets()
@@ -384,8 +382,8 @@ async function handlePromptSubmit(prompt: string) {
     return
   }
   try {
-    await textInference.checkModelAvailability()
-    await generate(question)
+    nextTick(scrollToBottom)
+    await openAiCompatibleChat.generate(question)
   } catch (error) {
     // Reset state on any error (including download cancellation)
     promptStore.promptSubmitted = false
@@ -403,51 +401,6 @@ function handleCancel() {
   
   // Immediately reset prompt state to unblock UI
   promptStore.promptSubmitted = false
-}
-
-async function generate(question: string) {
-  try {
-    // Prepare backend first (loads LLM and embedding models if needed)
-    await textInference.prepareBackendIfNeeded()
-
-    nextTick(scrollToBottom)
-
-    // Prepare RAG context (handles retrieval and system prompt enhancement)
-    // This must happen AFTER prepareBackendIfNeeded so embedding server is ready
-    const ragContext = await textInference.prepareRagContext(question)
-
-    openAiCompatibleChat.messageInput = question
-
-    // Generate response with RAG-enhanced system prompt (if RAG was used)
-    await openAiCompatibleChat.generate(ragContext.systemPrompt)
-
-    // Store RAG source information for the latest assistant message
-    const latestMessage = openAiCompatibleChat.messages?.[openAiCompatibleChat.messages.length - 1]
-    if (latestMessage && latestMessage.role === 'assistant' && ragContext.ragSourceText) {
-      // Store in both metadata (for persistence) and per-message state (for UI)
-      if (latestMessage.metadata) {
-        latestMessage.metadata.ragSource = ragContext.ragSourceText
-      }
-      ragSourcePerMessageId[latestMessage.id] = ragContext.ragSourceText
-      showRagSourcePerMessageId[latestMessage.id] = true
-    }
-
-    conversations.updateConversation(openAiCompatibleChat.messages, conversations.activeKey)
-
-    await nextTick()
-    if (chatPanel.value) {
-      chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
-        const el = item as HTMLElement
-        el.classList.remove('hidden')
-        el.removeEventListener('click', copyCode)
-        el.addEventListener('click', copyCode)
-      })
-    }
-    if (autoScrollEnabled.value) {
-      scrollToBottom(false)
-    }
-  } finally {
-  }
 }
 
 function handleScroll(e: Event) {

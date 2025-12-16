@@ -95,7 +95,27 @@ export class PathsManager {
     const embeddingModels: Model[] = []
     llmBackendTypes.forEach((backend) => {
       const dir = path.join(this.modelPaths.embedding, backend)
-      if (fs.existsSync(dir)) {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true })
+        return
+      }
+
+      if (backend === 'llamaCPP') {
+        // For llamaCPP: scan for .gguf files recursively (file-based models)
+        fs.readdirSync(dir, { encoding: 'utf-8', recursive: true })
+          .filter((pathName) => pathName.endsWith('.gguf'))
+          .map((filePath) => filePath.replace('---', '/').replace(/\\/g, '/'))
+          .forEach((modelPath) => {
+            embeddingModels.push({
+              name: modelPath,
+              downloaded: true,
+              type: 'embedding',
+              default: false,
+              backend: backend,
+            })
+          })
+      } else {
+        // For openVINO: scan directories (directory-based models)
         fs.readdirSync(dir).forEach((item) => {
           embeddingModels.push({
             name: item.replace('---', '/'),
@@ -105,8 +125,6 @@ export class PathsManager {
             backend: backend,
           })
         })
-      } else {
-        fs.mkdirSync(dir, { recursive: true })
       }
     })
     return embeddingModels

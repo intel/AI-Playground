@@ -74,7 +74,7 @@
     class="flex-auto flex items-center justify-center"
   >
     <installation-management
-      @close="concludeLoadingStateAfterManagedInstallationDialog"
+      @close="concludeLoadingState"
     ></installation-management>
   </main>
   <main
@@ -304,6 +304,7 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { useUIStore } from '@/assets/js/store/ui.ts'
+import { useSpeechToText } from '@/assets/js/store/speechToText'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -312,6 +313,7 @@ const demoMode = useDemoMode()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const uiStore = useUIStore()
+const speechToText = useSpeechToText()
 
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const showSettingBtn = ref<HTMLButtonElement>()
@@ -415,25 +417,14 @@ async function setInitalLoadingState() {
     return
   }
 
-  // Show UI immediately
-  // Note: Backends are now started automatically by the service registry in the main process
-  // This ensures they start regardless of frontend state or UI mode
-  globalSetup.loadingState = 'running'
-  await globalSetup.initSetup()
-
-  // Optional: Frontend can still trigger startup as a fallback or for manual restarts
-  // but it's no longer required since services start automatically
-  backendServices.startAllSetUpServicesInBackground()
+  await concludeLoadingState()
 }
 
-async function concludeLoadingStateAfterManagedInstallationDialog() {
-  // Always try to initialize, even if not all required are set up
-  // This allows the UI to be functional with whatever backends are available
+async function concludeLoadingState() {
   await globalSetup.initSetup()
   globalSetup.loadingState = 'running'
-  // Note: Backends are now started automatically by the service registry
-  // This call is kept as a fallback for manual restarts after installation
   backendServices.startAllSetUpServicesInBackground()
+  speechToText.initialize()
 }
 
 function miniWindow() {
