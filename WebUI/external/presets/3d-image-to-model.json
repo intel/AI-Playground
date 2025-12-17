@@ -12,24 +12,6 @@
   ],
   "variants": [
     {
-      "name": "Standard",
-      "overrides": {
-        "requiredModels": [
-          {
-            "type": "checkpoints",
-            "model": "tencent/Hunyuan3D-2/hunyuan3d-dit-v2-0/model.fp16.safetensors"
-          }
-        ],
-        "comfyUiApiWorkflow": {
-          "54": {
-            "inputs": {
-              "ckpt_name": "tencent---Hunyuan3D-2\\hunyuan3d-dit-v2-0\\model.fp16.safetensors"
-            }
-          }
-        }
-      }
-    },
-    {
       "name": "Preview",
       "overrides": {
         "requiredModels": [
@@ -67,6 +49,24 @@
             "defaultValue": "basic"
           }
         ]
+      }
+    },
+    {
+      "name": "Standard",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "tencent/Hunyuan3D-2/hunyuan3d-dit-v2-0/model.fp16.safetensors"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "54": {
+            "inputs": {
+              "ckpt_name": "tencent---Hunyuan3D-2\\hunyuan3d-dit-v2-0\\model.fp16.safetensors"
+            }
+          }
+        }
       }
     }
   ],
