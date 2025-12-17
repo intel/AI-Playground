@@ -207,47 +207,18 @@ export async function executeVisualizeObjectDetections(
       })),
     })
 
-    const lastUserMessage = messages.findLast((message) => message.role === 'user')
-    console.log('[visualizeObjectDetections] Last user message found', {
-      found: !!lastUserMessage,
-      contentType: typeof lastUserMessage?.content,
-      isArray: Array.isArray(lastUserMessage?.content),
-      content: lastUserMessage?.content,
-    })
-
-    if (typeof lastUserMessage?.content === 'string') {
-      console.error(
-        '[visualizeObjectDetections] Last user message content is a string, expected array',
+// Find the most recent image from any user message in the conversation
+    const imagePart = messages
+      .filter((msg) => msg.role === 'user' && Array.isArray(msg.content))
+      .flatMap((msg) => msg.content as Array<{ type: string; mediaType?: string }>)
+      .findLast(
+        (part): part is FilePart =>
+          part.type === 'file' && part.mediaType?.startsWith('image/') === true,
       )
-      throw new Error('Image is required')
-    }
 
-    if (
-      !lastUserMessage ||
-      !lastUserMessage.content.some(
-        (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
-      )
-    ) {
-      console.error('[visualizeObjectDetections] No image found in last user message', {
-        hasLastUserMessage: !!lastUserMessage,
-        contentParts: lastUserMessage?.content?.map((part) => ({
-          type: part.type,
-          mediaType: 'mediaType' in part ? part.mediaType : 'N/A',
-        })),
-      })
-      throw new Error('Image is required')
-    }
-
-    const imagePart = lastUserMessage.content.find(
-      (part) => part.type === 'file' && 'mediaType' in part && part.mediaType?.startsWith('image/'),
-    ) as FilePart | undefined
-
-    if (!imagePart || !imagePart.data) {
-      console.error('[visualizeObjectDetections] Image part or data not found', {
-        imagePart,
-        hasData: !!imagePart?.data,
-      })
-      throw new Error('Image data not found')
+    if (!imagePart?.data) {
+      console.error('[visualizeObjectDetections] No image found in conversation')
+      throw new Error('Image is required - no image found in conversation')
     }
 
     console.log('[visualizeObjectDetections] Image part found', {
@@ -369,4 +340,11 @@ export const visualizeObjectDetections = tool({
     })
     return await executeVisualizeObjectDetections(args, messages)
   },
+  toModelOutput: () => {
+    console.log('converting to model output');
+    return{
+    // Filter out the large annotated image - detections are already in tool call args
+    type: 'text',
+    value: 'Object detections visualized on image successfully',
+  }},
 })

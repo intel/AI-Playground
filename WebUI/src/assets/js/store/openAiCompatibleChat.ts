@@ -17,6 +17,7 @@ import { visualizeObjectDetections } from '../tools/visualizeObjectDetections'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
 import * as toast from '../toast'
+import { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider'
 
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
@@ -95,6 +96,17 @@ export const useOpenAiCompatibleChat = defineStore(
       let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
       let messages = convertToModelMessages(m.messages) //.filter((m) => m.role !== 'tool')
+
+      // Filter out annotatedImageUrl json from tool results
+      messages = messages.map((m) => {
+        if (m.role !== 'tool') return m
+        return { ...m, content: m.content.map((part) => {
+          if (part.toolName === 'visualizeObjectDetections' && part.output.type === 'json') {
+            return { ...part, output: { type: 'text', value: 'Object detections visualized on image successfully' } as LanguageModelV2ToolResultOutput }
+          }
+          return part
+        })}
+      })
 
       // Filter out image parts from messages if model doesn't support vision
       if (!textInference.modelSupportsVision) {
