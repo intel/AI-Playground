@@ -2,7 +2,7 @@
   "type": "chat",
   "name": "Chat with RAG",
   "description": "Retrieval-Augmented Generation chat. Add documents to provide context for more accurate and informed responses.",
-  "displayPriority": 96,
+  "displayPriority": 90,
   "tags": ["RAG", "Documents", "Context"],
   "backends": ["llamaCPP", "openVINO"],
   "systemPrompt": "You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context doesn't contain relevant information, say so.",
@@ -12,5 +12,6 @@
   "enableRAG": true,
   "requiredModels": []
 }
+
 
 

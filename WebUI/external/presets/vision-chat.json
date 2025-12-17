@@ -2,7 +2,7 @@
   "type": "chat",
   "name": "Vision",
   "description": "Use Vision Language Models with image understanding. Load images and ask questions about visual content.",
-  "displayPriority": 94,
+  "displayPriority": 60,
   "tags": ["Vision", "Image", "Multimodal", "VLM"],
   "backends": ["llamaCPP", "openVINO"],
   "systemPrompt": "You are a helpful AI assistant with vision capabilities. Analyze images carefully and provide detailed descriptions and answers about visual content.",
@@ -13,5 +13,6 @@
   "enableRAG": true,
   "requiredModels": []
 }
+
 
 

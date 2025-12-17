@@ -2,7 +2,7 @@
   "type": "chat",
   "name": "Agentic",
   "description": "Agentic AI with tool calling capabilities. Can generate images and perform various tasks through function calls.",
-  "displayPriority": 93,
+  "displayPriority": 50,
   "tags": ["Agentic", "Tools", "Function Calling"],
   "backends": ["llamaCPP", "openVINO"],
   "systemPrompt": "You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help users accomplish their goals.",
@@ -14,5 +14,6 @@
   "toolsEnabledByDefault": true,
   "requiredModels": []
 }
+
 
 
