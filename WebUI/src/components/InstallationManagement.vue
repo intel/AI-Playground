@@ -59,25 +59,95 @@
                 <p v-else>-</p>
               </td>
               <td class="text-center">
-                <div class="flex items-center justify-center gap-2">
-                  <span>{{ formatInstalledVersion(component.serviceName) }}</span>
-                  <TooltipProvider :delay-duration="100" v-if="hasVersionMismatch(component.serviceName)">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <button type="button" class="p-0.5">
-                          <span class="svg-icon i-info w-5 h-5 text-muted-foreground"></span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent class="bg-card border border-border text-foreground p-3 z-[200]">
-                        <p class="text-sm">
-                          The installed version {{ formatInstalledVersion(component.serviceName) }} is
-                          different from the latest tested version
-                          {{ formatTargetVersion(component.serviceName) }}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                <!-- AI Backend: Simple app version display -->
+                <div
+                  v-if="component.serviceName === 'ai-backend'"
+                  class="text-sm text-muted-foreground"
+                >
+                  {{ appVersion }}
                 </div>
+
+                <!-- Other backends: Version with tooltip -->
+                <TooltipProvider v-else :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <div class="flex flex-col items-center gap-0.5 text-sm cursor-help">
+                        <!-- Compact: Installed version + status icon -->
+                        <div class="flex items-center gap-1.5">
+                          <span
+                            v-if="component.isSetUp"
+                            :class="getVersionStatusClass(component.serviceName)"
+                            style="text-decoration: underline dotted 1px;"
+                          >
+                            {{ formatInstalledVersion(component.serviceName) }}
+                          </span>
+                          <span v-else
+                          class="underline decoration-dotted decoration-1"
+                          :class="getUninstalledStatusClass(component.serviceName)"
+                          >
+                            Not installed
+                          </span>
+                          <!-- Status icon -->
+                          <span
+                            v-if="component.isSetUp && isVersionUpToDate(component.serviceName)"
+                            class="text-green-500"
+                            title="Up to date"
+                          >
+                            ✓
+                          </span>
+                          <span
+                            v-else-if="component.isSetUp && hasVersionChange(component.serviceName)"
+                            :class="getVersionChangeClass(component.serviceName)"
+                            :title="isUpgrade(component.serviceName) ? 'Update available' : 'Downgrade pending'"
+                          >
+                            {{ getVersionChangeIcon(component.serviceName) }}
+                          </span>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      class="bg-card border border-border text-foreground p-3 z-[200]"
+                    >
+                      <!-- Expanded: All version details -->
+                      <div class="text-sm space-y-1">
+                        <div class="flex justify-between gap-4">
+                          <span class="text-muted-foreground">Installed:</span>
+                          <span>{{ formatInstalledVersion(component.serviceName) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                          <span class="text-muted-foreground">Latest Supported:</span>
+                          <span>{{ formatOfficialTarget(component.serviceName) }}</span>
+                        </div>
+                        <div
+                          v-if="hasUserOverride(component.serviceName)"
+                          class="flex justify-between gap-4 text-amber-400"
+                        >
+                          <span>Settings Override:</span>
+                          <span>{{ formatUserOverride(component.serviceName) }}</span>
+                        </div>
+                        <div class="border-t border-border pt-1 mt-1 flex justify-between gap-4">
+                          <span class="text-muted-foreground">Effective:</span>
+                          <span>
+                            {{ formatEffectiveTarget(component.serviceName) }}
+                            <span
+                              v-if="hasUserOverride(component.serviceName)"
+                              class="text-amber-400"
+                            >
+                              (override)
+                            </span>
+                          </span>
+                        </div>
+                        <!-- Hint when newer supported version is available -->
+                        <div
+                          v-if="hasUserOverride(component.serviceName) && hasNewerSupportedVersion(component.serviceName)"
+                          class="border-t border-border pt-1 mt-1 text-xs text-amber-400"
+                        >
+                          A newer supported version is available
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </td>
               <td :style="{ color: mapStatusToColor(component.status) }" class="">
                 <div class="flex items-center gap-2">
@@ -195,6 +265,7 @@
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
@@ -212,6 +283,10 @@ type ExtendedApiServiceInformation = ApiServiceInformation & {
 }
 
 const backendServices = useBackendServices()
+const globalSetup = useGlobalSetup()
+
+// App version for AI Backend display
+const appVersion = computed(() => globalSetup.state.version)
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
@@ -409,22 +484,128 @@ function formatTargetVersion(serviceName: BackendServiceName): string {
   return '-'
 }
 
-// Check if installed version differs from target version
-function hasVersionMismatch(serviceName: BackendServiceName): boolean {
+// Check if installed version matches target version (up to date)
+function isVersionUpToDate(serviceName: BackendServiceName): boolean {
+  // AI backend doesn't have version tracking
+  if (serviceName === 'ai-backend') return true
   const versionState = backendServices.versionState[serviceName]
   if (!versionState.target || !versionState.installed) return false
+  return !hasVersionChange(serviceName)
+}
+
+// Get the effective target version (what will be installed)
+function getEffectiveTarget(serviceName: BackendServiceName): { version?: string; releaseTag?: string } | undefined {
+  const vs = backendServices.versionState[serviceName]
+  return vs.uiOverride ?? vs.target
+}
+
+// Check if user has set a custom override
+function hasUserOverride(serviceName: BackendServiceName): boolean {
+  return !!backendServices.versionState[serviceName].uiOverride
+}
+
+// Check if official target is newer than user override
+function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
+  const vs = backendServices.versionState[serviceName]
+  if (!vs.uiOverride || !vs.target) return false
+  
+  const override = vs.uiOverride.version || ''
+  const target = vs.target.version || ''
+  
+  return target > override
+}
+
+// Check if there's any version change pending (installed differs from effective target)
+function hasVersionChange(serviceName: BackendServiceName): boolean {
+  // AI backend doesn't have version tracking
+  if (serviceName === 'ai-backend') return false
+  
+  const versionState = backendServices.versionState[serviceName]
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  if (!effectiveTarget || !versionState.installed) return false
 
   // For Ollama, compare both version and releaseTag
   if (serviceName === 'ollama-backend') {
-    const target = versionState.target
-    const installed = versionState.installed
     return (
-      installed.version !== target.version || installed.releaseTag !== target.releaseTag
+      versionState.installed.version !== effectiveTarget.version ||
+      versionState.installed.releaseTag !== effectiveTarget.releaseTag
     )
   }
 
   // For other backends, compare version only
-  return versionState.installed.version !== versionState.target.version
+  return versionState.installed.version !== effectiveTarget.version
+}
+
+// Compare versions to determine if it's an upgrade or downgrade
+// Returns true for upgrade, false for downgrade, null if can't determine
+function isUpgrade(serviceName: BackendServiceName): boolean | null {
+  const versionState = backendServices.versionState[serviceName]
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  if (!effectiveTarget?.version || !versionState.installed?.version) return null
+
+  const installed = versionState.installed.version
+  const target = effectiveTarget.version
+
+  // Simple string comparison - works for semver-like versions
+  // For more complex versioning, this could be enhanced
+  if (installed < target) return true
+  if (installed > target) return false
+  return null
+}
+
+// Get appropriate icon: ↑ for upgrade, ↓ for downgrade
+function getVersionChangeIcon(serviceName: BackendServiceName): string {
+  const upgrading = isUpgrade(serviceName)
+  if (upgrading === true) return '↑'
+  if (upgrading === false) return '↓'
+  return '⚠'
+}
+
+// Get appropriate class: green for upgrade, amber for downgrade
+function getVersionChangeClass(serviceName: BackendServiceName): string {
+  const upgrading = isUpgrade(serviceName)
+  if (upgrading === true) return 'text-amber-500'
+  return 'text-amber-500'
+}
+
+// Format official target version for display
+function formatOfficialTarget(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.target) {
+    return formatVersion(versionState.target)
+  }
+  return '-'
+}
+
+// Format user override version for display
+function formatUserOverride(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.uiOverride) {
+    return formatVersion(versionState.uiOverride)
+  }
+  return '-'
+}
+
+// Format effective target version for display
+function formatEffectiveTarget(serviceName: BackendServiceName): string {
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  return formatVersion(effectiveTarget)
+}
+
+// Get CSS class for version status
+function getVersionStatusClass(serviceName: BackendServiceName): string {
+  if (hasVersionChange(serviceName) || hasNewerSupportedVersion(serviceName)) {
+    return 'text-amber-500'
+  }
+  return 'text-foreground'
+}
+
+// Get CSS class for version status
+function getUninstalledStatusClass(serviceName: BackendServiceName): string {
+  if (hasVersionChange(serviceName) || hasNewerSupportedVersion(serviceName)) {
+    return 'text-amber-500'
+  }
+  return 'text-muted-foreground'
 }
 </script>
 

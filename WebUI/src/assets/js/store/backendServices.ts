@@ -233,7 +233,7 @@ export const useBackendServices = defineStore(
       }
 
       const versions = versionState.value[serviceName]
-      const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
+      const targetVersionSettings = versions.uiOverride ?? versions.target
       await updateServiceSettings({ serviceName, ...targetVersionSettings })
       window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()

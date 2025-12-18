@@ -242,6 +242,7 @@ export const useOpenAiCompatibleChat = defineStore(
     watch(
       () => conversations.activeKey,
       (activeKey) => {
+        if (!activeKey) return
         if (activeKey in chats) return
         const chat = new Chat<AipgUiMessage>({
           transport: new DefaultChatTransport({
@@ -257,6 +258,7 @@ export const useOpenAiCompatibleChat = defineStore(
           messages: conversations.conversationList[activeKey],
         })
       },
+      { immediate: true },
     )
 
     watch(
@@ -306,10 +308,15 @@ export const useOpenAiCompatibleChat = defineStore(
       console.log('ragContext', ragContext)
       temporarySystemPrompt.value = ragContext.systemPrompt
 
-      // 4. Set message input and send
+      // 4. Get chat instance and send message
+      const chat = chats[conversations.activeKey]
+      if (!chat) {
+        throw new Error(`No chat instance found for conversation: ${conversations.activeKey}`)
+      }
+
       messageInput.value = question
       try {
-        await chats[conversations.activeKey]?.sendMessage({
+        await chat.sendMessage({
           text: messageInput.value,
           files: fileInput.value ? fileInput.value : undefined,
           metadata: {
