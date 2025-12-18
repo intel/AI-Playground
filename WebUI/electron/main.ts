@@ -48,7 +48,7 @@ import {
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
 import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
-import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
+import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
 import { externalResourcesDir, getMediaDir } from './util.ts'
@@ -952,6 +952,11 @@ function initEventHandle() {
 
   // Preset management IPC handlers
   ipcMain.handle('reloadPresets', async () => {
+    try {
+      await filterPartnerPresets()
+    } catch (error) {
+      appLogger.error(`Failed to filter partner presets: ${error}`, 'electron-backend')
+    }
     const presetsDir = path.join(externalRes, 'presets')
     try {
       // Ensure presets directory exists
