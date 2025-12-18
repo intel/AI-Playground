@@ -30,7 +30,7 @@
   "requiredModels": [
     {
       "type": "checkpoints",
-      "model": "Lightricks/LTX-Video/ltxv-2b-0.9.6-distilled-04-25.safetensors"
+      "model": "Lightricks/LTX-Video/ltxv-2b-0.9.8-distilled-fp8.safetensors"
     },
     {
       "type": "clip",
@@ -186,7 +186,7 @@
     },
     "44": {
       "inputs": {
-        "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.6-distilled-04-25.safetensors"
+        "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.8-distilled-fp8.safetensors"
       },
       "class_type": "CheckpointLoaderSimple",
       "_meta": {
@@ -418,7 +418,7 @@
         "requiredModels": [
           {
             "type": "checkpoints",
-            "model": "Lightricks/LTX-Video/ltx-video-2b-v0.9.safetensors"
+            "model": "Lightricks/LTX-Video/ltxv-2b-0.9.8-distilled-fp8.safetensors"
           },
           {
             "type": "clip",
@@ -429,8 +429,8 @@
           {
             "type": "number",
             "label": "Total Frames",
-            "displayed": false,
-            "modifiable": false,
+            "displayed": true,
+            "modifiable": true,
             "defaultValue": 89,
             "step": 9,
             "min": 9,
@@ -495,7 +495,7 @@
           },
           "44": {
             "inputs": {
-              "ckpt_name": "Lightricks---LTX-Video\\ltx-video-2b-v0.9.safetensors"
+              "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.8-distilled-fp8.safetensors"
             },
             "class_type": "CheckpointLoaderSimple",
             "_meta": {
@@ -648,7 +648,7 @@
         "requiredModels": [
           {
             "type": "checkpoints",
-            "model": "Lightricks/LTX-Video/ltx-video-2b-v0.9.5.safetensors"
+            "model": "Lightricks/LTX-Video/ltxv-2b-0.9.8-distilled-fp8.safetensors"
           },
           {
             "type": "clip",
@@ -677,8 +677,8 @@
           {
             "type": "number",
             "label": "Total Frames",
-            "displayed": false,
-            "modifiable": false,
+            "displayed": true,
+            "modifiable": true,
             "defaultValue": 89,
             "step": 9,
             "min": 9,
@@ -732,7 +732,7 @@
           },
           "44": {
             "inputs": {
-              "ckpt_name": "Lightricks---LTX-Video\\ltx-video-2b-v0.9.5.safetensors"
+              "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.8-distilled-fp8.safetensors"
             },
             "class_type": "CheckpointLoaderSimple",
             "_meta": {
