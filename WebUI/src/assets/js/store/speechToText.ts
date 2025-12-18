@@ -7,7 +7,7 @@ import { useDialogStore } from './dialogs'
 import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast'
 
-export const WHISPER_MODEL_NAME = 'OpenVINO/distil-whisper-large-v3-int4-ov'
+export const WHISPER_MODEL_NAME = 'OpenVINO/whisper-base-int8-ov'
 
 export const useSpeechToText = defineStore(
   'speechToText',
