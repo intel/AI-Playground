@@ -1,11 +1,10 @@
 import { createOpenAI } from '@ai-sdk/openai'
-import { IMediaRecorder, MediaRecorder, register } from 'extendable-media-recorder'
-import { connect } from 'extendable-media-recorder-wav-encoder'
 import { experimental_transcribe as transcribe } from 'ai'
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useBackendServices } from './backendServices'
 import { WHISPER_MODEL_NAME } from './speechToText'
+import { convertToWav } from '@/lib/audioUtils'
 
 export interface AudioRecorderConfig {
   echoCancellation: boolean
@@ -38,7 +37,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     enableSilenceDetection: true,
   })
 
-  let mediaRecorder: IMediaRecorder | null = null
+  let mediaRecorder: MediaRecorder | null = null
   let audioChunks: Blob[] = []
   let timerInterval: number | null = null
   let stream: MediaStream | null = null
@@ -101,12 +100,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         startSilenceDetection()
       }
 
-      const mimeType = 'audio/wav'
-      try {
-        await register(await connect())
-      } catch (err) {
-        console.error('Failed to register WAV encoder:', err)
-      }
+      const mimeType = 'audio/webm;codecs=pcm'
       mediaRecorder = new MediaRecorder(stream, { mimeType })
       audioChunks = []
 
@@ -117,8 +111,10 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       }
 
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(audioChunks, { type: mimeType })
-        audioBlob.value = blob
+        const webmBlob = new Blob(audioChunks, { type: mimeType })
+        // Convert to WAV for better transcription compatibility
+        const wavBlob = await convertToWav(webmBlob)
+        audioBlob.value = wavBlob
 
         cleanupStream()
         await transcribeAudio()
