@@ -1017,8 +1017,18 @@ export const useTextInference = defineStore(
           ...selectedModels.value,
           ...(savedSettings.selectedModels as LlmBackendKV),
         }
-      } else if (preset.model) {
-        selectModel(backend.value, preset.model)
+      } else {
+        // Check for preferredModels (per-backend defaults)
+        const preferredModel = preset.preferredModels?.[backend.value]
+        if (preferredModel) {
+          // Only select if model exists in available models
+          const modelExists = llmModels.value.some(
+            (m) => m.name === preferredModel && m.type === backend.value,
+          )
+          if (modelExists) {
+            selectModel(backend.value, preferredModel)
+          }
+        }
       }
 
       // Load selected embedding models (per backend)

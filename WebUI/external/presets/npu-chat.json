@@ -5,6 +5,9 @@
   "displayPriority": 80,
   "tags": ["NPU", "AI Boost", "Power Efficient", "Intel"],
   "backends": ["openVINO"],
+  "preferredModels": {
+    "openVINO": "OpenVINO/Phi-3.5-mini-instruct-int4-cw-ov"
+  },
   "supportedDevices": ["NPU"],
   "systemPrompt": "You are a helpful AI assistant.",
   "contextSize": 4096,
@@ -14,4 +17,5 @@
   "lockDeviceToNpu": true,
   "requiredModels": []
 }
+
 
