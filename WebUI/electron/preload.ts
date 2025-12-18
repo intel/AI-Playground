@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('resolveBackendVersion', serviceName),
   getInstalledBackendVersion: (serviceName: string) =>
     ipcRenderer.invoke('getInstalledBackendVersion', serviceName),
+  getGitHubRepoUrl: () => ipcRenderer.invoke('getGitHubRepoUrl'),
   openDevTools: () => ipcRenderer.send('openDevTools'),
   openUrl: (url: string) => ipcRenderer.send('openUrl', url),
   getLocaleSettings: () => ipcRenderer.invoke('getLocaleSettings'),

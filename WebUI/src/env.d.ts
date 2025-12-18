@@ -43,6 +43,7 @@ type electronAPI = {
   getInstalledBackendVersion(
     serviceName: string,
   ): Promise<{ releaseTag?: string; version?: string } | undefined>
+  getGitHubRepoUrl(): Promise<string>
   openDevTools(): void
   openUrl(url: string): void
   changeWindowMessageFilter(): void

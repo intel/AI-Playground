@@ -235,29 +235,13 @@
         </p>
         <p>
           AI Playground version: v{{ productVersion }}
-          <a
-            href="https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf"
-            target="_blank"
-            class="text-primary"
-          >
-            User Guide</a
-          >
+          <a :href="userGuideUrl" target="_blank" class="text-primary"> User Guide</a>
 
-          <a
-            href="https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md"
-            target="_blank"
-            class="text-primary"
-          >
+          <a :href="noticesUrl" target="_blank" class="text-primary">
             | Important Notices and Disclaimers</a
           >
 
-          <a
-            href="https://github.com/intel/ai-playground/blob/main/LICENSE"
-            target="_blank"
-            class="text-primary"
-          >
-            | Licenses</a
-          >
+          <a :href="licenseUrl" target="_blank" class="text-primary"> | Licenses</a>
         </p>
       </div>
       <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
@@ -295,7 +279,7 @@ import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
 import WorkflowResult from '@/views/WorkflowResult.vue'
 import Chat from '@/views/Chat.vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
@@ -334,6 +318,13 @@ const showSpecificSettings = ref(false)
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
 const debugToolsEnabled = window.envVars.debugToolsEnabled
+
+const gitHubRepoUrl = ref('https://github.com/intel/ai-playground/blob/main/')
+const userGuideUrl = computed(
+  () => `${gitHubRepoUrl.value}AI%20Playground%20Users%20Guide.pdf`,
+)
+const noticesUrl = computed(() => `${gitHubRepoUrl.value}notices-disclaimers.md`)
+const licenseUrl = computed(() => `${gitHubRepoUrl.value}LICENSE`)
 
 const mode = useColorMode()
 mode.value = 'dark'
@@ -379,7 +370,10 @@ onBeforeMount(async () => {
   await setInitalLoadingState()
 })
 
-onMounted(() => {
+onMounted(async () => {
+  // Fetch dynamic GitHub repo URL for footer links
+  gitHubRepoUrl.value = await window.electronAPI.getGitHubRepoUrl()
+
   // Apply theme class to document root for CSS variables
   watch(
     () => theme.active,

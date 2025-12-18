@@ -49,7 +49,7 @@ import {
 } from './subprocesses/apiServiceRegistry'
 import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
 import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
-import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
+import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
@@ -1082,6 +1082,10 @@ function initEventHandle() {
   // Version management IPC handlers for frontend store integration
   ipcMain.handle('resolveBackendVersion', async (_event, serviceName: BackendServiceName) => {
     return await resolveBackendVersion(serviceName, settings)
+  })
+
+  ipcMain.handle('getGitHubRepoUrl', () => {
+    return getGitHubRepoUrl(settings)
   })
 
   ipcMain.handle('getInstalledBackendVersion', async (_event, serviceName: BackendServiceName) => {
