@@ -521,10 +521,7 @@ function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
 
 // Normalize version for comparison (strips subversion for OpenVINO)
 // OpenVINO versions: 2025.4.0.0rc3 -> 2025.4.0 (only compare first 3 parts)
-function normalizeVersionForComparison(
-  serviceName: BackendServiceName,
-  version: string,
-): string {
+function normalizeVersionForComparison(serviceName: BackendServiceName, version: string): string {
   if (serviceName === 'openvino-backend') {
     // Extract first 3 version components (YYYY.major.minor)
     const parts = version.split('.')
@@ -555,10 +552,7 @@ function hasVersionChange(serviceName: BackendServiceName): boolean {
     serviceName,
     versionState.installed.version || '',
   )
-  const targetNorm = normalizeVersionForComparison(
-    serviceName,
-    effectiveTarget.version || '',
-  )
+  const targetNorm = normalizeVersionForComparison(serviceName, effectiveTarget.version || '')
 
   return installedNorm !== targetNorm
 }
@@ -571,10 +565,7 @@ function isUpgrade(serviceName: BackendServiceName): boolean | null {
   if (!effectiveTarget?.version || !versionState.installed?.version) return null
 
   // Normalize versions for comparison (handles OpenVINO subversions)
-  const installed = normalizeVersionForComparison(
-    serviceName,
-    versionState.installed.version,
-  )
+  const installed = normalizeVersionForComparison(serviceName, versionState.installed.version)
   const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
 
   // Simple string comparison - works for semver-like versions

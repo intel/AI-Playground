@@ -1104,7 +1104,11 @@ export class OpenVINOBackendService implements ApiService {
     return modelDir
   }
 
-  private async waitForServerReady(healthUrl: string, process: ChildProcess, maxAttempts = 120): Promise<void> {
+  private async waitForServerReady(
+    healthUrl: string,
+    process: ChildProcess,
+    maxAttempts = 120,
+  ): Promise<void> {
     const delayMs = 1000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {

@@ -131,10 +131,7 @@ const isHashMismatchError = (errorMessage: string): boolean => {
   return /hash mismatch/i.test(errorMessage)
 }
 
-export const installBackend = async (
-  backend: string,
-  onCacheCorruptionDetected?: () => void,
-) => {
+export const installBackend = async (backend: string, onCacheCorruptionDetected?: () => void) => {
   const logger = loggerFor(`uv.sync.${backend}`)
   await assertUv(logger)
   const uvCommand = ['sync', '--directory', aipgBaseDir, '--project', backend]

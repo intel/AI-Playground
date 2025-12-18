@@ -242,10 +242,7 @@ function getEffectiveTarget(
 
 // Normalize version for comparison (strips subversion for OpenVINO)
 // OpenVINO versions: 2025.4.0.0rc3 -> 2025.4.0 (only compare first 3 parts)
-function normalizeVersionForComparison(
-  serviceName: BackendServiceName,
-  version: string,
-): string {
+function normalizeVersionForComparison(serviceName: BackendServiceName, version: string): string {
   if (serviceName === 'openvino-backend') {
     const parts = version.split('.')
     return parts.slice(0, 3).join('.')

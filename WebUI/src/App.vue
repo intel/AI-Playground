@@ -320,9 +320,7 @@ const productVersion = window.envVars.productVersion
 const debugToolsEnabled = window.envVars.debugToolsEnabled
 
 const gitHubRepoUrl = ref('https://github.com/intel/ai-playground/blob/main/')
-const userGuideUrl = computed(
-  () => `${gitHubRepoUrl.value}AI%20Playground%20Users%20Guide.pdf`,
-)
+const userGuideUrl = computed(() => `${gitHubRepoUrl.value}AI%20Playground%20Users%20Guide.pdf`)
 const noticesUrl = computed(() => `${gitHubRepoUrl.value}notices-disclaimers.md`)
 const licenseUrl = computed(() => `${gitHubRepoUrl.value}LICENSE`)
 
