@@ -57,7 +57,6 @@
     "sudo-prompt": "^9.2.1",
     "tailwind-merge": "^3.3.1",
     "three": "^0.181.1",
-    "ts-ebml": "^3.0.2",
     "uint8array-extras": "^1.5.0",
     "unplugin-auto-import": "^20.2.0",
     "vee-validate": "^4.15.1",

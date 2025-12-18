@@ -212,6 +212,11 @@
     "maxContextSize": 512
   },
   {
+    "name": "OpenVINO/bge-base-en-v1.5-fp16-ov",
+    "type": "embedding",
+    "backend": "openVINO"
+  },
+  {
     "name": "nomic-ai/nomic-embed-text-v1-GGUF/nomic-embed-text-v1.Q8_0.gguf",
     "type": "embedding",
     "backend": "llamaCPP",
@@ -231,11 +236,6 @@
   },
   {
     "name": "OpenVINO/Qwen3-Embedding-0.6B-int8-ov",
-    "type": "embedding",
-    "backend": "openVINO"
-  },
-  {
-    "name": "OpenVINO/bge-base-en-v1.5-fp16-ov",
     "type": "embedding",
     "backend": "openVINO"
   },

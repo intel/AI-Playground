@@ -240,6 +240,19 @@ function getEffectiveTarget(
   return vs.uiOverride ?? vs.target
 }
 
+// Normalize version for comparison (strips subversion for OpenVINO)
+// OpenVINO versions: 2025.4.0.0rc3 -> 2025.4.0 (only compare first 3 parts)
+function normalizeVersionForComparison(
+  serviceName: BackendServiceName,
+  version: string,
+): string {
+  if (serviceName === 'openvino-backend') {
+    const parts = version.split('.')
+    return parts.slice(0, 3).join('.')
+  }
+  return version
+}
+
 // Check if there's any version change pending (installed differs from effective target)
 function hasVersionChange(serviceName: BackendServiceName): boolean {
   if (serviceName === 'ai-backend') return false
@@ -255,7 +268,14 @@ function hasVersionChange(serviceName: BackendServiceName): boolean {
     )
   }
 
-  return versionState.installed.version !== effectiveTarget.version
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installedNorm = normalizeVersionForComparison(
+    serviceName,
+    versionState.installed.version || '',
+  )
+  const targetNorm = normalizeVersionForComparison(serviceName, effectiveTarget.version || '')
+
+  return installedNorm !== targetNorm
 }
 
 // Compare versions to determine if it's an upgrade or downgrade
@@ -264,8 +284,9 @@ function isUpgrade(serviceName: BackendServiceName): boolean | null {
   const effectiveTarget = getEffectiveTarget(serviceName)
   if (!effectiveTarget?.version || !versionState.installed?.version) return null
 
-  const installed = versionState.installed.version
-  const target = effectiveTarget.version
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installed = normalizeVersionForComparison(serviceName, versionState.installed.version)
+  const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
 
   if (installed < target) return true
   if (installed > target) return false

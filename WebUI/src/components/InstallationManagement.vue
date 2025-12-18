@@ -273,7 +273,6 @@
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
@@ -291,10 +290,12 @@ type ExtendedApiServiceInformation = ApiServiceInformation & {
 }
 
 const backendServices = useBackendServices()
-const globalSetup = useGlobalSetup()
 
-// App version for AI Backend display
-const appVersion = computed(() => globalSetup.state.version)
+// App version for AI Backend display (fetched directly to avoid timing issues with globalSetup.initSetup)
+const appVersion = ref('...')
+window.electronAPI.getInitSetting().then((data) => {
+  appVersion.value = data.version
+})
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
@@ -512,10 +513,24 @@ function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
   const vs = backendServices.versionState[serviceName]
   if (!vs.uiOverride || !vs.target) return false
 
-  const override = vs.uiOverride.version || ''
-  const target = vs.target.version || ''
+  const override = normalizeVersionForComparison(serviceName, vs.uiOverride.version || '')
+  const target = normalizeVersionForComparison(serviceName, vs.target.version || '')
 
   return target > override
+}
+
+// Normalize version for comparison (strips subversion for OpenVINO)
+// OpenVINO versions: 2025.4.0.0rc3 -> 2025.4.0 (only compare first 3 parts)
+function normalizeVersionForComparison(
+  serviceName: BackendServiceName,
+  version: string,
+): string {
+  if (serviceName === 'openvino-backend') {
+    // Extract first 3 version components (YYYY.major.minor)
+    const parts = version.split('.')
+    return parts.slice(0, 3).join('.')
+  }
+  return version
 }
 
 // Check if there's any version change pending (installed differs from effective target)
@@ -535,8 +550,17 @@ function hasVersionChange(serviceName: BackendServiceName): boolean {
     )
   }
 
-  // For other backends, compare version only
-  return versionState.installed.version !== effectiveTarget.version
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installedNorm = normalizeVersionForComparison(
+    serviceName,
+    versionState.installed.version || '',
+  )
+  const targetNorm = normalizeVersionForComparison(
+    serviceName,
+    effectiveTarget.version || '',
+  )
+
+  return installedNorm !== targetNorm
 }
 
 // Compare versions to determine if it's an upgrade or downgrade
@@ -546,11 +570,14 @@ function isUpgrade(serviceName: BackendServiceName): boolean | null {
   const effectiveTarget = getEffectiveTarget(serviceName)
   if (!effectiveTarget?.version || !versionState.installed?.version) return null
 
-  const installed = versionState.installed.version
-  const target = effectiveTarget.version
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installed = normalizeVersionForComparison(
+    serviceName,
+    versionState.installed.version,
+  )
+  const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
 
   // Simple string comparison - works for semver-like versions
-  // For more complex versioning, this could be enhanced
   if (installed < target) return true
   if (installed > target) return false
   return null
