@@ -832,7 +832,7 @@ export class OpenVINOBackendService implements ApiService {
         '--task',
         'embeddings',
         '--pooling',
-        'LAST',
+        'CLS',
       ]
 
       this.appLogger.info(`OVMS embedding launch args: ${args.join(' ')}`, this.name)

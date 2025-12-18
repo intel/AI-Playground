@@ -235,11 +235,6 @@
     "maxContextSize": 32768
   },
   {
-    "name": "OpenVINO/Qwen3-Embedding-0.6B-int8-ov",
-    "type": "embedding",
-    "backend": "openVINO"
-  },
-  {
     "name": "deepseek-r1:1.5b",
     "type": "ollama",
     "supportsToolCalling": true,
