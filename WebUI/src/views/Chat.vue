@@ -10,7 +10,7 @@
     </svg>
   </button>
   <div
-    v-if="(activeConversation && activeConversation.length > 0) || openAiCompatibleChat.processing"
+    v-if="(activeConversation && activeConversation.length > 0) || openAiCompatibleChat.processing || textInference.isPreparingBackend"
     id="chatPanel"
     ref="chatPanel"
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 relative"

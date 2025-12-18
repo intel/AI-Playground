@@ -1022,7 +1022,7 @@ export class OpenVINOBackendService implements ApiService {
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(healthUrl, childProcess)
+      await this.waitForServerReady(healthUrl, childProcess, 600)
       ovmsProcess.isReady = true
 
       this.ovmsTranscriptionProcess = ovmsProcess
@@ -1104,8 +1104,7 @@ export class OpenVINOBackendService implements ApiService {
     return modelDir
   }
 
-  private async waitForServerReady(healthUrl: string, process: ChildProcess): Promise<void> {
-    const maxAttempts = 120
+  private async waitForServerReady(healthUrl: string, process: ChildProcess, maxAttempts = 120): Promise<void> {
     const delayMs = 1000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
