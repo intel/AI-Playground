@@ -228,6 +228,13 @@ export const useTextInference = defineStore(
       selectedEmbeddingModels.value[backend] = modelName
     }
 
+    // Get the currently selected device ID for the active backend
+    const getCurrentDeviceId = (): string | null => {
+      const serviceName = backendToService[backend.value] as BackendServiceName
+      const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+      return serviceInfo?.devices.find((d) => d.selected)?.id ?? null
+    }
+
     const backendToAipgBackendName = {
       openVINO: 'openvino',
       llamaCPP: 'llama_cpp',
@@ -307,7 +314,8 @@ export const useTextInference = defineStore(
         case 'backend-switch':
           return `Preparing ${textInferenceBackendDisplayName[currentBackend]} backend...`
         default:
-          return 'Preparing AI model...'
+          // Fallback for when needsBackendPreparation is false but we still show loading
+          return `Preparing ${textInferenceBackendDisplayName[currentBackend]} backend...`
       }
     })
 
@@ -319,19 +327,25 @@ export const useTextInference = defineStore(
 
     // Get max context size from current model
     const maxContextSizeFromModel = computed(() => {
-      const currentModel = llmModels.value.find((m) => m.active)
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
       return currentModel?.maxContextSize
     })
 
     // Check if the active model supports tool calling
     const modelSupportsToolCalling = computed(() => {
-      const currentModel = llmModels.value.find((m) => m.active)
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
       return currentModel?.supportsToolCalling === true
     })
 
     // Check if the active model supports vision
     const modelSupportsVision = computed(() => {
-      const currentModel = llmModels.value.find((m) => m.active)
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
       return currentModel?.supportsVision === true
     })
 
@@ -908,24 +922,19 @@ export const useTextInference = defineStore(
         }
       }
 
-      if (needsBackendPreparation.value) {
-        console.log('preparing backend due to', preparationReason.value)
+      // Always show loading bar for llamaCPP/openVINO when ensuring backend readiness
+      // This ensures consistent UX even when switching back to a previously-used backend
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         startBackendPreparation()
-
         try {
-          // Ensure backend is ready before inference
-          console.log('ensuring backend readiness')
           await ensureBackendReadiness()
-          // Complete preparation immediately after model is loaded
           completeBackendPreparation()
         } catch (error) {
           completeBackendPreparation() // Reset state on error
           throw error
         }
-      } else {
-        // Ensure backend is ready before inference (for non-preparation cases)
-        await ensureBackendReadiness()
       }
+      // Ollama manages its own model loading and doesn't need ensureBackendReadiness
 
       const backendToInferenceService = {
         llamaCPP: 'llamacpp-backend',
@@ -1012,6 +1021,31 @@ export const useTextInference = defineStore(
         })
 
         backend.value = runningBackend || preset.backends[0]
+      }
+
+      // Load device selection (for OpenVINO backend)
+      // Note: llamaCPP is GPU-only on target platform (Vulkan), so no device selection needed
+      if (backend.value === 'openVINO') {
+        const serviceName = backendToService[backend.value] as BackendServiceName
+        const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+
+        if (preset.lockDeviceToNpu) {
+          // NPU Chat: Force NPU selection (handled in prepareBackendIfNeeded)
+          // Don't override here - let the existing lockDeviceToNpu logic handle it
+        } else if (savedSettings.selectedDeviceId !== undefined) {
+          // Restore saved device preference
+          const savedDeviceId = savedSettings.selectedDeviceId as string
+          const deviceExists = serviceInfo?.devices.some((d) => d.id === savedDeviceId)
+          if (deviceExists) {
+            backendServices.selectDevice(serviceName, savedDeviceId)
+          }
+        } else {
+          // Default to GPU if no preference saved
+          const gpuDevice = serviceInfo?.devices.find((d) => d.id.includes('GPU'))
+          if (gpuDevice && !gpuDevice.selected) {
+            backendServices.selectDevice(serviceName, gpuDevice.id)
+          }
+        }
       }
 
       // Load selected models (per backend)
@@ -1149,12 +1183,37 @@ export const useTextInference = defineStore(
           backend: backend.value,
           selectedModels: { ...selectedModels.value },
           selectedEmbeddingModels: { ...selectedEmbeddingModels.value },
+          selectedDeviceId: getCurrentDeviceId(),
           maxTokens: maxTokens.value,
           contextSize: contextSize.value,
           temperature: temperature.value,
           systemPrompt: systemPrompt.value,
           metricsEnabled: metricsEnabled.value,
           toolsEnabled: toolsEnabled.value,
+        }
+      },
+      { deep: true },
+    )
+
+    // Watch for device changes to save per-preset
+    watch(
+      () => backendServices.info,
+      () => {
+        // Don't save if we're loading settings (prevents overwriting during preset switch)
+        if (isLoadingSettings) return
+
+        const settingsKey = getSettingsKey()
+        if (!settingsKey) return
+
+        // Only save device for OpenVINO backend (llamaCPP is GPU-only)
+        if (backend.value === 'openVINO') {
+          const currentDeviceId = getCurrentDeviceId()
+          if (currentDeviceId) {
+            settingsPerPreset.value[settingsKey] = {
+              ...settingsPerPreset.value[settingsKey],
+              selectedDeviceId: currentDeviceId,
+            }
+          }
         }
       },
       { deep: true },

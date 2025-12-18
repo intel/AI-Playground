@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
     ipcRenderer.on('serviceInfoUpdate', (_event, value) => callback(value)),
+  onShowToast: (callback: (data: { type: string; message: string }) => void) =>
+    ipcRenderer.on('show-toast', (_event, data) => callback(data)),
   ensureBackendReadiness: (
     serviceName: string,
     llmModelName: string,

@@ -287,7 +287,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
         // Install dependencies
         this.appLogger.info('Installing ComfyUI dependencies using bundled uv', this.name)
-        await installBackend(this.serviceDir)
+        await installBackend(this.serviceDir, () => {
+          this.win.webContents.send('show-toast', {
+            type: 'warning',
+            message:
+              'UV cache corruption detected. Retrying installation without cache. This may take longer. You can manually clear the cache at %LOCALAPPDATA%/uv/cache',
+          })
+        })
       }
     }
 

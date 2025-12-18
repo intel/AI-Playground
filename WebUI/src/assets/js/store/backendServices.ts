@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import z from 'zod'
 
 const backends = [
@@ -59,6 +59,10 @@ export const useBackendServices = defineStore(
       'openvino-backend': null,
     })
 
+    // User's version overrides (persisted)
+    const versionOverrides = ref<Partial<Record<BackendServiceName, BackendVersion>>>({})
+
+    // Full version state (not persisted - computed from live data + overrides)
     const versionState = ref<BackendVersionState>({
       'ai-backend': {},
       'comfyui-backend': {},
@@ -66,6 +70,29 @@ export const useBackendServices = defineStore(
       'ollama-backend': {},
       'openvino-backend': {},
     })
+
+    // Sync persisted overrides into versionState on init
+    backends.forEach((serviceName) => {
+      if (versionOverrides.value[serviceName]) {
+        versionState.value[serviceName].uiOverride = versionOverrides.value[serviceName]
+      }
+    })
+
+    // Watch for changes to uiOverride and sync to persisted overrides
+    watch(
+      () => backends.map((b) => versionState.value[b].uiOverride),
+      () => {
+        backends.forEach((serviceName) => {
+          const override = versionState.value[serviceName].uiOverride
+          if (override) {
+            versionOverrides.value[serviceName] = override
+          } else {
+            delete versionOverrides.value[serviceName]
+          }
+        })
+      },
+      { deep: true },
+    )
 
     backends.forEach((serviceName) => {
       window.electronAPI.resolveBackendVersion(serviceName).then((version) => {
@@ -432,6 +459,7 @@ export const useBackendServices = defineStore(
       initalStartupRequestComplete,
       lastUsedBackend,
       versionState,
+      versionOverrides,
       lastSelectedDeviceIdPerBackend,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
@@ -457,7 +485,7 @@ export const useBackendServices = defineStore(
   },
   {
     persist: {
-      pick: ['versionState', 'lastSelectedDeviceIdPerBackend'],
+      pick: ['versionOverrides', 'lastSelectedDeviceIdPerBackend'],
     },
   },
 )

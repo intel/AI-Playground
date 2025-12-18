@@ -303,6 +303,7 @@ import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { useUIStore } from '@/assets/js/store/ui.ts'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
+import * as toast from '@/assets/js/toast'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -393,6 +394,19 @@ onMounted(() => {
     },
     { immediate: true },
   )
+
+  // Listen for toast messages from main process
+  window.electronAPI.onShowToast((data) => {
+    if (data.type === 'warning') {
+      toast.warning(data.message, { duration: 10000 })
+    } else if (data.type === 'error') {
+      toast.error(data.message)
+    } else if (data.type === 'success') {
+      toast.success(data.message)
+    } else {
+      toast.show(data.message)
+    }
+  })
 })
 
 async function setInitalLoadingState() {

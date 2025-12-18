@@ -124,13 +124,36 @@ const uvWithJsonOutput = (uvCommand: string[], logger: ReturnType<typeof loggerF
     },
   )
 
-export const installBackend = async (backend: string) => {
+/**
+ * Detect if an error message indicates a UV cache hash mismatch
+ */
+const isHashMismatchError = (errorMessage: string): boolean => {
+  return /hash mismatch/i.test(errorMessage)
+}
+
+export const installBackend = async (
+  backend: string,
+  onCacheCorruptionDetected?: () => void,
+) => {
   const logger = loggerFor(`uv.sync.${backend}`)
   await assertUv(logger)
   const uvCommand = ['sync', '--directory', aipgBaseDir, '--project', backend]
   logger.info(`Installing backend: ${backend} with ${JSON.stringify(uvCommand)}`)
 
-  return uv(uvCommand, logger)
+  try {
+    return await uv(uvCommand, logger)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    if (isHashMismatchError(errorMessage)) {
+      logger.warn('Hash mismatch detected in UV cache, retrying with --no-cache')
+      onCacheCorruptionDetected?.()
+      const noCacheCommand = [...uvCommand, '--no-cache']
+      return await uv(noCacheCommand, logger)
+    }
+
+    throw error
+  }
 }
 
 export const checkBackend = async (backend: string) => {

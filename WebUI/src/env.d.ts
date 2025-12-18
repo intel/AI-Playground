@@ -111,6 +111,7 @@ type electronAPI = {
   setUpService(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
+  onShowToast(callback: (data: { type: string; message: string }) => void): void
   ensureBackendReadiness(
     serviceName: string,
     llmModelName: string,
