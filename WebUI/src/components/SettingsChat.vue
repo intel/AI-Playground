@@ -17,10 +17,7 @@
 
       <div class="flex flex-col gap-4">
         <!-- Backend selector - only shown when multiple backends are available -->
-        <div
-          v-if="!isBackendLocked"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
-        >
+        <div v-if="!isBackendLocked" class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">Backend</Label>
           <drop-down-new
             title="Select Backend"

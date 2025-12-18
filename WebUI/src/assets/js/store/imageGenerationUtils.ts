@@ -348,7 +348,9 @@ export function findClosestResolutionInConfig(
   if (allResolutions.length === 0) return null
 
   let bestMatch = allResolutions[0]
-  let minDiff = Math.abs(allResolutions[0].width - targetWidth) + Math.abs(allResolutions[0].height - targetHeight)
+  let minDiff =
+    Math.abs(allResolutions[0].width - targetWidth) +
+    Math.abs(allResolutions[0].height - targetHeight)
 
   for (const res of allResolutions) {
     const diff = Math.abs(res.width - targetWidth) + Math.abs(res.height - targetHeight)

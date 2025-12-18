@@ -207,7 +207,7 @@ export async function executeVisualizeObjectDetections(
       })),
     })
 
-// Find the most recent image from any user message in the conversation
+    // Find the most recent image from any user message in the conversation
     const imagePart = messages
       .filter((msg) => msg.role === 'user' && Array.isArray(msg.content))
       .flatMap((msg) => msg.content as Array<{ type: string; mediaType?: string }>)
@@ -341,10 +341,11 @@ export const visualizeObjectDetections = tool({
     return await executeVisualizeObjectDetections(args, messages)
   },
   toModelOutput: () => {
-    console.log('converting to model output');
-    return{
-    // Filter out the large annotated image - detections are already in tool call args
-    type: 'text',
-    value: 'Object detections visualized on image successfully',
-  }},
+    console.log('converting to model output')
+    return {
+      // Filter out the large annotated image - detections are already in tool call args
+      type: 'text',
+      value: 'Object detections visualized on image successfully',
+    }
+  },
 })

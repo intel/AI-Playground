@@ -126,7 +126,11 @@ watch(
   nonQueuedImages,
   async (images) => {
     for (const image of images) {
-      if (image.type === 'image' && image.state === 'done' && !nsfwBlockedImages.value.has(image.id)) {
+      if (
+        image.type === 'image' &&
+        image.state === 'done' &&
+        !nsfwBlockedImages.value.has(image.id)
+      ) {
         // Check if already marked in the image object
         if (image.isNsfwBlocked !== undefined) {
           if (image.isNsfwBlocked) {

@@ -36,7 +36,7 @@ export const useModels = defineStore(
     const backendServices = useBackendServices()
 
     const downloadList = ref<DownloadModelParam[]>([])
-    
+
     // Model paths - single source of truth for model directory locations
     const paths = ref<ModelPaths>({
       ggufLLM: '',
@@ -130,15 +130,15 @@ export const useModels = defineStore(
     function joinPath(basePath: string, subPath: string): string {
       if (!basePath) return subPath
       if (!subPath) return basePath
-      
+
       // Normalize separators to forward slashes for consistency
       const normalizedBase = basePath.replace(/\\/g, '/')
       const normalizedSub = subPath.replace(/\\/g, '/')
-      
+
       // Remove trailing slash from base and leading slash from sub
       const cleanBase = normalizedBase.replace(/\/+$/, '')
       const cleanSub = normalizedSub.replace(/^\/+/, '')
-      
+
       return `${cleanBase}/${cleanSub}`
     }
 
@@ -150,13 +150,13 @@ export const useModels = defineStore(
      */
     function getModelPath(type: string, backend: string, modelPaths?: ModelPaths): string {
       const pathsToUse = modelPaths || paths.value
-      
+
       // Map ComfyUI model types
       if (backend === 'comfyui') {
         // ComfyUI types map directly to ModelPaths keys (checkpoints, vae, lora, etc.)
         return pathsToUse[type] || pathsToUse['checkpoints'] || ''
       }
-      
+
       // Map LLM backends
       if (backend === 'llama_cpp') {
         if (type === 'ggufLLM') {
@@ -171,7 +171,7 @@ export const useModels = defineStore(
           return ''
         }
       }
-      
+
       if (backend === 'openvino') {
         if (type === 'openvinoLLM') {
           return pathsToUse.openvinoLLM || ''
@@ -189,7 +189,7 @@ export const useModels = defineStore(
           return pathsToUse['STT'] || ''
         }
       }
-      
+
       // Fallback: try to find by type directly
       return pathsToUse[type] || ''
     }
@@ -216,9 +216,7 @@ export const useModels = defineStore(
      * @param modelName - The model name (e.g., 'OpenVINO/whisper-large-v3-int4-ov')
      * @returns Promise<DownloadModelParam[]> - Array with model if missing, empty if exists
      */
-    async function getMissingTranscriptionModel(
-      modelName: string,
-    ): Promise<DownloadModelParam[]> {
+    async function getMissingTranscriptionModel(modelName: string): Promise<DownloadModelParam[]> {
       const exists = await checkTranscriptionModelExists(modelName)
       if (exists) {
         return []
@@ -234,14 +232,14 @@ export const useModels = defineStore(
         },
       ]
     }
-    
+
     /**
      * Initialize model paths from Electron
      */
     function initPaths(modelPaths: ModelPaths) {
       paths.value = modelPaths
     }
-    
+
     /**
      * Update model paths and sync with Electron
      */
@@ -250,7 +248,7 @@ export const useModels = defineStore(
       paths.value = newPaths
       return modelLists
     }
-    
+
     /**
      * Restore default model paths
      */
@@ -289,7 +287,7 @@ export const useModels = defineStore(
       const parsedResponse = (await response.json()) as ApiResponse & {
         data: CheckModelAlreadyLoadedResult[]
       }
-      
+
       // Backend doesn't return model_path in response, so we need to add it back
       return parsedResponse.data.map((result, index) => ({
         ...result,

@@ -64,9 +64,7 @@
         </div>
         <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
-          <div
-            class="flex flex-col gap-3 max-w-[90%] text-wrap break-words"
-          >
+          <div class="flex flex-col gap-3 max-w-[90%] text-wrap break-words">
             <div class="flex items-center gap-2">
               <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_AI_NAME }}
@@ -362,14 +360,15 @@ watch(
       nextTick(() => scrollToBottom())
     }
     nextTick(() => {
-    if (chatPanel.value) {
-      chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
-        const el = item as HTMLElement
-        el.classList.remove('hidden')
-        el.removeEventListener('click', copyCode)
-        el.addEventListener('click', copyCode)
-      })
-    }})
+      if (chatPanel.value) {
+        chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
+          const el = item as HTMLElement
+          el.classList.remove('hidden')
+          el.removeEventListener('click', copyCode)
+          el.addEventListener('click', copyCode)
+        })
+      }
+    })
   },
   { deep: true, immediate: true },
 )
@@ -398,7 +397,7 @@ function handleCancel() {
   }
   // Also cancel any ongoing ComfyUI inference from tool calls
   comfyUi.stop()
-  
+
   // Immediately reset prompt state to unblock UI
   promptStore.promptSubmitted = false
 }
@@ -626,9 +625,9 @@ watch(
 </script>
 
 <style>
-  .shiki {
-    padding-left: 0.5rem;
-    border-bottom-left-radius: calc(var(--radius) - 2px);
-    border-bottom-right-radius: calc(var(--radius) - 2px);
-  }
+.shiki {
+  padding-left: 0.5rem;
+  border-bottom-left-radius: calc(var(--radius) - 2px);
+  border-bottom-right-radius: calc(var(--radius) - 2px);
+}
 </style>

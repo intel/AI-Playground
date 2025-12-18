@@ -29,18 +29,10 @@
           {{ languages.COM_LOAD_IMAGE }}
         </p>
       </div>
-      <img
-        v-else
-        :src="displayImageUrl"
-        alt="Image"
-        class="w-64 py-4 object-scale-down"
-      />
+      <img v-else :src="displayImageUrl" alt="Image" class="w-64 py-4 object-scale-down" />
     </div>
     <!-- Show Original hint with tooltip -->
-    <div
-      v-if="hasImage && dialogStore.maskEditorIsModified"
-      class="flex justify-center"
-    >
+    <div v-if="hasImage && dialogStore.maskEditorIsModified" class="flex justify-center">
       <TooltipProvider>
         <Tooltip :delay-duration="0">
           <TooltipTrigger as-child>
@@ -93,12 +85,7 @@ import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 import { useDropZone } from '@vueuse/core'
 import { useDialogStore } from '@/assets/js/store/dialogs'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const props = defineProps<{
   imageUrlRef: WritableComputedRef<string>
@@ -180,4 +167,3 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
   }
 }
 </script>
-

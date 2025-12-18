@@ -42,7 +42,7 @@ import { onMounted, computed } from 'vue'
 import DropDownNew from './DropDownNew.vue'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useAudioRecorder } from "../assets/js/store/audioRecorder"
+import { useAudioRecorder } from '../assets/js/store/audioRecorder'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 
 const audioRecorder = useAudioRecorder()
@@ -59,9 +59,8 @@ const items = computed(() =>
     label: `${d.label || 'Unknown Mic'}`,
     value: d.deviceId,
     active: true,
-  }))
+  })),
 )
-
 
 async function onSelect(deviceId: string) {
   audioRecorder.updateSelectedDevice(deviceId)
@@ -69,7 +68,7 @@ async function onSelect(deviceId: string) {
 
 function toggleSilenceDetection(value: boolean | 'indeterminate') {
   audioRecorder.updateConfig({
-    enableSilenceDetection: value === true
+    enableSilenceDetection: value === true,
   })
 }
 

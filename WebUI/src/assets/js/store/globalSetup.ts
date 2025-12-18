@@ -23,12 +23,12 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
   async function initSetup() {
     const setupData = await window.electronAPI.getInitSetting()
     const apiServiceInformation = await window.electronAPI.getServices()
-    
+
     // Initialize model paths in models store
     const modelsStore = useModels()
     modelsStore.initPaths(setupData.modelPaths)
     models.value = setupData.modelLists
-    
+
     state.isAdminExec = setupData.isAdminExec
     state.version = setupData.version
     const aiBackendInfo = apiServiceInformation.find((item) => item.serviceName === 'ai-backend')

@@ -316,7 +316,10 @@ export class LlamaCppBackendService implements ApiService {
       })
       // Parse output like "version: 7278 (03d9a77b8)"
       const versionMatch = result.stderr.match(/version:\s*(\d+)\s*\([^)]+\)/m)
-      this.appLogger.info(`getInstalledVersion: ${result.stdout}, ${result.stderr}, ${versionMatch}`, this.name)
+      this.appLogger.info(
+        `getInstalledVersion: ${result.stdout}, ${result.stderr}, ${versionMatch}`,
+        this.name,
+      )
       if (versionMatch && versionMatch[1]) {
         return { version: `b${versionMatch[1]}` }
       }
@@ -645,7 +648,8 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      const args = ['--embedding',
+      const args = [
+        '--embedding',
         '--model',
         modelPath,
         '--port',

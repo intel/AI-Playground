@@ -77,13 +77,14 @@
                           <span
                             v-if="component.isSetUp"
                             :class="getVersionStatusClass(component.serviceName)"
-                            style="text-decoration: underline dotted 1px;"
+                            style="text-decoration: underline dotted 1px"
                           >
                             {{ formatInstalledVersion(component.serviceName) }}
                           </span>
-                          <span v-else
-                          class="underline decoration-dotted decoration-1"
-                          :class="getUninstalledStatusClass(component.serviceName)"
+                          <span
+                            v-else
+                            class="underline decoration-dotted decoration-1"
+                            :class="getUninstalledStatusClass(component.serviceName)"
                           >
                             Not installed
                           </span>
@@ -98,7 +99,11 @@
                           <span
                             v-else-if="component.isSetUp && hasVersionChange(component.serviceName)"
                             :class="getVersionChangeClass(component.serviceName)"
-                            :title="isUpgrade(component.serviceName) ? 'Update available' : 'Downgrade pending'"
+                            :title="
+                              isUpgrade(component.serviceName)
+                                ? 'Update available'
+                                : 'Downgrade pending'
+                            "
                           >
                             {{ getVersionChangeIcon(component.serviceName) }}
                           </span>
@@ -139,7 +144,10 @@
                         </div>
                         <!-- Hint when newer supported version is available -->
                         <div
-                          v-if="hasUserOverride(component.serviceName) && hasNewerSupportedVersion(component.serviceName)"
+                          v-if="
+                            hasUserOverride(component.serviceName) &&
+                            hasNewerSupportedVersion(component.serviceName)
+                          "
                           class="border-t border-border pt-1 mt-1 text-xs text-amber-400"
                         >
                           A newer supported version is available
@@ -458,7 +466,9 @@ function closeErrorModal() {
 }
 
 // Format version string for display
-function formatVersion(version: { version?: string; releaseTag?: string } | null | undefined): string {
+function formatVersion(
+  version: { version?: string; releaseTag?: string } | null | undefined,
+): string {
   if (!version) return '-'
   if (version.releaseTag && version.version) {
     return `${version.releaseTag} / ${version.version}`
@@ -475,15 +485,6 @@ function formatInstalledVersion(serviceName: BackendServiceName): string {
   return '-'
 }
 
-// Format target version for display
-function formatTargetVersion(serviceName: BackendServiceName): string {
-  const versionState = backendServices.versionState[serviceName]
-  if (versionState.target) {
-    return formatVersion(versionState.target)
-  }
-  return '-'
-}
-
 // Check if installed version matches target version (up to date)
 function isVersionUpToDate(serviceName: BackendServiceName): boolean {
   // AI backend doesn't have version tracking
@@ -494,7 +495,9 @@ function isVersionUpToDate(serviceName: BackendServiceName): boolean {
 }
 
 // Get the effective target version (what will be installed)
-function getEffectiveTarget(serviceName: BackendServiceName): { version?: string; releaseTag?: string } | undefined {
+function getEffectiveTarget(
+  serviceName: BackendServiceName,
+): { version?: string; releaseTag?: string } | undefined {
   const vs = backendServices.versionState[serviceName]
   return vs.uiOverride ?? vs.target
 }
@@ -508,10 +511,10 @@ function hasUserOverride(serviceName: BackendServiceName): boolean {
 function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
   const vs = backendServices.versionState[serviceName]
   if (!vs.uiOverride || !vs.target) return false
-  
+
   const override = vs.uiOverride.version || ''
   const target = vs.target.version || ''
-  
+
   return target > override
 }
 
@@ -519,7 +522,7 @@ function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
 function hasVersionChange(serviceName: BackendServiceName): boolean {
   // AI backend doesn't have version tracking
   if (serviceName === 'ai-backend') return false
-  
+
   const versionState = backendServices.versionState[serviceName]
   const effectiveTarget = getEffectiveTarget(serviceName)
   if (!effectiveTarget || !versionState.installed) return false

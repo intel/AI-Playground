@@ -42,7 +42,13 @@
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
         {{ presetsStore.activePresetWithVariant?.description || selectedPreset.description }}
       </p>
-      <div v-if="presetsStore.activePresetWithVariant?.tags && presetsStore.activePresetWithVariant.tags.length > 0" class="flex gap-2">
+      <div
+        v-if="
+          presetsStore.activePresetWithVariant?.tags &&
+          presetsStore.activePresetWithVariant.tags.length > 0
+        "
+        class="flex gap-2"
+      >
         <span
           v-for="tag in presetsStore.activePresetWithVariant.tags"
           :key="tag"
@@ -138,18 +144,18 @@ const selectedVariantValue = computed({
 function isPresetDisabled(preset: Preset): boolean {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
-    
+
     // Check if NPU is required but not available
     if (chatPreset.requiresNpuSupport) {
       const hasNpuDevice = backendServices.info
         .find((s) => s.serviceName === 'openvino-backend')
         ?.devices?.some((d) => d.id.includes('NPU'))
-      
+
       if (!hasNpuDevice) {
         return true // Disable if NPU required but not available
       }
     }
-    
+
     // Check if any backend is available
     const hasAvailableBackend = chatPreset.backends.some((backend) => {
       const serviceName = backendToService[backend]

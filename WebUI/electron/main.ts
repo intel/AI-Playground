@@ -51,7 +51,6 @@ import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
 import { updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
-import getPort from 'get-port'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
@@ -118,9 +117,9 @@ protocol.registerSchemesAsPrivileged([
       supportFetchAPI: true, // impotant
       standard: true,
       bypassCSP: true, // impotant
-      stream: true 
-    }
-  }
+      stream: true,
+    },
+  },
 ])
 
 async function loadSettings() {
@@ -716,10 +715,7 @@ function initEventHandle() {
       if ('selectSttDevice' in service && typeof service.selectSttDevice === 'function') {
         return service.selectSttDevice(deviceId)
       }
-      appLogger.warn(
-        `Service ${serviceName} does not support selectSttDevice`,
-        'electron-backend',
-      )
+      appLogger.warn(`Service ${serviceName} does not support selectSttDevice`, 'electron-backend')
     },
   )
 
@@ -900,10 +896,7 @@ function initEventHandle() {
         return { success: true }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
-        appLogger.error(
-          `Failed to stop transcription server: ${errorMessage}`,
-          'electron-backend',
-        )
+        appLogger.error(`Failed to stop transcription server: ${errorMessage}`, 'electron-backend')
         return { success: false, error: errorMessage }
       }
     }
@@ -1097,13 +1090,20 @@ function initEventHandle() {
       return undefined
     }
     const service = serviceRegistry.getService(serviceName)
-    if (!service || !('getInstalledVersion' in service) || typeof service.getInstalledVersion !== 'function') {
+    if (
+      !service ||
+      !('getInstalledVersion' in service) ||
+      typeof service.getInstalledVersion !== 'function'
+    ) {
       return undefined
     }
     try {
       return await service.getInstalledVersion()
     } catch (error) {
-      appLogger.error(`Failed to get installed version for ${serviceName}: ${error}`, 'electron-backend')
+      appLogger.error(
+        `Failed to get installed version for ${serviceName}: ${error}`,
+        'electron-backend',
+      )
       return undefined
     }
   })
@@ -1187,9 +1187,7 @@ function initEventHandle() {
   const getAssetPathFromUrl = (url: string) => {
     // Handle aipg-media:// URLs
     if (url.startsWith('aipg-media://')) {
-      const decodedUrl = decodeURIComponent(
-        url.replace(/^aipg-media:\/\//i, '')
-      )
+      const decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, ''))
       return path.join(mediaDir, decodedUrl)
     }
 
@@ -1345,11 +1343,11 @@ app.whenReady().then(async () => {
     protocol.handle('aipg-media', async (request) => {
       console.log('request', request)
       const decodedUrl = decodeURIComponent(
-        request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/')
+        request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/'),
       )
-      
+
       const fullPath = path.join(mediaDir, decodedUrl)
-  
+
       const normalizedPath = path.normalize(fullPath.replace(/(\/|\\)$/, ''))
       const response = await net.fetch(`file://${normalizedPath}`)
       return response

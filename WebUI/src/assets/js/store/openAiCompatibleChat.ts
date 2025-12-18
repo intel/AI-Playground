@@ -100,24 +100,39 @@ export const useOpenAiCompatibleChat = defineStore(
       // Filter out annotatedImageUrl json from tool results
       messages = messages.map((m) => {
         if (m.role !== 'tool') return m
-        return { ...m, content: m.content.map((part) => {
-          if (part.toolName === 'visualizeObjectDetections' && part.output.type === 'json') {
-            return { ...part, output: { type: 'text', value: 'Object detections visualized on image successfully' } as LanguageModelV2ToolResultOutput }
-          }
-          return part
-        })}
+        return {
+          ...m,
+          content: m.content.map((part) => {
+            if (part.toolName === 'visualizeObjectDetections' && part.output.type === 'json') {
+              return {
+                ...part,
+                output: {
+                  type: 'text',
+                  value: 'Object detections visualized on image successfully',
+                } as LanguageModelV2ToolResultOutput,
+              }
+            }
+            return part
+          }),
+        }
       })
 
       // Filter out image parts from messages if model doesn't support vision
       if (!textInference.modelSupportsVision) {
         messages = messages.map((msg) => {
           if (msg.role === 'user' && Array.isArray(msg.content)) {
-            const filteredContent = msg.content.filter(
-              (part) => part.type === 'text',
-            )
+            const filteredContent = msg.content.filter((part) => part.type === 'text')
             // If all content was images, keep at least an empty text
             if (filteredContent.length === 0) {
-              return { ...msg, content: [{ type: 'text' as const, text: 'This message contained an image, but the model does not support vision.' }] }
+              return {
+                ...msg,
+                content: [
+                  {
+                    type: 'text' as const,
+                    text: 'This message contained an image, but the model does not support vision.',
+                  },
+                ],
+              }
             }
             return { ...msg, content: filteredContent }
           }
@@ -216,16 +231,16 @@ export const useOpenAiCompatibleChat = defineStore(
             reasoningStarted: reasoningStarted || undefined,
             reasoningFinished: reasoningFinished || undefined,
           }
-          
+
           if (options.part.type === 'text-delta' || options.part.type === 'reasoning-delta') {
             return baseMetadata
           }
-          
+
           let totalUsage: LanguageModelUsage | undefined = undefined
           if (options.part.type === 'finish') {
             totalUsage = options.part.totalUsage
           }
-          
+
           return {
             ...baseMetadata,
             model: textInference.activeModel,

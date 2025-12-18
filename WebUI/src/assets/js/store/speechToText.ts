@@ -27,9 +27,7 @@ export const useSpeechToText = defineStore(
     async function ensureTranscriptionServerRunning(): Promise<void> {
       if (!enabled.value) return
 
-      const openVinoService = backendServices.info.find(
-        (s) => s.serviceName === 'openvino-backend',
-      )
+      const openVinoService = backendServices.info.find((s) => s.serviceName === 'openvino-backend')
 
       // Only start if OVMS is set up
       if (!openVinoService?.isSetUp) return
@@ -52,7 +50,7 @@ export const useSpeechToText = defineStore(
      * Initialize the transcription server on app startup if STT is enabled.
      * This validates all prerequisites and auto-disables STT if they are not met,
      * providing user feedback via toast notifications.
-     * 
+     *
      * This should be called once during app initialization after backends are started.
      */
     async function initialize(): Promise<void> {

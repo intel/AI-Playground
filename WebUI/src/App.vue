@@ -73,9 +73,7 @@
     v-show="globalSetup.loadingState === 'manageInstallations'"
     class="flex-auto flex items-center justify-center"
   >
-    <installation-management
-      @close="concludeLoadingState"
-    ></installation-management>
+    <installation-management @close="concludeLoadingState"></installation-management>
   </main>
   <main
     v-show="globalSetup.loadingState === 'loading'"

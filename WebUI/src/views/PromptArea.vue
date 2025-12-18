@@ -39,7 +39,11 @@
         </div>
         <!-- RAG Documents Display (only when RAG is enabled and has documents) -->
         <div
-          v-if="promptStore.getCurrentMode() === 'chat' && canAttachDocuments && checkedRagDocuments.length > 0"
+          v-if="
+            promptStore.getCurrentMode() === 'chat' &&
+            canAttachDocuments &&
+            checkedRagDocuments.length > 0
+          "
           class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1"
         >
           <span class="text-muted-foreground flex items-center gap-1">
@@ -67,7 +71,7 @@
           :class="{
             [`pt-${checkedRagDocuments.length > 0 && canAttachDocuments && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
             'opacity-50 cursor-not-allowed': !isPromptModifiable,
-            'border-primary bg-primary/10': isOverDropZone
+            'border-primary bg-primary/10': isOverDropZone,
           }"
           :placeholder="getTextAreaPlaceholder()"
           v-model="prompt"
@@ -125,9 +129,10 @@
             variant="secondary"
             v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
-            :disabled="false && !speechToText.enabled || audioRecorder.isTranscribing"
-            :title="!speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''"
-            
+            :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
+            :title="
+              !speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''
+            "
           >
             <i
               v-if="!audioRecorder.isTranscribing"
@@ -144,7 +149,7 @@
                 class="w-1.5 bg-primary rounded-full transition-all duration-100"
                 :style="{
                   height: `${Math.max(6, (audioRecorder.audioLevel / 100) * 40 * (i / 5))}px`,
-                  opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.35
+                  opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.35,
                 }"
               ></div>
             </div>
@@ -197,7 +202,13 @@ import {
 } from '@/assets/js/store/textInference'
 import { useI18N } from '@/assets/js/store/i18n'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets'
-import { PlusIcon, PaperClipIcon, XMarkIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon } from '@heroicons/vue/24/outline'
+import {
+  PlusIcon,
+  PaperClipIcon,
+  XMarkIcon,
+  MagnifyingGlassPlusIcon,
+  MagnifyingGlassMinusIcon,
+} from '@heroicons/vue/24/outline'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
@@ -218,7 +229,7 @@ const textInference = useTextInference()
 const textareaRef = ref<HTMLTextAreaElement>()
 const presetsStore = usePresets()
 
-audioRecorder.registerTranscriptionCallback((text) => prompt.value = text)
+audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
 
 // Get active chat preset
 const activeChatPreset = computed(() => {
@@ -303,8 +314,12 @@ function removeImage(index: number) {
 }
 
 const isProcessing = computed(() => {
-  console.log('### isProcessing', { openAiCompatibleChatProcessing: openAiCompatibleChat.processing, imageGenerationProcessing: imageGeneration.processing })
-  return openAiCompatibleChat.processing || imageGeneration.processing})
+  console.log('### isProcessing', {
+    openAiCompatibleChatProcessing: openAiCompatibleChat.processing,
+    imageGenerationProcessing: imageGeneration.processing,
+  })
+  return openAiCompatibleChat.processing || imageGeneration.processing
+})
 
 const isStopping = computed(() => imageGeneration.stopping)
 
@@ -502,13 +517,17 @@ async function handleFileInput(event: Event) {
 
   // Validate image attachments
   if (imageFiles.length > 0 && !canAttachImages.value) {
-    toast.error('The current model does not support image attachments. Select a vision model to attach images.')
+    toast.error(
+      'The current model does not support image attachments. Select a vision model to attach images.',
+    )
     imageFiles.length = 0
   }
 
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
-    toast.error('Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.')
+    toast.error(
+      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
+    )
     documentFiles.length = 0
   }
 
@@ -587,13 +606,17 @@ async function onDrop(files: File[] | null) {
 
   // Validate image attachments
   if (imageFiles.length > 0 && !canAttachImages.value) {
-    toast.error('The current model does not support image attachments. Select a vision model to attach images.')
+    toast.error(
+      'The current model does not support image attachments. Select a vision model to attach images.',
+    )
     imageFiles.length = 0
   }
 
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
-    toast.error('Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.')
+    toast.error(
+      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
+    )
     documentFiles.length = 0
   }
 

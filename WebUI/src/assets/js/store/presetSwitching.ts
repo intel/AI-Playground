@@ -70,7 +70,9 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   function isBackendAvailable(backend: LlmBackend): boolean {
     const serviceName = backendToService[backend]
     const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-    return backendInfo ? backendInfo.status === 'running' || backendInfo.status === 'stopped' : false
+    return backendInfo
+      ? backendInfo.status === 'running' || backendInfo.status === 'stopped'
+      : false
   }
 
   /**

@@ -125,11 +125,11 @@
 }
 
 .i-record {
-    --svg: url('@/assets/svg/record.svg');
+  --svg: url('@/assets/svg/record.svg');
 }
 
 .i-record-active {
-    --svg: url('@/assets/svg/record-active.svg');
+  --svg: url('@/assets/svg/record-active.svg');
 }
 
 .i-pen {

@@ -8,8 +8,7 @@
   "description": "Create a 3D mesh from a 2D image ready for 3D printing or other 3D tools like Blender",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
-  "requiredModels": [
-  ],
+  "requiredModels": [],
   "variants": [
     {
       "name": "Preview",

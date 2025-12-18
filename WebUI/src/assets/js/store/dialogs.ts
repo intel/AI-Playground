@@ -176,7 +176,11 @@ export const useDialogStore = defineStore('dialog', () => {
 
     if (availableWidth <= 0 || availableHeight <= 0) return
 
-    const scale = Math.min(availableWidth / img.naturalWidth, availableHeight / img.naturalHeight, 1)
+    const scale = Math.min(
+      availableWidth / img.naturalWidth,
+      availableHeight / img.naturalHeight,
+      1,
+    )
 
     const imageWidth = img.naturalWidth * scale
     const imageHeight = img.naturalHeight * scale

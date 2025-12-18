@@ -49,15 +49,11 @@
 
 <script setup lang="ts">
 import { Input } from '@/components/ui/aipgInput'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
-import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 
 const i18nState = useI18N().state
-const globalSetup = useGlobalSetup()
-const warningDialogStore = useDialogStore()
 const textInference = useTextInference()
 const models = useModels()
 const modelRequest = ref('')

@@ -233,7 +233,9 @@ const handleReinstall = async () => {
 }
 
 // Get the effective target version (what will be installed)
-function getEffectiveTarget(serviceName: BackendServiceName): { version?: string; releaseTag?: string } | undefined {
+function getEffectiveTarget(
+  serviceName: BackendServiceName,
+): { version?: string; releaseTag?: string } | undefined {
   const vs = backendServices.versionState[serviceName]
   return vs.uiOverride ?? vs.target
 }
@@ -241,7 +243,7 @@ function getEffectiveTarget(serviceName: BackendServiceName): { version?: string
 // Check if there's any version change pending (installed differs from effective target)
 function hasVersionChange(serviceName: BackendServiceName): boolean {
   if (serviceName === 'ai-backend') return false
-  
+
   const versionState = backendServices.versionState[serviceName]
   const effectiveTarget = getEffectiveTarget(serviceName)
   if (!effectiveTarget || !versionState.installed) return false
@@ -271,7 +273,9 @@ function isUpgrade(serviceName: BackendServiceName): boolean | null {
 }
 
 // Format version for display
-function formatVersion(version: { version?: string; releaseTag?: string } | null | undefined): string {
+function formatVersion(
+  version: { version?: string; releaseTag?: string } | null | undefined,
+): string {
   if (!version) return '-'
   if (version.releaseTag && version.version) {
     return `${version.releaseTag} / ${version.version}`
@@ -302,9 +306,7 @@ const handleVersionAction = async () => {
 }
 
 // Check if user has set a custom override
-const hasUserOverride = computed(() => 
-  !!backendServices.versionState[props.backend].uiOverride
-)
+const hasUserOverride = computed(() => !!backendServices.versionState[props.backend].uiOverride)
 
 // Clear the user override
 const clearOverride = () => {
@@ -314,7 +316,12 @@ const clearOverride = () => {
 }
 
 const showMenuButton = computed(
-  () => showStart.value || showStop.value || showReinstall.value || showSettings.value || showVersionAction.value,
+  () =>
+    showStart.value ||
+    showStop.value ||
+    showReinstall.value ||
+    showSettings.value ||
+    showVersionAction.value,
 )
 </script>
 

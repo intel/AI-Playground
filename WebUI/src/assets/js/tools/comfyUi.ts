@@ -40,7 +40,13 @@ export function getAvailableWorkflows(): Array<{
   mediaType?: 'image' | 'video' | 'model3d'
   description?: string
   toolInstructions?: string
-  resolutions?: Array<{ width: number; height: number; aspectRatio: string; megapixels: string; totalPixels: number }>
+  resolutions?: Array<{
+    width: number
+    height: number
+    aspectRatio: string
+    megapixels: string
+    totalPixels: number
+  }>
 }> {
   const presets = usePresets()
 
@@ -96,26 +102,6 @@ function getResolutionExamplesForWorkflow(workflowName: string): string {
   }
 
   return examples.slice(0, 5).join(', ')
-}
-
-// Helper function to find best resolution for a given aspect ratio and quality preference
-function findBestResolutionForAspectRatio(
-  workflowName: string,
-  aspectRatio: string,
-  preferHighRes: boolean = false,
-): string | null {
-  const workflows = getAvailableWorkflows()
-  const workflow = workflows.find((w) => w.name === workflowName)
-  if (!workflow?.resolutions) return null
-
-  const matchingResolutions = workflow.resolutions.filter((r) => r.aspectRatio === aspectRatio)
-  if (matchingResolutions.length === 0) return null
-
-  // Sort by total pixels and pick highest or middle
-  const sorted = [...matchingResolutions].sort((a, b) => b.totalPixels - a.totalPixels)
-  const selected = preferHighRes ? sorted[0] : sorted[Math.floor(sorted.length / 2)]
-
-  return `${selected.width}x${selected.height}`
 }
 
 const ImageOutputSchema = z.object({
@@ -207,7 +193,9 @@ export async function executeComfyGeneration(args: {
   preset = presets.presets.find((p) => p.name === requestedWorkflow) || null
   if (!preset || preset.type !== 'comfy') {
     // Try to find any available ComfyUI preset as fallback
-    console.warn(`[ComfyUI Tool] Preset "${requestedWorkflow}" not found or not a ComfyUI preset, trying fallback`)
+    console.warn(
+      `[ComfyUI Tool] Preset "${requestedWorkflow}" not found or not a ComfyUI preset, trying fallback`,
+    )
     preset = presets.presets.find((p) => p.type === 'comfy') || null
     if (!preset) {
       return createErrorResult('No ComfyUI presets available')
@@ -311,7 +299,9 @@ export async function executeComfyGeneration(args: {
           width = imageGeneration.width
           height = imageGeneration.height
         }
-        console.log(`[ComfyUI Tool] Aspect ratio ${ar} not found, using default: ${width}x${height}`)
+        console.log(
+          `[ComfyUI Tool] Aspect ratio ${ar} not found, using default: ${width}x${height}`,
+        )
       }
     }
   } else if (args.resolution) {
@@ -323,7 +313,9 @@ export async function executeComfyGeneration(args: {
       if (closestMatch) {
         width = closestMatch.width
         height = closestMatch.height
-        console.log(`[ComfyUI Tool] Closest resolution match for ${args.resolution}: ${width}x${height}`)
+        console.log(
+          `[ComfyUI Tool] Closest resolution match for ${args.resolution}: ${width}x${height}`,
+        )
       } else {
         width = w
         height = h
@@ -555,7 +547,9 @@ export async function executeComfyGeneration(args: {
     imageIds.forEach((id) => {
       const existingImage = imageGeneration.generatedImages.find((img) => img.id === id)
       if (existingImage && existingImage.state === 'queued') {
-        imageGeneration.generatedImages = imageGeneration.generatedImages.filter((img) => img.id !== id)
+        imageGeneration.generatedImages = imageGeneration.generatedImages.filter(
+          (img) => img.id !== id,
+        )
       }
     })
 
@@ -577,8 +571,6 @@ function getToolDefinition() {
 
   // Get resolution examples for the default workflow
   const defaultResolutionExamples = getResolutionExamplesForWorkflow(defaultWorkflow)
-  const highRes16x9 = findBestResolutionForAspectRatio(defaultWorkflow, '16/9', true) || '1376x768'
-  const highRes9x16 = findBestResolutionForAspectRatio(defaultWorkflow, '9/16', true) || '768x1376'
 
   // Fallback if no workflows are available yet (presets not loaded)
   if (availableWorkflows.length === 0) {
@@ -670,13 +662,19 @@ function getToolDefinition() {
 
   // Add resolution guidance
   description += 'RESOLUTION: Specify image size using EITHER:\n'
-  description += '  - aspectRatio + megapixels parameters (recommended): e.g., aspectRatio="16/9", megapixels="1.0"\n'
+  description +=
+    '  - aspectRatio + megapixels parameters (recommended): e.g., aspectRatio="16/9", megapixels="1.0"\n'
   description += '  - OR resolution parameter directly: e.g., resolution="1376x768"\n\n'
-  description += 'Available aspect ratios: 1/1 (square), 16/9 (widescreen/landscape), 9/16 (portrait/vertical), 3/2, 2/3, 4/3, 3/4, 21/9 (ultra-wide), 9/21\n'
-  description += 'Available megapixels: 0.25 (small/fast), 0.5 (medium), 0.8, 1.0 (HD), 1.2, 1.5 (high-res/slower)\n\n'
-  description += 'When user asks for "high resolution", "HD", or "large" image, use megapixels="1.0" or higher.\n'
-  description += 'When user asks for specific aspect ratio (e.g., "16:9", "widescreen", "landscape"), set aspectRatio accordingly.\n\n'
-  description += 'CRITICAL: Do NOT include resolution, aspect ratio, dimensions, or size information in the prompt text itself. These should ONLY be passed as separate parameters (aspectRatio, megapixels, or resolution).\n\n'
+  description +=
+    'Available aspect ratios: 1/1 (square), 16/9 (widescreen/landscape), 9/16 (portrait/vertical), 3/2, 2/3, 4/3, 3/4, 21/9 (ultra-wide), 9/21\n'
+  description +=
+    'Available megapixels: 0.25 (small/fast), 0.5 (medium), 0.8, 1.0 (HD), 1.2, 1.5 (high-res/slower)\n\n'
+  description +=
+    'When user asks for "high resolution", "HD", or "large" image, use megapixels="1.0" or higher.\n'
+  description +=
+    'When user asks for specific aspect ratio (e.g., "16:9", "widescreen", "landscape"), set aspectRatio accordingly.\n\n'
+  description +=
+    'CRITICAL: Do NOT include resolution, aspect ratio, dimensions, or size information in the prompt text itself. These should ONLY be passed as separate parameters (aspectRatio, megapixels, or resolution).\n\n'
 
   // Add preset-specific instructions if available
   if (allInstructions.length > 0) {
@@ -707,9 +705,10 @@ function getToolDefinition() {
   }
 
   // Build resolution description with examples from available workflows
-  const resolutionExamples = imageWorkflows.length > 0
-    ? getResolutionExamplesForWorkflow(imageWorkflows[0].name)
-    : defaultResolutionExamples
+  const resolutionExamples =
+    imageWorkflows.length > 0
+      ? getResolutionExamplesForWorkflow(imageWorkflows[0].name)
+      : defaultResolutionExamples
 
   const resolutionDescription = `Direct resolution in WxH format (alternative to aspectRatio+megapixels). Examples: ${resolutionExamples}. The closest valid resolution will be selected.`
 
@@ -741,10 +740,7 @@ function getToolDefinition() {
         .describe(
           'Megapixel tier for image quality/size. Options: "0.25" (small/fast), "0.5" (medium), "0.8", "1.0" (HD), "1.2", "1.5" (high-res/slower). Use with aspectRatio parameter.',
         ),
-      resolution: z
-        .string()
-        .optional()
-        .describe(resolutionDescription),
+      resolution: z.string().optional().describe(resolutionDescription),
       seed: z
         .number()
         .optional()

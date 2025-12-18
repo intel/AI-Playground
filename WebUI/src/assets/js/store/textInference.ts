@@ -184,14 +184,17 @@ export const useTextInference = defineStore(
 
       const newEmbeddingModels = llmEmbeddingTypeModels.map((m) => {
         const selectedEmbeddingModelForType = selectedEmbeddingModels.value[m.backend as LlmBackend]
-        const hasValidSelection = llmEmbeddingTypeModels.some((model) => model.name === selectedEmbeddingModelForType)
+        const hasValidSelection = llmEmbeddingTypeModels.some(
+          (model) => model.name === selectedEmbeddingModelForType,
+        )
         const isFirstForBackend = m.name === firstEmbeddingByBackend.get(m.backend as string)
 
         return {
           name: m.name,
           type: m.backend as LlmBackend,
           downloaded: m.downloaded ?? false,
-          active: m.name === selectedEmbeddingModelForType || (!hasValidSelection && isFirstForBackend),
+          active:
+            m.name === selectedEmbeddingModelForType || (!hasValidSelection && isFirstForBackend),
         }
       })
 
@@ -382,7 +385,7 @@ export const useTextInference = defineStore(
         .find((m) => m.active)
       const modelType = type === 'embedding' ? 'embedding' : backendToAipgModelType[backend.value]
       const backendName = backendToAipgBackendName[backend.value]
-      
+
       const checkList = [
         {
           repo_id: model,
@@ -1095,7 +1098,7 @@ export const useTextInference = defineStore(
       } else if (savedSettings.toolsEnabled !== undefined) {
         toolsEnabled.value = savedSettings.toolsEnabled as boolean
       } else {
-        toolsEnabled.value = preset.toolsEnabledByDefault ?? (preset.requiresToolCalling === true)
+        toolsEnabled.value = preset.toolsEnabledByDefault ?? preset.requiresToolCalling === true
       }
 
       // Clear flag after loading

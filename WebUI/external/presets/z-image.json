@@ -2,9 +2,7 @@
   "type": "comfy",
   "name": "Pro 2 Image",
   "displayPriority": 300,
-  "tags": [
-    "Z-Image-Turbo"
-  ],
+  "tags": ["Z-Image-Turbo"],
   "description": "Precisely generate images, with text and adherence to prompt using Z-Image-Turbo",
   "backend": "comfyui",
   "category": "create-images",
@@ -198,10 +196,7 @@
     },
     "42": {
       "inputs": {
-        "conditioning": [
-          "45",
-          0
-        ]
+        "conditioning": ["45", 0]
       },
       "class_type": "ConditioningZeroOut",
       "_meta": {
@@ -210,14 +205,8 @@
     },
     "43": {
       "inputs": {
-        "samples": [
-          "44",
-          0
-        ],
-        "vae": [
-          "40",
-          0
-        ]
+        "samples": ["44", 0],
+        "vae": ["40", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -232,22 +221,10 @@
         "sampler_name": "res_multistep",
         "scheduler": "simple",
         "denoise": 1,
-        "model": [
-          "47",
-          0
-        ],
-        "positive": [
-          "45",
-          0
-        ],
-        "negative": [
-          "42",
-          0
-        ],
-        "latent_image": [
-          "41",
-          0
-        ]
+        "model": ["47", 0],
+        "positive": ["45", 0],
+        "negative": ["42", 0],
+        "latent_image": ["41", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -257,10 +234,7 @@
     "45": {
       "inputs": {
         "text": "A dynamic, low-angle editorial photograph capturing a powerful panther in a tense, prowling pose across a polished dark marble floor. The panther is positioned in a one-quarter view, its body angled away, but its head is turned sharply to glance back over its shoulder toward the camera with striking, intense blue eyes full of fierce character. Its muscles are coiled and defined under its cool-toned and dark blue-gray fur which shows faint, subtle rosettes.  A fabulous diamond and onyx studded collar holds a studded pendant tag that spells out \"12Xe\" prominantly in its oppulent jewely. The pather is well lit wit both cool and warm light. The background setting is darker luxurious high tech high rise blurred luxurious accents and rich textures in the background. Dramatic, high-contrast studio lighting freezes the sense of movement and highlights the textures of fur and jewels.",
-        "clip": [
-          "39",
-          0
-        ]
+        "clip": ["39", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -280,10 +254,7 @@
     "47": {
       "inputs": {
         "shift": 3,
-        "model": [
-          "46",
-          0
-        ]
+        "model": ["46", 0]
       },
       "class_type": "ModelSamplingAuraFlow",
       "_meta": {

@@ -356,7 +356,8 @@ export const useImageGenerationPresets = defineStore(
         const saved = settingsPerPreset.value[settingsKey]?.[settingName]
         const presetValue = getSettingValue(settingName)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const globalDefaultValue: any = globalDefaultSettings[settingName as keyof typeof globalDefaultSettings]
+        const globalDefaultValue: any =
+          globalDefaultSettings[settingName as keyof typeof globalDefaultSettings]
         console.log('### getSavedOrDefault', settingName, saved, presetValue, globalDefaultValue)
         return saved ?? presetValue ?? globalDefaultValue
       }
@@ -615,13 +616,22 @@ export const useImageGenerationPresets = defineStore(
         // Custom serializer to filter out large data URIs from persistence
         serialize: (state) => {
           if (!state.comfyInputsPerPreset) return JSON.stringify(state)
-          const comfyInputsPerPreset = state.comfyInputsPerPreset as Record<string, Record<string, unknown> | undefined>
-          
-            const filteredInputs: typeof comfyInputsPerPreset = {}
-            Object.entries(comfyInputsPerPreset)
+          const comfyInputsPerPreset = state.comfyInputsPerPreset as Record<
+            string,
+            Record<string, unknown> | undefined
+          >
+
+          const filteredInputs: typeof comfyInputsPerPreset = {}
+          Object.entries(comfyInputsPerPreset)
             .filter(([_, inputs]) => inputs !== undefined)
-            .map(([presetName, inputs]) => [presetName, Object.fromEntries(Object.entries(inputs as Record<string, unknown>).filter(([key]) => ['image', 'inpaintMask', 'video'].includes(key)))]
-            )
+            .map(([presetName, inputs]) => [
+              presetName,
+              Object.fromEntries(
+                Object.entries(inputs as Record<string, unknown>).filter(([key]) =>
+                  ['image', 'inpaintMask', 'video'].includes(key),
+                ),
+              ),
+            ])
           return JSON.stringify({
             ...state,
             comfyInputsPerPreset: filteredInputs,

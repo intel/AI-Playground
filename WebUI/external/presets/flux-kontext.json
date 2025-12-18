@@ -2,10 +2,7 @@
   "type": "comfy",
   "name": "Edit By Prompt",
   "displayPriority": 800,
-  "tags": [
-    "maskless",
-    "high-vram"
-  ],
+  "tags": ["maskless", "high-vram"],
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
@@ -193,10 +190,7 @@
               "scheduler": "simple",
               "steps": 20,
               "denoise": 1,
-              "model": [
-                "19",
-                0
-              ]
+              "model": ["19", 0]
             },
             "class_type": "BasicScheduler",
             "_meta": {
@@ -206,10 +200,7 @@
           "17": {
             "inputs": {
               "text": "make the banana blue but keep all other elements in the image, while adjusting to the new aspect ratio",
-              "clip": [
-                "4",
-                0
-              ]
+              "clip": ["4", 0]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -218,10 +209,7 @@
           },
           "26": {
             "inputs": {
-              "image": [
-                "25",
-                0
-              ]
+              "image": ["25", 0]
             },
             "class_type": "FluxKontextImageScale",
             "_meta": {
@@ -230,10 +218,7 @@
           },
           "38": {
             "inputs": {
-              "image": [
-                "26",
-                0
-              ]
+              "image": ["26", 0]
             },
             "class_type": "GetImageSize",
             "_meta": {
@@ -242,14 +227,8 @@
           },
           "9": {
             "inputs": {
-              "pixels": [
-                "26",
-                0
-              ],
-              "vae": [
-                "3",
-                0
-              ]
+              "pixels": ["26", 0],
+              "vae": ["3", 0]
             },
             "class_type": "VAEEncode",
             "_meta": {
@@ -305,10 +284,7 @@
         "scheduler": "beta",
         "steps": 6,
         "denoise": 1,
-        "model": [
-          "20",
-          0
-        ]
+        "model": ["20", 0]
       },
       "class_type": "BasicScheduler",
       "_meta": {
@@ -318,10 +294,7 @@
     "7": {
       "inputs": {
         "guidance": 2.5,
-        "conditioning": [
-          "17",
-          0
-        ]
+        "conditioning": ["17", 0]
       },
       "class_type": "FluxGuidance",
       "_meta": {
@@ -330,14 +303,8 @@
     },
     "9": {
       "inputs": {
-        "pixels": [
-          "25",
-          0
-        ],
-        "vae": [
-          "3",
-          0
-        ]
+        "pixels": ["25", 0],
+        "vae": ["3", 0]
       },
       "class_type": "VAEEncode",
       "_meta": {
@@ -346,14 +313,8 @@
     },
     "10": {
       "inputs": {
-        "samples": [
-          "14",
-          0
-        ],
-        "vae": [
-          "3",
-          0
-        ]
+        "samples": ["14", 0],
+        "vae": ["3", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -362,14 +323,8 @@
     },
     "11": {
       "inputs": {
-        "model": [
-          "19",
-          0
-        ],
-        "conditioning": [
-          "12",
-          0
-        ]
+        "model": ["19", 0],
+        "conditioning": ["12", 0]
       },
       "class_type": "BasicGuider",
       "_meta": {
@@ -378,14 +333,8 @@
     },
     "12": {
       "inputs": {
-        "conditioning": [
-          "7",
-          0
-        ],
-        "latent": [
-          "9",
-          0
-        ]
+        "conditioning": ["7", 0],
+        "latent": ["9", 0]
       },
       "class_type": "ReferenceLatent",
       "_meta": {
@@ -395,10 +344,7 @@
     "13": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "10",
-          0
-        ]
+        "images": ["10", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
@@ -407,26 +353,11 @@
     },
     "14": {
       "inputs": {
-        "noise": [
-          "2",
-          0
-        ],
-        "guider": [
-          "11",
-          0
-        ],
-        "sampler": [
-          "1",
-          0
-        ],
-        "sigmas": [
-          "6",
-          0
-        ],
-        "latent_image": [
-          "28",
-          0
-        ]
+        "noise": ["2", 0],
+        "guider": ["11", 0],
+        "sampler": ["1", 0],
+        "sigmas": ["6", 0],
+        "latent_image": ["28", 0]
       },
       "class_type": "SamplerCustomAdvanced",
       "_meta": {
@@ -435,14 +366,8 @@
     },
     "15": {
       "inputs": {
-        "width": [
-          "38",
-          0
-        ],
-        "height": [
-          "38",
-          1
-        ],
+        "width": ["38", 0],
+        "height": ["38", 1],
         "batch_size": 1
       },
       "class_type": "EmptySD3LatentImage",
@@ -453,10 +378,7 @@
     "17": {
       "inputs": {
         "text": "make the banana blue but keep all other elements in the image, while adjusting to the new aspect ratio",
-        "clip": [
-          "20",
-          1
-        ]
+        "clip": ["20", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -478,14 +400,8 @@
         "lora_name": "alimama-creative---FLUX.1-Turbo-Alpha\\diffusion_pytorch_model.safetensors",
         "strength_model": 1,
         "strength_clip": 1,
-        "model": [
-          "19",
-          0
-        ],
-        "clip": [
-          "4",
-          0
-        ]
+        "model": ["19", 0],
+        "clip": ["4", 0]
       },
       "class_type": "LoraLoader",
       "_meta": {
@@ -494,10 +410,7 @@
     },
     "21": {
       "inputs": {
-        "image": [
-          "23",
-          0
-        ]
+        "image": ["23", 0]
       },
       "class_type": "GetImageSize",
       "_meta": {
@@ -528,14 +441,8 @@
         "match_image_size": true,
         "spacing_width": 0,
         "spacing_color": "white",
-        "image1": [
-          "23",
-          0
-        ],
-        "image2": [
-          "22",
-          0
-        ]
+        "image1": ["23", 0],
+        "image2": ["22", 0]
       },
       "class_type": "ImageStitch",
       "_meta": {
@@ -545,14 +452,8 @@
     "25": {
       "inputs": {
         "switch": false,
-        "on_false": [
-          "23",
-          0
-        ],
-        "on_true": [
-          "24",
-          0
-        ]
+        "on_false": ["23", 0],
+        "on_true": ["24", 0]
       },
       "class_type": "InversionDemoLazySwitch",
       "_meta": {
@@ -561,14 +462,8 @@
     },
     "27": {
       "inputs": {
-        "width": [
-          "34",
-          0
-        ],
-        "height": [
-          "35",
-          0
-        ],
+        "width": ["34", 0],
+        "height": ["35", 0],
         "batch_size": 1
       },
       "class_type": "EmptySD3LatentImage",
@@ -579,14 +474,8 @@
     "28": {
       "inputs": {
         "switch": true,
-        "on_false": [
-          "27",
-          0
-        ],
-        "on_true": [
-          "15",
-          0
-        ]
+        "on_false": ["27", 0],
+        "on_true": ["15", 0]
       },
       "class_type": "InversionDemoLazySwitch",
       "_meta": {
@@ -617,10 +506,7 @@
     },
     "38": {
       "inputs": {
-        "image": [
-          "25",
-          0
-        ]
+        "image": ["25", 0]
       },
       "class_type": "GetImageSize",
       "_meta": {

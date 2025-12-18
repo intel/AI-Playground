@@ -126,8 +126,7 @@ export class OpenVINOBackendService implements ApiService {
       // Handle embedding model if provided
       if (embeddingModelName) {
         const needsEmbeddingRestart =
-          this.currentEmbeddingModel !== embeddingModelName ||
-          !this.ovmsEmbeddingProcess?.isReady
+          this.currentEmbeddingModel !== embeddingModelName || !this.ovmsEmbeddingProcess?.isReady
 
         if (needsEmbeddingRestart) {
           await this.stopOvmsEmbeddingServer()
@@ -167,7 +166,9 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   async detectDevices() {
-    const defaultDevices: InferenceDevice[] = [{ id: 'AUTO', name: 'Auto select device', selected: true }]
+    const defaultDevices: InferenceDevice[] = [
+      { id: 'AUTO', name: 'Auto select device', selected: true },
+    ]
 
     if (!this.isSetUp) {
       this.appLogger.info('OpenVINO not set up, using default devices', this.name)
@@ -186,7 +187,10 @@ export class OpenVINOBackendService implements ApiService {
       const detectedDevices = await new Promise<string[]>((resolve, reject) => {
         const args = ['--config_path', '.', '--rest_port', tempPort.toString()]
 
-        this.appLogger.info(`Running device detection: ${this.ovmsExePath} ${args.join(' ')}`, this.name)
+        this.appLogger.info(
+          `Running device detection: ${this.ovmsExePath} ${args.join(' ')}`,
+          this.name,
+        )
 
         // Set up environment variables as per setupvars.ps1
         const pythonDir = path.join(this.ovmsDir, 'python')
@@ -242,7 +246,10 @@ export class OpenVINOBackendService implements ApiService {
         childProcess.on('exit', (code: number | null) => {
           if (!resolved) {
             resolved = true
-            this.appLogger.warn(`Device detection process exited with code ${code} before finding devices`, this.name)
+            this.appLogger.warn(
+              `Device detection process exited with code ${code} before finding devices`,
+              this.name,
+            )
             reject(new Error(`Process exited with code ${code} before detecting devices`))
           }
         })
@@ -303,8 +310,14 @@ export class OpenVINOBackendService implements ApiService {
         ['NPU', 'CPU', 'GPU'],
       )
 
-      this.appLogger.info(`Available LLM devices: ${JSON.stringify(this.devices, null, 2)}`, this.name)
-      this.appLogger.info(`Available STT devices: ${JSON.stringify(this.sttDevices, null, 2)}`, this.name)
+      this.appLogger.info(
+        `Available LLM devices: ${JSON.stringify(this.devices, null, 2)}`,
+        this.name,
+      )
+      this.appLogger.info(
+        `Available STT devices: ${JSON.stringify(this.sttDevices, null, 2)}`,
+        this.name,
+      )
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       // Fallback to default device on error
@@ -611,10 +624,7 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.info(`Starting transcription server for model: ${modelName}`, this.name)
 
       // Check if already running with the same model
-      if (
-        this.ovmsTranscriptionProcess?.isReady &&
-        this.currentTranscriptionModel === modelName
-      ) {
+      if (this.ovmsTranscriptionProcess?.isReady && this.currentTranscriptionModel === modelName) {
         this.appLogger.info(
           `Transcription server already running with model: ${modelName}`,
           this.name,
@@ -629,7 +639,10 @@ export class OpenVINOBackendService implements ApiService {
 
       // Start new server
       await this.startOvmsTranscriptionServer(modelName)
-      this.appLogger.info(`Transcription server started successfully for model: ${modelName}`, this.name)
+      this.appLogger.info(
+        `Transcription server started successfully for model: ${modelName}`,
+        this.name,
+      )
     } catch (error) {
       this.appLogger.error(
         `Failed to start transcription server for model ${modelName}: ${error}`,
@@ -998,7 +1011,10 @@ export class OpenVINOBackendService implements ApiService {
       })
 
       childProcess.on('exit', (code: number | null) => {
-        this.appLogger.info(`OVMS transcription server process exited with code: ${code}`, this.name)
+        this.appLogger.info(
+          `OVMS transcription server process exited with code: ${code}`,
+          this.name,
+        )
         if (this.ovmsTranscriptionProcess === ovmsProcess) {
           this.ovmsTranscriptionProcess = null
           this.currentTranscriptionModel = null

@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { IMediaRecorder, MediaRecorder, register } from 'extendable-media-recorder'
-import { connect } from 'extendable-media-recorder-wav-encoder';
-import { experimental_transcribe as transcribe } from 'ai';
+import { connect } from 'extendable-media-recorder-wav-encoder'
+import { experimental_transcribe as transcribe } from 'ai'
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useBackendServices } from './backendServices'
@@ -18,8 +18,6 @@ export interface AudioRecorderConfig {
 }
 
 export const useAudioRecorder = defineStore('audioRecorder', () => {
-
-
   const isRecording = ref(false)
   const recordingTime = ref(0)
   const audioBlob = ref<Blob | null>(null)
@@ -37,9 +35,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     maxDuration: 300,
     silenceThreshold: -40,
     silenceDuration: 2,
-    enableSilenceDetection: true
+    enableSilenceDetection: true,
   })
-
 
   let mediaRecorder: IMediaRecorder | null = null
   let audioChunks: Blob[] = []
@@ -53,11 +50,10 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
 
   const canRecord = computed(() => !isRecording.value && !isTranscribing.value)
 
-
   async function loadAudioDevices() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices()
-      const inputs = devices.filter(d => d.kind === 'audioinput')
+      const inputs = devices.filter((d) => d.kind === 'audioinput')
 
       const filtered: MediaDeviceInfo[] = []
       const seenGroups = new Set<string>()
@@ -81,7 +77,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
   }
 
   async function startRecording() {
-    
     if (!canRecord.value) return
 
     try {
@@ -96,8 +91,8 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
           deviceId: selectedDeviceId.value ? { exact: selectedDeviceId.value } : undefined,
           echoCancellation: config.value.echoCancellation,
           noiseSuppression: config.value.noiseSuppression,
-          sampleRate: config.value.sampleRate
-        }
+          sampleRate: config.value.sampleRate,
+        },
       })
 
       startAudioMeter(stream)
@@ -108,7 +103,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
 
       const mimeType = 'audio/wav'
       try {
-        await register(await connect());
+        await register(await connect())
       } catch (err) {
         console.error('Failed to register WAV encoder:', err)
       }
@@ -140,7 +135,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       recordingTime.value = 0
 
       startTimer()
-
     } catch (err) {
       stopAudioMeter()
       stopSilenceDetection()
@@ -183,7 +177,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     audioLevel.value = 0
   }
 
-
   function startAudioMeter(stream: MediaStream) {
     audioContext = new AudioContext()
     analyser = audioContext.createAnalyser()
@@ -217,7 +210,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     }
   }
 
-
   function startSilenceDetection() {
     if (!config.value.enableSilenceDetection || !analyser) return
 
@@ -239,7 +231,6 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       } else {
         silenceStart = null
       }
-
     }, 100)
   }
 
@@ -262,9 +253,11 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     try {
       const backendServices = useBackendServices()
       const transcriptionServerUrl = await backendServices.getTranscriptionServerUrl()
-      
+
       if (!transcriptionServerUrl) {
-        throw new Error('Transcription server is not running. Please enable Speech To Text in settings.')
+        throw new Error(
+          'Transcription server is not running. Please enable Speech To Text in settings.',
+        )
       }
 
       const model = WHISPER_MODEL_NAME
@@ -277,7 +270,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       if (!transcriptionModel) {
         throw new Error('Transcription model not initialized')
       }
-      
+
       const transcript = await transcribe({
         model: transcriptionModel,
         audio: await audioBlob.value.arrayBuffer(),
@@ -331,16 +324,14 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
 
   function cleanupStream() {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach((track) => track.stop())
       stream = null
     }
   }
 
-
   function updateSelectedDevice(id: string | null) {
     selectedDeviceId.value = id
   }
-
 
   return {
     // State
