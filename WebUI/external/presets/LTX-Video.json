@@ -3,7 +3,10 @@
   "name": "LTX-Video",
   "description": "Image to Video generation using LTX-Video",
   "displayPriority": 0,
-  "tags": ["LTX Video", "high-vram"],
+  "tags": [
+    "LTX Video",
+    "high-vram"
+  ],
   "backend": "comfyui",
   "category": "create-videos",
   "resolutionConfig": {
@@ -142,7 +145,10 @@
     "6": {
       "inputs": {
         "text": "a majestic water fall in a tropical jungle  a majestic water fall in a tropical jungle  rolls water over its edge.  clouds of misty water billow. The waterfall is surround by lush jungle and drops into a circular cavern and tranquil pool of water.  The jungle is swaying with breeze winds. The camera slow pans the scene",
-        "clip": ["111", 0]
+        "clip": [
+          "111",
+          0
+        ]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -152,7 +158,10 @@
     "7": {
       "inputs": {
         "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
-        "clip": ["111", 0]
+        "clip": [
+          "111",
+          0
+        ]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -161,8 +170,14 @@
     },
     "8": {
       "inputs": {
-        "samples": ["101", 1],
-        "vae": ["44", 2]
+        "samples": [
+          "101",
+          1
+        ],
+        "vae": [
+          "44",
+          2
+        ]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -180,9 +195,18 @@
     },
     "69": {
       "inputs": {
-        "frame_rate": ["112", 0],
-        "positive": ["95", 0],
-        "negative": ["95", 1]
+        "frame_rate": [
+          "112",
+          0
+        ],
+        "positive": [
+          "95",
+          0
+        ],
+        "negative": [
+          "95",
+          1
+        ]
       },
       "class_type": "LTXVConditioning",
       "_meta": {
@@ -201,7 +225,10 @@
     "82": {
       "inputs": {
         "img_compression": 38,
-        "image": ["78", 0]
+        "image": [
+          "78",
+          0
+        ]
       },
       "class_type": "LTXVPreprocess",
       "_meta": {
@@ -215,10 +242,22 @@
         "length": 97,
         "batch_size": 1,
         "strength": 1,
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "vae": ["44", 2],
-        "image": ["82", 0]
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "vae": [
+          "44",
+          2
+        ],
+        "image": [
+          "82",
+          0
+        ]
       },
       "class_type": "LTXVImgToVideo",
       "_meta": {
@@ -236,7 +275,10 @@
     },
     "98": {
       "inputs": {
-        "float_list": ["100", 0]
+        "float_list": [
+          "100",
+          0
+        ]
       },
       "class_type": "FloatToSigmas",
       "_meta": {
@@ -246,9 +288,18 @@
     "99": {
       "inputs": {
         "cfg": 1,
-        "model": ["44", 0],
-        "positive": ["69", 0],
-        "negative": ["69", 1]
+        "model": [
+          "44",
+          0
+        ],
+        "positive": [
+          "69",
+          0
+        ],
+        "negative": [
+          "69",
+          1
+        ]
       },
       "class_type": "CFGGuider",
       "_meta": {
@@ -266,11 +317,26 @@
     },
     "101": {
       "inputs": {
-        "noise": ["102", 0],
-        "guider": ["99", 0],
-        "sampler": ["97", 0],
-        "sigmas": ["98", 0],
-        "latent_image": ["95", 2]
+        "noise": [
+          "102",
+          0
+        ],
+        "guider": [
+          "99",
+          0
+        ],
+        "sampler": [
+          "97",
+          0
+        ],
+        "sigmas": [
+          "98",
+          0
+        ],
+        "latent_image": [
+          "95",
+          2
+        ]
       },
       "class_type": "SamplerCustomAdvanced",
       "_meta": {
@@ -307,8 +373,14 @@
     },
     "113": {
       "inputs": {
-        "fps": ["112", 0],
-        "images": ["8", 0]
+        "fps": [
+          "112",
+          0
+        ],
+        "images": [
+          "8",
+          0
+        ]
       },
       "class_type": "CreateVideo",
       "_meta": {
@@ -318,9 +390,12 @@
     "114": {
       "inputs": {
         "filename_prefix": "AIPG_Video",
-        "format": "mp4",
-        "codec": "h264",
-        "video": ["113", 0]
+        "format": "auto",
+        "codec": "auto",
+        "video": [
+          "113",
+          0
+        ]
       },
       "class_type": "SaveVideo",
       "_meta": {
@@ -335,17 +410,19 @@
     },
     {
       "name": "Text2Video",
-      "removeSettings": ["Reference Image"],
+      "removeSettings": [
+        "Reference Image"
+      ],
       "overrides": {
         "description": "Text to Video generation using LTX-Video",
         "requiredModels": [
           {
             "type": "checkpoints",
-            "model": "Lightricks/LTX-Video/ltx-video-2b-v0.9.5.safetensors"
+            "model": "Lightricks/LTX-Video/ltx-video-2b-v0.9.safetensors"
           },
           {
             "type": "clip",
-            "model": "city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q4_K_M.gguf"
+            "model": "comfyanonymous/flux_text_encoders/t5xxl_fp8_e4m3fn.safetensors"
           }
         ],
         "settings": [
@@ -365,8 +442,11 @@
         "comfyUiApiWorkflow": {
           "6": {
             "inputs": {
-              "text": "a majestic water fall in a tropical jungle  a majestic water fall in a tropical jungle  rolls water over its edge.  clouds of misty water billow. The waterfall is surround by lush jungle and drops into a circular cavern and tranquil pool of water.  The jungle is swaying with breeze winds. The camera slow pans the scene",
-              "clip": ["78", 0]
+              "text": "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage.",
+              "clip": [
+                "38",
+                0
+              ]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -376,7 +456,10 @@
           "7": {
             "inputs": {
               "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
-              "clip": ["78", 0]
+              "clip": [
+                "38",
+                0
+              ]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -385,17 +468,34 @@
           },
           "8": {
             "inputs": {
-              "samples": ["72", 0],
-              "vae": ["44", 2]
+              "samples": [
+                "72",
+                0
+              ],
+              "vae": [
+                "44",
+                2
+              ]
             },
             "class_type": "VAEDecode",
             "_meta": {
               "title": "VAE Decode"
             }
           },
+          "38": {
+            "inputs": {
+              "clip_name": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn.safetensors",
+              "type": "ltxv",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": {
+              "title": "Load CLIP"
+            }
+          },
           "44": {
             "inputs": {
-              "ckpt_name": "Lightricks---LTX-Video\\ltx-video-2b-v0.9.5.safetensors"
+              "ckpt_name": "Lightricks---LTX-Video\\ltx-video-2b-v0.9.safetensors"
             },
             "class_type": "CheckpointLoaderSimple",
             "_meta": {
@@ -404,9 +504,18 @@
           },
           "69": {
             "inputs": {
-              "frame_rate": ["80", 0],
-              "positive": ["6", 0],
-              "negative": ["7", 0]
+              "frame_rate": [
+                "81",
+                0
+              ],
+              "positive": [
+                "6",
+                0
+              ],
+              "negative": [
+                "7",
+                0
+              ]
             },
             "class_type": "LTXVConditioning",
             "_meta": {
@@ -415,9 +524,9 @@
           },
           "70": {
             "inputs": {
-              "width": 576,
-              "height": 576,
-              "length": 97,
+              "width": 768,
+              "height": 512,
+              "length": 49,
               "batch_size": 1
             },
             "class_type": "EmptyLTXVLatentVideo",
@@ -427,12 +536,15 @@
           },
           "71": {
             "inputs": {
-              "steps": 20,
-              "max_shift": 2.0500000000000003,
-              "base_shift": 0.9500000000000002,
+              "steps": 30,
+              "max_shift": 2.05,
+              "base_shift": 0.95,
               "stretch": true,
-              "terminal": 0.10000000000000002,
-              "latent": ["70", 0]
+              "terminal": 0.1,
+              "latent": [
+                "70",
+                0
+              ]
             },
             "class_type": "LTXVScheduler",
             "_meta": {
@@ -442,14 +554,32 @@
           "72": {
             "inputs": {
               "add_noise": true,
-              "noise_seed": 68923661701780,
+              "noise_seed": 643568669509474,
               "cfg": 3,
-              "model": ["44", 0],
-              "positive": ["69", 0],
-              "negative": ["69", 1],
-              "sampler": ["73", 0],
-              "sigmas": ["71", 0],
-              "latent_image": ["70", 0]
+              "model": [
+                "44",
+                0
+              ],
+              "positive": [
+                "69",
+                0
+              ],
+              "negative": [
+                "69",
+                1
+              ],
+              "sampler": [
+                "73",
+                0
+              ],
+              "sigmas": [
+                "71",
+                0
+              ],
+              "latent_image": [
+                "70",
+                0
+              ]
             },
             "class_type": "SamplerCustom",
             "_meta": {
@@ -458,7 +588,7 @@
           },
           "73": {
             "inputs": {
-              "sampler_name": "res_multistep"
+              "sampler_name": "euler"
             },
             "class_type": "KSamplerSelect",
             "_meta": {
@@ -467,15 +597,36 @@
           },
           "78": {
             "inputs": {
-              "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
-              "type": "ltxv"
+              "filename_prefix": "AIPG_Video",
+              "format": "auto",
+              "codec": "auto",
+              "video": [
+                "79",
+                0
+              ]
             },
-            "class_type": "CLIPLoaderGGUF",
+            "class_type": "SaveVideo",
             "_meta": {
-              "title": "CLIPLoader (GGUF)"
+              "title": "Save Video"
             }
           },
-          "80": {
+          "79": {
+            "inputs": {
+              "fps": [
+                "81",
+                0
+              ],
+              "images": [
+                "8",
+                0
+              ]
+            },
+            "class_type": "CreateVideo",
+            "_meta": {
+              "title": "Create Video"
+            }
+          },
+          "81": {
             "inputs": {
               "a": 25
             },
@@ -483,35 +634,15 @@
             "_meta": {
               "title": "frame_rate"
             }
-          },
-          "82": {
-            "inputs": {
-              "fps": ["80", 0],
-              "images": ["8", 0]
-            },
-            "class_type": "CreateVideo",
-            "_meta": {
-              "title": "Create Video"
-            }
-          },
-          "84": {
-            "inputs": {
-              "filename_prefix": "video/ComfyUI",
-              "format": "mp4",
-              "codec": "h264",
-              "video": ["82", 0]
-            },
-            "class_type": "SaveVideo",
-            "_meta": {
-              "title": "Save Video"
-            }
           }
         }
       }
     },
     {
       "name": "Start2End",
-      "removeSettings": ["Reference Image"],
+      "removeSettings": [
+        "Reference Image"
+      ],
       "overrides": {
         "description": "Start to End video generation using LTX-Video with start and end image guidance",
         "requiredModels": [
@@ -560,7 +691,10 @@
           "6": {
             "inputs": {
               "text": "a 3d rendered scene of a modern apartment interior.  The room is a spacious great room with a family room in the distance and a kitchen nook in the foreground..  The camera moves forward over the kitchen table focusing on the family room",
-              "clip": ["78", 0]
+              "clip": [
+                "78",
+                0
+              ]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -570,7 +704,10 @@
           "7": {
             "inputs": {
               "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
-              "clip": ["78", 0]
+              "clip": [
+                "78",
+                0
+              ]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {
@@ -579,8 +716,14 @@
           },
           "8": {
             "inputs": {
-              "samples": ["87", 2],
-              "vae": ["44", 2]
+              "samples": [
+                "87",
+                2
+              ],
+              "vae": [
+                "44",
+                2
+              ]
             },
             "class_type": "VAEDecode",
             "_meta": {
@@ -598,9 +741,18 @@
           },
           "69": {
             "inputs": {
-              "frame_rate": ["89", 0],
-              "positive": ["83", 0],
-              "negative": ["83", 1]
+              "frame_rate": [
+                "89",
+                0
+              ],
+              "positive": [
+                "83",
+                0
+              ],
+              "negative": [
+                "83",
+                1
+              ]
             },
             "class_type": "LTXVConditioning",
             "_meta": {
@@ -614,7 +766,10 @@
               "base_shift": 0.9500000000000002,
               "stretch": true,
               "terminal": 0.10000000000000002,
-              "latent": ["83", 2]
+              "latent": [
+                "83",
+                2
+              ]
             },
             "class_type": "LTXVScheduler",
             "_meta": {
@@ -626,12 +781,30 @@
               "add_noise": true,
               "noise_seed": 60647,
               "cfg": 3,
-              "model": ["44", 0],
-              "positive": ["69", 0],
-              "negative": ["69", 1],
-              "sampler": ["86", 0],
-              "sigmas": ["71", 0],
-              "latent_image": ["83", 2]
+              "model": [
+                "44",
+                0
+              ],
+              "positive": [
+                "69",
+                0
+              ],
+              "negative": [
+                "69",
+                1
+              ],
+              "sampler": [
+                "86",
+                0
+              ],
+              "sigmas": [
+                "71",
+                0
+              ],
+              "latent_image": [
+                "83",
+                2
+              ]
             },
             "class_type": "SamplerCustom",
             "_meta": {
@@ -651,7 +824,10 @@
           "80": {
             "inputs": {
               "img_compression": 40,
-              "image": ["81", 0]
+              "image": [
+                "81",
+                0
+              ]
             },
             "class_type": "LTXVPreprocess",
             "_meta": {
@@ -671,11 +847,26 @@
             "inputs": {
               "frame_idx": 0,
               "strength": 1,
-              "positive": ["6", 0],
-              "negative": ["7", 0],
-              "vae": ["44", 2],
-              "latent": ["84", 0],
-              "image": ["80", 0]
+              "positive": [
+                "6",
+                0
+              ],
+              "negative": [
+                "7",
+                0
+              ],
+              "vae": [
+                "44",
+                2
+              ],
+              "latent": [
+                "84",
+                0
+              ],
+              "image": [
+                "80",
+                0
+              ]
             },
             "class_type": "LTXVAddGuide",
             "_meta": {
@@ -686,11 +877,26 @@
             "inputs": {
               "frame_idx": -1,
               "strength": 1,
-              "positive": ["82", 0],
-              "negative": ["82", 1],
-              "vae": ["44", 2],
-              "latent": ["82", 2],
-              "image": ["88", 0]
+              "positive": [
+                "82",
+                0
+              ],
+              "negative": [
+                "82",
+                1
+              ],
+              "vae": [
+                "44",
+                2
+              ],
+              "latent": [
+                "82",
+                2
+              ],
+              "image": [
+                "88",
+                0
+              ]
             },
             "class_type": "LTXVAddGuide",
             "_meta": {
@@ -729,9 +935,18 @@
           },
           "87": {
             "inputs": {
-              "positive": ["69", 0],
-              "negative": ["69", 1],
-              "latent": ["72", 0]
+              "positive": [
+                "69",
+                0
+              ],
+              "negative": [
+                "69",
+                1
+              ],
+              "latent": [
+                "72",
+                0
+              ]
             },
             "class_type": "LTXVCropGuides",
             "_meta": {
@@ -741,7 +956,10 @@
           "88": {
             "inputs": {
               "img_compression": 40,
-              "image": ["85", 0]
+              "image": [
+                "85",
+                0
+              ]
             },
             "class_type": "LTXVPreprocess",
             "_meta": {
@@ -759,8 +977,14 @@
           },
           "91": {
             "inputs": {
-              "fps": ["89", 0],
-              "images": ["8", 0]
+              "fps": [
+                "89",
+                0
+              ],
+              "images": [
+                "8",
+                0
+              ]
             },
             "class_type": "CreateVideo",
             "_meta": {
@@ -770,9 +994,12 @@
           "92": {
             "inputs": {
               "filename_prefix": "AIPG_Video",
-              "format": "mp4",
-              "codec": "h264",
-              "video": ["91", 0]
+              "format": "auto",
+              "codec": "auto",
+              "video": [
+                "91",
+                0
+              ]
             },
             "class_type": "SaveVideo",
             "_meta": {
