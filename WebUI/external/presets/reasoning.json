@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "Reasoning",
   "description": "Use large reasoning models to get deeper and more accurate responses. Provides step-by-step thinking and detailed analysis.",
   "displayPriority": 70,

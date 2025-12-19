@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "Agentic",
   "description": "Agentic AI with tool calling capabilities. Can generate images and perform various tasks through function calls.",
   "displayPriority": 50,
