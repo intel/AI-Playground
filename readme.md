@@ -115,29 +115,66 @@ The installer executable will be located in the `release` folder.
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
 
 Models currently linked from the application 
-| Model                                      | License                                                                                                                                                                      | Background Information/Model Card                                                                                      |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| IMAGE GEN                        |                                            |                              |
-| Dreamshaper 8 Model (SD1.5)                       | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8)                               |
-| Dreamshaper 8 Inpainting Model (SD1.5)             | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/Lykon/dreamshaper-8-inpainting)         |
-| JuggernautXL v9 Model  (SDXL)                      | [license](https://huggingface.co/spaces/CompVis/stable-diffusion-license)                                             | [site](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9)           |
-| Flux.1-Schnell GGUF Models (Q4_K_S, Q8)                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                                             | [site](https://huggingface.co/city96/FLUX.1-schnell-gguf)           |
-| Flux.1 Kontext[dev]                       | [license](https://github.com/black-forest-labs/flux/blob/main/model_licenses/LICENSE-FLUX1-dev), | [site](https://huggingface.co/Comfy-Org/flux1-kontext-dev_ComfyUI/blob/main/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors)           |
-| Inswapper                     | [license](https://huggingface.co/datasets/Gourieff/ReActor)                                              | [site](https://huggingface.co/Aitrepreneur/insightface) inswapper_128.onnx           |
-| Latent Consistency Model (LCM) LoRA: SD1.5 | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdv1-5) |
-| Latent Consistency Model (LCM) LoRA:SDXL   | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site](https://huggingface.co/latent-consistency/lcm-lora-sdxl)     |
-| Wan 2.1 Vace 14 B | [license](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | [site]() |
-|    |  |      |
-| CHAT |  |      |
-| GPT-OSS 20B                      | [license]()                 | [site]()     |
-| DeepSeek R1 Distilled Qwen Models                      | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | site [1.5B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B) [7B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B)    |
-| Meta-Llama-3.1B-Instruct                     | [license]()                 | [site]()     |
-| Llama-3.2-3B Instruct                      | [license]()                 | [site]()     |
-| Phi3-mini-4k-instruct                      | [license](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/resolve/main/LICENSE)                 | [site](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)     |
-| Phi3.5-mini-4k-instruct                      | [license]()                 | [site]()     |
-| Qwen/Qwen2-1.5B-Instruct                     | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                 | [site](https://huggingface.co/Qwen/Qwen2-1.5B-Instruct)     |
-| Mistral-7B-Instruct-v0.3                     | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md)                 | [site](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3)     |
-| bge-large-en-v1.5                          | [license](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md)                 | [site](https://huggingface.co/BAAI/bge-large-en-v1.5)                         |
+
+### AI Model & License Registry
+
+| Model Path / Name | Model Card (HF) | License Link |
+| :--- | :--- | :--- |
+| AdamCodd/vit-base-nsfw-detector | [Model Card](https://huggingface.co/AdamCodd/vit-base-nsfw-detector) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Aitrepreneur/insightface/inswapper_128.onnx | [Model Card](https://huggingface.co/Aitrepreneur/insightface) | [Non-Commercial](https://huggingface.co/Aitrepreneur/insightface#license) |
+| alimama-creative/FLUX.1-Turbo-Alpha | [Model Card](https://huggingface.co/alimama-creative/FLUX.1-Turbo-Alpha) | [FLUX.1-dev License](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md) |
+| BGE Small EN v1.5 (GGUF) | [Model Card](https://huggingface.co/BAAI/bge-small-en-v1.5) | [MIT License](https://opensource.org/licenses/MIT) |
+| city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf | [Model Card](https://huggingface.co/city96/FLUX.1-schnell-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| city96/FLUX.1-schnell-gguf/flux1-schnell-Q8_0.gguf | [Model Card](https://huggingface.co/city96/FLUX.1-schnell-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf | [Model Card](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q4_K_M.gguf | [Model Card](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| city96/umt5-xxl-encoder-gguf/umt5-xxl-encoder-Q4_K_M.gguf | [Model Card](https://huggingface.co/city96/umt5-xxl-encoder-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| comfyanonymous/flux_text_encoders/clip_l.safetensors | [Model Card](https://huggingface.co/comfyanonymous/flux_text_encoders) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| comfyanonymous/flux_text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors | [Model Card](https://huggingface.co/comfyanonymous/flux_text_encoders) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Comfy-Org/flux1-kontext-dev/flux1-dev-kontext_fp8_scaled.safetensors | [Model Card](https://huggingface.co/Comfy-Org/flux1-kontext-dev) | [FLUX.1-dev License](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md) |
+| Comfy-Org/Lumina_Image_2.0_Repackaged/ae.safetensors | [Model Card](https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Comfy-Org/Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors | [Model Card](https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged) | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) |
+| Comfy-Org/Wan_2.1_ComfyUI_repackaged/wan_2.1_vae.safetensors | [Model Card](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged) | [Wan 2.1 License](https://huggingface.co/Wan-AI/Wan2.1-T2V-14B/blob/main/LICENSE) |
+| Comfy-Org/z_image_turbo/ae.safetensors | [Model Card](https://huggingface.co/Comfy-Org/z_image_turbo) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Comfy-Org/z_image_turbo/qwen_3_4b.safetensors | [Model Card](https://huggingface.co/Comfy-Org/z_image_turbo) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Comfy-Org/z_image_turbo/z_image_turbo_bf16.safetensors | [Model Card](https://huggingface.co/Comfy-Org/z_image_turbo) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| DeepSeek-R1-Distill-Qwen 1.5B | [Model Card](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B) | [MIT License](https://opensource.org/licenses/MIT) |
+| DeepSeek-R1-Distill-Qwen 7B | [Model Card](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B) | [MIT License](https://opensource.org/licenses/MIT) |
+| Gemma 3 4B IT (Unsloth) | [Model Card](https://huggingface.co/unsloth/gemma-3-4b-it) | [Gemma License](https://ai.google.dev/gemma/terms) |
+| gmk123/GFPGAN/GFPGANv1.4.pth | [Model Card](https://huggingface.co/gmk123/GFPGAN) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| GPT-OSS 20B (Unsloth) | [Model Card](https://huggingface.co/unsloth/gpt-oss-20b) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| InternVL2 4B (OV) | [Model Card](https://huggingface.co/OpenGVLab/InternVL2-4B) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| latent-consistency/lcm-lora-sdv1-5/pytorch_lora_weights.safetensors | [Model Card](https://huggingface.co/latent-consistency/lcm-lora-sdv1-5) | [OpenRAIL++](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors | [Model Card](https://huggingface.co/latent-consistency/lcm-lora-sdxl) | [OpenRAIL++](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| Lightricks/LTX-Video/ltxv-2b-0.9.6-distilled-04-25.safetensors | [Model Card](https://huggingface.co/Lightricks/LTX-Video) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Llama 3.2 3B Instruct | [Model Card](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct) | [Llama 3.2 License](https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE) |
+| lllyasviel/fooocus_inpaint/fooocus_inpaint_head.pth | [Model Card](https://huggingface.co/lllyasviel/fooocus_inpaint) | [OpenRAIL](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| lllyasviel/fooocus_inpaint/inpaint_v26.fooocus.patch | [Model Card](https://huggingface.co/lllyasviel/fooocus_inpaint) | [OpenRAIL](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| Lykon/DreamShaper/DreamShaper_8_pruned.safetensors | [Model Card](https://huggingface.co/Lykon/DreamShaper) | [OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors | [Model Card](https://huggingface.co/Lykon/dreamshaper-8-inpainting) | [OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| Lykon/dreamshaper-8-inpainting/unet/model.safetensors | [Model Card](https://huggingface.co/Lykon/dreamshaper-8-inpainting) | [OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| Lykon/dreamshaper-8-inpainting/vae/model.safetensors | [Model Card](https://huggingface.co/Lykon/dreamshaper-8-inpainting) | [OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| Meta-Llama 3.1 8B Instruct | [Model Card](https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct) | [Llama 3.1 License](https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/LICENSE) |
+| Mistral 7B Instruct v0.2 (OV) | [Model Card](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Mistral 7B Instruct v0.3 | [Model Card](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Mistral 7B Instruct v0.3 (OV) | [Model Card](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Nomic Embed Text v1.5 (GGUF) | [Model Card](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Phi-3 Mini 4k Instruct (OV) | [Model Card](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct) | [MIT License](https://opensource.org/licenses/MIT) |
+| Phi-3.5 Mini Instruct (OV) | [Model Card](https://huggingface.co/microsoft/Phi-3.5-mini-instruct) | [MIT License](https://opensource.org/licenses/MIT) |
+| QuantStack/Wan2.1_14B_VACE-GGUF/Wan2.1_14B_VACE-Q8_0.gguf | [Model Card](https://huggingface.co/QuantStack/Wan2.1_14B_VACE-GGUF) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Qwen2-VL 7B Instruct (OV) | [Model Card](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Qwen3 4B (OV) | [Model Card](https://huggingface.co/Qwen/Qwen2.5-4B) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Qwen3 4B (Unsloth) | [Model Card](https://huggingface.co/unsloth/Qwen2.5-4B) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Qwen3 4B Instruct 2507 (Unsloth) | [Model Card](https://huggingface.co/unsloth/Qwen2.5-4B-Instruct) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Qwen3-VL 4B Instruct (Unsloth) | [Model Card](https://huggingface.co/unsloth/Qwen2-VL-7B-Instruct) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| RunDiffusion/Juggernaut-XL-v9/RunDiffusionPhoto_v2.safetensors | [Model Card](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9) | [OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
+| SmolLM2 1.7B Instruct | [Model Card](https://huggingface.co/HuggingFaceTB/smollm2-1.7b-instruct) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| stabilityai/control-lora/rank128-canny-rank128.safetensors | [Model Card](https://huggingface.co/stabilityai/control-lora) | [SAI Community](https://huggingface.co/stabilityai/control-lora#license) |
+| tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1/model.fp16.ckpt | [Model Card](https://huggingface.co/tencent/Hunyuan3D-2.1) | [Hunyuan3D License](https://huggingface.co/tencent/Hunyuan3D-2.1/blob/main/LICENSE.txt) |
+| tencent/Hunyuan3D-2/hunyuan3d-dit-v2-0/model.fp16.safetensors | [Model Card](https://huggingface.co/tencent/Hunyuan3D-2) | [Hunyuan3D License](https://huggingface.co/tencent/Hunyuan3D-2/blob/main/LICENSE.txt) |
+| TinyLlama 1.1B Chat (OV) | [Model Card](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Whisper (OV) | [Model Card](https://huggingface.co/openai/whisper-large-v3) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+
 
 
 Be sure to check license terms for any model used in AI Playground especially taking note of any restrictions.
