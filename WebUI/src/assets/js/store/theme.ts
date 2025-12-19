@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-const knownThemes: Theme[] = ['dark', 'lnl', 'bmg']
+const knownThemes: Theme[] = ['dark', 'lnl', 'bmg', 'light']
 export const useTheme = defineStore(
   'theme',
   () => {

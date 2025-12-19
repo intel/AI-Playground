@@ -7,7 +7,7 @@
     "--reserve-vram",
     "6.0"
   ],
-  "availableThemes": ["dark", "lnl", "bmg"],
-  "currentTheme": "bmg",
+  "availableThemes": ["dark", "lnl", "bmg", "light"],
+  "currentTheme": "light",
   "isDemoModeEnabled": false
 }

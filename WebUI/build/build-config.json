@@ -7,58 +7,27 @@
     {
       "from": "../service",
       "to": "service",
-      "filter": [
-        "**/*",
-        "!models/",
-        "!.vscode/",
-        "!__pycache__/",
-        "!test/",
-        "!db/",
-        "!cache/",
-        "!static/",
-        "!temp/",
-        "!dist/",
-        "*.bat"
-      ]
+      "filter": ["*.py", "model_config.json", "pyproject.toml", "uv.lock"]
     },
     {
-      "from": "../backend-shared",
-      "to": "backend-shared",
-      "filter": ["!__pycache__/"]
-    },
-    {
-      "from": "../LlamaCPP",
-      "to": "LlamaCPP",
-      "filter": ["!__pycache__/"]
-    },
-    {
-      "from": "../OpenVINO",
-      "to": "OpenVINO",
-      "filter": ["!__pycache__/", "!.cache/", "!db/", "!llm_cache*/**", "!emb_model_cache/"]
-    },
-    {
-      "from": "external/workflows",
-      "to": "workflows"
+      "from": "external/presets",
+      "to": "presets"
     },
     {
       "from": "../device-service",
       "to": "device-service"
     },
     {
-      "from": "../service/models/stable_diffusion/ESRGAN",
-      "to": "service/models/stable_diffusion/ESRGAN"
-    },
-    {
-      "from": "../service/models/stable_diffusion/preview",
-      "to": "service/models/stable_diffusion/preview"
+      "from": "../comfyui-deps",
+      "to": "comfyui-deps"
     },
     {
       "from": "../build/resources/7zr.exe",
       "to": "7zr.exe"
     },
     {
-      "from": "../build/resources/prototype-python-env.7z",
-      "to": "prototype-python-env.7z"
+      "from": "../build/resources/uv.exe",
+      "to": "uv.exe"
     },
     {
       "from": "external/backend-versions.json",

@@ -1,0 +1,125 @@
+[project]
+name = "aipg-comfyui"
+version = "0.4.0"
+requires-python = "==3.12.*"
+dependencies = [
+  "addict", 
+  "aiohttp>=3.11.8",
+  "albumentations", 
+  "alembic",
+  "av>=14.2.0",
+  "chardet",
+  "color-matcher",
+  "comfyui-embedded-docs==0.3.1",
+  "comfyui-frontend-package==1.33.13",
+  "comfyui-workflow-templates==0.7.54",
+  "diffusers>=0.35.2",
+  "einops",
+  "filelock",
+  "ftfy",
+  "fvcore",
+  "gguf>=0.13.0",
+  "GitPython",
+  "huggingface-hub>0.20",
+  "imageio-ffmpeg",
+  "importlib_metadata",
+  "insightface==0.7.3",
+  "kornia>=0.7.1",
+  "librosa",
+  "matplotlib",
+  "matrix-nio",
+  "mediapipe",
+  "mss>=10.1.0",
+  "ninja~=1.11.1.4",
+  "numpy>=1.25.0",
+  "omegaconf",
+  "onnx>=1.14.0",
+  "onnxruntime",
+  "opencv-python>=4.7.0.72",
+  "Pillow>=10.3.0",
+  "protobuf",
+  "psutil",
+  "pydantic-settings~=2.0",
+  "pydantic~=2.0",
+  "PyGithub",
+  "python-dateutil", 
+  "triton-xpu>=3.6.0; sys_platform == 'win32'",
+  "pyyaml",
+  "rich",
+  "safetensors>=0.4.2",
+  "scikit-image", 
+  "scikit-learn", 
+  "scipy",
+  "segment-anything>=1.0",
+  "sentencepiece",
+  "soxr<1.0.0",
+  "spandrel",
+  "SQLAlchemy",
+  "stringzilla==3.12.6",
+  "svglib", 
+  "timm>=0.9.2",
+  "tokenizers>=0.13.3",
+  "toml",
+  "torch>=2.10.0",
+  "torchaudio",
+  "torchsde",
+  "torchvision",
+  "tqdm",
+  "transformers[timm]>=4.50.3",
+  "trimesh[easy]", 
+  "typer",
+  "typing-extensions",
+  "ultralytics>=8.3.233",
+  "uv",
+  "yacs", 
+  "yapf", 
+  "yarl>=1.18.0",
+]
+
+[tool.uv]
+python-preference = "only-managed"
+link-mode = "clone"
+index-strategy = "unsafe-best-match"
+required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+prerelease = "if-necessary-or-explicit"
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+
+[tool.uv.pip]
+torch-backend = "xpu"
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+]
+torchaudio = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+]
+torchvision = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+]
+pytorch-triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+insightface = [
+  { url = "https://github.com/TNG/AI-Playground/releases/download/insightface-0.7.3/insightface-0.7.3-cp312-cp312-macosx_11_0_arm64.whl", marker = "sys_platform == 'darwin'" },
+  { url = "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl", marker = "sys_platform == 'win32'" },
+]
+mediapipe = [
+  { url = "https://github.com/TNG/AI-Playground/releases/download/mediapipe-0.10.14/mediapipe-0.10.14-cp312-cp312-macosx_11_0_universal2.whl", marker = "sys_platform == 'darwin'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/test/xpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/test/cpu"
+explicit = true

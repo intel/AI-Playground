@@ -16,7 +16,7 @@ import requests
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
 from psutil._common import bytes2human
 
-import aipg_utils as utils
+import utils
 from exceptions import DownloadException
 
 model_list_cache = dict()
@@ -106,7 +106,7 @@ class HFPlaygroundDownloader:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
             return False
 
-    def download(self, repo_id: str, model_type: int, backend: str, thread_count: int = 4):
+    def download(self, repo_id: str, model_type: str, backend: str, model_path: str, thread_count: int = 4):
         print(f"at download {backend}")
         self.repo_id = repo_id
         self.total_size = 0
@@ -115,7 +115,7 @@ class HFPlaygroundDownloader:
         self.download_stop = False
         self.completed = False
         self.error = None
-        self.save_path = path.join(utils.get_model_path(model_type, backend))
+        self.save_path = path.abspath(model_path)
         logging.info(f"save_path: {self.save_path}")
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, getTmpPath(self.repo_id))
@@ -163,7 +163,7 @@ class HFPlaygroundDownloader:
                     HFDonloadItem(file.relpath, file.size, file.url, 0, save_filename)
                 )
 
-    def get_model_total_size(self, repo_id: str, model_type: int):
+    def get_model_total_size(self, repo_id: str, model_type: str):
         key = f"{repo_id}_{model_type}"
         self.repo_id = repo_id
         with model_lock:
@@ -181,11 +181,11 @@ class HFPlaygroundDownloader:
             return item["size"]
 
     def enum_file_list(
-        self, file_list: List, enum_path: str, model_type: int, is_root=True
+        self, file_list: List, enum_path: str, model_type: str, is_root=True
     ):
         # repo = "/".join(enum_path.split("/")[:2])
         list = self.fs.ls(enum_path, detail=True)
-        if model_type == 1 and enum_path == self.repo_id + "/unet":
+        if model_type == "stableDiffusion" and enum_path == self.repo_id + "/unet":
             list = self.enum_sd_unet(list)
         for item in list:
             name: str = item.get("name")
@@ -196,7 +196,7 @@ class HFPlaygroundDownloader:
             else:
                 # sd model ignore root .safetensors .pt .ckpt files
                 if (
-                    model_type == 1
+                    model_type == "stableDiffusion"
                     and is_root
                     and (
                         name.endswith(".safetensors")
@@ -205,7 +205,7 @@ class HFPlaygroundDownloader:
                     )
                 ):
                     continue
-                elif model_type == 5 and (
+                elif model_type == "embedding" and (
                     name.endswith(".safetensors") or name.endswith(".onnx")
                 ):
                     continue
@@ -344,7 +344,7 @@ class HFPlaygroundDownloader:
 
         return response, fw
 
-    def is_access_granted(self, repo_id: str, model_type, backend : str):
+    def is_access_granted(self, repo_id: str, model_type: str, backend : str):
 
         repo_id = utils.trim_repo(repo_id)
         headers={}

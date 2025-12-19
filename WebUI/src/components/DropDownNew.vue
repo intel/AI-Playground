@@ -20,6 +20,7 @@ const props = defineProps<{
   items: DropdownItem[]
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }>()
 
 const selectedItem = computed(() => {
@@ -35,31 +36,31 @@ const selectedItem = computed(() => {
 
 <template>
   <DropdownMenu>
-    <DropdownMenuTrigger as-child>
-      <button>
+    <DropdownMenuTrigger as-child :disabled="props.disabled">
+      <button :disabled="props.disabled">
         <div
-          class="w-full h-[30px] rounded-[15px] bg-[#05010f] border border-[#cdcdcd] text-white px-3 flex items-center justify-between"
+          class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div
             class="w-2 h-2 rounded-full shrink-0"
-            :class="selectedItem.active ? 'bg-green-500' : 'bg-gray-400'"
+            :class="selectedItem.active ? 'bg-primary' : 'bg-muted-foreground'"
           ></div>
           <span class="text-xs flex-grow text-left px-3 text-nowrap">
             {{ selectedItem.label }}
           </span>
-          <ChevronDownIcon class="size-4 text-gray-200"></ChevronDownIcon>
+          <ChevronDownIcon class="size-4 text-muted-foreground"></ChevronDownIcon>
         </div>
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent
       :align="'start'"
       :align-offset="-20"
-      class="w-full rounded-lg p-[3px] border border-[#cdcdcd] bg-[#05010f] max-h-[188px] overflow-y-auto z-[100] ml-4"
+      class="w-full rounded-md p-[3px] border border-border bg-card max-h-[188px] overflow-y-auto z-[100] ml-4"
     >
-      <DropdownMenuLabel v-if="title" class="text-white px-3 py-2 text-sm font-medium">{{
+      <DropdownMenuLabel v-if="title" class="text-foreground px-3 py-2 text-sm font-medium">{{
         title
       }}</DropdownMenuLabel>
-      <DropdownMenuSeparator v-if="title" class="bg-white/20" />
+      <DropdownMenuSeparator v-if="title" class="bg-border" />
       <div class="py-1">
         <DropdownMenuItem
           v-for="item in items"
@@ -69,11 +70,11 @@ const selectedItem = computed(() => {
               props.onChange(item.value)
             }
           "
-          class="text-sm px-4 py-1 flex items-center text-left hover:bg-white/10 text-white"
+          class="text-sm px-4 py-1 flex items-center text-left hover:bg-muted text-foreground"
         >
           <div
             class="w-2 h-2 rounded-full mr-2 shrink-0"
-            :class="item.active ? 'bg-green-500' : 'bg-gray-400'"
+            :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
           ></div>
           {{ item.label }}
         </DropdownMenuItem>

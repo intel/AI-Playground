@@ -7,12 +7,12 @@
     "--reserve-vram",
     "6.0"
   ],
-  "availableThemes": ["dark", "lnl", "bmg"],
+  "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "bmg",
   "enablePreviewFeatures": true,
   "isDemoModeEnabled": false,
   "demoModeResetInSeconds": null,
   "languageOverride": null,
-  "remoteRepository": "intel/ai-playground",
+  "remoteRepository": "tng/ai-playground",
   "huggingfaceEndpoint": "https://huggingface.co"
 }

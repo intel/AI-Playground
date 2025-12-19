@@ -67,19 +67,6 @@ export default defineConfig(({ command }) => {
           },
         },
         {
-          entry: 'electron/subprocesses/mediaServer.ts',
-          vite: {
-            build: {
-              sourcemap: sourcemap ? 'inline' : undefined,
-              minify: isBuild,
-              outDir: isServe ? 'dist/media' : '../build/dist/media',
-              rollupOptions: {
-                external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
-              },
-            },
-          },
-        },
-        {
           entry: 'electron/subprocesses/langchain.ts',
           vite: {
             build: {

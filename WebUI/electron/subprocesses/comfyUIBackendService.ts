@@ -2,58 +2,128 @@ import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import fs from 'fs'
 import * as filesystem from 'fs-extra'
-import { existingFileOrError } from './osProcessHelper.ts'
-import { updateIntelWorkflows } from './updateIntelWorkflows.ts'
+import { spawnProcessAsync } from './osProcessHelper.ts'
 import {
   LongLivedPythonApiService,
-  aiBackendServiceDir,
   GitService,
-  UvPipService,
-  hijacksDir,
   installHijacks,
   patchFile,
   createEnhancedErrorDetails,
 } from './service.ts'
+import { aipgBaseDir, checkBackendWithDetails, installBackend } from './uvBasedBackends/uv.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
-import { Arch } from './deviceArch.ts'
-import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { BrowserWindow } from 'electron'
+import { LocalSettings } from '../main.ts'
+import { downloadCustomNode } from './comfyuiTools.ts'
+type Device = Omit<InferenceDevice, 'selected'>
 export class ComfyUiBackendService extends LongLivedPythonApiService {
+  constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
+    super(name, port, win, settings)
+
+    this.serviceIsSetUp().then(async (setUp) => {
+      this.isSetUp = setUp
+      if (this.isSetUp) {
+        await this.updateCachedVersion()
+        this.setStatus('notYetStarted')
+      }
+      this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)
+    })
+  }
   readonly isRequired = false
   readonly serviceFolder = 'ComfyUI'
+  readonly baseDir = path.resolve(aipgBaseDir)
   readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `comfyui-backend-env`))
+  readonly pythonEnvDir = path.resolve(path.join(this.serviceDir, '.venv'))
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
-  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
-  readonly python = this.uvPip.python
   readonly git = new GitService()
   healthEndpointUrl = `${this.baseUrl}/queue`
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
-  private revision = 'v0.3.47'
+  private revision = 'v0.3.66'
+  private environmentMismatchError: ErrorDetails | null = null
 
-  private readonly comfyUIStartupParameters = this.settings.comfyUiParameters
-    ? this.settings.comfyUiParameters
-    : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
+  private readonly comfyUIStartupParameters =
+    process.platform !== 'win32'
+      ? []
+      : this.settings.comfyUiParameters
+        ? this.settings.comfyUiParameters
+        : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
 
-  serviceIsSetUp(): boolean {
-    const dirsExist =
-      filesystem.existsSync(this.pythonEnvDir) &&
-      filesystem.existsSync(this.serviceDir) &&
-      filesystem.existsSync(hijacksDir)
-    if (dirsExist) {
-      setTimeout(async () => {
-        const version = await this.getCurrentVersion()
-        if (version) {
-          this.appLogger.info(`comfyUI version ${version} detected`, this.name)
-          this.revision = version
+  async serviceIsSetUp(): Promise<boolean> {
+    this.appLogger.info(`Checking if comfyUI directories exist`, this.name)
+    const dirsExist = filesystem.existsSync(this.serviceDir)
+    this.appLogger.info(`Checking if comfyUI directories exist: ${dirsExist}`, this.name)
+    if (!dirsExist) return false
+
+    setTimeout(async () => {
+      const version = await this.getCurrentVersion()
+      if (version) {
+        this.appLogger.info(`comfyUI version ${version} detected`, this.name)
+        this.revision = version
+      }
+    })
+
+    // For ComfyUI, only check if venv exists, not exact lockfile match
+    try {
+      const checkDetails = await checkBackendWithDetails(this.serviceFolder, this.pythonEnvDir)
+
+      // If venv doesn't exist, service is not set up
+      if (!checkDetails.venvExists) {
+        this.appLogger.info(
+          `Service ${this.name} venv does not exist, needs installation`,
+          this.name,
+        )
+        return false
+      }
+
+      // If venv exists but environment mismatch detected, set error details and still allow startup
+      if (checkDetails.envMismatch) {
+        this.appLogger.warn(
+          `Service ${this.name} venv exists but environment doesn't match expected state. Will attempt startup but recommend reinstallation.`,
+          this.name,
+        )
+
+        // Set error details recommending reinstallation
+        // Include stderr from uv check which contains helpful information about what packages would be changed
+        const stderrInfo = checkDetails.stderr
+          ? `\n\n=== UV Check Output ===\n${checkDetails.stderr}`
+          : ''
+        const stdoutInfo = checkDetails.stdout
+          ? `\n\n=== UV Check Details ===\n${checkDetails.stdout}`
+          : ''
+
+        this.environmentMismatchError = {
+          command: 'ComfyUI environment check',
+          exitCode: checkDetails.exitCode,
+          stdout:
+            `Virtual environment detected at: ${this.pythonEnvDir}\n` +
+            `Environment check failed (exit code: ${checkDetails.exitCode})\n` +
+            `Sync action: ${checkDetails.action}\n\n` +
+            `The Python environment exists but doesn't match the expected configuration.\n` +
+            `This may cause ComfyUI to fail during startup.\n\n` +
+            `Recommendation: Reinstall ComfyUI to ensure the environment matches the expected state.${stdoutInfo}`,
+          stderr: `Environment mismatch detected. The virtual environment at ${this.pythonEnvDir} exists but doesn't match the expected lockfile state.${stderrInfo}`,
+          timestamp: new Date().toISOString(),
+          duration: 0,
         }
-      })
+      } else {
+        // Clear environment mismatch error if environment is in sync
+        this.environmentMismatchError = null
+      }
+
+      // Venv exists, allow startup attempt (even if mismatch detected)
+      this.appLogger.info(`Service ${this.name} venv exists, allowing startup attempt`, this.name)
+      return true
+    } catch (error) {
+      // If check fails completely, assume not set up
+      this.appLogger.error(`Failed to check ${this.name} environment: ${error}`, this.name)
+      return false
     }
-    return dirsExist
   }
 
-  isSetUp = this.serviceIsSetUp()
+  isSetUp = false
 
   async updateSettings(settings: ServiceSettings): Promise<void> {
     if (settings.version) {
@@ -80,15 +150,73 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
   }
 
-  async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.uvPip.python)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id == '0' }))
-    this.updateStatus()
+  async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
+    if (!this.isSetUp) return undefined
+    try {
+      const versionFilePath = path.join(this.serviceDir, 'comfyui_version.py')
+      if (filesystem.existsSync(versionFilePath)) {
+        const versionFileContent = await filesystem.readFile(versionFilePath, 'utf-8')
+        const versionMatch = versionFileContent.match(/__version__\s*=\s*["']([^"']+)["']/)
+        if (versionMatch && versionMatch[1]) {
+          const version = versionMatch[1]
+          // Check if it's a version tag (v0.3.76) or git hash
+          if (version.startsWith('v')) {
+            return { version }
+          } else {
+            return { version: `v${version}` }
+          }
+        }
+      }
+    } catch (e) {
+      this.appLogger.error(`failed to get installed ComfyUI version: ${e}`, this.name)
+    }
+    return undefined
   }
 
-  getServiceForPipFreeze(): UvPipService {
-    return this.uvPip
+  get_info(): ApiServiceInformation {
+    const baseInfo = super.get_info()
+
+    // Always show environment mismatch error if it exists, even if there's a startup error
+    // This guides users toward a potential fix (reinstallation)
+    if (this.environmentMismatchError) {
+      if (baseInfo.errorDetails) {
+        // Merge environment mismatch with startup error
+        const mergedError: ErrorDetails = {
+          command: baseInfo.errorDetails.command || this.environmentMismatchError.command,
+          exitCode: baseInfo.errorDetails.exitCode ?? this.environmentMismatchError.exitCode,
+          stdout: [
+            '=== Environment Mismatch Warning ===',
+            this.environmentMismatchError.stdout,
+            '',
+            '=== Startup Error Details ===',
+            baseInfo.errorDetails.stdout || 'No stdout output',
+          ].join('\n'),
+          stderr: [
+            '=== Environment Mismatch Warning ===',
+            this.environmentMismatchError.stderr,
+            '',
+            '=== Startup Error Details ===',
+            baseInfo.errorDetails.stderr || 'No stderr output',
+          ].join('\n'),
+          timestamp: baseInfo.errorDetails.timestamp || this.environmentMismatchError.timestamp,
+          duration: baseInfo.errorDetails.duration ?? this.environmentMismatchError.duration,
+          pipFreezeOutput:
+            baseInfo.errorDetails.pipFreezeOutput || this.environmentMismatchError.pipFreezeOutput,
+        }
+        return {
+          ...baseInfo,
+          errorDetails: mergedError,
+        }
+      } else {
+        // Only environment mismatch error, no startup error
+        return {
+          ...baseInfo,
+          errorDetails: this.environmentMismatchError,
+        }
+      }
+    }
+
+    return baseInfo
   }
 
   async *set_up(): AsyncIterable<SetupProgress> {
@@ -130,25 +258,42 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         await this.git.run(['-C', this.serviceDir, 'checkout', this.revision], {}, this.serviceDir)
       }
 
-      // Check whether all requirements are installed
-      const requirementsTextPath = existingFileOrError(
-        path.join(this.serviceDir, 'requirements.txt'),
-      )
+      // Copy ComfyUI dependency files and install using bundled uv
+      const comfyUIDepsDir = path.join(aipgBaseDir, 'comfyui-deps')
+      const pyprojectSource = path.join(comfyUIDepsDir, 'pyproject.toml')
+      const uvLockSource = path.join(comfyUIDepsDir, 'uv.lock')
+      const pyprojectTarget = path.join(this.serviceDir, 'pyproject.toml')
+      const uvLockTarget = path.join(this.serviceDir, 'uv.lock')
+
+      // Check if dependencies are already installed
+      let needsInstall = false
       try {
-        await this.uvPip.checkRequirementsTxt(requirementsTextPath)
+        await checkProject(this.serviceDir)
+        this.appLogger.info('ComfyUI dependencies already installed, skipping', this.name)
       } catch (_checkError) {
-        // If requirements check fails, attempt to install them
-        // Allow ProcessError instances to propagate to main error handler
-        try {
-          await this.uvPip.run(['install', '-r', requirementsTextPath])
-        } catch (installError) {
-          // Re-throw ProcessError instances to preserve enhanced error details
-          if (installError instanceof ProcessError) {
-            throw installError
-          }
-          // For other errors, wrap with context
-          throw new Error(`Failed to install requirements after check failed: ${installError}`)
-        }
+        needsInstall = true
+      }
+
+      if (needsInstall) {
+        // Copy dependency specification files
+        this.appLogger.info(
+          `Copying pyproject.toml from ${pyprojectSource} to ${pyprojectTarget}`,
+          this.name,
+        )
+        await filesystem.copyFile(pyprojectSource, pyprojectTarget)
+
+        this.appLogger.info(`Copying uv.lock from ${uvLockSource} to ${uvLockTarget}`, this.name)
+        await filesystem.copyFile(uvLockSource, uvLockTarget)
+
+        // Install dependencies
+        this.appLogger.info('Installing ComfyUI dependencies using bundled uv', this.name)
+        await installBackend(this.serviceDir, () => {
+          this.win.webContents.send('show-toast', {
+            type: 'warning',
+            message:
+              'UV cache corruption detected. Retrying installation without cache. This may take longer. You can manually clear the cache at %LOCALAPPDATA%/uv/cache',
+          })
+        })
       }
     }
 
@@ -163,13 +308,41 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
         this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
         const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')
+        const comfyUIModelsBasePath = path.resolve(this.baseDir, 'models/ComfyUI')
         const extraModelsYaml = `aipg:
-  base_path: ${path.resolve(this.baseDir, 'service/models/stable_diffusion')}
+  base_path: ${comfyUIModelsBasePath}
   checkpoints: checkpoints
-  clip: checkpoints
-  vae: checkpoints
-  unet: checkpoints
-  loras: lora`
+  loras: |
+    loras
+    lora
+  vae: vae
+  text_encoders: |
+    text_encoders
+    clip
+  clip_vision: clip_vision
+  style_models: style_models
+  embeddings: embeddings
+  diffusers: diffusers
+  vae_approx: vae_approx
+  controlnet: |
+    controlnet
+    t2i_adapter
+  gligen: gligen
+  upscale_models: |
+    upscale_models
+    latent_upscale_models
+  hypernetworks: hypernetworks
+  photomaker: photomaker
+  classifiers: classifiers
+  model_patches: model_patches
+  audio_encoders: audio_encoders
+  diffusion_models: |
+    diffusion_models
+    unet
+  insightface: insightface
+  facerestore_models: facerestore_models
+  nsfw_detector: nsfw_detector
+  inpaint: inpaint`
         fs.promises.writeFile(extraModelPathsYaml, extraModelsYaml, {
           encoding: 'utf-8',
           flag: 'w',
@@ -203,7 +376,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: 'starting to set up comfyUI environment',
       }
 
-      await this.python.ensureInstalled()
       await this.git.ensureInstalled()
 
       currentStep = 'install comfyUI'
@@ -236,56 +408,43 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: `configured comfyUI base repo`,
       }
 
-      currentStep = 'install dependencies'
+      currentStep = 'install comfyUI manager'
       yield {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
-        debugMessage: `installing dependencies`,
+        debugMessage: 'installing ComfyUI Manager custom node',
       }
-      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
-      const archToRequirements = (deviceArch: Arch) => {
-        switch (deviceArch) {
-          case 'arl_h':
-          case 'acm':
-          case 'bmg':
-          case 'lnl':
-          case 'mtl':
-            return 'xpu'
-          default:
-            return 'unknown'
+      try {
+        const managerNode = {
+          username: 'Comfy-Org',
+          repoName: 'ComfyUI-Manager',
         }
-      }
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(aiBackendServiceDir(), `requirements-${archToRequirements(deviceArch)}.txt`),
-      )
-      await this.uvPip.run(['install', '-r', deviceSpecificRequirements])
-      if (archToRequirements(deviceArch) === 'xpu') {
-        this.appLogger.info('scanning for extra wheels', this.name)
-        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter((e) =>
-          e.endsWith('.whl'),
+        await downloadCustomNode(managerNode, this.serviceDir)
+        yield {
+          serviceName: this.name,
+          step: currentStep,
+          status: 'executing',
+          debugMessage: 'ComfyUI Manager installation complete',
+        }
+      } catch (error) {
+        // Log warning but don't fail setup
+        this.appLogger.warn(
+          `Failed to install ComfyUI Manager: ${error}. Continuing setup.`,
+          this.name,
         )
-        this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
-        for (const wheelFile of wheelFiles) {
-          await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
-        }
       }
 
+      // Device-specific requirements and extra wheels are no longer needed
+      // as uv handles all dependencies through pyproject.toml and uv.lock
       yield {
         serviceName: this.name,
         step: currentStep,
         status: 'executing',
-        debugMessage: `dependencies installed`,
+        debugMessage: 'dependencies configured',
       }
-      yield {
-        serviceName: this.name,
-        step: currentStep,
-        status: 'executing',
-        debugMessage: `updating workflows from intel repository`,
-      }
-      currentStep = 'updating workflows'
-      await updateIntelWorkflows(this.settings.remoteRepository)
-
+      this.isSetUp = true
+      await this.updateCachedVersion()
       this.setStatus('notYetStarted')
       currentStep = 'end'
       yield {
@@ -299,11 +458,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-        this.uvPip,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
       yield {
         serviceName: this.name,
         step: currentStep,
@@ -314,12 +469,9 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
   }
 
-  async spawnAPIProcess(): Promise<{
-    process: ChildProcess
-    didProcessExitEarlyTracker: Promise<boolean>
-  }> {
-    const additionalEnvVariables = {
-      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+  getEnvVars() {
+    return {
+      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${path.join(this.git.dir, 'cmd')};${process.env.PATH}`,
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
@@ -327,7 +479,99 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       PIP_CONFIG_FILE: 'nul',
+      UV_NO_CONFIG: '1',
+      UV_TORCH_BACKEND: process.platform === 'win32' ? 'xpu' : undefined,
     }
+  }
+
+  getPythonBinaryPath() {
+    return path.join(
+      this.pythonEnvDir,
+      process.platform === 'win32' ? 'Scripts' : 'bin',
+      process.platform === 'win32' ? 'python.exe' : 'python',
+    )
+  }
+
+  async detectDevices() {
+    // For now, use auto-select device similar to aiBackendService
+    const availableDevices = [{ id: '*', name: 'Auto select device', selected: true }]
+    let allDevices: Device[] = []
+    try {
+      const pythonScript = `
+import torch
+import sys
+
+try:
+    # Try to get the number of XPU devices
+    device_count = torch.xpu.device_count()
+    
+    # For each device, get its name and print it
+    for i in range(device_count):
+        try:
+            device_name = torch.xpu.get_device_name(i)
+            print(f"{i}|{device_name}")
+        except Exception as e:
+            print(f"{i}|Unknown Device")
+except Exception as e:
+    print(f"Error detecting XPU devices: {str(e)}")
+    sys.exit(1)
+`
+      let i = 0
+      let lastDeviceList: Device[] = []
+      const pythonBinary = this.getPythonBinaryPath()
+      while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
+        const env = { ...this.getEnvVars(), ONEAPI_DEVICE_SELECTOR: `level_zero:${i}` }
+        this.appLogger.info(
+          `Detecting level_zero devices with ONEAPI_DEVICE_SELECTOR=${env.ONEAPI_DEVICE_SELECTOR}`,
+          this.name,
+        )
+        const result = await spawnProcessAsync(
+          pythonBinary,
+          ['-c', pythonScript],
+          (d) => this.appLogger.info(d, this.name),
+          env,
+        )
+        this.appLogger.info(`Device detection result: ${result}`, this.name)
+
+        // Parse the output
+        const devices: Device[] = []
+        const lines = result
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((line) => line !== '')
+
+        for (const line of lines) {
+          if (line.startsWith('Error detecting XPU devices:')) {
+            console.error(line)
+            continue
+          }
+
+          const parts = line.split('|', 2)
+          if (parts.length == 2) {
+            const id = `${i}`
+            const name = parts[1]
+
+            devices.push({ id, name })
+          }
+        }
+        i = i + 1
+        lastDeviceList = devices
+        allDevices = allDevices.concat(lastDeviceList)
+      }
+    } catch (error) {
+      console.error('Error detecting level_zero devices:', error)
+    }
+    this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
+    this.devices =
+      allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
+    this.updateStatus()
+  }
+
+  async spawnAPIProcess(): Promise<{
+    process: ChildProcess
+    didProcessExitEarlyTracker: Promise<boolean>
+  }> {
+    const additionalEnvVariables = this.getEnvVars()
     const mediaDir = getMediaDir()
     const parameters = [
       'main.py',
@@ -344,7 +588,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.name,
       true,
     )
-    const apiProcess = spawn(this.uvPip.python.getExePath(), parameters, {
+    const pythonBinary = this.getPythonBinaryPath()
+    const apiProcess = spawn(pythonBinary, parameters, {
       cwd: this.serviceDir,
       windowsHide: true,
       env: Object.assign(process.env, additionalEnvVariables),
@@ -368,4 +613,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       didProcessExitEarlyTracker: didProcessExitEarlyTracker,
     }
   }
+}
+
+function checkProject(_serviceDir: string) {
+  throw new Error('Function not implemented.')
 }

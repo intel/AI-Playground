@@ -52,7 +52,6 @@ graph TB
     
     subgraph "Legacy Responsibilities"
         H[Model Management]
-        I[Image Generation]
         J[LLM Inference]
         K[File Operations]
     end
@@ -73,14 +72,14 @@ graph TB
     B --> B4
     
     C --> H
-    C --> I
     C --> J
     C --> K
+    D --> I[Image Generation]
     
     style H fill:#ffebee
-    style I fill:#ffebee
     style J fill:#ffebee
     style K fill:#ffebee
+    style I fill:#fff3e0
     style B1 fill:#e8f5e8
     style B2 fill:#f3e5f5
 ```
@@ -97,23 +96,23 @@ graph TB
 The frontend has evolved from a component-heavy architecture to a store-driven approach:
 
 **Domain Stores** (Green in diagram):
-- [`imageGeneration`](WebUI/src/assets/js/store/imageGeneration.ts) - Orchestrates image generation workflows
+- [`imageGenerationPresets`](WebUI/src/assets/js/store/imageGenerationPresets.ts) - Orchestrates preset-based image generation workflows
 - [`textInference`](WebUI/src/assets/js/store/textInference.ts) - Manages LLM interactions and conversations
+- [`openAiCompatibleChat`](WebUI/src/assets/js/store/openAiCompatibleChat.ts) - Vercel AI SDK-based chat interface
 - [`backendServices`](WebUI/src/assets/js/store/backendServices.ts) - Backend service management
 
 **Implementation Stores** (Purple in diagram):
-- [`comfyUi`](WebUI/src/assets/js/store/comfyUi.ts) - ComfyUI-specific workflow processing
-- [`stableDiffusion`](WebUI/src/assets/js/store/stableDiffusion.ts) - Default backend image generation
+- [`comfyUiPresets`](WebUI/src/assets/js/store/comfyUiPresets.ts) - ComfyUI-specific workflow processing with preset support
 - [`models`](WebUI/src/assets/js/store/models.ts) - Model discovery and management
 
 #### 3. Backend Services Layer
 Multiple specialized services handle different inference engines:
 
-- **AI Backend** ([`service/`](service/)) - Primary Python Flask service (legacy responsibilities in red)
-- **ComfyUI Backend** - Node-based workflow processing
-- **LlamaCPP Backend** ([`LlamaCPP/`](LlamaCPP/)) - CPU-optimized LLM inference
-- **OpenVINO Backend** ([`OpenVINO/`](OpenVINO/)) - Intel-optimized inference
-- **Ollama Backend** - Local LLM management and inference (preview)
+- **AI Backend** ([`service/`](service/)) - Primary Python Flask service for model management, LLM inference (via OpenAI-compatible API), and file operations
+- **ComfyUI Backend** - Exclusive handler for all image generation workflows (text-to-image, image-to-image, inpainting, outpainting, upscaling)
+- **LlamaCPP Backend** ([`LlamaCPP/`](LlamaCPP/)) - CPU-optimized LLM inference with OpenAI-compatible API
+- **OpenVINO Backend** ([`OpenVINO/`](OpenVINO/)) - Intel-optimized LLM inference with OpenAI-compatible API
+- **Ollama Backend** - Local LLM management and inference with OpenAI-compatible API (preview)
 
 ### Evolution Highlights
 
@@ -155,11 +154,13 @@ timeline
                          : Component logic extraction
                          : Improved separation of concerns
     
-    section Phase 4 - Future Vision
+    section Phase 4 - Current State
         Unified Architecture : Backends focused on inference only
                             : Electron handles cross-cutting concerns
                             : Unified UI viewport
-                            : Potential Vercel AI SDK integration
+                            : Vercel AI SDK integration complete
+                            : ComfyUI-exclusive image generation
+                            : Preset-based workflow system
 ```
 
 ### Backend Architecture Evolution
@@ -178,11 +179,11 @@ This monolithic approach worked well initially but became a bottleneck as the ap
 When additional backends were introduced to support different inference engines, time constraints led to a pragmatic but suboptimal approach:
 
 **Current Backend Services:**
-- **[`service/`](service/)** - Primary Python backend (Flask) - Still contains legacy cross-cutting logic
-- **[`LlamaCPP/`](LlamaCPP/)** - LlamaCPP inference service
-- **[`OpenVINO/`](OpenVINO/)** - OpenVINO inference service
-- **ComfyUI Backend** - Node-based workflow processing
-- **Ollama Backend** - Ollama model inference (preview)
+- **[`service/`](service/)** - Primary Python backend (Flask) - Model management, LLM inference (OpenAI-compatible API), file operations
+- **[`LlamaCPP/`](LlamaCPP/)** - LlamaCPP inference service with OpenAI-compatible API
+- **[`OpenVINO/`](OpenVINO/)** - OpenVINO inference service with OpenAI-compatible API
+- **ComfyUI Backend** - Exclusive image generation service (all image workflows)
+- **Ollama Backend** - Ollama model inference with OpenAI-compatible API (preview)
 
 **Current Issues:**
 - Cross-cutting concerns (like model downloading) are partially duplicated across backends
@@ -233,7 +234,7 @@ graph TB
 Initially, the frontend followed a common pattern where:
 - All application state lived in a single global store
 - Business logic was embedded directly in Vue components
-- Components like [`Create.vue`](WebUI/src/views/Create.vue) and [`App.vue`](WebUI/src/App.vue) contained complex state management and API calls
+- Components like the old `Create.vue` and `Answer.vue` contained complex state management and API calls
 
 **Problems with Original Approach:**
 - Components became bloated with business logic
@@ -248,21 +249,20 @@ The project is actively refactoring toward a more maintainable architecture usin
 ```mermaid
 graph TB
     subgraph "View Layer"
-        A[Create.vue]
-        B[Answer.vue]
-        C[Enhance.vue]
+        A[WorkflowResult.vue]
+        B[Chat.vue]
     end
     
     subgraph "Domain Stores"
-        D[imageGeneration]
+        D[imageGenerationPresets]
         E[textInference]
         F[conversations]
         G[backendServices]
+        H[openAiCompatibleChat]
     end
     
     subgraph "Implementation Stores"
-        H[comfyUi]
-        I[stableDiffusion]
+        I[comfyUiPresets]
         J[models]
         K[globalSetup]
     end
@@ -270,25 +270,27 @@ graph TB
     A --> D
     B --> E
     B --> F
-    C --> D
+    B --> H
     
-    D --> H
     D --> I
     E --> J
     G --> K
+    H --> E
     
     style D fill:#f3e5f5
     style E fill:#f3e5f5
     style F fill:#f3e5f5
     style G fill:#f3e5f5
+    style H fill:#f3e5f5
 ```
 
 **Example: Image Generation Store Evolution**
-The [`imageGeneration`](WebUI/src/assets/js/store/imageGeneration.ts) store now orchestrates between:
-- [`comfyUi`](WebUI/src/assets/js/store/comfyUi.ts) store for ComfyUI workflow processing
-- [`stableDiffusion`](WebUI/src/assets/js/store/stableDiffusion.ts) store for default backend processing
+The [`imageGenerationPresets`](WebUI/src/assets/js/store/imageGenerationPresets.ts) store orchestrates preset-based image generation workflows:
+- Uses [`comfyUiPresets`](WebUI/src/assets/js/store/comfyUiPresets.ts) store for ComfyUI workflow processing
+- Manages preset selection, model validation, and workflow execution
+- All image generation now exclusively uses ComfyUI backend
 
-This allows [`Create.vue`](WebUI/src/views/Create.vue) to focus on presentation while the stores handle business logic and state management.
+This allows [`WorkflowResult.vue`](WebUI/src/views/WorkflowResult.vue) to focus on presentation while the stores handle business logic and state management.
 
 #### Future Vision: Complete Domain Separation
 The target is to complete the refactoring with:
@@ -303,9 +305,9 @@ The target is to complete the refactoring with:
 The rapid addition of new backends and features has led to UI inconsistencies:
 
 **Examples of Current Issues:**
-- **ComfyUI Workflows**: Managed through the settings tab rather than integrated into the main workflow
-- **LLM Settings**: Directly embedded in [`Answer.vue`](WebUI/src/views/Answer.vue) instead of following a consistent pattern
-- **Backend-Specific Controls**: Each backend has different UI patterns for similar functionality
+- **ComfyUI Workflows**: Managed through preset system with settings integration
+- **LLM Settings**: Integrated into [`Chat.vue`](WebUI/src/views/Chat.vue) with consistent patterns
+- **Backend-Specific Controls**: Unified through preset-based approach
 
 **Impact on User Experience:**
 - Users must learn different interaction patterns for different features
@@ -356,24 +358,37 @@ graph TB
 ### Technology Considerations
 
 #### Vercel AI SDK Integration
-There's a small proof-of-concept implementation using the [Vercel AI SDK](https://sdk.vercel.ai/) in [`Answer.vue`](WebUI/src/views/Answer.vue) (lines 611-635). This SDK could potentially help with:
+The application fully integrates the [Vercel AI SDK](https://sdk.vercel.ai/) for LLM chat functionality. The implementation is located in [`openAiCompatibleChat`](WebUI/src/assets/js/store/openAiCompatibleChat.ts) and used by [`Chat.vue`](WebUI/src/views/Chat.vue).
 
-**Current Manual Implementations:**
-- Output parsing and structuring
-- Streaming response handling
-- Error handling patterns
-- Token counting and metrics
+**Packages Used:**
+- `@ai-sdk/vue` - Vue.js integration for AI SDK
+- `@ai-sdk/openai-compatible` - OpenAI-compatible API provider
 
-**Potential Benefits:**
-- **Reduced Boilerplate**: SDK handles common AI interaction patterns
-- **Standardized APIs**: Consistent interface across different AI providers
-- **Built-in Features**: Streaming, error handling, and response formatting
-- **Community Support**: Well-maintained with regular updates
+**Implementation Benefits:**
+- **Streaming Responses**: Built-in support for streaming text generation
+- **OpenAI-Compatible APIs**: All LLM backends (LlamaCPP, OpenVINO, IPEX-LLM, Ollama) expose OpenAI-compatible endpoints
+- **Tool Support**: Integrated tool calling support (e.g., ComfyUI image generation tools)
+- **Error Handling**: Standardized error handling patterns
+- **Token Usage Tracking**: Automatic token counting and usage metrics
+- **Reasoning Support**: Built-in support for reasoning models with timing tracking
 
-**Considerations for Adoption:**
-- **Bundle Size**: Evaluate impact on application size
-- **Flexibility**: Ensure SDK doesn't limit custom functionality needs
-- **Migration Path**: Plan gradual adoption without breaking existing features
+**Usage Pattern:**
+```typescript
+import { Chat } from '@ai-sdk/vue'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+
+const model = createOpenAICompatible({
+  name: 'model',
+  baseURL: `${backendUrl}/v1/`,
+  includeUsage: true,
+}).chatModel(modelName)
+
+const chat = new Chat({ model })
+await chat.sendMessage({ text: userInput })
+```
+
+**Backend Integration:**
+All LLM backends expose OpenAI-compatible `/v1/chat/completions` endpoints, allowing the Vercel AI SDK to work seamlessly across different inference engines.
 
 ### Development Guidelines for Contributors
 
@@ -405,6 +420,7 @@ This architectural context should help you make informed decisions that align wi
 - **State Management**: Pinia with persistence
 - **Styling**: TailwindCSS 4.1+ with custom CSS variables
 - **UI Components**: shadcn (vue) using Radix Vue (reka-ui) with custom components
+- **AI SDK**: Vercel AI SDK (`@ai-sdk/vue`, `@ai-sdk/openai-compatible`) for LLM chat
 - **TypeScript**: 5.8+ with strict configuration
 - **Desktop**: Electron 37.2+
 
@@ -414,6 +430,7 @@ This architectural context should help you make informed decisions that align wi
 - **Intel Optimization**: IPEX-LLM, OpenVINO
 - **Embedding**: Sentence Transformers, FAISS
 - **Image Processing**: PIL, OpenCV, BasicSR
+- **API Compatibility**: All LLM backends expose OpenAI-compatible `/v1/chat/completions` endpoints
 
 ### Development Tools
 - **Linting**: ESLint with Vue and TypeScript configs
@@ -438,8 +455,7 @@ AI-Playground/
 │   └── external/                  # External resources and workflows
 ├── service/                       # Primary Python backend
 │   ├── web_api.py                # Flask API endpoints
-│   ├── llm_biz.py                # LLM business logic
-│   ├── paint_biz.py              # Image generation logic
+│   ├── llm_biz.py                # LLM business logic (OpenAI-compatible API)
 │   └── models/                   # Model storage directory
 ├── LlamaCPP/                     # LlamaCPP backend service
 ├── OpenVINO/                     # OpenVINO backend service
@@ -1034,8 +1050,13 @@ export const useBackendServices = defineStore('backendServices', () => {
 ### Store Usage in Components
 ```typescript
 <script setup lang="ts">
-const backendServices = useBackendServices()
-const { currentServiceInfo } = storeToRefs(backendServices)
+import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { useComfyUiPresets } from '@/assets/js/store/comfyUiPresets'
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+
+const imageGeneration = useImageGenerationPresets()
+const comfyUi = useComfyUiPresets()
+const openAiCompatibleChat = useOpenAiCompatibleChat()
 </script>
 ```
 
@@ -1046,7 +1067,7 @@ const { currentServiceInfo } = storeToRefs(backendServices)
 interface ModelPaths {
   llm: string                    // LLM checkpoints
   embedding: string              // Embedding models
-  stableDiffusion: string        // SD checkpoints
+  checkpoint: string              // ComfyUI checkpoints
   inpaint: string               // Inpainting models
   lora: string                  // LoRA adapters
   vae: string                   // VAE models
@@ -1063,7 +1084,8 @@ def download_model(download_request_data: DownloadModelRequestBody):
     iterator = adapter.download(download_request_data.data)
     return Response(stream_with_context(iterator), content_type="text/event-stream")
 ```
- Workflow System
+
+## Workflow System
 
 ### Workflow Structure
 Workflows are JSON files defining AI generation pipelines:
@@ -1084,9 +1106,10 @@ Workflows are JSON files defining AI generation pipelines:
 ```
 
 ### Workflow Types
-- **ComfyUI Workflows**: Complex node-based workflows in `WebUI/external/workflows/`
-- **Default Workflows**: Simple predefined workflows
-- **Intel Workflows**: Official Intel-provided workflows
+All image generation workflows are ComfyUI-based and managed through the preset system:
+- **ComfyUI Presets**: Pre-configured workflows stored in `WebUI/external/presets/` as JSON files
+- **Preset Structure**: Each preset includes workflow definition, required models, custom nodes, and UI settings
+- **Workflow Modes**: Image generation (`imageGen`), image editing (`imageEdit`), video generation (`video`)
 
 ## ComfyUI Workflows Architecture
 
@@ -1109,7 +1132,7 @@ graph TB
     end
     
     subgraph "Data Flow Architecture"
-        I[imageGeneration Store] --> J[comfyUi Store]
+        I[imageGenerationPresets Store] --> J[comfyUiPresets Store]
         J --> K[Backend API]
         K --> L[ComfyUI Service]
         L --> M[WebSocket Stream]
@@ -1240,15 +1263,15 @@ The ComfyUI workflow system follows AI Playground's domain-driven store architec
 ```mermaid
 graph TB
     subgraph "Domain Layer - Orchestration"
-        A[imageGeneration Store]
-        A1[Workflow Selection Logic]
-        A2[Backend Routing Logic]
+        A[imageGenerationPresets Store]
+        A1[Preset Selection Logic]
+        A2[Model Validation]
         A3[UI State Management]
         A4[Error Handling]
     end
     
     subgraph "Implementation Layer - ComfyUI Specific"
-        B[comfyUi Store]
+        B[comfyUiPresets Store]
         B1[Workflow Validation]
         B2[Dependency Management]
         B3[WebSocket Communication]
@@ -1286,58 +1309,85 @@ graph TB
     style C fill:#fff3e0
 ```
 
-#### imageGeneration Store (Domain Store)
+#### imageGenerationPresets Store (Domain Store)
 
-The [`imageGeneration`](WebUI/src/assets/js/store/imageGeneration.ts) store orchestrates workflow execution across different backends:
+The [`imageGenerationPresets`](WebUI/src/assets/js/store/imageGenerationPresets.ts) store orchestrates preset-based image generation workflows:
 
 ```typescript
-// Key patterns in imageGeneration store
-export const useImageGeneration = defineStore('imageGeneration', () => {
-  // Workflow selection and routing
-  const selectWorkflow = (workflowId: string, backend: BackendType) => {
-    if (backend === 'comfyui') {
-      return comfyUiStore.loadWorkflow(workflowId)
-    }
-    // Handle other backends...
-  }
+// Key patterns in imageGenerationPresets store
+export const useImageGenerationPresets = defineStore('imageGenerationPresets', () => {
+  const comfyUi = useComfyUiPresets()
+  const activePreset = computed(() => {
+    // Returns active ComfyUI preset
+    return presetsStore.activePresetWithVariant
+  })
   
-  // Unified execution interface
-  const executeWorkflow = async (params: WorkflowExecutionParams) => {
-    const backend = determineBackend(params.workflowType)
+  // Preset-based generation
+  async function generate(mode: WorkflowModeType = 'imageGen', sourceImage?: string) {
+    if (!activePreset.value) {
+      toast.error('No preset selected')
+      return
+    }
     
-    switch (backend) {
-      case 'comfyui':
-        return await comfyUiStore.executeWorkflow(params)
-      case 'stable-diffusion':
-        return await stableDiffusionStore.generate(params)
-      default:
-        throw new Error(`Unsupported backend: ${backend}`)
-    }
+    // Ensure models are available
+    await ensureModelsAreAvailable()
+    
+    // Generate using ComfyUI
+    await comfyUi.generate(imageIds, mode, sourceImage)
   }
   
-  // Cross-backend state management
-  const executionState = ref<ExecutionState>('idle')
-  const currentProgress = ref<ProgressInfo | null>(null)
+  // Model validation
+  async function ensureModelsAreAvailable(): Promise<void> {
+    const downloadList = await getMissingModels()
+    if (downloadList.length > 0) {
+      dialogStore.showDownloadDialog(downloadList, resolve, reject)
+    }
+  }
   
   return {
-    selectWorkflow,
-    executeWorkflow,
-    executionState,
-    currentProgress
+    activePreset,
+    generate,
+    ensureModelsAreAvailable,
+    // ... other methods
   }
 })
 ```
 
-#### comfyUi Store (Implementation Store)
+#### comfyUiPresets Store (Implementation Store)
 
-The [`comfyUi`](WebUI/src/assets/js/store/comfyUi.ts) store handles ComfyUI-specific workflow processing:
+The [`comfyUiPresets`](WebUI/src/assets/js/store/comfyUiPresets.ts) store handles ComfyUI-specific workflow processing with preset support:
 
 ```typescript
-// Key patterns in comfyUi store
-export const useComfyUi = defineStore('comfyUi', () => {
-  // Workflow management
-  const availableWorkflows = ref<ComfyUIWorkflow[]>([])
-  const currentWorkflow = ref<ComfyUIWorkflow | null>(null)
+// Key patterns in comfyUiPresets store
+export const useComfyUiPresets = defineStore('comfyUiPresets', () => {
+  const imageGeneration = useImageGenerationPresets()
+  
+  // Workflow execution with preset support
+  async function generate(
+    imageIds: string[],
+    mode: WorkflowModeType,
+    sourceImage?: string,
+  ) {
+    const activePreset = imageGeneration.activePreset
+    if (!activePreset) return
+    
+    // Load workflow from preset
+    const workflow = activePreset.comfyUiApiWorkflow
+    const mutableWorkflow = JSON.parse(JSON.stringify(workflow))
+    
+    // Apply dynamic settings from preset
+    modifyDynamicSettingsInWorkflow(mutableWorkflow)
+    
+    // Submit to ComfyUI backend
+    await fetch(`${comfyBaseUrl}/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: mutableWorkflow,
+        client_id: clientId,
+      }),
+    })
+  }
   
   // Dependency management
   const installCustomNodes = async (nodeRepos: string[]) => {
@@ -1639,7 +1689,7 @@ interface ExecutionErrorMessage extends ComfyUIWebSocketMessage {
 #### WebSocket Handler Implementation
 
 ```typescript
-// WebSocket message handling in comfyUi store
+// WebSocket message handling in comfyUiPresets store
 const handleWebSocketMessage = (message: ComfyUIWebSocketMessage) => {
   switch (message.type) {
     case 'status':
@@ -1693,7 +1743,7 @@ This section provides architectural debugging approaches for common ComfyUI work
 
 **1. Workflow Validation Failures**
 ```typescript
-// Debug workflow validation in comfyUi store
+// Debug workflow validation in comfyUiPresets store
 const debugWorkflowValidation = async (workflow: ComfyUIWorkflow) => {
   console.group('🔍 Workflow Validation Debug')
   
@@ -2042,7 +2092,7 @@ describe('MyComponent', () => {
 5. Submit PR with detailed description
 
 ### Documentation
-- Update this AGENT.md for architectural changes
+- Update this AGENTS.md for architectural changes
 - Add inline comments for complex logic
 - Update README.md for user-facing changes
 - Document new API endpoints
@@ -2082,6 +2132,11 @@ vue-tsc --noEmit
 - [`WebUI/electron/main.ts`](WebUI/electron/main.ts) - Electron main process entry point
 - [`service/web_api.py`](service/web_api.py) - Primary backend API
 - [`WebUI/src/assets/js/store/backendServices.ts`](WebUI/src/assets/js/store/backendServices.ts) - Service management store
+- [`WebUI/src/assets/js/store/imageGenerationPresets.ts`](WebUI/src/assets/js/store/imageGenerationPresets.ts) - Image generation orchestration
+- [`WebUI/src/assets/js/store/comfyUiPresets.ts`](WebUI/src/assets/js/store/comfyUiPresets.ts) - ComfyUI workflow processing
+- [`WebUI/src/assets/js/store/openAiCompatibleChat.ts`](WebUI/src/assets/js/store/openAiCompatibleChat.ts) - Vercel AI SDK chat interface
+- [`WebUI/src/views/WorkflowResult.vue`](WebUI/src/views/WorkflowResult.vue) - Image generation UI
+- [`WebUI/src/views/Chat.vue`](WebUI/src/views/Chat.vue) - LLM chat UI
 - [`WebUI/electron/subprocesses/apiServiceRegistry.ts`](WebUI/electron/subprocesses/apiServiceRegistry.ts) - Service registry
 
 ### Configuration Files

@@ -19,14 +19,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
   selectDevice: (serviceName: string, deviceId: string) =>
     ipcRenderer.invoke('selectDevice', serviceName, deviceId),
+  selectSttDevice: (serviceName: string, deviceId: string) =>
+    ipcRenderer.invoke('selectSttDevice', serviceName, deviceId),
   detectDevices: (serviceName: string) => ipcRenderer.invoke('detectDevices', serviceName),
   startService: (serviceName: string) => ipcRenderer.invoke('startService', serviceName),
   stopService: (serviceName: string) => ipcRenderer.invoke('stopService', serviceName),
   setUpService: (serviceName: string) => ipcRenderer.invoke('setUpService', serviceName),
-  updateWorkflowsFromIntelRepo: () => ipcRenderer.invoke('updateWorkflowsFromIntelRepo'),
-  reloadImageWorkflows: () => ipcRenderer.invoke('reloadImageWorkflows'),
+  updatePresetsFromIntelRepo: () => ipcRenderer.invoke('updatePresetsFromIntelRepo'),
+  reloadPresets: () => ipcRenderer.invoke('reloadPresets'),
+  getUserPresetsPath: () => ipcRenderer.invoke('getUserPresetsPath'),
+  loadUserPresets: () => ipcRenderer.invoke('loadUserPresets'),
+  saveUserPreset: (presetContent: string) => ipcRenderer.invoke('saveUserPreset', presetContent),
   resolveBackendVersion: (serviceName: string) =>
     ipcRenderer.invoke('resolveBackendVersion', serviceName),
+  getInstalledBackendVersion: (serviceName: string) =>
+    ipcRenderer.invoke('getInstalledBackendVersion', serviceName),
+  getGitHubRepoUrl: () => ipcRenderer.invoke('getGitHubRepoUrl'),
   openDevTools: () => ipcRenderer.send('openDevTools'),
   openUrl: (url: string) => ipcRenderer.send('openUrl', url),
   getLocaleSettings: () => ipcRenderer.invoke('getLocaleSettings'),
@@ -45,7 +53,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setIgnoreMouseEvents: (igrnore: boolean) => ipcRenderer.send('setIgnoreMouseEvents', igrnore),
   miniWindow: () => ipcRenderer.send('miniWindow'),
   exitApp: () => ipcRenderer.send('exitApp'),
-  getMediaUrlBase: () => ipcRenderer.invoke('getMediaUrlBase'),
   getInitialPage: () => ipcRenderer.invoke('getInitialPage'),
   getDemoModeSettings: () => ipcRenderer.invoke('getDemoModeSettings'),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
@@ -67,19 +74,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addDocumentToRAGList: (doc: IndexedDocument) => ipcRenderer.invoke('addDocumentToRAGList', doc),
   embedInputUsingRag: (embedInquiry: EmbedInquiry) =>
     ipcRenderer.invoke('embedInputUsingRag', embedInquiry),
+  getEmbeddingServerUrl: (serviceName: string) =>
+    ipcRenderer.invoke('getEmbeddingServerUrl', serviceName),
   getInitSetting: () => ipcRenderer.invoke('getInitSetting'),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke('updateModelPaths', modelPaths),
   restorePathsSettings: () => ipcRenderer.invoke('restorePathsSettings'),
-  refreshSDModles: () => ipcRenderer.invoke('refreshSDModles'),
-  refreshInpaintModles: () => ipcRenderer.invoke('refreshInpaintModles'),
   refreshLLMModles: () => ipcRenderer.invoke('refreshLLMModles'),
-  refreshLora: () => ipcRenderer.invoke('refreshLora'),
   loadModels: () => ipcRenderer.invoke('loadModels'),
   zoomIn: () => ipcRenderer.invoke('zoomIn'),
   zoomOut: () => ipcRenderer.invoke('zoomOut'),
-  getDownloadedDiffusionModels: () => ipcRenderer.invoke('getDownloadedDiffusionModels'),
-  getDownloadedInpaintModels: () => ipcRenderer.invoke('getDownloadedInpaintModels'),
-  getDownloadedLoras: () => ipcRenderer.invoke('getDownloadedLoras'),
   getDownloadedLLMs: () => ipcRenderer.invoke('getDownloadedLLMs'),
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
@@ -94,6 +97,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
     ipcRenderer.on('serviceInfoUpdate', (_event, value) => callback(value)),
+  onShowToast: (callback: (data: { type: string; message: string }) => void) =>
+    ipcRenderer.on('show-toast', (_event, data) => callback(data)),
   ensureBackendReadiness: (
     serviceName: string,
     llmModelName: string,
@@ -107,4 +112,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
       embeddingModelName,
       contextSize,
     ),
+  startTranscriptionServer: (modelName: string) =>
+    ipcRenderer.invoke('startTranscriptionServer', modelName),
+  stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),
+  getTranscriptionServerUrl: () => ipcRenderer.invoke('getTranscriptionServerUrl'),
+  // ComfyUI Tools
+  comfyui: {
+    isGitInstalled: () => ipcRenderer.invoke('comfyui:isGitInstalled'),
+    isComfyUIInstalled: () => ipcRenderer.invoke('comfyui:isComfyUIInstalled'),
+    getGitRef: (repoDir: string) => ipcRenderer.invoke('comfyui:getGitRef', repoDir),
+    isPackageInstalled: (packageSpecifier: string) =>
+      ipcRenderer.invoke('comfyui:isPackageInstalled', packageSpecifier),
+    installPypiPackage: (packageSpecifier: string) =>
+      ipcRenderer.invoke('comfyui:installPypiPackage', packageSpecifier),
+    isCustomNodeInstalled: (nodeRepoRef: ComfyUICustomNodeRepoId) =>
+      ipcRenderer.invoke('comfyui:isCustomNodeInstalled', nodeRepoRef),
+    downloadCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId) =>
+      ipcRenderer.invoke('comfyui:downloadCustomNode', nodeRepoData),
+    uninstallCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId) =>
+      ipcRenderer.invoke('comfyui:uninstallCustomNode', nodeRepoData),
+    listInstalledCustomNodes: () => ipcRenderer.invoke('comfyui:listInstalledCustomNodes'),
+  },
 })

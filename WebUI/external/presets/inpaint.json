@@ -1,0 +1,566 @@
+{
+  "type": "comfy",
+  "name": "Inpaint",
+  "displayPriority": 500,
+  "tags": ["masking"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Regenerate portions of an image by masking an area that will change based on your prompt",
+  "requiredCustomNodes": [
+    "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "variants": [
+    {
+      "name": "Draft",
+      "overrides": {
+        "tags": ["inpaint", "edit-images", "SD1.5"],
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "4": {
+            "inputs": {
+              "vae_name": "Lykon---dreamshaper-8-inpainting\\vae\\diffusion_pytorch_model.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+              "title": "Load VAE"
+            }
+          },
+          "9": {
+            "inputs": {
+              "clip_name": "Lykon---dreamshaper-8-inpainting\\text_encoder\\model.safetensors",
+              "type": "stable_diffusion",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": {
+              "title": "CLIPLoader"
+            }
+          },
+          "10": {
+            "inputs": {
+              "unet_name": "Lykon---dreamshaper-8-inpainting\\unet\\diffusion_pytorch_model.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+              "title": "Load Diffusion Model"
+            }
+          },
+          "11": {
+            "inputs": {
+              "model": ["10", 0]
+            },
+            "class_type": "DifferentialDiffusion",
+            "_meta": {
+              "title": "Differential Diffusion"
+            }
+          },
+          "12": {
+            "inputs": {
+              "noise_mask": false,
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "vae": ["4", 0],
+              "pixels": ["23", 0],
+              "mask": ["14", 0]
+            },
+            "class_type": "InpaintModelConditioning",
+            "_meta": {
+              "title": "InpaintModelConditioning"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "HD",
+      "overrides": {
+        "tags": ["inpaint", "edit-images", "SDXL"],
+        "requiredModels": [
+          {
+            "type": "checkpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+          },
+          {
+            "type": "inpaint",
+            "model": "lllyasviel/fooocus_inpaint/fooocus_inpaint_head.pth"
+          },
+          {
+            "type": "inpaint",
+            "model": "lllyasviel/fooocus_inpaint/inpaint_v26.fooocus.patch"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "height"
+          },
+          {
+            "type": "number",
+            "label": "Target Width",
+            "nodeTitle": "width",
+            "nodeInput": "value",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Target Height",
+            "nodeTitle": "height",
+            "nodeInput": "value",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "1024x1024",
+            "settingName": "resolution"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "seed": 582157188645489,
+              "steps": 20,
+              "cfg": 5,
+              "sampler_name": "dpmpp_2m_sde",
+              "scheduler": "karras",
+              "denoise": 1,
+              "model": ["103", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "latent_image": ["104", 0]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "5": {
+            "inputs": {
+              "samples": ["3", 0],
+              "vae": ["102", 2]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "6": {
+            "inputs": {
+              "text": "a beach",
+              "clip": ["102", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "nsfw",
+              "clip": ["102", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
+            }
+          },
+          "27": {
+            "inputs": {
+              "value": 1024
+            }
+          },
+          "28": {
+            "inputs": {
+              "value": 1024
+            }
+          },
+          "101": {
+            "inputs": {
+              "head": "lllyasviel---fooocus_inpaint\\fooocus_inpaint_head.pth",
+              "patch": "lllyasviel---fooocus_inpaint\\inpaint_v26.fooocus.patch"
+            },
+            "class_type": "INPAINT_LoadFooocusInpaint",
+            "_meta": {
+              "title": "Load Fooocus Inpaint"
+            }
+          },
+          "102": {
+            "inputs": {
+              "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple",
+            "_meta": {
+              "title": "Load Checkpoint"
+            }
+          },
+          "103": {
+            "inputs": {
+              "model": ["102", 0],
+              "patch": ["101", 0],
+              "latent": ["104", 0]
+            },
+            "class_type": "INPAINT_ApplyFooocusInpaint",
+            "_meta": {
+              "title": "Apply Fooocus Inpaint"
+            }
+          },
+          "104": {
+            "inputs": {
+              "grow_mask_by": 16,
+              "pixels": ["23", 0],
+              "vae": ["102", 2],
+              "mask": ["14", 0]
+            },
+            "class_type": "VAEEncodeForInpaint",
+            "_meta": {
+              "title": "VAE Encode (for Inpainting)"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "number",
+      "label": "Target Width",
+      "nodeTitle": "width",
+      "nodeInput": "value",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 512,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Target Height",
+      "nodeTitle": "height",
+      "nodeInput": "value",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 512,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "showPreview"
+    },
+    {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "image",
+      "label": "Input Image",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image",
+      "defaultValue": "",
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "inpaintMask",
+      "label": "Inpaint Mask",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image",
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Denoise",
+      "nodeTitle": "KSampler",
+      "nodeInput": "denoise",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01,
+      "defaultValue": 1.0,
+      "displayed": false,
+      "modifiable": false
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "image": "input.jpg",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "3": {
+      "inputs": {
+        "seed": 413053266758155,
+        "steps": 20,
+        "cfg": 7,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1.0,
+        "model": ["11", 0],
+        "positive": ["12", 0],
+        "negative": ["12", 1],
+        "latent_image": ["12", 2]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "5": {
+      "inputs": {
+        "samples": ["3", 0],
+        "vae": ["4", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "6": {
+      "inputs": {
+        "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+        "clip": ["9", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "nsfw",
+        "clip": ["9", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    },
+    "14": {
+      "inputs": {
+        "channel": "red",
+        "image": ["25", 0]
+      },
+      "class_type": "ImageToMask",
+      "_meta": {
+        "title": "Convert Image to Mask"
+      }
+    },
+    "15": {
+      "inputs": {
+        "mask": ["1", 1]
+      },
+      "class_type": "MaskToImage",
+      "_meta": {
+        "title": "Convert Mask to Image"
+      }
+    },
+    "23": {
+      "inputs": {
+        "upscale_method": "bicubic",
+        "width": ["27", 0],
+        "height": ["28", 0],
+        "crop": "center",
+        "image": ["1", 0]
+      },
+      "class_type": "ImageScale",
+      "_meta": {
+        "title": "Upscale Image"
+      }
+    },
+    "25": {
+      "inputs": {
+        "upscale_method": "bicubic",
+        "width": ["27", 0],
+        "height": ["28", 0],
+        "crop": "center",
+        "image": ["15", 0]
+      },
+      "class_type": "ImageScale",
+      "_meta": {
+        "title": "Upscale Image"
+      }
+    },
+    "27": {
+      "inputs": {
+        "value": 512
+      },
+      "class_type": "PrimitiveInt",
+      "_meta": {
+        "title": "width"
+      }
+    },
+    "28": {
+      "inputs": {
+        "value": 512
+      },
+      "class_type": "PrimitiveInt",
+      "_meta": {
+        "title": "height"
+      }
+    },
+    "8": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["98", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["5", 0]
+      },
+      "class_type": "YetAnotherSafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
+      }
+    }
+  }
+}

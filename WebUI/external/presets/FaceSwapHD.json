@@ -1,0 +1,308 @@
+{
+  "type": "comfy",
+  "name": "Control Face",
+  "displayPriority": 200,
+  "tags": ["SDXL", "JuggernautXL", "1024x1024"],
+  "description": "Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
+  "backend": "comfyui",
+  "category": "create-images",
+  "requiredCustomNodes": [
+    "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed",
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [
+    "stringzilla==3.12.6",
+    "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+    "onnxruntime"
+  ],
+  "requiredModels": [
+    {
+      "type": "checkpoints",
+      "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+    },
+    {
+      "type": "lora",
+      "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
+    },
+    {
+      "type": "faceswap",
+      "model": "Aitrepreneur/insightface/inswapper_128.onnx",
+      "additionalLicenceLink": "https://huggingface.co/datasets/Gourieff/ReActor"
+    },
+    {
+      "type": "facerestore",
+      "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 4,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 896,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 896,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "896x896",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "showPreview"
+    },
+    {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "boolean",
+      "label": "Activate FaceSwap",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "nodeTitle": "ReActor 🌌 Fast Face Swap",
+      "nodeInput": "enabled"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 826090,
+        "steps": 4,
+        "cfg": 1.5,
+        "sampler_name": "lcm",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": ["19", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "5": {
+      "inputs": {
+        "width": 896,
+        "height": 896,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage",
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "6": {
+      "inputs": {
+        "text": "a photograph of a dude",
+        "clip": ["19", 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "nsfw",
+        "clip": ["19", 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    },
+    "8": {
+      "inputs": {
+        "samples": ["3", 0],
+        "vae": ["26", 2]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["98", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "15": {
+      "inputs": {
+        "image": "source.png",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "19": {
+      "inputs": {
+        "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
+        "strength_model": 1,
+        "strength_clip": 1,
+        "model": ["26", 0],
+        "clip": ["26", 1]
+      },
+      "class_type": "LoraLoader",
+      "_meta": {
+        "title": "Load LoRA"
+      }
+    },
+    "26": {
+      "inputs": {
+        "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "25": {
+      "inputs": {
+        "enabled": true,
+        "swap_model": "Aitrepreneur---insightface---inswapper_128.onnx",
+        "facedetection": "retinaface_resnet50",
+        "face_restore_model": "gmk123---GFPGAN---GFPGANv1.4.pth",
+        "face_restore_visibility": 1,
+        "codeformer_weight": 0.5,
+        "detect_gender_input": "no",
+        "detect_gender_source": "no",
+        "input_faces_index": "0",
+        "source_faces_index": "0",
+        "console_log_level": 1,
+        "input_image": ["8", 0],
+        "source_image": ["15", 0]
+      },
+      "class_type": "ReActorFaceSwap",
+      "_meta": {
+        "title": "ReActor 🌌 Fast Face Swap"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["25", 0]
+      },
+      "class_type": "YetAnotherSafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
+      }
+    }
+  }
+}

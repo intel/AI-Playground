@@ -6,7 +6,7 @@
     "config": "tailwind.config.cjs",
     "css": "src/assets/css/index.css",
     "baseColor": "slate",
-    "cssVariables": false
+    "cssVariables": true
   },
   "aliases": {
     "components": "@/components",

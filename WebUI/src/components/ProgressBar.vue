@@ -1,6 +1,6 @@
 <template>
   <div class="v-progress-bar">
-    <div v-if="props.text" class="text-white text-center" v-html="html"></div>
+    <div v-if="props.text" class="text-foreground text-center" v-html="html"></div>
     <div class="v-progress-bar-percent-bg">
       <div class="v-progress-bar-percent" :style="{ width: `${props.percent}%` }"></div>
     </div>

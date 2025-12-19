@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import z from 'zod'
 
 const backends = [
@@ -59,6 +59,10 @@ export const useBackendServices = defineStore(
       'openvino-backend': null,
     })
 
+    // User's version overrides (persisted)
+    const versionOverrides = ref<Partial<Record<BackendServiceName, BackendVersion>>>({})
+
+    // Full version state (not persisted - computed from live data + overrides)
     const versionState = ref<BackendVersionState>({
       'ai-backend': {},
       'comfyui-backend': {},
@@ -66,6 +70,29 @@ export const useBackendServices = defineStore(
       'ollama-backend': {},
       'openvino-backend': {},
     })
+
+    // Sync persisted overrides into versionState on init
+    backends.forEach((serviceName) => {
+      if (versionOverrides.value[serviceName]) {
+        versionState.value[serviceName].uiOverride = versionOverrides.value[serviceName]
+      }
+    })
+
+    // Watch for changes to uiOverride and sync to persisted overrides
+    watch(
+      () => backends.map((b) => versionState.value[b].uiOverride),
+      () => {
+        backends.forEach((serviceName) => {
+          const override = versionState.value[serviceName].uiOverride
+          if (override) {
+            versionOverrides.value[serviceName] = override
+          } else {
+            delete versionOverrides.value[serviceName]
+          }
+        })
+      },
+      { deep: true },
+    )
 
     backends.forEach((serviceName) => {
       window.electronAPI.resolveBackendVersion(serviceName).then((version) => {
@@ -85,17 +112,39 @@ export const useBackendServices = defineStore(
       })
       .then((services) => {
         currentServiceInfo.value = services
+        // Extract installed versions from service info
+        for (const service of services) {
+          const serviceName = service.serviceName as BackendServiceName
+          if (service.installedVersion) {
+            versionState.value[serviceName].installed = service.installedVersion
+          }
+        }
       })
     setTimeout(() => {
       window.electronAPI.getServices().then((services) => {
         console.log('getServices', services)
         currentServiceInfo.value = services
+        // Extract installed versions from service info
+        for (const service of services) {
+          const serviceName = service.serviceName as BackendServiceName
+          if (service.installedVersion) {
+            versionState.value[serviceName].installed = service.installedVersion
+          }
+        }
       })
     }, 5000)
     window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
       currentServiceInfo.value = currentServiceInfo.value.map((oldInfo) =>
         oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo,
       )
+      // Update installed version from service info
+      const serviceName = updatedInfo.serviceName as BackendServiceName
+      if (updatedInfo.installedVersion) {
+        versionState.value[serviceName].installed = updatedInfo.installedVersion
+      } else if (!updatedInfo.isSetUp) {
+        // Clear installed version if service is not set up
+        versionState.value[serviceName].installed = undefined
+      }
     })
 
     window.electronAPI.onServiceSetUpProgress(async (data) => {
@@ -109,6 +158,7 @@ export const useBackendServices = defineStore(
 
     const serviceInfoUpdatePresent = computed(() => currentServiceInfo.value.length > 0)
     const initalStartupRequestComplete = ref(false)
+    const backendStartupInProgress = ref(false)
     const allRequiredSetUp = computed(
       () =>
         currentServiceInfo.value.length > 0 &&
@@ -132,12 +182,29 @@ export const useBackendServices = defineStore(
               console.log(`Detecting devices for ${s.serviceName}`)
               await detectDevices(s.serviceName)
               await new Promise((resolve) => setTimeout(resolve, 100)) // wait a second for device detection to settle
-              console.log(`Device detection complete for ${s.serviceName}`, JSON.stringify({ devices: s.devices, info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName) }))
+              console.log(
+                `Device detection complete for ${s.serviceName}`,
+                JSON.stringify({
+                  devices: s.devices,
+                  info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName),
+                }),
+              )
               const lastSelectedDeviceId = lastSelectedDeviceIdPerBackend.value[s.serviceName]
-              const availableDevicesIds = currentServiceInfo.value.find((info) => info.serviceName === s.serviceName)?.devices.map((d) => d.id)
-              const currentlySelectedDevice = currentServiceInfo.value.find((info) => info.serviceName === s.serviceName)?.devices.find((d) => d.selected)?.id
-              console.log(`Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`)
-              if (availableDevicesIds && lastSelectedDeviceId && availableDevicesIds.includes(lastSelectedDeviceId) && lastSelectedDeviceId !== currentlySelectedDevice) {
+              const availableDevicesIds = currentServiceInfo.value
+                .find((info) => info.serviceName === s.serviceName)
+                ?.devices.map((d) => d.id)
+              const currentlySelectedDevice = currentServiceInfo.value
+                .find((info) => info.serviceName === s.serviceName)
+                ?.devices.find((d) => d.selected)?.id
+              console.log(
+                `Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`,
+              )
+              if (
+                availableDevicesIds &&
+                lastSelectedDeviceId &&
+                availableDevicesIds.includes(lastSelectedDeviceId) &&
+                lastSelectedDeviceId !== currentlySelectedDevice
+              ) {
                 console.log(`Re-selecting device ${lastSelectedDeviceId} for ${s.serviceName}`)
                 await selectDevice(s.serviceName, lastSelectedDeviceId)
               }
@@ -193,16 +260,27 @@ export const useBackendServices = defineStore(
       }
 
       const versions = versionState.value[serviceName]
-      const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
+      const targetVersionSettings = versions.uiOverride ?? versions.target
       await updateServiceSettings({ serviceName, ...targetVersionSettings })
       window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
-      if (result.success) await detectDevices(serviceName)
+      if (result.success) {
+        await detectDevices(serviceName)
+        // Installed version is now automatically updated via serviceInfoUpdate
+      }
       return result
     }
 
     function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
-      return currentServiceInfo.value.filter((s) => s.serviceName === serviceName)[0]?.errorDetails
+      // First check service info (startup errors from main process)
+      const serviceError = currentServiceInfo.value.find(
+        (s) => s.serviceName === serviceName,
+      )?.errorDetails
+      if (serviceError) return serviceError
+
+      // Then check listener (installation errors captured in renderer)
+      const listener = serviceListeners.get(serviceName)
+      return listener?.getLastErrorDetails() ?? null
     }
 
     async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
@@ -218,6 +296,10 @@ export const useBackendServices = defineStore(
     function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
       lastSelectedDeviceIdPerBackend.value[serviceName] = deviceId
       return window.electronAPI.selectDevice(serviceName, deviceId)
+    }
+
+    function selectSttDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
+      return window.electronAPI.selectSttDevice(serviceName, deviceId)
     }
 
     async function detectDevices(serviceName: BackendServiceName): Promise<void> {
@@ -277,6 +359,98 @@ export const useBackendServices = defineStore(
       }
     }
 
+    async function startTranscriptionServer(modelName: string): Promise<void> {
+      try {
+        const result = await window.electronAPI.startTranscriptionServer(modelName)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to start transcription server')
+        }
+      } catch (error) {
+        console.error(`Failed to start transcription server:`, error)
+        throw error
+      }
+    }
+
+    async function stopTranscriptionServer(): Promise<void> {
+      try {
+        const result = await window.electronAPI.stopTranscriptionServer()
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to stop transcription server')
+        }
+      } catch (error) {
+        console.error(`Failed to stop transcription server:`, error)
+        throw error
+      }
+    }
+
+    async function getTranscriptionServerUrl(): Promise<string | null> {
+      try {
+        const result = await window.electronAPI.getTranscriptionServerUrl()
+        if (result.success && result.url) {
+          return result.url
+        }
+        return null
+      } catch (error) {
+        console.error(`Failed to get transcription server URL:`, error)
+        return null
+      }
+    }
+
+    async function shouldShowInstallationDialog(): Promise<boolean> {
+      // Wait a moment for async setup checks to complete in the main process
+      // Services like ai-backend check setup asynchronously, so we need to give them time
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Re-fetch service info to get the latest setup status
+      try {
+        const latestServices = await window.electronAPI.getServices()
+        currentServiceInfo.value = latestServices
+      } catch (error) {
+        console.warn('Failed to refresh service info for installation check:', error)
+      }
+
+      // Only show if required backends are missing or have errors
+      const requiredServices = currentServiceInfo.value.filter((s) => s.isRequired)
+      return requiredServices.some(
+        (s) => !s.isSetUp || (s.errorDetails !== null && s.errorDetails !== undefined),
+      )
+    }
+
+    async function startAllSetUpServicesInBackground(): Promise<void> {
+      if (backendStartupInProgress.value) {
+        console.log('Backend startup already in progress, skipping')
+        return
+      }
+
+      // Check if there are any services to start
+      const servicesToStart = currentServiceInfo.value.filter((s) => s.isSetUp)
+      if (servicesToStart.length === 0) {
+        console.log('No services are set up to start')
+        return
+      }
+
+      console.log(
+        `Starting ${servicesToStart.length} backend service(s) in background:`,
+        servicesToStart.map((s) => s.serviceName),
+      )
+      backendStartupInProgress.value = true
+
+      // Start in background without blocking
+      startAllSetUpServices()
+        .then((result) => {
+          console.log('Background backend startup completed', result)
+          if (!result.allServicesStarted) {
+            console.warn('Not all services started successfully in background')
+          }
+        })
+        .catch((error) => {
+          console.error('Background backend startup failed', error)
+        })
+        .finally(() => {
+          backendStartupInProgress.value = false
+        })
+    }
+
     return {
       info: currentServiceInfo,
       serviceInfoUpdateReceived: serviceInfoUpdatePresent,
@@ -285,6 +459,7 @@ export const useBackendServices = defineStore(
       initalStartupRequestComplete,
       lastUsedBackend,
       versionState,
+      versionOverrides,
       lastSelectedDeviceIdPerBackend,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
@@ -297,13 +472,20 @@ export const useBackendServices = defineStore(
       uninstallService,
       detectDevices,
       selectDevice,
+      selectSttDevice,
       ensureBackendReadiness,
+      startTranscriptionServer,
+      stopTranscriptionServer,
+      getTranscriptionServerUrl,
       getServiceErrorDetails,
+      shouldShowInstallationDialog,
+      startAllSetUpServicesInBackground,
+      backendStartupInProgress,
     }
   },
   {
     persist: {
-      pick: ['versionState', 'lastSelectedDeviceIdPerBackend'],
+      pick: ['versionOverrides', 'lastSelectedDeviceIdPerBackend'],
     },
   },
 )
@@ -315,7 +497,6 @@ class BackendServiceSetupProgressListener {
   private terminalUpdateReceived = false
   private installationSuccess: boolean = false
   private lastErrorDetails: ErrorDetails | null = null
-  private postInstallationErrorDetails: ErrorDetails | null = null
 
   constructor(associatedServiceName: string) {
     this.associatedServiceName = associatedServiceName
@@ -379,24 +560,11 @@ class BackendServiceSetupProgressListener {
     })
   }
 
-  // Clear error details when starting a new installation
   clearErrorDetails() {
     this.lastErrorDetails = null
-    this.postInstallationErrorDetails = null
   }
 
-  // Getter for current error details (for UI to access)
   getLastErrorDetails(): ErrorDetails | null {
-    return this.postInstallationErrorDetails || this.lastErrorDetails
-  }
-
-  // Set post-installation error details
-  setPostInstallationError(errorDetails: ErrorDetails) {
-    this.postInstallationErrorDetails = errorDetails
-  }
-
-  // Check if there are any errors (installation or post-installation)
-  hasErrors(): boolean {
-    return this.lastErrorDetails !== null || this.postInstallationErrorDetails !== null
+    return this.lastErrorDetails
   }
 }

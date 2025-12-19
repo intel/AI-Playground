@@ -1,10 +1,11 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { z } from 'zod'
-import { useBackendServices } from './backendServices'
+import { useBackendServices, type BackendServiceName } from './backendServices'
 import { useModels } from './models'
-import * as Const from '@/assets/js/const'
 import { Document } from 'langchain/document'
 import { llmBackendTypes } from '@/types/shared'
+import { useDialogStore } from '@/assets/js/store/dialogs.ts'
+import { usePresets, type ChatPreset } from './presets'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -19,9 +20,16 @@ export const backendToService = {
 
 export type LlmModel = {
   name: string
+  mmproj?: string
   type: LlmBackend
   active: boolean
   downloaded: boolean
+  supportsToolCalling?: boolean
+  supportsVision?: boolean
+  supportsReasoning?: boolean
+  maxContextSize?: number
+  npuSupport?: boolean
+  isPredefined?: boolean
 }
 
 export type ValidFileExtension = 'txt' | 'doc' | 'docx' | 'md' | 'pdf'
@@ -63,29 +71,45 @@ export const thinkingModels: Record<string, string> = {
 
 // A friendly display name for each backend
 export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
-  ipexLLM: 'IPEX-LLM',
   llamaCPP: 'llamaCPP - GGUF',
   openVINO: 'OpenVINO',
   ollama: 'Ollama',
+}
+
+export const textInferenceBackendDescription: Record<LlmBackend, string> = {
+  llamaCPP:
+    'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
+  openVINO:
+    'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  ollama: 'potato',
+}
+
+export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
+  llamaCPP: ['Lightweight', 'Portable'],
+  openVINO: ['Intel', 'Optimized', 'Fast'],
+  ollama: ['Integrated', 'CLI'],
 }
 
 export const useTextInference = defineStore(
   'textInference',
   () => {
     const backendServices = useBackendServices()
+    const dialogStore = useDialogStore()
     const models = useModels()
+    const presetsStore = usePresets()
     const backend = ref<LlmBackend>('openVINO')
     const ragList = ref<IndexedDocument[]>([])
+    const systemPrompt =
+      ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
+      You assist users by answering questions and providing information based on your training data and any additional context provided.`)
 
     const selectedModels = ref<LlmBackendKV>({
-      ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
       ollama: null,
     })
 
     const selectedEmbeddingModels = ref<LlmBackendKV>({
-      ipexLLM: null,
       llamaCPP: null,
       openVINO: null,
       ollama: null,
@@ -94,13 +118,11 @@ export const useTextInference = defineStore(
     // Backend readiness state tracking
     const backendReadinessState = reactive({
       lastUsedModel: {
-        ipexLLM: null,
         llamaCPP: null,
         openVINO: null,
         ollama: null,
       } as LlmBackendKV,
       lastUsedContextSize: {
-        ipexLLM: null,
         llamaCPP: null,
         openVINO: null,
         ollama: null,
@@ -108,19 +130,38 @@ export const useTextInference = defineStore(
       isPreparingBackend: false,
     })
 
+    // Track if we're currently switching presets (for UI feedback)
+
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
-        ['ipexLLM', 'llamaCPP', 'openVINO', 'ollama'].includes(m.type),
+        ['llamaCPP', 'openVINO', 'ollama'].includes(m.type),
       )
+
+      // Find first model for each type (already in priority order from models.json)
+      const firstModelByType = new Map<string, string>()
+      for (const m of llmTypeModels) {
+        if (!firstModelByType.has(m.type)) {
+          firstModelByType.set(m.type, m.name)
+        }
+      }
+
       const newModels = llmTypeModels.map((m) => {
         const selectedModelForType = selectedModels.value[m.type as LlmBackend]
+        const hasValidSelection = llmTypeModels.some((model) => model.name === selectedModelForType)
+        const isFirstForType = m.name === firstModelByType.get(m.type)
+
         return {
           name: m.name,
+          mmproj: m.mmproj,
           type: m.type as LlmBackend,
           downloaded: m.downloaded ?? false,
-          active:
-            m.name === selectedModelForType ||
-            (!llmTypeModels.some((m) => m.name === selectedModelForType) && m.default),
+          active: m.name === selectedModelForType || (!hasValidSelection && isFirstForType),
+          supportsToolCalling: m.supportsToolCalling,
+          supportsVision: m.supportsVision,
+          supportsReasoning: m.supportsReasoning,
+          maxContextSize: m.maxContextSize,
+          npuSupport: m.npuSupport,
+          isPredefined: m.isPredefined,
         }
       })
 
@@ -131,16 +172,29 @@ export const useTextInference = defineStore(
     const llmEmbeddingModels: Ref<LlmModel[]> = computed(() => {
       const llmEmbeddingTypeModels = models.models.filter((m) => m.type === 'embedding')
       console.log('llmEmbeddingTypeModels', llmEmbeddingTypeModels)
+
+      // Find first embedding model for each backend (already in priority order from models.json)
+      const firstEmbeddingByBackend = new Map<string, string>()
+      for (const m of llmEmbeddingTypeModels) {
+        const backendKey = m.backend as string
+        if (backendKey && !firstEmbeddingByBackend.has(backendKey)) {
+          firstEmbeddingByBackend.set(backendKey, m.name)
+        }
+      }
+
       const newEmbeddingModels = llmEmbeddingTypeModels.map((m) => {
         const selectedEmbeddingModelForType = selectedEmbeddingModels.value[m.backend as LlmBackend]
+        const hasValidSelection = llmEmbeddingTypeModels.some(
+          (model) => model.name === selectedEmbeddingModelForType,
+        )
+        const isFirstForBackend = m.name === firstEmbeddingByBackend.get(m.backend as string)
+
         return {
           name: m.name,
           type: m.backend as LlmBackend,
           downloaded: m.downloaded ?? false,
           active:
-            m.name === selectedEmbeddingModelForType ||
-            (!llmEmbeddingTypeModels.some((m) => m.name === selectedEmbeddingModelForType) &&
-              m.default),
+            m.name === selectedEmbeddingModelForType || (!hasValidSelection && isFirstForBackend),
         }
       })
 
@@ -174,18 +228,23 @@ export const useTextInference = defineStore(
       selectedEmbeddingModels.value[backend] = modelName
     }
 
+    // Get the currently selected device ID for the active backend
+    const getCurrentDeviceId = (): string | null => {
+      const serviceName = backendToService[backend.value] as BackendServiceName
+      const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+      return serviceInfo?.devices.find((d) => d.selected)?.id ?? null
+    }
+
     const backendToAipgBackendName = {
       openVINO: 'openvino',
-      ipexLLM: 'default',
       llamaCPP: 'llama_cpp',
       ollama: 'ollama',
     } as const
 
-    const backendToAipgModelTypeNumber = {
-      openVINO: Const.MODEL_TYPE_OPENVINO,
-      ipexLLM: Const.MODEL_TYPE_LLM,
-      llamaCPP: Const.MODEL_TYPE_LLAMA_CPP,
-      ollama: Const.MODEL_TYPE_LLM, // Using LLM type for Ollama
+    const backendToAipgModelType = {
+      openVINO: 'openvinoLLM',
+      llamaCPP: 'ggufLLM',
+      ollama: 'llm', // Using LLM type for Ollama
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {
@@ -255,13 +314,65 @@ export const useTextInference = defineStore(
         case 'backend-switch':
           return `Preparing ${textInferenceBackendDisplayName[currentBackend]} backend...`
         default:
-          return 'Preparing AI model...'
+          // Fallback for when needsBackendPreparation is false but we still show loading
+          return `Preparing ${textInferenceBackendDisplayName[currentBackend]} backend...`
       }
     })
 
-    const metricsEnabled = ref(false)
+    const metricsEnabled = ref(true)
+    const toolsEnabled = ref(true)
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
+    const temperature = ref<number>(0.7)
+
+    // Get max context size from current model
+    const maxContextSizeFromModel = computed(() => {
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      return currentModel?.maxContextSize
+    })
+
+    // Check if the active model supports tool calling
+    const modelSupportsToolCalling = computed(() => {
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      return currentModel?.supportsToolCalling === true
+    })
+
+    // Check if the active model supports vision
+    const modelSupportsVision = computed(() => {
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      return currentModel?.supportsVision === true
+    })
+
+    // Check if the active preset requires tool calling
+    const presetRequiresToolCalling = computed(() => {
+      return activePreset.value?.requiresToolCalling === true
+    })
+
+    // Determine if RAG will be used - single source of truth
+    const willUseRag = computed(() => {
+      const hasCheckedDocuments = ragList.value.some((item) => item.isChecked)
+      const presetEnablesRag = activePreset.value?.enableRAG === true
+      return hasCheckedDocuments && presetEnablesRag
+    })
+
+    // Enforce maxContextSize as hard limit when contextSize changes
+    watch(
+      () => contextSize.value,
+      (newValue) => {
+        if (maxContextSizeFromModel.value && newValue > maxContextSizeFromModel.value) {
+          contextSize.value = maxContextSizeFromModel.value
+        }
+      },
+    )
+
+    // Per-preset settings persistence
+    const settingsPerPreset = ref<Record<string, Record<string, unknown>>>({})
 
     const currentBackendUrl = computed(
       () =>
@@ -283,15 +394,27 @@ export const useTextInference = defineStore(
       }
       if (!model) return []
 
-      const checkList = {
-        repo_id: model,
-        type:
-          type === 'embedding'
-            ? Const.MODEL_TYPE_EMBEDDING
-            : backendToAipgModelTypeNumber[backend.value],
-        backend: backendToAipgBackendName[backend.value],
+      const modelMetaData = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      const modelType = type === 'embedding' ? 'embedding' : backendToAipgModelType[backend.value]
+      const backendName = backendToAipgBackendName[backend.value]
+
+      const checkList = [
+        {
+          repo_id: model,
+          type: modelType,
+          backend: backendName,
+        },
+      ]
+      if (modelMetaData?.mmproj) {
+        checkList.push({
+          repo_id: modelMetaData.mmproj,
+          type: backendToAipgModelType[backend.value],
+          backend: backendName,
+        })
       }
-      const checkedModels = await models.checkModelAlreadyLoaded([checkList])
+      const checkedModels = await models.checkModelAlreadyLoaded(checkList)
       const notYetDownloaded = checkedModels.filter((m) => !m.already_loaded)
       return notYetDownloaded
     }
@@ -343,6 +466,7 @@ export const useTextInference = defineStore(
         fontSizeIndex.value++
       }
     }
+
     function decreaseFontSize() {
       if (!isMinSize.value) {
         fontSizeIndex.value--
@@ -373,16 +497,129 @@ export const useTextInference = defineStore(
       if (!activeEmbeddingModel.value) {
         throw new Error('No embedding model selected')
       }
+
+      // For llamaCPP and openVINO backends, get the embedding server URL (runs on different port)
+      let backendBaseUrl = currentBackendUrl.value
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
+        const serviceName = backendToService[backend.value]
+        const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
+        if (embeddingUrlResult.success && embeddingUrlResult.url) {
+          backendBaseUrl = embeddingUrlResult.url
+        } else {
+          throw new Error(
+            embeddingUrlResult.error ||
+              'Embedding server not available. Please ensure the embedding model is loaded.',
+          )
+        }
+      }
+
       const newEmbedInquiry: EmbedInquiry = {
         prompt: prompt,
         ragList: checkedRagList,
-        backendBaseUrl: currentBackendUrl.value,
+        backendBaseUrl: backendBaseUrl,
         embeddingModel: activeEmbeddingModel.value,
         maxResults: runningOnOpenvinoNpu.value ? 2 : 8,
       }
       console.log('trying to request rag for', { newEmbedInquiry, ragList: ragList.value })
       const response = await window.electronAPI.embedInputUsingRag(newEmbedInquiry)
       return response
+    }
+
+    // RAG state for UI display
+    const ragRetrievalState = reactive({
+      inProgress: false,
+      lastResults: null as Document[] | null,
+    })
+
+    /**
+     * Prepares RAG context for a prompt and returns enhanced system prompt
+     * @param prompt The user's prompt/question
+     * @returns Object containing enhanced system prompt and RAG results (if any)
+     */
+    async function prepareRagContext(prompt: string): Promise<{
+      systemPrompt: string
+      ragResults: Document[] | null
+      ragSourceText: string | null
+    }> {
+      if (!willUseRag.value) {
+        return {
+          systemPrompt: systemPrompt.value,
+          ragResults: null,
+          ragSourceText: null,
+        }
+      }
+
+      try {
+        ragRetrievalState.inProgress = true
+
+        // For llamaCPP and openVINO, ensure embedding server is ready before attempting RAG retrieval
+        if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
+          const serviceName = backendToService[backend.value]
+          if (!activeEmbeddingModel.value) {
+            console.warn('No embedding model selected for RAG, skipping RAG retrieval')
+            ragRetrievalState.inProgress = false
+            return {
+              systemPrompt: systemPrompt.value,
+              ragResults: null,
+              ragSourceText: null,
+            }
+          }
+
+          // Verify embedding server is available
+          const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
+          if (!embeddingUrlResult.success || !embeddingUrlResult.url) {
+            console.warn(
+              'Embedding server not ready, skipping RAG retrieval:',
+              embeddingUrlResult.error || 'Unknown error',
+            )
+            ragRetrievalState.inProgress = false
+            return {
+              systemPrompt: systemPrompt.value,
+              ragResults: null,
+              ragSourceText: null,
+            }
+          }
+        }
+
+        // Perform RAG retrieval
+        const ragResults = await embedInputUsingRag(prompt)
+        console.log('textInference.ts: prepareRagContext: ragResults', ragResults)
+        ragRetrievalState.lastResults = ragResults
+
+        ragRetrievalState.inProgress = false
+
+        if (ragResults && ragResults.length > 0) {
+          // Build RAG context from retrieved documents
+          const ragContext = ragResults.map((doc) => doc.pageContent).join('\n\n')
+
+          // Enhance system prompt with RAG context
+          const enhancedSystemPrompt = `${systemPrompt.value}\n\nUse the following context from your knowledge base to answer the question:\n\n${ragContext}`
+
+          // Format RAG sources for display
+          const ragSourceText = formatRagSources(ragResults)
+
+          return {
+            systemPrompt: enhancedSystemPrompt,
+            ragResults,
+            ragSourceText: ragSourceText,
+          }
+        }
+
+        return {
+          systemPrompt: systemPrompt.value,
+          ragResults: null,
+          ragSourceText: null,
+        }
+      } catch (error) {
+        console.error('Error retrieving RAG documents:', error)
+        ragRetrievalState.inProgress = false
+        // Return base system prompt on error - generation can continue without RAG
+        return {
+          systemPrompt: systemPrompt.value,
+          ragResults: null,
+          ragSourceText: null,
+        }
+      }
     }
 
     function updateFileCheckStatus(hash: string, isChecked: boolean) {
@@ -409,28 +646,6 @@ export const useTextInference = defineStore(
 
     function deleteAllFiles() {
       ragList.value.length = 0
-    }
-
-    // Extract the thinking text from the model's output
-    function extractPreMarker(fullAnswer: string, model?: string): string {
-      const modelName = model || activeModel.value
-      if (modelName && thinkingModels[modelName]) {
-        const marker = thinkingModels[modelName]
-        const idx = fullAnswer.indexOf(marker)
-        return idx === -1 ? fullAnswer : fullAnswer.slice(0, idx)
-      }
-      return fullAnswer
-    }
-
-    // Extract the final response after the thinking marker
-    function extractPostMarker(fullAnswer: string, model?: string): string {
-      const modelName = model || activeModel.value
-      if (modelName && thinkingModels[modelName]) {
-        const marker = thinkingModels[modelName]
-        const idx = fullAnswer.indexOf(marker)
-        return idx === -1 ? '' : fullAnswer.slice(idx + marker.length)
-      }
-      return ''
     }
 
     // Define a type for document location information
@@ -615,7 +830,7 @@ export const useTextInference = defineStore(
     }
 
     async function ensureBackendReadiness(): Promise<void> {
-      if (backend.value === 'llamaCPP' || contextSizeSettingSupported.value) {
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
         const embeddingModelName = activeEmbeddingModel.value
@@ -624,10 +839,9 @@ export const useTextInference = defineStore(
           throw new Error('No active LLM model selected')
         }
 
-        const ragDocumentsSelected = ragList.value.some((doc) => doc.isChecked)
-        const embeddingModelToSend = ragDocumentsSelected ? embeddingModelName : undefined
+        const embeddingModelToSend = willUseRag.value ? embeddingModelName : undefined
 
-        if (ragDocumentsSelected && !embeddingModelName) {
+        if (willUseRag.value && !embeddingModelName) {
           throw new Error('No embedding model selected but RAG documents are enabled')
         }
 
@@ -640,6 +854,386 @@ export const useTextInference = defineStore(
       }
     }
 
+    async function checkModelAvailability() {
+      // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
+      return new Promise<void>(async (resolve, reject) => {
+        const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
+        if (willUseRag.value) {
+          const requiredEmbeddingModelDownloads =
+            await getDownloadParamsForCurrentModelIfRequired('embedding')
+          requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
+        }
+        if (requiredModelDownloads.length > 0) {
+          dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
+        } else {
+          resolve()
+        }
+      })
+    }
+
+    async function prepareBackendIfNeeded() {
+      console.log('in prepareBackendIfNeeded')
+
+      // Handle NPU device selection if preset locks to NPU
+      // This must happen before backend readiness check
+      if (activePreset.value?.lockDeviceToNpu) {
+        const serviceName = backendToService[backend.value] as BackendServiceName
+        const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+        const npuDevice = serviceInfo?.devices.find((d) => d.id.includes('NPU'))
+
+        if (npuDevice && !npuDevice.selected) {
+          console.log('Selecting NPU device for preset:', activePreset.value.name)
+          startBackendPreparation()
+
+          try {
+            await backendServices.selectDevice(serviceName, npuDevice.id)
+
+            // Restart backend with timeout protection
+            await backendServices.stopService(serviceName)
+
+            // Wait for backend to fully start with timeout
+            const startTimeout = 30000 // 30 seconds
+            const startTime = Date.now()
+            await backendServices.startService(serviceName)
+
+            // Poll until backend is actually running
+            while (Date.now() - startTime < startTimeout) {
+              const currentInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+              if (currentInfo?.status === 'running') {
+                break
+              }
+              if (currentInfo?.status === 'failed') {
+                throw new Error(`Backend failed to start: ${serviceName}`)
+              }
+              await new Promise((resolve) => setTimeout(resolve, 500))
+            }
+
+            const finalInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+            if (finalInfo?.status !== 'running') {
+              throw new Error(`Backend restart timeout: ${serviceName}`)
+            }
+
+            // NPU handling completed successfully
+            completeBackendPreparation()
+          } catch (error) {
+            completeBackendPreparation() // Reset state on error
+            throw error
+          }
+        }
+      }
+
+      // Always show loading bar for llamaCPP/openVINO when ensuring backend readiness
+      // This ensures consistent UX even when switching back to a previously-used backend
+      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
+        startBackendPreparation()
+        try {
+          await ensureBackendReadiness()
+          completeBackendPreparation()
+        } catch (error) {
+          completeBackendPreparation() // Reset state on error
+          throw error
+        }
+      }
+      // Ollama manages its own model loading and doesn't need ensureBackendReadiness
+
+      const backendToInferenceService = {
+        llamaCPP: 'llamacpp-backend',
+        openVINO: 'openvino-backend',
+        ipexLLM: 'ai-backend',
+        ollama: 'ollama-backend' as BackendServiceName,
+      } as const
+      const inferenceBackendService = backendToInferenceService[backend.value]
+      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+      backendServices.updateLastUsedBackend(inferenceBackendService)
+    }
+
+    async function ensureReadyForInference() {
+      await checkModelAvailability()
+      await prepareBackendIfNeeded()
+    }
+
+    // ========================================================================
+    // Chat Preset Management
+    // ========================================================================
+
+    const activePreset = computed(() => {
+      if (!presetsStore.activePresetName) return null
+      const preset = presetsStore.presets.find((p) => p.name === presetsStore.activePresetName)
+      if (preset && preset.type === 'chat') return preset as ChatPreset
+      return null
+    })
+
+    // Get setting key for current preset (includes variant if present)
+    function getSettingsKey(): string {
+      if (!activePreset.value?.name) return ''
+      const variantName = presetsStore.activeVariantName[activePreset.value.name]
+      return variantName ? `${activePreset.value.name}:${variantName}` : activePreset.value.name
+    }
+
+    // Load saved settings for the active preset
+    function loadSettingsForActivePreset() {
+      if (!activePreset.value) return
+
+      const settingsKey = getSettingsKey()
+      if (!settingsKey) return
+
+      // Set flag to prevent watcher from interfering
+      isLoadingSettings = true
+
+      const savedSettings = settingsPerPreset.value[settingsKey] || {}
+      console.log('Loading settings for preset', settingsKey, savedSettings)
+      const preset = activePreset.value
+
+      // Load backend - smart selection based on what's running
+      if (savedSettings.backend !== undefined) {
+        const savedBackend = savedSettings.backend as LlmBackend
+        // Only apply saved backend if it's in the preset's allowed backends
+        if (preset.backends?.includes(savedBackend)) {
+          backend.value = savedBackend
+        } else {
+          // Fall through to smart selection below
+          selectBestBackend(preset)
+        }
+      } else {
+        selectBestBackend(preset)
+      }
+
+      // Helper to select the best available backend from preset's allowed list
+      function selectBestBackend(preset: ChatPreset) {
+        if (!preset.backends || preset.backends.length === 0) return
+
+        // If single backend, auto-select it
+        if (preset.backends.length === 1) {
+          backend.value = preset.backends[0]
+          return
+        }
+
+        // If current backend is in allowed list, keep it
+        if (preset.backends.includes(backend.value)) {
+          return
+        }
+
+        // Try to find a running backend from the allowed list
+        const runningBackend = preset.backends.find((b) => {
+          const serviceName = backendToService[b] as BackendServiceName
+          const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+          return backendInfo && backendInfo.status === 'running'
+        })
+
+        backend.value = runningBackend || preset.backends[0]
+      }
+
+      // Load device selection (for OpenVINO backend)
+      // Note: llamaCPP is GPU-only on target platform (Vulkan), so no device selection needed
+      if (backend.value === 'openVINO') {
+        const serviceName = backendToService[backend.value] as BackendServiceName
+        const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+
+        if (preset.lockDeviceToNpu) {
+          // NPU Chat: Force NPU selection (handled in prepareBackendIfNeeded)
+          // Don't override here - let the existing lockDeviceToNpu logic handle it
+        } else if (savedSettings.selectedDeviceId !== undefined) {
+          // Restore saved device preference
+          const savedDeviceId = savedSettings.selectedDeviceId as string
+          const deviceExists = serviceInfo?.devices.some((d) => d.id === savedDeviceId)
+          if (deviceExists) {
+            backendServices.selectDevice(serviceName, savedDeviceId)
+          }
+        } else {
+          // Default to GPU if no preference saved
+          const gpuDevice = serviceInfo?.devices.find((d) => d.id.includes('GPU'))
+          if (gpuDevice && !gpuDevice.selected) {
+            backendServices.selectDevice(serviceName, gpuDevice.id)
+          }
+        }
+      }
+
+      // Load selected models (per backend)
+      if (savedSettings.selectedModels !== undefined) {
+        selectedModels.value = {
+          ...selectedModels.value,
+          ...(savedSettings.selectedModels as LlmBackendKV),
+        }
+      } else {
+        // Check for preferredModels (per-backend defaults)
+        const preferredModel = preset.preferredModels?.[backend.value]
+        if (preferredModel) {
+          // Only select if model exists in available models
+          const modelExists = llmModels.value.some(
+            (m) => m.name === preferredModel && m.type === backend.value,
+          )
+          if (modelExists) {
+            selectModel(backend.value, preferredModel)
+          }
+        }
+      }
+
+      // Load selected embedding models (per backend)
+      if (savedSettings.selectedEmbeddingModels !== undefined) {
+        const savedEmbeddingModels = savedSettings.selectedEmbeddingModels as LlmBackendKV
+        // Update the embedding model for the current backend if it was saved
+        if (savedEmbeddingModels[backend.value] !== undefined) {
+          selectEmbeddingModel(backend.value, savedEmbeddingModels[backend.value]!)
+        } else {
+          // Merge all saved embedding models
+          selectedEmbeddingModels.value = {
+            ...selectedEmbeddingModels.value,
+            ...savedEmbeddingModels,
+          }
+        }
+      } else {
+        const embeddingModelToUse = preset.embeddingModel || preset.rag?.embeddingModel
+        if (embeddingModelToUse) {
+          selectEmbeddingModel(backend.value, embeddingModelToUse)
+        }
+      }
+
+      // Load max tokens
+      if (savedSettings.maxTokens !== undefined) {
+        maxTokens.value = savedSettings.maxTokens as number
+      } else if (preset.maxNewTokens !== undefined) {
+        maxTokens.value = preset.maxNewTokens
+      }
+
+      // Load context size
+      if (savedSettings.contextSize !== undefined) {
+        contextSize.value = savedSettings.contextSize as number
+      } else if (preset.contextSize !== undefined) {
+        contextSize.value = preset.contextSize
+      }
+
+      // Load temperature
+      if (savedSettings.temperature !== undefined) {
+        temperature.value = savedSettings.temperature as number
+      } else if (preset.temperature !== undefined) {
+        temperature.value = preset.temperature
+      }
+
+      // Load system prompt (only if user has modified it)
+      if (savedSettings.systemPrompt !== undefined) {
+        systemPrompt.value = savedSettings.systemPrompt as string
+      } else if (preset.systemPrompt) {
+        systemPrompt.value = preset.systemPrompt
+      }
+
+      // Load metrics enabled
+      if (savedSettings.metricsEnabled !== undefined) {
+        metricsEnabled.value = savedSettings.metricsEnabled as boolean
+      } else {
+        // Set default value when no saved value exists
+        metricsEnabled.value = false
+      }
+
+      // Load tools enabled
+      // Only allow tools to be enabled if preset has showTools enabled
+      if (preset.showTools !== true) {
+        // Force disable tools when preset hides the toggle
+        toolsEnabled.value = false
+      } else if (savedSettings.toolsEnabled !== undefined) {
+        toolsEnabled.value = savedSettings.toolsEnabled as boolean
+      } else {
+        toolsEnabled.value = preset.toolsEnabledByDefault ?? preset.requiresToolCalling === true
+      }
+
+      // Clear flag after loading
+      isLoadingSettings = false
+    }
+
+    // Reset settings for active preset to defaults
+    function resetActivePresetSettings() {
+      if (!activePreset.value) return
+
+      const settingsKey = getSettingsKey()
+      if (settingsKey) {
+        settingsPerPreset.value[settingsKey] = {}
+      }
+
+      // Reload settings (which will use preset defaults)
+      loadSettingsForActivePreset()
+    }
+
+    // Track if we're currently loading settings to prevent watcher from saving during load
+    let isLoadingSettings = false
+
+    // Watch for setting changes and save them to settingsPerPreset
+    // Note: Preset/variant changes are now handled by the orchestrator, not by watchers
+    watch(
+      [
+        backend,
+        selectedModels,
+        selectedEmbeddingModels,
+        maxTokens,
+        contextSize,
+        temperature,
+        systemPrompt,
+        metricsEnabled,
+        toolsEnabled,
+      ],
+      () => {
+        // Don't save if we're loading settings (prevents overwriting during preset switch)
+        if (isLoadingSettings) return
+
+        const settingsKey = getSettingsKey()
+        // Allow saving when settingsKey exists (preset name is available)
+        if (!settingsKey) return
+
+        // Save settings to per-preset storage
+        settingsPerPreset.value[settingsKey] = {
+          ...settingsPerPreset.value[settingsKey],
+          backend: backend.value,
+          selectedModels: { ...selectedModels.value },
+          selectedEmbeddingModels: { ...selectedEmbeddingModels.value },
+          selectedDeviceId: getCurrentDeviceId(),
+          maxTokens: maxTokens.value,
+          contextSize: contextSize.value,
+          temperature: temperature.value,
+          systemPrompt: systemPrompt.value,
+          metricsEnabled: metricsEnabled.value,
+          toolsEnabled: toolsEnabled.value,
+        }
+      },
+      { deep: true },
+    )
+
+    // Watch for device changes to save per-preset
+    watch(
+      () => backendServices.info,
+      () => {
+        // Don't save if we're loading settings (prevents overwriting during preset switch)
+        if (isLoadingSettings) return
+
+        const settingsKey = getSettingsKey()
+        if (!settingsKey) return
+
+        // Only save device for OpenVINO backend (llamaCPP is GPU-only)
+        if (backend.value === 'openVINO') {
+          const currentDeviceId = getCurrentDeviceId()
+          if (currentDeviceId) {
+            settingsPerPreset.value[settingsKey] = {
+              ...settingsPerPreset.value[settingsKey],
+              selectedDeviceId: currentDeviceId,
+            }
+          }
+        }
+      },
+      { deep: true },
+    )
+
+    // Initialize with first chat preset if available and no preset is selected
+    watch(
+      () => presetsStore.chatPresets,
+      (chatPresets) => {
+        if (chatPresets.length > 0 && !presetsStore.activePresetName) {
+          // Sort by displayPriority and select the first one
+          const sortedPresets = [...chatPresets].sort(
+            (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
+          )
+          presetsStore.activePresetName = sortedPresets[0].name
+        }
+      },
+      { immediate: true },
+    )
+
     return {
       backend,
       activeModel,
@@ -648,8 +1242,11 @@ export const useTextInference = defineStore(
       llmEmbeddingModels,
       currentBackendUrl,
       metricsEnabled,
+      toolsEnabled,
       maxTokens,
       contextSize,
+      maxContextSizeFromModel,
+      temperature,
       fontSizeClass,
       nameSizeClass,
       iconSizeClass,
@@ -657,6 +1254,7 @@ export const useTextInference = defineStore(
       isMinSize,
       ragList,
       contextSizeSettingSupported,
+      systemPrompt,
       selectModel,
       selectEmbeddingModel,
       getDownloadParamsForCurrentModelIfRequired,
@@ -670,10 +1268,23 @@ export const useTextInference = defineStore(
       checkAllFiles,
       uncheckAllFiles,
       deleteAllFiles,
-      extractPreMarker,
-      extractPostMarker,
       formatRagSources,
       ensureBackendReadiness,
+      checkModelAvailability,
+      prepareRagContext,
+
+      // Preset management
+      activePreset,
+      resetActivePresetSettings,
+      settingsPerPreset,
+      loadSettingsForActivePreset,
+
+      // Tool calling support
+      modelSupportsToolCalling,
+      presetRequiresToolCalling,
+
+      // Vision support
+      modelSupportsVision,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),
@@ -683,11 +1294,26 @@ export const useTextInference = defineStore(
       startBackendPreparation,
       completeBackendPreparation,
       updateLastUsedConfig,
+      prepareBackendIfNeeded,
+      ensureReadyForInference,
+
+      // RAG state
+      willUseRag,
+      ragRetrievalInProgress: computed(() => ragRetrievalState.inProgress),
+      lastRagResults: computed(() => ragRetrievalState.lastResults),
     }
   },
   {
     persist: {
-      pick: ['backend', 'selectedModels', 'maxTokens', 'contextSize', 'ragList'],
+      pick: [
+        'backend',
+        'selectedModels',
+        'maxTokens',
+        'contextSize',
+        'temperature',
+        'ragList',
+        'settingsPerPreset',
+      ],
     },
   },
 )

@@ -5,19 +5,24 @@
  * Uses built-in fetch API and fixed directory structure
  */
 
-import { existsSync, mkdirSync, createWriteStream } from 'fs'
+import { existsSync, mkdirSync, createWriteStream, renameSync } from 'fs'
 import { pipeline } from 'stream/promises'
 import { getBuildPaths } from './build-paths.mts'
-import { normalize } from 'path'
+import path, { normalize } from 'path'
+import z from 'zod'
+import { execSync } from 'child_process'
+import AdmZip from 'adm-zip'
+
+const target = z
+  .enum(['win32', 'darwin'])
+  .safeParse(process.env.TARGET_PLATFORM || process.platform)
+if (!target.success) {
+  console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
+  process.exit(1)
+}
 
 // Get build paths configuration
-const buildPaths = getBuildPaths()
-const { buildDir: BUILD_DIR, resourcesDir: RESOURCES_DIR } = buildPaths
-const {
-  embeddablePython: EMBEDDABLE_PYTHON_URL,
-  getPipScript: GET_PIP_SCRIPT_URL,
-  sevenZipExe: SEVEN_ZR_EXE_URL,
-} = buildPaths.resourceUrls
+const buildPaths = getBuildPaths(target.data)
 
 interface DownloadResult {
   url: string
@@ -67,7 +72,7 @@ async function downloadFile(url: string, targetPath: string): Promise<DownloadRe
  */
 async function downloadFileIfNotPresent(url: string): Promise<DownloadResult> {
   const fileName = getBaseFileName(url)
-  const expectedFilePath = buildPaths.resourcesDir + '/' + fileName
+  const expectedFilePath = path.join(buildPaths.tmpDir, fileName)
 
   if (existsSync(expectedFilePath)) {
     console.log(`⏭️  Skipping ${url} - ${expectedFilePath} already exists`)
@@ -84,14 +89,18 @@ function prepareDirectories(): void {
   console.log('📁 Preparing build directories...')
 
   // Create build directories if they don't exist
-  if (!existsSync(BUILD_DIR)) {
-    mkdirSync(BUILD_DIR, { recursive: true })
-    console.log(`Created directory: ${BUILD_DIR}`)
+  if (!existsSync(buildPaths.buildDir)) {
+    mkdirSync(buildPaths.buildDir, { recursive: true })
+    console.log(`Created directory: ${buildPaths.buildDir}`)
   }
 
-  if (!existsSync(RESOURCES_DIR)) {
-    mkdirSync(RESOURCES_DIR, { recursive: true })
-    console.log(`Created directory: ${RESOURCES_DIR}`)
+  if (!existsSync(buildPaths.resourcesDir)) {
+    mkdirSync(buildPaths.resourcesDir, { recursive: true })
+    console.log(`Created directory: ${buildPaths.resourcesDir}`)
+  }
+  if (!existsSync(buildPaths.tmpDir)) {
+    mkdirSync(buildPaths.tmpDir, { recursive: true })
+    console.log(`Created directory: ${buildPaths.tmpDir}`)
   }
 }
 
@@ -109,9 +118,8 @@ async function main(): Promise<void> {
 
     // Download all required files
     const downloads = await Promise.all([
-      downloadFileIfNotPresent(EMBEDDABLE_PYTHON_URL),
-      downloadFileIfNotPresent(GET_PIP_SCRIPT_URL),
-      downloadFileIfNotPresent(SEVEN_ZR_EXE_URL),
+      downloadFileIfNotPresent(buildPaths.resourceUrls.uv),
+      downloadFileIfNotPresent(buildPaths.resourceUrls.sevenZipExe),
     ])
 
     // Check for any download failures
@@ -122,6 +130,72 @@ async function main(): Promise<void> {
         console.error(`  - ${failure.url}: ${failure.error}`)
       })
       process.exit(1)
+    }
+
+    // extract uv binary from downloaded archive and move to
+
+    // extract downloads if packed - handle tar.gz, tar.xz on darwin, zip on win32
+    for (const download of downloads) {
+      if (
+        target.data === 'darwin' &&
+        (download.filePath.endsWith('.tar.gz') || download.filePath.endsWith('.tar.xz'))
+      ) {
+        console.log(`📦 Extracting ${download.filePath}...`)
+        const extractCommand = `tar -xf ${download.filePath} -C ${path.join(buildPaths.tmpDir)}`
+        try {
+          execSync(extractCommand)
+          console.log(`✅ Extracted successfully!`)
+        } catch (error) {
+          console.error(`❌ Extraction failed for ${download.filePath}: ${error}`)
+          process.exit(1)
+        }
+      } else if (target.data === 'win32' && download.filePath.endsWith('.zip')) {
+        console.log(`📦 Extracting ${download.filePath}...`)
+        try {
+          const zip = new AdmZip(download.filePath)
+          zip.extractAllTo(buildPaths.resourcesDir, true)
+          console.log(`✅ Extracted successfully!`)
+        } catch (error) {
+          console.error(`❌ Extraction failed for ${download.filePath}: ${error}`)
+          process.exit(1)
+        }
+      }
+    }
+
+    // move uv-aarch64-apple-darwin/uv to resourcesDir/uv.exe on darwin
+    if (target.data === 'darwin') {
+      const uvBinaryPath = path.join(buildPaths.tmpDir, 'uv-aarch64-apple-darwin', 'uv')
+      const destinationPath = path.join(buildPaths.resourcesDir, 'uv.exe')
+      if (existsSync(uvBinaryPath)) {
+        renameSync(uvBinaryPath, destinationPath)
+        console.log(`✅ Moved ${uvBinaryPath} to ${destinationPath}`)
+      } else {
+        console.error(`❌ UV binary not found: ${uvBinaryPath}`)
+      }
+    }
+
+    // move 7zz to resourcesDir/7zr.exe on darwin
+    if (target.data === 'darwin') {
+      const sevenZrPath = path.join(buildPaths.tmpDir, '7zz')
+      const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
+      if (existsSync(sevenZrPath)) {
+        renameSync(sevenZrPath, destinationPath)
+        console.log(`✅ Moved ${sevenZrPath} to ${destinationPath}`)
+      } else {
+        console.error(`❌ 7zr binary not found: ${sevenZrPath}`)
+      }
+    }
+
+    // move 7zr.exe to resourcesDir/7zr.exe on win32
+    if (target.data === 'win32') {
+      const sevenZrPath = path.join(buildPaths.tmpDir, '7zr.exe')
+      const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
+      if (existsSync(sevenZrPath)) {
+        renameSync(sevenZrPath, destinationPath)
+        console.log(`✅ Moved ${sevenZrPath} to ${destinationPath}`)
+      } else {
+        console.error(`❌ 7zr binary not found: ${sevenZrPath}`)
+      }
     }
 
     console.log('✅ All Python package resources fetched successfully!')

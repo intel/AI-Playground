@@ -1,10 +1,19 @@
 {
-  "llm": "./resources/service/models/llm/checkpoints",
-  "ggufLLM": "./resources/service/models/llm/ggufLLM",
-  "openvinoLLM": "./resources/service/models/llm/openvino",
-  "embedding": "./resources/service/models/llm/embedding/ipexLLM",
-  "stableDiffusion": "./resources/service/models/stable_diffusion/checkpoints",
-  "inpaint": "./resources/service/models/stable_diffusion/inpaint",
-  "lora": "./resources/service/models/stable_diffusion/lora",
-  "vae": "./resources/service/models/stable_diffusion/vae"
+  "ggufLLM": "./resources/models/LLM/ggufLLM",
+  "openvinoLLM": "./resources/models/LLM/openvino",
+  "embedding": "./resources/models/LLM/embedding",
+  "STT": "./resources/models/STT",
+  "checkpoints": "./resources/models/ComfyUI/checkpoints",
+  "inpaint": "./resources/models/ComfyUI/inpaint",
+  "unet": "./resources/models/ComfyUI/unet",
+  "clip": "./resources/models/ComfyUI/clip",
+  "vae": "./resources/models/ComfyUI/vae",
+  "diffusion_models": "./resources/models/ComfyUI/diffusion_models",
+  "faceswap": "./resources/models/ComfyUI/insightface",
+  "facerestore": "./resources/models/ComfyUI/facerestore_models",
+  "nsfwdetector": "./resources/models/ComfyUI/nsfw_detector",
+  "controlNet": "./resources/models/ComfyUI/controlnet",
+  "upscale": "./resources/models/ComfyUI/upscale_models",
+  "lora": "./resources/models/ComfyUI/loras",
+  "loras": "./resources/models/ComfyUI/loras"
 }

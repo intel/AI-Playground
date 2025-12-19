@@ -5,6 +5,7 @@
  */
 
 import { resolve, join, sep } from 'path'
+import z from 'zod'
 
 /**
  * Get the repository root directory
@@ -41,8 +42,6 @@ export const WEBUI_EXTERNAL_DIR = join(REPO_ROOT, 'WebUI', 'external')
 
 // Backend service directories (all relative to repo root)
 export const SERVICE_DIR = join(REPO_ROOT, 'service')
-export const LLAMACPP_DIR = join(REPO_ROOT, 'LlamaCPP')
-export const OPENVINO_DIR = join(REPO_ROOT, 'OpenVINO')
 export const DEVICE_SERVICE_DIR = join(REPO_ROOT, 'device-service')
 export const SHARED_BACKEND_DIR = join(REPO_ROOT, 'backend-shared')
 
@@ -55,7 +54,14 @@ export const PYTHON_ENV_ARCHIVE = join(RESOURCES_DIR, 'prototype-python-env.7z')
 export const EMBEDDABLE_PYTHON_URL =
   'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
 export const GET_PIP_SCRIPT_URL = 'https://bootstrap.pypa.io/get-pip.py'
-export const SEVEN_ZR_EXE_URL = 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe'
+export const SEVEN_ZR_EXE_URL = {
+  win32: 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe',
+  darwin: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz',
+}
+export const UV_URL = {
+  win32: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-pc-windows-msvc.zip',
+  darwin: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-aarch64-apple-darwin.tar.gz',
+}
 
 /**
  * Build configuration interface
@@ -64,6 +70,7 @@ export interface BuildPaths {
   repoRoot: string
   buildDir: string
   resourcesDir: string
+  tmpDir: string
   pythonEnvDir: string
   electronDir: string
   webUIExternalDir: string
@@ -71,8 +78,6 @@ export interface BuildPaths {
   webUINodeModulesDir: string
   backendDirs: {
     service: string
-    llamaCpp: string
-    openVINO: string
     deviceService: string
     sharedBackend: string
   }
@@ -85,17 +90,19 @@ export interface BuildPaths {
     embeddablePython: string
     getPipScript: string
     sevenZipExe: string
+    uv: string
   }
 }
 
 /**
  * Get complete build paths configuration
  */
-export function getBuildPaths(): BuildPaths {
+export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
   return {
     repoRoot: REPO_ROOT,
     buildDir: BUILD_DIR,
     resourcesDir: RESOURCES_DIR,
+    tmpDir: join(BUILD_DIR, 'tmp'),
     pythonEnvDir: PYTHON_ENV_DIR,
     electronDir: ELECTRON_DIR,
     webUIExternalDir: WEBUI_EXTERNAL_DIR,
@@ -103,8 +110,6 @@ export function getBuildPaths(): BuildPaths {
     webUINodeModulesDir: WEBUI_NODE_MODULES_DIR,
     backendDirs: {
       service: SERVICE_DIR,
-      llamaCpp: LLAMACPP_DIR,
-      openVINO: OPENVINO_DIR,
       deviceService: DEVICE_SERVICE_DIR,
       sharedBackend: SHARED_BACKEND_DIR,
     },
@@ -116,7 +121,8 @@ export function getBuildPaths(): BuildPaths {
     resourceUrls: {
       embeddablePython: EMBEDDABLE_PYTHON_URL,
       getPipScript: GET_PIP_SCRIPT_URL,
-      sevenZipExe: SEVEN_ZR_EXE_URL,
+      sevenZipExe: SEVEN_ZR_EXE_URL[target],
+      uv: UV_URL[target],
     },
   }
 }
@@ -125,7 +131,14 @@ export function getBuildPaths(): BuildPaths {
  * Log build paths for debugging
  */
 export function logBuildPaths(): void {
-  const paths = getBuildPaths()
+  const target = z
+    .enum(['win32', 'darwin'])
+    .safeParse(process.env.TARGET_PLATFORM || process.platform)
+  if (!target.success) {
+    console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
+    process.exit(1)
+  }
+  const paths = getBuildPaths(target.data)
   console.log('📂 Build Paths Configuration:')
   console.log(`   Repository Root: ${paths.repoRoot}`)
   console.log(`   Build Directory: ${paths.buildDir}`)

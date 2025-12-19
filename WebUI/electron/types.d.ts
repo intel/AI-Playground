@@ -45,6 +45,22 @@ declare interface SetupProgress {
   }
 }
 
+declare interface InferenceDevice {
+  id: string
+  name: string
+  selected: boolean
+}
+
+declare interface ErrorDetails {
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timestamp?: string
+  duration?: number
+  pipFreezeOutput?: string
+}
+
 // Declare ApiServiceInformation type
 declare interface ApiServiceInformation {
   serviceName: string
@@ -53,4 +69,15 @@ declare interface ApiServiceInformation {
   port: number
   isSetUp: boolean
   isRequired: boolean
+  devices: InferenceDevice[]
+  sttDevices?: InferenceDevice[]
+  errorDetails: ErrorDetails | null
+  installedVersion?: { version: string; releaseTag?: string }
+}
+
+// Declare ComfyUICustomNodeRepoId type
+declare interface ComfyUICustomNodeRepoId {
+  username: string
+  repoName: string
+  gitRef?: string
 }

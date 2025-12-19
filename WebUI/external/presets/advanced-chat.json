@@ -1,0 +1,19 @@
+{
+  "type": "chat",
+  "name": "Advanced Chat",
+  "description": "Full control over model selection and system prompts. Access all downloaded models including manually added ones.",
+  "displayPriority": 40,
+  "tags": ["Advanced", "Manual", "Expert"],
+  "backends": ["llamaCPP", "openVINO", "ollama"],
+  "preferredModels": {
+    "openVINO": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
+    "llamaCPP": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf"
+  },
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "advancedMode": true,
+  "enableRAG": true,
+  "showTools": true,
+  "requiredModels": []
+}

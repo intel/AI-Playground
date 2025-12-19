@@ -1,0 +1,119 @@
+{
+  "type": "comfy",
+  "name": "Upscale",
+  "displayPriority": 900,
+  "tags": ["ESRGAN", "no-prompt"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Increase resolution of an image up to 4X",
+  "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "upscale",
+      "model": "Comfy-Org/Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "image",
+      "label": "Input Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    },
+    {
+      "type": "number",
+      "label": "Upscale Factor",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 2,
+      "min": 1,
+      "max": 4,
+      "step": 0.1,
+      "nodeTitle": "upscale_factor",
+      "nodeInput": "value"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["16", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "13": {
+      "inputs": {
+        "model_name": "Comfy-Org---Real-ESRGAN_repackaged\\RealESRGAN_x4plus.safetensors"
+      },
+      "class_type": "UpscaleModelLoader",
+      "_meta": {
+        "title": "Load Upscale Model"
+      }
+    },
+    "14": {
+      "inputs": {
+        "upscale_model": ["13", 0],
+        "image": ["15", 0]
+      },
+      "class_type": "ImageUpscaleWithModel",
+      "_meta": {
+        "title": "Upscale Image (using Model)"
+      }
+    },
+    "15": {
+      "inputs": {
+        "image": ""
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "16": {
+      "inputs": {
+        "upscale_method": "bicubic",
+        "scale_by": ["22", 0],
+        "image": ["14", 0]
+      },
+      "class_type": "ImageScaleBy",
+      "_meta": {
+        "title": "Upscale Image By"
+      }
+    },
+    "22": {
+      "inputs": {
+        "op": "Div",
+        "a": ["24", 0],
+        "b": 4
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "FloatBinaryOperation"
+      }
+    },
+    "24": {
+      "inputs": {
+        "value": 2
+      },
+      "class_type": "PrimitiveFloat",
+      "_meta": {
+        "title": "upscale_factor"
+      }
+    }
+  }
+}
