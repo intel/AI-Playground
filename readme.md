@@ -1,18 +1,17 @@
-<img width="316" height="46" alt="image" src="https://github.com/user-attachments/assets/7dacde60-8230-42c3-8d5a-f0a262320a93" /># AI Playground
-
 <a href="https://scan.coverity.com/projects/ai-playground">
   <img alt="Coverity Scan Build Status"
        src="https://scan.coverity.com/projects/30694/badge.svg"/>
 </a>
 
-![image](https://github.com/user-attachments/assets/ee1efc30-4dd1-4934-9233-53fba00c71bd)
+# AI PLAYGROUND 3.0 alpha
+<img width="2025" height="593" alt="image" src="https://github.com/user-attachments/assets/76c47f53-cd1b-419c-9ffb-43ba2369c84b" />
 
 
-This example is based on the xpu implementation of Intel® Arc™ GPU.
+Welcome to AI Playground open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, code assistance, document search, image analysis, image and video generation. All features run offline and are powered by your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU or Intel Arc™ dGPU Series A or B with 8GB+ of vRAM.
 
-Welcome to AI Playground open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU. AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
-- Image Diffusion (PyTorch 2.8): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Wan2.1 VACE, LTX-Video
-- LLM: GGUF (Llama.cpp Vulknan) - GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
+AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
+- Image Diffusion (PyTorch 2.10): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Z-Image, Wan2.1 VACE, LTX-Video
+- LLM: GGUF (Llama.cpp Vulkan) - Qwen3 VL, GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
 
 ## README.md
 - English (readme.md)
@@ -27,21 +26,25 @@ AI Playground alpha and beta installers are currently available downloadable exe
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 2.6.1 Beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v2.6.1-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v2.6.1-beta/AI_Playground.exe) :new:
+:new: **AI Playground 3.0.0 alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.0-alpha) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.0-alpha/AI.Playground-3.0.0-alpha.rc1.exe) :new:
 
-### Installation Process for v2.0
+### Installation Process for v3.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
-2. On the first run, you need to install additional backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
-3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
+2. On the first run, AI Playground Setup window appears where you install needed backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
+3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/AI-Playground/blob/3.0.0-alpha/AI%20Playground%20Users%20Guide.pdf)
 
 ### Troubleshooting Installation
 The following are known situations where your installation may be blocked or interrupted.  Review the following to remedy installations issues.  If installation issues persist, generate a copy of the log by typing CTRL+SHIFT+I, select the console tab and copy the last few entries of the log written where the installer failed.  Provide these details to us via the issues tab here, or via the Intel Insiders Discord, or Graphics forum on Intel's support site.
-1. **Restart**: Time-out issues have been sighted, which show as a failed install but resolve when restarting AI Playground
-2. **Verify Intel Arc GPU**: Ensure your system has an Intel Arc GPU with the lastest driver. Go to your Windows Start Menu, type "Device Manager," and under Display Adapters, check the name of your GPU device. It should describe an Intel Arc GPU. If so, then you you have a GPU that means our minimum specifications.  If it says "Intel(R) Graphics," your system does not have a built-in Intel Arc GPU and does not meet the minimum specifications. If your GPU is an discrete GPU such as Intel Arc A or B series GPU, then you can troubleshoot a troubled installation by disabling the iGPU in Device Manager
-3. **Interrupted Installation**: The online installation for backend components can be interrupted or blocked by an IT network, firewall, or sleep settings. Ensure you are on an open network, with the firewall off, and set sleep settings to stay awake when powered on.
-4. **Missing Libraries**: Some Windows systems may be missing needed libraries. This can be fixed by installing the 64-bit VC++ redistribution from Microsoft [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170). It is recommended this be done after updating the Graphics drivers. Then install AI Playground.
-5. **Python Conflict**: Some PCs with an existing installation of Python can cause a conflict with AI Playground installation, where the wrong or conflicting packages are installed due to the incorrect version or location of Python on the system.  This is usually remedied by uninstalling Python environment, restarting and reinstalling AI Playground
-6.  **Temp Files**: Should the installation be interrupted because of any of the above issues it is possible that temporary installation files have been left behind and trying to install with these files in place can block the installation. Remove these files or do a clean install of AI Playground to remedy
+
+1. **Llama.cpp embedding issues**: At the time of this release, Llama.cpp embeddings may have issues with:
+  * Recent drivers, and may require DDU to clean driver cache.
+  * Anti-Virus software - features needed to read and write embedding cache may not be properly installed:  Disable anti-virus, restart 
+2. **Restart**: Time-out issues have been sighted, which show as a failed install but resolve when restarting AI Playground
+3. **Verify Intel Arc GPU**: Ensure your system has an Intel Arc GPU with the lastest driver. Go to your Windows Start Menu, type "Device Manager," and under Display Adapters, check the name of your GPU device. It should describe an Intel Arc GPU. If so, then you you have a GPU that means our minimum specifications.  If it says "Intel(R) Graphics," your system does not have a built-in Intel Arc GPU and does not meet the minimum specifications. If your GPU is an discrete GPU such as Intel Arc A or B series GPU, then you can troubleshoot a troubled installation by disabling the iGPU in Device Manager
+4. **Interrupted Installation**: The online installation for backend components can be interrupted or blocked by an IT network, firewall, or sleep settings. Ensure you are on an open network, with the firewall off, and set sleep settings to stay awake when powered on.
+5. **Missing Libraries**: Some Windows systems may be missing needed libraries. This can be fixed by installing the 64-bit VC++ redistribution from Microsoft [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170). It is recommended this be done after updating the Graphics drivers. Then install AI Playground.
+6. **Python Conflict**: Some PCs with an existing installation of Python can cause a conflict with AI Playground installation, where the wrong or conflicting packages are installed due to the incorrect version or location of Python on the system.  This is usually remedied by uninstalling Python environment, restarting and reinstalling AI Playground
+7.  **Temp Files**: Should the installation be interrupted because of any of the above issues it is possible that temporary installation files have been left behind and trying to install with these files in place can block the installation. Remove these files or do a clean install of AI Playground to remedy
 
 ## Project Development
 ### Checkout Source Code
