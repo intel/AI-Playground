@@ -1,7 +1,7 @@
 {
   "type": "comfy",
   "name": "Wan2.1-VACE",
-  "description": "Image to Video generation using Wan2.1-VACE",
+  "description": "Image to Video generation using Wan2.1-VACE. Recommended for systems with discreet GPUs with high vRAM.",
   "displayPriority": 200,
   "tags": ["dGPU", "high vRAM"],
   "backend": "comfyui",
@@ -120,10 +120,6 @@
     }
   ],
   "variants": [
-    {
-      "name": "Standard",
-      "overrides": {}
-    },
     {
       "name": "Fast",
       "description": "Fast Image to Video generation using Wan2.1-VACE with CausVid LoRA",
