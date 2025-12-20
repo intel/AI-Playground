@@ -200,7 +200,7 @@
   {
     "name": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
     "type": "openVINO",
-    "supportsToolCalling": false,
+    "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": false,
     "maxContextSize": 32768
