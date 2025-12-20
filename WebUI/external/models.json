@@ -1,5 +1,13 @@
 [
   {
+    "name": "OpenVINO/Qwen2.5-VL-7B-Instruct-int4-ov",
+    "type": "OpenVino",
+    "supportsToolCalling": true,
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "maxContextSize": 128000
+  },
+  {
     "name": "bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
@@ -200,7 +208,7 @@
   {
     "name": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
     "type": "openVINO",
-    "supportsToolCalling": true,
+    "supportsToolCalling": false,
     "supportsVision": true,
     "supportsReasoning": false,
     "maxContextSize": 32768
