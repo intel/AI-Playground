@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "Chat with RAG",
   "description": "Retrieval-Augmented Generation chat. Add documents to provide context for more accurate and informed responses.",
   "displayPriority": 90,

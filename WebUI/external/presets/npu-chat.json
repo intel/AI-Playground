@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "NPU Chat",
   "description": "Run an LLM on the AI Boost accelerator for the best power efficiency. Only available when an NPU device is present.",
   "displayPriority": 95,

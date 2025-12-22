@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "Vision",
   "description": "Use Vision Language Models with image understanding. Load images and ask questions about visual content.",
   "displayPriority": 60,

@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "Advanced Chat",
   "description": "Full control over model selection and system prompts. Access all downloaded models including manually added ones.",
   "displayPriority": 40,

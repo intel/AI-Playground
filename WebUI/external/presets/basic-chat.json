@@ -1,5 +1,6 @@
 {
   "type": "chat",
+  "category": "chat",
   "name": "Basic Chat",
   "description": "Simple text-to-text chat. Select your preferred backend and model for general conversation.",
   "displayPriority": 100,

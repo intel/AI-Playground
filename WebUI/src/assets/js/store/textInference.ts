@@ -97,7 +97,7 @@ export const useTextInference = defineStore(
     const dialogStore = useDialogStore()
     const models = useModels()
     const presetsStore = usePresets()
-    const backend = ref<LlmBackend>('openVINO')
+    const backend = ref<LlmBackend>('llamaCPP')
     const ragList = ref<IndexedDocument[]>([])
     const systemPrompt =
       ref<string>(`You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
