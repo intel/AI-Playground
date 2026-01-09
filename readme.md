@@ -44,65 +44,82 @@ The following are known situations where your installation may be blocked or int
 6.  **Temp Files**: Should the installation be interrupted because of any of the above issues it is possible that temporary installation files have been left behind and trying to install with these files in place can block the installation. Remove these files or do a clean install of AI Playground to remedy
 
 ## Project Development
+
+### Prerequisites
+
+Before starting, ensure you have the following installed:
+
+- **Node.js** - Download from [Node.js](https://nodejs.org/en/download) (v18 or later recommended)
+- **Python 3.12** - The project specifically requires Python 3.12.x
+- **uv** - Python package manager for dependency management
+
 ### Checkout Source Code
 
-To get started, clone the repository and navigate to the project directory:
+Clone the repository and navigate to the project directory:
 
 ```cmd
 git clone -b dev https://github.com/intel/AI-Playground.git
 cd AI-Playground
 ```
 
+### Install Python Dependencies
+
+Install the backend service dependencies:
+
+```cmd
+cd service
+python -m uv sync
+cd ..
+```
+
+Install ComfyUI dependencies (optional, for advanced image generation features):
+
+```cmd
+cd comfyui-deps
+python -m uv sync
+cd ..
+```
+
+Note: If you encounter hash mismatch errors with PyTorch packages, this is a known issue with the upstream PyTorch XPU repository and doesn't prevent the basic app from running.
+
 ### Install Node.js Dependencies
 
-1. Install the Node.js development environment from [Node.js](https://nodejs.org/en/download).
-
-2. Navigate to the `WebUI` directory and install all Node.js dependencies:
+Navigate to the `WebUI` directory and install all Node.js dependencies:
 
 ```cmd
 cd WebUI
 npm install
 ```
 
-### Prepare Python Environment
+### Fetch Build Resources
 
-1. Install Miniforge to manage your Conda environment: https://github.com/conda-forge/miniforge
+Download required build resources (7-Zip utility for extracting portable Git):
 
-2. Create a Conda environment with Python 3.11 and libuv:
-```
-conda create -n cp311_libuv python=3.11 libuv -y
-```
-
-3. Locate the path to your newly created Conda environment:
-```
-conda env list | findstr cp311_libuv
+```cmd
+npm run fetch-build-resources
 ```
 
-4. In the `WebUI` directory, execute the `fetch-build-resources` script, replacing `<path_to_cp311_libuv_conda_env>` with the actual path you copied in the previous step:
-```
-npm run fetch-build-resources -- --conda_env_dir=<path_to_cp311_libuv_conda_env>
-```
+### Launch the Application
 
-5. Run the `prepare-build` script:
-```
-npm run prepare-build
-```
+Start the application in development mode:
 
-You should now have a basic Python environment located at `build-envs\online\prototype-python-env`.
-
-### Launch the application
-
-To start the application in development mode, run:
-
-```
+```cmd
 npm run dev
 ```
 
-### (Optional) Build the installer
+The application will start an Electron window and be accessible at `http://127.0.0.1:25413` (or the next available port if 25413 is in use).
 
-To build the installer, run:
+The dev server includes:
+- Hot module reloading for Vue.js components
+- Automatic backend service startup
+- API proxy from port 25413 to backend port 9999
 
-```
+### (Optional) Build the Installer
+
+To prepare resources and build the production installer:
+
+```cmd
+npm run prepare-build
 npm run build
 ```
 

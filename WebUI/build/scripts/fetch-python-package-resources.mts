@@ -190,9 +190,19 @@ async function main(): Promise<void> {
     if (target.data === 'win32') {
       const sevenZrPath = path.join(buildPaths.tmpDir, '7zr.exe')
       const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
+      const devModePath = path.join(buildPaths.repoRoot, '7zr.exe')
       if (existsSync(sevenZrPath)) {
         renameSync(sevenZrPath, destinationPath)
         console.log(`✅ Moved ${sevenZrPath} to ${destinationPath}`)
+
+        // Also copy to repo root for development mode
+        try {
+          const { copyFileSync } = await import('fs')
+          copyFileSync(destinationPath, devModePath)
+          console.log(`✅ Copied 7zr.exe to ${devModePath} for development mode`)
+        } catch (error) {
+          console.warn(`⚠️  Warning: Could not copy 7zr.exe to repo root: ${error}`)
+        }
       } else {
         console.error(`❌ 7zr binary not found: ${sevenZrPath}`)
       }
