@@ -118,7 +118,7 @@ type electronAPI = {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
-  ): Promise<{ success: boolean; error?: string }>
+  ): Promise<{ success: boolean; error?: string; notInstalled?: boolean }>
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>

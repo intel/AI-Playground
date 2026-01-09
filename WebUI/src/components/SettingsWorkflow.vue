@@ -10,7 +10,7 @@
     <div class="flex flex-col gap-4">
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">
-          {{ languages.DEVICE }}
+          {{ i18nState.DEVICE }}
         </Label>
         <DeviceSelector :backend="backendToService[imageGeneration.backend]" />
       </div>
@@ -27,7 +27,7 @@
         class="grid grid-cols-[120px_1fr] items-center gap-4"
       >
         <Label class="whitespace-nowrap">
-          {{ languages.SETTINGS_MODEL_IMAGE_STEPS }}: {{ imageGeneration.inferenceSteps }}
+          {{ i18nState.SETTINGS_MODEL_IMAGE_STEPS }}: {{ imageGeneration.inferenceSteps }}
         </Label>
         <Slider
           v-model="imageGeneration.inferenceSteps"
@@ -43,7 +43,7 @@
         class="grid grid-cols-[120px_1fr] items-center gap-4"
       >
         <Label class="whitespace-nowrap">
-          {{ languages.SETTINGS_MODEL_BATCH_COUNT }}: {{ imageGeneration.batchSize }}
+          {{ i18nState.SETTINGS_MODEL_BATCH_COUNT }}: {{ imageGeneration.batchSize }}
         </Label>
         <Slider
           v-model="imageGeneration.batchSize"
@@ -56,7 +56,7 @@
 
       <div v-if="modifiableOrDisplayed('negativePrompt')" class="flex flex-col gap-2">
         <Label>
-          {{ languages.SETTINGS_MODEL_NEGATIVE_PROMPT }}
+          {{ i18nState.SETTINGS_MODEL_NEGATIVE_PROMPT }}
         </Label>
         <textarea
           class="h-24 rounded-lg resize-none bg-input border border-border text-foreground p-2"
@@ -66,7 +66,7 @@
       </div>
 
       <div v-if="modifiableOrDisplayed('seed')" class="flex flex-col gap-2">
-        <Label> {{ languages.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }} </Label>
+        <Label> {{ i18nState.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }} </Label>
         <random-number
           v-model:value="imageGeneration.seed"
           :default="-1"
@@ -82,7 +82,7 @@
         class="grid grid-cols-[120px_1fr] items-center gap-4"
       >
         <Label class="whitespace-nowrap">
-          {{ languages.SETTINGS_MODEL_SHOW_PREVIEW || 'Show Preview' }}
+          {{ i18nState.SETTINGS_MODEL_SHOW_PREVIEW || 'Show Preview' }}
         </Label>
         <Checkbox
           :model-value="imageGeneration.showPreview"
@@ -96,7 +96,7 @@
       <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
         <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
           <div class="svg-icon i-refresh">Reset</div>
-          {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
+          {{ i18nState.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
         </button>
       </div>
 
@@ -116,7 +116,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useI18N } from '@/assets/js/store/i18n'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -134,6 +135,8 @@ import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import AspectRatioPicker from './AspectRatioPicker.vue'
 import PresetSelector from './PresetSelector.vue'
 
+const i18nState = useI18N().state
+
 interface Props {
   categories: string[]
   title: string
@@ -145,6 +148,19 @@ const imageGeneration = useImageGenerationPresets()
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
 const backendServices = useBackendServices()
+
+// Trigger device detection when settings page opens
+onMounted(async () => {
+  const serviceName = backendToService[imageGeneration.backend]
+  if (serviceName) {
+    console.log(`SettingsWorkflow mounted, detecting devices for ${serviceName}`)
+    try {
+      await backendServices.detectDevices(serviceName)
+    } catch (error) {
+      console.error(`Failed to detect devices for ${serviceName}:`, error)
+    }
+  }
+})
 
 const currentPreset = computed(() => {
   return presetsStore.activePreset

@@ -320,7 +320,7 @@ export const useTextInference = defineStore(
     })
 
     const metricsEnabled = ref(true)
-    const toolsEnabled = ref(true)
+    const toolsEnabled = ref(false) // Default to false - only enable when preset explicitly requests it
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)

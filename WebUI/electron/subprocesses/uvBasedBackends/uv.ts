@@ -128,7 +128,30 @@ const uvWithJsonOutput = (uvCommand: string[], logger: ReturnType<typeof loggerF
  * Detect if an error message indicates a UV cache hash mismatch
  */
 const isHashMismatchError = (errorMessage: string): boolean => {
-  return /hash mismatch/i.test(errorMessage)
+  // Check for various hash mismatch patterns
+  return (
+    /hash mismatch/i.test(errorMessage) ||
+    /failed to download.*hash mismatch/is.test(errorMessage) ||
+    /expected:[\s\S]*sha256:[\s\S]*computed:[\s\S]*sha256:/i.test(errorMessage)
+  )
+}
+
+/**
+ * Detect if an error message indicates a Python version compatibility issue
+ */
+const isPythonVersionError = (errorMessage: string): boolean => {
+  return (
+    /cannot install on python version/i.test(errorMessage) ||
+    /only versions.*are supported/i.test(errorMessage) ||
+    /requires python.*but.*is installed/i.test(errorMessage)
+  )
+}
+
+/**
+ * Detect if we need to regenerate the lockfile due to various issues
+ */
+const needsLockfileRegeneration = (errorMessage: string): boolean => {
+  return isHashMismatchError(errorMessage) || isPythonVersionError(errorMessage)
 }
 
 export const installBackend = async (backend: string, onCacheCorruptionDetected?: () => void) => {
@@ -142,13 +165,52 @@ export const installBackend = async (backend: string, onCacheCorruptionDetected?
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
 
-    if (isHashMismatchError(errorMessage)) {
-      logger.warn('Hash mismatch detected in UV cache, retrying with --no-cache')
+    // Log the error message for debugging
+    logger.error(`Installation failed, analyzing error message (length: ${errorMessage.length})`)
+
+    // Check for lockfile regeneration needs
+    const needsRegen = needsLockfileRegeneration(errorMessage)
+    const isHashMatch = isHashMismatchError(errorMessage)
+    const isPyVersion = isPythonVersionError(errorMessage)
+
+    logger.info(
+      `Error analysis: needsRegen=${needsRegen}, hashMismatch=${isHashMatch}, pythonVersion=${isPyVersion}`,
+    )
+
+    if (needsRegen) {
+      if (isHashMatch) {
+        logger.warn('Hash mismatch detected - package hashes have changed on the server')
+      } else if (isPyVersion) {
+        logger.warn('Python version incompatibility detected in locked dependencies')
+        logger.warn(
+          "This usually means the lockfile was created with packages that don't support the current Python version",
+        )
+      }
+
+      logger.warn('Regenerating lockfile with fresh package versions...')
       onCacheCorruptionDetected?.()
-      const noCacheCommand = [...uvCommand, '--no-cache']
-      return await uv(noCacheCommand, logger)
+
+      // Delete the existing lock file to force complete regeneration
+      const lockFilePath = path.join(aipgBaseDir, backend, 'uv.lock')
+      try {
+        if (fs.existsSync(lockFilePath)) {
+          logger.info(`Removing old lock file: ${lockFilePath}`)
+          fs.unlinkSync(lockFilePath)
+        }
+      } catch (unlinkError) {
+        logger.warn(`Failed to remove lock file: ${unlinkError}`)
+        // Continue anyway, --upgrade should handle it
+      }
+
+      // Use --upgrade to regenerate the lockfile with fresh package versions
+      // and --no-cache to ensure we download fresh packages
+      const regenerateCommand = [...uvCommand, '--upgrade', '--no-cache']
+      logger.info(`Retrying with: ${JSON.stringify(regenerateCommand)}`)
+      return await uv(regenerateCommand, logger)
     }
 
+    // If we don't need regeneration, just throw the original error
+    logger.error('Error does not match regeneration criteria, re-throwing')
     throw error
   }
 }

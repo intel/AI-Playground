@@ -28,6 +28,7 @@ try:
 
     import comfyui_downloader
     from web_request_bodies import ComfyUICheckWorkflowRequirementRequest, DownloadModelRequestBody, ComfyUICustomNodesDownloadRequest, ComfyUIPackageInstallRequest
+    from device_utils import get_device_info, detect_all_available_devices
 
 
     # Credit to https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14186
@@ -63,7 +64,26 @@ try:
     def healthEndpoint():
         return jsonify({"health": "OK"})
 
-
+    @app.get("/api/devices")
+    def get_devices():
+        """
+        Get all available devices (XPU, CUDA, CPU) with their details.
+        Frontend can use this to let users select their preferred device.
+        """
+        try:
+            device_info = get_device_info()
+            return jsonify({
+                "code": 0,
+                "message": "success",
+                "data": device_info
+            })
+        except Exception as e:
+            logging.error(f"Error getting device info: {e}")
+            return jsonify({
+                "code": 1,
+                "message": f"Failed to get device info: {str(e)}",
+                "data": None
+            }), 500
 
     @app.get("/api/applicationExit")
     def applicationExit():

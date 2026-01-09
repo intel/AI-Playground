@@ -25,7 +25,6 @@ dependencies = [
   "importlib_metadata",
   "insightface==0.7.3",
   "kornia>=0.7.1",
-  "librosa",
   "matplotlib",
   "matrix-nio",
   "mediapipe",
@@ -117,6 +116,11 @@ mediapipe = [
 [[tool.uv.index]]
 name = "pytorch-xpu"
 url = "https://download.pytorch.org/whl/test/xpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu124"
 explicit = true
 
 [[tool.uv.index]]

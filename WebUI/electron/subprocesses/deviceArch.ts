@@ -114,3 +114,14 @@ export const getBestDevice = (
     .toSorted((a, b) => a.distanceToBest - b.distanceToBest)[0].id
 
 export type Arch = 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | 'unknown'
+
+/**
+ * Check if a device name suggests it's an Intel GPU (e.g., Intel Arc)
+ * @param deviceName - The name of the device to check
+ * @returns true if the device name suggests it's an Intel GPU
+ */
+export function isIntelDevice(deviceName: string): boolean {
+  const lowerName = deviceName.toLowerCase()
+  return lowerName.includes('intel') || lowerName.includes('arc')
+}
+

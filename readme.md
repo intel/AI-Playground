@@ -10,7 +10,7 @@
 
 This example is based on the xpu implementation of Intel® Arc™ GPU.
 
-Welcome to AI Playground open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU. AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
+Welcome to AI Playground open source project and AI PC starter app for doing AI image creation, image stylizing, and chatbot on a PC powered by an Intel® Arc™ GPU or NVIDIA GPU. AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
 - Image Diffusion (PyTorch 2.8): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Wan2.1 VACE, LTX-Video
 - LLM: GGUF (Llama.cpp Vulknan) - GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
 
@@ -21,7 +21,8 @@ Welcome to AI Playground open source project and AI PC starter app for doing AI 
 AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
-*	Intel Core Ultra-H Processor, Intel Core Ultra-V processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
+*	Intel Core Ultra-H Processor, Intel Core Ultra-V processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM OR NVIDIA GPU with 8GB of vRAM (CUDA support)
+
 
 ## Installation - Packaged Installer: 
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
@@ -47,83 +48,30 @@ The following are known situations where your installation may be blocked or int
 
 ### Prerequisites
 
-Before starting, ensure you have the following installed:
+- **Node.js** (v18 or later) - Download from [nodejs.org](https://nodejs.org/en/download)
+- **Python 3.12** - Required for backend services
 
-- **Node.js** - Download from [Node.js](https://nodejs.org/en/download) (v18 or later recommended)
-- **Python 3.12** - The project specifically requires Python 3.12.x
-- **uv** - Python package manager for dependency management
+### Quick Start
 
-### Checkout Source Code
-
-Clone the repository and navigate to the project directory:
-
+1. Clone the repository:
 ```cmd
 git clone -b dev https://github.com/intel/AI-Playground.git
 cd AI-Playground
 ```
 
-### Install Python Dependencies
-
-Install the backend service dependencies:
-
-```cmd
-cd service
-python -m uv sync
-cd ..
-```
-
-Install ComfyUI dependencies (optional, for advanced image generation features):
-
-```cmd
-cd comfyui-deps
-python -m uv sync
-cd ..
-```
-
-Note: If you encounter hash mismatch errors with PyTorch packages, this is a known issue with the upstream PyTorch XPU repository and doesn't prevent the basic app from running.
-
-### Install Node.js Dependencies
-
-Navigate to the `WebUI` directory and install all Node.js dependencies:
-
+2. Install Node.js dependencies:
 ```cmd
 cd WebUI
 npm install
-```
-
-### Fetch Build Resources
-
-Download required build resources (7-Zip utility for extracting portable Git):
-
-```cmd
 npm run fetch-build-resources
 ```
 
-### Launch the Application
-
-Start the application in development mode:
-
+3. Launch the application:
 ```cmd
 npm run dev
 ```
 
-The application will start an Electron window and be accessible at `http://127.0.0.1:25413` (or the next available port if 25413 is in use).
-
-The dev server includes:
-- Hot module reloading for Vue.js components
-- Automatic backend service startup
-- API proxy from port 25413 to backend port 9999
-
-### (Optional) Build the Installer
-
-To prepare resources and build the production installer:
-
-```cmd
-npm run prepare-build
-npm run build
-```
-
-The installer executable will be located in the `release` folder.
+The application will start in Electron and be accessible at `http://127.0.0.1:25413`. Backend components and Python dependencies are automatically installed on first run.
 
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 

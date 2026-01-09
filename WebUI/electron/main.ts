@@ -811,7 +811,9 @@ function initEventHandle() {
           `Failed to ensure backend readiness for ${serviceName}: ${errorMessage}`,
           'electron-backend',
         )
-        return { success: false, error: errorMessage }
+        // Check if this is a "not installed" error
+        const isNotInstalledError = errorMessage.includes('is not installed')
+        return { success: false, error: errorMessage, notInstalled: isNotInstalledError }
       }
     },
   )

@@ -351,6 +351,25 @@ export const useBackendServices = defineStore(
           contextSize,
         )
         if (!result.success) {
+          // Check if backend is not installed and trigger installation
+          if (result.notInstalled) {
+            console.info(`Backend ${serviceName} is not installed, triggering installation...`)
+            // Trigger installation automatically
+            await setUpService(serviceName)
+            // After installation, retry ensuring backend readiness
+            const retryResult = await window.electronAPI.ensureBackendReadiness(
+              serviceName,
+              llmModelName,
+              embeddingModelName,
+              contextSize,
+            )
+            if (!retryResult.success) {
+              throw new Error(
+                retryResult.error || 'Failed to ensure backend readiness after installation',
+              )
+            }
+            return
+          }
           throw new Error(result.error || 'Failed to ensure backend readiness')
         }
       } catch (error) {

@@ -6,10 +6,11 @@ import { appLoggerInstance } from '../logging/logger.ts'
 import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { vulkanDeviceSelectorEnv } from './deviceDetection.ts'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { binary, extract } from './tools.ts'
+import { detectNvidiaGpus, checkNvidiaDrivers, isNvidiaDevice } from './deviceNvidia.ts'
+import type { GpuVendor } from './deviceUtils.ts'
 
 const execAsync = promisify(exec)
 
@@ -108,6 +109,14 @@ export class LlamaCppBackendService implements ApiService {
       this.name,
     )
 
+    // Check if the backend is installed before attempting to start
+    if (!this.isSetUp || !this.serviceIsSetUp()) {
+      const errorMsg =
+        'LlamaCPP backend is not installed. Please install it first from the Settings page.'
+      this.appLogger.error(errorMsg, this.name)
+      throw new Error(errorMsg)
+    }
+
     try {
       // Handle LLM model
       const needsLlmRestart =
@@ -179,86 +188,39 @@ export class LlamaCppBackendService implements ApiService {
       // Check if llama-server.exe exists
       if (!filesystem.existsSync(this.llamaCppExePath)) {
         this.appLogger.warn('llama-server.exe not found, using default device', this.name)
-        this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+        this.devices = [{ id: 'cpu', name: 'CPU', selected: true }]
         return
       }
 
-      this.appLogger.info('Detecting devices using llama-server --list-devices', this.name)
+      this.appLogger.info('Detecting NVIDIA GPUs for CUDA build', this.name)
 
-      // Execute llama-server.exe --list-devices
-      const { stdout } = await execAsync(`"${this.llamaCppExePath}" --list-devices`, {
-        cwd: this.llamaCppDir,
-        env: {
-          ...process.env,
-        },
-        timeout: 10000, // 10 second timeout
-      })
-
-      // Parse the output
-      const availableDevices: Array<{ id: string; name: string }> = []
-      const lines = stdout
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line !== '')
-
-      let foundDevicesSection = false
-      for (const line of lines) {
-        if (line.startsWith('Available devices:')) {
-          foundDevicesSection = true
-          continue
-        }
-
-        if (foundDevicesSection && line.includes(':')) {
-          // Parse lines like "Vulkan0: Intel(R) Arc(TM) A750 Graphics (7824 MiB, 7824 MiB free)"
-          const colonIndex = line.indexOf(':')
-          if (colonIndex > 0) {
-            let deviceId = line.substring(0, colonIndex).trim()
-            const deviceInfo = line.substring(colonIndex + 1).trim()
-
-            // Strip "Vulkan" prefix from device ID (e.g., "Vulkan0" -> "0")
-            if (deviceId.startsWith('Vulkan')) {
-              deviceId = deviceId.substring(6) // Remove "Vulkan" prefix
-            }
-
-            // Extract just the device name (before the memory info in parentheses)
-            // Look for the last parenthesis that contains memory info like "(7824 MiB, 7824 MiB free)"
-            const lastParenIndex = deviceInfo.lastIndexOf('(')
-            let deviceName = deviceInfo
-
-            if (lastParenIndex > 0) {
-              const memoryInfo = deviceInfo.substring(lastParenIndex)
-              // Check if this parenthesis contains memory information (MiB, GiB, etc.)
-              if (
-                memoryInfo.includes('MiB') ||
-                memoryInfo.includes('GiB') ||
-                memoryInfo.includes('free')
-              ) {
-                deviceName = deviceInfo.substring(0, lastParenIndex).trim()
-              }
-            }
-
-            availableDevices.push({
-              id: deviceId,
-              name: deviceName,
-            })
-          }
-        }
-      }
+      // For CUDA build, detect NVIDIA GPUs using shared detection
+      const availableDevices = await detectNvidiaGpus(this.name)
 
       this.appLogger.info(
         `detected devices: ${JSON.stringify(availableDevices, null, 2)}`,
         this.name,
       )
 
-      // Add AUTO option and set selection (select first Vulkan device if available, otherwise AUTO)
-      this.devices = availableDevices.map((d, index) => ({
-        ...d,
-        selected: index === 0,
-      }))
+      // Add CPU device as an option (not default)
+      const devicesWithCpu = [
+        ...availableDevices.map((d, index) => ({
+          ...d,
+          selected: index === 0 && availableDevices.length > 0,
+        })),
+        { id: 'cpu', name: 'CPU', selected: false },
+      ]
+
+      // If no GPU devices found, select CPU by default
+      if (availableDevices.length === 0) {
+        devicesWithCpu[devicesWithCpu.length - 1].selected = true
+      }
+
+      this.devices = devicesWithCpu
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
-      // Fallback to default device on error
-      this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+      // Fallback to CPU device on error
+      this.devices = [{ id: 'cpu', name: 'CPU', selected: true }]
     }
     this.updateStatus()
   }
@@ -404,6 +366,45 @@ export class LlamaCppBackendService implements ApiService {
         debugMessage: 'extraction complete',
       }
 
+      // Check and install Vulkan Runtime if missing (Windows only)
+      if (process.platform === 'win32') {
+        currentStep = 'vulkan'
+        yield {
+          serviceName: this.name,
+          step: currentStep,
+          status: 'executing',
+          debugMessage: 'checking Vulkan Runtime',
+        }
+
+        const vulkanInstalled = await this.checkVulkanRuntime()
+        if (!vulkanInstalled) {
+          this.appLogger.info('Vulkan Runtime not found, installing...', this.name)
+          yield {
+            serviceName: this.name,
+            step: currentStep,
+            status: 'executing',
+            debugMessage: 'downloading Vulkan Runtime',
+          }
+
+          await this.installVulkanRuntime()
+
+          yield {
+            serviceName: this.name,
+            step: currentStep,
+            status: 'executing',
+            debugMessage: 'Vulkan Runtime installed successfully',
+          }
+        } else {
+          this.appLogger.info('Vulkan Runtime already installed', this.name)
+          yield {
+            serviceName: this.name,
+            step: currentStep,
+            status: 'executing',
+            debugMessage: 'Vulkan Runtime already installed',
+          }
+        }
+      }
+
       this.isSetUp = true
       await this.updateCachedVersion()
       this.setStatus('notYetStarted')
@@ -485,6 +486,123 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
+  /**
+   * Check if Vulkan Runtime is installed by looking for vulkan-1.dll
+   */
+  private async checkVulkanRuntime(): Promise<boolean> {
+    try {
+      // Check common locations for vulkan-1.dll
+      const vulkanDllLocations = [
+        path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'vulkan-1.dll'),
+        path.join(process.env.SystemRoot || 'C:\\Windows', 'SysWOW64', 'vulkan-1.dll'),
+      ]
+
+      for (const location of vulkanDllLocations) {
+        if (filesystem.existsSync(location)) {
+          this.appLogger.info(`Found Vulkan Runtime at ${location}`, this.name)
+          return true
+        }
+      }
+
+      // Also try to run vulkaninfo to verify Vulkan is working
+      try {
+        const result = await execAsync('vulkaninfo --summary', { timeout: 5000 })
+        if (result.stdout || result.stderr) {
+          this.appLogger.info('Vulkan Runtime verified via vulkaninfo', this.name)
+          return true
+        }
+      } catch {
+        // vulkaninfo not found or failed, continue checking
+      }
+
+      this.appLogger.info('Vulkan Runtime not found on system', this.name)
+      return false
+    } catch (error) {
+      this.appLogger.warn(`Error checking Vulkan Runtime: ${error}`, this.name)
+      return false
+    }
+  }
+
+  /**
+   * Download and install Vulkan Runtime
+   */
+  private async installVulkanRuntime(): Promise<void> {
+    try {
+      // Use the Vulkan SDK Runtime installer
+      // This is the redistributable runtime-only installer (not the full SDK)
+      const vulkanVersion = '1.3.280.0' // Latest stable runtime version
+      const vulkanInstallerUrl = `https://sdk.lunarg.com/sdk/download/${vulkanVersion}/windows/VulkanRT-${vulkanVersion}-Installer.exe`
+
+      const vulkanInstallerPath = path.join(this.serviceDir, 'VulkanRT-Installer.exe')
+
+      this.appLogger.info(`Downloading Vulkan Runtime from ${vulkanInstallerUrl}`, this.name)
+
+      // Download the installer
+      const response = await net.fetch(vulkanInstallerUrl)
+      if (!response.ok || response.status !== 200 || !response.body) {
+        throw new Error(`Failed to download Vulkan Runtime: ${response.statusText}`)
+      }
+
+      const buffer = await response.arrayBuffer()
+      await filesystem.writeFile(vulkanInstallerPath, Buffer.from(buffer))
+
+      this.appLogger.info(
+        'Vulkan Runtime installer downloaded, running silent installation...',
+        this.name,
+      )
+
+      // Run the installer silently
+      // /S = silent mode, /D = install directory (optional)
+      await execAsync(`"${vulkanInstallerPath}" /S`, {
+        timeout: 120000, // 2 minute timeout for installation
+      })
+
+      this.appLogger.info('Vulkan Runtime installed successfully', this.name)
+
+      // Clean up installer
+      try {
+        filesystem.removeSync(vulkanInstallerPath)
+      } catch {
+        // Ignore cleanup errors
+      }
+    } catch (error) {
+      this.appLogger.error(`Failed to install Vulkan Runtime: ${error}`, this.name)
+      this.appLogger.warn(
+        'Vulkan Runtime installation failed. GPU acceleration may not work. You can manually install from: https://vulkan.lunarg.com/sdk/home',
+        this.name,
+      )
+      // Don't throw - allow setup to continue, will fallback to CPU
+    }
+  }
+
+  /**
+   * Ensure GPU dependencies (CUDA for NVIDIA) are installed
+   */
+  private async ensureGpuDependencies(vendor: GpuVendor): Promise<void> {
+    try {
+      if (vendor === 'nvidia') {
+        // CUDA build includes necessary runtime DLLs
+        // Just verify NVIDIA GPU is present using shared utility
+        this.appLogger.info('Using CUDA build - checking NVIDIA GPU availability', this.name)
+
+        const driversAvailable = await checkNvidiaDrivers(this.name)
+        if (!driversAvailable) {
+          this.appLogger.warn(
+            'nvidia-smi not found - ensure NVIDIA drivers are installed',
+            this.name,
+          )
+        }
+      }
+    } catch (error) {
+      this.appLogger.error(`Failed to verify GPU dependencies for ${vendor}: ${error}`, this.name)
+      // Don't throw - allow execution to continue
+      this.appLogger.warn(
+        `GPU acceleration may not work optimally. Ensure NVIDIA drivers (525.x+) are installed.`,
+        this.name,
+      )
+    }
+  }
+
   async start(): Promise<BackendStatus> {
     // In this architecture, model servers are started on-demand via ensureBackendReadiness
     // This method is kept for ApiService interface compatibility
@@ -538,18 +656,55 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
+      // Check if we should use GPU or CPU
+      const selectedDevice = this.devices.find((d) => d.selected)
+      const useCpu = selectedDevice?.id === 'cpu'
+      const useGpu = !useCpu && selectedDevice?.id !== undefined
+
+      // Detect GPU vendor (NVIDIA and Intel supported)
+      let gpuVendor: 'nvidia' | 'intel' | 'unknown' = 'unknown'
+      if (useGpu && selectedDevice) {
+        if (isNvidiaDevice(selectedDevice.name)) {
+          gpuVendor = 'nvidia'
+        } else if (
+          selectedDevice.name.toLowerCase().includes('intel') ||
+          selectedDevice.name.toLowerCase().includes('arc')
+        ) {
+          gpuVendor = 'intel'
+        }
+      }
+
       const args = [
         '--model',
         modelPath,
         '--port',
         port.toString(),
-        '--gpu-layers',
-        '999',
         '--ctx-size',
         ctxSize.toString(),
         '--log-prefix',
         '--jinja',
+        '--verbose',
       ]
+
+      if (useCpu) {
+        args.push('--gpu-layers', '0')
+        this.appLogger.info(`Using CPU mode (explicitly selected)`, this.name)
+      } else if (useGpu) {
+        args.push('--gpu-layers', '999')
+        this.appLogger.info(
+          `Using GPU acceleration with device: ${selectedDevice?.name} (${gpuVendor})`,
+          this.name,
+        )
+
+        // For NVIDIA GPUs, ensure dependencies are checked
+        if (gpuVendor === 'nvidia') {
+          await this.ensureGpuDependencies(gpuVendor)
+        }
+      } else {
+        // Fallback to CPU if no device selected
+        args.push('--gpu-layers', '0')
+        this.appLogger.warn(`No device selected, falling back to CPU mode`, this.name)
+      }
 
       const modelFolder = path.dirname(modelPath)
       // find mmproj*.gguf file in the same folder
@@ -564,13 +719,17 @@ export class LlamaCppBackendService implements ApiService {
         this.appLogger.info(`Using mmproj file ${mmprojFile} for model ${modelRepoId}`, this.name)
       }
 
+      // Set CUDA_VISIBLE_DEVICES for GPU selection
+      const envVars: Record<string, string> = { ...process.env }
+      if (useGpu && selectedDevice && gpuVendor === 'nvidia') {
+        envVars.CUDA_VISIBLE_DEVICES = selectedDevice.id
+        this.appLogger.info(`Setting CUDA_VISIBLE_DEVICES=${selectedDevice.id}`, this.name)
+      }
+
       const childProcess = spawn(this.llamaCppExePath, args, {
         cwd: this.llamaCppDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
-        },
+        env: envVars,
       })
 
       const llamaProcess: LlamaServerProcess = {
@@ -586,23 +745,31 @@ export class LlamaCppBackendService implements ApiService {
       // Set up process event handlers
       childProcess.stdout!.on('data', (message) => {
         const msg = message.toString()
+        // Log ALL output for debugging
         if (msg.startsWith('I ')) {
-          this.appLogger.info(`[LLM] ${message}`, this.name)
+          this.appLogger.info(`[LLM] ${msg}`, this.name)
         } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[LLM] ${message}`, this.name)
+          this.appLogger.warn(`[LLM] ${msg}`, this.name)
         } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[LLM] ${message}`, this.name)
+          this.appLogger.error(`[LLM] ${msg}`, this.name)
+        } else {
+          // Log unprefixed output (initialization messages, errors, etc.)
+          this.appLogger.info(`[LLM stdout] ${msg}`, this.name)
         }
       })
 
       childProcess.stderr!.on('data', (message) => {
         const msg = message.toString()
+        // Log ALL stderr output - this is where CUDA/Vulkan errors appear
         if (msg.startsWith('I ')) {
-          this.appLogger.info(`[LLM] ${message}`, this.name)
+          this.appLogger.info(`[LLM] ${msg}`, this.name)
         } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[LLM] ${message}`, this.name)
+          this.appLogger.warn(`[LLM] ${msg}`, this.name)
         } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[LLM] ${message}`, this.name)
+          this.appLogger.error(`[LLM] ${msg}`, this.name)
+        } else {
+          // Log unprefixed stderr - critical for diagnosing CUDA/Vulkan issues
+          this.appLogger.error(`[LLM stderr] ${msg}`, this.name)
         }
       })
 
@@ -630,10 +797,12 @@ export class LlamaCppBackendService implements ApiService {
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       this.appLogger.error(
-        `Failed to start LLM server for model ${modelRepoId}: ${error}`,
+        `Failed to start LLM server for model ${modelRepoId}: ${errorMessage}`,
         this.name,
       )
+      // Don't fallback to CPU - throw the error so user knows GPU failed
       throw error
     }
   }
@@ -659,15 +828,24 @@ export class LlamaCppBackendService implements ApiService {
         '1024',
         '-ub',
         '1024',
+        '--verbose', // Add verbose logging to capture initialization issues
       ]
+
+      // Set CUDA_VISIBLE_DEVICES for GPU selection
+      const selectedDevice = this.devices.find((d) => d.selected)
+      const envVars: Record<string, string> = { ...process.env }
+      if (selectedDevice && selectedDevice.id !== 'cpu') {
+        envVars.CUDA_VISIBLE_DEVICES = selectedDevice.id
+        this.appLogger.info(
+          `[Embedding] Setting CUDA_VISIBLE_DEVICES=${selectedDevice.id}`,
+          this.name,
+        )
+      }
 
       const childProcess = spawn(this.llamaCppExePath, args, {
         cwd: this.llamaCppDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
-        },
+        env: envVars,
       })
 
       const llamaProcess: LlamaServerProcess = {
@@ -682,23 +860,31 @@ export class LlamaCppBackendService implements ApiService {
       // Set up process event handlers
       childProcess.stdout!.on('data', (message) => {
         const msg = message.toString()
+        // Log ALL output for debugging
         if (msg.startsWith('I ')) {
-          this.appLogger.info(`[Embedding] ${message}`, this.name)
+          this.appLogger.info(`[Embedding] ${msg}`, this.name)
         } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[Embedding] ${message}`, this.name)
+          this.appLogger.warn(`[Embedding] ${msg}`, this.name)
         } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[Embedding] ${message}`, this.name)
+          this.appLogger.error(`[Embedding] ${msg}`, this.name)
+        } else {
+          // Log unprefixed output
+          this.appLogger.info(`[Embedding stdout] ${msg}`, this.name)
         }
       })
 
       childProcess.stderr!.on('data', (message) => {
         const msg = message.toString()
+        // Log ALL stderr output - critical for CUDA/Vulkan errors
         if (msg.startsWith('I ')) {
-          this.appLogger.info(`[Embedding] ${message}`, this.name)
+          this.appLogger.info(`[Embedding] ${msg}`, this.name)
         } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[Embedding] ${message}`, this.name)
+          this.appLogger.warn(`[Embedding] ${msg}`, this.name)
         } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[Embedding] ${message}`, this.name)
+          this.appLogger.error(`[Embedding] ${msg}`, this.name)
+        } else {
+          // Log unprefixed stderr
+          this.appLogger.error(`[Embedding stderr] ${msg}`, this.name)
         }
       })
 
@@ -874,7 +1060,16 @@ export class LlamaCppBackendService implements ApiService {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
 
-    throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
+    const errorMsg =
+      `Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds. ` +
+      `This may indicate missing dependencies. ` +
+      `For NVIDIA GPUs, ensure you have: ` +
+      `1) Latest NVIDIA drivers (525.x+), ` +
+      `2) Visual C++ Redistributables. ` +
+      `The CUDA runtime is included in the llama.cpp build. ` +
+      `Check the console logs for detailed error messages.`
+    this.appLogger.error(errorMsg, this.name)
+    throw new Error(errorMsg)
   }
 
   // Error management methods for startup failures

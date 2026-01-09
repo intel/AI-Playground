@@ -45,4 +45,10 @@ git = {
 }
 
 # Default device
-device = "xpu"
+# auto = detect XPU first, then CUDA, then CPU (for backward compatibility)
+# cuda = NVIDIA GPU
+# xpu = Intel Arc GPU
+# cpu = CPU only
+# Note: All available devices are detected and exposed via /api/devices endpoint
+# for frontend device selection without unexpected fallbacks
+device = "auto"
