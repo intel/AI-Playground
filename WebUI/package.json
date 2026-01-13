@@ -25,7 +25,7 @@
     "@google/model-viewer": "^4.1.0",
     "@heroicons/vue": "^2.2.0",
     "@langchain/community": "^0.3.58",
-    "@langchain/core": "^0.3.79",
+    "@langchain/core": "^0.3.80",
     "@langchain/openai": "^0.6.16",
     "@radix-icons/vue": "^1.0.0",
     "@tailwindcss/vite": "^4.1.18",
