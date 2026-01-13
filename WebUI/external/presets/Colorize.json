@@ -1,0 +1,71 @@
+{
+  "type": "comfy",
+  "name": "Colorize",
+  "displayPriority": 200,
+  "tags": ["no-prompt", "BMG only"],
+  "backend": "comfyui",
+  "description": "Add color to a black and white photo",
+  "category": "edit-images",
+  "requiredCustomNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
+  "requiredPythonPackages": [],
+  "requiredModels": [],
+  "settings": [
+    {
+      "type": "stringList",
+      "label": "Model",
+      "options": [
+        "ddcolor_paper_tiny.pth",
+        "ddcolor_paper.pth",
+        "ddcolor_modelscope.pth",
+        "ddcolor_artistic.pth"
+      ],
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "ddcolor_artistic.pth",
+      "nodeTitle": "DDColor_Colorize",
+      "nodeInput": "checkpoint"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "2": {
+      "inputs": {
+        "image": "input.jpg",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "5": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["6", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "6": {
+      "inputs": {
+        "model_input_size": 512,
+        "checkpoint": "ddcolor_artistic.pth",
+        "image": ["2", 0]
+      },
+      "class_type": "DDColor_Colorize",
+      "_meta": {
+        "title": "DDColor_Colorize"
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import { Marked, Token } from 'marked'
-import markedShiki from 'marked-shiki'
-import { codeToHtml, bundledLanguagesAlias, bundledLanguages } from 'shiki'
+import { bundledLanguagesAlias, bundledLanguages, createHighlighter } from 'shiki'
 import { stringToBase64 } from 'uint8array-extras'
+import { markedShiki } from './markedShikiSync'
 
 const langs = Object.keys(bundledLanguages).concat(Object.keys(bundledLanguagesAlias))
 
@@ -9,14 +9,27 @@ const startMarker = '===ORIGINALCODE'
 const endMarker = 'ENDOFORIGINALCODE==='
 const replaceRegex = new RegExp(`${startMarker}(.*?)${endMarker}`, 'gs')
 
+let highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null
+createHighlighter({
+  langs,
+  themes: ['github-dark-dimmed'],
+}).then((h) => {
+  highlighter = h
+})
+
+const highlight = (code: string, lang: string, props: string[]) => {
+  const highlighted = highlighter
+    ? highlighter.codeToHtml(code, {
+        lang: langs.includes(lang) ? lang : 'text',
+        theme: 'github-dark-dimmed',
+        meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
+      })
+    : code
+  return highlighted
+}
+
 const codeRenderer = markedShiki({
-  highlight(code, lang, props) {
-    return codeToHtml(code, {
-      lang: langs.includes(lang) ? lang : 'text',
-      theme: 'github-dark-dimmed',
-      meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
-    })
-  },
+  highlight,
   container: `<div class=" rounded-md my-4 code-section">
         <div class="flex justify-between items-center sticky -top-4 text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
           <span>%l</span>
@@ -80,15 +93,15 @@ export const plainParser = new Marked({
   async: false,
 }).use(htmlEscaper)
 
-export const parse = async (input: string) => {
+export const parse = (input: string) => {
   try {
-    return await parser.parse(input)
+    return parser.parse(input)
   } catch (error) {
     console.error('error while parsing', { error, input })
   }
 
   try {
-    return await plainParser.parse(input)
+    return plainParser.parse(input)
   } catch (error) {
     console.error('error while plain parsing', { error, input })
     return input

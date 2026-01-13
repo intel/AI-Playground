@@ -1,5 +1,5 @@
 <template>
-  <div class="z-10 text-white rounded-xl bg-black/70">
+  <div class="z-10 text-foreground rounded-xl bg-background/70 border border-border">
     <div class="px-20 py-5 max-w-5xl">
       <h1 class="text-center py-1 px-4 rounded-sm text-4xl">
         {{ languages.BACKEND_MANAGE }}
@@ -18,6 +18,7 @@
               <td>{{ languages.BACKEND_TYPE }}</td>
               <td>{{ languages.BACKEND_INFORMATION }}</td>
               <td>{{ languages.BACKEND_ENABLE }}</td>
+              <td>Version</td>
               <td>{{ languages.BACKEND_STATUS }}</td>
               <td>{{ languages.BACKEND_ACTION }}</td>
               <td class="w-6"></td>
@@ -40,22 +41,121 @@
                 <p v-show="!getInfoURL(component.serviceName)">-</p>
               </td>
               <td>
-                <button
+                <Checkbox
                   v-if="component.status !== 'running' && !component.isLoading"
-                  class="v-checkbox-control-table flex-none w-5 h-5"
-                  :class="{ 'v-checkbox-checked-table': component.enabled }"
-                  @click="
-                    () => {
-                      if (component.enabled && !component.isSetUp) {
-                        toBeInstalledComponents.delete(component.serviceName)
-                      } else {
+                  class="mx-auto"
+                  :model-value="component.enabled"
+                  @update:model-value="
+                    (value: boolean | 'indeterminate') => {
+                      if (value === true) {
                         toBeInstalledComponents.add(component.serviceName)
+                      } else {
+                        toBeInstalledComponents.delete(component.serviceName)
                       }
                     }
                   "
                   :disabled="component.isRequired"
-                ></button>
+                />
                 <p v-else>-</p>
+              </td>
+              <td class="text-center">
+                <!-- AI Backend: Simple app version display -->
+                <div
+                  v-if="component.serviceName === 'ai-backend'"
+                  class="text-sm text-muted-foreground"
+                >
+                  {{ appVersion }}
+                </div>
+
+                <!-- Other backends: Version with tooltip -->
+                <TooltipProvider v-else :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <div class="flex flex-col items-center gap-0.5 text-sm cursor-help">
+                        <!-- Compact: Installed version + status icon -->
+                        <div class="flex items-center gap-1.5">
+                          <span
+                            v-if="component.isSetUp"
+                            :class="getVersionStatusClass(component.serviceName)"
+                            style="text-decoration: underline dotted 1px"
+                          >
+                            {{ formatInstalledVersion(component.serviceName) }}
+                          </span>
+                          <span
+                            v-else
+                            class="underline decoration-dotted decoration-1"
+                            :class="getUninstalledStatusClass(component.serviceName)"
+                          >
+                            Not installed
+                          </span>
+                          <!-- Status icon -->
+                          <span
+                            v-if="component.isSetUp && isVersionUpToDate(component.serviceName)"
+                            class="text-green-500"
+                            title="Up to date"
+                          >
+                            ✓
+                          </span>
+                          <span
+                            v-else-if="component.isSetUp && hasVersionChange(component.serviceName)"
+                            :class="getVersionChangeClass(component.serviceName)"
+                            :title="
+                              isUpgrade(component.serviceName)
+                                ? 'Update available'
+                                : 'Downgrade pending'
+                            "
+                          >
+                            {{ getVersionChangeIcon(component.serviceName) }}
+                          </span>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      class="bg-card border border-border text-foreground p-3 z-[200]"
+                    >
+                      <!-- Expanded: All version details -->
+                      <div class="text-sm space-y-1">
+                        <div class="flex justify-between gap-4">
+                          <span class="text-muted-foreground">Installed:</span>
+                          <span>{{ formatInstalledVersion(component.serviceName) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                          <span class="text-muted-foreground">Latest Supported:</span>
+                          <span>{{ formatOfficialTarget(component.serviceName) }}</span>
+                        </div>
+                        <div
+                          v-if="hasUserOverride(component.serviceName)"
+                          class="flex justify-between gap-4 text-amber-400"
+                        >
+                          <span>Settings Override:</span>
+                          <span>{{ formatUserOverride(component.serviceName) }}</span>
+                        </div>
+                        <div class="border-t border-border pt-1 mt-1 flex justify-between gap-4">
+                          <span class="text-muted-foreground">Effective:</span>
+                          <span>
+                            {{ formatEffectiveTarget(component.serviceName) }}
+                            <span
+                              v-if="hasUserOverride(component.serviceName)"
+                              class="text-amber-400"
+                            >
+                              (override)
+                            </span>
+                          </span>
+                        </div>
+                        <!-- Hint when newer supported version is available -->
+                        <div
+                          v-if="
+                            hasUserOverride(component.serviceName) &&
+                            hasNewerSupportedVersion(component.serviceName)
+                          "
+                          class="border-t border-border pt-1 mt-1 text-xs text-amber-400"
+                        >
+                          A newer supported version is available
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </td>
               <td :style="{ color: mapStatusToColor(component.status) }" class="">
                 <div class="flex items-center gap-2">
@@ -65,7 +165,7 @@
                       component.status === 'failed' || component.status === 'installationFailed'
                     "
                     @click="showErrorDetails(component.serviceName)"
-                    class="text-blue-400 hover:text-blue-300 transition-colors"
+                    class="text-primary hover:text-primary/80 transition-colors"
                     title="View error details"
                   >
                     <span class="svg-icon i-info w-5 h-5 align-text-top"></span>
@@ -81,7 +181,7 @@
                   v-else-if="component.status === 'notInstalled' && !component.isSetUp"
                   @click="() => installBackend(component.serviceName)"
                   :disabled="!component.enabled || isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_INSTALL }}
                 </button>
@@ -91,7 +191,7 @@
                   "
                   @click="() => repairBackend(component.serviceName)"
                   :disabled="!component.enabled || isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_REPAIR }}
                 </button>
@@ -99,7 +199,7 @@
                   v-else-if="component.status === 'running'"
                   @click="() => restartBackend(component.serviceName)"
                   :disabled="isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_RESTART }}
                 </button>
@@ -107,7 +207,7 @@
                   v-else-if="component.status === 'stopped' || component.status === 'notYetStarted'"
                   @click="() => restartBackend(component.serviceName)"
                   :disabled="isSomethingLoading()"
-                  class="bg-color-active py-1 px-4 rounded"
+                  class="bg-primary py-1 px-4 rounded"
                 >
                   {{ languages.COM_START }}
                 </button>
@@ -128,14 +228,14 @@
           :style="{ visibility: convertVisibility(!somethingChanged) }"
           :disabled="!CanCloseInstallations()"
           @click="closeInstallations"
-          class="flex bg-color-active py-1 px-4 rounded"
+          class="flex bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_CLOSE }}
         </button>
         <button
           :disabled="!areBoxesChecked() || isSomethingLoading() || isEverythingRunning()"
           @click="installAllSelected"
-          class="flex bg-color-active py-1 px-4 rounded"
+          class="flex bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_INSTALL_ALL }}
         </button>
@@ -143,7 +243,7 @@
           :style="{ visibility: convertVisibility(somethingChanged) }"
           :disabled="!CanCloseInstallations()"
           @click="closeInstallations"
-          class="flex bg-color-active py-1 px-4 rounded"
+          class="flex bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_CONTINUE }}
         </button>
@@ -176,6 +276,8 @@ import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import type { ErrorDetails } from '../../electron/subprocesses/service'
 
 const emits = defineEmits<{
@@ -188,6 +290,12 @@ type ExtendedApiServiceInformation = ApiServiceInformation & {
 }
 
 const backendServices = useBackendServices()
+
+// App version for AI Backend display (fetched directly to avoid timing issues with globalSetup.initSetup)
+const appVersion = ref('...')
+window.electronAPI.getInitSetting().then((data) => {
+  appVersion.value = data.version
+})
 
 let toBeInstalledQueue: ExtendedApiServiceInformation[] = []
 
@@ -356,6 +464,169 @@ function closeErrorModal() {
   errorModalOpen.value = false
   selectedServiceName.value = ''
   selectedErrorDetails.value = null
+}
+
+// Format version string for display
+function formatVersion(
+  version: { version?: string; releaseTag?: string } | null | undefined,
+): string {
+  if (!version) return '-'
+  if (version.releaseTag && version.version) {
+    return `${version.releaseTag} / ${version.version}`
+  }
+  return version.version || '-'
+}
+
+// Format installed version for display
+function formatInstalledVersion(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.installed) {
+    return formatVersion(versionState.installed)
+  }
+  return '-'
+}
+
+// Check if installed version matches target version (up to date)
+function isVersionUpToDate(serviceName: BackendServiceName): boolean {
+  // AI backend doesn't have version tracking
+  if (serviceName === 'ai-backend') return true
+  const versionState = backendServices.versionState[serviceName]
+  if (!versionState.target || !versionState.installed) return false
+  return !hasVersionChange(serviceName)
+}
+
+// Get the effective target version (what will be installed)
+function getEffectiveTarget(
+  serviceName: BackendServiceName,
+): { version?: string; releaseTag?: string } | undefined {
+  const vs = backendServices.versionState[serviceName]
+  return vs.uiOverride ?? vs.target
+}
+
+// Check if user has set a custom override
+function hasUserOverride(serviceName: BackendServiceName): boolean {
+  return !!backendServices.versionState[serviceName].uiOverride
+}
+
+// Check if official target is newer than user override
+function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
+  const vs = backendServices.versionState[serviceName]
+  if (!vs.uiOverride || !vs.target) return false
+
+  const override = normalizeVersionForComparison(serviceName, vs.uiOverride.version || '')
+  const target = normalizeVersionForComparison(serviceName, vs.target.version || '')
+
+  return target > override
+}
+
+// Normalize version for comparison (strips subversion for OpenVINO)
+// OpenVINO versions: 2025.4.0.0rc3 -> 2025.4.0 (only compare first 3 parts)
+function normalizeVersionForComparison(serviceName: BackendServiceName, version: string): string {
+  if (serviceName === 'openvino-backend') {
+    // Extract first 3 version components (YYYY.major.minor)
+    const parts = version.split('.')
+    return parts.slice(0, 3).join('.')
+  }
+  return version
+}
+
+// Check if there's any version change pending (installed differs from effective target)
+function hasVersionChange(serviceName: BackendServiceName): boolean {
+  // AI backend doesn't have version tracking
+  if (serviceName === 'ai-backend') return false
+
+  const versionState = backendServices.versionState[serviceName]
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  if (!effectiveTarget || !versionState.installed) return false
+
+  // For Ollama, compare both version and releaseTag
+  if (serviceName === 'ollama-backend') {
+    return (
+      versionState.installed.version !== effectiveTarget.version ||
+      versionState.installed.releaseTag !== effectiveTarget.releaseTag
+    )
+  }
+
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installedNorm = normalizeVersionForComparison(
+    serviceName,
+    versionState.installed.version || '',
+  )
+  const targetNorm = normalizeVersionForComparison(serviceName, effectiveTarget.version || '')
+
+  return installedNorm !== targetNorm
+}
+
+// Compare versions to determine if it's an upgrade or downgrade
+// Returns true for upgrade, false for downgrade, null if can't determine
+function isUpgrade(serviceName: BackendServiceName): boolean | null {
+  const versionState = backendServices.versionState[serviceName]
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  if (!effectiveTarget?.version || !versionState.installed?.version) return null
+
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installed = normalizeVersionForComparison(serviceName, versionState.installed.version)
+  const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
+
+  // Simple string comparison - works for semver-like versions
+  if (installed < target) return true
+  if (installed > target) return false
+  return null
+}
+
+// Get appropriate icon: ↑ for upgrade, ↓ for downgrade
+function getVersionChangeIcon(serviceName: BackendServiceName): string {
+  const upgrading = isUpgrade(serviceName)
+  if (upgrading === true) return '↑'
+  if (upgrading === false) return '↓'
+  return '⚠'
+}
+
+// Get appropriate class: green for upgrade, amber for downgrade
+function getVersionChangeClass(serviceName: BackendServiceName): string {
+  const upgrading = isUpgrade(serviceName)
+  if (upgrading === true) return 'text-amber-500'
+  return 'text-amber-500'
+}
+
+// Format official target version for display
+function formatOfficialTarget(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.target) {
+    return formatVersion(versionState.target)
+  }
+  return '-'
+}
+
+// Format user override version for display
+function formatUserOverride(serviceName: BackendServiceName): string {
+  const versionState = backendServices.versionState[serviceName]
+  if (versionState.uiOverride) {
+    return formatVersion(versionState.uiOverride)
+  }
+  return '-'
+}
+
+// Format effective target version for display
+function formatEffectiveTarget(serviceName: BackendServiceName): string {
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  return formatVersion(effectiveTarget)
+}
+
+// Get CSS class for version status
+function getVersionStatusClass(serviceName: BackendServiceName): string {
+  if (hasVersionChange(serviceName) || hasNewerSupportedVersion(serviceName)) {
+    return 'text-amber-500'
+  }
+  return 'text-foreground'
+}
+
+// Get CSS class for version status
+function getUninstalledStatusClass(serviceName: BackendServiceName): string {
+  if (hasVersionChange(serviceName) || hasNewerSupportedVersion(serviceName)) {
+    return 'text-amber-500'
+  }
+  return 'text-muted-foreground'
 }
 </script>
 

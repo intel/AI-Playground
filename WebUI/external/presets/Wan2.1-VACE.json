@@ -1,0 +1,545 @@
+{
+  "type": "comfy",
+  "name": "Wan2.1-VACE",
+  "description": "Image to Video generation using Wan2.1-VACE. Recommended for systems with discreet GPUs with high vRAM.",
+  "displayPriority": 200,
+  "tags": ["dGPU", "high vRAM"],
+  "backend": "comfyui",
+  "category": "create-videos",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 },
+      { "label": "0.8", "totalPixels": 802816 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"],
+    "useLookupTable": false
+  },
+  "requiredCustomNodes": [
+    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+    "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
+    "Fannovel16/comfyui_controlnet_aux@59b027e088c1c8facf7258f6e392d16d204b4d27"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "QuantStack/Wan2.1_14B_VACE-GGUF/Wan2.1_14B_VACE-Q8_0.gguf"
+    },
+    {
+      "type": "clip",
+      "model": "city96/umt5-xxl-encoder-gguf/umt5-xxl-encoder-Q4_K_M.gguf"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/Wan_2.1_ComfyUI_repackaged/split_files/vae/wan_2.1_vae.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "number",
+      "label": "Total Frames",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 49,
+      "nodeTitle": "WanVaceToVideo",
+      "nodeInput": "length"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "variants": [
+    {
+      "name": "Fast",
+      "description": "Fast Image to Video generation using Wan2.1-VACE with CausVid LoRA",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "QuantStack/Wan2.1_14B_VACE-GGUF/Wan2.1_14B_VACE-Q8_0.gguf"
+          },
+          {
+            "type": "clip",
+            "model": "city96/umt5-xxl-encoder-gguf/umt5-xxl-encoder-Q4_K_M.gguf"
+          },
+          {
+            "type": "vae",
+            "model": "Comfy-Org/Wan_2.1_ComfyUI_repackaged/split_files/vae/wan_2.1_vae.safetensors"
+          },
+          {
+            "type": "lora",
+            "model": "Kijai/WanVideo_comfy/Wan21_CausVid_14B_T2V_lora_rank32.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 4,
+            "settingName": "inferenceSteps"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "105": {
+            "inputs": {
+              "clip": ["115", 1]
+            }
+          },
+          "107": {
+            "inputs": {
+              "clip": ["115", 1]
+            }
+          },
+          "108": {
+            "inputs": {
+              "steps": 4,
+              "cfg": 1,
+              "model": ["110", 0]
+            }
+          },
+          "110": {
+            "inputs": {
+              "model": ["115", 0]
+            }
+          },
+          "115": {
+            "inputs": {
+              "lora_name": "Kijai---WanVideo_comfy\\Wan21_CausVid_14B_T2V_lora_rank32.safetensors",
+              "strength_model": 0.30000000000000004,
+              "strength_clip": 1.0000000000000002,
+              "model": ["164", 0],
+              "clip": ["165", 0]
+            },
+            "class_type": "LoraLoader",
+            "_meta": {
+              "title": "Load LoRA"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Video2Video",
+      "description": "Video to Video generation using Wan2.1-VACE",
+      "overrides": {
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 30,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "video",
+            "label": "Reference Video",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "vace_v2v.mp4",
+            "nodeTitle": "Load Video",
+            "nodeInput": "file"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "seed": 610234116074567,
+              "steps": 30,
+              "cfg": 6,
+              "sampler_name": "uni_pc",
+              "scheduler": "simple",
+              "denoise": 1,
+              "model": ["48", 0],
+              "positive": ["49", 0],
+              "negative": ["49", 1],
+              "latent_image": ["49", 2]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "6": {
+            "inputs": {
+              "text": "a dancing cat",
+              "clip": ["151", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Positive Prompt)"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走,",
+              "clip": ["151", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Negative Prompt)"
+            }
+          },
+          "8": {
+            "inputs": {
+              "samples": ["58", 0],
+              "vae": ["105", 0]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "38": {
+            "inputs": {
+              "file": "input.mp4",
+              "video-preview": ""
+            },
+            "class_type": "LoadVideo",
+            "_meta": {
+              "title": "Load Video"
+            }
+          },
+          "41": {
+            "inputs": {
+              "video": ["38", 0]
+            },
+            "class_type": "GetVideoComponents",
+            "_meta": {
+              "title": "Get Video Components"
+            }
+          },
+          "42": {
+            "inputs": {
+              "filename_prefix": "AIPG_Video",
+              "format": "mp4",
+              "codec": "h264",
+              "video-preview": "",
+              "video": ["43", 0]
+            },
+            "class_type": "SaveVideo",
+            "_meta": {
+              "title": "Save Video"
+            }
+          },
+          "43": {
+            "inputs": {
+              "fps": 16,
+              "images": ["8", 0],
+              "audio": ["41", 1]
+            },
+            "class_type": "CreateVideo",
+            "_meta": {
+              "title": "Create Video"
+            }
+          },
+          "48": {
+            "inputs": {
+              "shift": 8.000000000000002,
+              "model": ["150", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": {
+              "title": "ModelSamplingSD3"
+            }
+          },
+          "49": {
+            "inputs": {
+              "width": 512,
+              "height": 512,
+              "length": 49,
+              "batch_size": 1,
+              "strength": 1,
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "vae": ["105", 0],
+              "control_video": ["153", 0],
+              "reference_image": ["134", 0]
+            },
+            "class_type": "WanVaceToVideo",
+            "_meta": {
+              "title": "WanVaceToVideo"
+            }
+          },
+          "58": {
+            "inputs": {
+              "trim_amount": ["49", 3],
+              "samples": ["3", 0]
+            },
+            "class_type": "TrimVideoLatent",
+            "_meta": {
+              "title": "TrimVideoLatent"
+            }
+          },
+          "105": {
+            "inputs": {
+              "vae_name": "Comfy-Org---Wan_2.1_ComfyUI_repackaged\\split_files\\vae\\wan_2.1_vae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+              "title": "Load VAE"
+            }
+          },
+          "134": {
+            "inputs": {
+              "image": "input.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "150": {
+            "inputs": {
+              "unet_name": "QuantStack---Wan2.1_14B_VACE-GGUF\\Wan2.1_14B_VACE-Q8_0.gguf"
+            },
+            "class_type": "UnetLoaderGGUF",
+            "_meta": {
+              "title": "Unet Loader (GGUF)"
+            }
+          },
+          "151": {
+            "inputs": {
+              "clip_name": "city96---umt5-xxl-encoder-gguf\\umt5-xxl-encoder-Q4_K_M.gguf",
+              "type": "wan"
+            },
+            "class_type": "CLIPLoaderGGUF",
+            "_meta": {
+              "title": "CLIPLoader (GGUF)"
+            }
+          },
+          "153": {
+            "inputs": {
+              "preprocessor": "DWPreprocessor",
+              "resolution": 512,
+              "image": ["41", 0]
+            },
+            "class_type": "AIO_Preprocessor",
+            "_meta": {
+              "title": "AIO Aux Preprocessor"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "73": {
+      "inputs": {
+        "image": "input.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "105": {
+      "inputs": {
+        "text": "Purple haired knight taking a selfie in front of ruins at sunset,  waves a peace sign and winks. shooting star",
+        "clip": ["165", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "107": {
+      "inputs": {
+        "text": "subtitles,  artwork, painting, picture, still, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, malformed limbs, fused fingers, still picture, cluttered background, three legs, many people in the background, walking backwards,",
+        "clip": ["165", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "108": {
+      "inputs": {
+        "seed": 607691565110444,
+        "steps": 20,
+        "cfg": 6,
+        "sampler_name": "uni_pc",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": ["110", 0],
+        "positive": ["109", 0],
+        "negative": ["109", 1],
+        "latent_image": ["109", 2]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "109": {
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "length": 49,
+        "batch_size": 1,
+        "strength": 1.0000000000000002,
+        "positive": ["105", 0],
+        "negative": ["107", 0],
+        "vae": ["114", 0],
+        "reference_image": ["73", 0]
+      },
+      "class_type": "WanVaceToVideo",
+      "_meta": {
+        "title": "WanVaceToVideo"
+      }
+    },
+    "110": {
+      "inputs": {
+        "shift": 8.000000000000002,
+        "model": ["164", 0]
+      },
+      "class_type": "ModelSamplingSD3",
+      "_meta": {
+        "title": "ModelSamplingSD3"
+      }
+    },
+    "114": {
+      "inputs": {
+        "vae_name": "Comfy-Org---Wan_2.1_ComfyUI_repackaged\\split_files\\vae\\wan_2.1_vae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "118": {
+      "inputs": {
+        "trim_amount": ["109", 3],
+        "samples": ["108", 0]
+      },
+      "class_type": "TrimVideoLatent",
+      "_meta": {
+        "title": "TrimVideoLatent"
+      }
+    },
+    "119": {
+      "inputs": {
+        "samples": ["118", 0],
+        "vae": ["114", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "164": {
+      "inputs": {
+        "unet_name": "QuantStack---Wan2.1_14B_VACE-GGUF\\Wan2.1_14B_VACE-Q8_0.gguf"
+      },
+      "class_type": "UnetLoaderGGUF",
+      "_meta": {
+        "title": "Unet Loader (GGUF)"
+      }
+    },
+    "165": {
+      "inputs": {
+        "clip_name": "city96---umt5-xxl-encoder-gguf\\umt5-xxl-encoder-Q4_K_M.gguf",
+        "type": "wan"
+      },
+      "class_type": "CLIPLoaderGGUF",
+      "_meta": {
+        "title": "CLIPLoader (GGUF)"
+      }
+    },
+    "176": {
+      "inputs": {
+        "fps": 16,
+        "images": ["119", 0]
+      },
+      "class_type": "CreateVideo",
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "177": {
+      "inputs": {
+        "filename_prefix": "AIPG_Video",
+        "format": "mp4",
+        "codec": "h264",
+        "video": ["176", 0]
+      },
+      "class_type": "SaveVideo",
+      "_meta": {
+        "title": "Save Video"
+      }
+    }
+  }
+}

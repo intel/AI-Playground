@@ -10,8 +10,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/**
+ * Theme Variable Mapping Reference:
+ * 
+ * Custom Variable → Shadcn Variable:
+ * --color-bg-main → --background
+ * --color-text-main → --foreground
+ * --color-spilter → --border
+ * --color-panel-focus → --card
+ * --color-active → --primary
+ * --color-control-bg → --muted
+ * --color-uploader-bg → --secondary
+ * --color-image-bg → --accent
+ * --textbox-bg → --input
+ * --color-gray-666 → --muted-foreground or --border
+ * --color-gray-244 → --muted-foreground
+ */
+
 @layer base {
+  /* Light Theme (default) */
   :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 209 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 209 100% 60%;
+    --radius: 0.5rem;
+  }
+
+  /* Dark Theme */
+  .dark {
     --background: 280 50% 5%;
     --foreground: 280 5% 90%;
     --card: 280 50% 0%;
@@ -33,10 +75,36 @@
     --ring: 280 98.4% 50.6%;
     --radius: 0.5rem;
   }
-  .dark {
-    --background: 280 50% 5%;
+
+  /* Intel Core Ultra Theme (lnl) */
+  .lnl {
+    --background: 209 58% 10%;
+    --foreground: 209 5% 95%;
+    --card: 209 58% 8%;
+    --card-foreground: 209 5% 95%;
+    --popover: 209 58% 10%;
+    --popover-foreground: 209 5% 95%;
+    --primary: 209 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 209 40% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 209 30% 20%;
+    --muted-foreground: 209 5% 70%;
+    --accent: 209 40% 20%;
+    --accent-foreground: 209 5% 95%;
+    --destructive: 0 100% 30%;
+    --destructive-foreground: 209 5% 95%;
+    --border: 209 30% 25%;
+    --input: 209 30% 25%;
+    --ring: 209 100% 60%;
+    --radius: 0.5rem;
+  }
+
+  /* Intel Arc Theme (bmg) */
+  .bmg {
+    --background: 280 50% 10%;
     --foreground: 280 5% 90%;
-    --card: 280 50% 0%;
+    --card: 280 50% 3%;
     --card-foreground: 280 5% 90%;
     --popover: 280 50% 5%;
     --popover-foreground: 280 5% 90%;
@@ -70,6 +138,12 @@
 }
 
 @theme inline {
+  --text-4xl--line-height: 1.2;
+  --text-5xl--line-height: 1.2;
+  --text-6xl--line-height: 1.2;
+  --text-7xl--line-height: 1.2;
+  --text-8xl--line-height: 1.2;
+  --text-9xl--line-height: 1.2;
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   @keyframes accordion-down {

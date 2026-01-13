@@ -1,0 +1,20 @@
+{
+  "type": "chat",
+  "category": "chat",
+  "name": "Vision",
+  "description": "Use Vision Language Models with image understanding. Load images and ask questions about visual content.",
+  "displayPriority": 60,
+  "tags": ["Vision", "Image", "Multimodal", "VLM"],
+  "backends": ["llamaCPP", "openVINO"],
+  "preferredModels": {
+    "openVINO": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
+    "llamaCPP": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf"
+  },
+  "systemPrompt": "You are a helpful AI assistant with vision capabilities. Analyze images carefully and provide detailed descriptions and answers about visual content.",
+  "contextSize": 4096,
+  "maxNewTokens": 1024,
+  "requiresVision": true,
+  "toolsEnabledByDefault": false,
+  "enableRAG": true,
+  "requiredModels": []
+}

@@ -1,0 +1,45 @@
+[project]
+name = "aipg-default-backend"
+version = "2.6.2-beta"
+requires-python = "==3.12.*"
+dependencies = [
+  "Flask",
+  "apiflask",
+  "marshmallow-dataclass",
+  "psutil",
+  "Requests",
+  "setuptools",
+  "huggingface_hub",
+]
+[tool.uv]
+python-preference = "only-managed"
+link-mode = "clone"
+no-build = true
+index-strategy = "unsafe-best-match"
+required-environments = [
+  "sys_platform == 'win32'",
+  "sys_platform == 'darwin'",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+         { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+torchaudio = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+              { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+torchvision = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+               { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+pytorch-triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+
+
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

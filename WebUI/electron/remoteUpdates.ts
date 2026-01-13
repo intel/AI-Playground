@@ -32,6 +32,12 @@ const getRemoteModelsUrl = (settings?: LocalSettings): string => {
   return `${getRemoteBaseUrl(settings)}models.json`
 }
 
+export const getGitHubRepoUrl = (settings?: LocalSettings): string => {
+  const remoteRepository = settings?.remoteRepository ?? 'intel/ai-playground'
+  const appVersion = app.getVersion()
+  return `https://github.com/${remoteRepository}/blob/${appVersion}/`
+}
+
 const loadLocalVersions = async (): Promise<BackendVersions> => {
   const versionsFilePath = path.join(externalResourcesDir(), 'backend-versions.json')
 

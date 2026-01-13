@@ -8,9 +8,10 @@ from marshmallow import EXCLUDE
 class DownloadModelData:
     class Meta:
         unknown = EXCLUDE
-    type : int
+    type : str
     repo_id : str
     backend : str
+    model_path : str
     additionalLicenseLink: Optional[str]
 
 @marshmallow_dataclass.dataclass

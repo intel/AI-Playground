@@ -1,0 +1,517 @@
+{
+  "type": "comfy",
+  "name": "Edit By Prompt",
+  "displayPriority": 800,
+  "tags": ["maskless", "high-vram"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Add,remove, edit, or combine elements in photos by describing what to change",
+  "requiredCustomNodes": [
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "Comfy-Org/flux1-kontext-dev_ComfyUI/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors"
+    },
+    {
+      "type": "lora",
+      "model": "alimama-creative/FLUX.1-Turbo-Alpha/diffusion_pytorch_model.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "comfyanonymous/flux_text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "comfyanonymous/flux_text_encoders/clip_l.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 6,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width",
+      "nodeTitle": "width",
+      "nodeInput": "a"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height",
+      "nodeTitle": "height",
+      "nodeInput": "a"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Use resolution of reference image(s)",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": false,
+      "nodeTitle": "use_original_resolution",
+      "nodeInput": "switch"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (left)",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "left_image",
+      "nodeInput": "image"
+    },
+    {
+      "type": "boolean",
+      "label": "Use Second Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": false,
+      "nodeTitle": "use_second_image",
+      "nodeInput": "switch"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (right)",
+      "displayed": true,
+      "modifiable": true,
+      "optional": true,
+      "defaultValue": "",
+      "nodeTitle": "right_image",
+      "nodeInput": "image"
+    }
+  ],
+  "variants": [
+    {
+      "name": "Fast",
+      "overrides": {}
+    },
+    {
+      "name": "Quality",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Comfy-Org/flux1-kontext-dev_ComfyUI/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "comfyanonymous/flux_text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "comfyanonymous/flux_text_encoders/clip_l.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 20,
+            "settingName": "inferenceSteps"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "20": {},
+          "6": {
+            "inputs": {
+              "scheduler": "simple",
+              "steps": 20,
+              "denoise": 1,
+              "model": ["19", 0]
+            },
+            "class_type": "BasicScheduler",
+            "_meta": {
+              "title": "BasicScheduler"
+            }
+          },
+          "17": {
+            "inputs": {
+              "text": "make the banana blue but keep all other elements in the image, while adjusting to the new aspect ratio",
+              "clip": ["4", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "26": {
+            "inputs": {
+              "image": ["25", 0]
+            },
+            "class_type": "FluxKontextImageScale",
+            "_meta": {
+              "title": "FluxKontextImageScale"
+            }
+          },
+          "38": {
+            "inputs": {
+              "image": ["26", 0]
+            },
+            "class_type": "GetImageSize",
+            "_meta": {
+              "title": "Get Image Size"
+            }
+          },
+          "9": {
+            "inputs": {
+              "pixels": ["26", 0],
+              "vae": ["3", 0]
+            },
+            "class_type": "VAEEncode",
+            "_meta": {
+              "title": "VAE Encode"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
+    },
+    "2": {
+      "inputs": {
+        "noise_seed": 543530871310725
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
+    },
+    "3": {
+      "inputs": {
+        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "inputs": {
+        "clip_name1": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip_name2": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
+        "type": "flux",
+        "device": "default"
+      },
+      "class_type": "DualCLIPLoader",
+      "_meta": {
+        "title": "DualCLIPLoader"
+      }
+    },
+    "6": {
+      "inputs": {
+        "scheduler": "beta",
+        "steps": 6,
+        "denoise": 1,
+        "model": ["20", 0]
+      },
+      "class_type": "BasicScheduler",
+      "_meta": {
+        "title": "BasicScheduler"
+      }
+    },
+    "7": {
+      "inputs": {
+        "guidance": 2.5,
+        "conditioning": ["17", 0]
+      },
+      "class_type": "FluxGuidance",
+      "_meta": {
+        "title": "FluxGuidance"
+      }
+    },
+    "9": {
+      "inputs": {
+        "pixels": ["25", 0],
+        "vae": ["3", 0]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode"
+      }
+    },
+    "10": {
+      "inputs": {
+        "samples": ["14", 0],
+        "vae": ["3", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "11": {
+      "inputs": {
+        "model": ["19", 0],
+        "conditioning": ["12", 0]
+      },
+      "class_type": "BasicGuider",
+      "_meta": {
+        "title": "BasicGuider"
+      }
+    },
+    "12": {
+      "inputs": {
+        "conditioning": ["7", 0],
+        "latent": ["9", 0]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent"
+      }
+    },
+    "13": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["10", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "14": {
+      "inputs": {
+        "noise": ["2", 0],
+        "guider": ["11", 0],
+        "sampler": ["1", 0],
+        "sigmas": ["6", 0],
+        "latent_image": ["28", 0]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "15": {
+      "inputs": {
+        "width": ["38", 0],
+        "height": ["38", 1],
+        "batch_size": 1
+      },
+      "class_type": "EmptySD3LatentImage",
+      "_meta": {
+        "title": "EmptySD3LatentImage"
+      }
+    },
+    "17": {
+      "inputs": {
+        "text": "make the banana blue but keep all other elements in the image, while adjusting to the new aspect ratio",
+        "clip": ["20", 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "19": {
+      "inputs": {
+        "unet_name": "Comfy-Org---flux1-kontext-dev_ComfyUI\\split_files\\diffusion_models\\flux1-dev-kontext_fp8_scaled.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "20": {
+      "inputs": {
+        "lora_name": "alimama-creative---FLUX.1-Turbo-Alpha\\diffusion_pytorch_model.safetensors",
+        "strength_model": 1,
+        "strength_clip": 1,
+        "model": ["19", 0],
+        "clip": ["4", 0]
+      },
+      "class_type": "LoraLoader",
+      "_meta": {
+        "title": "Load LoRA"
+      }
+    },
+    "21": {
+      "inputs": {
+        "image": ["23", 0]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "22": {
+      "inputs": {
+        "image": "bc9b95d56518f5a1bae581992072b01c58749feb5c37d6198a7da377e58dc7a3.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "right_image"
+      }
+    },
+    "23": {
+      "inputs": {
+        "image": "8f09dd33db9f459fe997ce469b3d249b668a6ff510d765fa04a1332415ab4e22.jpeg"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "left_image"
+      }
+    },
+    "24": {
+      "inputs": {
+        "direction": "right",
+        "match_image_size": true,
+        "spacing_width": 0,
+        "spacing_color": "white",
+        "image1": ["23", 0],
+        "image2": ["22", 0]
+      },
+      "class_type": "ImageStitch",
+      "_meta": {
+        "title": "Image Stitch"
+      }
+    },
+    "25": {
+      "inputs": {
+        "switch": false,
+        "on_false": ["23", 0],
+        "on_true": ["24", 0]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image"
+      }
+    },
+    "27": {
+      "inputs": {
+        "width": ["34", 0],
+        "height": ["35", 0],
+        "batch_size": 1
+      },
+      "class_type": "EmptySD3LatentImage",
+      "_meta": {
+        "title": "EmptySD3LatentImage"
+      }
+    },
+    "28": {
+      "inputs": {
+        "switch": true,
+        "on_false": ["27", 0],
+        "on_true": ["15", 0]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_original_resolution"
+      }
+    },
+    "34": {
+      "inputs": {
+        "a": 512,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "width"
+      }
+    },
+    "35": {
+      "inputs": {
+        "a": 512,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "height"
+      }
+    },
+    "38": {
+      "inputs": {
+        "image": ["25", 0]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
   <div
     v-if="textInference.backend === 'ollama'"
     id="chatPanel"
-    class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-white overflow-y-scroll"
+    class="p-4 chat-panel flex-auto flex flex-col gap-6 m-4 text-foreground overflow-y-scroll"
     :class="textInference.fontSizeClass"
     @scroll="props.onScroll"
   >
@@ -12,10 +12,7 @@
         `${((ollama.ollamaDlProgress.completedBytes ?? 0) / 1024 / 1024).toFixed(1)} MB  of ${((ollama.ollamaDlProgress.totalBytes ?? 0) / 1024 / 1024).toFixed(1)} MB`
       }}
     </div>
-    <div v-for="message in ollama.messages" :key="message.id">
-      {{ message.role === 'user' ? 'User: ' : 'AI: ' }}
-      {{ message.parts }}
-    </div>
+    <!-- Messages display removed - ollama store doesn't have messages property -->
   </div>
 </template>
 

@@ -1,60 +1,43 @@
 import * as filesystem from 'fs-extra'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
-import { existingFileOrError } from './osProcessHelper.ts'
-import {
-  DeviceService,
-  GitService,
-  installHijacks,
-  LongLivedPythonApiService,
-  UvPipService,
-  createEnhancedErrorDetails,
-} from './service.ts'
-import { Arch, getBestDevice } from './deviceArch.ts'
-import { detectLevelZeroDevices, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
+import { aipgBaseDir, checkBackend, installBackend, installWheel } from './uvBasedBackends/uv.ts'
+import { BrowserWindow } from 'electron'
+import { LocalSettings } from '../main.ts'
 
 export class AiBackendService extends LongLivedPythonApiService {
-  readonly pythonEnvDir = path.resolve(path.join(this.baseDir, `${this.name}-env`))
+  isSetUp: boolean = false
+  constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
+    super(name, port, win, settings)
+
+    this.serviceIsSetUp().then(async (setUp) => {
+      this.isSetUp = setUp
+      if (this.isSetUp) {
+        await this.updateCachedVersion()
+        this.setStatus('notYetStarted')
+      }
+      this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)
+    })
+  }
   readonly serviceFolder = 'service'
-  readonly serviceDir = path.resolve(path.join(this.baseDir, this.serviceFolder))
+  readonly baseDir = path.resolve(path.join(aipgBaseDir, this.serviceFolder))
+  readonly serviceDir = this.baseDir
+  readonly pythonEnvDir = path.resolve(path.join(this.serviceDir, '.venv'))
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
   readonly git = new GitService()
 
   readonly isRequired = true
-  readonly uvPip = new UvPipService(this.pythonEnvDir, this.serviceFolder)
-  readonly python = this.uvPip.python
   healthEndpointUrl = `${this.baseUrl}/healthy`
-  serviceIsSetUp = () => filesystem.existsSync(this.python.getExePath())
-  isSetUp = this.serviceIsSetUp()
-  readonly deviceService = new DeviceService()
-
-  async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.python)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-    if (availableDevices.length === 0) {
-      this.appLogger.error(`No devices detected`, this.name)
-      return
-    }
-
-    let bestDeviceId: string
-    try {
-      const bestDeviceName = (await this.deviceService.getDevices())[0].name
-      bestDeviceId = getBestDevice(availableDevices, bestDeviceName)
-      this.appLogger.info(
-        `Selected ${bestDeviceName} as best device by pci id via xpu-smi. Which should correspond to deviceId ${bestDeviceId}`,
-        this.name,
-      )
-    } catch (e: unknown) {
-      this.appLogger.error(`Couldn't detect best device, selecting first. Error: ${e}`, this.name)
-      bestDeviceId = availableDevices[0].name
-    }
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
-    this.updateStatus()
+  async serviceIsSetUp() {
+    const result = await checkBackend('service')
+      .then(() => true)
+      .catch(() => false)
+    this.appLogger.info(`Service ${this.name} isSetUp: ${result}`, this.name)
+    return result
   }
 
-  getServiceForPipFreeze(): UvPipService {
-    return this.uvPip
-  }
+  async detectDevices() {}
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
@@ -71,10 +54,8 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: 'starting to set up environment',
       }
-      await this.python.ensureInstalled()
-      await this.git.ensureInstalled()
 
-      const deviceArch = this.settings.deviceArchOverride ?? 'bmg'
+      await this.git.ensureInstalled()
 
       currentStep = 'install dependencies'
       yield {
@@ -83,49 +64,13 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      await installHijacks()
-      const archToRequirements = (deviceArch: Arch) => {
-        switch (deviceArch) {
-          case 'arl_h':
-          case 'acm':
-          case 'bmg':
-          case 'lnl':
-          case 'mtl':
-            return 'xpu'
-          default:
-            return 'unknown'
-        }
-      }
-      const commonRequirements = existingFileOrError(path.join(this.serviceDir, 'requirements.txt'))
-      await this.uvPip.run([
-        'install',
-        '-r',
-        commonRequirements,
-        '--index-strategy',
-        'unsafe-best-match',
-      ])
+      await installBackend(this.serviceFolder)
 
-      const deviceSpecificRequirements = existingFileOrError(
-        path.join(this.serviceDir, `requirements-${archToRequirements(deviceArch)}.txt`),
-      )
-      await this.uvPip.run([
-        'install',
-        '-r',
-        deviceSpecificRequirements,
-        '--index-strategy',
-        'unsafe-best-match',
-        '--prerelease=allow',
-        // '--force-reinstall',
-      ])
-      if (archToRequirements(deviceArch) === 'xpu') {
-        this.appLogger.info('scanning for extra wheels', this.name)
-        const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter((e) =>
-          e.endsWith('.whl'),
-        )
-        this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
-        for (const wheelFile of wheelFiles) {
-          await this.uvPip.run(['install', '--no-deps', path.join(this.wheelDir, wheelFile)])
-        }
+      this.appLogger.info('scanning for extra wheels', this.name)
+      const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter((e) => e.endsWith('.whl'))
+      this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
+      for (const wheelFile of wheelFiles) {
+        await installWheel(this.serviceFolder, path.join(this.wheelDir, wheelFile))
       }
 
       yield {
@@ -148,11 +93,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       this.appLogger.warn(`Aborting set up of ${this.name} service environment`, this.name, true)
       this.setStatus('installationFailed')
 
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-        this.uvPip,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
 
       yield {
         serviceName: this.name,
@@ -169,25 +110,24 @@ export class AiBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const additionalEnvVariables = {
-      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      VIRTUAL_ENV: this.pythonEnvDir,
+      PATH: `${path.join(this.pythonEnvDir, 'bin')};${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
       PYTHONNOUSERSITE: 'true',
-      SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
-      SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
-      ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       PIP_CONFIG_FILE: 'nul',
     }
 
-    const apiProcess = spawn(
-      this.python.getExePath(),
-      ['web_api.py', '--port', this.port.toString()],
-      {
-        cwd: this.serviceDir,
-        windowsHide: true,
-        env: Object.assign(process.env, additionalEnvVariables),
-      },
+    const pythonBinary = path.join(
+      this.pythonEnvDir,
+      process.platform === 'win32' ? 'Scripts' : 'bin',
+      process.platform === 'win32' ? 'python.exe' : 'python',
     )
+    const apiProcess = spawn(pythonBinary, ['web_api.py', '--port', this.port.toString()], {
+      cwd: this.serviceDir,
+      windowsHide: true,
+      env: Object.assign(process.env, additionalEnvVariables),
+    })
 
     //must be at the same tick as the spawn function call
     //otherwise we cannot really track errors given the nature of spawn() with a longlived process

@@ -1,20 +1,9 @@
+/* Legacy custom variables - kept for backward compatibility during migration */
+/* These will be removed once all components are migrated to shadcn variables */
 :root {
-  --color-bg-main: rgba(24, 21, 36, 1);
-  --color-spilter: #525252;
-  --color-panel-focus: #05010fb4;
-  --color-gray-666: #666666;
-  --color-uploader-bg: #201c31;
-  --color-text-main: #ffffff;
-  --color-gray-244: #e0e0e0;
-  --color-image-tool-button: #585561;
-  --color-active: #aa05ff;
-  --color-control-bg: #38383d;
   --main-gradient: linear-gradient(75deg, #2da9ff, #aa05ff);
-  --textbox-bg: #38383d;
-  --compontents-main: #fff;
-  --color-image-bg: #110f1779;
   --textbox-gradient-border:
-    linear-gradient(var(--textbox-bg), var(--textbox-bg)), var(--main-gradient);
+    linear-gradient(hsl(var(--input)), hsl(var(--input))), var(--main-gradient);
   --textbox-clip: padding-box, border-box;
 }
 
@@ -66,52 +55,6 @@
 button:hover {
   opacity: 0.9;
 }
-input[type='text'],
-textarea {
-  background-color: var(--textbox-bg);
-  border: 1px solid var(--color-gray-666);
-  border-radius: 4px;
-  outline: none;
-  position: relative;
-  padding: 2px 8px;
-  color: var(--color-text-main);
-
-  &:focus {
-    border: 1px solid #aa05ff;
-  }
-}
-
-textarea {
-  padding: 12px 16px;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-    height: 100%;
-    cursor: default;
-    &:hover {
-      background: rgba(113, 109, 134, 0.5);
-    }
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #716d86;
-    border-radius: 4px;
-    cursor: default;
-  }
-}
-
-.animate-ronate360 {
-  animation: ronate360 0.4s ease-in-out;
-}
-
-@keyframes ronate360 {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .animate-scale-in {
   animation: scaleIn 0.4s ease-in-out;
@@ -140,22 +83,6 @@ textarea {
 .lnl-top-grid {
   transform: translateX(calc(-50% + calc(5% * calc(var(--position-index) - 1)))) translateY(-75%)
     rotateX(102deg) skewX(-5deg);
-}
-
-.pos-create {
-  --position-index: 0;
-}
-
-.pos-enhance {
-  --position-index: 1;
-}
-
-.pos-answer {
-  --position-index: 2;
-}
-
-.pos-learn-more {
-  --position-index: 3;
 }
 
 .lnl-gradient {

@@ -28,47 +28,19 @@ export interface ErrorDetails {
 }
 
 // Helper function to capture pip freeze output using service-specific Python environment
-export async function capturePipFreezeOutput(
-  service?: PythonService | UvPipService,
-): Promise<string | undefined> {
-  try {
-    if (!service) {
-      return 'No service provided for pip freeze'
-    }
-
-    let result: string
-
-    if (service instanceof UvPipService) {
-      // For UvPipService, use 'uv pip freeze'
-      result = await service.run(['freeze'])
-    } else if (service instanceof PythonService) {
-      // For PythonService, use 'python -m pip freeze'
-      result = await service.run(['-m', 'pip', 'freeze'])
-    } else {
-      return 'Unsupported service type for pip freeze'
-    }
-
-    return result.trim()
-  } catch (error) {
-    if (error instanceof ProcessError) {
-      return `pip freeze failed (exit code ${error.result.exitCode}): ${error.result.stderr || error.result.stdout}`
-    }
-    return `Failed to execute pip freeze: ${error instanceof Error ? error.message : String(error)}`
-  }
+export async function capturePipFreezeOutput(): Promise<string | undefined> {
+  // pip freeze functionality removed - uv handles Python environments
+  return undefined
 }
 
 export async function createEnhancedErrorDetails(
   error: unknown,
   context?: string,
-  service?: PythonService | UvPipService,
 ): Promise<ErrorDetails> {
   const timestamp = new Date().toISOString()
 
   // Capture pip freeze output for installation-related errors
-  let pipFreezeOutput: string | undefined
-  if (service) {
-    pipFreezeOutput = await capturePipFreezeOutput(service)
-  }
+  const pipFreezeOutput: string | undefined = await capturePipFreezeOutput()
 
   if (error instanceof ProcessError) {
     return {
@@ -166,7 +138,7 @@ export async function createEnhancedErrorDetails(
   }
 }
 
-const aipgBaseDir = () =>
+export const aipgBaseDir = () =>
   app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
 export const hijacksDir = path.resolve(path.join(aipgBaseDir(), `hijacks/ipex_to_cuda`))
 const hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
@@ -186,6 +158,7 @@ const checkHijacksDir = async (): Promise<boolean> => {
 }
 
 export const installHijacks = async (): Promise<void> => {
+  if (process.platform === 'darwin') return
   const git = new GitService()
   if (await checkHijacksDir()) {
     appLoggerInstance.info('ipex_to_cuda hijacks already cloned, skipping', 'ipex-hijacks')
@@ -335,161 +308,38 @@ abstract class ExecutableService extends GenericServiceImpl {
   }
 }
 
-export class PythonService extends ExecutableService {
-  constructor(
-    readonly dir: string,
-    readonly serviceDir: string,
-  ) {
-    super('python', dir)
-  }
-
-  getExePath(): string {
-    return path.resolve(path.join(this.dir, 'python.exe'))
-  }
-
-  async check(): Promise<void> {
-    this.log('checking')
-    try {
-      await this.run(['--version'])
-    } catch (e) {
-      this.log(`warning: ${e}`)
-      throw new ServiceCheckError(this.name)
-    }
-  }
-
-  async install(): Promise<void> {
-    this.log(
-      `installing python env at ${this.dir} from ${this.name} for service ${this.serviceDir}`,
-    )
-    await this.clonePythonEnv()
-  }
-
-  async repair(checkError: ServiceCheckError): Promise<void> {
-    assert(checkError.component === this.name)
-    await this.install()
-  }
-
-  readonly prototypicalEnvDir = app.isPackaged
-    ? path.join(this.baseDir, 'prototype-python-env')
-    : path.join(this.baseDir, 'build/python-env')
-  private async clonePythonEnv(): Promise<void> {
-    existingFileOrError(this.prototypicalEnvDir)
-    if (filesystem.existsSync(this.dir)) {
-      this.log(`removing existing python env at ${this.dir}`)
-      filesystem.removeSync(this.dir)
-    }
-    this.log(`copying prototypical python env to ${this.dir} for service in ${this.serviceDir}`)
-    await filesystem.copy(this.prototypicalEnvDir, this.dir)
-
-    // Find the Python version by looking for python*._pth file
-    const files = filesystem.readdirSync(this.dir)
-    const pthFilePattern = /^python(\d+)\._pth$/
-    let pythonVersion = null
-    let pthFileName = null
-
-    for (const file of files) {
-      const match = file.match(pthFilePattern)
-      if (match) {
-        pythonVersion = match[1]
-        pthFileName = file
-        break
-      }
-    }
-
-    if (!pythonVersion || !pthFileName) {
-      this.log(`Could not find python*._pth file in the directory: ${this.dir}`)
-      throw new Error(`Could not find python*._pth file in the directory: ${this.dir}`)
-    }
-
-    this.log(`Found Python version: ${pythonVersion} (${pthFileName})`)
-
-    filesystem.writeFile(
-      path.join(this.dir, pthFileName),
-      `
-    python${pythonVersion}.zip
-    .
-    ../${this.serviceDir}
-    ../hijacks
-    ../backend-shared
-
-    # Uncomment to run site.main() automatically
-    import site
-    `,
-    )
-    this.log(`Patched Python paths in ${pthFileName}`)
-  }
-}
-
-export class UvPipService {
-  readonly python: PythonService
-  readonly name = 'uvpip'
-
-  log(msg: string) {
-    appLoggerInstance.info(msg, this.name)
-  }
-
-  logError(msg: string) {
-    appLoggerInstance.error(msg, this.name, true)
-  }
-
-  constructor(
-    readonly dir: string,
-    readonly serviceDir: string,
-  ) {
-    this.log(`setting up uv-pip service at ${this.dir} for service ${this.serviceDir}`)
-    this.python = new PythonService(this.dir, this.serviceDir)
-  }
-
-  getExePath(): string {
-    return this.python.getExePath()
-  }
-
-  async installRequirementsTxt(requirementsTxtPath: string): Promise<void> {
-    await this.run(['install', '-r', requirementsTxtPath])
-  }
-
-  async checkRequirementsTxt(requirementsTxtPath: string): Promise<void> {
-    await this.python
-      .run([
-        '-c',
-        `import pkg_resources; pkg_resources.require([s for s in open(r'${requirementsTxtPath}') if s and s[0].isalpha()])`,
-      ])
-      .catch((e: unknown) => {
-        throw new Error(`requirements check failed: ${e}`)
-      })
-  }
-
-  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
-    return this.python.run(
-      ['-m', 'uv', 'pip', ...args],
-      { ...extraEnv, PYTHONNOUSERSITE: 'true', UV_LINK_MODE: 'copy' },
-      workDir,
-    )
-  }
-
-  async check(): Promise<void> {}
-
-  async install(): Promise<void> {}
-
-  async repair(_checkError: ServiceCheckError): Promise<void> {}
-}
-
 export class GitService extends ExecutableService {
   constructor() {
     super('git', '')
-    this.dir = path.resolve(path.join(this.baseDir, 'portable-git'))
+    if (process.platform === 'win32') {
+      this.dir = path.resolve(path.join(this.baseDir, 'portable-git'))
+    } else {
+      this.dir = '/usr/bin'
+    }
   }
 
   getExePath(): string {
-    return path.resolve(path.join(this.dir, 'cmd/git.exe'))
+    if (process.platform === 'win32') {
+      return path.resolve(path.join(this.dir, 'cmd/git.exe'))
+    }
+    return path.resolve(path.join(this.dir, 'git'))
   }
 
   async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
     // Explicitly specify the cert file bundled with portable git,
     // to avoid being affected by the system git configuration.
+
+    const platformEnv: Partial<Record<NodeJS.Platform, Record<string, string>>> = {
+      win32: {
+        GIT_SSL_CAINFO: path.resolve(path.join(this.dir, 'mingw64/etc/ssl/certs/ca-bundle.crt')),
+      },
+      darwin: {},
+      linux: {},
+    }
+
     const env = {
       ...extraEnv,
-      GIT_SSL_CAINFO: path.resolve(path.join(this.dir, 'mingw64/etc/ssl/certs/ca-bundle.crt')),
+      ...(platformEnv[process.platform] ?? {}),
     }
     return super.run(args, env, workDir)
   }
@@ -505,7 +355,12 @@ export class GitService extends ExecutableService {
   }
 
   async install(): Promise<void> {
+    if (process.platform !== 'win32') {
+      this.log('git installation not required on non-windows platform, skipping')
+      return
+    }
     this.log('start installing')
+
     await this.downloadGitZip()
     await this.unzipGit()
 
@@ -516,13 +371,17 @@ export class GitService extends ExecutableService {
   }
 
   async repair(checkError: ServiceCheckError): Promise<void> {
+    if (process.platform !== 'win32') {
+      this.log('git repair not required on non-windows platform, skipping')
+      return
+    }
     assert(checkError.component === this.name)
     await this.install()
   }
 
   readonly remoteUrl =
-    'https://github.com/git-for-windows/git/releases/download/v2.51.0.windows.1/PortableGit-2.51.0-64-bit.7z.exe'
-  readonly sha256 = 'a09b275d51ed3e829128e04cf4168fb54896cf6234bb30fecb8dc96a2bd321fa'
+    'https://github.com/git-for-windows/git/releases/download/v2.51.2.windows.1/PortableGit-2.51.2-64-bit.7z.exe'
+  readonly sha256 = 'f5764d546ff9a2511b50ec4e20424c5f4669de1695abc3fa4128e7f7d4a7b2cd'
   readonly zipPath = path.resolve(path.join(this.baseDir, 'portable-git.7z.exe'))
   readonly unzipExePath = path.resolve(path.join(this.baseDir, '7zr.exe'))
 
@@ -595,6 +454,7 @@ export interface ApiService {
   stop(): Promise<BackendStatus>
   updateSettings(settings: ServiceSettings): Promise<void>
   getSettings(): Promise<ServiceSettings>
+  getInstalledVersion?(): Promise<{ version?: string; releaseTag?: string } | undefined>
   uninstall(): Promise<void>
   get_info(): ApiServiceInformation
   ensureBackendReadiness(
@@ -616,9 +476,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
   encapsulatedProcess: ChildProcess | null = null
 
   readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
-  readonly prototypicalPythonEnv = app.isPackaged
-    ? path.join(this.baseDir, 'prototype-python-env')
-    : path.join(this.baseDir, 'build-envs/online/prototype-python-env')
   readonly wheelDir = path.join(
     app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
   )
@@ -632,6 +489,9 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
+
+  // Cached installed version for inclusion in service info updates
+  protected cachedInstalledVersion: { version: string; releaseTag?: string } | undefined = undefined
 
   // Buffer for capturing startup logs
   private startupLogBuffer: { stdout: string[]; stderr: string[] } = { stdout: [], stderr: [] }
@@ -648,7 +508,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     this.settings = settings
   }
 
-  abstract serviceIsSetUp(): boolean
+  abstract serviceIsSetUp(): Promise<boolean>
   abstract detectDevices(): Promise<void>
 
   async selectDevice(deviceId: string): Promise<void> {
@@ -670,6 +530,31 @@ export abstract class LongLivedPythonApiService implements ApiService {
     return Promise.resolve({ serviceName: this.name })
   }
 
+  /**
+   * Updates the cached installed version by calling getInstalledVersion() if available.
+   * This should be called after setup completes to ensure version is included in serviceInfoUpdate.
+   */
+  protected async updateCachedVersion(): Promise<void> {
+    // Check if this instance has getInstalledVersion method (defined in subclasses)
+    const self = this as ApiService
+    if (typeof self.getInstalledVersion === 'function') {
+      try {
+        const version = await self.getInstalledVersion()
+        if (version && version.version) {
+          this.cachedInstalledVersion = {
+            version: version.version,
+            ...(version.releaseTag && { releaseTag: version.releaseTag }),
+          }
+        } else {
+          this.cachedInstalledVersion = undefined
+        }
+      } catch (error) {
+        this.appLogger.warn(`Failed to get installed version: ${error}`, this.name)
+        this.cachedInstalledVersion = undefined
+      }
+    }
+  }
+
   setStatus(status: BackendStatus) {
     this.currentStatus = status
     this.updateStatus()
@@ -683,6 +568,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     if (this.currentStatus === 'uninitializedStatus') {
       this.currentStatus = this.isSetUp ? 'notYetStarted' : 'notInstalled'
     }
+    this.appLogger.info(`getting info: current status is ${this.currentStatus}`, this.name)
     return {
       serviceName: this.name,
       status: this.currentStatus,
@@ -692,13 +578,11 @@ export abstract class LongLivedPythonApiService implements ApiService {
       isRequired: this.isRequired,
       devices: this.devices,
       errorDetails: this.lastStartupErrorDetails,
+      installedVersion: this.cachedInstalledVersion,
     }
   }
 
   abstract set_up(): AsyncIterable<SetupProgress>
-
-  // Abstract method to get the service instance for pip freeze
-  abstract getServiceForPipFreeze(): PythonService | UvPipService | null
 
   async uninstall(): Promise<void> {
     this.stop()
@@ -816,11 +700,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     const duration = Date.now() - this.startupStartTime
 
     // Get pip freeze output for additional context
-    const service = this.getServiceForPipFreeze()
-    let pipFreezeOutput: string | undefined
-    if (service) {
-      pipFreezeOutput = await capturePipFreezeOutput(service)
-    }
+    const pipFreezeOutput: string | undefined = await capturePipFreezeOutput()
 
     // Combine buffered stdout and stderr
     const stdout = this.startupLogBuffer.stdout.join('').trim()
@@ -891,10 +771,43 @@ export abstract class LongLivedPythonApiService implements ApiService {
       const queryIntervalMs = 250
       const startupPeriodMaxMs = 300000
       while (performance.now() < startTime + startupPeriodMaxMs) {
+        // Check if process has exited before attempting health check
+        const hasExitedEarly = await Promise.race([
+          didProcessExitEarlyTracker,
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 0)),
+        ])
+        if (hasExitedEarly) {
+          this.appLogger.warn(
+            `Process for ${this.name} exited early, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
+        // Verify process is still alive before health check
+        if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+          this.appLogger.warn(
+            `Process for ${this.name} is not alive, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
         try {
           const serviceHealthResponse = await fetch(this.healthEndpointUrl)
           this.appLogger.info(`received response: ${serviceHealthResponse.status}`, this.name)
           if (serviceHealthResponse.status === 200) {
+            // Double-check process is still alive before accepting success
+            if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+              this.appLogger.warn(
+                `Process for ${this.name} exited after health check succeeded, marking as failed`,
+                this.name,
+              )
+              resolve(false)
+              return
+            }
             const endTime = performance.now()
             this.appLogger.info(
               `${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`,
@@ -918,9 +831,18 @@ export abstract class LongLivedPythonApiService implements ApiService {
       }
     })
 
-    const processStartupFailedDueToEarlyExit = didProcessExitEarlyTracker.then(
-      (earlyExit) => !earlyExit,
-    )
+    // If process exits early, immediately resolve to false (not ready)
+    // We create a promise that resolves to false immediately if process exits early
+    const processStartupFailedDueToEarlyExit = new Promise<boolean>((resolve) => {
+      didProcessExitEarlyTracker.then((earlyExit) => {
+        if (earlyExit) {
+          this.appLogger.error(`Process for ${this.name} exited early during startup`, this.name)
+          resolve(false)
+        }
+        // If process didn't exit early, this promise never resolves
+        // allowing the health check promise to win the race
+      })
+    })
 
     return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
   }

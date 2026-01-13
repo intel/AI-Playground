@@ -24,16 +24,26 @@ type DemoModeSettings = {
   demoModeResetInSeconds: null | number
 }
 
+// AipgPage type kept for backward compatibility with demoMode, but old UI pages are no longer used
 type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
+type ModeType = 'chat' | WorkflowModeType
 
 type electronAPI = {
   startDrag: (fileName: string) => void
   getFilePath: (file: File) => string
-  reloadImageWorkflows(): Promise<string[]>
-  updateWorkflowsFromIntelRepo(): Promise<UpdateWorkflowsFromIntelResult>
+  updatePresetsFromIntelRepo(): Promise<UpdatePresetsFromIntelResult>
+  reloadPresets(): Promise<Array<{ content: string; image: string | null }>>
+  getUserPresetsPath(): Promise<string>
+  loadUserPresets(): Promise<Array<{ content: string; image: string | null }>>
+  saveUserPreset(presetContent: string): Promise<boolean>
   resolveBackendVersion(
     serviceName: string,
   ): Promise<{ releaseTag: string; version: string } | undefined>
+  getInstalledBackendVersion(
+    serviceName: string,
+  ): Promise<{ releaseTag?: string; version?: string } | undefined>
+  getGitHubRepoUrl(): Promise<string>
   openDevTools(): void
   openUrl(url: string): void
   changeWindowMessageFilter(): void
@@ -55,7 +65,6 @@ type electronAPI = {
   setIgnoreMouseEvents(ignore: boolean): void
   miniWindow(): void
   exitApp(): void
-  getMediaUrlBase(): Promise<string>
   getInitialPage(): Promise<AipgPage>
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
@@ -66,19 +75,16 @@ type electronAPI = {
   existsPath(path: string): Promise<boolean>
   addDocumentToRAGList(doc: IndexedDocument): Promise<IndexedDocument>
   embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<LangchainDocument[]>
+  getEmbeddingServerUrl(
+    serviceName: string,
+  ): Promise<{ success: boolean; url?: string; error?: string }>
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
-  refreshSDModles(): Promise<string[]>
   refreshLLMModles(): Promise<string[]>
-  refreshLora(): Promise<string[]>
-  refreshInpaintModles(): Promise<string[]>
   loadModels(): Promise<Model[]>
   zoomIn(): Promise<void>
   zoomOut(): Promise<void>
-  getDownloadedDiffusionModels(): Promise<string[]>
-  getDownloadedInpaintModels(): Promise<string[]>
-  getDownloadedLoras(): Promise<string[]>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
@@ -99,18 +105,35 @@ type electronAPI = {
   getServiceSettings(serviceName: string): Promise<ServiceSettings[BackendServiceName]>
   uninstall(serviceName: string): Promise<void>
   selectDevice(serviceName: string, deviceId: string): Promise<void>
+  selectSttDevice(serviceName: string, deviceId: string): Promise<void>
   detectDevices(serviceName: string): Promise<void>
   startService(serviceName: string): Promise<BackendStatus>
   stopService(serviceName: string): Promise<BackendStatus>
   setUpService(serviceName: string): void
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
+  onShowToast(callback: (data: { type: string; message: string }) => void): void
   ensureBackendReadiness(
     serviceName: string,
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
   ): Promise<{ success: boolean; error?: string }>
+  startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
+  stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
+  getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  // ComfyUI Tools - uses uv for Python package management
+  comfyui: {
+    isGitInstalled(): Promise<boolean>
+    isComfyUIInstalled(): Promise<boolean>
+    getGitRef(repoDir: string): Promise<string | undefined>
+    isPackageInstalled(packageSpecifier: string): Promise<boolean>
+    installPypiPackage(packageSpecifier: string): Promise<void>
+    isCustomNodeInstalled(nodeRepoRef: ComfyUICustomNodeRepoId): Promise<boolean>
+    downloadCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
+    uninstallCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
+    listInstalledCustomNodes(): Promise<string[]>
+  }
 }
 
 type SetupProgress = {
@@ -364,8 +387,9 @@ type DownloadFailedParams = {
 
 type CheckModelAlreadyLoadedParameters = {
   repo_id: string
-  type: number
-  backend: 'comfyui' | 'default' | 'llama_cpp' | 'openvino'
+  type: string
+  backend: 'comfyui' | 'llama_cpp' | 'openvino'
+  model_path: string
   additionalLicenseLink?: string
 }
 
@@ -418,23 +442,18 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
+  installedVersion?: { version: string; releaseTag?: string }
 }
 
 type Model = {
   name: string
-  type:
-    | 'undefined'
-    | 'embedding'
-    | 'stableDiffusion'
-    | 'inpaint'
-    | 'lora'
-    | 'vae'
-    | 'openVINO'
-    | 'ipexLLM'
-    | 'llamaCPP'
-    | 'ollama'
+  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP' | 'ollama'
   default: boolean
   downloaded?: boolean | undefined
-  backend?: 'openVINO' | 'ipexLLM' | 'llamaCPP' | 'ollama' | undefined
+  backend?: 'openVINO' | 'llamaCPP' | 'ollama' | undefined
+  supportsToolCalling?: boolean
+  supportsVision?: boolean
+  maxContextSize?: number
 }

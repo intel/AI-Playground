@@ -21,6 +21,10 @@
   --svg: url('@/assets/svg/setup.svg');
 }
 
+.i-code {
+  --svg: url('@/assets/svg/code.svg');
+}
+
 .i-mini {
   --svg: url('@/assets/svg/mini.svg');
 }
@@ -58,6 +62,10 @@
 
 .i-refresh {
   --svg: url('@/assets/svg/refresh.svg');
+}
+
+.i-dots-vertical {
+  --svg: url('@/assets/svg/dots-vertical.svg');
 }
 
 .i-download-cloud {
@@ -100,12 +108,12 @@
   --svg: url('@/assets/svg/queue.svg');
 }
 
-.i-right {
-  --svg: url('@/assets/svg/right.svg');
-}
-
 .i-arrow-right {
   --svg: url('@/assets/svg/arrow-right.svg');
+}
+
+.i-arrow-left {
+  --svg: url('@/assets/svg/arrow-left.svg');
 }
 
 .i-loading {
@@ -114,6 +122,14 @@
 
 .i-add-box {
   --svg: url('@/assets/svg/add-box.svg');
+}
+
+.i-record {
+  --svg: url('@/assets/svg/record.svg');
+}
+
+.i-record-active {
+  --svg: url('@/assets/svg/record-active.svg');
 }
 
 .i-pen {
@@ -145,6 +161,10 @@
 
 .i-transfer {
   --svg: url('@/assets/svg/transfer.svg');
+}
+
+.i-video {
+  --svg: url('@/assets/svg/video.svg');
 }
 
 .i-zoom-in {

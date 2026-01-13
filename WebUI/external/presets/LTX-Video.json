@@ -1,0 +1,787 @@
+{
+  "type": "comfy",
+  "name": "LTX-Video",
+  "description": "Image to Video generation using LTX-Video. Recommended for systems with discreet GPUs with high vRAM.",
+  "displayPriority": 300,
+  "tags": ["LTX Video", "high-vram"],
+  "backend": "comfyui",
+  "category": "create-videos",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.1", "totalPixels": 102400 },
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.35", "totalPixels": 366025 },
+      { "label": "0.5", "totalPixels": 495616 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"],
+    "useLookupTable": false
+  },
+  "requiredCustomNodes": [
+    "kijai/ComfyUI-KJNodes@086ac449a21e9f5e3b970313c2287713b67e8b95",
+    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+    "Lightricks/ComfyUI-LTXVideo@5d6b4abffe908186bda980a063f58c506fd58560",
+    "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "checkpoints",
+      "model": "Lightricks/LTX-Video/ltxv-2b-0.9.8-distilled-fp8.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q4_K_M.gguf"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "number",
+      "label": "Total Frames",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 89,
+      "step": 9,
+      "min": 9,
+      "max": 257,
+      "nodeTitle": "LTXVImgToVideo",
+      "nodeInput": "length"
+    },
+    {
+      "type": "number",
+      "label": "Frame Rate",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 25,
+      "nodeTitle": "frame_rate",
+      "nodeInput": "a"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "6": {
+      "inputs": {
+        "text": "a majestic water fall in a tropical jungle  a majestic water fall in a tropical jungle  rolls water over its edge.  clouds of misty water billow. The waterfall is surround by lush jungle and drops into a circular cavern and tranquil pool of water.  The jungle is swaying with breeze winds. The camera slow pans the scene",
+        "clip": ["111", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+        "clip": ["111", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "8": {
+      "inputs": {
+        "samples": ["101", 1],
+        "vae": ["44", 2]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "44": {
+      "inputs": {
+        "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.8-distilled-fp8.safetensors"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "69": {
+      "inputs": {
+        "frame_rate": ["112", 0],
+        "positive": ["95", 0],
+        "negative": ["95", 1]
+      },
+      "class_type": "LTXVConditioning",
+      "_meta": {
+        "title": "LTXVConditioning"
+      }
+    },
+    "78": {
+      "inputs": {
+        "image": "input.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "82": {
+      "inputs": {
+        "img_compression": 38,
+        "image": ["78", 0]
+      },
+      "class_type": "LTXVPreprocess",
+      "_meta": {
+        "title": "LTXVPreprocess"
+      }
+    },
+    "95": {
+      "inputs": {
+        "width": 576,
+        "height": 576,
+        "length": 97,
+        "batch_size": 1,
+        "strength": 1,
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "vae": ["44", 2],
+        "image": ["82", 0]
+      },
+      "class_type": "LTXVImgToVideo",
+      "_meta": {
+        "title": "LTXVImgToVideo"
+      }
+    },
+    "97": {
+      "inputs": {
+        "sampler_name": "euler_ancestral"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
+    },
+    "98": {
+      "inputs": {
+        "float_list": ["100", 0]
+      },
+      "class_type": "FloatToSigmas",
+      "_meta": {
+        "title": "Float To Sigmas"
+      }
+    },
+    "99": {
+      "inputs": {
+        "cfg": 1,
+        "model": ["44", 0],
+        "positive": ["69", 0],
+        "negative": ["69", 1]
+      },
+      "class_type": "CFGGuider",
+      "_meta": {
+        "title": "CFGGuider"
+      }
+    },
+    "100": {
+      "inputs": {
+        "string": "1.0000, 0.9937, 0.9875, 0.9812, 0.9750, 0.9094, 0.7250, 0.4219, 0.0"
+      },
+      "class_type": "StringToFloatList",
+      "_meta": {
+        "title": "String to Float List"
+      }
+    },
+    "101": {
+      "inputs": {
+        "noise": ["102", 0],
+        "guider": ["99", 0],
+        "sampler": ["97", 0],
+        "sigmas": ["98", 0],
+        "latent_image": ["95", 2]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "102": {
+      "inputs": {
+        "noise_seed": 45
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
+    },
+    "111": {
+      "inputs": {
+        "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
+        "type": "ltxv"
+      },
+      "class_type": "CLIPLoaderGGUF",
+      "_meta": {
+        "title": "CLIPLoader (GGUF)"
+      }
+    },
+    "112": {
+      "inputs": {
+        "a": 25
+      },
+      "class_type": "CM_IntToFloat",
+      "_meta": {
+        "title": "frame_rate"
+      }
+    },
+    "113": {
+      "inputs": {
+        "fps": ["112", 0],
+        "images": ["8", 0]
+      },
+      "class_type": "CreateVideo",
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "114": {
+      "inputs": {
+        "filename_prefix": "AIPG_Video",
+        "format": "auto",
+        "codec": "auto",
+        "video": ["113", 0]
+      },
+      "class_type": "SaveVideo",
+      "_meta": {
+        "title": "Save Video"
+      }
+    }
+  },
+  "variants": [
+    {
+      "name": "Text2Video",
+      "removeSettings": ["Reference Image"],
+      "overrides": {
+        "description": "Text to Video generation using LTX-Video",
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "Lightricks/LTX-Video/ltxv-2b-0.9.8-distilled-fp8.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "comfyanonymous/flux_text_encoders/t5xxl_fp8_e4m3fn.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Total Frames",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 89,
+            "step": 9,
+            "min": 9,
+            "max": 257,
+            "nodeTitle": "EmptyLTXVLatentVideo",
+            "nodeInput": "length"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "6": {
+            "inputs": {
+              "text": "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage.",
+              "clip": ["38", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+              "clip": ["38", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Negative Prompt)"
+            }
+          },
+          "8": {
+            "inputs": {
+              "samples": ["72", 0],
+              "vae": ["44", 2]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "38": {
+            "inputs": {
+              "clip_name": "comfyanonymous---flux_text_encoders\\t5xxl_fp8_e4m3fn.safetensors",
+              "type": "ltxv",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": {
+              "title": "Load CLIP"
+            }
+          },
+          "44": {
+            "inputs": {
+              "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.8-distilled-fp8.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple",
+            "_meta": {
+              "title": "Load Checkpoint"
+            }
+          },
+          "69": {
+            "inputs": {
+              "frame_rate": ["81", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0]
+            },
+            "class_type": "LTXVConditioning",
+            "_meta": {
+              "title": "LTXVConditioning"
+            }
+          },
+          "70": {
+            "inputs": {
+              "width": 768,
+              "height": 512,
+              "length": 49,
+              "batch_size": 1
+            },
+            "class_type": "EmptyLTXVLatentVideo",
+            "_meta": {
+              "title": "EmptyLTXVLatentVideo"
+            }
+          },
+          "71": {
+            "inputs": {
+              "steps": 30,
+              "max_shift": 2.05,
+              "base_shift": 0.95,
+              "stretch": true,
+              "terminal": 0.1,
+              "latent": ["70", 0]
+            },
+            "class_type": "LTXVScheduler",
+            "_meta": {
+              "title": "LTXVScheduler"
+            }
+          },
+          "72": {
+            "inputs": {
+              "add_noise": true,
+              "noise_seed": 643568669509474,
+              "cfg": 3,
+              "model": ["44", 0],
+              "positive": ["69", 0],
+              "negative": ["69", 1],
+              "sampler": ["73", 0],
+              "sigmas": ["71", 0],
+              "latent_image": ["70", 0]
+            },
+            "class_type": "SamplerCustom",
+            "_meta": {
+              "title": "SamplerCustom"
+            }
+          },
+          "73": {
+            "inputs": {
+              "sampler_name": "euler"
+            },
+            "class_type": "KSamplerSelect",
+            "_meta": {
+              "title": "KSamplerSelect"
+            }
+          },
+          "78": {
+            "inputs": {
+              "filename_prefix": "AIPG_Video",
+              "format": "auto",
+              "codec": "auto",
+              "video": ["79", 0]
+            },
+            "class_type": "SaveVideo",
+            "_meta": {
+              "title": "Save Video"
+            }
+          },
+          "79": {
+            "inputs": {
+              "fps": ["81", 0],
+              "images": ["8", 0]
+            },
+            "class_type": "CreateVideo",
+            "_meta": {
+              "title": "Create Video"
+            }
+          },
+          "81": {
+            "inputs": {
+              "a": 25
+            },
+            "class_type": "CM_IntToFloat",
+            "_meta": {
+              "title": "frame_rate"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Image2Video",
+      "overrides": {}
+    },
+    {
+      "name": "Start2End",
+      "removeSettings": ["Reference Image"],
+      "overrides": {
+        "description": "Start to End video generation using LTX-Video with start and end image guidance",
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "Lightricks/LTX-Video/ltxv-2b-0.9.8-distilled-fp8.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q4_K_M.gguf"
+          }
+        ],
+        "settings": [
+          {
+            "type": "image",
+            "label": "Start Image",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "",
+            "nodeTitle": "Load Image",
+            "nodeInput": "image"
+          },
+          {
+            "type": "image",
+            "label": "End Image",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "",
+            "nodeTitle": "Load Image2",
+            "nodeInput": "image"
+          },
+          {
+            "type": "number",
+            "label": "Total Frames",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 89,
+            "step": 9,
+            "min": 9,
+            "max": 257,
+            "nodeTitle": "EmptyLTXVLatentVideo",
+            "nodeInput": "length"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "6": {
+            "inputs": {
+              "text": "a 3d rendered scene of a modern apartment interior.  The room is a spacious great room with a family room in the distance and a kitchen nook in the foreground..  The camera moves forward over the kitchen table focusing on the family room",
+              "clip": ["78", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+              "clip": ["78", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Negative Prompt)"
+            }
+          },
+          "8": {
+            "inputs": {
+              "samples": ["87", 2],
+              "vae": ["44", 2]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "44": {
+            "inputs": {
+              "ckpt_name": "Lightricks---LTX-Video\\ltxv-2b-0.9.8-distilled-fp8.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple",
+            "_meta": {
+              "title": "Load Checkpoint"
+            }
+          },
+          "69": {
+            "inputs": {
+              "frame_rate": ["89", 0],
+              "positive": ["83", 0],
+              "negative": ["83", 1]
+            },
+            "class_type": "LTXVConditioning",
+            "_meta": {
+              "title": "LTXVConditioning"
+            }
+          },
+          "71": {
+            "inputs": {
+              "steps": 30,
+              "max_shift": 2.0500000000000003,
+              "base_shift": 0.9500000000000002,
+              "stretch": true,
+              "terminal": 0.10000000000000002,
+              "latent": ["83", 2]
+            },
+            "class_type": "LTXVScheduler",
+            "_meta": {
+              "title": "LTXVScheduler"
+            }
+          },
+          "72": {
+            "inputs": {
+              "add_noise": true,
+              "noise_seed": 60647,
+              "cfg": 3,
+              "model": ["44", 0],
+              "positive": ["69", 0],
+              "negative": ["69", 1],
+              "sampler": ["86", 0],
+              "sigmas": ["71", 0],
+              "latent_image": ["83", 2]
+            },
+            "class_type": "SamplerCustom",
+            "_meta": {
+              "title": "SamplerCustom"
+            }
+          },
+          "78": {
+            "inputs": {
+              "clip_name": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q4_K_M.gguf",
+              "type": "ltxv"
+            },
+            "class_type": "CLIPLoaderGGUF",
+            "_meta": {
+              "title": "CLIPLoader (GGUF)"
+            }
+          },
+          "80": {
+            "inputs": {
+              "img_compression": 40,
+              "image": ["81", 0]
+            },
+            "class_type": "LTXVPreprocess",
+            "_meta": {
+              "title": "LTXVPreprocess"
+            }
+          },
+          "81": {
+            "inputs": {
+              "image": "start_image.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "82": {
+            "inputs": {
+              "frame_idx": 0,
+              "strength": 1,
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "vae": ["44", 2],
+              "latent": ["84", 0],
+              "image": ["80", 0]
+            },
+            "class_type": "LTXVAddGuide",
+            "_meta": {
+              "title": "LTXVAddGuide"
+            }
+          },
+          "83": {
+            "inputs": {
+              "frame_idx": -1,
+              "strength": 1,
+              "positive": ["82", 0],
+              "negative": ["82", 1],
+              "vae": ["44", 2],
+              "latent": ["82", 2],
+              "image": ["88", 0]
+            },
+            "class_type": "LTXVAddGuide",
+            "_meta": {
+              "title": "LTXVAddGuide"
+            }
+          },
+          "84": {
+            "inputs": {
+              "width": 704,
+              "height": 384,
+              "length": 105,
+              "batch_size": 1
+            },
+            "class_type": "EmptyLTXVLatentVideo",
+            "_meta": {
+              "title": "EmptyLTXVLatentVideo"
+            }
+          },
+          "85": {
+            "inputs": {
+              "image": "end_image.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image2"
+            }
+          },
+          "86": {
+            "inputs": {
+              "sampler_name": "euler"
+            },
+            "class_type": "KSamplerSelect",
+            "_meta": {
+              "title": "KSamplerSelect"
+            }
+          },
+          "87": {
+            "inputs": {
+              "positive": ["69", 0],
+              "negative": ["69", 1],
+              "latent": ["72", 0]
+            },
+            "class_type": "LTXVCropGuides",
+            "_meta": {
+              "title": "LTXVCropGuides"
+            }
+          },
+          "88": {
+            "inputs": {
+              "img_compression": 40,
+              "image": ["85", 0]
+            },
+            "class_type": "LTXVPreprocess",
+            "_meta": {
+              "title": "LTXVPreprocess"
+            }
+          },
+          "89": {
+            "inputs": {
+              "a": 25
+            },
+            "class_type": "CM_IntToFloat",
+            "_meta": {
+              "title": "frame_rate"
+            }
+          },
+          "91": {
+            "inputs": {
+              "fps": ["89", 0],
+              "images": ["8", 0]
+            },
+            "class_type": "CreateVideo",
+            "_meta": {
+              "title": "Create Video"
+            }
+          },
+          "92": {
+            "inputs": {
+              "filename_prefix": "AIPG_Video",
+              "format": "auto",
+              "codec": "auto",
+              "video": ["91", 0]
+            },
+            "class_type": "SaveVideo",
+            "_meta": {
+              "title": "Save Video"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

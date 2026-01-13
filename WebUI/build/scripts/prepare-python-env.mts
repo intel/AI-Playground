@@ -10,9 +10,18 @@ import { join, normalize } from 'path'
 import { execSync, spawnSync } from 'child_process'
 import AdmZip from 'adm-zip'
 import { getBuildPaths } from './build-paths.mts'
+import z from 'zod'
+
+const target = z
+  .enum(['win32', 'darwin'])
+  .safeParse(process.env.TARGET_PLATFORM || process.platform)
+if (!target.success) {
+  console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
+  process.exit(1)
+}
 
 // Get build paths configuration
-const buildPaths = getBuildPaths()
+const buildPaths = getBuildPaths(target.data)
 const {
   resourcesDir: RESOURCES_DIR,
   pythonEnvDir: PYTHON_ENV_DIR,
@@ -159,14 +168,6 @@ function installPip(getPipFile: string): void {
       cwd: PYTHON_ENV_DIR,
     })
     console.log('✅ Pip installed successfully')
-
-    // Install uv package manager
-    console.log('📦 Installing uv package manager...')
-    execSync(`"${pythonExe}" -m pip install uv`, {
-      stdio: 'inherit',
-      cwd: PYTHON_ENV_DIR,
-    })
-    console.log('✅ UV package manager installed successfully')
   } catch (error) {
     console.error(`❌ Failed to install pip: ${error}`)
     process.exit(1)

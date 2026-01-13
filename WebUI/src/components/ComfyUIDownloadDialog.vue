@@ -1,5 +1,7 @@
 <template>
-  <div class="bg-gray-600 max-w-md p-7 items-center justify-center rounded-lg shadow-lg text-white">
+  <div
+    class="bg-card max-w-md p-7 items-center justify-center rounded-lg shadow-lg text-foreground"
+  >
     <p class="mb-4">
       {{ languages.SETTINGS_MODEL_WORKFLOW_COMFYUI_CONFIRM }}
     </p>
@@ -23,7 +25,7 @@
             }
           "
           type="submit"
-          class="bg-color-active py-1 px-4 rounded"
+          class="bg-primary py-1 px-4 rounded"
         >
           {{ languages.COM_GO_TO_SETUP }}
         </button>

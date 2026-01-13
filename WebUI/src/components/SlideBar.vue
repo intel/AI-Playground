@@ -9,7 +9,7 @@
       </div>
       <div
         v-if="showTip"
-        class="text-white absolute top-full left-0 w-full self-stretch flex justify-between text-xs"
+        class="text-foreground absolute top-full left-0 w-full self-stretch flex justify-between text-xs"
       >
         <span>{{ languages.COM_LOW }}</span>
         <span>{{ languages.COM_HIGH }}</span>

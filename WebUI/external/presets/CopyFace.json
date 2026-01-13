@@ -1,0 +1,192 @@
+{
+  "type": "comfy",
+  "name": "Change Face",
+  "displayPriority": 600,
+  "tags": ["no-prompt"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Edit an image to have a likeness you control. Load image with a face you want to change, then load a reference face to guide the likeness.",
+  "requiredCustomNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
+  "requiredPythonPackages": [
+    "stringzilla==3.12.6",
+    "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+    "onnxruntime"
+  ],
+  "requiredModels": [
+    {
+      "type": "faceswap",
+      "model": "Aitrepreneur/insightface/inswapper_128.onnx",
+      "additionalLicenceLink": "https://huggingface.co/datasets/Gourieff/ReActor"
+    },
+    {
+      "type": "facerestore",
+      "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Activate FaceSwap",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "nodeTitle": "ReActor 🌌 Fast Face Swap",
+      "nodeInput": "enabled"
+    },
+    {
+      "type": "image",
+      "label": "Original Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "target_image",
+      "nodeInput": "image"
+    },
+    {
+      "type": "image",
+      "label": "New Face Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "source_image",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["25", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "15": {
+      "inputs": {
+        "image": "source.png",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "source_image"
+      }
+    },
+    "25": {
+      "inputs": {
+        "enabled": true,
+        "swap_model": "Aitrepreneur---insightface---inswapper_128.onnx",
+        "facedetection": "retinaface_resnet50",
+        "face_restore_model": "gmk123---GFPGAN---GFPGANv1.4.pth",
+        "face_restore_visibility": 1,
+        "codeformer_weight": 0.5,
+        "detect_gender_input": "no",
+        "detect_gender_source": "no",
+        "input_faces_index": "0",
+        "source_faces_index": "0",
+        "console_log_level": 1,
+        "input_image": ["26", 0],
+        "source_image": ["15", 0]
+      },
+      "class_type": "ReActorFaceSwap",
+      "_meta": {
+        "title": "ReActor 🌌 Fast Face Swap"
+      }
+    },
+    "26": {
+      "inputs": {
+        "image": "target.png",
+        "upload": "image"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "target_image"
+      }
+    }
+  }
+}

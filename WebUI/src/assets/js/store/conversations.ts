@@ -1,16 +1,15 @@
-import { defineStore } from 'pinia'
+import { acceptHMRUpdate, defineStore } from 'pinia'
+import { AipgUiMessage } from './openAiCompatibleChat'
 
 export const useConversations = defineStore(
   'conversations',
   () => {
-    const conversationList = ref<Record<string, ChatItem[]>>({})
+    const conversationList = ref<Record<string, AipgUiMessage[]>>({})
     const activeKey = ref('')
     const activeConversation = computed(() => conversationList.value[activeKey.value])
 
-    const addToActiveConversation = (key: string, item: ChatItem) => {
-      const list = conversationList.value[key]
-      list.push(item)
-      addNewConversationIfLatestIsNotEmpty(conversationList.value, activeKey.value)
+    function updateConversation(messages: AipgUiMessage[], conversationKey: string) {
+      conversationList.value[conversationKey] = messages
     }
 
     function deleteConversation(conversationKey: string) {
@@ -22,16 +21,20 @@ export const useConversations = defineStore(
     }
 
     function renameConversationTitle(conversationKey: string, newTitle: string) {
-      const list = conversationList.value[conversationKey]
-      if (!list || list.length === 0) return
-      list[0] = { ...list[0], title: newTitle }
+      const conversation = conversationList.value[conversationKey]
+      if (!conversation || conversation.length === 0) return
+      const firstMessage = conversation[0]
+      firstMessage.metadata = {
+        ...firstMessage.metadata,
+        conversationTitle: newTitle,
+      }
     }
 
-    function deleteItemFromConversation(conversationKey: string, index: number) {
-      conversationList.value[conversationKey].splice(index, 1)
-      if (conversationList.value[conversationKey].length === 0) {
-        deleteConversation(conversationKey)
-      }
+    function addNewConversation() {
+      const list = conversationList.value
+      const newKey = addNewConversationIfLatestIsNotEmpty(list)
+      activeKey.value = newKey
+      return newKey
     }
 
     const isNewConversation = (key: string) => conversationList.value[key].length === 0
@@ -47,12 +50,12 @@ export const useConversations = defineStore(
       conversationList,
       activeKey,
       activeConversation,
-      addToActiveConversation,
       deleteConversation,
       clearConversation,
-      deleteItemFromConversation,
       isNewConversation,
+      updateConversation,
       renameConversationTitle,
+      addNewConversation,
     }
   },
   {
@@ -65,21 +68,21 @@ export const useConversations = defineStore(
 )
 
 function addNewConversationIfLatestIsNotEmpty(
-  list: Record<string, ChatItem[]>,
+  list: Record<string, AipgUiMessage[]>,
   conversationKey?: string,
-) {
-  if (conversationKey && list[conversationKey].length !== 0) {
-    // If the last conversation is already empty, do nothing
-    const lastKey = Object.keys(list).at(-1)
-    if (lastKey && list[lastKey].length === 0) return
+): string {
+  console.log('Checking if new conversation is needed', { list, conversationKey })
 
-    // Otherwise, create a fresh conversation
-    list[new Date().getTime().toString()] = []
-    return
+  const lastKey = Object.keys(list).at(-1)
+  if (lastKey && list[lastKey].length === 0) {
+    return lastKey
   }
 
-  // Fallback old logic
-  if (Object.values(list).at(-1)?.length !== 0) {
-    list[new Date().getTime().toString()] = []
-  }
+  const newKey = new Date().getTime().toString()
+  list[newKey] = []
+  return newKey
+}
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useConversations, import.meta.hot))
 }

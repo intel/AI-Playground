@@ -1,0 +1,761 @@
+{
+  "type": "comfy",
+  "name": "Outpaint",
+  "displayPriority": 400,
+  "tags": ["outpaint", "edit-images"],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Extend an image beyond its borders by sizing and positioning an image in a new space, then generate new content around it",
+  "requiredCustomNodes": [
+    "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "variants": [
+    {
+      "name": "Draft",
+      "overrides": {
+        "tags": ["outpaint", "edit-images", "SD1.5"],
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Lykon/dreamshaper-8-inpainting/unet/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Lykon/dreamshaper-8-inpainting/text_encoder/model.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "1": {
+            "inputs": {
+              "image": "outpaint.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "2": {
+            "inputs": {
+              "upscale_method": "bicubic",
+              "scale_by": 0.5,
+              "image": ["1", 0]
+            },
+            "class_type": "ImageScaleBy",
+            "_meta": {
+              "title": "ScaleImage"
+            }
+          },
+          "3": {
+            "inputs": {
+              "seed": 328269203772800,
+              "steps": 20,
+              "cfg": 7,
+              "sampler_name": "dpmpp_2m_sde",
+              "scheduler": "karras",
+              "denoise": 1,
+              "model": ["25", 0],
+              "positive": ["20", 0],
+              "negative": ["20", 1],
+              "latent_image": ["20", 3]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "5": {
+            "inputs": {
+              "samples": ["3", 0],
+              "vae": ["26", 0]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "6": {
+            "inputs": {
+              "text": "a rose growing out of a dark green hedge",
+              "clip": ["24", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "nsfw",
+              "clip": ["24", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
+            }
+          },
+          "8": {
+            "inputs": {
+              "filename_prefix": "AIPG_Image",
+              "images": ["98", 0]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+              "title": "Save Image"
+            }
+          },
+          "13": {
+            "inputs": {
+              "width": 150,
+              "height": 150,
+              "x": 50,
+              "y": 60,
+              "image": ["2", 0]
+            },
+            "class_type": "ImageCrop",
+            "_meta": {
+              "title": "CropImage"
+            }
+          },
+          "14": {
+            "inputs": {
+              "left": 184,
+              "top": 192,
+              "right": 160,
+              "bottom": 168,
+              "feathering": 24,
+              "image": ["13", 0]
+            },
+            "class_type": "ImagePadForOutpaint",
+            "_meta": {
+              "title": "OutpaintDirection"
+            }
+          },
+          "20": {
+            "inputs": {
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "vae": ["26", 0],
+              "pixels": ["22", 0],
+              "mask": ["14", 1]
+            },
+            "class_type": "INPAINT_VAEEncodeInpaintConditioning",
+            "_meta": {
+              "title": "VAE Encode & Inpaint Conditioning"
+            }
+          },
+          "21": {
+            "inputs": {
+              "fill": "navier-stokes",
+              "falloff": 0,
+              "image": ["14", 0],
+              "mask": ["14", 1]
+            },
+            "class_type": "INPAINT_MaskedFill",
+            "_meta": {
+              "title": "Fill Masked Area"
+            }
+          },
+          "22": {
+            "inputs": {
+              "blur": 101,
+              "falloff": 22,
+              "image": ["21", 0],
+              "mask": ["14", 1]
+            },
+            "class_type": "INPAINT_MaskedBlur",
+            "_meta": {
+              "title": "Blur Masked Area"
+            }
+          },
+          "24": {
+            "inputs": {
+              "clip_name": "Lykon---dreamshaper-8-inpainting\\text_encoder\\model.safetensors",
+              "type": "stable_diffusion",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": {
+              "title": "Load CLIP"
+            }
+          },
+          "25": {
+            "inputs": {
+              "unet_name": "Lykon---dreamshaper-8-inpainting\\unet\\diffusion_pytorch_model.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+              "title": "Load Diffusion Model"
+            }
+          },
+          "26": {
+            "inputs": {
+              "vae_name": "Lykon---dreamshaper-8-inpainting\\vae\\diffusion_pytorch_model.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+              "title": "Load VAE"
+            }
+          },
+          "27": {
+            "inputs": {
+              "images": ["14", 0]
+            },
+            "class_type": "PreviewImage",
+            "_meta": {
+              "title": "Preview Image"
+            }
+          },
+          "28": {
+            "inputs": {
+              "images": ["22", 0]
+            },
+            "class_type": "PreviewImage",
+            "_meta": {
+              "title": "Preview Image"
+            }
+          },
+          "98": {
+            "inputs": {
+              "threshold": ["99", 0],
+              "cuda": false,
+              "image": ["5", 0]
+            },
+            "class_type": "YetAnotherSafetyChecker",
+            "_meta": {
+              "title": "Intercept NSFW Outputs"
+            }
+          },
+          "99": {
+            "inputs": {
+              "op": "Sub",
+              "a": 1,
+              "b": 0.5
+            },
+            "class_type": "CM_FloatBinaryOperation",
+            "_meta": {
+              "title": "SafetyCheckerStrength"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "HD",
+      "overrides": {
+        "tags": ["outpaint", "edit-images", "SDXL"],
+        "requiredModels": [
+          {
+            "type": "checkpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+          },
+          {
+            "type": "inpaint",
+            "model": "lllyasviel/fooocus_inpaint/fooocus_inpaint_head.pth"
+          },
+          {
+            "type": "inpaint",
+            "model": "lllyasviel/fooocus_inpaint/inpaint_v26.fooocus.patch"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "height"
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "1024x1024",
+            "settingName": "resolution"
+          },
+          {
+            "type": "number",
+            "label": "Crop Width",
+            "nodeTitle": "CropImage",
+            "nodeInput": "width",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          },
+          {
+            "type": "number",
+            "label": "Crop Height",
+            "nodeTitle": "CropImage",
+            "nodeInput": "height",
+            "min": 64,
+            "max": 2048,
+            "step": 8,
+            "defaultValue": 1024,
+            "displayed": false,
+            "modifiable": true
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "1": {
+            "inputs": {
+              "image": "outpaint.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "2": {
+            "inputs": {
+              "upscale_method": "bicubic",
+              "scale_by": 0.95,
+              "image": ["1", 0]
+            },
+            "class_type": "ImageScaleBy",
+            "_meta": {
+              "title": "ScaleImage"
+            }
+          },
+          "3": {
+            "inputs": {
+              "seed": 810052627965352,
+              "steps": 20,
+              "cfg": 7,
+              "sampler_name": "dpmpp_2m_sde",
+              "scheduler": "karras",
+              "denoise": 1,
+              "model": ["17", 0],
+              "positive": ["20", 0],
+              "negative": ["20", 1],
+              "latent_image": ["20", 3]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "5": {
+            "inputs": {
+              "samples": ["3", 0],
+              "vae": ["18", 2]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "6": {
+            "inputs": {
+              "text": "rose",
+              "clip": ["18", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "nsfw",
+              "clip": ["18", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
+            }
+          },
+          "8": {
+            "inputs": {
+              "filename_prefix": "AIPG_Image",
+              "images": ["98", 0]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+              "title": "Save Image"
+            }
+          },
+          "13": {
+            "inputs": {
+              "width": 333,
+              "height": 302,
+              "x": 101,
+              "y": 115,
+              "image": ["2", 0]
+            },
+            "class_type": "ImageCrop",
+            "_meta": {
+              "title": "CropImage"
+            }
+          },
+          "14": {
+            "inputs": {
+              "left": 360,
+              "top": 384,
+              "right": 328,
+              "bottom": 344,
+              "feathering": 24,
+              "image": ["13", 0]
+            },
+            "class_type": "ImagePadForOutpaint",
+            "_meta": {
+              "title": "OutpaintDirection"
+            }
+          },
+          "17": {
+            "inputs": {
+              "model": ["18", 0],
+              "patch": ["19", 0],
+              "latent": ["20", 2]
+            },
+            "class_type": "INPAINT_ApplyFooocusInpaint",
+            "_meta": {
+              "title": "Apply Fooocus Inpaint"
+            }
+          },
+          "18": {
+            "inputs": {
+              "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple",
+            "_meta": {
+              "title": "Load Checkpoint"
+            }
+          },
+          "19": {
+            "inputs": {
+              "head": "lllyasviel---fooocus_inpaint\\fooocus_inpaint_head.pth",
+              "patch": "lllyasviel---fooocus_inpaint\\inpaint_v26.fooocus.patch"
+            },
+            "class_type": "INPAINT_LoadFooocusInpaint",
+            "_meta": {
+              "title": "Load Fooocus Inpaint"
+            }
+          },
+          "20": {
+            "inputs": {
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "vae": ["18", 2],
+              "pixels": ["22", 0],
+              "mask": ["14", 1]
+            },
+            "class_type": "INPAINT_VAEEncodeInpaintConditioning",
+            "_meta": {
+              "title": "VAE Encode & Inpaint Conditioning"
+            }
+          },
+          "21": {
+            "inputs": {
+              "fill": "navier-stokes",
+              "falloff": 0,
+              "image": ["14", 0],
+              "mask": ["14", 1]
+            },
+            "class_type": "INPAINT_MaskedFill",
+            "_meta": {
+              "title": "Fill Masked Area"
+            }
+          },
+          "22": {
+            "inputs": {
+              "blur": 101,
+              "falloff": 22,
+              "image": ["21", 0],
+              "mask": ["14", 1]
+            },
+            "class_type": "INPAINT_MaskedBlur",
+            "_meta": {
+              "title": "Blur Masked Area"
+            }
+          },
+          "98": {
+            "inputs": {
+              "threshold": ["99", 0],
+              "cuda": false,
+              "image": ["5", 0]
+            },
+            "class_type": "YetAnotherSafetyChecker",
+            "_meta": {
+              "title": "Intercept NSFW Outputs"
+            }
+          },
+          "99": {
+            "inputs": {
+              "op": "Sub",
+              "a": 1,
+              "b": 0.5
+            },
+            "class_type": "CM_FloatBinaryOperation",
+            "_meta": {
+              "title": "SafetyCheckerStrength"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "showPreview"
+    },
+    {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "image",
+      "label": "Input Image",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image",
+      "defaultValue": "",
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Left Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "left",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": false
+    },
+    {
+      "type": "number",
+      "label": "Top Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "top",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": false
+    },
+    {
+      "type": "number",
+      "label": "Right Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "right",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": false
+    },
+    {
+      "type": "number",
+      "label": "Bottom Padding",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "bottom",
+      "min": 0,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": false
+    },
+    {
+      "type": "number",
+      "label": "Feathering",
+      "nodeTitle": "OutpaintDirection",
+      "nodeInput": "feathering",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "defaultValue": 24,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Scale By",
+      "nodeTitle": "ScaleImage",
+      "nodeInput": "scale_by",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01,
+      "defaultValue": 1.0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Width",
+      "nodeTitle": "CropImage",
+      "nodeInput": "width",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 512,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Height",
+      "nodeTitle": "CropImage",
+      "nodeInput": "height",
+      "min": 64,
+      "max": 2048,
+      "step": 8,
+      "defaultValue": 512,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop X",
+      "nodeTitle": "CropImage",
+      "nodeInput": "x",
+      "min": 0,
+      "max": 2048,
+      "step": 1,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Crop Y",
+      "nodeTitle": "CropImage",
+      "nodeInput": "y",
+      "min": 0,
+      "max": 2048,
+      "step": 1,
+      "defaultValue": 0,
+      "displayed": false,
+      "modifiable": true
+    },
+    {
+      "type": "outpaintCanvas",
+      "label": "Outpaint Canvas",
+      "nodeTitle": "OutpaintCanvas",
+      "nodeInput": "canvas",
+      "displayed": true,
+      "modifiable": true
+    },
+    {
+      "type": "number",
+      "label": "Denoise",
+      "nodeTitle": "KSampler",
+      "nodeInput": "denoise",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01,
+      "defaultValue": 1.0,
+      "displayed": true,
+      "modifiable": true
+    }
+  ],
+  "comfyUiApiWorkflow": {}
+}

@@ -3,17 +3,9 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import {
-  ApiService,
-  DeviceService,
-  PythonService,
-  createEnhancedErrorDetails,
-  ErrorDetails,
-} from './service.ts'
+import { ApiService, DeviceService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { detectLevelZeroDevices } from './deviceDetection.ts'
-import { getBestDevice } from './deviceArch.ts'
 import { LocalSettings } from '../main.ts'
 
 const execAsync = promisify(exec)
@@ -33,10 +25,6 @@ export class OllamaBackendService implements ApiService {
   readonly ollamaExePath: string
 
   readonly zipPath: string
-  readonly aiBackend = new PythonService(
-    path.resolve(path.join(this.baseDir, `ai-backend-env`)),
-    path.resolve(path.join(this.baseDir, `service`)),
-  )
   readonly deviceService = new DeviceService()
   devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
 
@@ -53,6 +41,9 @@ export class OllamaBackendService implements ApiService {
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
+
+  // Cached installed version for inclusion in service info updates
+  private cachedInstalledVersion: { version: string; releaseTag?: string } | undefined = undefined
 
   // Logger
   readonly appLogger = appLoggerInstance
@@ -76,6 +67,13 @@ export class OllamaBackendService implements ApiService {
 
     // Check if already set up
     this.isSetUp = this.serviceIsSetUp()
+
+    // Cache version on startup if already set up
+    if (this.isSetUp) {
+      this.updateCachedVersion().then(() => {
+        this.updateStatus()
+      })
+    }
   }
 
   async ensureBackendReadiness(llmModelName: string, embeddingModelName?: string): Promise<void> {
@@ -86,22 +84,10 @@ export class OllamaBackendService implements ApiService {
   }
 
   async detectDevices() {
-    const availableDevices = await detectLevelZeroDevices(this.aiBackend)
-    this.appLogger.info(`detected devices: ${JSON.stringify(availableDevices, null, 2)}`, this.name)
-
-    let bestDeviceId: string
-    try {
-      const bestDeviceName = (await this.deviceService.getDevices())[0].name
-      bestDeviceId = getBestDevice(availableDevices, bestDeviceName)
-      this.appLogger.info(
-        `Selected ${bestDeviceName} as best device by pci id via xpu-smi. Which should correspond to deviceId ${bestDeviceId}`,
-        this.name,
-      )
-    } catch (e: unknown) {
-      this.appLogger.error(`Couldn't detect best device, selecting first. Error: ${e}`, this.name)
-      bestDeviceId = availableDevices[0].name
-    }
-    this.devices = availableDevices.map((d) => ({ ...d, selected: d.id === bestDeviceId }))
+    // Device detection temporarily disabled - PythonService removed
+    // TODO: Re-implement device detection using uv-managed Python environment if needed
+    this.devices = [{ id: '*', name: 'Auto select device', selected: true }]
+    this.appLogger.info(`Device detection disabled - using default device`, this.name)
     this.updateStatus()
   }
 
@@ -128,6 +114,33 @@ export class OllamaBackendService implements ApiService {
       isRequired: this.isRequired,
       devices: this.devices,
       errorDetails: this.lastStartupErrorDetails,
+      installedVersion: this.cachedInstalledVersion,
+    }
+  }
+
+  async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
+    if (!this.isSetUp) return undefined
+    // Ollama uses the stored version and releaseTag
+    return { version: this.version, releaseTag: this.releaseTag }
+  }
+
+  /**
+   * Updates the cached installed version for inclusion in service info updates.
+   */
+  private async updateCachedVersion(): Promise<void> {
+    try {
+      const version = await this.getInstalledVersion()
+      if (version && version.version) {
+        this.cachedInstalledVersion = {
+          version: version.version,
+          ...(version.releaseTag && { releaseTag: version.releaseTag }),
+        }
+      } else {
+        this.cachedInstalledVersion = undefined
+      }
+    } catch (error) {
+      this.appLogger.warn(`Failed to get installed version: ${error}`, this.name)
+      this.cachedInstalledVersion = undefined
     }
   }
 
@@ -216,8 +229,9 @@ export class OllamaBackendService implements ApiService {
         debugMessage: 'extraction complete',
       }
 
-      this.setStatus('notYetStarted')
       this.isSetUp = true
+      await this.updateCachedVersion()
+      this.setStatus('notYetStarted')
 
       currentStep = 'end'
       yield {
@@ -231,11 +245,7 @@ export class OllamaBackendService implements ApiService {
       this.setStatus('installationFailed')
 
       // Create detailed error information for any type of error
-      const errorDetails = await createEnhancedErrorDetails(
-        e,
-        `${currentStep} operation`,
-        this.aiBackend,
-      )
+      const errorDetails = await createEnhancedErrorDetails(e, `${currentStep} operation`)
 
       yield {
         serviceName: this.name,
@@ -373,11 +383,7 @@ export class OllamaBackendService implements ApiService {
         const startupError = new Error(
           `Server ${this.name} failed to boot - health check timeout or early process exit`,
         )
-        const errorDetails = await createEnhancedErrorDetails(
-          startupError,
-          'service startup',
-          this.aiBackend,
-        )
+        const errorDetails = await createEnhancedErrorDetails(startupError, 'service startup')
         this.setLastStartupError(errorDetails)
       }
     } catch (error) {
@@ -388,11 +394,7 @@ export class OllamaBackendService implements ApiService {
       this.encapsulatedProcess?.kill()
       this.encapsulatedProcess = null
       // Capture detailed error information for startup exception
-      const errorDetails = await createEnhancedErrorDetails(
-        error,
-        'service startup',
-        this.aiBackend,
-      )
+      const errorDetails = await createEnhancedErrorDetails(error, 'service startup')
       this.setLastStartupError(errorDetails)
     } finally {
       this.win.webContents.send('serviceInfoUpdate', this.get_info())
@@ -471,10 +473,43 @@ export class OllamaBackendService implements ApiService {
       const queryIntervalMs = 250
       const startupPeriodMaxMs = 300000
       while (performance.now() < startTime + startupPeriodMaxMs) {
+        // Check if process has exited before attempting health check
+        const hasExitedEarly = await Promise.race([
+          didProcessExitEarlyTracker,
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 0)),
+        ])
+        if (hasExitedEarly) {
+          this.appLogger.warn(
+            `Process for ${this.name} exited early, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
+        // Verify process is still alive before health check
+        if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+          this.appLogger.warn(
+            `Process for ${this.name} is not alive, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
         try {
           const serviceHealthResponse = await fetch(this.healthEndpointUrl)
           this.appLogger.info(`received response: ${serviceHealthResponse.status}`, this.name)
           if (serviceHealthResponse.status === 200) {
+            // Double-check process is still alive before accepting success
+            if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+              this.appLogger.warn(
+                `Process for ${this.name} exited after health check succeeded, marking as failed`,
+                this.name,
+              )
+              resolve(false)
+              return
+            }
             const endTime = performance.now()
             this.appLogger.info(
               `${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`,
@@ -498,9 +533,18 @@ export class OllamaBackendService implements ApiService {
       }
     })
 
-    const processStartupFailedDueToEarlyExit = didProcessExitEarlyTracker.then(
-      (earlyExit) => !earlyExit,
-    )
+    // If process exits early, immediately resolve to false (not ready)
+    // We create a promise that resolves to false immediately if process exits early
+    const processStartupFailedDueToEarlyExit = new Promise<boolean>((resolve) => {
+      didProcessExitEarlyTracker.then((earlyExit) => {
+        if (earlyExit) {
+          this.appLogger.error(`Process for ${this.name} exited early during startup`, this.name)
+          resolve(false)
+        }
+        // If process didn't exit early, this promise never resolves
+        // allowing the health check promise to win the race
+      })
+    })
 
     return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
   }

@@ -1,3 +1,4 @@
+.idea
 .vscode/
 env/
 package_res/
@@ -18,10 +19,11 @@ ComfyUI/
 ollama-service/
 env
 llama-cpp-env/
+LlamaCPP/
+OpenVINO/
 *env_tmp/
 *service_tmp/
 *-env/
 build-envs/
 portable-git/
-llm_cache*/
-emb_model_cache/
+models/

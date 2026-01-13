@@ -28,13 +28,14 @@ import {
   MessageBoxOptions,
   MessageBoxSyncOptions,
   nativeImage,
+  net,
   OpenDialogSyncOptions,
+  protocol,
   screen,
   shell,
   utilityProcess,
   UtilityProcess,
 } from 'electron'
-import { ChildProcess, fork } from 'child_process'
 import path from 'node:path'
 import fs from 'fs'
 import { exec } from 'node:child_process'
@@ -46,9 +47,10 @@ import {
   aiplaygroundApiServiceRegistry,
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
-import { updateIntelWorkflows } from './subprocesses/updateIntelWorkflows.ts'
-import { resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
-import getPort, { portNumbers } from 'get-port'
+import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
+import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
+import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
+import * as comfyuiTools from './subprocesses/comfyuiTools'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
@@ -77,11 +79,8 @@ const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
-let mediaServerChild: ChildProcess | null = null
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
-let mediaServerPort: number = 58000
-createMediaServer()
 let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -92,14 +91,14 @@ const appSize = {
   height: 128,
   maxChatContentHeight: 0,
 }
-const ThemeSchema = z.enum(['dark', 'lnl', 'bmg'])
+const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
   comfyUiParameters: z.array(z.string()).default([]),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
   enablePreviewFeatures: z.boolean().default(false),
   isAdminExec: z.boolean().default(false),
-  availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg']),
+  availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg', 'light']),
   currentTheme: ThemeSchema.default('bmg'),
   isDemoModeEnabled: z.boolean().default(false),
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
@@ -110,6 +109,18 @@ const LocalSettingsSchema = z.object({
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 
 let settings = LocalSettingsSchema.parse({})
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'aipg-media',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true, // impotant
+      standard: true,
+      bypassCSP: true, // impotant
+      stream: true,
+    },
+  },
+])
 
 async function loadSettings() {
   const settingPath = app.isPackaged
@@ -176,18 +187,26 @@ async function createWindow() {
   })
   session.webRequest.onHeadersReceived((details, callback) => {
     if (details.url.match(/^http:\/\/(localhost|127.0.0.1)/)) {
-      // if (details.method === "OPTIONS") {
-      //   details.statusLine = "HTTP/1.1 200 OK";
-      //   details.statusCode = 200;
-      //   return callback(details);
-      // }
-
-      details.responseHeaders = {
-        ...details.responseHeaders,
-        'Access-Control-Allow-Origin': ['*'],
-        'Access-Control-Allow-Methods': ['GET,POST'],
-        'Access-Control-Allow-Headers': ['x-requested-with,Content-Type,Authorization'],
+      const headers = new Headers()
+      if (details.responseHeaders) {
+        for (const [headerName, values] of Object.entries(details.responseHeaders)) {
+          for (const v of values) {
+            headers.append(headerName, v)
+          }
+        }
       }
+      const append = (name: string, value: string) => {
+        if (!headers.get(name)?.includes(value)) {
+          headers.append(name, value)
+        }
+      }
+      append('Access-Control-Allow-Origin', '*')
+      append('Access-Control-Allow-Methods', 'GET')
+      append('Access-Control-Allow-Methods', 'POST')
+      append('Access-Control-Allow-Headers', 'x-requested-with')
+      append('Access-Control-Allow-Headers', 'Content-Type')
+      append('Access-Control-Allow-Headers', 'Authorization')
+      details.responseHeaders = Object.fromEntries([...headers.entries()].map(([k, v]) => [k, [v]]))
       callback(details)
     } else {
       return callback(details)
@@ -221,40 +240,6 @@ async function createWindow() {
     return { action: 'deny' }
   })
   return win
-}
-
-export async function createMediaServer() {
-  appLogger.info('Starting media server', 'electron-backend')
-  mediaServerPort = await getPort({ port: portNumbers(58000, 58999) })
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    PORT_NUMBER: String(mediaServerPort),
-    MEDIA_DIRECTORY: mediaDir,
-  }
-  mediaServerChild = fork(path.join(__dirname, '../media/mediaServer.js'), undefined, {
-    env,
-    stdio: 'pipe',
-  })
-  mediaServerChild.stdout?.on('data', (data) => {
-    appLogger.info(data.toString(), 'media-server')
-  })
-  mediaServerChild.stderr?.on('data', (data) => {
-    appLogger.error(data.toString(), 'media-server')
-  })
-  mediaServerChild.on('exit', (code) => {
-    if (code !== 0) {
-      appLogger.error(`Media server exited with code ${code}`, 'electron-backend')
-    }
-    setTimeout(() => {
-      createMediaServer()
-    }, 1000)
-    mediaServerChild = null
-  })
-}
-
-function stopMediaServer() {
-  appLogger.info('Stopping media server', 'electron-backend')
-  mediaServerChild?.kill()
 }
 
 function spawnLangchainUtilityProcess() {
@@ -347,12 +332,10 @@ app.on('quit', async () => {
 app.on('window-all-closed', async () => {
   try {
     await serviceRegistry?.stopAllServices()
-    stopMediaServer()
   } catch {}
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
-    mediaServerChild = null
   }
 })
 
@@ -441,20 +424,14 @@ function initEventHandle() {
   ipcMain.handle('restorePathsSettings', (_event: IpcMainInvokeEvent) => {
     const paths = app.isPackaged
       ? {
-          llm: './resources/service/models/llm/checkpoints',
-          embedding: './resources/service/models/llm/embedding/ipexLLM',
-          stableDiffusion: './resources/service/models/stable_diffusion/checkpoints',
-          inpaint: './resources/service/models/stable_diffusion/inpaint',
-          lora: './resources/service/models/stable_diffusion/lora',
-          vae: './resources/service/models/stable_diffusion/vae',
+          ggufLLM: './resources/models/LLM/ggufLLM',
+          openvinoLLM: './resources/models/LLM/openvino',
+          embedding: './resources/models/LLM/embedding',
         }
       : {
-          llm: '../service/models/llm/checkpoints',
-          embedding: '../service/models/llm/embedding/ipexLLM',
-          stableDiffusion: '../service/models/stable_diffusion/checkpoints',
-          inpaint: '../service/models/stable_diffusion/inpaint',
-          lora: '../service/models/stable_diffusion/lora',
-          vae: '../service/models/stable_diffusion/vae',
+          ggufLLM: '../models/LLM/ggufLLM',
+          openvinoLLM: '../models/LLM/openvino',
+          embedding: '../models/LLM/embedding',
         }
     pathsManager.updateModelPaths(paths)
   })
@@ -510,10 +487,6 @@ function initEventHandle() {
     } catch (error) {
       appLogger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend')
     }
-  })
-
-  ipcMain.handle('getMediaUrlBase', () => {
-    return `http://127.0.0.1:${mediaServerPort}/`
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
@@ -579,36 +552,14 @@ function initEventHandle() {
     return pathsManager.scanAll()
   })
 
-  ipcMain.handle('refreshSDModles', (_event) => {
-    return pathsManager.scanSDModelLists()
-  })
-
-  ipcMain.handle('refreshInpaintModles', (_event) => {
-    return pathsManager.scanInpaint()
-  })
-
-  ipcMain.handle('refreshLora', (_event) => {
-    return pathsManager.scanLora()
-  })
-
   ipcMain.handle('refreshLLMModles', (_event) => {
-    return pathsManager.scanLLMModels()
-  })
-
-  ipcMain.handle('getDownloadedDiffusionModels', (_event) => {
-    return pathsManager.scanSDModelLists(false)
-  })
-
-  ipcMain.handle('getDownloadedInpaintModels', (_event) => {
-    return pathsManager.scanInpaint(false)
-  })
-
-  ipcMain.handle('getDownloadedLoras', (_event) => {
-    return pathsManager.scanLora(false)
+    // Old ipexllm backend removed - return empty array
+    return []
   })
 
   ipcMain.handle('getDownloadedLLMs', (_event) => {
-    return pathsManager.scanLLMModels()
+    // Old ipexllm backend removed - return empty array
+    return []
   })
 
   ipcMain.handle('getDownloadedGGUFLLMs', (_event) => {
@@ -745,6 +696,29 @@ function initEventHandle() {
     },
   )
 
+  ipcMain.handle(
+    'selectSttDevice',
+    (_event: IpcMainInvokeEvent, serviceName: string, deviceId: string) => {
+      appLogger.info('selecting STT device', 'electron-backend')
+      if (!serviceRegistry) {
+        appLogger.warn('received selectSttDevice too early during aipg startup', 'electron-backend')
+        return
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        appLogger.warn(
+          `Tried to selectSttDevice for service ${serviceName} which is not known`,
+          'electron-backend',
+        )
+        return
+      }
+      if ('selectSttDevice' in service && typeof service.selectSttDevice === 'function') {
+        return service.selectSttDevice(deviceId)
+      }
+      appLogger.warn(`Service ${serviceName} does not support selectSttDevice`, 'electron-backend')
+    },
+  )
+
   ipcMain.handle('startService', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received start signal too early during aipg startup', 'electron-backend')
@@ -842,6 +816,118 @@ function initEventHandle() {
     },
   )
 
+  ipcMain.handle(
+    'getEmbeddingServerUrl',
+    async (_event: IpcMainInvokeEvent, serviceName: string) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        return { success: false, error: `Service ${serviceName} not found` }
+      }
+
+      // Check if service has getEmbeddingServerUrl method (llamaCPP backend)
+      if (
+        'getEmbeddingServerUrl' in service &&
+        typeof service.getEmbeddingServerUrl === 'function'
+      ) {
+        const embeddingUrl = service.getEmbeddingServerUrl()
+        if (embeddingUrl) {
+          return { success: true, url: embeddingUrl }
+        }
+        return { success: false, error: 'Embedding server not running' }
+      }
+
+      // For other backends, return the base URL (they might use the same server)
+      return { success: true, url: service.baseUrl }
+    },
+  )
+
+  ipcMain.handle(
+    'startTranscriptionServer',
+    async (_event: IpcMainInvokeEvent, modelName: string) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
+      }
+      const service = serviceRegistry.getService('openvino-backend')
+      if (!service) {
+        return { success: false, error: 'OpenVINO backend service not found' }
+      }
+
+      // Check if service has startTranscriptionServer method
+      if (
+        'startTranscriptionServer' in service &&
+        typeof service.startTranscriptionServer === 'function'
+      ) {
+        try {
+          await service.startTranscriptionServer(modelName)
+          return { success: true }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          appLogger.error(
+            `Failed to start transcription server: ${errorMessage}`,
+            'electron-backend',
+          )
+          return { success: false, error: errorMessage }
+        }
+      }
+
+      return { success: false, error: 'Transcription server not supported' }
+    },
+  )
+
+  ipcMain.handle('stopTranscriptionServer', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    // Check if service has stopTranscriptionServer method
+    if (
+      'stopTranscriptionServer' in service &&
+      typeof service.stopTranscriptionServer === 'function'
+    ) {
+      try {
+        await service.stopTranscriptionServer()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop transcription server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Transcription server not supported' }
+  })
+
+  ipcMain.handle('getTranscriptionServerUrl', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    // Check if service has getTranscriptionServerUrl method
+    if (
+      'getTranscriptionServerUrl' in service &&
+      typeof service.getTranscriptionServerUrl === 'function'
+    ) {
+      const transcriptionUrl = service.getTranscriptionServerUrl()
+      if (transcriptionUrl) {
+        return { success: true, url: transcriptionUrl }
+      }
+      return { success: false, error: 'Transcription server not running' }
+    }
+
+    return { success: false, error: 'Transcription server not supported' }
+  })
+
   ipcMain.on('ondragstart', async (event, filePath) => {
     const imagePath = getAssetPathFromUrl(filePath)
     if (!imagePath) return
@@ -860,16 +946,142 @@ function initEventHandle() {
     })
   })
 
-  ipcMain.handle('reloadImageWorkflows', () => {
-    const files = fs.readdirSync(path.join(externalRes, 'workflows'))
-    const workflows = files.map((file) =>
-      fs.readFileSync(path.join(externalRes, 'workflows', file), { encoding: 'utf-8' }),
-    )
-    return workflows
+  ipcMain.handle('updatePresetsFromIntelRepo', () => {
+    return updateIntelPresets(settings.remoteRepository)
   })
 
-  ipcMain.handle('updateWorkflowsFromIntelRepo', () => {
-    return updateIntelWorkflows(settings.remoteRepository)
+  // Preset management IPC handlers
+  ipcMain.handle('reloadPresets', async () => {
+    try {
+      await filterPartnerPresets()
+    } catch (error) {
+      appLogger.error(`Failed to filter partner presets: ${error}`, 'electron-backend')
+    }
+    const presetsDir = path.join(externalRes, 'presets')
+    try {
+      // Ensure presets directory exists
+      await fs.promises.mkdir(presetsDir, { recursive: true })
+      const files = await fs.promises.readdir(presetsDir)
+      const presetFiles = files.filter((file) => file.endsWith('.json'))
+      const presets = await Promise.all(
+        presetFiles.map(async (file) => {
+          const presetContent = await fs.promises.readFile(path.join(presetsDir, file), {
+            encoding: 'utf-8',
+          })
+          const osSpecificPreset =
+            process.platform !== 'win32' ? presetContent.replaceAll('\\\\', '/') : presetContent
+
+          // Check for image file with same name
+          const presetNameWithoutExt = path.basename(file, '.json')
+          const imageExtensions = ['.png', '.jpg', '.jpeg']
+          let imageBase64: string | null = null
+
+          for (const ext of imageExtensions) {
+            const imagePath = path.join(presetsDir, `${presetNameWithoutExt}${ext}`)
+            if (fs.existsSync(imagePath)) {
+              try {
+                const imageBuffer = await fs.promises.readFile(imagePath)
+                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
+                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+                break
+              } catch (error) {
+                appLogger.warn(
+                  `Failed to read image file ${imagePath}: ${error}`,
+                  'electron-backend',
+                )
+              }
+            }
+          }
+
+          return {
+            content: osSpecificPreset,
+            image: imageBase64,
+          }
+        }),
+      )
+      return presets
+    } catch (error) {
+      appLogger.error(`Failed to load presets: ${error}`, 'electron-backend')
+      return []
+    }
+  })
+
+  ipcMain.handle('getUserPresetsPath', async () => {
+    const userDataPath = app.getPath('documents')
+    const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+    // Ensure directory exists
+    await fs.promises.mkdir(presetsPath, { recursive: true })
+    return presetsPath
+  })
+
+  ipcMain.handle('loadUserPresets', async () => {
+    try {
+      const userDataPath = app.getPath('documents')
+      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      if (!fs.existsSync(presetsPath)) {
+        return []
+      }
+      const files = await fs.promises.readdir(presetsPath)
+      const presetFiles = files.filter((file) => file.endsWith('.json'))
+      const presets = await Promise.all(
+        presetFiles.map(async (file) => {
+          const presetContent = await fs.promises.readFile(path.join(presetsPath, file), {
+            encoding: 'utf-8',
+          })
+
+          // Check for image file with same name
+          const presetNameWithoutExt = path.basename(file, '.json')
+          const imageExtensions = ['.png', '.jpg', '.jpeg']
+          let imageBase64: string | null = null
+
+          for (const ext of imageExtensions) {
+            const imagePath = path.join(presetsPath, `${presetNameWithoutExt}${ext}`)
+            if (fs.existsSync(imagePath)) {
+              try {
+                const imageBuffer = await fs.promises.readFile(imagePath)
+                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
+                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+                break
+              } catch (error) {
+                appLogger.warn(
+                  `Failed to read image file ${imagePath}: ${error}`,
+                  'electron-backend',
+                )
+              }
+            }
+          }
+
+          return {
+            content: presetContent,
+            image: imageBase64,
+          }
+        }),
+      )
+      return presets
+    } catch (error) {
+      appLogger.error(`Failed to load user presets: ${error}`, 'electron-backend')
+      return []
+    }
+  })
+
+  ipcMain.handle('saveUserPreset', async (_event, presetContent: string) => {
+    try {
+      const userDataPath = app.getPath('documents')
+      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      await fs.promises.mkdir(presetsPath, { recursive: true })
+
+      // Parse to get preset name for filename
+      const preset = JSON.parse(presetContent)
+      const filename = `${preset.name.replace(/[^a-z0-9]/gi, '_')}.json`
+      const filePath = path.join(presetsPath, filename)
+
+      await fs.promises.writeFile(filePath, presetContent, { encoding: 'utf-8' })
+      appLogger.info(`Saved user preset to ${filePath}`, 'electron-backend')
+      return true
+    } catch (error) {
+      appLogger.error(`Failed to save user preset: ${error}`, 'electron-backend')
+      return false
+    }
   })
 
   // Version management IPC handlers for frontend store integration
@@ -877,7 +1089,118 @@ function initEventHandle() {
     return await resolveBackendVersion(serviceName, settings)
   })
 
+  ipcMain.handle('getGitHubRepoUrl', () => {
+    return getGitHubRepoUrl(settings)
+  })
+
+  ipcMain.handle('getInstalledBackendVersion', async (_event, serviceName: BackendServiceName) => {
+    if (!serviceRegistry) {
+      appLogger.warn('Service registry not ready', 'electron-backend')
+      return undefined
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (
+      !service ||
+      !('getInstalledVersion' in service) ||
+      typeof service.getInstalledVersion !== 'function'
+    ) {
+      return undefined
+    }
+    try {
+      return await service.getInstalledVersion()
+    } catch (error) {
+      appLogger.error(
+        `Failed to get installed version for ${serviceName}: ${error}`,
+        'electron-backend',
+      )
+      return undefined
+    }
+  })
+
+  // ComfyUI Tools IPC handlers
+  ipcMain.handle('comfyui:isGitInstalled', async () => {
+    return await comfyuiTools.isGitInstalled()
+  })
+
+  ipcMain.handle('comfyui:isComfyUIInstalled', () => {
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
+    if (!comfyService) {
+      throw new Error('ComfyUI backend service not found')
+    }
+    return comfyuiTools.isComfyUIInstalled(comfyService.serviceDir)
+  })
+
+  ipcMain.handle('comfyui:getGitRef', async (_event, repoDir: string) => {
+    return await comfyuiTools.getGitRef(repoDir)
+  })
+
+  ipcMain.handle('comfyui:isPackageInstalled', async (_event, packageSpecifier: string) => {
+    return await comfyuiTools.isPackageInstalled(packageSpecifier)
+  })
+
+  ipcMain.handle('comfyui:installPypiPackage', async (_event, packageSpecifier: string) => {
+    return await comfyuiTools.installPypiPackage(packageSpecifier)
+  })
+
+  ipcMain.handle(
+    'comfyui:isCustomNodeInstalled',
+    (_event, nodeRepoRef: comfyuiTools.ComfyUICustomNodeRepoId) => {
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as
+        | ComfyUiBackendService
+        | undefined
+      if (!comfyService) {
+        throw new Error('ComfyUI backend service not found')
+      }
+      return comfyuiTools.isCustomNodeInstalled(nodeRepoRef, comfyService.serviceDir)
+    },
+  )
+
+  ipcMain.handle(
+    'comfyui:downloadCustomNode',
+    async (_event, nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId) => {
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as
+        | ComfyUiBackendService
+        | undefined
+      if (!comfyService) {
+        throw new Error('ComfyUI backend service not found')
+      }
+      return await comfyuiTools.downloadCustomNode(nodeRepoData, comfyService.serviceDir)
+    },
+  )
+
+  ipcMain.handle(
+    'comfyui:uninstallCustomNode',
+    async (_event, nodeRepoData: comfyuiTools.ComfyUICustomNodeRepoId) => {
+      const comfyService = serviceRegistry?.getService('comfyui-backend') as
+        | ComfyUiBackendService
+        | undefined
+      if (!comfyService) {
+        throw new Error('ComfyUI backend service not found')
+      }
+      return await comfyuiTools.uninstallCustomNode(nodeRepoData, comfyService.serviceDir)
+    },
+  )
+
+  ipcMain.handle('comfyui:listInstalledCustomNodes', () => {
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
+    if (!comfyService) {
+      throw new Error('ComfyUI backend service not found')
+    }
+    return comfyuiTools.listInstalledCustomNodes(comfyService.serviceDir)
+  })
+
   const getAssetPathFromUrl = (url: string) => {
+    // Handle aipg-media:// URLs
+    if (url.startsWith('aipg-media://')) {
+      const decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, ''))
+      return path.join(mediaDir, decodedUrl)
+    }
+
+    // Existing logic for HTTP URLs
     const imageUrl = URL.parse(url)
     if (!imageUrl) {
       console.error('Could not find image for URL', { url })
@@ -982,6 +1305,9 @@ function needAdminPermission() {
 }
 
 function isAdmin(): boolean {
+  if (process.platform !== 'win32') {
+    return false
+  }
   const lib = koffi.load('Shell32.dll')
   try {
     const IsUserAnAdmin = lib.func('IsUserAnAdmin', 'bool', [])
@@ -1021,6 +1347,20 @@ app.whenReady().then(async () => {
   } else {
     const settings = await loadSettings()
     initEventHandle()
+
+    // Custom protocol docking is file protocol
+    protocol.handle('aipg-media', async (request) => {
+      console.log('request', request)
+      const decodedUrl = decodeURIComponent(
+        request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/'),
+      )
+
+      const fullPath = path.join(mediaDir, decodedUrl)
+
+      const normalizedPath = path.normalize(fullPath.replace(/(\/|\\)$/, ''))
+      const response = await net.fetch(`file://${normalizedPath}`)
+      return response
+    })
     const window = await createWindow()
     await initServiceRegistry(window, settings)
     spawnLangchainUtilityProcess()

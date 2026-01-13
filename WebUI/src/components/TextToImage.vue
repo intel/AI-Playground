@@ -4,10 +4,10 @@
       <img src="" />
     </div>
     <div class="h-64 flex-none">
-      <p class="text-color-gray-666 text-sm">{{ languages.COM_PROMPT }}</p>
+      <p class="text-muted-foreground text-sm">{{ languages.COM_PROMPT }}</p>
       <div class="flex justify-between items-center">
         <textarea
-          class="rounded-xl border border-color-spilter w-full bg-transparent text-white p-4 focus:border-purple-500"
+          class="rounded-xl border border-border w-full bg-transparent text-foreground p-4 focus:border-primary"
         ></textarea>
       </div>
     </div>

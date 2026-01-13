@@ -4,14 +4,22 @@ import { type SliderRootProps } from 'radix-vue'
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'radix-vue'
 import { cn } from '@/lib/utils'
 import { clsx } from 'clsx'
-import { findBestResolution, useImageGeneration } from '@/assets/js/store/imageGeneration'
+import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import {
+  RESOLUTION_TABLE,
+  getResolutionFromTable,
+  findBestResolution,
+} from '@/assets/js/store/imageGenerationUtils'
+import { usePresets } from '@/assets/js/store/presets'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
 
-const imageGeneration = useImageGeneration()
+const imageGeneration = useImageGenerationPresets()
+const presetsStore = usePresets()
 
+// All aspect ratios (landscape to portrait order)
 const aspectRatios = [
-  { label: '12/5', value: 12 / 5 },
+  { label: '21/9', value: 21 / 9 },
   { label: '16/9', value: 16 / 9 },
   { label: '3/2', value: 3 / 2 },
   { label: '4/3', value: 4 / 3 },
@@ -19,38 +27,75 @@ const aspectRatios = [
   { label: '3/4', value: 3 / 4 },
   { label: '2/3', value: 2 / 3 },
   { label: '9/16', value: 9 / 16 },
-  { label: '5/12', value: 5 / 12 },
+  { label: '9/21', value: 9 / 21 },
 ]
 
 const megaPixelsOptions = computed(() => {
-  if (imageGeneration.activeWorkflow.tags.includes('sd1.5')) {
+  const activePreset = presetsStore.activePresetWithVariant
+  const tags = activePreset?.tags ?? []
+
+  // Draft tier (DreamShaper/sd1.5): 0.5, 0.8 MP only
+  if (tags.includes('DreamShaper') || tags.includes('SD1.5')) {
     return [
-      { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
+      { label: '0.8', totalPixels: 896 * 896 },
     ]
-  } else if (imageGeneration.activeWorkflow.tags.includes('LTX Video')) {
+  }
+  // LTX Video: custom tiers (uses dynamic calculation)
+  if (tags.includes('LTX Video')) {
     return [
       { label: '0.1', totalPixels: 320 * 320 },
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.35', totalPixels: 605 * 605 },
       { label: '0.5', totalPixels: 704 * 704 },
     ]
-  } else {
+  }
+  // Pro tier (flux): 0.25, 0.5, 0.8, 1.0, 1.2, 1.5 MP
+  if (tags.some((tag) => tag.toLowerCase().includes('flux'))) {
     return [
       { label: '0.25', totalPixels: 512 * 512 },
       { label: '0.5', totalPixels: 704 * 704 },
       { label: '0.8', totalPixels: 896 * 896 },
       { label: '1.0', totalPixels: 1024 * 1024 },
+      { label: '1.2', totalPixels: 1120 * 1120 },
+      { label: '1.5', totalPixels: 1248 * 1248 },
     ]
   }
+  // HD tier (default/sdxl): 0.25, 0.5, 0.8, 1.0 MP
+  return [
+    { label: '0.25', totalPixels: 512 * 512 },
+    { label: '0.5', totalPixels: 704 * 704 },
+    { label: '0.8', totalPixels: 896 * 896 },
+    { label: '1.0', totalPixels: 1024 * 1024 },
+  ]
+})
+
+// Check if we should use the lookup table or dynamic calculation
+const useLookupTable = computed(() => {
+  const tags = presetsStore.activePresetWithVariant?.tags ?? []
+  // LTX Video uses dynamic calculation due to custom MP tiers
+  return !tags.includes('LTX Video')
 })
 
 const resolutionsPerMegaPixelsOption = computed(() =>
   megaPixelsOptions.value.map((megaPixels) =>
-    aspectRatios.map((aspectRatio) => ({
-      aspectRatio: aspectRatio.label,
-      ...findBestResolution(megaPixels.totalPixels, aspectRatio.value),
-    })),
+    aspectRatios.map((aspectRatio) => {
+      // Try lookup table first for standard presets
+      if (useLookupTable.value && RESOLUTION_TABLE[megaPixels.label]) {
+        const tableRes = getResolutionFromTable(megaPixels.label, aspectRatio.label)
+        if (tableRes) {
+          return {
+            aspectRatio: aspectRatio.label,
+            ...tableRes,
+          }
+        }
+      }
+      // Fall back to dynamic calculation
+      return {
+        aspectRatio: aspectRatio.label,
+        ...findBestResolution(megaPixels.totalPixels, aspectRatio.value),
+      }
+    }),
   ),
 )
 
@@ -136,7 +181,7 @@ const sliderModel = computed({
       <select
         id="megapixels"
         v-model="megaPixelsIndex"
-        class="mt-1 text-center block w-full rounded-md bg-[var(--color-control-bg)] border border-gray-500"
+        class="mt-1 text-center block w-full rounded-md bg-muted border border-border"
         :disabled="props.disabled"
       >
         <option v-for="(option, index) in megaPixelsOptions" :key="index" :value="index">
@@ -145,8 +190,7 @@ const sliderModel = computed({
       </select>
       Megapixels
     </div>
-    <span
-      class="w-[90px] text-center rounded-xs border border-[#666] py-0.5 px-2 bg-[var(--color-control-bg)]"
+    <span class="w-[90px] text-center rounded-xs border border-border py-0.5 px-2 bg-muted"
       >{{ imageGeneration.width }} x {{ imageGeneration.height }}</span
     >
   </div>
@@ -165,9 +209,9 @@ const sliderModel = computed({
           "
           v-if="i % 2 === 0"
           :className="
-            clsx({ 'cursor-pointer': !props.disabled }, 'bg-[var(--color-control-bg)] border', {
-              'border-gray-500': resolutionIndex[0] !== i || disabled,
-              'border-white': resolutionIndex[0] === i && !disabled,
+            clsx({ 'cursor-pointer': !props.disabled }, 'bg-muted border', {
+              'border-border': resolutionIndex[0] !== i || disabled,
+              'border-primary': resolutionIndex[0] === i && !disabled,
             })
           "
           :style="{
@@ -194,7 +238,7 @@ const sliderModel = computed({
         v-for="(_, key) in sliderModel"
         :key="key"
         :className="
-          clsx('block h-3 w-3 rounded-full border border-[#4e80ff] bg-white transition-colors', {
+          clsx('block h-3 w-3 rounded-full border border-primary bg-background transition-colors', {
             'cursor-pointer': !disabled,
           })
         "

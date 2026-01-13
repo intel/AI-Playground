@@ -1,0 +1,337 @@
+{
+  "type": "comfy",
+  "name": "Sketch to Photo",
+  "displayPriority": 700,
+  "tags": ["JuggernautXL", "ControlNet", "1024x1024"],
+  "description": "Turn rough sketches into stunning photos. Load a sketch and describe the location, weather and environment",
+  "backend": "comfyui",
+  "category": "edit-images",
+  "requiredCustomNodes": [],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "checkpoints",
+      "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+    },
+    {
+      "type": "controlNet",
+      "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 20,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 896,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 896,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "896x896",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "number",
+      "label": "Canny - Low Threshold",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 0.2,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05,
+      "nodeTitle": "Canny",
+      "nodeInput": "low_threshold"
+    },
+    {
+      "type": "number",
+      "label": "Canny - High Threshold",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05,
+      "nodeTitle": "Canny",
+      "nodeInput": "high_threshold"
+    },
+    {
+      "type": "number",
+      "label": "ControlNet - Strength",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 1,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.1,
+      "nodeTitle": "Apply ControlNet",
+      "nodeInput": "strength"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "variants": [
+    {
+      "name": "Fast",
+      "overrides": {
+        "requiredModels": [
+          {
+            "type": "checkpoint",
+            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+          },
+          {
+            "type": "lora",
+            "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
+          },
+          {
+            "type": "controlNet",
+            "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 4,
+            "settingName": "inferenceSteps"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "steps": 4,
+              "cfg": 1.5,
+              "sampler_name": "lcm",
+              "scheduler": "simple",
+              "model": ["19", 0],
+              "positive": ["25", 0],
+              "negative": ["25", 1],
+              "latent_image": ["5", 0]
+            }
+          },
+          "19": {
+            "inputs": {
+              "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
+              "strength_model": 1,
+              "strength_clip": 1,
+              "model": ["26", 0],
+              "clip": ["26", 1]
+            },
+            "class_type": "LoraLoader",
+            "_meta": {
+              "title": "Load LoRA"
+            }
+          }
+        },
+        "tags": ["SDXL", "4-steps"]
+      }
+    },
+    {
+      "name": "Quality",
+      "overrides": {}
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "3": {
+      "inputs": {
+        "seed": 585751536870838,
+        "steps": 20,
+        "cfg": 6,
+        "sampler_name": "dpmpp_2m_sde",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": ["26", 0],
+        "positive": ["25", 0],
+        "negative": ["25", 1],
+        "latent_image": ["5", 0]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "5": {
+      "inputs": {
+        "width": 896,
+        "height": 896,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage",
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "6": {
+      "inputs": {
+        "text": "a rose",
+        "clip": ["26", 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "nsfw",
+        "clip": ["26", 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    },
+    "8": {
+      "inputs": {
+        "samples": ["3", 0],
+        "vae": ["26", 2]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["8", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "15": {
+      "inputs": {
+        "image": "outpaint.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "16": {
+      "inputs": {
+        "images": ["20", 0]
+      },
+      "class_type": "PreviewImage",
+      "_meta": {
+        "title": "Preview Image"
+      }
+    },
+    "17": {
+      "inputs": {
+        "control_net_name": "stabilityai---control-lora\\control-LoRAs-rank128\\control-lora-canny-rank128.safetensors"
+      },
+      "class_type": "ControlNetLoader",
+      "_meta": {
+        "title": "Load ControlNet Model"
+      }
+    },
+    "20": {
+      "inputs": {
+        "low_threshold": 0.14,
+        "high_threshold": 0.4,
+        "image": ["15", 0]
+      },
+      "class_type": "Canny",
+      "_meta": {
+        "title": "Canny"
+      }
+    },
+    "25": {
+      "inputs": {
+        "strength": 1,
+        "start_percent": 0,
+        "end_percent": 1,
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "control_net": ["17", 0],
+        "image": ["20", 0],
+        "vae": ["26", 2]
+      },
+      "class_type": "ControlNetApplyAdvanced",
+      "_meta": {
+        "title": "Apply ControlNet"
+      }
+    },
+    "26": {
+      "inputs": {
+        "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    }
+  }
+}

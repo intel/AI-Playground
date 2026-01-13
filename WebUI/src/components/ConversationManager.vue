@@ -5,7 +5,7 @@
     class="flex shrink-0 flex-col overflow-y-auto bg-gradient-to-r from-[#05010fb4]/20 to-[#05010fb4]/70 transition-all"
   >
     <div class="flex justify-end">
-      <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-white">
+      <button @click="isHistoryVisible = !isHistoryVisible" class="m-2 flex text-foreground">
         <img
           v-if="!isHistoryVisible"
           :class="textInference.iconSizeClass"
@@ -25,8 +25,11 @@
         v-for="(conversation, conversationKey) in conversations.conversationList"
         :key="'if' + conversationKey"
         @click="select(conversationKey)"
-        :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
-        class="group relative cursor-pointer text-gray-300"
+        :title="
+          conversation?.[0]?.parts.find((part) => part.type === 'text')?.text.substring(0, 50) ??
+          languages.ANSWER_NEW_CONVERSATION
+        "
+        class="group relative cursor-pointer text-muted-foreground"
       >
         <div class="flex justify-between items-center w-full h-10 px-3">
           <div
@@ -44,7 +47,11 @@
             </template>
             <template v-else>
               <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
-                {{ conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION }}
+                {{
+                  conversation?.[0]?.parts
+                    .find((part) => part.type === 'text')
+                    ?.text.substring(0, 50) ?? languages.ANSWER_NEW_CONVERSATION
+                }}
               </span>
             </template>
             <div v-if="!conversations.isNewConversation(conversationKey)">
@@ -57,7 +64,7 @@
                     variant="ghost"
                     size="icon"
                     :class="[
-                      'transition-opacity duration-100 ml-2 text-gray-300 hover:text-white hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
+                      'transition-opacity duration-100 ml-2 text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
                       menuOpenKey === conversationKey
                         ? 'opacity-70'
                         : 'opacity-0 group-hover:opacity-70',
@@ -157,17 +164,20 @@
         :key="'else' + conversationKey"
         :inVisibleKey="conversationKey"
         @click="select(conversationKey)"
-        :title="conversation?.[0]?.title ?? languages.ANSWER_NEW_CONVERSATION"
+        :title="
+          conversation?.[0]?.parts.find((part) => part.type === 'text')?.text?.substring(0, 50) ??
+          languages.ANSWER_NEW_CONVERSATION
+        "
         class="flex justify-between items-center h-12 py-2 cursor-pointer hover:bg-[#00c4fa]/50"
         :class="conversations.activeKey === conversationKey ? 'bg-[#00c4fa]/50' : ''"
       >
         <span
           v-if="conversationKey === currentlyGeneratingKey && processing"
-          class="svg-icon i-loading w-8 h-8 animate-spin text-white flex items-center justify-center m-auto"
+          class="svg-icon i-loading w-8 h-8 animate-spin text-foreground flex items-center justify-center m-auto"
         ></span>
         <PlusCircleIcon
           v-else-if="conversations.isNewConversation(conversationKey)"
-          class="m-auto size-8 text-gray-300"
+          class="m-auto size-8 text-muted-foreground"
         />
         <ChatBubbleLeftRightIcon v-else class="m-auto size-8 text-gray-300" />
       </div>
@@ -232,7 +242,9 @@ const renameTitle = ref('')
 
 function openRenameDialog(conversationKey: string) {
   renameKey.value = conversationKey
-  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.title
+  const existingTitle = conversations.conversationList[conversationKey]?.[0]?.parts.find(
+    (part) => part.type === 'text',
+  )?.text
   renameTitle.value = existingTitle ?? ''
   renameDialogOpen.value = true
 }
@@ -247,7 +259,7 @@ function saveRename() {
   if (!renameKey.value) return
   const newTitle = renameTitle.value.trim()
   if (newTitle.length === 0) return
-  conversations.renameConversationTitle(renameKey.value, newTitle)
+  // conversations.renameConversationTitle(renameKey.value, newTitle)
   renameDialogOpen.value = false
   menuOpenKey.value = null
   renameKey.value = null

@@ -232,9 +232,114 @@ const handleReinstall = async () => {
   }
 }
 
+// Get the effective target version (what will be installed)
+function getEffectiveTarget(
+  serviceName: BackendServiceName,
+): { version?: string; releaseTag?: string } | undefined {
+  const vs = backendServices.versionState[serviceName]
+  return vs.uiOverride ?? vs.target
+}
+
+// Normalize version for comparison (strips subversion for OpenVINO)
+// OpenVINO versions: 2025.4.0.0rc3 -> 2025.4.0 (only compare first 3 parts)
+function normalizeVersionForComparison(serviceName: BackendServiceName, version: string): string {
+  if (serviceName === 'openvino-backend') {
+    const parts = version.split('.')
+    return parts.slice(0, 3).join('.')
+  }
+  return version
+}
+
+// Check if there's any version change pending (installed differs from effective target)
+function hasVersionChange(serviceName: BackendServiceName): boolean {
+  if (serviceName === 'ai-backend') return false
+
+  const versionState = backendServices.versionState[serviceName]
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  if (!effectiveTarget || !versionState.installed) return false
+
+  if (serviceName === 'ollama-backend') {
+    return (
+      versionState.installed.version !== effectiveTarget.version ||
+      versionState.installed.releaseTag !== effectiveTarget.releaseTag
+    )
+  }
+
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installedNorm = normalizeVersionForComparison(
+    serviceName,
+    versionState.installed.version || '',
+  )
+  const targetNorm = normalizeVersionForComparison(serviceName, effectiveTarget.version || '')
+
+  return installedNorm !== targetNorm
+}
+
+// Compare versions to determine if it's an upgrade or downgrade
+function isUpgrade(serviceName: BackendServiceName): boolean | null {
+  const versionState = backendServices.versionState[serviceName]
+  const effectiveTarget = getEffectiveTarget(serviceName)
+  if (!effectiveTarget?.version || !versionState.installed?.version) return null
+
+  // Normalize versions for comparison (handles OpenVINO subversions)
+  const installed = normalizeVersionForComparison(serviceName, versionState.installed.version)
+  const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
+
+  if (installed < target) return true
+  if (installed > target) return false
+  return null
+}
+
+// Format version for display
+function formatVersion(
+  version: { version?: string; releaseTag?: string } | null | undefined,
+): string {
+  if (!version) return '-'
+  if (version.releaseTag && version.version) {
+    return `${version.releaseTag} / ${version.version}`
+  }
+  return version.version || '-'
+}
+
+// Show version action only if there's a pending change and backend is installed
+const showVersionAction = computed(() => {
+  if (props.backend === 'ai-backend') return false
+  const backendInfo = backendServices.info.find((s) => s.serviceName === props.backend)
+  if (!backendInfo?.isSetUp) return false
+  return hasVersionChange(props.backend) && backendStatus.value !== 'notInstalled'
+})
+
+// Dynamic label: "Update to X" or "Downgrade to X"
+const versionActionLabel = computed(() => {
+  const effectiveTarget = getEffectiveTarget(props.backend)
+  const upgrading = isUpgrade(props.backend)
+  const action = upgrading === true ? 'Update' : 'Downgrade'
+  return `${action} to ${formatVersion(effectiveTarget)}`
+})
+
+// Handler for version action - clears override and reinstalls
+const handleVersionAction = async () => {
+  menuOpen.value = false
+  await handleReinstall()
+}
+
+// Check if user has set a custom override
+const hasUserOverride = computed(() => !!backendServices.versionState[props.backend].uiOverride)
+
+// Clear the user override
+const clearOverride = () => {
+  backendServices.versionState[props.backend].uiOverride = undefined
+  settingsDialogOpen.value = false
+  menuOpen.value = false
+}
 
 const showMenuButton = computed(
-  () => showStart.value || showStop.value || showReinstall.value || showSettings.value,
+  () =>
+    showStart.value ||
+    showStop.value ||
+    showReinstall.value ||
+    showSettings.value ||
+    showVersionAction.value,
 )
 </script>
 
@@ -250,6 +355,15 @@ const showMenuButton = computed(
       <DropdownMenuItem v-if="showStart" @click="handleStartService">{{
         i18nState.BACKEND_START
       }}</DropdownMenuItem>
+
+      <!-- Version action: Update/Downgrade -->
+      <DropdownMenuItem
+        v-if="showVersionAction"
+        @click="handleVersionAction"
+        :class="isUpgrade(backend) === true ? 'text-green-500' : 'text-amber-500'"
+      >
+        {{ versionActionLabel }}
+      </DropdownMenuItem>
 
       <AlertDialog
         v-if="showReinstall"
@@ -397,11 +511,24 @@ const showMenuButton = computed(
               </template>
             </form>
 
-            <DialogFooter>
-              <Button type="submit" form="dialogForm">
+            <DialogFooter class="gap-2">
+              <Button
+                v-if="hasUserOverride"
+                type="button"
+                variant="outline"
+                class="px-3 py-1.5 rounded text-sm"
+                @click="clearOverride"
+              >
+                Clear Override
+              </Button>
+              <Button
+                type="submit"
+                form="dialogForm"
+                class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded text-sm"
+              >
                 {{ i18nState.BACKEND_SAVE_CHANGES }}
-              </Button></DialogFooter
-            >
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </Form>
