@@ -182,9 +182,21 @@ Be sure to check license terms for any model used in AI Playground especially ta
 ### Use Alternative Models
 Check the [User Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf) for details or [watch this video](https://www.youtube.com/watch?v=1FXrk9Xcx2g) on how to add alternative Stable Diffusion models to AI Playground
 
-### Notices and Disclaimers: 
+
+## Notices and Disclaimers: 
 For information on AI Playground terms, license and disclaimers, visit the project and files on GitHub repo:</br >
 [License](https://github.com/intel/ai-playground/blob/main/LICENSE) | [Notices & Disclaimers](https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md)
 
 The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third Party Notices file accompanying the software.
+
+## Credit
+License details for borrowed code and components can be found in our [3rdpartynoticeslicense](3rdpartynoticeslicenses.txt) file.  
+Additionally, these entities and their work stand out as are fundamental to AI Playground.
+*	PyTorch - https://pytorch.org/ 
+*	Stable Diffusion - https://github.com/Stability-AI/stablediffusion
+*	ComfyUI -  https://github.com/comfyanonymous/ComfyUI
+*	OpenVINO - https://openvinotoolkit.github.io/openvino.genai/ 
+*	Llama.cpp - https://github.com/ggml-org/llama.cpp 
+*	Vue.js - https://vuejs.org/ 
+*	Plus countless other open-source projects and contributors that make this work possible!
 
