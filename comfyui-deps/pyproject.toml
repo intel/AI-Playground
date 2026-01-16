@@ -26,6 +26,7 @@ dependencies = [
   "insightface==0.7.3",
   "kornia>=0.7.1",
   "librosa",
+  "llvmlite>=0.46.0",
   "matplotlib",
   "matrix-nio",
   "mediapipe",
