@@ -36,6 +36,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",
+    "dompurify": "^3.3.1",
     "extract-zip": "^2.0.1",
     "get-port": "^7.1.0",
     "koffi": "^2.14.1",
@@ -65,6 +66,7 @@
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
+    "@types/dompurify": "^3.0.5",
     "@types/exif": "^0.6.5",
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.19.3",
@@ -73,7 +75,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.6.0",
     "adm-zip": "^0.5.16",
-    "electron": "^38.7.2",
+    "electron": "^40.0.0",
     "electron-builder": "^26.0.20",
     "electron-builder-squirrel-windows": "^26.0.20",
     "eslint": "^9.36.0",
@@ -91,7 +93,8 @@
   },
   "overrides": {
     "ip": "https://registry.npmjs.org/neoip/-/neoip-2.1.0.tgz",
-    "three": "^0.182.0"
+    "three": "^0.182.0",
+    "tar": "^7.5.3"
   },
   "debug": {
     "env": {

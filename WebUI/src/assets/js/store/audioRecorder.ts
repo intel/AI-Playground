@@ -260,7 +260,7 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
       const whisperOvms = createOpenAI({
         name: 'model',
         baseURL: transcriptionServerUrl,
-        apiKey: 'asdf',
+        apiKey: '',
       })
       const transcriptionModel = whisperOvms.transcriptionModel?.(model.split('/').join('---'))
       if (!transcriptionModel) {
