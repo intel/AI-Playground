@@ -54,7 +54,7 @@
             />
             <div
               :class="textInference.fontSizeClass"
-              v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"
+              v-html="sanitizeMarkdown(parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string)"
             ></div>
             <button
               class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
@@ -68,7 +68,7 @@
         </div>
         <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
           <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
-          <div class="flex flex-col gap-3 max-w-[90%] text-wrap break-words">
+          <div class="flex flex-col gap-3 max-w-[90%] text-wrap wrap-break-word">
             <div class="flex items-center gap-2">
               <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
                 {{ languages.ANSWER_AI_NAME }}
@@ -159,12 +159,12 @@
                   v-if="showThinkingTextPerMessageId[message.id]"
                   class="border-l-2 border-border pl-4 text-muted-foreground"
                   v-html="
-                    parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '')
+                    sanitizeMarkdown((parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '') as string))"
                   "
                 ></div>
               </template>
               <div
-                v-html="parse(message.parts.find((part) => part.type === 'text')?.text ?? '')"
+                v-html="sanitizeMarkdown((parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string))"
               ></div>
 
               <!-- Render tool parts -->
@@ -278,11 +278,11 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance } from 'vue'
 import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
 import { parse } from '@/assets/js/markdownParser.ts'
+import { sanitizeMarkdown } from '@/lib/sanitize'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
@@ -299,14 +299,13 @@ import { base64ToString } from 'uint8array-extras'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
-const instance = getCurrentInstance()
-const languages = instance?.appContext.config.globalProperties.languages
 const textInference = useTextInference()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const comfyUi = useComfyUiPresets()
 
 const i18nState = useI18N().state
+const languages = i18nState
 const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)

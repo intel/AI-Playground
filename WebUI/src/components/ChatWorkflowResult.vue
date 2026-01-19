@@ -144,7 +144,6 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { getCurrentInstance } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
@@ -167,9 +166,8 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const instance = getCurrentInstance()
-const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
+const languages = i18nState
 const showInfoParams = ref(false)
 
 // Local state for selected image
