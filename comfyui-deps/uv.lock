@@ -2797,7 +2797,7 @@ dependencies = [
     { name = "torch", version = "2.10.0+xpu", source = { registry = "https://download.pytorch.org/whl/test/xpu" }, marker = "sys_platform == 'win32'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/test/xpu/torchaudio-2.10.0%2Bxpu-cp312-cp312-win_amd64.whl", hash = "sha256:89d961a0376232c2cc90309d485db65e94681e9b9f8b5510ee388157a45c180c" },
+    { url = "https://download.pytorch.org/whl/test/xpu/torchaudio-2.10.0%2Bxpu-cp312-cp312-win_amd64.whl", hash = "sha256:20bce60dd3d77802ce6fefdc6a7c2468b3d5b464599535c65d91972ad24c66b7" },
 ]
 
 [[package]]
@@ -2845,7 +2845,7 @@ dependencies = [
     { name = "torch", version = "2.10.0+xpu", source = { registry = "https://download.pytorch.org/whl/test/xpu" }, marker = "sys_platform == 'win32'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/test/xpu/torchvision-0.25.0%2Bxpu-cp312-cp312-win_amd64.whl", hash = "sha256:73110ed934564bee94c56191074e677892400bcec75806d49814decc81a13a57" },
+    { url = "https://download.pytorch.org/whl/test/xpu/torchvision-0.25.0%2Bxpu-cp312-cp312-win_amd64.whl", hash = "sha256:738357d97468d75fe3d510ac37e65130f2787f81d9bbc1518898f7396dc3403f" },
 ]
 
 [[package]]
