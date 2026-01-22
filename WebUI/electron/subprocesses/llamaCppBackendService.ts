@@ -549,6 +549,9 @@ export class LlamaCppBackendService implements ApiService {
         ctxSize.toString(),
         '--log-prefix',
         '--jinja',
+        '--no-mmap',
+        '-fa',
+        'off'
       ]
 
       const modelFolder = path.dirname(modelPath)
