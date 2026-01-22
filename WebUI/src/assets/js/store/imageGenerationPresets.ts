@@ -611,7 +611,7 @@ export const useImageGenerationPresets = defineStore(
   {
     persist: {
       debug: true,
-      pick: ['settingsPerPreset', 'comfyInputsPerPreset'],
+      pick: ['settingsPerPreset', 'comfyInputsPerPreset', 'generatedImages'],
       serializer: {
         // Custom serializer to filter out large data URIs from persistence
         serialize: (state) => {

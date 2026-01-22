@@ -1,10 +1,10 @@
 <template>
   <div
-    v-if="nonQueuedImages.length > 0"
+    v-if="nonQueuedImagesReversed.length > 0"
     class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto"
   >
     <div
-      v-for="image in nonQueuedImages"
+      v-for="image in nonQueuedImagesReversed"
       :key="image.id"
       class="flex items-center gap-2 bg-muted rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-muted/80"
       :class="isSelected(image.id) ? 'border-primary' : 'border-transparent'"
@@ -117,13 +117,16 @@ const imageGeneration = useImageGenerationPresets()
 // Track which images are NSFW blocked
 const nsfwBlockedImages = ref<Set<string>>(new Set())
 
-const nonQueuedImages = computed(() =>
-  imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === props.mode),
+const nonQueuedImagesReversed = computed(() =>
+  imageGeneration.generatedImages
+    .filter((i) => i.state !== 'queued' && i.mode === props.mode)
+    .slice()
+    .reverse(),
 )
 
 // Check new images for NSFW blocking
 watch(
-  nonQueuedImages,
+  nonQueuedImagesReversed,
   async (images) => {
     for (const image of images) {
       if (
