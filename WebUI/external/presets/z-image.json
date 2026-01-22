@@ -176,7 +176,7 @@
     },
     "40": {
       "inputs": {
-        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
+        "vae_name": "Comfy-Org---z_image_turbo\\split_files\\vae\\ae.safetensors"
       },
       "class_type": "VAELoader",
       "_meta": {
