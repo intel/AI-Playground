@@ -45,6 +45,7 @@ type BaseMediaItem = {
   sourceImageUrl?: string
   settings: GenerationSettings
   dynamicSettings?: ComfyDynamicInputWithCurrent[]
+  createdAt?: number
 }
 
 export type ImageMediaItem = BaseMediaItem & {
