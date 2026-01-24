@@ -9,9 +9,17 @@
 
 Welcome to AI Playground open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, code assistance, document search, image analysis, image and video generation. All features run offline and are powered by your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU or Intel Arc™ dGPU Series A or B with 8GB+ of vRAM.
 
-AI Playground leverages libraries from GitHub and Huggingface which may not be available in all countries world-wide.  AI Playground supports many Gen AI libraries and models including:
+AI Playground is intended to act as an offline alternative to cloud tools such Gemini ChatGPT and Grok.  AI Playground leverages libraries from GitHub and Huggingface including:
 - Image Diffusion (PyTorch 2.10): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Z-Image, Wan2.1 VACE, LTX-Video
 - LLM: GGUF (Llama.cpp Vulkan) - Qwen3 VL, GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
+<img width="3221" height="1849" alt="image" src="https://github.com/user-attachments/assets/da8f2870-3d48-49ac-bf82-8feb44f460ee" />
+
+As a local alternative to cloud AI service, AI Playground is intended to give consumers and AI curious prosumers easy and intuitive access to a wide variety of generative AI features using their Intel powered AI PC. This means you can be offline, without loading sensitive or personal data to 3rd party sites, for free, in a single app without having to know how to install and manage multiple AI backend frameworks.   Key features:
+- Latest and greatest chat models: Support for Qwen 3 VL, Mistral 7B, DeepSeek R1 or GPT-OSS, AI playground makes a variety of chat models available to users
+- Vision, Reasoning and RAG: Chat features support Vision, Reasoning and RAG to analyze and get deep answers on both visual and text content
+Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Document RAG with Mistral 7B Instruct
+- Image Generation: From Stable Diffusion 1.5, SDXL, Flux.1 and Z-image models AI Playground is making a breadth of image generation from quick easy low-res draft generation to high quality image generation
+- Image Editing: Subscription free and private control for upscaling, inpainting, outpainting, 2D to 3D mesh or editing images in a variety of ways.  Good for editing personal photos to taking sketches and generated images to the next level with greater control. 
 
 ## README.md
 - English (readme.md)
@@ -20,13 +28,13 @@ AI Playground leverages libraries from GitHub and Huggingface which may not be a
 AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
 *	Windows OS
-*	Intel Core Ultra-H Processor, Intel Core Ultra-V processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
+*	Intel Core Ultra Series 3, Series 2H, Series 2V, or Series 1 H processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM
 
 ## Installation - Packaged Installer: 
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.0.0 alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.0-alpha) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.0-alpha/AI.Playground-3.0.0-alpha.rc1.exe) :new:
+:new: **AI Playground 3.0.1 alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.1-alpha) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.1-alpha/AI.Playground-3.0.1-alpha.exe) :new:
 
 ### Installation Process for v3.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
