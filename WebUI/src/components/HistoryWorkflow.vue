@@ -39,6 +39,13 @@
         </div>
       </div>
 
+      <!-- Date display -->
+      <div v-if="image.createdAt" class="flex flex-col flex-1 min-w-0">
+        <span class="text-xs text-muted-foreground truncate">
+          {{ new Date(image.createdAt).toLocaleString() }}
+        </span>
+      </div>
+
       <div class="absolute top-1 right-1 flex items-center">
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
