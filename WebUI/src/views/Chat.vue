@@ -54,7 +54,11 @@
             />
             <div
               :class="textInference.fontSizeClass"
-              v-html="sanitizeMarkdown(parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string)"
+              v-html="
+                sanitizeMarkdown(
+                  parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string,
+                )
+              "
             ></div>
             <button
               class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
@@ -159,12 +163,20 @@
                   v-if="showThinkingTextPerMessageId[message.id]"
                   class="border-l-2 border-border pl-4 text-muted-foreground"
                   v-html="
-                    sanitizeMarkdown((parse(message.parts.find((part) => part.type === 'reasoning')?.text ?? '') as string))"
+                    sanitizeMarkdown(
+                      parse(
+                        message.parts.find((part) => part.type === 'reasoning')?.text ?? '',
+                      ) as string,
+                    )
                   "
                 ></div>
               </template>
               <div
-                v-html="sanitizeMarkdown((parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string))"
+                v-html="
+                  sanitizeMarkdown(
+                    parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string,
+                  )
+                "
               ></div>
 
               <!-- Render tool parts -->

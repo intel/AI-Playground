@@ -551,7 +551,7 @@ export class LlamaCppBackendService implements ApiService {
         '--jinja',
         '--no-mmap',
         '-fa',
-        'off'
+        'off',
       ]
 
       const modelFolder = path.dirname(modelPath)

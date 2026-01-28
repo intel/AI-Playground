@@ -242,10 +242,12 @@ watch(
     const nonQueuedImages = imageGeneration.generatedImages.filter(
       (i) => i.state !== 'queued' && i.mode === props.mode,
     )
-    if (nonQueuedImages.length > 0) {
-      imageGeneration[selectedImageIdKey.value] = nonQueuedImages[nonQueuedImages.length - 1].id
-    } else {
-      imageGeneration[selectedImageIdKey.value] = null
+    if (props.mode === 'imageGen') {
+      if (nonQueuedImages.length > 0) {
+        imageGeneration.selectedGeneratedImageId = nonQueuedImages[nonQueuedImages.length - 1].id
+      } else {
+        imageGeneration[selectedImageIdKey.value] = null
+      }
     }
     showInfoParams.value = false
   },

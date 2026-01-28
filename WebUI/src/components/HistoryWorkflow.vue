@@ -1,82 +1,112 @@
 <template>
-  <div
-    v-if="nonQueuedImages.length > 0"
-    class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto"
-  >
+  <div class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto">
+    <!--  "New image" entry -->
     <div
-      v-for="image in nonQueuedImages"
-      :key="image.id"
-      class="flex items-center gap-2 bg-muted rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-muted/80"
-      :class="isSelected(image.id) ? 'border-primary' : 'border-transparent'"
-      @click="selectImage(image.id)"
+      v-if="showNewEntryPlaceholder"
+      class="flex items-center gap-2 bg-accent rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-accent/80"
+      :class="isSelected('new') ? 'border-primary' : 'border-transparent'"
+      @click="selectImage('new')"
     >
       <div
         class="relative w-[150px] h-[90px] overflow-hidden rounded-sm flex items-center justify-center bg-background"
-        draggable="true"
-        @dragstart="(e) => dragImage(image)(e)"
       >
-        <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
-        <Model3DViewer v-else-if="is3D(image)" :src="image.model3dUrl" class="w-full h-full" />
-        <img
-          v-else-if="image.type === 'image'"
-          :src="image.imageUrl"
-          class="w-full h-full object-cover"
-        />
-
-        <!-- NSFW Blocked Overlay -->
-        <div
-          v-if="image.type === 'image' && nsfwBlockedImages.has(image.id)"
-          class="absolute inset-0 flex items-center justify-center bg-black/80"
-        >
-          <span class="text-white text-xs font-medium text-center px-1">NSFW Blocked</span>
-        </div>
-
-        <div
-          v-else-if="image.type === 'image' && image.sourceImageUrl === image.imageUrl"
-          class="absolute bottom-0 w-full bg-background/60 text-foreground text-[14px] text-center py-[2px]"
-        >
-          {{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}
-        </div>
-      </div>
-
-      <div class="absolute top-1 right-1 flex items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-6 w-6" @click.stop>
-              <span class="svg-icon i-dots-vertical w-4 h-4"></span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="w-28">
-            <DropdownMenuItem @click.stop="reloadImage(image)"> Reload </DropdownMenuItem>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
-                  Delete
-                </DropdownMenuItem>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {{ languages.COM_DELETE_IMAGE_QUESTION }}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {{ languages.COM_DELETE_IMAGE_EXPLANATION }}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction @click="() => deleteImage(image)">
-                    {{ languages.COM_DELETE }}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <span class="text-lg text-primary font-semibold">New Image</span>
       </div>
     </div>
+
+    <!-- Generated Images -->
+    <template v-if="nonQueuedImagesReversed.length > 0">
+      <template v-for="(image, index) in nonQueuedImagesReversed" :key="image.id">
+        <!-- Day divider -->
+        <div v-if="shouldRenderDayDivider(index)" class="flex items-center gap-3 py-2">
+          <div class="h-px flex-1 bg-border"></div>
+          <span class="text-lg font-bold text-foreground">
+            {{ getDayLabel(image.createdAt) }}
+          </span>
+          <div class="h-px flex-1 bg-border"></div>
+        </div>
+
+        <div
+          class="flex items-center gap-2 bg-muted rounded px-3 py-2 cursor-pointer relative border-2 transition-colors hover:bg-muted/80"
+          :class="isSelected(image.id) ? 'border-primary' : 'border-transparent'"
+          @click="selectImage(image.id)"
+        >
+          <div
+            class="relative w-[150px] h-[90px] overflow-hidden rounded-sm flex items-center justify-center bg-background"
+            draggable="true"
+            @dragstart="(e) => dragImage(image)(e)"
+          >
+            <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
+            <Model3DViewer v-else-if="is3D(image)" :src="image.model3dUrl" class="w-full h-full" />
+            <img
+              v-else-if="image.type === 'image'"
+              :src="image.imageUrl"
+              class="w-full h-full object-cover"
+            />
+
+            <!-- NSFW Blocked Overlay -->
+            <div
+              v-if="image.type === 'image' && nsfwBlockedImages.has(image.id)"
+              class="absolute inset-0 flex items-center justify-center bg-black/80"
+            >
+              <span class="text-white text-xs font-medium text-center px-1">NSFW Blocked</span>
+            </div>
+
+            <div
+              v-else-if="image.type === 'image' && image.sourceImageUrl === image.imageUrl"
+              class="absolute bottom-0 w-full bg-background/60 text-foreground text-[14px] text-center py-[2px]"
+            >
+              {{ languages.ENHANCE_PREVIEW_BEFORE_PROCESS }}
+            </div>
+          </div>
+
+          <!-- Date display -->
+          <div v-if="image.createdAt" class="flex flex-col flex-1 min-w-0">
+            <span class="text-xs text-muted-foreground truncate">
+              {{ new Date(image.createdAt).toLocaleString() }}
+            </span>
+          </div>
+
+          <div class="absolute top-1 right-1 flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-6 w-6" @click.stop>
+                  <span class="svg-icon i-dots-vertical w-4 h-4"></span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-28">
+                <DropdownMenuItem @click.stop="reloadImage(image)"> Reload </DropdownMenuItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
+                      Delete
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {{ languages.COM_DELETE_IMAGE_QUESTION }}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {{ languages.COM_DELETE_IMAGE_EXPLANATION }}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction @click="() => deleteImage(image)">
+                        {{ languages.COM_DELETE }}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </template>
+    </template>
+    <div v-else class="text-muted-foreground text-center p-5 italic">No images generated yet.</div>
   </div>
-  <div v-else class="text-muted-foreground text-center p-5 italic">No images generated yet.</div>
 </template>
 
 <script setup lang="ts">
@@ -117,13 +147,16 @@ const imageGeneration = useImageGenerationPresets()
 // Track which images are NSFW blocked
 const nsfwBlockedImages = ref<Set<string>>(new Set())
 
-const nonQueuedImages = computed(() =>
-  imageGeneration.generatedImages.filter((i) => i.state !== 'queued' && i.mode === props.mode),
+const nonQueuedImagesReversed = computed(() =>
+  imageGeneration.generatedImages
+    .filter((i) => i.state !== 'queued' && i.mode === props.mode)
+    .slice()
+    .reverse(),
 )
 
 // Check new images for NSFW blocking
 watch(
-  nonQueuedImages,
+  nonQueuedImagesReversed,
   async (images) => {
     for (const image of images) {
       if (
@@ -151,6 +184,27 @@ watch(
   { immediate: true, deep: true },
 )
 
+function shouldRenderDayDivider(index: number): boolean {
+  if (index === 0) return true
+  const current = nonQueuedImagesReversed.value[index]
+  const previous = nonQueuedImagesReversed.value[index - 1]
+  return (
+    new Date(current.createdAt ?? Date.now()).toDateString() !==
+    new Date(previous.createdAt ?? Date.now()).toDateString()
+  )
+}
+
+function getDayLabel(timestamp?: number): string {
+  const date = new Date(timestamp ?? Date.now())
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) return 'Today'
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
 const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
   if (!item) return
   event.preventDefault()
@@ -172,13 +226,30 @@ function reloadImage(image: MediaItem) {
   console.log('Reloading image:', image.id)
 }
 
+const showNewEntryPlaceholder = computed(() => {
+  if (props.mode !== 'imageGen') return false
+  if (nonQueuedImagesReversed.value.length === 0) return true
+  return (
+    imageGeneration.selectedGeneratedImageId === null ||
+    imageGeneration.selectedGeneratedImageId === 'new'
+  )
+})
+
 function deleteImage(image: MediaItem) {
   console.log('Deleting image:', image.id)
   imageGeneration.deleteImage(image.id)
 }
 
 function isSelected(id: string) {
-  if (props.mode === 'imageGen') return imageGeneration.selectedGeneratedImageId === id
+  if (props.mode === 'imageGen') {
+    if (id === 'new') {
+      return (
+        imageGeneration.selectedGeneratedImageId === null ||
+        imageGeneration.selectedGeneratedImageId === 'new'
+      )
+    }
+    return imageGeneration.selectedGeneratedImageId === id
+  }
   if (props.mode === 'imageEdit') return imageGeneration.selectedEditedImageId === id
   if (props.mode === 'video') return imageGeneration.selectedVideoId === id
   return false
