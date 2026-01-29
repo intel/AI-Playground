@@ -19,16 +19,22 @@
       <template v-for="imageGroup in imagesByDay" :key="imageGroup.dateKey">
         <details :open="true" class="group/details">
           <summary
-            class="flex items-center gap-3 py-2 cursor-pointer hover:bg-muted/50 rounded transition-colors select-none list-none"
+            class="flex flex-col gap-2 py-2 cursor-pointer hover:bg-muted/50 rounded transition-colors select-none list-none"
           >
-            <ChevronDownIcon
-              class="w-4 h-4 text-muted-foreground transition-transform group-open/details:-rotate-180 shrink-0"
+            <div class="flex items-center gap-3">
+              <ChevronDownIcon
+                class="w-4 h-4 text-muted-foreground transition-transform group-open/details:-rotate-180 shrink-0"
+              />
+              <div class="h-px flex-1 bg-border"></div>
+              <span class="text-lg font-bold text-foreground">
+                {{ imageGroup.label }}
+              </span>
+              <div class="h-px flex-1 bg-border"></div>
+            </div>
+            <ThumbnailPreviewStrip
+              class="group-open/details:hidden self-center"
+              :items="imageGroup.images.filter((item) => item.type === 'image').reverse()"
             />
-            <div class="h-px flex-1 bg-border"></div>
-            <span class="text-lg font-bold text-foreground">
-              {{ imageGroup.label }}
-            </span>
-            <div class="h-px flex-1 bg-border"></div>
           </summary>
 
           <div class="flex flex-col space-y-2 h-full overflow-y-auto">
@@ -157,6 +163,7 @@ import {
   is3D,
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
+import ThumbnailPreviewStrip from './ThumbnailPreviewStrip.vue'
 import { checkIfNsfwBlocked } from '@/lib/utils'
 
 const props = defineProps<{
