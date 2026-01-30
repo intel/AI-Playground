@@ -551,6 +551,7 @@ export const useComfyUiPresets = defineStore(
                 break
               case 'executed':
                 const output = msg.data.output
+                const createdAt = Date.now()
                 if ('images' in output) {
                   const imageIndex = output.images.findIndex((i) => i.type === 'output')
                   const image = output.images[imageIndex]
@@ -563,6 +564,7 @@ export const useComfyUiPresets = defineStore(
                         state: 'done',
                         type: 'video',
                         videoUrl,
+                        createdAt,
                       }
                     } else {
                       newItem = {
@@ -570,6 +572,7 @@ export const useComfyUiPresets = defineStore(
                         state: 'done',
                         type: 'image',
                         imageUrl: `aipg-media://${image.subfolder ? `${image.subfolder}/${image.filename}` : image.filename}`,
+                        createdAt,
                       }
                     }
                     imageGeneration.updateImage(newItem)
@@ -591,6 +594,7 @@ export const useComfyUiPresets = defineStore(
                       type: 'video',
                       videoUrl,
                       thumbnailUrl,
+                      createdAt,
                     }
                     imageGeneration.updateImage(newImage)
                     generateIdx++
@@ -609,6 +613,7 @@ export const useComfyUiPresets = defineStore(
                       state: 'done',
                       type: 'model3d',
                       model3dUrl,
+                      createdAt,
                     }
                     imageGeneration.updateImage(newImage)
                     generateIdx++

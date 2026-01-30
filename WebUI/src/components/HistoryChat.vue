@@ -97,26 +97,14 @@
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div
-        v-if="images(conversations.conversationList[key]).length > 0"
-        class="flex p-2 overflow-hidden justify-end self-start"
-      >
-        <img
-          v-for="(img, i) in images(conversations.conversationList[key])"
-          :key="img.id"
-          :src="img.imageUrl"
-          class="w-12 h-12 rounded-sm shadow-black shadow-md border-3 border-background"
-          :style="{
-            marginLeft: `-${overlap(i, images(conversations.conversationList[key]).length)}px`,
-          }"
-        />
-      </div>
+      <ThumbnailPreviewStrip :items="images(conversations.conversationList[key])" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ThumbnailPreviewStrip from './ThumbnailPreviewStrip.vue'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -185,13 +173,6 @@ const images = (conversation: AipgUiMessage[]) => {
           typeof img.id === 'string',
       ),
   )
-}
-
-const overlap = (i: number, length: number) => {
-  if (i === 0) return 0
-  const reversed = length - i
-  const overlap = Math.min(Math.max(4, reversed), 8)
-  return 4 * overlap
 }
 
 const reversedConversationKeys = computed(() => {

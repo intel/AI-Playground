@@ -32,6 +32,11 @@
         @click="selectNewConversation"
         class="svg-icon i-add w-7 h-7"
       />
+      <button
+        v-show="mode === 'imageGen' || mode === 'imageEdit' || mode === 'video'"
+        @click="selectNewMedia"
+        class="svg-icon i-add w-7 h-7"
+      />
     </template>
 
     <HistoryChat
@@ -80,6 +85,16 @@ function selectNewConversation() {
   const key = conversations.addNewConversation()
   if (!key) return
   conversations.activeKey = key
+}
+
+function selectNewMedia() {
+  if (props.mode === 'imageGen') {
+    imageGeneration.selectedGeneratedImageId = 'new'
+  } else if (props.mode === 'imageEdit') {
+    imageGeneration.selectedEditedImageId = 'new'
+  } else if (props.mode === 'video') {
+    imageGeneration.selectedVideoId = 'new'
+  }
 }
 
 function deleteAllImages() {
