@@ -1,9 +1,11 @@
 import { z } from 'zod'
 import { tool } from 'ai'
-import { executeComfyGeneration } from './comfyUi'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { DEFAULT_RESOLUTION_CONFIG, getResolutionsFromConfig } from '../store/imageGenerationUtils'
 import type { FilePart, ModelMessage } from 'ai'
+import { useImageGenerationPresets } from '../store/imageGenerationPresets'
+import { usePresetSwitching } from '../store/presetSwitching'
+import { watch } from 'vue'
 
 function findLatestGeneratedImage(messages: ModelMessage[]): string | null {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -175,34 +177,167 @@ export async function executeComfyUiImageEdit(
   },
   messages?: ModelMessage[],
 ): Promise<ComfyUiImageEditToolOutput> {
-  // Step 1: Robust image extraction logic
+  const createErrorResult = (message: string): ComfyUiImageEditToolOutput => ({ success: false, message, images: [] })
+  const original = getCurrentImageEditState()
+  // 1. Prepare and validate input
+  const { sourceImageUrl, error } = await prepareImageEditInput(args, messages)
+  if (error) {
+    return createErrorResult(error)
+  }
+  // 2. Trigger workflow
+  const { imageIds, triggerError } = await triggerImageEditWorkflow({ ...args, sourceImageUrl })
+  if (triggerError) {
+    await restoreImageEditState(original)
+    return createErrorResult(triggerError)
+  }
+  // 3. Track completion
+  const result = await waitForImageEditCompletion(imageIds)
+  // 4. Handle errors/timeouts
+  if (!result.success) {
+    await restoreImageEditState(original)
+    return result
+  }
+  // 5. Restore state if needed
+  await restoreImageEditState(original)
+  return result
+}
+
+// --- Async workflow helpers ---
+
+async function prepareImageEditInput(
+  _args: Record<string, unknown>,
+  messages?: ModelMessage[],
+): Promise<{ sourceImageUrl: string | null; error?: string }> {
   let sourceImageUrl: string | null = null
   if (messages) {
-    // Prefer the latest generated image
     sourceImageUrl = findLatestGeneratedImage(messages)
-    // Fallback to latest uploaded image if no generated image found
     if (!sourceImageUrl) {
       const imagePart = findLatestImageInMessages(messages)
       if (imagePart?.data) {
         try {
           sourceImageUrl = await convertFilePartDataToUrl(imagePart.data)
-        } catch (error) {
-          console.error('[comfyUiImageEdit Tool] Failed to convert image data:', error)
+        } catch (_err) {
+          return { sourceImageUrl: null, error: 'No image found in the conversation. Please upload an image or generate one first.' }
         }
       }
     }
-    // If neither found, return error
     if (!sourceImageUrl) {
-      return {
-        success: false,
-        message:
-          'No image found in the conversation. Please upload an image or generate one first.',
-        images: [],
-      }
+      return { sourceImageUrl: null, error: 'No image found in the conversation. Please upload an image or generate one first.' }
     }
   }
-  // (In future steps, pass sourceImageUrl to executeComfyGeneration if needed)
-  return executeComfyGeneration(args) as Promise<ComfyUiImageEditToolOutput>
+  return { sourceImageUrl }
+}
+
+async function triggerImageEditWorkflow(
+  params: Record<string, unknown>,
+): Promise<{ imageIds: string[]; triggerError?: string }> {
+  try {
+    const imageGeneration = useImageGenerationPresets()
+    // Use batchSize or default to 1
+    const batchSize = typeof params.batchSize === 'number' ? params.batchSize : 1
+    const imageIds: string[] = Array.from({ length: batchSize }, () => crypto.randomUUID())
+    // Set up the workflow parameters
+    // (Assume prompt, negativePrompt, inferenceSteps, seed, etc. are set by caller)
+    // Trigger the workflow
+    await imageGeneration.generate('imageEdit', params.sourceImageUrl as string)
+    return { imageIds }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to trigger workflow.'
+    return { imageIds: [], triggerError: errorMsg }
+  }
+}
+
+async function waitForImageEditCompletion(imageIds: string[], timeoutMs = 60000): Promise<ComfyUiImageEditToolOutput> {
+  const imageGeneration = useImageGenerationPresets()
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      stopWatcher()
+      resolve({
+        success: false,
+        message: 'Timeout waiting for image edit result.',
+        images: [],
+      })
+    }, timeoutMs)
+
+    function checkCompletion() {
+      const completed = imageGeneration.generatedImages.filter(
+        (item) =>
+          imageIds.includes(item.id) &&
+          item.state === 'done' &&
+          item.type === 'image' &&
+          'imageUrl' in item &&
+          !!(item as { imageUrl: string }).imageUrl,
+      )
+      if (completed.length >= imageIds.length) {
+        clearTimeout(timeout)
+        stopWatcher()
+        resolve({
+          success: true,
+          images: completed.map((item) => ({
+            id: item.id,
+            type: 'image' as const,
+            imageUrl: (item as { imageUrl: string }).imageUrl,
+            mode: 'imageGen' as const,
+            settings: item.settings || {},
+          })),
+        })
+      }
+    }
+
+    checkCompletion()
+    const stopWatcher = watch(
+      () => imageGeneration.generatedImages.map((img) => img.state),
+      checkCompletion,
+      { deep: true },
+    )
+  })
+}
+
+interface ImageEditOriginalState {
+  prompt: string
+  negativePrompt: string
+  inferenceSteps: number
+  width: number
+  height: number
+  seed: number
+  batchSize: number
+  presetName: string | null
+  variant: string | null
+}
+
+function getCurrentImageEditState(): ImageEditOriginalState {
+  const imageGeneration = useImageGenerationPresets()
+  const presets = usePresets()
+  return {
+    prompt: imageGeneration.prompt,
+    negativePrompt: imageGeneration.negativePrompt,
+    inferenceSteps: imageGeneration.inferenceSteps,
+    width: imageGeneration.width,
+    height: imageGeneration.height,
+    seed: imageGeneration.seed,
+    batchSize: imageGeneration.batchSize,
+    presetName: presets.activePresetName,
+    variant: presets.activePresetName ? presets.activeVariantName[presets.activePresetName] : null,
+  }
+}
+
+async function restoreImageEditState(original: ImageEditOriginalState): Promise<void> {
+  const imageGeneration = useImageGenerationPresets()
+  imageGeneration.prompt = original.prompt
+  imageGeneration.negativePrompt = original.negativePrompt
+  imageGeneration.inferenceSteps = original.inferenceSteps
+  imageGeneration.width = original.width
+  imageGeneration.height = original.height
+  imageGeneration.seed = original.seed
+  imageGeneration.batchSize = original.batchSize
+  if (original.presetName) {
+    const presetSwitching = usePresetSwitching()
+    await presetSwitching.switchPreset(original.presetName, {
+      variant: original.variant ?? undefined,
+      skipModeSwitch: true,
+      skipLastUsedUpdate: true,
+    })
+  }
 }
 
 function getToolDefinition() {
