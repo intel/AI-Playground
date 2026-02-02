@@ -12,8 +12,7 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
-import { comfyUI } from '../tools/comfyUi'
-import { visualizeObjectDetections } from '../tools/visualizeObjectDetections'
+import { availableTools } from '../tools/tools'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
 import * as toast from '../toast'
@@ -164,10 +163,7 @@ export const useOpenAiCompatibleChat = defineStore(
         includeRawChunks: true,
         ...(shouldEnableTools
           ? {
-              tools: {
-                comfyUI,
-                visualizeObjectDetections,
-              },
+              tools: availableTools,
             }
           : {}),
         onChunk: (chunk) => {
