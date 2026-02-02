@@ -3,18 +3,50 @@ import { tool } from 'ai'
 import { executeComfyGeneration } from './comfyUi'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { DEFAULT_RESOLUTION_CONFIG, getResolutionsFromConfig } from '../store/imageGenerationUtils'
+import type { FilePart, ModelMessage } from 'ai'
 
-// Global defaults as fallback (matching imageGenerationPresets.ts)
-const globalDefaultSettings = {
-  prompt: '',
-  seed: -1,
-  inferenceSteps: 6,
-  width: 512,
-  height: 512,
-  resolution: '512x512',
-  batchSize: 1,
-  negativePrompt: 'nsfw',
-  safetyCheck: true,
+function findLatestGeneratedImage(messages: ModelMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.role === 'tool' && Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (
+          part.type === 'tool-result' &&
+          (part.toolName === 'comfyUI' || part.toolName === 'imageEdit')
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const partAny = part as any
+          const result = partAny.output ?? partAny.result
+          if (result?.images?.length) {
+            const image = result.images.find(
+              (img: { type?: string; imageUrl?: string }) => img.type === 'image' && img.imageUrl,
+            )
+            if (image?.imageUrl) return image.imageUrl
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
+function findLatestImageInMessages(messages: ModelMessage[]): FilePart | null {
+  return (
+    messages
+      .filter((msg) => Array.isArray(msg.content))
+      .flatMap((msg) => msg.content as Array<{ type: string; mediaType?: string }>)
+      .findLast(
+        (part): part is FilePart =>
+          part.type === 'file' && part.mediaType?.startsWith('image/') === true,
+      ) || null
+  )
+}
+
+async function convertFilePartDataToUrl(data: FilePart['data']): Promise<string> {
+  if (typeof data === 'string' && data.startsWith('data:image/')) {
+    return data
+  }
+  throw new Error('Only data URL images are supported')
 }
 
 // Helper function to get available workflows for the tool
@@ -128,22 +160,48 @@ export const ComfyUiImageEditToolOutputSchema = z
 
 export type ComfyUiImageEditToolOutput = z.infer<typeof ComfyUiImageEditToolOutputSchema>
 
-export async function executeComfyUiImageEdit(args: {
-  workflow?: string
-  variant?: string
-  prompt: string
-  negativePrompt?: string
-  aspectRatio?: string
-  megapixels?: string
-  resolution?: string
-  inferenceSteps?: number
-  seed?: number
-  batchSize?: number
-}): Promise<ComfyUiImageEditToolOutput> {
-  // This is a direct copy of executeComfyGeneration, but you can customize for image editing logic if needed
-  // For now, it behaves identically to comfyUi
-  // You may want to add image editing-specific logic here in the future
-
+export async function executeComfyUiImageEdit(
+  args: {
+    workflow?: string
+    variant?: string
+    prompt: string
+    negativePrompt?: string
+    aspectRatio?: string
+    megapixels?: string
+    resolution?: string
+    inferenceSteps?: number
+    seed?: number
+    batchSize?: number
+  },
+  messages?: ModelMessage[],
+): Promise<ComfyUiImageEditToolOutput> {
+  // Step 1: Robust image extraction logic
+  let sourceImageUrl: string | null = null
+  if (messages) {
+    // Prefer the latest generated image
+    sourceImageUrl = findLatestGeneratedImage(messages)
+    // Fallback to latest uploaded image if no generated image found
+    if (!sourceImageUrl) {
+      const imagePart = findLatestImageInMessages(messages)
+      if (imagePart?.data) {
+        try {
+          sourceImageUrl = await convertFilePartDataToUrl(imagePart.data)
+        } catch (error) {
+          console.error('[comfyUiImageEdit Tool] Failed to convert image data:', error)
+        }
+      }
+    }
+    // If neither found, return error
+    if (!sourceImageUrl) {
+      return {
+        success: false,
+        message:
+          'No image found in the conversation. Please upload an image or generate one first.',
+        images: [],
+      }
+    }
+  }
+  // (In future steps, pass sourceImageUrl to executeComfyGeneration if needed)
   return executeComfyGeneration(args) as Promise<ComfyUiImageEditToolOutput>
 }
 
@@ -345,20 +403,29 @@ export const comfyUiImageEdit = tool({
     return getToolDefinition().inputSchema
   },
   outputSchema: ComfyUiImageEditToolOutputSchema,
-  execute: async (args: {
-    workflow?: string
-    variant?: string
-    prompt: string
-    negativePrompt?: string
-    aspectRatio?: string
-    megapixels?: string
-    resolution?: string
-    inferenceSteps?: number
-    seed?: number
-    batchSize?: number
-  }) => {
-    const result = await executeComfyUiImageEdit(args)
+  execute: async (
+    args: {
+      workflow?: string
+      variant?: string
+      prompt: string
+      negativePrompt?: string
+      aspectRatio?: string
+      megapixels?: string
+      resolution?: string
+      inferenceSteps?: number
+      seed?: number
+      batchSize?: number
+    },
+    { messages }: { messages: ModelMessage[] },
+  ) => {
+    const result = await executeComfyUiImageEdit(args, messages)
     console.log('### comfyUiImageEdit.execute', args, result)
     return result
+  },
+  toModelOutput: () => {
+    return {
+      type: 'text',
+      value: 'Image edit completed and visualized in chat.'
+    }
   },
 })
