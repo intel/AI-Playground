@@ -175,7 +175,7 @@ const imageGeneration = useImageGenerationPresets()
 // Track which images are NSFW blocked
 const nsfwBlockedImages = ref<Set<string>>(new Set())
 
-const nonQueuedImagesReversed = computed(() =>
+const nonQueuedImages = computed(() =>
   imageGeneration.generatedImages
     .filter((i) => i.state !== 'queued' && i.mode === props.mode)
     .slice()
@@ -185,7 +185,14 @@ const nonQueuedImagesReversed = computed(() =>
 const imagesByDay = computed(() => {
   const groups = new Map<string, { label: string; images: MediaItem[] }>()
 
-  for (const image of nonQueuedImagesReversed.value) {
+  const imagesNewestFirst = [...nonQueuedImages.value].sort((a, b) => {
+    const getSortDate = (item: MediaItem) => {
+      return (item.createdAt ?? item.state === 'generating') ? Date.now() : 0
+    }
+    return getSortDate(b) - getSortDate(a)
+  })
+
+  for (const image of imagesNewestFirst) {
     const dateKey = new Date(image.createdAt ?? Date.now()).toDateString()
     const label = getDayLabel(image.createdAt)
 
@@ -215,7 +222,7 @@ function getDayLabel(timestamp?: number): string {
 
 // Check new images for NSFW blocking
 watch(
-  nonQueuedImagesReversed,
+  nonQueuedImages,
   async (images) => {
     for (const image of images) {
       if (
@@ -266,7 +273,7 @@ function reloadImage(image: MediaItem) {
 
 const showNewEntryPlaceholder = computed(() => {
   if (props.mode !== 'imageGen') return false
-  if (nonQueuedImagesReversed.value.length === 0) return true
+  if (nonQueuedImages.value.length === 0) return true
   return (
     imageGeneration.selectedGeneratedImageId === null ||
     imageGeneration.selectedGeneratedImageId === 'new'
