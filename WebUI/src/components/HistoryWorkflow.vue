@@ -178,7 +178,6 @@ const nsfwBlockedImages = ref<Set<string>>(new Set())
 const nonQueuedImages = computed(() =>
   imageGeneration.generatedImages
     .filter((i) => i.state !== 'queued' && i.mode === props.mode)
-    .slice()
     .reverse(),
 )
 

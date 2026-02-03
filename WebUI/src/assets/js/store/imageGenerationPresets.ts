@@ -614,7 +614,7 @@ export const useImageGenerationPresets = defineStore(
       debug: true,
       pick: ['settingsPerPreset', 'comfyInputsPerPreset', 'generatedImages'],
       serializer: {
-        // Custom serializer to filter out large data URIs from persistence
+        // Custom serializer to filter out large data URIs and incomplete images from persistence
         serialize: (state) => {
           if (!state.comfyInputsPerPreset) return JSON.stringify(state)
           const comfyInputsPerPreset = state.comfyInputsPerPreset as Record<
@@ -633,9 +633,13 @@ export const useImageGenerationPresets = defineStore(
                 ),
               ),
             ])
+          const imagesToPersist = Array.isArray(state.generatedImages)
+            ? state.generatedImages.filter((img) => img && img.state === 'done')
+            : state.generatedImages
           return JSON.stringify({
             ...state,
             comfyInputsPerPreset: filteredInputs,
+            generatedImages: imagesToPersist,
           })
         },
         deserialize: (value) => JSON.parse(value),
