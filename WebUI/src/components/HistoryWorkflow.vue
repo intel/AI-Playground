@@ -17,7 +17,7 @@
     <!-- Generated Images, grouped by day -->
     <template v-if="imagesByDay.length > 0">
       <template v-for="imageGroup in imagesByDay" :key="imageGroup.dateKey">
-        <details :open="true" class="group/details">
+        <details :open="isGroupInitiallyOpen(imageGroup.dateKey)" class="group/details">
           <summary
             class="flex flex-col gap-2 py-2 cursor-pointer hover:bg-muted/50 rounded transition-colors select-none list-none"
           >
@@ -217,6 +217,11 @@ function getDayLabel(timestamp?: number): string {
   if (date.toDateString() === today.toDateString()) return 'Today'
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function isGroupInitiallyOpen(dateKey: string): boolean {
+  const today = new Date().toDateString()
+  return dateKey === today
 }
 
 // Check new images for NSFW blocking
