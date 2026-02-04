@@ -98,11 +98,10 @@
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-28">
-                      <DropdownMenuItem @click.stop="reloadImage(image)"> Reload </DropdownMenuItem>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
-                            Delete
+                            Remove
                           </DropdownMenuItem>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -117,7 +116,7 @@
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction @click="() => deleteImage(image)">
-                              {{ languages.COM_DELETE }}
+                              {{ languages.COM_REMOVE }}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -268,11 +267,6 @@ const dragImage = (item: MediaItem | null) => (event: DragEvent) => {
     url = ''
   }
   window.electronAPI.startDrag(url)
-}
-
-// todo: not used
-function reloadImage(image: MediaItem) {
-  console.log('Reloading image:', image.id)
 }
 
 const showNewEntryPlaceholder = computed(() => {

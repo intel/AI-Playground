@@ -23,6 +23,7 @@
   "COM_RESTART": "Yeniden Başlat",
   "COM_START": "Başlat",
   "COM_DELETE": "Sil",
+  "COM_REMOVE": "Kaldır",
   "COM_LOAD_IMAGE": "Resim Yükle",
   "COM_DOWNLOAD_MODEL": "Model İndiriliyor",
   "COM_DOWNLOAD_SPEED": "İndirme Hızı",
