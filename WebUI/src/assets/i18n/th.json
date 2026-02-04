@@ -158,6 +158,8 @@
   "REQUEST_LLM_SINGLE_EXAMPLE": "<namespace>/<repo_name>/<file_path>, ตัวอย่างเช่น 'microsoft/Phi-3-mini-4k-instruct-gguf/Phi-3-mini-4k-instruct-q4.gguf'",
   "REQUEST_LLM_MODEL_DISCLAIMER_1": "โปรดทราบว่าไม่ใช่โมเดลทุกตัวบน huggingface.co ที่เหมาะสมกับการทำงานที่คุณต้องการ",
   "REQUEST_LLM_MODEL_DISCLAIMER_2": "โปรดอ่านคำอธิบายและข้อกำหนดของโมเดลอย่างรอบคอบก่อนดาวน์โหลด",
+  "REQUEST_LLM_VISION_MODEL_OPTIONAL": "โมเดลวิชัน (ตัวเลือก)",
+  "REQUEST_LLM_VISION_MODEL_DESCRIPTION": "ตัวเลือก: เพิ่มส่วนประกอบโมเดลวิชัน (mmproj) สำหรับโมเดลที่รองรับการทำความเข้าใจภาพ",
   "DOWNLOADER_CONFRIM_TIP": "คุณไม่มีโมเดลที่จำเป็นในการทำงาน คุณต้องการดาวน์โหลดโมเดลที่แสดงด้านล่างหรือไม่",
   "DOWNLOADER_MODEL": "โมเดล",
   "DOWNLOADER_INFO": "ข้อมูล",

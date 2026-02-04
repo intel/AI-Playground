@@ -158,6 +158,8 @@
   "REQUEST_LLM_SINGLE_EXAMPLE": "<namespace>/<repo_name>/<file_path>、例：'microsoft/Phi-3-mini-4k-instruct-gguf/Phi-3-mini-4k-instruct-q4.gguf'",
   "REQUEST_LLM_MODEL_DISCLAIMER_1": "注意：Hugging Face上のすべてのモデルが目的のタスクに適しているわけではありません。",
   "REQUEST_LLM_MODEL_DISCLAIMER_2": "ダウンロード前にモデルの説明と要件を慎重に確認してください。",
+  "REQUEST_LLM_VISION_MODEL_OPTIONAL": "ビジョンモデル（オプション）",
+  "REQUEST_LLM_VISION_MODEL_DESCRIPTION": "オプション：画像理解をサポートするモデルのためのビジョンモデルコンポーネント（mmproj）を追加します。",
   "DOWNLOADER_CONFRIM_TIP": "実行に必要なモデルが不足しています。以下のモデルをダウンロードしますか？",
   "DOWNLOADER_MODEL": "モデル",
   "DOWNLOADER_INFO": "情報",

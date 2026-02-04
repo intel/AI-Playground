@@ -158,6 +158,8 @@
   "REQUEST_LLM_SINGLE_EXAMPLE": "<namespace>/<repo_name>/<file_path>, örn. 'microsoft/Phi-3-mini-4k-instruct-gguf/Phi-3-mini-4k-instruct-q4.gguf'",
   "REQUEST_LLM_MODEL_DISCLAIMER_1": "NOT: huggingface.co'daki her model yapmak istediğiniz görev için uygun olmayabilir",
   "REQUEST_LLM_MODEL_DISCLAIMER_2": "İndirmeden önce model açıklamasını ve gereksinimlerini dikkatlice okuyun",
+  "REQUEST_LLM_VISION_MODEL_OPTIONAL": "Görüş Modeli (İsteğe Bağlı)",
+  "REQUEST_LLM_VISION_MODEL_DESCRIPTION": "İsteğe Bağlı: Görüntü anlama destekleyen modeller için görüş modeli bileşeni (mmproj) ekleyin.",
   "DOWNLOADER_CONFRIM_TIP": "Çalıştırmak için gereken bir veya daha fazla model eksik. Aşağıda listelenen model(ler)i indirmek ister misiniz?",
   "DOWNLOADER_MODEL": "Model",
   "DOWNLOADER_INFO": "Bilgi",
