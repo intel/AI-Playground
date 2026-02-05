@@ -8,7 +8,6 @@
   "category": "create-images",
   "requiredCustomNodes": [
     "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed",
-    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [
@@ -288,7 +287,7 @@
         "cuda": false,
         "image": ["25", 0]
       },
-      "class_type": "YetAnotherSafetyChecker",
+      "class_type": "SafetyChecker",
       "_meta": {
         "title": "Intercept NSFW Outputs"
       }

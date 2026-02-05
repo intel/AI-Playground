@@ -8,7 +8,6 @@
   "description": "Extend an image beyond its borders by sizing and positioning an image in a new space, then generate new content around it",
   "requiredCustomNodes": [
     "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
-    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
@@ -29,6 +28,18 @@
           {
             "type": "vae",
             "model": "Lykon/dreamshaper-8-inpainting/vae/diffusion_pytorch_model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
           }
         ],
         "comfyUiApiWorkflow": {
@@ -228,7 +239,7 @@
               "cuda": false,
               "image": ["5", 0]
             },
-            "class_type": "YetAnotherSafetyChecker",
+            "class_type": "SafetyChecker",
             "_meta": {
               "title": "Intercept NSFW Outputs"
             }
@@ -263,6 +274,18 @@
           {
             "type": "inpaint",
             "model": "lllyasviel/fooocus_inpaint/inpaint_v26.fooocus.patch"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
           }
         ],
         "settings": [
@@ -494,7 +517,7 @@
               "cuda": false,
               "image": ["5", 0]
             },
-            "class_type": "YetAnotherSafetyChecker",
+            "class_type": "SafetyChecker",
             "_meta": {
               "title": "Intercept NSFW Outputs"
             }
