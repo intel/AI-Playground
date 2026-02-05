@@ -21,6 +21,7 @@ export type GenerateState =
 
 export type GenerationSettings = Partial<{
   preset: string
+  variant?: string
   device: number
   prompt: string
   seed: number
@@ -177,6 +178,9 @@ export const useImageGenerationPresets = defineStore(
     const getGenerationParameters = (): GenerationSettings => {
       const allSettings = {
         preset: activePreset.value?.name ?? 'unknown',
+        variant: activePreset.value?.name
+          ? (presetsStore.activeVariantName[activePreset.value.name] ?? undefined)
+          : undefined,
         device: 0, // TODO get correct device from backend service
         prompt: prompt.value,
         negativePrompt: negativePrompt.value,
@@ -191,7 +195,7 @@ export const useImageGenerationPresets = defineStore(
       }
       return Object.fromEntries(
         Object.entries(allSettings).filter(([key]) => {
-          if (key === 'preset' || key === 'device') return true
+          if (key === 'preset' || key === 'variant' || key === 'device') return true
           return settingIsRelevant(key)
         }),
       )
@@ -634,7 +638,9 @@ export const useImageGenerationPresets = defineStore(
               ),
             ])
           const imagesToPersist = Array.isArray(state.generatedImages)
-            ? state.generatedImages.filter((img) => img && img.state === 'done')
+            ? state.generatedImages
+                .filter((img) => img && img.state === 'done')
+                .toSorted((a: MediaItem, b: MediaItem) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
             : state.generatedImages
           return JSON.stringify({
             ...state,

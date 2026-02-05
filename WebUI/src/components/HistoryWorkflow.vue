@@ -26,7 +26,7 @@
                 class="w-4 h-4 text-muted-foreground transition-transform group-open/details:-rotate-180 shrink-0"
               />
               <div class="h-px flex-1 bg-border"></div>
-              <span class="text-md text-foreground">
+              <span class="text-sm text-foreground">
                 {{ imageGroup.label }}
               </span>
               <div class="h-px flex-1 bg-border"></div>
@@ -93,7 +93,7 @@
                     {{ truncatePrompt(image.settings.prompt) }}
                   </span>
                   <span v-if="image.createdAt" class="text-xs text-muted-foreground truncate">
-                    {{ new Date(image.createdAt).toLocaleString() }}
+                    {{ formatPresetName(image.settings.preset, image.settings.variant) }}
                   </span>
                 </div>
 
@@ -213,6 +213,11 @@ const imagesByDay = computed(() => {
     images: value.images,
   }))
 })
+
+function formatPresetName(preset?: string, variant?: string): string {
+  if (!preset) return ''
+  return variant ? `${preset} - ${variant}` : preset
+}
 
 function getDayLabel(timestamp?: number): string {
   const date = new Date(timestamp ?? Date.now())
