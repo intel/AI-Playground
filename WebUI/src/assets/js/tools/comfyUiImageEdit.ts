@@ -169,6 +169,7 @@ export async function executeImageEdit(
       findFastVariant(preset) ||
       preset.variants[0].name
   }
+  console.log(`[ComfyUIImageEdit Tool] Using preset "${preset.name}" with variant "${selectedVariant}"`)
 
   if (selectedVariant) presets.setActiveVariant(preset.name, selectedVariant)
   const presetWithVariant = presets.getPresetWithVariant(preset.name)
