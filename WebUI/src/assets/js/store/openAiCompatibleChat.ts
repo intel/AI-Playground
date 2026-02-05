@@ -218,6 +218,12 @@ export const useOpenAiCompatibleChat = defineStore(
             }
           }
         },
+        onToolCall: (toolCall) => {
+          console.log(`[OpenAiCompatibleChat] Calling tool: "${toolCall.toolName}"`, {
+            args: toolCall.args,
+            toolCallId: toolCall.toolCallId,
+          })
+        },
       })
       return result.toUIMessageStreamResponse({
         sendReasoning: true,

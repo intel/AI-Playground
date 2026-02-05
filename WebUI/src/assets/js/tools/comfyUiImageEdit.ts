@@ -115,6 +115,8 @@ export async function executeImageEdit(
   args: ImageEditArgs,
   messages: ModelMessage[],
 ): Promise<ImageEditToolOutput> {
+    console.log('[ComfyUIImageEdit Tool] Starting generation with args:', args)
+
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
