@@ -26,7 +26,7 @@
                 class="w-4 h-4 text-muted-foreground transition-transform group-open/details:-rotate-180 shrink-0"
               />
               <div class="h-px flex-1 bg-border"></div>
-              <span class="text-lg font-bold text-foreground">
+              <span class="text-md text-foreground">
                 {{ imageGroup.label }}
               </span>
               <div class="h-px flex-1 bg-border"></div>
