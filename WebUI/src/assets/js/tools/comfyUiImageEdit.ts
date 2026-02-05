@@ -54,18 +54,27 @@ function findLatestGeneratedImage(messages: ModelMessage[]): string | null {
           part.type === 'tool-result' &&
           (part.toolName === 'comfyUI' || part.toolName === 'comfyUiImageEdit')
         ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const partAny = part as any
-          const result = partAny.output ?? partAny.result
-          const image = result?.images?.find(
-            (img: { type?: string; imageUrl?: string }) => img.type === 'image' && img.imageUrl,
-          )
+          const image = extractImageGenToolResult(part)
           if (image?.imageUrl) return image.imageUrl
         }
       }
     }
   }
   return null
+}
+
+// Helper to extract images from tool result output
+// Handles JSON output structure: { type: "json", value: { images: [...] } }
+function extractImageGenToolResult(part: any): { type?: string; imageUrl?: string } | null {
+  const result = part.output ?? part.result
+  if (!result) return null
+
+  const images = result.type === 'json' ? result.value?.images : null
+  if (!images) return null
+
+  return images.find(
+    (img: { type?: string; imageUrl?: string }) => img.type === 'image' && img.imageUrl,
+  ) ?? null
 }
 
 function findSourceImage(messages: ModelMessage[]): string | null {
@@ -134,6 +143,7 @@ export async function executeImageEdit(
       'No image found in conversation. Please upload an image or generate one first.',
     )
   }
+  console.log('[ComfyUIImageEdit Tool] Found source image URL:', sourceImageUrl)
 
   const comfyUiService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
   if (!comfyUiService || comfyUiService.status !== 'running') {
