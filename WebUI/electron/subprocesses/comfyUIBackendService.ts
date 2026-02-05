@@ -49,7 +49,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       ? []
       : this.settings.comfyUiParameters
         ? this.settings.comfyUiParameters
-        : ['--lowvram', '--disable-ipex-optimize', '--bf16-unet', '--reserve-vram', '6.0']
+        : ['--lowvram']
 
   async serviceIsSetUp(): Promise<boolean> {
     this.appLogger.info(`Checking if comfyUI directories exist`, this.name)

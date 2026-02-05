@@ -52,6 +52,7 @@
         v-if="input.type === 'image' && hasMaskEditing"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
         :image-url-ref="input.current as WritableComputedRef<string>"
+        @image-loaded="handleImageLoaded"
       ></LoadImageWithPreview>
 
       <!--    Image (standard)    -->
@@ -59,6 +60,7 @@
         v-else-if="input.type === 'image'"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
         :image-url-ref="input.current as WritableComputedRef<string>"
+        @image-loaded="handleImageLoaded"
       ></LoadImage>
 
       <!--    Video    -->
@@ -106,21 +108,42 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { Input } from './ui/aipgInput'
-import { LoadImage, LoadImageWithPreview } from '../components/ui/loadImage'
-import { LoadVideo } from '../components/ui/loadVideo'
+import { LoadImage, LoadImageWithPreview } from './ui/loadImage'
+import { LoadVideo } from './ui/loadVideo'
 import { getTranslationLabel } from '@/lib/utils'
-import DropDownNew from '@/components/DropDownNew.vue'
+import DropDownNew from './DropDownNew.vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { usePresets } from '@/assets/js/store/presets'
+import { useI18N } from '@/assets/js/store/i18n'
 import Slider from './ui/slider/Slider.vue'
-import { Label } from './ui/label'
+import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import type { ImageMediaItem } from '@/assets/js/store/imageGenerationPresets'
 
 const imageGeneration = useImageGenerationPresets()
 const dialogStore = useDialogStore()
 const presetsStore = usePresets()
+const i18nState = useI18N().state
+const languages = i18nState
+
+// Handle image loaded event from LoadImage components
+function handleImageLoaded(imageUrl: string) {
+  // Create MediaItem and add to history (same as "Send to Edit")
+  const imageItem: ImageMediaItem = {
+    id: crypto.randomUUID(),
+    type: 'image',
+    mode: 'imageEdit',
+    state: 'done',
+    imageUrl: imageUrl,
+    fromImageGen: true,
+    settings: {},
+  }
+
+  imageGeneration.generatedImages.push(imageItem)
+  imageGeneration.selectedEditedImageId = imageItem.id
+}
 
 // Clear preview state when preset changes
 watch(

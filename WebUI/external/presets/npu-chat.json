@@ -10,7 +10,7 @@
     "openVINO": "OpenVINO/Phi-3.5-mini-instruct-int4-cw-ov"
   },
   "supportedDevices": ["NPU"],
-  "systemPrompt": "You are a helpful AI assistant.",
+  "systemPrompt": "/no_think You are a helpful AI assistant.",
   "contextSize": 4096,
   "maxNewTokens": 1024,
   "requiresNpuSupport": true,
