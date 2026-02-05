@@ -23,6 +23,7 @@
   "COM_RESTART": "重启",
   "COM_START": "启动",
   "COM_DELETE": "删除",
+  "COM_REMOVE": "移除",
   "COM_LOAD_IMAGE": "加载图片",
   "COM_DOWNLOAD_MODEL": "正在下载模型",
   "COM_DOWNLOAD_SPEED": "下载速度",
