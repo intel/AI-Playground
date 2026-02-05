@@ -8,7 +8,6 @@
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
   "requiredCustomNodes": [
     "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
-    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
@@ -32,6 +31,18 @@
     {
       "type": "vae",
       "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
     }
   ],
   "settings": [
@@ -371,7 +382,7 @@
         "cuda": false,
         "image": ["10", 0]
       },
-      "class_type": "YetAnotherSafetyChecker",
+      "class_type": "SafetyChecker",
       "_meta": {
         "title": "Intercept NSFW Outputs"
       }
