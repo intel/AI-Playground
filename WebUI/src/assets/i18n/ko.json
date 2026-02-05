@@ -23,6 +23,7 @@
   "COM_RESTART": "재시작",
   "COM_START": "시작",
   "COM_DELETE": "삭제",
+  "COM_REMOVE": "제거",
   "COM_LOAD_IMAGE": "이미지 로드",
   "COM_DOWNLOAD_MODEL": "모델 다운로드 중",
   "COM_DOWNLOAD_SPEED": "다운로드 속도",

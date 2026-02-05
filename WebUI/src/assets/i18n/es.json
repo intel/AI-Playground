@@ -23,6 +23,7 @@
   "COM_RESTART": "Reiniciar",
   "COM_START": "Iniciar",
   "COM_DELETE": "Eliminar",
+  "COM_REMOVE": "Eliminar",
   "COM_LOAD_IMAGE": "Cargar imagen",
   "COM_DOWNLOAD_MODEL": "Descargar modelo",
   "COM_DOWNLOAD_SPEED": "Velocidad de descarga",

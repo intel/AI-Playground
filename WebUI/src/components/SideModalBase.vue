@@ -19,10 +19,12 @@
               '!hidden 2xl:!inline-block',
               side === 'left' ? 'i-arrow-left' : 'i-arrow-right',
             ]"
+            :title="languages.COM_CLOSE"
           />
           <button
             @click="$emit('close')"
             :class="['svg-icon i-close w-6 h-6', '!inline-block 2xl:!hidden']"
+            :title="languages.COM_CLOSE"
           />
         </div>
       </div>

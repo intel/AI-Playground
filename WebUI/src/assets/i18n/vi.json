@@ -23,6 +23,7 @@
   "COM_RESTART": "Khởi động lại",
   "COM_START": "Bắt đầu",
   "COM_DELETE": "Xóa",
+  "COM_REMOVE": "Xóa",
   "COM_LOAD_IMAGE": "Tải hình ảnh",
   "COM_DOWNLOAD_MODEL": "Tải về mô hình",
   "COM_DOWNLOAD_SPEED": "Tốc độ tải về",
