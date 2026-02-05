@@ -83,9 +83,16 @@
                   </div>
                 </div>
 
-                <!-- Date display -->
-                <div v-if="image.createdAt" class="flex flex-col flex-1 min-w-0">
-                  <span class="text-xs text-muted-foreground truncate">
+                <!-- Prompt and date display -->
+                <div class="flex flex-col flex-1 min-w-0 gap-1">
+                  <span
+                    v-if="image.settings.prompt"
+                    class="text-sm text-foreground truncate"
+                    :title="image.settings.prompt"
+                  >
+                    {{ truncatePrompt(image.settings.prompt) }}
+                  </span>
+                  <span v-if="image.createdAt" class="text-xs text-muted-foreground truncate">
                     {{ new Date(image.createdAt).toLocaleString() }}
                   </span>
                 </div>
@@ -216,6 +223,11 @@ function getDayLabel(timestamp?: number): string {
   if (date.toDateString() === today.toDateString()) return 'Today'
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function truncatePrompt(prompt: string, maxLength: number = 50): string {
+  if (prompt.length <= maxLength) return prompt
+  return prompt.substring(0, maxLength) + '...'
 }
 
 function isGroupInitiallyOpen(dateKey: string): boolean {
