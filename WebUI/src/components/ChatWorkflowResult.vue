@@ -43,8 +43,25 @@
           :draggable="currentImage && !is3D(currentImage) ? true : false"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
+          <!-- Modern placeholder for queued/generating images without preview (exclude stopped) -->
+          <div
+            v-if="
+              currentImage &&
+              currentImage.type === 'image' &&
+              currentImage.state !== 'stopped' &&
+              (currentImage.state === 'queued' || currentImage.state === 'generating') &&
+              !hasValidImageUrl(currentImage)
+            "
+            class="flex items-center justify-center bg-gradient-to-br from-accent/30 to-muted/20 min-w-[400px] min-h-[300px] rounded-sm"
+          >
+            <div class="flex flex-col items-center justify-center gap-4">
+              <Spinner class="w-16 h-16 text-primary/40" />
+            </div>
+          </div>
           <img
-            v-if="currentImage && currentImage.type === 'image'"
+            v-else-if="
+              currentImage && currentImage.type === 'image' && hasValidImageUrl(currentImage)
+            "
             class="object-contain shadow-black/40 shadow-md rounded-sm border-3 border-background"
             :src="currentImage.imageUrl"
           />
@@ -75,24 +92,15 @@
             :text="loadingStateToText(currentState as string)"
             class="w-3/4"
           ></loading-bar>
-          <div
-            v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
-            class="flex gap-2 items-center justify-center text-foreground bg-background/50 py-6 px-12 rounded-lg"
-          >
-            <span class="svg-icon i-loading w-8 h-8"></span>
-            <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-              stepText || 'Generating...'
-            }}</span>
-          </div>
-          <div
-            v-else
-            class="flex gap-2 items-center justify-center text-foreground bg-background/50 py-6 px-12 rounded-lg"
-          >
-            <span class="svg-icon i-loading w-8 h-8"></span>
-            <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-              stepText || 'Preparing...'
-            }}</span>
-          </div>
+          <ImageGenerationProgress
+            v-else-if="
+              currentImage &&
+              currentImage.state !== 'stopped' &&
+              (currentImage.state === 'generating' || currentImage.state === 'queued')
+            "
+            :step-text="stepText || 'Generating...'"
+          />
+          <ImageGenerationProgress v-else :step-text="stepText || 'Preparing...'" />
         </div>
         <div
           v-show="currentImage && (!(currentImage?.state === 'generating') || !processing)"
@@ -149,6 +157,8 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from './LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
+import ImageGenerationProgress from '@/components/ImageGenerationProgress.vue'
+import { Spinner } from '@/components/ui/spinner'
 import {
   MediaItem,
   isVideo,
@@ -169,6 +179,19 @@ const props = defineProps<Props>()
 const i18nState = useI18N().state
 const languages = i18nState
 const showInfoParams = ref(false)
+
+// Check if imageUrl is the transparent placeholder
+const isPlaceholderUrl = (url: string | undefined): boolean => {
+  if (!url || url.trim() === '') return true
+  const placeholderUrl =
+    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1" height="1"%3E%3C/svg%3E'
+  return url === placeholderUrl
+}
+
+const hasValidImageUrl = (image: MediaItem | null): boolean => {
+  if (!image || image.type !== 'image') return false
+  return !isPlaceholderUrl(image.imageUrl)
+}
 
 // Local state for selected image
 const selectedImageId = ref<string | null>(null)

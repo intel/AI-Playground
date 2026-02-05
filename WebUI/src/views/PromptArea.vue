@@ -98,7 +98,7 @@
             </button>
           </div>
           <div
-            v-if="canAttachFiles"
+            v-if="shouldShowImageUploadButton"
             class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer origin-bottom-left"
             :class="{ 'border-primary bg-primary/10': isOverDropZone }"
           >
@@ -189,11 +189,14 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
-import { mapModeToLabel, downscaleImageTo1MP } from '@/lib/utils.ts'
+import { mapModeToLabel, downscaleImageTo1MP, imageUrlToDataUri } from '@/lib/utils.ts'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
 import { usePromptStore } from '@/assets/js/store/promptArea'
-import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets.ts'
+import {
+  useImageGenerationPresets,
+  type ImageMediaItem,
+} from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import {
   useTextInference,
@@ -250,8 +253,26 @@ const canAttachDocuments = computed(() => {
   return activeChatPreset.value?.enableRAG === true
 })
 
-// Check if any attachments are allowed
-const canAttachFiles = computed(() => canAttachImages.value || canAttachDocuments.value)
+// Should show image upload button (conditional for ComfyUI presets)
+const shouldShowImageUploadButton = computed(() => {
+  const mode = promptStore.getCurrentMode()
+  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+
+  // For ComfyUI modes, only show if preset has required image input
+  if (comfyUiModes.includes(mode)) {
+    if (!imageGeneration.activePreset) return false
+    if (imageGeneration.activePreset.type !== 'comfy') return false
+
+    const hasRequiredImageInput = imageGeneration.comfyInputs.some(
+      (input) => input.type === 'image' && input.optional !== true,
+    )
+
+    return hasRequiredImageInput
+  }
+
+  // For chat mode, use existing logic (vision model + RAG documents)
+  return canAttachImages.value || canAttachDocuments.value
+})
 
 // Get checked RAG documents for display
 const checkedRagDocuments = computed(() => {
@@ -462,18 +483,84 @@ function isDocumentFile(file: File): boolean {
 
 // Get accepted file types based on preset capabilities
 function getAcceptedFileTypes(): string {
-  if (promptStore.getCurrentMode() !== 'chat') return 'image/*'
+  const mode = promptStore.getCurrentMode()
+  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
 
-  const types: string[] = []
-  if (canAttachImages.value) types.push('image/*')
-  if (canAttachDocuments.value) types.push('.txt,.doc,.docx,.md,.pdf')
+  // For ComfyUI modes with image input, only accept images
+  if (comfyUiModes.includes(mode) && shouldShowImageUploadButton.value) {
+    return 'image/*'
+  }
 
-  return types.join(',') || 'none'
+  // For chat mode, check capabilities
+  if (mode === 'chat') {
+    const types: string[] = []
+    if (canAttachImages.value) types.push('image/*')
+    if (canAttachDocuments.value) types.push('.txt,.doc,.docx,.md,.pdf')
+
+    return types.join(',') || 'none'
+  }
+
+  // For other modes, default to none
+  return 'none'
+}
+
+// Handle ComfyUI-specific image uploads
+async function handleComfyUIImageUpload(imageFiles: File[]) {
+  if (imageFiles.length === 0) return
+
+  // Take only the first image
+  const imageFile = imageFiles[0]
+  const imageUrl = URL.createObjectURL(imageFile)
+
+  try {
+    // Convert to data URI for ComfyUI
+    const dataUri = await imageUrlToDataUri(imageUrl)
+
+    // Find first image input
+    const firstImageInput = imageGeneration.comfyInputs.find((input) => input.type === 'image')
+
+    if (firstImageInput) {
+      // Set the image input value
+      firstImageInput.current.value = dataUri
+
+      // Create MediaItem and add to history (same as "Send to Edit")
+      const imageItem: ImageMediaItem = {
+        id: crypto.randomUUID(),
+        type: 'image',
+        mode: 'imageEdit',
+        state: 'done',
+        imageUrl: dataUri,
+        sourceImageUrl: imageUrl,
+        fromImageGen: true,
+        settings: {},
+      }
+
+      imageGeneration.generatedImages.push(imageItem)
+      imageGeneration.selectedEditedImageId = imageItem.id
+
+      // Switch to imageEdit mode if not already
+      if (promptStore.getCurrentMode() !== 'imageEdit') {
+        promptStore.setCurrentMode('imageEdit')
+      }
+    }
+  } catch (error) {
+    console.error('Error processing image:', error)
+    toast.error('Failed to load image')
+  } finally {
+    URL.revokeObjectURL(imageUrl)
+  }
 }
 
 // Handle image files with downscaling for chat mode
 async function handleImageFiles(imageFiles: File[]) {
   if (imageFiles.length === 0) return
+
+  // For ComfyUI modes, route to ComfyUI-specific handler
+  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+  if (comfyUiModes.includes(promptStore.getCurrentMode()) && shouldShowImageUploadButton.value) {
+    await handleComfyUIImageUpload(imageFiles)
+    return
+  }
 
   // Downscale images if in chat mode (images are only sent to vision-capable models)
   if (promptStore.getCurrentMode() === 'chat') {
@@ -602,6 +689,20 @@ async function onDrop(files: File[] | null) {
     } else if (isDocumentFile(file) && promptStore.getCurrentMode() === 'chat') {
       documentFiles.push(file)
     }
+  }
+
+  // For ComfyUI modes with image input, only accept images
+  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+  if (comfyUiModes.includes(promptStore.getCurrentMode()) && shouldShowImageUploadButton.value) {
+    // Filter out non-image files
+    if (documentFiles.length > 0) {
+      toast.error('Only images can be uploaded in this mode.')
+    }
+    // Handle images through ComfyUI handler
+    if (imageFiles.length > 0) {
+      await handleImageFiles(imageFiles)
+    }
+    return
   }
 
   // Validate image attachments

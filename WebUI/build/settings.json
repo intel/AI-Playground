@@ -1,12 +1,6 @@
 {
   "debug": false,
-  "comfyUiParameters": [
-    "--lowvram",
-    "--disable-ipex-optimize",
-    "--bf16-unet",
-    "--reserve-vram",
-    "6.0"
-  ],
+  "comfyUiParameters": ["--lowvram"],
   "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "light",
   "isDemoModeEnabled": false

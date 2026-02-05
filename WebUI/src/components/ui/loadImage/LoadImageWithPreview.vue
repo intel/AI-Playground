@@ -95,6 +95,10 @@ const props = defineProps<{
   id: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'imageLoaded', imageUrl: string): void
+}>()
+
 const dialogStore = useDialogStore()
 
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
@@ -162,6 +166,7 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
       inputCurrent.value = e.target.result
       // Clear preview when a new image is loaded
       dialogStore.clearMaskEditorPreview()
+      emit('imageLoaded', e.target.result)
     }
     reader.readAsDataURL(file)
   }

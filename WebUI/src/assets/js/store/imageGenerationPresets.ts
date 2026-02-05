@@ -7,6 +7,7 @@ import { usePresets, type ComfyInput } from './presets'
 import { useUIStore } from './ui'
 import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
+import { imageUrlToDataUri } from '@/lib/utils'
 
 export type GenerateState =
   | 'no_start'
@@ -49,6 +50,7 @@ type BaseMediaItem = {
 
 export type ImageMediaItem = BaseMediaItem & {
   type: 'image'
+  fromImageGen?: boolean
   imageUrl: string
   isNsfwBlocked?: boolean
 }
@@ -307,6 +309,29 @@ export const useImageGenerationPresets = defineStore(
     // Note: Preset/variant changes are now handled by the orchestrator (usePresetSwitching),
     // which calls loadSettingsForActivePreset() explicitly. No watcher needed.
 
+    // Update first image input when selected edited image changes
+    watch(
+      () => selectedEditedImageId.value,
+      (newImageId) => {
+        if (!newImageId || !activePreset.value) return
+
+        // Only update for edit-images or create-videos presets that have image inputs
+        const category = activePreset.value.category
+        if (category !== 'edit-images' && category !== 'create-videos') return
+
+        // Find the selected image (only update if it's a reference image, i.e., mode === 'imageEdit')
+        const image = generatedImages.value.find((img) => img.id === newImageId)
+        if (!image || image.type !== 'image' || !image.fromImageGen) return
+
+        // Update the first image input
+        const currentImageInput = comfyInputs.value.find((input) => input.type === 'image')
+        if (currentImageInput) {
+          currentImageInput.current.value = image.imageUrl
+          console.log('### updated image input from selected reference image', image.id)
+        }
+      },
+    )
+
     // Keep resolution in sync with width/height
     watch(resolution, () => {
       const [w, h] = resolution.value.split('x').map(Number)
@@ -374,6 +399,48 @@ export const useImageGenerationPresets = defineStore(
         getSavedOrDefault('negativePrompt') ?? globalDefaultSettings.negativePrompt
       safetyCheck.value = getSavedOrDefault('safetyCheck') ?? generalDefaultSettings.safetyCheck
       showPreview.value = getSavedOrDefault('showPreview') ?? generalDefaultSettings.showPreview
+
+      // Load currently selected edit image into first dynamic image input
+      let image: MediaItem | undefined
+      console.log(
+        '### loadSettingsForActivePreset',
+        activePreset.value?.category,
+        selectedEditedImageId.value,
+      )
+      if (activePreset.value?.category === 'edit-images' && selectedEditedImageId.value) {
+        image = generatedImages.value.find((img) => img.id === selectedEditedImageId.value)
+      } else if (activePreset.value?.category === 'create-videos') {
+        image = generatedImages.value.find(
+          (img) => img.mode === 'video' && img.type === 'image' && img.fromImageGen,
+        )
+      }
+
+      console.log('### image', image)
+      if (image && image.type === 'image') {
+        const currentImageInput = comfyInputs.value.find((input) => input.type === 'image')
+        if (currentImageInput) {
+          currentImageInput.current.value = image.imageUrl
+          console.log('### loaded image into first dynamic image input', image.id)
+        }
+      }
+    }
+
+    async function copyImageAsInputForMode(image: MediaItem, mode: WorkflowModeType) {
+      const newImage: MediaItem = { ...image, id: crypto.randomUUID() }
+      newImage.mode = mode
+      if (image.type === 'image' && newImage.type === 'image') {
+        // Convert blob URL to base64 data URI for ComfyUI compatibility
+        newImage.sourceImageUrl = image.imageUrl
+        newImage.imageUrl = await imageUrlToDataUri(image.imageUrl)
+        newImage.fromImageGen = true
+      }
+
+      generatedImages.value.push(newImage)
+      if (mode === 'imageEdit') {
+        selectedEditedImageId.value = newImage.id
+      } else if (mode === 'video') {
+        selectedVideoId.value = newImage.id
+      }
     }
 
     function updateImage(newImage: MediaItem) {
@@ -606,6 +673,7 @@ export const useImageGenerationPresets = defineStore(
       settingIsRelevant,
       isModifiable,
       loadSettingsForActivePreset,
+      copyImageAsInputForMode,
     }
   },
   {

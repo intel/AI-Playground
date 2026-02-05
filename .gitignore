@@ -20,7 +20,8 @@ ollama-service/
 env
 llama-cpp-env/
 LlamaCPP/
-OpenVINO/
+OpenVINO/ovms
+OpenVINO/ovms.zip
 *env_tmp/
 *service_tmp/
 *-env/

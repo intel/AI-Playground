@@ -175,6 +175,46 @@ export async function checkIfNsfwBlocked(imageUrl: string): Promise<boolean> {
   })
 }
 
+/**
+ * Checks if a string is a valid base64 data URI for an image.
+ * @param url - The string to check
+ * @returns true if the string is a valid base64 image data URI
+ */
+export function isBase64ImageDataUri(url: string | undefined | null): boolean {
+  if (!url || typeof url !== 'string') return false
+  return /^data:image\/(png|jpeg|webp);base64,/.test(url)
+}
+
+/**
+ * Converts a blob URL (or any image URL) to a base64 data URI.
+ * If the URL is already a base64 data URI, it returns it unchanged.
+ * @param url - The URL to convert (blob:, http:, or data: URL)
+ * @returns A Promise that resolves to a base64 data URI
+ */
+export async function imageUrlToDataUri(url: string): Promise<string> {
+  // If already a base64 data URI, return as-is
+  if (isBase64ImageDataUri(url)) {
+    return url
+  }
+
+  // Fetch the URL and convert to base64
+  const response = await fetch(url)
+  const blob = await response.blob()
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+      } else {
+        reject(new Error('Failed to convert image to data URI'))
+      }
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}
+
 export async function downscaleImageTo1MP(file: File): Promise<File> {
   const MAX_PIXELS = 1_000_000 // 1MP
 
