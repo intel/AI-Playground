@@ -61,7 +61,7 @@
                   />
                   <!-- Modern placeholder for queued/generating images without preview (exclude stopped) -->
                   <div
-                              v-else-if="
+                    v-else-if="
                       image.type === 'image' &&
                       image.state !== 'stopped' &&
                       (image.state === 'queued' || image.state === 'generating') &&
@@ -73,9 +73,9 @@
                   </div>
                   <img
                     v-else-if="image.type === 'image' && hasValidImageUrl(image)"
-                              :src="image.imageUrl"
-                              class="w-full h-full object-cover"
-                            />
+                    :src="image.imageUrl"
+                    class="w-full h-full object-cover"
+                  />
 
                   <!-- Loading overlay for generating images (exclude stopped) -->
                   <div
