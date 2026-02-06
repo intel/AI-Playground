@@ -92,6 +92,29 @@ function findSourceImage(messages: ModelMessage[]): string | null {
   return null
 }
 
+async function convertToDataUri(imageUrl: string): Promise<string> {
+  if (imageUrl.startsWith('data:image/')) {
+    return imageUrl
+  }
+  
+  if (imageUrl.startsWith('aipg-media://')) {
+    console.log('[ComfyUIImageEdit Tool] Converting to data:image/ URI:', imageUrl)
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`)
+    }
+    const blob = await response.blob()
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+  
+  throw new Error(`Unsupported image URL format: ${imageUrl}`)
+}
+
 export function getAvailableEditWorkflows(): Array<{ name: string; description?: string }> {
   const presets = usePresets()
   return presets.presets
@@ -237,6 +260,40 @@ export async function executeImageEdit(
     imageGeneration.seed =
       args.seed ?? imageGeneration.seed ?? (getPresetDefault(preset, 'seed') as number) ?? -1
     imageGeneration.batchSize = 1
+
+    // Set the source image into the appropriate comfyInput
+    // Find the first image input that doesn't have a default value (required input)
+    console.log('[ComfyUIImageEdit Tool] Available comfyInputs:', imageGeneration.comfyInputs.map(input => ({
+      label: input.label,
+      type: input.type,
+      displayed: input.displayed,
+      modifiable: input.modifiable,
+      defaultValue: input.defaultValue,
+      currentValue: input.current.value
+    })))
+    
+    const imageInput = imageGeneration.comfyInputs.find(
+      (input) =>
+        (input.type === 'image' || input.type === 'inpaintMask') &&
+        input.displayed !== false &&
+        input.modifiable !== false &&
+        (input.defaultValue === '' || input.defaultValue === undefined),
+    )
+    
+    console.log('[ComfyUIImageEdit Tool] Found image input:', imageInput)
+
+    if (!imageInput) {
+      await restoreState()
+      return createErrorResult('No suitable image input found in the preset')
+    }
+
+    try {
+      const dataUri = await convertToDataUri(sourceImageUrl)
+      imageInput.current.value = dataUri
+    } catch (error) {
+      await restoreState()
+      return createErrorResult(`Failed to convert source image: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
 
     imageGeneration.updateImage({
       id: imageId,
