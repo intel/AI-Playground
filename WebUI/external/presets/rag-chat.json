@@ -10,7 +10,7 @@
     "openVINO": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "llamaCPP": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf"
   },
-  "systemPrompt": "You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context doesn't contain relevant information, say so.",
+  "systemPrompt": "/no_think You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context doesn't contain relevant information, say so.",
   "contextSize": 8192,
   "maxNewTokens": 2048,
   "filterTxt2TxtOnly": true,

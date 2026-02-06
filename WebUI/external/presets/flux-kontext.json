@@ -7,7 +7,9 @@
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
   "requiredCustomNodes": [
-    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb"
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
+    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
   "requiredModels": [
@@ -108,6 +110,18 @@
       "modifiable": false,
       "defaultValue": true,
       "settingName": "safetyCheck"
+    },
+    {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
     },
     {
       "type": "boolean",
@@ -344,11 +358,33 @@
     "13": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": ["10", 0]
+        "images": ["98", 0]
       },
       "class_type": "SaveImage",
       "_meta": {
         "title": "Save Image"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["10", 0]
+      },
+      "class_type": "YetAnotherSafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
       }
     },
     "14": {

@@ -17,8 +17,25 @@
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
           <!-- eslint-enable -->
+          <!-- Modern placeholder for queued/generating images without preview (exclude stopped) -->
+          <div
+            v-if="
+              currentImage &&
+              currentImage.type === 'image' &&
+              currentImage.state !== 'stopped' &&
+              (currentImage.state === 'queued' || currentImage.state === 'generating') &&
+              !hasValidImageUrl(currentImage)
+            "
+            class="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/30 to-muted/20"
+          >
+            <div class="flex flex-col items-center justify-center gap-4">
+              <Spinner class="w-16 h-16 text-primary/40" />
+            </div>
+          </div>
           <img
-            v-if="currentImage && currentImage.type === 'image'"
+            v-else-if="
+              currentImage && currentImage.type === 'image' && hasValidImageUrl(currentImage)
+            "
             class="w-full h-full object-contain p-2"
             :src="currentImage.imageUrl"
           />
@@ -60,15 +77,14 @@
             :text="loadingStateToText(imageGeneration.currentState)"
             class="w-3/4"
           ></loading-bar>
-          <div
-            v-else-if="currentImage?.state === 'generating' || currentImage?.state === 'queued'"
-            class="flex gap-2 items-center justify-center text-foreground bg-background/50 py-6 px-12 rounded-lg"
-          >
-            <span class="svg-icon i-loading w-8 h-8"></span>
-            <span class="text-2xl tabular-nums" style="min-width: 200px">{{
-              imageGeneration.stepText
-            }}</span>
-          </div>
+          <ImageGenerationProgress
+            v-else-if="
+              currentImage &&
+              currentImage.state !== 'stopped' &&
+              (currentImage.state === 'generating' || currentImage.state === 'queued')
+            "
+            :step-text="imageGeneration.stepText"
+          />
         </div>
         <div
           v-show="
@@ -77,7 +93,11 @@
           class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
         >
           <button
-            v-if="currentImage && currentImage?.state !== 'generating' && props.mode === 'imageGen'"
+            v-if="
+              currentImage &&
+              currentImage?.state !== 'generating' &&
+              (props.mode === 'imageGen' || props.mode === 'imageEdit')
+            "
             @click="postImageToMode(currentImage, 'imageEdit')"
             :title="languages.COM_POST_TO_IMAGE_EDIT"
             class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
@@ -155,6 +175,8 @@ import * as toast from '@/assets/js/toast'
 import * as util from '@/assets/js/util'
 import LoadingBar from '../components/LoadingBar.vue'
 import InfoTable from '@/components/InfoTable.vue'
+import ImageGenerationProgress from '@/components/ImageGenerationProgress.vue'
+import { Spinner } from '@/components/ui/spinner'
 import {
   MediaItem,
   isVideo,
@@ -194,6 +216,19 @@ const currentImage = computed<MediaItem | null>(() => {
     ) ?? null
   )
 })
+
+// Check if imageUrl is the transparent placeholder
+const isPlaceholderUrl = (url: string | undefined): boolean => {
+  if (!url || url.trim() === '') return true
+  const placeholderUrl =
+    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1" height="1"%3E%3C/svg%3E'
+  return url === placeholderUrl
+}
+
+const hasValidImageUrl = (image: MediaItem | null): boolean => {
+  if (!image || image.type !== 'image') return false
+  return !isPlaceholderUrl(image.imageUrl)
+}
 
 // Check if current image is NSFW blocked when it changes
 watch(
@@ -269,15 +304,8 @@ function stopGeneration() {
 }
 
 async function postImageToMode(image: MediaItem, mode: WorkflowModeType) {
+  await imageGeneration.copyImageAsInputForMode(image, mode)
   promptStore.setCurrentMode(mode)
-
-  const mewImage: MediaItem = { ...image }
-  mewImage.mode = mode
-  if (image.type === 'image') {
-    mewImage.sourceImageUrl = image.imageUrl
-  }
-
-  imageGeneration.generatedImages.push(mewImage)
 }
 
 function showParamsDialog() {

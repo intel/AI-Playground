@@ -72,6 +72,10 @@ const props = defineProps<{
   id: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'imageLoaded', imageUrl: string): void
+}>()
+
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
 
 const hasImage = computed(() => {
@@ -124,6 +128,7 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
         return
       }
       inputCurrent.value = e.target.result
+      emit('imageLoaded', e.target.result)
     }
     reader.readAsDataURL(file)
   }
