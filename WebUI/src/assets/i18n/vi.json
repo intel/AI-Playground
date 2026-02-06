@@ -159,6 +159,8 @@
   "REQUEST_LLM_SINGLE_EXAMPLE": "<namespace>/<repo_name>/<file_path>, ví dụ 'microsoft/Phi-3-mini-4k-instruct-gguf/Phi-3-mini-4k-instruct-q4.gguf'",
   "REQUEST_LLM_MODEL_DISCLAIMER_1": "LƯU Ý: Không phải mọi mô hình trên huggingface.co đều phù hợp với tác vụ bạn muốn thực hiện.",
   "REQUEST_LLM_MODEL_DISCLAIMER_2": "Đọc kỹ giới thiệu và yêu cầu của mô hình trước khi tải về.",
+  "REQUEST_LLM_VISION_MODEL_OPTIONAL": "Mô hình thị giác (Tùy chọn)",
+  "REQUEST_LLM_VISION_MODEL_DESCRIPTION": "Tùy chọn: Thêm thành phần mô hình thị giác (mmproj) cho các mô hình hỗ trợ hiểu hình ảnh.",
   "DOWNLOADER_CONFRIM_TIP": "Bạn đang thiếu một hoặc nhiều mô hình cần thiết để chạy. Bạn có muốn tải về các mô hình được liệt kê dưới đây không?",
   "DOWNLOADER_MODEL": "Mô hình",
   "DOWNLOADER_INFO": "Thông tin",
