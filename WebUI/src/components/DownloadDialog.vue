@@ -1,5 +1,5 @@
 <template>
-  <div class="dialog-container z-10">
+  <div class="dialog-container z-50">
     <div
       class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
     >

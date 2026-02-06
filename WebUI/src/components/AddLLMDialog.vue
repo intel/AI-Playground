@@ -1,10 +1,10 @@
 <template>
   <div class="dialog-container z-10">
     <div
-      class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
+      class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55  flex justify-center items-center"
     >
       <div
-        class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-card rounded-3xl gap-6 text-foreground"
+        class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-card shadow-2xl rounded-3xl gap-6 text-foreground"
         :class="{ 'animate-scale-in': animate }"
       >
         <b v-html="i18nState.REQUEST_LLM_MODEL_NAME"></b>
@@ -14,46 +14,88 @@
           <p>{{ i18nState.REQUEST_LLM_MODEL_DISCLAIMER_1 }}</p>
           <p>{{ i18nState.REQUEST_LLM_MODEL_DISCLAIMER_2 }}</p>
         </div>
-        <div class="container flex">
+        <div class="container flex items-center px-0">
+          <Input
+            :placeholder="examplePlaceholder"
+            v-model="modelRequest"
+            @keyup.enter="addModel"
+          ></Input>
           <span
             @mouseover="showInfo = true"
             @mouseout="showInfo = false"
             style="vertical-align: middle"
             class="svg-icon i-info w-7 h-7 px-6"
           ></span>
-          <Input
-            :placeholder="examplePlaceholder"
-            v-model="modelRequest"
-            @keyup.enter="addModel"
-          ></Input>
         </div>
-        <span v-if="showInfo" class="hover-box w-0.6">
+        <span v-if="showInfo" class="absolute bg-background shadow-lg border border-border rounded-lg p-2.5 z-10 w-0.6">
           <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
           <ul>
             <li>{{ exampleModelName }}</li>
           </ul>
         </span>
-        <!-- Vision Model (Optional) -->
-        <div class="w-full flex flex-col gap-2">
-          <Label class="text-sm font-medium">{{
-            i18nState.REQUEST_LLM_VISION_MODEL_OPTIONAL
-          }}</Label>
-          <div class="container flex">
-            <span
-              @mouseover="showVisionInfo = true"
-              @mouseout="showVisionInfo = false"
-              style="vertical-align: middle"
-              class="svg-icon i-info w-7 h-7 px-6"
-            ></span>
-            <Input
-              :placeholder="i18nState.COM_LLM_HF_PROMPT_GGUF"
-              v-model="visionModelRequest"
-              @keyup.enter="addModel"
-            ></Input>
+
+        <!-- Advanced Settings (Optional) -->
+        <div class="w-full flex flex-col gap-3 pt-4 border-t border-border">
+          <p class="text-sm font-medium text-muted-foreground">
+            Specify Model Capabilities (Optional)
+          </p>
+
+          <!-- Capability Checkboxes -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex items-center gap-2">
+              <Checkbox id="vision" v-model="supportsVision" />
+              <Label for="vision">Vision</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox id="tool-calling" v-model="supportsToolCalling" />
+              <Label for="tool-calling">Tool Calling</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox id="reasoning" v-model="supportsReasoning" />
+              <Label for="reasoning">Reasoning</Label>
+            </div>
+            <div v-if="showNpuSupportCheckbox" class="flex items-center gap-2">
+              <Checkbox id="npu-support" v-model="npuSupport" />
+              <Label for="npu-support">NPU Support</Label>
+            </div>
           </div>
-          <span v-if="showVisionInfo" class="hover-box w-0.6">
-            <p v-html="i18nState.REQUEST_LLM_VISION_MODEL_DESCRIPTION"></p>
-          </span>
+
+          <!-- Max Context Size -->
+          <div class="flex flex-col gap-2">
+            <Label class="text-sm font-medium">Max Context Size (tokens)</Label>
+            <Input
+              type="number"
+              v-model="maxContextSize"
+              placeholder="32768"
+              min="1"
+              @keyup.enter="addModel"
+            />
+          </div>
+
+          <!-- Vision Model (Optional) - Disabled when vision is not enabled or backend is not llamaCPP -->
+          <div class="w-full flex flex-col gap-2">
+            <Label class="text-sm font-medium">
+              {{ i18nState.REQUEST_LLM_VISION_MODEL_OPTIONAL }}
+            </Label>
+            <div class="container flex items-center px-0">
+              <Input
+                :placeholder="i18nState.COM_LLM_HF_PROMPT_GGUF"
+                v-model="visionModelRequest"
+                :disabled="!isVisionModelInputEnabled"
+                class="disabled:opacity-50 disabled:cursor-not-allowed"
+                @keyup.enter="addModel"
+              ></Input>
+              <span
+                @mouseover="showVisionInfo = true"
+                @mouseout="showVisionInfo = false"
+                style="vertical-align: middle"
+                class="svg-icon i-info w-7 h-7 px-6"
+              ></span>
+            </div>
+            <span v-if="showVisionInfo" class="absolute bg-background shadow-lg border border-border rounded-lg p-2.5 z-10 w-0.6">
+              <p v-html="i18nState.REQUEST_LLM_VISION_MODEL_DESCRIPTION"></p>
+            </span>
+          </div>
         </div>
         <p v-show="addModelError" style="color: #f44336">{{ addModelErrorMessage }}</p>
         <div class="flex justify-center items-center gap-9">
@@ -70,8 +112,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { Input } from '@/components/ui/aipgInput'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
@@ -87,6 +131,13 @@ const showVisionInfo = ref(false)
 const addModelError = ref(false)
 const animate = ref(false)
 
+// Capability checkboxes
+const supportsVision = ref(false)
+const supportsToolCalling = ref(false)
+const supportsReasoning = ref(false)
+const npuSupport = ref(false)
+const maxContextSize = ref('32768')
+
 const emits = defineEmits<{
   (e: 'close'): void
 }>()
@@ -101,6 +152,14 @@ const examplePlaceholder = computed(() =>
     ? i18nState.COM_LLM_HF_PROMPT_GGUF
     : i18nState.COM_LLM_HF_PROMPT,
 )
+
+// Access backend as a reactive computed to ensure updates
+const currentBackend = computed(() => textInference.backend)
+
+const isVisionModelInputEnabled = computed(() => supportsVision.value && currentBackend.value === 'llamaCPP')
+
+// Show NPU Support checkbox only for OpenVINO backend
+const showNpuSupportCheckbox = computed(() => currentBackend.value === 'openVINO')
 
 const isValidModelName = (name: string) =>
   textInference.backend === 'llamaCPP' ? name.split('/').length >= 3 : name.split('/').length === 2
@@ -155,27 +214,21 @@ async function addModel() {
   addModelError.value = false
 
   const downloadNewModel = async () => {
-    // Automatically detect vision capabilities from mmproj field
-    const hasVisionModel = !!trimmedVisionModelRequest
-
     await models.addModel({
       name: trimmedModelRequest,
       type: textInference.backend,
       backend: textInference.backend,
       downloaded: false,
       mmproj: trimmedVisionModelRequest || undefined,
-      // Automatically mark as vision model if mmproj is provided
-      supportsVision: hasVisionModel ? true : undefined,
-      // Mark as custom model (not predefined) - will only show in advanced mode
+      supportsVision: supportsVision.value || undefined,
+      supportsToolCalling: supportsToolCalling.value || undefined,
+      supportsReasoning: supportsReasoning.value || undefined,
+      npuSupport: npuSupport.value || undefined,
+      maxContextSize: maxContextSize.value ? parseInt(maxContextSize.value, 10) : undefined,
       isPredefined: false,
-      // Use sensible defaults for other capabilities (undefined means unknown)
-      supportsToolCalling: undefined,
-      supportsReasoning: undefined,
-      npuSupport: undefined,
-      maxContextSize: undefined,
     })
     textInference.selectModel(textInference.backend, trimmedModelRequest)
-    await textInference.checkModelAvailability()
+    textInference.checkModelAvailability()
     closeAdd()
   }
 
@@ -187,6 +240,11 @@ function closeAdd() {
   addModelError.value = false
   modelRequest.value = ''
   visionModelRequest.value = ''
+  supportsVision.value = false
+  supportsToolCalling.value = false
+  supportsReasoning.value = false
+  npuSupport.value = false
+  maxContextSize.value = '32768'
   emits('close')
 }
 
@@ -197,13 +255,5 @@ defineExpose({ onShow })
 ul {
   list-style-type: disc;
   padding-left: 20px;
-}
-.hover-box {
-  position: absolute;
-  background-color: rgba(90, 90, 90, 0.91);
-  border: 1px solid #000000;
-  padding: 10px;
-  border-radius: 10px;
-  z-index: 1;
 }
 </style>

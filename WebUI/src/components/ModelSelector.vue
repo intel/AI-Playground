@@ -62,8 +62,25 @@ const items = computed(() => {
       if (requirements.npuSupport && !m.npuSupport) return false
       // Filter out vision and reasoning models for txt2txt only presets
       if (requirements.txt2TxtOnly && (m.supportsVision || m.supportsReasoning)) return false
-      // Only show predefined models unless advancedMode is enabled
-      if (!requirements.advancedMode && !m.isPredefined) return false
+      // Only show predefined models unless advancedMode is enabled OR
+      // custom model explicitly matches the preset's requirements
+      if (!requirements.advancedMode && !m.isPredefined) {
+        // For custom models, only show if they match at least one requirement
+        const hasMatchingRequirement =
+          (requirements.vision && m.supportsVision) ||
+          (requirements.toolCalling && m.supportsToolCalling) ||
+          (requirements.reasoning && m.supportsReasoning) ||
+          (requirements.npuSupport && m.npuSupport)
+
+        // Show basic models in txt2txt presets only if they don't have vision/reasoning
+        const qualifiesForTxt2Txt = requirements.txt2TxtOnly &&
+          !m.supportsVision &&
+          !m.supportsReasoning &&
+          !m.supportsToolCalling &&
+          !m.npuSupport
+
+        if (!hasMatchingRequirement && !qualifiesForTxt2Txt) return false
+      }
       return true
     })
     .filter((m) =>
