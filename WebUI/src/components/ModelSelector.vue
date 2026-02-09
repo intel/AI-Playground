@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { getCurrentInstance } from 'vue'
-import { useBackendServices } from '@/assets/js/store/backendServices'
-import { useTextInference, backendToService } from '@/assets/js/store/textInference'
+import { useTextInference } from '@/assets/js/store/textInference'
 import { usePresets } from '@/assets/js/store/presets'
 import {
   DropdownMenu,
@@ -12,23 +11,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ChevronDownIcon } from '@heroicons/vue/24/solid'
-import { Checkbox } from './ui/checkbox'
 import ModelCapabilities from './ModelCapabilities.vue'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 
-const backendServices = useBackendServices()
 const textInference = useTextInference()
 const presetsStore = usePresets()
-const runningOnOpenvinoNpu = computed(
-  () =>
-    !!backendServices.info
-      .find((s) => s.serviceName === backendToService[textInference.backend])
-      ?.devices.find((d) => d.selected)
-      ?.id.includes('NPU'),
-)
-const showOnlyCompatible = ref(true)
 
 const value = computed(
   () =>
@@ -83,9 +72,6 @@ const items = computed(() => {
       }
       return true
     })
-    .filter((m) =>
-      runningOnOpenvinoNpu.value && showOnlyCompatible.value ? m.name.includes('cw-ov') : true,
-    )
     .map((item) => ({
       label: item.name.split('/').at(-1) ?? item.name,
       value: item.name,
@@ -149,19 +135,6 @@ watchEffect(() => {
       <DropdownMenuLabel class="text-foreground px-3 py-2 text-sm font-medium">{{
         languages?.SETTINGS_TEXT_INFERENCE_MODEL
       }}</DropdownMenuLabel>
-      <div class="px-3 flex items-center" v-if="runningOnOpenvinoNpu">
-        <Checkbox
-          id="showOnlyCompatible"
-          :model-value="showOnlyCompatible"
-          :onclick="() => (showOnlyCompatible = !showOnlyCompatible)"
-        />
-        <label
-          for="showOnlyCompatible"
-          class="px-2 text-xs font-light leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          {{ languages?.SETTINGS_TEXT_INFERENCE_NPU_ONLY }}
-        </label>
-      </div>
       <DropdownMenuSeparator class="bg-border" />
       <div class="py-1">
         <DropdownMenuItem

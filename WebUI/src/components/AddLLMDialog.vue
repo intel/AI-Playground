@@ -72,8 +72,8 @@
             />
           </div>
 
-          <!-- Vision Model (Optional) - Disabled when vision is not enabled or backend is not llamaCPP -->
-          <div class="w-full flex flex-col gap-2">
+          <!-- Vision Model (Optional) - Only shown when vision is enabled and backend is llamaCPP -->
+          <div v-if="isVisionModelInputEnabled" class="w-full flex flex-col gap-2">
             <Label class="text-sm font-medium">
               {{ i18nState.REQUEST_LLM_VISION_MODEL_OPTIONAL }}
             </Label>
@@ -81,8 +81,6 @@
               <Input
                 :placeholder="i18nState.COM_LLM_HF_PROMPT_GGUF"
                 v-model="visionModelRequest"
-                :disabled="!isVisionModelInputEnabled"
-                class="disabled:opacity-50 disabled:cursor-not-allowed"
                 @keyup.enter="addModel"
               ></Input>
               <span
