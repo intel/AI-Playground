@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { getCurrentInstance } from 'vue'
-import { useBackendServices } from '@/assets/js/store/backendServices'
-import { useTextInference, backendToService } from '@/assets/js/store/textInference'
+import { useTextInference } from '@/assets/js/store/textInference'
 import { usePresets } from '@/assets/js/store/presets'
 import {
   DropdownMenu,
@@ -12,23 +11,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ChevronDownIcon } from '@heroicons/vue/24/solid'
-import { Checkbox } from './ui/checkbox'
 import ModelCapabilities from './ModelCapabilities.vue'
 
 const instance = getCurrentInstance()
 const languages = instance?.appContext.config.globalProperties.languages
 
-const backendServices = useBackendServices()
 const textInference = useTextInference()
 const presetsStore = usePresets()
-const runningOnOpenvinoNpu = computed(
-  () =>
-    !!backendServices.info
-      .find((s) => s.serviceName === backendToService[textInference.backend])
-      ?.devices.find((d) => d.selected)
-      ?.id.includes('NPU'),
-)
-const showOnlyCompatible = ref(true)
 
 const value = computed(
   () =>
@@ -62,13 +51,28 @@ const items = computed(() => {
       if (requirements.npuSupport && !m.npuSupport) return false
       // Filter out vision and reasoning models for txt2txt only presets
       if (requirements.txt2TxtOnly && (m.supportsVision || m.supportsReasoning)) return false
-      // Only show predefined models unless advancedMode is enabled
-      if (!requirements.advancedMode && !m.isPredefined) return false
+      // Only show predefined models unless advancedMode is enabled OR
+      // custom model explicitly matches the preset's requirements
+      if (!requirements.advancedMode && !m.isPredefined) {
+        // For custom models, only show if they match at least one requirement
+        const hasMatchingRequirement =
+          (requirements.vision && m.supportsVision) ||
+          (requirements.toolCalling && m.supportsToolCalling) ||
+          (requirements.reasoning && m.supportsReasoning) ||
+          (requirements.npuSupport && m.npuSupport)
+
+        // Show basic models in txt2txt presets only if they don't have vision/reasoning
+        const qualifiesForTxt2Txt =
+          requirements.txt2TxtOnly &&
+          !m.supportsVision &&
+          !m.supportsReasoning &&
+          !m.supportsToolCalling &&
+          !m.npuSupport
+
+        if (!hasMatchingRequirement && !qualifiesForTxt2Txt) return false
+      }
       return true
     })
-    .filter((m) =>
-      runningOnOpenvinoNpu.value && showOnlyCompatible.value ? m.name.includes('cw-ov') : true,
-    )
     .map((item) => ({
       label: item.name.split('/').at(-1) ?? item.name,
       value: item.name,
@@ -132,19 +136,6 @@ watchEffect(() => {
       <DropdownMenuLabel class="text-foreground px-3 py-2 text-sm font-medium">{{
         languages?.SETTINGS_TEXT_INFERENCE_MODEL
       }}</DropdownMenuLabel>
-      <div class="px-3 flex items-center" v-if="runningOnOpenvinoNpu">
-        <Checkbox
-          id="showOnlyCompatible"
-          :model-value="showOnlyCompatible"
-          :onclick="() => (showOnlyCompatible = !showOnlyCompatible)"
-        />
-        <label
-          for="showOnlyCompatible"
-          class="px-2 text-xs font-light leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          {{ languages?.SETTINGS_TEXT_INFERENCE_NPU_ONLY }}
-        </label>
-      </div>
       <DropdownMenuSeparator class="bg-border" />
       <div class="py-1">
         <DropdownMenuItem
