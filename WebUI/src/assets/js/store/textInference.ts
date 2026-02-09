@@ -863,8 +863,15 @@ export const useTextInference = defineStore(
             await getDownloadParamsForCurrentModelIfRequired('embedding')
           requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
         }
-        if (requiredModelDownloads.length > 0) {
-          dialogStore.showDownloadDialog(requiredModelDownloads, resolve, reject)
+
+        // Deduplicate download list by repo_id to prevent the same model from appearing multiple times
+        const uniqueDownloads = requiredModelDownloads.filter(
+          (download, index, self) =>
+            index === self.findIndex((d) => d.repo_id === download.repo_id),
+        )
+
+        if (uniqueDownloads.length > 0) {
+          dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
         } else {
           resolve()
         }

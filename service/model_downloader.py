@@ -17,6 +17,7 @@ from huggingface_hub import HfFileSystem, hf_hub_url, model_info
 from psutil._common import bytes2human
 
 import utils
+from utils import is_specific_file_reference
 from exceptions import DownloadException
 
 model_list_cache = dict()
@@ -32,8 +33,7 @@ class HFFileItem:
         self.size = size
         self.url = url
 
-
-class HFDonloadItem:
+class HFDownloadItem:
     name: str
     size: int
     url: str
@@ -68,7 +68,7 @@ def getTmpPath(repo_id: str):
 
 class HFPlaygroundDownloader:
     fs: HfFileSystem
-    file_queue: queue.Queue[HFDonloadItem]
+    file_queue: queue.Queue[HFDownloadItem]
     total_size: int
     download_size: int
     prev_sec_download_size: int
@@ -126,8 +126,8 @@ class HFPlaygroundDownloader:
         cache_item = model_list_cache.get(key)
         if cache_item is None:
             file_list = list()
-            self.enum_file_list(file_list, repo_id, model_type)
-            model_list_cache.__setitem__(key, {"size": self.total_size, "queue": self.file_queue})
+            self.populate_file_list(file_list, repo_id, model_type)
+            model_list_cache.__setitem__(key, {"size": self.total_size, "queue": file_list})
         else:
             self.total_size = cache_item["size"]
             file_list: list = cache_item["queue"]
@@ -139,7 +139,7 @@ class HFPlaygroundDownloader:
             raise NotEnoughDiskSpaceException(
                 self.total_size - self.download_size, usage.free
             )
-        self.multiple_thread_downlod(thread_count)
+        self.multiple_thread_download(thread_count)
 
     def build_queue(self, file_list: list[HFFileItem]):
         for file in file_list:
@@ -150,7 +150,7 @@ class HFPlaygroundDownloader:
                 # if local file size less thand network file size download it, else skip it!
                 if local_file_size < file.size:
                     self.file_queue.put(
-                        HFDonloadItem(
+                        HFDownloadItem(
                             file.relpath,
                             file.size,
                             file.url,
@@ -160,8 +160,43 @@ class HFPlaygroundDownloader:
                     )
             else:
                 self.file_queue.put(
-                    HFDonloadItem(file.relpath, file.size, file.url, 0, save_filename)
+                    HFDownloadItem(file.relpath, file.size, file.url, 0, save_filename)
                 )
+
+    def enum_specific_file(self, file_list: List, repo_id: str, model_type: str) -> bool:
+        """
+        Enumerate a specific file reference (e.g., namespace/repo/file.gguf).
+        Returns True if the specific file was successfully added, False otherwise.
+        """
+        try:
+            file_info = self.fs.info(repo_id)
+            size = file_info.get('size', 0)
+            self.total_size += size
+
+            relative_path = path.relpath(repo_id, utils.trim_repo(repo_id))
+            subfolder = path.dirname(relative_path).replace("\\", "/")
+            filename = path.basename(relative_path)
+            url = hf_hub_url(
+                repo_id=utils.trim_repo(repo_id), subfolder=subfolder, filename=filename
+            )
+            file_list.append(HFFileItem(relative_path, size, url))
+            return True
+        except Exception as e:
+            print(f"Warning: Failed to get info for specific file {repo_id}: {e}")
+            return False
+
+    def populate_file_list(self, file_list: List, repo_id: str, model_type: str) -> None:
+        """
+        Populate file list with either specific file or directory enumeration.
+        Handles the common pattern of checking if it's a specific file reference,
+        and falling back to directory enumeration if needed.
+        """
+        if is_specific_file_reference(repo_id):
+            specific_file_found = self.enum_specific_file(file_list, repo_id, model_type)
+            if not specific_file_found:
+                self.enum_file_list(file_list, repo_id, model_type)
+        else:
+            self.enum_file_list(file_list, repo_id, model_type)
 
     def get_model_total_size(self, repo_id: str, model_type: str):
         key = f"{repo_id}_{model_type}"
@@ -171,7 +206,8 @@ class HFPlaygroundDownloader:
 
         if item is None:
             file_list = list()
-            self.enum_file_list(file_list, repo_id, model_type)
+            self.populate_file_list(file_list, repo_id, model_type)
+
             with model_lock:
                 model_list_cache.__setitem__(
                     key, {"size": self.total_size, "queue": file_list}
@@ -249,7 +285,7 @@ class HFPlaygroundDownloader:
         new_list.append(first_model)
         return new_list
 
-    def multiple_thread_downlod(self, thread_count: int):
+    def multiple_thread_download(self, thread_count: int):
         self.download_stop = False
         if self.on_download_progress is not None:
             self.prev_sec_download_size = 0
@@ -320,7 +356,7 @@ class HFPlaygroundDownloader:
             self.prev_sec_download_size = self.download_size
             time.sleep(1)
 
-    def init_download(self, file: HFDonloadItem):
+    def init_download(self, file: HFDownloadItem):
         makedirs(path.dirname(file.save_filename), exist_ok=True)
 
         headers = {}
@@ -359,7 +395,7 @@ class HFPlaygroundDownloader:
         )
 
         file_list = list()
-        self.enum_file_list(file_list, repo_id, model_type)
+        self.populate_file_list(file_list, repo_id, model_type)
         self.build_queue(file_list)
         file = self.file_queue.get_nowait()
 

@@ -35,6 +35,9 @@ export const useModels = defineStore(
     const models = ref<Model[]>([])
     const backendServices = useBackendServices()
 
+    // Store custom model metadata (for models not in models.json)
+    const customModelMetadata = ref<Record<string, Partial<Model>>>({})
+
     const downloadList = ref<DownloadModelParam[]>([])
 
     // Model paths - single source of truth for model directory locations
@@ -81,17 +84,29 @@ export const useModels = defineStore(
       ]
         .map<Model>((m) => {
           const predefinedModel = predefinedModels.find((pm) => pm.name === m.name)
+          const existingModel = models.value.find((em) => em.name === m.name)
+          const customMetadata = customModelMetadata.value[m.name]
+
+          // Extract mmproj if present - check in order: model object, existing model, custom metadata
+          const mmproj =
+            'mmproj' in m
+              ? (m.mmproj as string | undefined)
+              : (existingModel?.mmproj ?? customMetadata?.mmproj)
+
+          // Combine model sources with priority: predefined > existing > custom
+          const combinedModel = { ...customMetadata, ...existingModel, ...predefinedModel }
+
           const model: Model = {
             name: m.name,
-            mmproj: 'mmproj' in m ? (m.mmproj as string | undefined) : undefined,
+            mmproj,
             downloaded: downloadedModelNames.has(m.name),
             type: m.type,
-            backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : undefined,
-            supportsToolCalling: predefinedModel?.supportsToolCalling,
-            supportsVision: predefinedModel?.supportsVision,
-            supportsReasoning: predefinedModel?.supportsReasoning,
-            maxContextSize: predefinedModel?.maxContextSize,
-            npuSupport: predefinedModel?.npuSupport,
+            backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : combinedModel.backend,
+            supportsToolCalling: combinedModel.supportsToolCalling,
+            supportsVision: combinedModel.supportsVision ?? (mmproj ? true : undefined),
+            supportsReasoning: combinedModel.supportsReasoning,
+            maxContextSize: combinedModel.maxContextSize,
+            npuSupport: combinedModel.npuSupport,
             isPredefined: !!predefinedModel, // true if model is defined in models.json
           }
           return model
@@ -103,6 +118,18 @@ export const useModels = defineStore(
 
     async function download(_models: DownloadModelParam[]) {}
     async function addModel(model: Model) {
+      // Store metadata for custom models
+      if (!model.isPredefined) {
+        customModelMetadata.value[model.name] = {
+          mmproj: model.mmproj,
+          backend: model.backend,
+          supportsToolCalling: model.supportsToolCalling,
+          supportsVision: model.supportsVision,
+          supportsReasoning: model.supportsReasoning,
+          maxContextSize: model.maxContextSize,
+          npuSupport: model.npuSupport,
+        }
+      }
       models.value.push(model)
       await refreshModels()
     }
@@ -318,7 +345,7 @@ export const useModels = defineStore(
   },
   {
     persist: {
-      pick: ['hfToken'],
+      pick: ['hfToken', 'customModelMetadata'],
     },
   },
 )
