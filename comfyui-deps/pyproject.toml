@@ -1,6 +1,6 @@
 [project]
 name = "aipg-comfyui"
-version = "0.4.0"
+version = "0.10.0"
 requires-python = "==3.12.*"
 dependencies = [
   "addict", 
@@ -10,9 +10,10 @@ dependencies = [
   "av>=14.2.0",
   "chardet",
   "color-matcher",
-  "comfyui-embedded-docs==0.3.1",
-  "comfyui-frontend-package==1.33.13",
-  "comfyui-workflow-templates==0.7.54",
+  "comfy-kitchen>=0.2.7",
+  "comfyui-embedded-docs==0.4.0",
+  "comfyui-frontend-package==1.37.11",
+  "comfyui-workflow-templates==0.8.15",
   "diffusers>=0.35.2",
   "einops",
   "filelock",

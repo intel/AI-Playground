@@ -1,0 +1,934 @@
+{
+  "type": "comfy",
+  "name": "Edit by Prompt 2",
+  "displayPriority": 750,
+  "tags": [
+    "Flux.2-Klein",
+    "maskless",
+    "fast"
+  ],
+  "backend": "comfyui",
+  "category": "edit-images",
+  "description": "Add remove, edit or combine elements into photos description what to change. Uses the Flux2 Klein model.",
+  "requiredCustomNodes": [
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "black-forest-labs/FLUX.2-klein-4b-fp8/flux-2-klein-4b-fp8.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/text_encoders/qwen_3_4b_fp4_flux2.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/vae/flux2-vae.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 4,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "1024x1024",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": false,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Use resolution of first reference image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": false,
+      "nodeTitle": "use_original_resolution",
+      "nodeInput": "a"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (1)",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "image_1",
+      "nodeInput": "image"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (2)",
+      "displayed": true,
+      "modifiable": true,
+      "optional": true,
+      "defaultValue": "",
+      "nodeTitle": "image_2",
+      "nodeInput": "image"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (3)",
+      "displayed": true,
+      "modifiable": true,
+      "optional": true,
+      "defaultValue": "",
+      "nodeTitle": "image_3",
+      "nodeInput": "image"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image (4)",
+      "displayed": true,
+      "modifiable": true,
+      "optional": true,
+      "defaultValue": "",
+      "nodeTitle": "image_4",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "unet_name": "black-forest-labs---FLUX.2-klein-4b-fp8\\flux-2-klein-4b-fp8.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "inputs": {
+        "clip_name": "Comfy-Org---vae-text-encorder-for-flux-klein-4b\\split_files\\text_encoders\\qwen_3_4b_fp4_flux2.safetensors",
+        "type": "flux2",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "3": {
+      "inputs": {
+        "vae_name": "Comfy-Org---vae-text-encorder-for-flux-klein-4b\\split_files\\vae\\flux2-vae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "inputs": {
+        "text": "put the cheese on the chessboard",
+        "clip": [
+          "2",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "5": {
+      "inputs": {
+        "conditioning": [
+          "4",
+          0
+        ]
+      },
+      "class_type": "ConditioningZeroOut",
+      "_meta": {
+        "title": "ConditioningZeroOut"
+      }
+    },
+    "6": {
+      "inputs": {
+        "cfg": 1,
+        "model": [
+          "1",
+          0
+        ],
+        "positive": [
+          "52",
+          0
+        ],
+        "negative": [
+          "53",
+          0
+        ]
+      },
+      "class_type": "CFGGuider",
+      "_meta": {
+        "title": "CFGGuider"
+      }
+    },
+    "7": {
+      "inputs": {
+        "steps": 4,
+        "width": [
+          "30",
+          0
+        ],
+        "height": [
+          "32",
+          0
+        ]
+      },
+      "class_type": "Flux2Scheduler",
+      "_meta": {
+        "title": "Flux2Scheduler"
+      }
+    },
+    "8": {
+      "inputs": {
+        "width": [
+          "30",
+          0
+        ],
+        "height": [
+          "32",
+          0
+        ],
+        "batch_size": 1
+      },
+      "class_type": "EmptyFlux2LatentImage",
+      "_meta": {
+        "title": "EmptyFlux2LatentImage"
+      }
+    },
+    "9": {
+      "inputs": {
+        "noise_seed": 482038
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
+    },
+    "10": {
+      "inputs": {
+        "image": "369312ad2cf2775061606b8b963e6035a5a381b7b44c4fda098f1b2196ca98ea.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "image_1"
+      }
+    },
+    "11": {
+      "inputs": {
+        "image": "bc9b95d56518f5a1bae581992072b01c58749feb5c37d6198a7da377e58dc7a3.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "image_2"
+      }
+    },
+    "12": {
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": 1,
+        "resolution_steps": 1,
+        "image": [
+          "10",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    },
+    "13": {
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": 1,
+        "resolution_steps": 1,
+        "image": [
+          "11",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    },
+    "15": {
+      "inputs": {
+        "pixels": [
+          "12",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode"
+      }
+    },
+    "16": {
+      "inputs": {
+        "pixels": [
+          "13",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode 2"
+      }
+    },
+    "17": {
+      "inputs": {
+        "conditioning": [
+          "4",
+          0
+        ],
+        "latent": [
+          "15",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (positive 1)"
+      }
+    },
+    "18": {
+      "inputs": {
+        "conditioning": [
+          "5",
+          0
+        ],
+        "latent": [
+          "15",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (negative 1)"
+      }
+    },
+    "19": {
+      "inputs": {
+        "conditioning": [
+          "17",
+          0
+        ],
+        "latent": [
+          "16",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (positive 2)"
+      }
+    },
+    "20": {
+      "inputs": {
+        "conditioning": [
+          "18",
+          0
+        ],
+        "latent": [
+          "16",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (negative 2)"
+      }
+    },
+    "21": {
+      "inputs": {
+        "switch": [
+          "36",
+          0
+        ],
+        "on_false": [
+          "17",
+          0
+        ],
+        "on_true": [
+          "19",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image_pos"
+      }
+    },
+    "22": {
+      "inputs": {
+        "switch": [
+          "36",
+          0
+        ],
+        "on_false": [
+          "18",
+          0
+        ],
+        "on_true": [
+          "20",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image_neg"
+      }
+    },
+    "23": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
+    },
+    "24": {
+      "inputs": {
+        "noise": [
+          "9",
+          0
+        ],
+        "guider": [
+          "6",
+          0
+        ],
+        "sampler": [
+          "23",
+          0
+        ],
+        "sigmas": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "25": {
+      "inputs": {
+        "samples": [
+          "24",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "26": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": [
+          "98",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["25", 0]
+      },
+      "class_type": "SafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
+      }
+    },
+    "27": {
+      "inputs": {
+        "a": 1024,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "width"
+      }
+    },
+    "28": {
+      "inputs": {
+        "a": 1024,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "height"
+      }
+    },
+    "30": {
+      "inputs": {
+        "switch": [
+          "31",
+          0
+        ],
+        "on_false": [
+          "27",
+          0
+        ],
+        "on_true": [
+          "33",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_original_resolution_w"
+      }
+    },
+    "31": {
+      "inputs": {
+        "a": false,
+        "b": true,
+        "op": "a AND b"
+      },
+      "class_type": "BoolOperationNode",
+      "_meta": {
+        "title": "use_original_resolution"
+      }
+    },
+    "32": {
+      "inputs": {
+        "switch": [
+          "31",
+          0
+        ],
+        "on_false": [
+          "28",
+          0
+        ],
+        "on_true": [
+          "33",
+          1
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_original_resolution_w"
+      }
+    },
+    "33": {
+      "inputs": {
+        "image": [
+          "10",
+          0
+        ]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "35": {
+      "inputs": {
+        "image": [
+          "11",
+          0
+        ]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "36": {
+      "inputs": {
+        "a": [
+          "35",
+          0
+        ],
+        "b": 1,
+        "operation": ">"
+      },
+      "class_type": "IntConditions",
+      "_meta": {
+        "title": "Int Condition"
+      }
+    },
+    "37": {
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": 1,
+        "resolution_steps": 1,
+        "image": [
+          "41",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    },
+    "38": {
+      "inputs": {
+        "image": [
+          "41",
+          0
+        ]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "39": {
+      "inputs": {
+        "pixels": [
+          "37",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode 2"
+      }
+    },
+    "40": {
+      "inputs": {
+        "a": [
+          "38",
+          0
+        ],
+        "b": 1,
+        "operation": ">"
+      },
+      "class_type": "IntConditions",
+      "_meta": {
+        "title": "Int Condition"
+      }
+    },
+    "41": {
+      "inputs": {
+        "image": "bc9b95d56518f5a1bae581992072b01c58749feb5c37d6198a7da377e58dc7a3.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "image_3"
+      }
+    },
+    "42": {
+      "inputs": {
+        "switch": [
+          "40",
+          0
+        ],
+        "on_false": [
+          "22",
+          0
+        ],
+        "on_true": [
+          "43",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image_neg"
+      }
+    },
+    "43": {
+      "inputs": {
+        "conditioning": [
+          "22",
+          0
+        ],
+        "latent": [
+          "39",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (negative 2)"
+      }
+    },
+    "44": {
+      "inputs": {
+        "conditioning": [
+          "21",
+          0
+        ],
+        "latent": [
+          "39",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (positive 2)"
+      }
+    },
+    "45": {
+      "inputs": {
+        "switch": [
+          "40",
+          0
+        ],
+        "on_false": [
+          "21",
+          0
+        ],
+        "on_true": [
+          "44",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image_pos"
+      }
+    },
+    "46": {
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": 1,
+        "resolution_steps": 1,
+        "image": [
+          "54",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    },
+    "47": {
+      "inputs": {
+        "image": [
+          "54",
+          0
+        ]
+      },
+      "class_type": "GetImageSize",
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "48": {
+      "inputs": {
+        "pixels": [
+          "46",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode 2"
+      }
+    },
+    "49": {
+      "inputs": {
+        "a": [
+          "47",
+          0
+        ],
+        "b": 1,
+        "operation": ">"
+      },
+      "class_type": "IntConditions",
+      "_meta": {
+        "title": "Int Condition"
+      }
+    },
+    "50": {
+      "inputs": {
+        "conditioning": [
+          "42",
+          0
+        ],
+        "latent": [
+          "48",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (negative 2)"
+      }
+    },
+    "51": {
+      "inputs": {
+        "conditioning": [
+          "45",
+          0
+        ],
+        "latent": [
+          "48",
+          0
+        ]
+      },
+      "class_type": "ReferenceLatent",
+      "_meta": {
+        "title": "ReferenceLatent (positive 2)"
+      }
+    },
+    "52": {
+      "inputs": {
+        "switch": [
+          "49",
+          0
+        ],
+        "on_false": [
+          "45",
+          0
+        ],
+        "on_true": [
+          "51",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image_pos"
+      }
+    },
+    "53": {
+      "inputs": {
+        "switch": [
+          "49",
+          0
+        ],
+        "on_false": [
+          "42",
+          0
+        ],
+        "on_true": [
+          "50",
+          0
+        ]
+      },
+      "class_type": "InversionDemoLazySwitch",
+      "_meta": {
+        "title": "use_second_image_neg"
+      }
+    },
+    "54": {
+      "inputs": {
+        "image": "bc9b95d56518f5a1bae581992072b01c58749feb5c37d6198a7da377e58dc7a3.png"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "image_4"
+      }
+    }
+  }
+}

@@ -100,7 +100,7 @@ wheels = [
 
 [[package]]
 name = "aipg-comfyui"
-version = "0.4.0"
+version = "0.10.0"
 source = { virtual = "." }
 dependencies = [
     { name = "addict", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
@@ -110,6 +110,7 @@ dependencies = [
     { name = "av", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
     { name = "chardet", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
     { name = "color-matcher", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
+    { name = "comfy-kitchen", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
     { name = "comfyui-embedded-docs", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
     { name = "comfyui-frontend-package", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
     { name = "comfyui-workflow-templates", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
@@ -193,9 +194,10 @@ requires-dist = [
     { name = "av", specifier = ">=14.2.0" },
     { name = "chardet" },
     { name = "color-matcher" },
-    { name = "comfyui-embedded-docs", specifier = "==0.3.1" },
-    { name = "comfyui-frontend-package", specifier = "==1.33.13" },
-    { name = "comfyui-workflow-templates", specifier = "==0.7.54" },
+    { name = "comfy-kitchen", specifier = ">=0.2.7" },
+    { name = "comfyui-embedded-docs", specifier = "==0.4.0" },
+    { name = "comfyui-frontend-package", specifier = "==1.37.11" },
+    { name = "comfyui-workflow-templates", specifier = "==0.8.15" },
     { name = "diffusers", specifier = ">=0.35.2" },
     { name = "einops" },
     { name = "filelock" },
@@ -483,26 +485,35 @@ wheels = [
 ]
 
 [[package]]
-name = "comfyui-embedded-docs"
-version = "0.3.1"
+name = "comfy-kitchen"
+version = "0.2.7"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/fb/2a86a03b3c55178a29f940b2982b801feb8e7a89f66e10a809f8cbaf8caf/comfyui_embedded_docs-0.3.1.tar.gz", hash = "sha256:08e647f8528be2e4790cb4d994703ec1a2af28e6b1c287552e4aca0f721ed80d", size = 5927770, upload-time = "2025-11-03T11:32:37.878Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/29/84cf6f3cb9ef558dc5056363d1676174f0f4444a741f5cb65554af06836c/comfyui_embedded_docs-0.3.1-py3-none-any.whl", hash = "sha256:fbbb0ef99eabd8787c665efe235665b33b62bd5f9bc4d940eb2055d36834c91c", size = 7983937, upload-time = "2025-11-03T11:32:36.016Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/6b/1cea270d5014a465929375c434c2f78a35fadde5dfb6f436864e4c8f7a52/comfy_kitchen-0.2.7-cp312-abi3-win_amd64.whl", hash = "sha256:047b9ac7c8c1a845a51b0de3fb05c8d007666d68a3e776e07ecb5db21f15fbdd", size = 592877, upload-time = "2026-01-17T03:48:15.262Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/65/d483613734d0b9753bd9bfa297ff334cb2c7766e82306099db6b259b4e2c/comfy_kitchen-0.2.7-py3-none-any.whl", hash = "sha256:f8faa579b69d331d2f1eac09e96a95586c2a6b958a54bc19e7f1c1a77852dd36", size = 58034, upload-time = "2026-01-17T03:48:16.561Z" },
+]
+
+[[package]]
+name = "comfyui-embedded-docs"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/db/70ac02f5394fd550b28ac24385d924a5240774253c61d7aa17ab758fb119/comfyui_embedded_docs-0.4.0.tar.gz", hash = "sha256:d0c3d7a25d80baa825adbb9b08e9643d620c733d635b04d862435d64f2dee1a6", size = 6941162, upload-time = "2026-01-10T05:00:58.131Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/d9/c7976795a9b44483e6b1657ccd3d45fcb7409842a7d6f6c0fe1d11e83ae3/comfyui_embedded_docs-0.4.0-py3-none-any.whl", hash = "sha256:97c4f8cdcace1e94a754128c4ef53edce0e3df0308df9e0c998080ebc4a5bfb2", size = 9621246, upload-time = "2026-01-10T05:00:55.45Z" },
 ]
 
 [[package]]
 name = "comfyui-frontend-package"
-version = "1.33.13"
+version = "1.37.11"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ec/61/8ff91dc7b4e19f04d16d17bc482e2ea16fecacb61a5674fb0b1361ecdf10/comfyui_frontend_package-1.33.13.tar.gz", hash = "sha256:5b764ddac4ccecf6a47d117dcb33fa02e812cf4e1a3100b18a67cc5028c61c83", size = 18678629, upload-time = "2025-12-09T03:42:35.192Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/0e/1e23d6b224e08cec920236e5c49afd673f7ebdcac93c700d8a65dfa7f929/comfyui_frontend_package-1.37.11.tar.gz", hash = "sha256:73e39fc63526e2dffaa0aae0550575000fd6b233d016b6c2cae8b84e2eefcec4", size = 19682202, upload-time = "2026-01-19T20:41:43.792Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/e7/8d529ec2801bffd8a7a545f99951c1a3b46b80f2ac6b0b5b4af421aa56a0/comfyui_frontend_package-1.33.13-py3-none-any.whl", hash = "sha256:5ec314e4e1029d49c9971328e758e2e41e89b985a2e53b3e4b535a79d423a0df", size = 18882016, upload-time = "2025-12-09T03:42:33.004Z" },
+    { url = "https://files.pythonhosted.org/packages/31/0d/adb224e976d677bf1f53330a1cd34f704cefe6a32bbcd2c8d960e49db73d/comfyui_frontend_package-1.37.11-py3-none-any.whl", hash = "sha256:6fed139ec942b05430559fa8e45b584029b3ed623899212ec6ffb5b09cdc042c", size = 19891033, upload-time = "2026-01-19T20:41:41.048Z" },
 ]
 
 [[package]]
 name = "comfyui-workflow-templates"
-version = "0.7.54"
+version = "0.8.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "comfyui-workflow-templates-core", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
@@ -511,54 +522,54 @@ dependencies = [
     { name = "comfyui-workflow-templates-media-other", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
     { name = "comfyui-workflow-templates-media-video", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/51/d41242a6c26d866c3904a4bf2a75344b5ebe69926ed1d62cd1841efe0c50/comfyui_workflow_templates-0.7.54.tar.gz", hash = "sha256:d28297a5af520e7d0a06bff24d42f648011ac6cdb68784d91032280a34fe54de", size = 20937, upload-time = "2025-12-08T19:42:12.994Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/ad/0f24f7cfc1894c7366a22384a13bbdbce3c4e6f0ab1dc73e0cfce42c321b/comfyui_workflow_templates-0.8.15.tar.gz", hash = "sha256:f809739ff3cecd6296eb46d427e540e15d306f921fc7ed4d9f60feab6792dcf2", size = 9442, upload-time = "2026-01-20T03:58:20.227Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/0f/42ef2094b5527dc836e42709c1c60d85483602e226a708e7c4f13d6fe378/comfyui_workflow_templates-0.7.54-py3-none-any.whl", hash = "sha256:43f73c3513f7d6ea898cf434758c1bde8aff60325495e998a7aead8aa6f9fda4", size = 20271, upload-time = "2025-12-08T19:42:11.835Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/19/82a9223d6b4091eb958efee49a229c63e9d69860e40a2c967f16925950c1/comfyui_workflow_templates-0.8.15-py3-none-any.whl", hash = "sha256:8932473ed97a007836948c1efc59c6472b7baa9f480c93fa9f54b10f2acd860c", size = 8799, upload-time = "2026-01-20T03:58:19.401Z" },
 ]
 
 [[package]]
 name = "comfyui-workflow-templates-core"
-version = "0.3.27"
+version = "0.3.101"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d8/bf/85576a38e066bd3474cb6594ebac6f1206e9783a7e9d19d0808457b2c395/comfyui_workflow_templates_core-0.3.27.tar.gz", hash = "sha256:dbb31f23f15763fcad2cbd0d1dcf6edec135d01f5b9c6edb052621269f4f9758", size = 29704, upload-time = "2025-12-08T19:41:54.551Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/37/b001639435429f724da96dff2cbaf7e7aa91e374e819ae9784b1710acc59/comfyui_workflow_templates_core-0.3.101.tar.gz", hash = "sha256:19f03fdbd4486542cb88cc51cca03aa92d71c194ac67f0620908da144e7e8268", size = 38298, upload-time = "2026-01-20T03:57:34.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/aa/9212dedea2c47ba31876fea1d790fcc2f4dadb00ef6417b7b01ff5be86cd/comfyui_workflow_templates_core-0.3.27-py3-none-any.whl", hash = "sha256:c3b320934940afd3da4bbd1714fdcc89787053d065830a508c46f4ea45a5265e", size = 27533, upload-time = "2025-12-08T19:41:53.724Z" },
+    { url = "https://files.pythonhosted.org/packages/25/df/c4ad386bfb4106deef20dff4aaaaf0dc53f922428c0736fde2a0e6246217/comfyui_workflow_templates_core-0.3.101-py3-none-any.whl", hash = "sha256:d8483ea80a63f6b50c687a0b1be3412e36464b9fc016cf85cc180c192ddd9c00", size = 36163, upload-time = "2026-01-20T03:57:33.567Z" },
 ]
 
 [[package]]
 name = "comfyui-workflow-templates-media-api"
-version = "0.3.20"
+version = "0.3.45"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/65/c3/9ed4e03704548afdff48cc928cdd049e39ad904991d22586a14e6fb8c710/comfyui_workflow_templates_media_api-0.3.20.tar.gz", hash = "sha256:b8fef42379c095d0d426503b03268d461ee9307bd1c5833874bf143784d7b42c", size = 44664916, upload-time = "2025-12-08T16:20:35.176Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/62/8ab5063e0d486e9633405107682a13ee35b026b2d8ccc113e5ae9e964942/comfyui_workflow_templates_media_api-0.3.45.tar.gz", hash = "sha256:b4de0718e16558c1d81791a842823d55a10473e79780c81860c5501154d47b23", size = 76958363, upload-time = "2026-01-20T03:57:51.637Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/18/a6/e8cf01f904eac6e469fc0bf774057dc352f9a1907181dc1cd0005396b4ec/comfyui_workflow_templates_media_api-0.3.20-py3-none-any.whl", hash = "sha256:42b4e5f5b083a5a81efae864f1472bc2616e9bc62bc7b82c59ab3333c379d60b", size = 44687845, upload-time = "2025-12-08T16:20:31.915Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/00/8e94fd5c3e2338a0dc270959ca5ec2b4d902077699a21cd963f5f185c4fd/comfyui_workflow_templates_media_api-0.3.45-py3-none-any.whl", hash = "sha256:e02f440c593ac06709e634a3f64fef0d6d6a83c71307558437beb1a300cf8032", size = 76976903, upload-time = "2026-01-20T03:57:47.381Z" },
 ]
 
 [[package]]
 name = "comfyui-workflow-templates-media-image"
-version = "0.3.27"
+version = "0.3.67"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cc/77/f13eff982d61507de515802ef9a173c4304ec3b71b0db12ba37bac95099e/comfyui_workflow_templates_media_image-0.3.27.tar.gz", hash = "sha256:d174b267ec0c942e34d5853a5cc11cd07fd13b79d20a3276c2719e7b030ec4a6", size = 9755481, upload-time = "2025-12-08T16:20:45.1Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8b/7e/0915480dca5a7c2bb27dc88660e62fda990380c5fea48a6179975225d146/comfyui_workflow_templates_media_image-0.3.67.tar.gz", hash = "sha256:3aebb14ec755362b6588cb844191216045ef80dff0dfa44b40a3dae48f9973e1", size = 14669985, upload-time = "2026-01-20T03:58:02.06Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/09/7d/4c34032f3b97f37b6790b9567b2e22ae966285402bc1bbc5f4b36d3848b9/comfyui_workflow_templates_media_image-0.3.27-py3-none-any.whl", hash = "sha256:6778543ccf8baed48e70d6be4b99ca25d4bd5c829613f2402467395c7ef0035f", size = 9760499, upload-time = "2025-12-08T16:20:42.968Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/a6/0227b23d14556cb5e55c92b3c74228934e91afbf1a1ab58156685c9ae19a/comfyui_workflow_templates_media_image-0.3.67-py3-none-any.whl", hash = "sha256:eac310543c335c10d4ce6f1584d3e6865d272f9980c94e7f1edb2b1faaf86f52", size = 14671902, upload-time = "2026-01-20T03:58:00.048Z" },
 ]
 
 [[package]]
 name = "comfyui-workflow-templates-media-other"
-version = "0.3.40"
+version = "0.3.88"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/d8/6b7fc32dc3dd7e870e285a2fa5348136f0ac563422a8a0e18065249a92cd/comfyui_workflow_templates_media_other-0.3.40.tar.gz", hash = "sha256:7c79e9d4eccf7fe23e6294013ba64765e70d556664657c09be887267da47e0fa", size = 11317403, upload-time = "2025-12-08T19:30:15.485Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/ed/5be8cb360d61545b39e21c385af40aba66ca509c50dc9b3cd77b5f4bff67/comfyui_workflow_templates_media_other-0.3.88.tar.gz", hash = "sha256:681d3e960242dfc0ef82549747d7c4522b3b24a82b4645fd6f5938eec0c1b5a1", size = 21559218, upload-time = "2026-01-20T03:58:13.63Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/76/f1b8b1cca754bc43b5288da241ec2d79a0ca123d41df3bfa2f5f4b57fafe/comfyui_workflow_templates_media_other-0.3.40-py3-none-any.whl", hash = "sha256:0073a5725c3d25f78bbe875374990d85b63a768595052be8132f120c2fb5ce15", size = 11328198, upload-time = "2025-12-08T19:30:13.568Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/44/7b4111e39563a0245d7704220b0f09738f79eae402ab8ed110107e824a6b/comfyui_workflow_templates_media_other-0.3.88-py3-none-any.whl", hash = "sha256:5f84ec02381355e47c9a3794fcb0f6207e8069d93d41f58b36f7376fd43a08e4", size = 21573032, upload-time = "2026-01-20T03:58:10.836Z" },
 ]
 
 [[package]]
 name = "comfyui-workflow-templates-media-video"
-version = "0.3.15"
+version = "0.3.39"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a1/b0/3f4a9c011dc663315f265bc9235c457cb520397fff25efa52d99191c4de4/comfyui_workflow_templates_media_video-0.3.15.tar.gz", hash = "sha256:663e069d1098bf85b11d6fa0a3d971f352921b7207e6a9815e2d7964debd9536", size = 35704595, upload-time = "2025-12-08T19:42:05.818Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/75/17/e89837f41dab565a34dc36610041f5f7e780e6b6d26f2ce7535eea7279a8/comfyui_workflow_templates_media_video-0.3.39.tar.gz", hash = "sha256:2feb61b0fb61795f754ca1ce85be280af738ff05882a41b3f7659648ca6491e4", size = 55652088, upload-time = "2026-01-19T13:26:24.534Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5a/e0/a3e2fd9f1ff5fd08e47421f4ad618cbcc8ee600ad23461856c613f15d717/comfyui_workflow_templates_media_video-0.3.15-py3-none-any.whl", hash = "sha256:ae798eecb3c222878b7f6f2f407fd58136466f482302f97ae8db48a53217ec86", size = 35699414, upload-time = "2025-12-08T19:42:02.817Z" },
+    { url = "https://files.pythonhosted.org/packages/25/12/e4ef8041709a067fab2a78891fd211c449d87430465e4e8428089be09f6d/comfyui_workflow_templates_media_video-0.3.39-py3-none-any.whl", hash = "sha256:dcbd2d27b337aa2ff53a7a374d9250c5d178ae277232cf37764b2c157dcd9626", size = 55641642, upload-time = "2026-01-19T13:26:20.654Z" },
 ]
 
 [[package]]
@@ -2734,7 +2745,7 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.10.0-cp312-none-macosx_11_0_arm64.whl" },
+    { url = "https://download.pytorch.org/whl/cpu/torch-2.10.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:45a1c5057629444aeb1c452c18298fa7f30f2f7aeadd4dc41f9d340980294407" },
 ]
 
 [[package]]
