@@ -368,60 +368,54 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     const installBuiltinCustomNodes = async (): Promise<void> => {
       try {
         const builtinCustomNodesDir = path.join(aipgBaseDir, 'comfyui-deps', 'custom_nodes')
-        
+
         if (!filesystem.existsSync(builtinCustomNodesDir)) {
           this.appLogger.info(
             `No builtin custom nodes directory found at ${builtinCustomNodesDir}, skipping`,
-            this.name
+            this.name,
           )
           return
         }
 
         this.appLogger.info(
           `Installing builtin custom nodes from ${builtinCustomNodesDir}`,
-          this.name
+          this.name,
         )
 
         const targetCustomNodesDir = path.join(this.serviceDir, 'custom_nodes')
-        
+
         if (!filesystem.existsSync(targetCustomNodesDir)) {
           this.appLogger.info(
             `Creating custom_nodes directory at ${targetCustomNodesDir}`,
-            this.name
+            this.name,
           )
           await filesystem.ensureDir(targetCustomNodesDir)
         }
 
         const entries = await filesystem.readdir(builtinCustomNodesDir, { withFileTypes: true })
-        
+
         for (const entry of entries) {
           if (entry.isDirectory()) {
             const sourcePath = path.join(builtinCustomNodesDir, entry.name)
             const targetPath = path.join(targetCustomNodesDir, entry.name)
-            
+
             this.appLogger.info(
               `Copying builtin custom node ${entry.name} from ${sourcePath} to ${targetPath}`,
-              this.name
+              this.name,
             )
-            
+
             await filesystem.copy(sourcePath, targetPath, { overwrite: true })
-            
+
             this.appLogger.info(
               `Successfully installed builtin custom node ${entry.name}`,
-              this.name
+              this.name,
             )
           }
         }
 
-        this.appLogger.info(
-          `Builtin custom nodes installation complete`,
-          this.name
-        )
+        this.appLogger.info(`Builtin custom nodes installation complete`, this.name)
       } catch (error) {
-        this.appLogger.error(
-          `Failed to install builtin custom nodes: ${error}`,
-          this.name
-        )
+        this.appLogger.error(`Failed to install builtin custom nodes: ${error}`, this.name)
         throw new Error(`Failed to install builtin custom nodes: ${error}`)
       }
     }
