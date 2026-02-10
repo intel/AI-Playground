@@ -20,9 +20,7 @@
     ],
     "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
   },
-  "requiredCustomNodes": [
-    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
-  ],
+  "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
@@ -49,7 +47,7 @@
       "type": "nsfwdetector",
       "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
     }
-  ],  
+  ],
   "settings": [
     {
       "type": "string",
@@ -170,10 +168,7 @@
     "4": {
       "inputs": {
         "text": "cheese",
-        "clip": [
-          "2",
-          0
-        ]
+        "clip": ["2", 0]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -182,10 +177,7 @@
     },
     "5": {
       "inputs": {
-        "conditioning": [
-          "4",
-          0
-        ]
+        "conditioning": ["4", 0]
       },
       "class_type": "ConditioningZeroOut",
       "_meta": {
@@ -195,18 +187,9 @@
     "6": {
       "inputs": {
         "cfg": 1.1,
-        "model": [
-          "1",
-          0
-        ],
-        "positive": [
-          "4",
-          0
-        ],
-        "negative": [
-          "5",
-          0
-        ]
+        "model": ["1", 0],
+        "positive": ["4", 0],
+        "negative": ["5", 0]
       },
       "class_type": "CFGGuider",
       "_meta": {
@@ -216,14 +199,8 @@
     "7": {
       "inputs": {
         "steps": 4,
-        "width": [
-          "16",
-          0
-        ],
-        "height": [
-          "17",
-          0
-        ]
+        "width": ["16", 0],
+        "height": ["17", 0]
       },
       "class_type": "Flux2Scheduler",
       "_meta": {
@@ -232,14 +209,8 @@
     },
     "8": {
       "inputs": {
-        "width": [
-          "16",
-          0
-        ],
-        "height": [
-          "17",
-          0
-        ],
+        "width": ["16", 0],
+        "height": ["17", 0],
         "batch_size": 1
       },
       "class_type": "EmptyFlux2LatentImage",
@@ -267,26 +238,11 @@
     },
     "11": {
       "inputs": {
-        "noise": [
-          "9",
-          0
-        ],
-        "guider": [
-          "6",
-          0
-        ],
-        "sampler": [
-          "10",
-          0
-        ],
-        "sigmas": [
-          "7",
-          0
-        ],
-        "latent_image": [
-          "8",
-          0
-        ]
+        "noise": ["9", 0],
+        "guider": ["6", 0],
+        "sampler": ["10", 0],
+        "sigmas": ["7", 0],
+        "latent_image": ["8", 0]
       },
       "class_type": "SamplerCustomAdvanced",
       "_meta": {
@@ -295,14 +251,8 @@
     },
     "12": {
       "inputs": {
-        "samples": [
-          "11",
-          0
-        ],
-        "vae": [
-          "3",
-          0
-        ]
+        "samples": ["11", 0],
+        "vae": ["3", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -312,10 +262,7 @@
     "13": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
-        "images": [
-          "98",
-          0
-        ]
+        "images": ["98", 0]
       },
       "class_type": "SaveImage",
       "_meta": {

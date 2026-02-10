@@ -1,6 +1,6 @@
 {
   "debug": true,
-  "comfyUiParameters": ["--lowvram"],
+  "comfyUiParameters": ["--lowvram", "--reserve-vram", "6.0"],
   "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "bmg",
   "enablePreviewFeatures": true,
