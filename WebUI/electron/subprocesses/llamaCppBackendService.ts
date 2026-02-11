@@ -296,14 +296,6 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
-  async getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`getting LlamaCPP settings`, this.name)
-    return {
-      version: this.version,
-      serviceName: this.name,
-    }
-  }
-
   async getInstalledVersion(): Promise<{ version?: string; releaseTag?: string } | undefined> {
     if (!this.isSetUp) return undefined
     try {

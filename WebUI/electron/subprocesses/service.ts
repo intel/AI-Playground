@@ -458,7 +458,6 @@ export interface ApiService {
   start(): Promise<BackendStatus>
   stop(): Promise<BackendStatus>
   updateSettings(settings: ServiceSettings): Promise<void>
-  getSettings(): Promise<ServiceSettings>
   getInstalledVersion?(): Promise<{ version?: string; releaseTag?: string } | undefined>
   uninstall(): Promise<void>
   get_info(): ApiServiceInformation
@@ -528,11 +527,6 @@ export abstract class LongLivedPythonApiService implements ApiService {
       this.name,
     )
     return Promise.resolve()
-  }
-
-  getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`get settings called, but settings are not implemented`, this.name)
-    return Promise.resolve({ serviceName: this.name })
   }
 
   /**

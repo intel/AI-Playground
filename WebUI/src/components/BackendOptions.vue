@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { mapServiceNameToDisplayName } from '@/lib/utils'
+import { mapServiceNameToDisplayName, compareVersions } from '@/lib/utils'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
 
@@ -63,7 +63,7 @@ const settingsDialogOpen = ref(false)
 const getFormSchema = (backend: BackendServiceName) => {
   switch (backend) {
     case 'comfyui-backend':
-      // ComfyUI: git hash (7-40 chars) or version tag (e.g. v1.0.0)
+      // ComfyUI: git hash (7-40 chars) or version tag (e.g. v1.0.0), plus optional startup parameters
       return toTypedSchema(
         z
           .object({
@@ -73,6 +73,7 @@ const getFormSchema = (backend: BackendServiceName) => {
               .or(
                 z.string().regex(/^v\d+\.\d+\.\d+$/, 'Must be a valid version tag (e.g. v1.0.0)'),
               ),
+            comfyUiParameters: z.string().optional(),
           })
           .passthrough(),
       )
@@ -174,12 +175,18 @@ const getVersionDescription = (backend: BackendServiceName) => {
 // Get initial form values based on backend type
 const getInitialFormValues = () => {
   const backendVersionState = backendServices.versionState[props.backend]
-  return (
+  const values: Record<string, unknown> =
     backendVersionState.uiOverride ??
     backendVersionState.installed ??
     backendVersionState.target ??
     {}
-  )
+  if (props.backend === 'comfyui-backend') {
+    return {
+      ...values,
+      comfyUiParameters: backendServices.effectiveComfyUiParameters,
+    }
+  }
+  return values
 }
 
 // Handler for starting a service with enhanced error handling
@@ -285,8 +292,8 @@ function isUpgrade(serviceName: BackendServiceName): boolean | null {
   const installed = normalizeVersionForComparison(serviceName, versionState.installed.version)
   const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
 
-  if (installed < target) return true
-  if (installed > target) return false
+  if (compareVersions(installed, target) < 0) return true
+  if (compareVersions(installed, target) > 0) return false
   return null
 }
 
@@ -324,11 +331,18 @@ const handleVersionAction = async () => {
 }
 
 // Check if user has set a custom override
-const hasUserOverride = computed(() => !!backendServices.versionState[props.backend].uiOverride)
+const hasUserOverride = computed(
+  () =>
+    !!backendServices.versionState[props.backend].uiOverride ||
+    (props.backend === 'comfyui-backend' && backendServices.comfyUiParameters !== null),
+)
 
 // Clear the user override
 const clearOverride = () => {
   backendServices.versionState[props.backend].uiOverride = undefined
+  if (props.backend === 'comfyui-backend') {
+    backendServices.comfyUiParameters = null
+  }
   settingsDialogOpen.value = false
   menuOpen.value = false
 }
@@ -446,6 +460,15 @@ const showMenuButton = computed(
                   const override = BackendVersionSchema.parse(values)
 
                   backendServices.versionState[props.backend].uiOverride = override
+
+                  // Save comfyUiParameters separately (not part of version override)
+                  if (props.backend === 'comfyui-backend' && 'comfyUiParameters' in values) {
+                    const params = (values as { comfyUiParameters?: string }).comfyUiParameters
+                    // Store null if empty or matches default (meaning 'use default')
+                    backendServices.comfyUiParameters =
+                      !params || params === backendServices.comfyUiDefaultParameters ? null : params
+                  }
+
                   settingsDialogOpen = false
                   menuOpen = false
                 })
@@ -504,6 +527,33 @@ const showMenuButton = computed(
                     </FormControl>
                     <FormDescription>
                       {{ getVersionDescription(backend) }}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+
+                <!-- ComfyUI startup parameters -->
+                <FormField
+                  v-if="backend === 'comfyui-backend'"
+                  v-slot="{ componentField }"
+                  name="comfyUiParameters"
+                >
+                  <FormItem class="mt-4">
+                    <FormLabel>{{
+                      i18nState.BACKEND_COMFYUI_PARAMETERS_LABEL || 'Startup Parameters'
+                    }}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        :placeholder="backendServices.comfyUiDefaultParameters"
+                        v-bind="componentField"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {{
+                        i18nState.BACKEND_COMFYUI_PARAMETERS_DESCRIPTION ||
+                        'Command-line arguments passed to ComfyUI on startup. Restart required to apply changes.'
+                      }}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

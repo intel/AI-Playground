@@ -17,6 +17,7 @@ type ServiceSettings = {
   serviceName: BackendServiceName
   version?: string
   releaseTag?: string
+  comfyUiParameters?: string
 }
 
 type DemoModeSettings = {
@@ -54,6 +55,7 @@ type electronAPI = {
   }>
   getLocaleSettings(): Promise<LocaleSettings>
   getThemeSettings(): Promise<ThemeSettings>
+  updateLocalSettings(updates: Partial<LocalSettings>): Promise<{ success: boolean }>
   setWinSize(width: number, height: number): Promise<void>
   showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
   showMessageBox(options: Electron.MessageBoxOptions): Promise<number>
@@ -100,9 +102,10 @@ type electronAPI = {
     }) => void,
   ): void
   wakeupComfyUIService(): void
+  getComfyUiDefaultParameters(): Promise<string>
   getServices(): Promise<ApiServiceInformation[]>
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
-  getServiceSettings(serviceName: string): Promise<ServiceSettings[BackendServiceName]>
+
   uninstall(serviceName: string): Promise<void>
   selectDevice(serviceName: string, deviceId: string): Promise<void>
   selectSttDevice(serviceName: string, deviceId: string): Promise<void>

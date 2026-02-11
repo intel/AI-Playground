@@ -32,6 +32,7 @@ export const useModels = defineStore(
   'models',
   () => {
     const hfToken = ref<string | undefined>(undefined)
+    const hfEndpoint = ref<string>('https://huggingface.co')
     const models = ref<Model[]>([])
     const backendServices = useBackendServices()
 
@@ -287,6 +288,48 @@ export const useModels = defineStore(
     }
 
     /**
+     * Verify if the HuggingFace mirror endpoint is accessible
+     * @returns Promise with success status and optional error message
+     */
+    async function verifyHfEndpoint(
+      newEndpoint: string,
+    ): Promise<{ success: boolean; error?: string }> {
+      try {
+        const response = await fetch(`${newEndpoint}/api/organizations/OpenVINO/avatar`)
+        if (response.ok) {
+          return { success: true }
+        } else {
+          return { success: false, error: `HTTP ${response.status}` }
+        }
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }
+
+    /**
+     * Validate URL format
+     * @param url - The URL to validate
+     * @returns True if valid URL format
+     */
+    function isValidUrl(url: string): boolean {
+      try {
+        new URL(url)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    /**
+     * Update HuggingFace endpoint and sync with main process
+     * @param endpoint - The new endpoint URL
+     */
+    async function updateHfEndpoint(endpoint: string): Promise<void> {
+      hfEndpoint.value = endpoint
+      await window.electronAPI.updateLocalSettings({ huggingfaceEndpoint: endpoint })
+    }
+
+    /**
      * Check if models are already loaded. Automatically calculates model_path from type and backend.
      * @param params - Array of model check parameters (without model_path - it's calculated automatically)
      */
@@ -327,9 +370,13 @@ export const useModels = defineStore(
     return {
       models,
       hfToken,
+      hfEndpoint,
       checkTranscriptionModelExists,
       getMissingTranscriptionModel,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
+      hfEndpointIsValid: computed(() => isValidUrl(hfEndpoint.value)),
+      verifyHfEndpoint,
+      updateHfEndpoint,
       downloadList,
       paths,
       addModel,
@@ -345,7 +392,7 @@ export const useModels = defineStore(
   },
   {
     persist: {
-      pick: ['hfToken', 'customModelMetadata'],
+      pick: ['hfToken', 'customModelMetadata', 'hfEndpoint'],
     },
   },
 )

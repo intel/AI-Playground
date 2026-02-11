@@ -164,15 +164,6 @@ export class OllamaBackendService implements ApiService {
     }
   }
 
-  async getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`getting Ollama settings`, this.name)
-    return {
-      releaseTag: this.releaseTag,
-      version: this.version,
-      serviceName: this.name,
-    }
-  }
-
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)

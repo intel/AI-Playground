@@ -8,13 +8,15 @@
       <p>{{ languages.SETTINGS_THEME }}</p>
       <ThemeSelector />
     </div>
+    <div class="flex flex-col gap-3"></div>
     <div class="flex flex-col gap-3">
-      <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</p>
+      <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_SETTINGS }}</p>
+      <h4 class="text-sm font-medium">{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</h4>
       <div class="flex flex-col items-start gap-1">
         <Input
           type="password"
           v-model="models.hfToken"
-          class="h-[30px] leading-[30px] rounded-[15px] bg-card border-border text-foreground px-[3px]"
+          class="h-[30px] leading-[30px] rounded-md bg-card border-border text-foreground px-[3px]"
           :class="{ 'border-red-500': models.hfToken && !models.hfTokenIsValid }"
         />
         <div
@@ -22,6 +24,40 @@
           :class="{ 'opacity-0': !(models.hfToken && !models.hfTokenIsValid) }"
         >
           {{ languages.SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT }}
+        </div>
+      </div>
+      <h4 class="text-sm font-medium">{{ languages.SETTINGS_MODEL_HUGGINGFACE_MIRROR_URL }}</h4>
+      <div class="flex flex-col items-start gap-2">
+        <Input
+          v-model="mirrorUrl"
+          placeholder="https://huggingface.co"
+          class="h-[30px] leading-[30px] rounded-md bg-card border-border text-foreground px-[3px]"
+          :class="{ 'border-red-500': mirrorUrl && !isValidUrl(mirrorUrl) }"
+        />
+        <div class="flex gap-2 items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="!mirrorUrl || !isValidUrl(mirrorUrl)"
+            @click="verifyMirror"
+          >
+            {{ languages.SETTINGS_MODEL_HUGGINGFACE_VERIFY }}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            :disabled="!mirrorUrl || !isValidUrl(mirrorUrl)"
+            @click="applyHfSettings"
+          >
+            {{ languages.SETTINGS_MODEL_HUGGINGFACE_APPLY }}
+          </Button>
+        </div>
+        <div
+          v-if="verificationMessage"
+          class="text-xs"
+          :class="verificationSuccess ? 'text-green-500' : 'text-yellow-600'"
+        >
+          {{ verificationMessage }}
         </div>
       </div>
     </div>
@@ -105,14 +141,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
-import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { useBackendServices } from '@/assets/js/store/backendServices'
 import { usePresets } from '@/assets/js/store/presets'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { useDialogStore } from '@/assets/js/store/dialogs'
 import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
@@ -123,6 +160,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useI18N } from '@/assets/js/store/i18n'
 import { Spinner } from './ui/spinner'
+import { Button } from '@/components/ui/button'
 
 const globalSetup = useGlobalSetup()
 const backendServices = useBackendServices()
@@ -131,7 +169,121 @@ const theme = useTheme()
 const presetsStore = usePresets()
 const i18nState = useI18N().state
 const speechToText = useSpeechToText()
+const dialogStore = useDialogStore()
 const backendStarting = ref(false)
+
+const mirrorUrl = ref(models.hfEndpoint)
+const verificationMessage = ref('')
+const verificationSuccess = ref(false)
+
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function verifyMirror() {
+  if (!mirrorUrl.value || !isValidUrl(mirrorUrl.value)) {
+    return
+  }
+
+  verificationMessage.value = 'Verifying...'
+  verificationSuccess.value = false
+
+  try {
+    const isValid = await models.verifyHfEndpoint(mirrorUrl.value)
+    console.log('isValid', isValid)
+    if (isValid.success) {
+      verificationMessage.value = i18nState.SETTINGS_MODEL_HUGGINGFACE_VERIFICATION_SUCCESS
+      verificationSuccess.value = true
+    } else {
+      verificationMessage.value = i18nState.SETTINGS_MODEL_HUGGINGFACE_VERIFICATION_FAILED.replace(
+        '{error}',
+        'Verification failed',
+      )
+      verificationSuccess.value = false
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    verificationMessage.value = i18nState.SETTINGS_MODEL_HUGGINGFACE_VERIFICATION_FAILED.replace(
+      '{error}',
+      errorMessage,
+    )
+    verificationSuccess.value = false
+  }
+}
+
+async function applyHfSettings() {
+  if (!mirrorUrl.value || !isValidUrl(mirrorUrl.value)) {
+    return
+  }
+
+  let userConfirmed = false
+  dialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_HUGGINGFACE_APPLY_CONFIRM, () => {
+    userConfirmed = true
+  })
+
+  return new Promise<void>((resolve) => {
+    const checkDialog = setInterval(() => {
+      if (!dialogStore.warningDialogVisible) {
+        clearInterval(checkDialog)
+        if (userConfirmed) {
+          executeRestartBackends().then(resolve)
+        } else {
+          resolve()
+        }
+      }
+    }, 100)
+  })
+}
+
+async function executeRestartBackends() {
+  try {
+    await models.updateHfEndpoint(mirrorUrl.value)
+
+    const servicesToRestart = ['ai-backend', 'comfyui-backend'] as const
+
+    // Stop all running services, using the return value (not reactive state) to track success
+    const stopResults = await Promise.all(
+      servicesToRestart.map(async (serviceName) => {
+        const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+        if (serviceInfo?.status === 'running') {
+          const status = await backendServices.stopService(serviceName)
+          return { serviceName, status }
+        }
+        return { serviceName, status: 'stopped' as BackendStatus }
+      }),
+    )
+
+    const allStopped = stopResults.every((r) => r.status === 'stopped')
+    if (!allStopped) {
+      toast.error('Failed to stop one or more backends')
+      return
+    }
+
+    // Start all services, using the return value to track success
+    const startResults = await Promise.all(
+      servicesToRestart.map(async (serviceName) => {
+        const status = await backendServices.startService(serviceName)
+        return { serviceName, status }
+      }),
+    )
+
+    const allRunning = startResults.every((r) => r.status === 'running')
+    if (allRunning) {
+      toast.success(i18nState.SETTINGS_MODEL_HUGGINGFACE_APPLY_SUCCESS)
+    } else {
+      toast.error('Failed to restart one or more backends')
+    }
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to apply HuggingFace settings'
+    toast.error(errorMessage)
+  }
+}
 
 const displayComponents = computed(() => {
   return backendServices.info.map((item) => ({

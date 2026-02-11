@@ -47,7 +47,10 @@ import {
   aiplaygroundApiServiceRegistry,
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
-import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
+import {
+  ComfyUiBackendService,
+  COMFYUI_DEFAULT_PARAMETERS,
+} from './subprocesses/comfyUIBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -94,7 +97,6 @@ const appSize = {
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
-  comfyUiParameters: z.array(z.string()).default([]),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
   enablePreviewFeatures: z.boolean().default(false),
   isAdminExec: z.boolean().default(false),
@@ -392,6 +394,12 @@ function initEventHandle() {
     }
   })
 
+  ipcMain.handle('updateLocalSettings', (_event, updates: Partial<LocalSettings>) => {
+    Object.assign(settings, updates)
+    appLogger.info(`Updated local settings: ${JSON.stringify(updates)}`, 'electron-backend')
+    return { success: true }
+  })
+
   ipcMain.handle('getWinSize', () => {
     return appSize
   })
@@ -640,25 +648,7 @@ function initEventHandle() {
     return service.updateSettings(settings)
   })
 
-  ipcMain.handle('getServiceSettings', (_event: IpcMainInvokeEvent, serviceName) => {
-    appLogger.info(`getServiceSettings: ${serviceName}`, 'electron-backend')
-    if (!serviceRegistry) {
-      appLogger.warn(
-        'received getServiceSettings too early during aipg startup',
-        'electron-backend',
-      )
-      return
-    }
-    const service = serviceRegistry.getService(serviceName)
-    if (!service) {
-      appLogger.warn(
-        `Tried to get settings for service ${serviceName} which is not known`,
-        'electron-backend',
-      )
-      return
-    }
-    return service.getSettings()
-  })
+  ipcMain.handle('getComfyUiDefaultParameters', () => COMFYUI_DEFAULT_PARAMETERS)
 
   ipcMain.handle('detectDevices', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
