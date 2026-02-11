@@ -187,6 +187,102 @@
             "_meta": {
               "title": "Load LoRA"
             }
+          },
+          "73": {
+            "inputs": {
+              "image": "input.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "109": {
+            "inputs": {
+              "width": 512,
+              "height": 512,
+              "length": 49,
+              "batch_size": 1,
+              "strength": 1.0000000000000002,
+              "positive": ["105", 0],
+              "negative": ["107", 0],
+              "vae": ["114", 0],
+              "reference_image": ["73", 0]
+            },
+            "class_type": "WanVaceToVideo",
+            "_meta": {
+              "title": "WanVaceToVideo"
+            }
+          },
+          "114": {
+            "inputs": {
+              "vae_name": "Comfy-Org---Wan_2.1_ComfyUI_repackaged\\split_files\\vae\\wan_2.1_vae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+              "title": "Load VAE"
+            }
+          },
+          "118": {
+            "inputs": {
+              "trim_amount": ["109", 3],
+              "samples": ["108", 0]
+            },
+            "class_type": "TrimVideoLatent",
+            "_meta": {
+              "title": "TrimVideoLatent"
+            }
+          },
+          "119": {
+            "inputs": {
+              "samples": ["118", 0],
+              "vae": ["114", 0]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "164": {
+            "inputs": {
+              "unet_name": "QuantStack---Wan2.1_14B_VACE-GGUF\\Wan2.1_14B_VACE-Q8_0.gguf"
+            },
+            "class_type": "UnetLoaderGGUF",
+            "_meta": {
+              "title": "Unet Loader (GGUF)"
+            }
+          },
+          "165": {
+            "inputs": {
+              "clip_name": "city96---umt5-xxl-encoder-gguf\\umt5-xxl-encoder-Q4_K_M.gguf",
+              "type": "wan"
+            },
+            "class_type": "CLIPLoaderGGUF",
+            "_meta": {
+              "title": "CLIPLoader (GGUF)"
+            }
+          },
+          "176": {
+            "inputs": {
+              "fps": 16,
+              "images": ["119", 0]
+            },
+            "class_type": "CreateVideo",
+            "_meta": {
+              "title": "Create Video"
+            }
+          },
+          "177": {
+            "inputs": {
+              "filename_prefix": "AIPG_Video",
+              "format": "mp4",
+              "codec": "h264",
+              "video": ["176", 0]
+            },
+            "class_type": "SaveVideo",
+            "_meta": {
+              "title": "Save Video"
+            }
           }
         }
       }
@@ -396,150 +492,5 @@
       }
     }
   ],
-  "comfyUiApiWorkflow": {
-    "73": {
-      "inputs": {
-        "image": "input.png"
-      },
-      "class_type": "LoadImage",
-      "_meta": {
-        "title": "Load Image"
-      }
-    },
-    "105": {
-      "inputs": {
-        "text": "Purple haired knight taking a selfie in front of ruins at sunset,  waves a peace sign and winks. shooting star",
-        "clip": ["165", 0]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "prompt"
-      }
-    },
-    "107": {
-      "inputs": {
-        "text": "subtitles,  artwork, painting, picture, still, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, malformed limbs, fused fingers, still picture, cluttered background, three legs, many people in the background, walking backwards,",
-        "clip": ["165", 0]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "CLIP Text Encode (Negative Prompt)"
-      }
-    },
-    "108": {
-      "inputs": {
-        "seed": 607691565110444,
-        "steps": 20,
-        "cfg": 6,
-        "sampler_name": "uni_pc",
-        "scheduler": "simple",
-        "denoise": 1,
-        "model": ["110", 0],
-        "positive": ["109", 0],
-        "negative": ["109", 1],
-        "latent_image": ["109", 2]
-      },
-      "class_type": "KSampler",
-      "_meta": {
-        "title": "KSampler"
-      }
-    },
-    "109": {
-      "inputs": {
-        "width": 512,
-        "height": 512,
-        "length": 49,
-        "batch_size": 1,
-        "strength": 1.0000000000000002,
-        "positive": ["105", 0],
-        "negative": ["107", 0],
-        "vae": ["114", 0],
-        "reference_image": ["73", 0]
-      },
-      "class_type": "WanVaceToVideo",
-      "_meta": {
-        "title": "WanVaceToVideo"
-      }
-    },
-    "110": {
-      "inputs": {
-        "shift": 8.000000000000002,
-        "model": ["164", 0]
-      },
-      "class_type": "ModelSamplingSD3",
-      "_meta": {
-        "title": "ModelSamplingSD3"
-      }
-    },
-    "114": {
-      "inputs": {
-        "vae_name": "Comfy-Org---Wan_2.1_ComfyUI_repackaged\\split_files\\vae\\wan_2.1_vae.safetensors"
-      },
-      "class_type": "VAELoader",
-      "_meta": {
-        "title": "Load VAE"
-      }
-    },
-    "118": {
-      "inputs": {
-        "trim_amount": ["109", 3],
-        "samples": ["108", 0]
-      },
-      "class_type": "TrimVideoLatent",
-      "_meta": {
-        "title": "TrimVideoLatent"
-      }
-    },
-    "119": {
-      "inputs": {
-        "samples": ["118", 0],
-        "vae": ["114", 0]
-      },
-      "class_type": "VAEDecode",
-      "_meta": {
-        "title": "VAE Decode"
-      }
-    },
-    "164": {
-      "inputs": {
-        "unet_name": "QuantStack---Wan2.1_14B_VACE-GGUF\\Wan2.1_14B_VACE-Q8_0.gguf"
-      },
-      "class_type": "UnetLoaderGGUF",
-      "_meta": {
-        "title": "Unet Loader (GGUF)"
-      }
-    },
-    "165": {
-      "inputs": {
-        "clip_name": "city96---umt5-xxl-encoder-gguf\\umt5-xxl-encoder-Q4_K_M.gguf",
-        "type": "wan"
-      },
-      "class_type": "CLIPLoaderGGUF",
-      "_meta": {
-        "title": "CLIPLoader (GGUF)"
-      }
-    },
-    "176": {
-      "inputs": {
-        "fps": 16,
-        "images": ["119", 0]
-      },
-      "class_type": "CreateVideo",
-      "_meta": {
-        "title": "Create Video"
-      }
-    },
-    "177": {
-      "inputs": {
-        "filename_prefix": "AIPG_Video",
-        "format": "mp4",
-        "codec": "h264",
-        "video": ["176", 0]
-      },
-      "class_type": "SaveVideo",
-      "_meta": {
-        "title": "Save Video"
-      }
-    }
-  }
+  "comfyUiApiWorkflow": {}
 }

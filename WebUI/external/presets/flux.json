@@ -20,7 +20,10 @@
     ],
     "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
   },
-  "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
+  "requiredCustomNodes": [
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
@@ -271,9 +274,9 @@
     },
     "98": {
       "inputs": {
-        "threshold": ["12", 0],
+        "threshold": ["99", 0],
         "cuda": false,
-        "image": ["179", 0]
+        "image": ["12", 0]
       },
       "class_type": "SafetyChecker",
       "_meta": {
