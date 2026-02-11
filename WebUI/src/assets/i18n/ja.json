@@ -23,6 +23,7 @@
   "COM_RESTART": "再起動",
   "COM_START": "開始",
   "COM_DELETE": "削除",
+  "COM_REMOVE": "削除",
   "COM_LOAD_IMAGE": "画像を読み込む",
   "COM_DOWNLOAD_MODEL": "モデルをダウンロードしています",
   "COM_DOWNLOAD_SPEED": "ダウンロード速度",
