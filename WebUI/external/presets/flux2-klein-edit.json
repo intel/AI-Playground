@@ -23,6 +23,18 @@
     {
       "type": "vae",
       "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/vae/flux2-vae.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
     }
   ],
   "settings": [
@@ -91,12 +103,16 @@
       "settingName": "negativePrompt"
     },
     {
-      "type": "boolean",
-      "label": "Safety Check",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": false,
-      "settingName": "safetyCheck"
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
     },
     {
       "type": "boolean",
