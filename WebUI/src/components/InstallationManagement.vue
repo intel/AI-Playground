@@ -270,7 +270,12 @@
 </template>
 
 <script setup lang="ts">
-import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
+import {
+  mapServiceNameToDisplayName,
+  mapStatusToColor,
+  mapToDisplayStatus,
+  compareVersions,
+} from '@/lib/utils.ts'
 import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
@@ -516,7 +521,7 @@ function hasNewerSupportedVersion(serviceName: BackendServiceName): boolean {
   const override = normalizeVersionForComparison(serviceName, vs.uiOverride.version || '')
   const target = normalizeVersionForComparison(serviceName, vs.target.version || '')
 
-  return target > override
+  return compareVersions(target, override) > 0
 }
 
 // Normalize version for comparison (strips subversion for OpenVINO)
@@ -568,9 +573,9 @@ function isUpgrade(serviceName: BackendServiceName): boolean | null {
   const installed = normalizeVersionForComparison(serviceName, versionState.installed.version)
   const target = normalizeVersionForComparison(serviceName, effectiveTarget.version)
 
-  // Simple string comparison - works for semver-like versions
-  if (installed < target) return true
-  if (installed > target) return false
+  // Numeric segment comparison for proper version ordering
+  if (compareVersions(installed, target) < 0) return true
+  if (compareVersions(installed, target) > 0) return false
   return null
 }
 

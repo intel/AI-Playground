@@ -18,6 +18,9 @@ import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode } from './comfyuiTools.ts'
 type Device = Omit<InferenceDevice, 'selected'>
+
+export const COMFYUI_DEFAULT_PARAMETERS = '--lowvram --reserve-vram 6.0'
+
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     super(name, port, win, settings)
@@ -44,12 +47,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private revision = 'v0.3.66'
   private environmentMismatchError: ErrorDetails | null = null
 
-  private readonly comfyUIStartupParameters =
-    process.platform !== 'win32'
-      ? []
-      : this.settings.comfyUiParameters
-        ? this.settings.comfyUiParameters
-        : ['--lowvram']
+  private comfyUiParametersString: string = COMFYUI_DEFAULT_PARAMETERS
 
   async serviceIsSetUp(): Promise<boolean> {
     this.appLogger.info(`Checking if comfyUI directories exist`, this.name)
@@ -130,11 +128,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.revision = settings.version
       this.appLogger.info(`applied new comfyUI version ${this.revision}`, this.name)
     }
-  }
-
-  async getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`getting comfyUI settings`, this.name)
-    return { version: this.revision, serviceName: 'comfyui-backend' }
+    if (typeof settings.comfyUiParameters === 'string') {
+      this.comfyUiParametersString = settings.comfyUiParameters
+      this.appLogger.info(
+        `applied new comfyUI startup parameters: ${this.comfyUiParametersString}`,
+        this.name,
+      )
+    }
   }
 
   async getCurrentVersion(): Promise<string | undefined> {
@@ -651,7 +651,7 @@ except Exception as e:
       'auto',
       '--output-directory',
       mediaDir,
-      ...this.comfyUIStartupParameters,
+      ...this.comfyUiParametersString.split(/\s+/).filter(Boolean),
     ]
     this.appLogger.info(
       `starting comfyui with ${JSON.stringify({ parameters, additionalEnvVariables })}`,

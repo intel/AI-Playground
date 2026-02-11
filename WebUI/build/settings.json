@@ -1,6 +1,5 @@
 {
   "debug": false,
-  "comfyUiParameters": ["--lowvram"],
   "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "light",
   "isDemoModeEnabled": false
