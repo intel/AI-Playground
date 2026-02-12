@@ -5,6 +5,7 @@
   "tags": ["ESRGAN", "no-prompt"],
   "backend": "comfyui",
   "category": "edit-images",
+  "toolCategory": "edit-images",
   "description": "Increase resolution of an image up to 4X",
   "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
   "requiredPythonPackages": [],

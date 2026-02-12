@@ -56,8 +56,8 @@ export function getAvailableWorkflows(): Array<{
       if (preset.type !== 'comfy' || preset.backend !== 'comfyui') {
         return false
       }
-      // Only presets with toolEnabled: true
-      return preset.toolEnabled === true
+      // Only presets with toolCategory 'create-images'
+      return preset.toolCategory === 'create-images'
     })
     .map((preset: Preset) => {
       const comfyPreset = preset as ComfyUiPreset

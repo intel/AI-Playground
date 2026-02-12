@@ -6,6 +6,8 @@
   "description": "Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
   "backend": "comfyui",
   "category": "create-images",
+  "toolCategory": "edit-images",
+  "toolInstructions": "Use this workflow when the user wants to generate a new image with a specific face or likeness from a reference image. Generate a detailed, descriptive prompt that describes the character, scene, composition, style, lighting, colors, mood, and quality tags. Even if the user requests something simple like 'a portrait of a woman', expand it to a full prompt like 'a beautiful portrait of a woman with long flowing hair, soft studio lighting, elegant pose, professional photography, 8k, highly detailed, photorealistic'. The reference face will be applied to the generated image.",
   "requiredCustomNodes": [
     "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"

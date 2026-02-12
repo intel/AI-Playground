@@ -7,7 +7,7 @@
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",
-  "toolEnabled": true,
+  "toolCategory": "create-images",
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Flux.1-Schnell produces very high quality images with excellent prompt understanding, so be specific about artistic style, composition, and visual details. Even if the user requests something simple like 'a landscape', expand it to a full prompt like 'a breathtaking mountain landscape at sunset, dramatic clouds, golden hour lighting, cinematic composition, highly detailed, photorealistic, 8k, professional photography, wide angle view'.",
   "resolutionConfig": {
     "megapixels": [

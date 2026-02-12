@@ -144,10 +144,14 @@ const emits = defineEmits<{
 const images = (conversation: AipgUiMessage[]) => {
   return conversation.flatMap((msg, msgIndex) =>
     msg.parts
-      .filter((part) => part.type === 'tool-comfyUI' && part.state === 'output-available')
+      .filter(
+        (part) =>
+          (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') &&
+          part.state === 'output-available',
+      )
       .map((part, partIndex) => {
         if (
-          part.type === 'tool-comfyUI' &&
+          (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') &&
           'output' in part &&
           part.output &&
           typeof part.output === 'object' &&

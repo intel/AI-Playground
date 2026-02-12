@@ -7,7 +7,6 @@
   "category": "create-images",
   "description": "Advanced mode to manually control the model, CFG, sampler and more. But be sure resolution and settings fit the model selected",
   "mediaType": "image",
-  "toolEnabled": false,
   "resolutionConfig": {
     "megapixels": [
       { "label": "0.25", "totalPixels": 262144 },

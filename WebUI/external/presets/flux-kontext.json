@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
+  "toolCategory": "edit-images",
   "requiredCustomNodes": [
     "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
@@ -139,7 +140,7 @@
       "label": "Use resolution of reference image(s)",
       "displayed": true,
       "modifiable": true,
-      "defaultValue": false,
+      "defaultValue": true,
       "nodeTitle": "use_original_resolution",
       "nodeInput": "switch"
     },

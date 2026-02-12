@@ -144,6 +144,9 @@ export class LlamaCppBackendService implements ApiService {
         `LlamaCPP backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
         this.name,
       )
+
+      // we still need to communicate status 'running' to backendServices and UI
+      this.start()
     } catch (error) {
       this.appLogger.error(
         `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`,

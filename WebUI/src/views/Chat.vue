@@ -185,9 +185,11 @@
                 :key="
                   part.type === 'tool-comfyUI'
                     ? `tool-${part.toolCallId}`
-                    : part.type === 'tool-visualizeObjectDetections'
+                    : part.type === 'tool-comfyUiImageEdit'
                       ? `tool-${part.toolCallId}`
-                      : undefined
+                      : part.type === 'tool-visualizeObjectDetections'
+                        ? `tool-${part.toolCallId}`
+                        : undefined
                 "
               >
                 <span>I'm using the tool {{ part.type.replace('tool-', '') }}</span>
@@ -196,6 +198,25 @@
                     <span
                       >Generating using the preset
                       <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
+                    >
+                    <br />
+                    <br />
+                    <span
+                      ><em>{{ part.input?.prompt ?? '' }}</em></span
+                    >
+                    <ChatWorkflowResult
+                      :images="getToolImages(part)"
+                      :processing="getToolProcessing(part)"
+                      :currentState="getToolCurrentState(part)"
+                      :stepText="getToolStepText(part)"
+                      :toolCallId="(part as any).toolCallId"
+                    />
+                  </div>
+                </template>
+                <template v-else-if="part.type === 'tool-comfyUiImageEdit'">
+                  <div class="mt-1 pt-1">
+                    <span
+                      >Editing using the preset <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
                     >
                     <br />
                     <br />
@@ -451,7 +472,7 @@ function copyText(text: string) {
 
 // Helper functions for tool rendering
 function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {
-  if (part.type !== 'tool-comfyUI') return []
+  if (!(part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit')) return []
   const toolCallId = part.toolCallId
   const progress = toolProgressMap[toolCallId]
 
@@ -513,7 +534,7 @@ watch(
     // Find tool calls that just started (input-streaming or input-available)
     messages.forEach((msg) => {
       msg.parts.forEach((part) => {
-        if (part.type === 'tool-comfyUI') {
+        if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
           const toolCallId = part.toolCallId
           const state = part.state
 
@@ -552,7 +573,7 @@ watch(
         ?.flatMap((msg) => msg.parts)
         .filter(
           (part) =>
-            part.type === 'tool-comfyUI' &&
+            (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') &&
             (part.state === 'input-streaming' || part.state === 'input-available'),
         )
         .map((part) => ({
@@ -599,7 +620,7 @@ watch(
         ?.flatMap((msg) => msg.parts)
         .filter(
           (part) =>
-            part.type === 'tool-comfyUI' &&
+            (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') &&
             (part.state === 'input-streaming' || part.state === 'input-available'),
         )
         .map((part) => part.toolCallId) || [],

@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Create a 3D mesh from a 2D image ready for 3D printing or other 3D tools like Blender",
+  "toolCategory": "edit-images",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [],

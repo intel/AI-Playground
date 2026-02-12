@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "description": "Add color to a black and white photo",
   "category": "edit-images",
+  "toolCategory": "edit-images",
   "requiredCustomNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
   "requiredPythonPackages": [],
   "requiredModels": [],
