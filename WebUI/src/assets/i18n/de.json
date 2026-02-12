@@ -273,6 +273,8 @@
   "SETTINGS_AUDIO": "Audio",
   "SETTINGS_AUDIO_SILENCE_DETECTION": "Stille-Erkennung",
   "SETTINGS_AUDIO_SILENCE_DURATION": "Stille-Dauer",
+  "SETTINGS_DEVELOPER": "Entwickler",
+  "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Entwicklerkonsole beim Start öffnen",
 
   "BACKEND_STOP": "Backend stoppen",
   "BACKEND_START": "Backend starten",

@@ -282,6 +282,8 @@
   "SETTINGS_AUDIO": "Audio",
   "SETTINGS_AUDIO_SILENCE_DETECTION": "Silence Detection",
   "SETTINGS_AUDIO_SILENCE_DURATION": "Silence Duration",
+  "SETTINGS_DEVELOPER": "Developer",
+  "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Open Developer Console on Startup",
 
   "BACKEND_STOP": "Stop Backend",
   "BACKEND_START": "Start Backend",

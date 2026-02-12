@@ -46,6 +46,7 @@ type electronAPI = {
   ): Promise<{ releaseTag?: string; version?: string } | undefined>
   getGitHubRepoUrl(): Promise<string>
   openDevTools(): void
+  getDeveloperSettings(): Promise<{ openDevConsoleOnStartup: boolean }>
   openUrl(url: string): void
   changeWindowMessageFilter(): void
   getWinSize(): Promise<{

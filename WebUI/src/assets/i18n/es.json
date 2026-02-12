@@ -253,6 +253,11 @@
   "SETTINGS_IMAGE_COMFY_CHECKPOINT_MODEL": "Modelo de checkpoint",
   "SETTINGS_IMAGE_COMFY_FRAME_RATE": "Velocidad de fotogramas",
   "SETTINGS_IMAGE_COMFY_TOTAL_FRAMES": "Frames totales",
+  "SETTINGS_AUDIO": "Audio",
+  "SETTINGS_AUDIO_SILENCE_DETECTION": "Detección de silencio",
+  "SETTINGS_AUDIO_SILENCE_DURATION": "Duración del silencio",
+  "SETTINGS_DEVELOPER": "Desarrollador",
+  "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Abrir consola de desarrollador al iniciar",
 
   "COM_LOAD_VIDEO": "Cargar video",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "Modelo HD predeterminado de inpaint/outpaint",

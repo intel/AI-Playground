@@ -46,11 +46,15 @@ import {
   GenerationSettings,
 } from '@/assets/js/store/imageGenerationPresets'
 import { getTranslationLabel } from '@/lib/utils'
+import { useI18N } from '@/assets/js/store/i18n'
 
 const props = defineProps<{
   generationParameters: GenerationSettings
   dynamicInputs?: ComfyDynamicInputWithCurrent[]
 }>()
+
+const i18nState = useI18N().state
+const languages = i18nState
 
 const settingToTranslationKey: Record<keyof GenerationSettings, string> = {
   preset: 'SETTINGS_IMAGE_PRESET',

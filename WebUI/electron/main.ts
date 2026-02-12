@@ -163,6 +163,31 @@ async function createWindow() {
     setTimeout(() => {
       appLogger.onWebcontentReady(win!.webContents)
     }, 100)
+
+    // Check localStorage for developer settings after page loads
+    setTimeout(async () => {
+      try {
+        const openDevConsoleOnStartup = await win!.webContents.executeJavaScript(
+          `(() => {
+            try {
+              const developerSettings = localStorage.getItem('developerSettings');
+              if (developerSettings) {
+                const parsed = JSON.parse(developerSettings);
+                return parsed.openDevConsoleOnStartup === true;
+              }
+            } catch (e) {
+              return false;
+            }
+            return false;
+          })()`,
+        )
+        if (openDevConsoleOnStartup && app.isPackaged && !settings.debug) {
+          win!.webContents.openDevTools({ mode: 'detach', activate: true })
+        }
+      } catch (e) {
+        appLogger.error(`Failed to check developer settings: ${e}`, 'electron-backend')
+      }
+    }, 500)
   })
 
   const session = win.webContents.session
