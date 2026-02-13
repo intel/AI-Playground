@@ -47,7 +47,10 @@ import {
   aiplaygroundApiServiceRegistry,
   ApiServiceRegistryImpl,
 } from './subprocesses/apiServiceRegistry'
-import { ComfyUiBackendService } from './subprocesses/comfyUIBackendService'
+import {
+  ComfyUiBackendService,
+  COMFYUI_DEFAULT_PARAMETERS,
+} from './subprocesses/comfyUIBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -94,7 +97,6 @@ const appSize = {
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
-  comfyUiParameters: z.array(z.string()).default([]),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
   enablePreviewFeatures: z.boolean().default(false),
   isAdminExec: z.boolean().default(false),
@@ -161,6 +163,31 @@ async function createWindow() {
     setTimeout(() => {
       appLogger.onWebcontentReady(win!.webContents)
     }, 100)
+
+    // Check localStorage for developer settings after page loads
+    setTimeout(async () => {
+      try {
+        const openDevConsoleOnStartup = await win!.webContents.executeJavaScript(
+          `(() => {
+            try {
+              const developerSettings = localStorage.getItem('developerSettings');
+              if (developerSettings) {
+                const parsed = JSON.parse(developerSettings);
+                return parsed.openDevConsoleOnStartup === true;
+              }
+            } catch (e) {
+              return false;
+            }
+            return false;
+          })()`,
+        )
+        if (openDevConsoleOnStartup && app.isPackaged && !settings.debug) {
+          win!.webContents.openDevTools({ mode: 'detach', activate: true })
+        }
+      } catch (e) {
+        appLogger.error(`Failed to check developer settings: ${e}`, 'electron-backend')
+      }
+    }, 500)
   })
 
   const session = win.webContents.session
@@ -390,6 +417,12 @@ function initEventHandle() {
       locale: app.getLocale(),
       languageOverride: settings.languageOverride,
     }
+  })
+
+  ipcMain.handle('updateLocalSettings', (_event, updates: Partial<LocalSettings>) => {
+    Object.assign(settings, updates)
+    appLogger.info(`Updated local settings: ${JSON.stringify(updates)}`, 'electron-backend')
+    return { success: true }
   })
 
   ipcMain.handle('getWinSize', () => {
@@ -640,25 +673,7 @@ function initEventHandle() {
     return service.updateSettings(settings)
   })
 
-  ipcMain.handle('getServiceSettings', (_event: IpcMainInvokeEvent, serviceName) => {
-    appLogger.info(`getServiceSettings: ${serviceName}`, 'electron-backend')
-    if (!serviceRegistry) {
-      appLogger.warn(
-        'received getServiceSettings too early during aipg startup',
-        'electron-backend',
-      )
-      return
-    }
-    const service = serviceRegistry.getService(serviceName)
-    if (!service) {
-      appLogger.warn(
-        `Tried to get settings for service ${serviceName} which is not known`,
-        'electron-backend',
-      )
-      return
-    }
-    return service.getSettings()
-  })
+  ipcMain.handle('getComfyUiDefaultParameters', () => COMFYUI_DEFAULT_PARAMETERS)
 
   ipcMain.handle('detectDevices', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {

@@ -7,7 +7,7 @@
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",
-  "toolEnabled": true,
+  "toolCategory": "create-images",
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Z-Image-Turbo produces very high quality images with excellent prompt understanding, so be specific about artistic style, composition, and visual details. Even if the user requests something simple like 'a landscape', expand it to a full prompt like 'a breathtaking mountain landscape at sunset, dramatic clouds, golden hour lighting, cinematic composition, highly detailed, photorealistic, 8k, professional photography, wide angle view'.",
   "resolutionConfig": {
     "megapixels": [
@@ -22,7 +22,6 @@
   },
   "requiredCustomNodes": [
     "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
-    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
@@ -38,6 +37,18 @@
     {
       "type": "vae",
       "model": "Comfy-Org/z_image_turbo/split_files/vae/ae.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
     }
   ],
   "settings": [
@@ -267,7 +278,7 @@
         "cuda": false,
         "image": ["43", 0]
       },
-      "class_type": "YetAnotherSafetyChecker",
+      "class_type": "SafetyChecker",
       "_meta": {
         "title": "Intercept NSFW Outputs"
       }

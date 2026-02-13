@@ -10,23 +10,6 @@ const backends = [
   'ollama-backend',
 ] as const
 
-type ServiceSettings = {
-  ['ai-backend']?: object
-  ['comfyui-backend']?: {
-    version: string
-  }
-  ['llamacpp-backend']?: {
-    version: string
-  }
-  ['openvino-backend']?: {
-    version: string
-  }
-  ['ollama-backend']?: {
-    releaseTag: string
-    version: string
-  }
-} & { serviceName: BackendServiceName }
-
 export type BackendServiceName = (typeof backends)[number]
 
 export const BackendVersionSchema = z.object({
@@ -61,6 +44,20 @@ export const useBackendServices = defineStore(
 
     // User's version overrides (persisted)
     const versionOverrides = ref<Partial<Record<BackendServiceName, BackendVersion>>>({})
+
+    // ComfyUI startup parameters (persisted). null = use default from backend.
+    const comfyUiParameters = ref<string | null>(null)
+
+    // Default parameters fetched from backend via IPC
+    const comfyUiDefaultParameters = ref<string>('')
+    window.electronAPI.getComfyUiDefaultParameters().then((v) => {
+      comfyUiDefaultParameters.value = v
+    })
+
+    // Effective parameters: user override or default
+    const effectiveComfyUiParameters = computed(
+      () => comfyUiParameters.value ?? comfyUiDefaultParameters.value,
+    )
 
     // Full version state (not persisted - computed from live data + overrides)
     const versionState = ref<BackendVersionState>({
@@ -261,7 +258,11 @@ export const useBackendServices = defineStore(
 
       const versions = versionState.value[serviceName]
       const targetVersionSettings = versions.uiOverride ?? versions.target
-      await updateServiceSettings({ serviceName, ...targetVersionSettings })
+      const serviceSettings: ServiceSettings = { serviceName, ...targetVersionSettings }
+      if (serviceName === 'comfyui-backend') {
+        serviceSettings.comfyUiParameters = effectiveComfyUiParameters.value
+      }
+      await updateServiceSettings(serviceSettings)
       window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
       if (result.success) {
@@ -287,12 +288,6 @@ export const useBackendServices = defineStore(
       return window.electronAPI.updateServiceSettings(settings)
     }
 
-    async function getServiceSettings<T extends BackendServiceName>(
-      serviceName: T,
-    ): Promise<ServiceSettings[T]> {
-      return window.electronAPI.getServiceSettings(serviceName)
-    }
-
     function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
       lastSelectedDeviceIdPerBackend.value[serviceName] = deviceId
       return window.electronAPI.selectDevice(serviceName, deviceId)
@@ -307,6 +302,12 @@ export const useBackendServices = defineStore(
     }
 
     async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
+      if (serviceName === 'comfyui-backend') {
+        await updateServiceSettings({
+          serviceName: 'comfyui-backend',
+          comfyUiParameters: effectiveComfyUiParameters.value,
+        })
+      }
       return window.electronAPI.startService(serviceName)
     }
 
@@ -461,11 +462,13 @@ export const useBackendServices = defineStore(
       versionState,
       versionOverrides,
       lastSelectedDeviceIdPerBackend,
+      comfyUiParameters,
+      comfyUiDefaultParameters,
+      effectiveComfyUiParameters,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
       setUpService,
-      getServiceSettings,
       updateServiceSettings,
       startService,
       stopService,
@@ -485,7 +488,7 @@ export const useBackendServices = defineStore(
   },
   {
     persist: {
-      pick: ['versionOverrides', 'lastSelectedDeviceIdPerBackend'],
+      pick: ['versionOverrides', 'lastSelectedDeviceIdPerBackend', 'comfyUiParameters'],
     },
   },
 )

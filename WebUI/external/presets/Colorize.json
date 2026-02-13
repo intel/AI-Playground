@@ -6,6 +6,8 @@
   "backend": "comfyui",
   "description": "Add color to a black and white photo",
   "category": "edit-images",
+  "toolCategory": "edit-images",
+  "toolInstructions": "Use this workflow when the user wants to colorize a black-and-white or grayscale photo. This is a no-prompt workflow: the prompt parameter is ignored. Simply select this workflow and the image will be automatically colorized using DDColor. Best for restoring color to old photographs or converting grayscale images to color.",
   "requiredCustomNodes": ["kijai/ComfyUI-DDColor@30d5b8e7666382a6a78404caee28dfa87f741037"],
   "requiredPythonPackages": [],
   "requiredModels": [],

@@ -119,7 +119,7 @@ const BasePresetFieldsSchema = z.object({
   // Tool metadata for ComfyUI tool integration
   mediaType: z.enum(['image', 'video', 'model3d']).optional(), // Specifies what type of media the preset generates
   toolInstructions: z.string().optional(), // Instructions for the AI on how to generate prompts for this preset
-  toolEnabled: z.boolean().optional(), // Whether this preset should be available in the tool
+  toolCategory: z.string().optional(), // Category for tool organization (e.g., 'create-images', 'edit-images'). Presets without toolCategory are not available as tools.
 })
 
 // ComfyUI Preset Schema
@@ -165,7 +165,7 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   showTools: z.boolean().optional(), // Show "Enable Tools" toggle (default: false)
   filterTxt2TxtOnly: z.boolean().optional(), // Filter out vision AND reasoning models
   lockDeviceToNpu: z.boolean().optional(), // Lock device selector to NPU
-  advancedMode: z.boolean().optional(), // Show unspecified models + system prompt editing
+  advancedMode: z.boolean().optional(), // Show advanced features: unspecified models + system prompt editing + vision model support
 })
 
 // Discriminated Union for all Preset types

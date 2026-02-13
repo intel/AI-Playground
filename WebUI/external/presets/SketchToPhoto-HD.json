@@ -6,10 +6,9 @@
   "description": "Turn rough sketches into stunning photos. Load a sketch and describe the location, weather and environment",
   "backend": "comfyui",
   "category": "edit-images",
-  "requiredCustomNodes": [
-    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
-    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
-  ],
+  "toolCategory": "edit-images",
+  "toolInstructions": "Use this workflow when the user wants to turn a sketch or line drawing into a photorealistic image. Provide a detailed prompt describing the scene, environment, lighting, weather, and mood. The sketch structure will be preserved via ControlNet edge detection while the prompt guides the photorealistic rendering. For example, if the user provides a sketch of a house, expand the prompt to 'a cozy suburban house with a garden, bright sunny day, blue sky with white clouds, green lawn, photorealistic, 8k, highly detailed'. Prefer the Fast variant unless higher quality is requested.",
+  "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
@@ -19,6 +18,18 @@
     {
       "type": "controlNet",
       "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
     }
   ],
   "settings": [
@@ -291,7 +302,7 @@
         "cuda": false,
         "image": ["8", 0]
       },
-      "class_type": "YetAnotherSafetyChecker",
+      "class_type": "SafetyChecker",
       "_meta": {
         "title": "Intercept NSFW Outputs"
       }

@@ -5,7 +5,9 @@
   "tags": ["ESRGAN", "no-prompt"],
   "backend": "comfyui",
   "category": "edit-images",
+  "toolCategory": "edit-images",
   "description": "Increase resolution of an image up to 4X",
+  "toolInstructions": "Use this workflow when the user wants to upscale, enhance resolution, or increase the size of an existing image. This is a no-prompt workflow: the prompt parameter is ignored. Simply select this workflow and the image will be upscaled using RealESRGAN x4plus. Best for making small or low-resolution images larger and sharper.",
   "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
   "requiredPythonPackages": [],
   "requiredModels": [

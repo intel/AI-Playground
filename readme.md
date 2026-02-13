@@ -75,31 +75,11 @@ cd WebUI
 npm install
 ```
 
-### Prepare Python Environment
+### Fetch External Resources
 
-1. Install Miniforge to manage your Conda environment: https://github.com/conda-forge/miniforge
+1. In the `WebUI` directory, execute the `fetch-external-resources` script to download required external resources:
 
-2. Create a Conda environment with Python 3.11 and libuv:
-```
-conda create -n cp311_libuv python=3.11 libuv -y
-```
-
-3. Locate the path to your newly created Conda environment:
-```
-conda env list | findstr cp311_libuv
-```
-
-4. In the `WebUI` directory, execute the `fetch-build-resources` script, replacing `<path_to_cp311_libuv_conda_env>` with the actual path you copied in the previous step:
-```
-npm run fetch-build-resources -- --conda_env_dir=<path_to_cp311_libuv_conda_env>
-```
-
-5. Run the `prepare-build` script:
-```
-npm run prepare-build
-```
-
-You should now have a basic Python environment located at `build-envs\online\prototype-python-env`.
+This will download `uv` (Python package manager) and other required tools to the `build/resources/` directory.
 
 ### Launch the application
 
@@ -117,7 +97,7 @@ To build the installer, run:
 npm run build
 ```
 
-The installer executable will be located in the `release` folder.
+The installer executable will be located in the `build/electron` folder.
 
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 

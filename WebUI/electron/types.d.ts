@@ -8,13 +8,6 @@ declare type BackendServiceName =
   | 'openvino-backend'
   | 'ollama-backend'
 
-// Declare ServiceSettings type
-declare interface ServiceSettings {
-  serviceName: BackendServiceName
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any
-}
-
 // Declare BackendStatus type
 declare type BackendStatus =
   | 'notInstalled'

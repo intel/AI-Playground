@@ -1,12 +1,10 @@
 {
   "debug": true,
-  "comfyUiParameters": ["--lowvram"],
   "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "bmg",
   "enablePreviewFeatures": true,
   "isDemoModeEnabled": false,
   "demoModeResetInSeconds": null,
   "languageOverride": null,
-  "remoteRepository": "tng/ai-playground",
-  "huggingfaceEndpoint": "https://huggingface.co"
+  "remoteRepository": "tng/ai-playground"
 }

@@ -18,6 +18,9 @@ import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode } from './comfyuiTools.ts'
 type Device = Omit<InferenceDevice, 'selected'>
+
+export const COMFYUI_DEFAULT_PARAMETERS = '--lowvram --reserve-vram 6.0'
+
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     super(name, port, win, settings)
@@ -44,12 +47,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private revision = 'v0.3.66'
   private environmentMismatchError: ErrorDetails | null = null
 
-  private readonly comfyUIStartupParameters =
-    process.platform !== 'win32'
-      ? []
-      : this.settings.comfyUiParameters
-        ? this.settings.comfyUiParameters
-        : ['--lowvram']
+  private comfyUiParametersString: string = COMFYUI_DEFAULT_PARAMETERS
 
   async serviceIsSetUp(): Promise<boolean> {
     this.appLogger.info(`Checking if comfyUI directories exist`, this.name)
@@ -130,11 +128,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.revision = settings.version
       this.appLogger.info(`applied new comfyUI version ${this.revision}`, this.name)
     }
-  }
-
-  async getSettings(): Promise<ServiceSettings> {
-    this.appLogger.info(`getting comfyUI settings`, this.name)
-    return { version: this.revision, serviceName: 'comfyui-backend' }
+    if (typeof settings.comfyUiParameters === 'string') {
+      this.comfyUiParametersString = settings.comfyUiParameters
+      this.appLogger.info(
+        `applied new comfyUI startup parameters: ${this.comfyUiParametersString}`,
+        this.name,
+      )
+    }
   }
 
   async getCurrentVersion(): Promise<string | undefined> {
@@ -365,6 +365,61 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       }
     }
 
+    const installBuiltinCustomNodes = async (): Promise<void> => {
+      try {
+        const builtinCustomNodesDir = path.join(aipgBaseDir, 'comfyui-deps', 'custom_nodes')
+
+        if (!filesystem.existsSync(builtinCustomNodesDir)) {
+          this.appLogger.info(
+            `No builtin custom nodes directory found at ${builtinCustomNodesDir}, skipping`,
+            this.name,
+          )
+          return
+        }
+
+        this.appLogger.info(
+          `Installing builtin custom nodes from ${builtinCustomNodesDir}`,
+          this.name,
+        )
+
+        const targetCustomNodesDir = path.join(this.serviceDir, 'custom_nodes')
+
+        if (!filesystem.existsSync(targetCustomNodesDir)) {
+          this.appLogger.info(
+            `Creating custom_nodes directory at ${targetCustomNodesDir}`,
+            this.name,
+          )
+          await filesystem.ensureDir(targetCustomNodesDir)
+        }
+
+        const entries = await filesystem.readdir(builtinCustomNodesDir, { withFileTypes: true })
+
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const sourcePath = path.join(builtinCustomNodesDir, entry.name)
+            const targetPath = path.join(targetCustomNodesDir, entry.name)
+
+            this.appLogger.info(
+              `Copying builtin custom node ${entry.name} from ${sourcePath} to ${targetPath}`,
+              this.name,
+            )
+
+            await filesystem.copy(sourcePath, targetPath, { overwrite: true })
+
+            this.appLogger.info(
+              `Successfully installed builtin custom node ${entry.name}`,
+              this.name,
+            )
+          }
+        }
+
+        this.appLogger.info(`Builtin custom nodes installation complete`, this.name)
+      } catch (error) {
+        this.appLogger.error(`Failed to install builtin custom nodes: ${error}`, this.name)
+        throw new Error(`Failed to install builtin custom nodes: ${error}`)
+      }
+    }
+
     let currentStep = 'start'
 
     try {
@@ -406,6 +461,21 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         step: currentStep,
         status: 'executing',
         debugMessage: `configured comfyUI base repo`,
+      }
+
+      currentStep = 'install builtin custom nodes'
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: 'installing builtin custom nodes',
+      }
+      await installBuiltinCustomNodes()
+      yield {
+        serviceName: this.name,
+        step: currentStep,
+        status: 'executing',
+        debugMessage: 'builtin custom nodes installation complete',
       }
 
       currentStep = 'install comfyUI manager'
@@ -581,7 +651,7 @@ except Exception as e:
       'auto',
       '--output-directory',
       mediaDir,
-      ...this.comfyUIStartupParameters,
+      ...this.comfyUiParametersString.split(/\s+/).filter(Boolean),
     ]
     this.appLogger.info(
       `starting comfyui with ${JSON.stringify({ parameters, additionalEnvVariables })}`,

@@ -154,7 +154,7 @@ function modifySettingInWorkflow(
       ? findKeysByTitle(workflow, setting)
       : findKeysByInputsName(workflow, setting)
   if (keys.length === 0) {
-    console.error(`No key found for setting ${setting}. Stopping generation`)
+    console.warn(`No key found for setting ${setting}. Skipping this setting.`)
     return
   }
   if (keys.length > 1) {
@@ -801,6 +801,14 @@ export const useComfyUiPresets = defineStore(
       }
     }
 
+    // Helper function to reset UI state on error
+    function resetGenerationState() {
+      imageGeneration.processing = false
+      imageGeneration.currentState = 'no_start'
+      const promptStore = usePromptStore()
+      promptStore.promptSubmitted = false
+    }
+
     async function generate(imageIds: string[], mode: WorkflowModeType, sourceImage?: string) {
       const preset = imageGeneration.activePreset
       if (!preset || preset.type !== 'comfy') {
@@ -821,6 +829,7 @@ export const useComfyUiPresets = defineStore(
       if (missingInputs.length > 0) {
         const inputLabels = missingInputs.join(', ')
         toast.error(`Missing required image inputs: ${inputLabels}`)
+        resetGenerationState()
         return
       }
 
@@ -895,11 +904,18 @@ export const useComfyUiPresets = defineStore(
       } catch (ex) {
         console.error('Error generating image', ex)
         toast.error('Backend could not generate image.')
-        imageGeneration.processing = false
-        imageGeneration.currentState = 'no_start'
-        const promptStore = usePromptStore()
-        promptStore.promptSubmitted = false
+        resetGenerationState()
       }
+    }
+
+    async function freeMemoryAndUnloadModels() {
+      await fetch(`${comfyBaseUrl.value}/free`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ free_memory: true, unload_models: true }),
+      })
     }
 
     async function stop() {
@@ -924,6 +940,7 @@ export const useComfyUiPresets = defineStore(
     return {
       generate,
       stop,
+      free: freeMemoryAndUnloadModels,
       checkPresetRequirements,
       installMissingRequirements,
     }

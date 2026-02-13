@@ -2,12 +2,12 @@
   "type": "comfy",
   "name": "Pro Image",
   "displayPriority": 300,
-  "tags": ["Flux.1-Schnell"],
-  "description": "Precisely generate images, with text and adherence to prompt using Flux.1-Schnell",
+  "tags": ["Flux.2-Klein"],
+  "description": "Precisely generate images, with text and adherence to prompt using Flux.2-Klein",
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",
-  "toolEnabled": true,
+  "toolCategory": "create-images",
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Flux.1-Schnell produces very high quality images with excellent prompt understanding, so be specific about artistic style, composition, and visual details. Even if the user requests something simple like 'a landscape', expand it to a full prompt like 'a breathtaking mountain landscape at sunset, dramatic clouds, golden hour lighting, cinematic composition, highly detailed, photorealistic, 8k, professional photography, wide angle view'.",
   "resolutionConfig": {
     "megapixels": [
@@ -21,12 +21,36 @@
     "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
   },
   "requiredCustomNodes": [
-    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
-    "BetaDoggo/ComfyUI-YetAnotherSafetyChecker@a4e7d9e329c43c90366df73519c50df573ef0a9d",
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
-  "requiredModels": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "black-forest-labs/FLUX.2-klein-4b-fp8/flux-2-klein-4b-fp8.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/text_encoders/qwen_3_4b_fp4_flux2.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/vae/flux2-vae.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+    }
+  ],
   "settings": [
     {
       "type": "string",
@@ -57,7 +81,7 @@
       "label": "Width",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": 896,
+      "defaultValue": 1024,
       "settingName": "width"
     },
     {
@@ -65,7 +89,7 @@
       "label": "Height",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": 896,
+      "defaultValue": 1024,
       "settingName": "height"
     },
     {
@@ -73,7 +97,7 @@
       "label": "Resolution",
       "displayed": false,
       "modifiable": true,
-      "defaultValue": "896x896",
+      "defaultValue": "1024x1024",
       "settingName": "resolution"
     },
     {
@@ -89,24 +113,8 @@
       "label": "Negative Prompt",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": "nsfw",
+      "defaultValue": "",
       "settingName": "negativePrompt"
-    },
-    {
-      "type": "boolean",
-      "label": "Safety Check",
-      "displayed": false,
-      "modifiable": false,
-      "defaultValue": true,
-      "settingName": "safetyCheck"
-    },
-    {
-      "type": "boolean",
-      "label": "Show Preview",
-      "displayed": true,
-      "modifiable": true,
-      "defaultValue": true,
-      "settingName": "showPreview"
     },
     {
       "type": "number",
@@ -119,87 +127,158 @@
       "defaultValue": 0.5,
       "displayed": true,
       "modifiable": true
-    }
-  ],
-  "variants": [
-    {
-      "name": "Standard",
-      "overrides": {
-        "requiredModels": [
-          {
-            "type": "unet",
-            "model": "city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf"
-          },
-          {
-            "type": "clip",
-            "model": "city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf"
-          },
-          {
-            "type": "clip",
-            "model": "comfyanonymous/flux_text_encoders/clip_l.safetensors"
-          },
-          {
-            "type": "vae",
-            "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
-          }
-        ],
-        "comfyUiApiWorkflow": {
-          "170": {
-            "inputs": {
-              "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q4_K_S.gguf"
-            },
-            "class_type": "UnetLoaderGGUF",
-            "_meta": {
-              "title": "Unet Loader (GGUF)"
-            }
-          }
-        }
-      }
     },
     {
-      "name": "Quality",
-      "overrides": {
-        "requiredModels": [
-          {
-            "type": "unet",
-            "model": "city96/FLUX.1-schnell-gguf/flux1-schnell-Q8_0.gguf"
-          },
-          {
-            "type": "clip",
-            "model": "city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf"
-          },
-          {
-            "type": "clip",
-            "model": "comfyanonymous/flux_text_encoders/clip_l.safetensors"
-          },
-          {
-            "type": "vae",
-            "model": "Comfy-Org/Lumina_Image_2.0_Repackaged/split_files/vae/ae.safetensors"
-          }
-        ],
-        "comfyUiApiWorkflow": {
-          "170": {
-            "inputs": {
-              "unet_name": "city96---FLUX.1-schnell-gguf\\flux1-schnell-Q8_0.gguf"
-            },
-            "class_type": "UnetLoaderGGUF",
-            "_meta": {
-              "title": "Unet Loader (GGUF)"
-            }
-          }
-        },
-        "tags": ["Flux", "Q8"]
-      }
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "showPreview"
     }
   ],
   "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "unet_name": "black-forest-labs---FLUX.2-klein-4b-fp8\\flux-2-klein-4b-fp8.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "inputs": {
+        "clip_name": "Comfy-Org---vae-text-encorder-for-flux-klein-4b\\split_files\\text_encoders\\qwen_3_4b_fp4_flux2.safetensors",
+        "type": "flux2",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "3": {
+      "inputs": {
+        "vae_name": "Comfy-Org---vae-text-encorder-for-flux-klein-4b\\split_files\\vae\\flux2-vae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "inputs": {
+        "text": "cheese",
+        "clip": ["2", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "5": {
+      "inputs": {
+        "conditioning": ["4", 0]
+      },
+      "class_type": "ConditioningZeroOut",
+      "_meta": {
+        "title": "ConditioningZeroOut"
+      }
+    },
+    "6": {
+      "inputs": {
+        "cfg": 1.1,
+        "model": ["1", 0],
+        "positive": ["4", 0],
+        "negative": ["5", 0]
+      },
+      "class_type": "CFGGuider",
+      "_meta": {
+        "title": "CFGGuider"
+      }
+    },
+    "7": {
+      "inputs": {
+        "steps": 4,
+        "width": ["16", 0],
+        "height": ["17", 0]
+      },
+      "class_type": "Flux2Scheduler",
+      "_meta": {
+        "title": "Flux2Scheduler"
+      }
+    },
+    "8": {
+      "inputs": {
+        "width": ["16", 0],
+        "height": ["17", 0],
+        "batch_size": 1
+      },
+      "class_type": "EmptyFlux2LatentImage",
+      "_meta": {
+        "title": "EmptyFlux2LatentImage"
+      }
+    },
+    "9": {
+      "inputs": {
+        "noise_seed": 853476
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
+    },
+    "10": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
+    },
+    "11": {
+      "inputs": {
+        "noise": ["9", 0],
+        "guider": ["6", 0],
+        "sampler": ["10", 0],
+        "sigmas": ["7", 0],
+        "latent_image": ["8", 0]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "12": {
+      "inputs": {
+        "samples": ["11", 0],
+        "vae": ["3", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "13": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["98", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
     "98": {
       "inputs": {
         "threshold": ["99", 0],
         "cuda": false,
-        "image": ["179", 0]
+        "image": ["12", 0]
       },
-      "class_type": "YetAnotherSafetyChecker",
+      "class_type": "SafetyChecker",
       "_meta": {
         "title": "Intercept NSFW Outputs"
       }
@@ -215,128 +294,26 @@
         "title": "SafetyCheckerStrength"
       }
     },
-    "167": {
+    "16": {
       "inputs": {
-        "filename_prefix": "AIPG_Image",
-        "images": ["98", 0]
+        "a": 1248,
+        "b": 0,
+        "operation": "add"
       },
-      "class_type": "SaveImage",
+      "class_type": "IntMathOperation",
       "_meta": {
-        "title": "Save Image"
+        "title": "width"
       }
     },
-    "169": {
+    "17": {
       "inputs": {
-        "noise": ["184", 0],
-        "guider": ["178", 0],
-        "sampler": ["185", 0],
-        "sigmas": ["181", 0],
-        "latent_image": ["180", 0]
+        "a": 1248,
+        "b": 0,
+        "operation": "add"
       },
-      "class_type": "SamplerCustomAdvanced",
+      "class_type": "IntMathOperation",
       "_meta": {
-        "title": "SamplerCustomAdvanced"
-      }
-    },
-    "171": {
-      "inputs": {
-        "vae_name": "Comfy-Org---Lumina_Image_2.0_Repackaged\\split_files\\vae\\ae.safetensors"
-      },
-      "class_type": "VAELoader",
-      "_meta": {
-        "title": "Load VAE"
-      }
-    },
-    "174": {
-      "inputs": {
-        "guidance": 1,
-        "conditioning": ["177", 0]
-      },
-      "class_type": "FluxGuidance",
-      "_meta": {
-        "title": "FluxGuidance"
-      }
-    },
-    "177": {
-      "inputs": {
-        "text": "A cool llama wearing a pair of sunglasses, holding a blue and purple neon sign that says \"Lunar Lake\" in front, vibrant colors, blurry cyberpunk gaming background.",
-        "clip": ["188", 0]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "prompt"
-      }
-    },
-    "178": {
-      "inputs": {
-        "model": ["170", 0],
-        "conditioning": ["174", 0]
-      },
-      "class_type": "BasicGuider",
-      "_meta": {
-        "title": "BasicGuider"
-      }
-    },
-    "179": {
-      "inputs": {
-        "samples": ["169", 1],
-        "vae": ["171", 0]
-      },
-      "class_type": "VAEDecode",
-      "_meta": {
-        "title": "VAE Decode"
-      }
-    },
-    "180": {
-      "inputs": {
-        "width": 768,
-        "height": 768,
-        "batch_size": 1
-      },
-      "class_type": "EmptyLatentImage",
-      "_meta": {
-        "title": "Empty Latent Image"
-      }
-    },
-    "181": {
-      "inputs": {
-        "scheduler": "normal",
-        "steps": 4,
-        "denoise": 1,
-        "model": ["170", 0]
-      },
-      "class_type": "BasicScheduler",
-      "_meta": {
-        "title": "BasicScheduler"
-      }
-    },
-    "184": {
-      "inputs": {
-        "noise_seed": 508274201813129
-      },
-      "class_type": "RandomNoise",
-      "_meta": {
-        "title": "RandomNoise"
-      }
-    },
-    "185": {
-      "inputs": {
-        "sampler_name": "euler"
-      },
-      "class_type": "KSamplerSelect",
-      "_meta": {
-        "title": "KSamplerSelect"
-      }
-    },
-    "188": {
-      "inputs": {
-        "clip_name1": "city96---t5-v1_1-xxl-encoder-gguf\\t5-v1_1-xxl-encoder-Q3_K_M.gguf",
-        "clip_name2": "comfyanonymous---flux_text_encoders\\clip_l.safetensors",
-        "type": "flux"
-      },
-      "class_type": "DualCLIPLoaderGGUF",
-      "_meta": {
-        "title": "DualCLIPLoader (GGUF)"
+        "title": "height"
       }
     }
   }

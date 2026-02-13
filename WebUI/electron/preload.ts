@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import pkg from '../package.json'
+import { LocalSettings } from './main'
 import { ModelPaths } from '@/assets/js/store/models'
 import { EmbedInquiry, IndexedDocument } from '@/assets/js/store/textInference'
 
@@ -14,8 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServices: () => ipcRenderer.invoke('getServices'),
   updateServiceSettings: (settings: ServiceSettings) =>
     ipcRenderer.invoke('updateServiceSettings', settings),
-  getServiceSettings: (serviceName: string) =>
-    ipcRenderer.invoke('getServiceSettings', serviceName),
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
   selectDevice: (serviceName: string, deviceId: string) =>
     ipcRenderer.invoke('selectDevice', serviceName, deviceId),
@@ -36,9 +35,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('getInstalledBackendVersion', serviceName),
   getGitHubRepoUrl: () => ipcRenderer.invoke('getGitHubRepoUrl'),
   openDevTools: () => ipcRenderer.send('openDevTools'),
+  getDeveloperSettings: () => ipcRenderer.invoke('getDeveloperSettings'),
   openUrl: (url: string) => ipcRenderer.send('openUrl', url),
   getLocaleSettings: () => ipcRenderer.invoke('getLocaleSettings'),
   getThemeSettings: () => ipcRenderer.invoke('getThemeSettings'),
+  updateLocalSettings: (updates: Partial<LocalSettings>) =>
+    ipcRenderer.invoke('updateLocalSettings', updates),
   getWinSize: () => ipcRenderer.invoke('getWinSize'),
   setWinSize: (width: number, height: number) => ipcRenderer.invoke('setWinSize', width, height),
   showSaveDialog: (options: Electron.SaveDialogOptions) =>
@@ -93,6 +95,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDebugLog: (callback: (data: { level: string; source: string; message: string }) => void) =>
     ipcRenderer.on('debugLog', (_event, value) => callback(value)),
   wakeupComfyUIService: () => ipcRenderer.send('wakeupComfyUIService'),
+  getComfyUiDefaultParameters: () => ipcRenderer.invoke('getComfyUiDefaultParameters'),
   onServiceSetUpProgress: (callback: (data: SetupProgress) => void) =>
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
