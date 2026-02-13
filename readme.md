@@ -34,12 +34,12 @@ AI Playground alpha and beta installers are currently available downloadable exe
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.0.1 alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.1-alpha) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.1-alpha/AI-Playground-installer.exe) :new:
+:new: **AI Playground 3.0.2 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.2-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.2-beta/AI-Playground-installer.exe) :new:
 
 ### Installation Process for v3.0
 1. The installer only installs the Electron frontend, so it completes very quickly.
 2. On the first run, AI Playground Setup window appears where you install needed backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
-3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/AI-Playground/blob/3.0.0-alpha/AI%20Playground%20Users%20Guide.pdf)
+3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/AI-Playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
 ### Troubleshooting Installation
 The following are known situations where your installation may be blocked or interrupted.  Review the following to remedy installations issues.  If installation issues persist, generate a copy of the log by typing CTRL+SHIFT+I, select the console tab and copy the last few entries of the log written where the installer failed.  Provide these details to us via the issues tab here, or via the Intel Insiders Discord, or Graphics forum on Intel's support site.
@@ -112,8 +112,7 @@ Models currently linked from the application
 | Aitrepreneur/insightface/inswapper_128.onnx | [Model Card](https://huggingface.co/Aitrepreneur/insightface) | [Non-Commercial](https://huggingface.co/Aitrepreneur/insightface#license) |
 | alimama-creative/FLUX.1-Turbo-Alpha | [Model Card](https://huggingface.co/alimama-creative/FLUX.1-Turbo-Alpha) | [FLUX.1-dev License](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md) |
 | BGE Small EN v1.5 (GGUF) | [Model Card](https://huggingface.co/BAAI/bge-small-en-v1.5) | [MIT License](https://opensource.org/licenses/MIT) |
-| city96/FLUX.1-schnell-gguf/flux1-schnell-Q4_K_S.gguf | [Model Card](https://huggingface.co/city96/FLUX.1-schnell-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
-| city96/FLUX.1-schnell-gguf/flux1-schnell-Q8_0.gguf | [Model Card](https://huggingface.co/city96/FLUX.1-schnell-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| black-forest-labs/FLUX.2-klein-4b-fp8/flux-2-klein-4b-fp8.safetensors | [Model Card](https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q3_K_M.gguf | [Model Card](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | city96/t5-v1_1-xxl-encoder-gguf/t5-v1_1-xxl-encoder-Q4_K_M.gguf | [Model Card](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | city96/umt5-xxl-encoder-gguf/umt5-xxl-encoder-Q4_K_M.gguf | [Model Card](https://huggingface.co/city96/umt5-xxl-encoder-gguf) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
