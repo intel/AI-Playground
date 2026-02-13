@@ -3,7 +3,7 @@
        src="https://scan.coverity.com/projects/30694/badge.svg"/>
 </a>
 
-# AI PLAYGROUND 3.0 alpha
+# AI PLAYGROUND 3.0.2 beta
 <img width="2025" height="593" alt="image" src="https://github.com/user-attachments/assets/76c47f53-cd1b-419c-9ffb-43ba2369c84b" />
 
 
