@@ -2,10 +2,11 @@ import { z } from 'zod'
 import { watch } from 'vue'
 import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
-import { useBackendServices } from '../store/backendServices'
+import { useBackendServices, type BackendServiceName } from '../store/backendServices'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
+import { useDeveloperSettings } from '../store/developerSettings'
 import {
   DEFAULT_RESOLUTION_CONFIG,
   getResolutionsFromConfig,
@@ -24,6 +25,31 @@ const globalDefaultSettings = {
   resolution: '704x384',
   batchSize: 4,
   negativePrompt: 'nsfw',
+}
+
+// Chat backends to be stopped to free resources for image generation
+const chatBackends: BackendServiceName[] = [
+  'llamacpp-backend',
+  'openvino-backend',
+  'ollama-backend',
+]
+
+async function stopChatBackend(): Promise<void> {
+  console.log('[ComfyUI Tool] Stopping chat backend to free resources for image generation')
+  const backendServices = useBackendServices()
+
+  // Stop any running chat backends to free up memory/resources
+  for (const serviceName of chatBackends) {
+    const backend = backendServices.info.find((s) => s.serviceName === serviceName)
+    console.log(`[ComfyUI Tool] Checking backend "${serviceName}":`, backend)
+    try {
+      console.log(`[ComfyUI Tool]  Backend: ${serviceName}, status: ${backend?.status}`)
+      console.log(`[ComfyUI Tool] Stopping ${serviceName}...`)
+      await backendServices.stopService(serviceName)
+    } catch (error) {
+      console.warn(`[ComfyUI Tool] Failed to stop ${serviceName}:`, error)
+    }
+  }
 }
 
 // Helper function to get a sensible default megapixel tier from resolution config
@@ -167,6 +193,15 @@ export async function executeComfyGeneration(args: {
   batchSize?: number
 }): Promise<ComfyUiToolOutput> {
   console.log('[ComfyUI Tool] Starting generation with args:', args)
+
+  // avoid network issues from killing the chat BE while tool call is still streaming
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  await delay(100)
+
+  if (!useDeveloperSettings().keepModelsLoaded) {
+    await stopChatBackend()
+  }
+
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
@@ -532,8 +567,6 @@ export async function executeComfyGeneration(args: {
       }, 300000)
     })
 
-    // Restore state after successful completion
-    await restoreState()
     console.log('[ComfyUI Tool] Generation completed successfully')
     return result
   } catch (error) {
@@ -553,12 +586,14 @@ export async function executeComfyGeneration(args: {
       }
     })
 
-    // Restore state
-    await restoreState()
-
     // Return error result instead of throwing
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return createErrorResult(`ComfyUI generation failed: ${errorMessage}`)
+  } finally {
+    await restoreState()
+    if (!useDeveloperSettings().keepModelsLoaded) {
+      await comfyUi.free()
+    }
   }
 }
 
@@ -647,10 +682,8 @@ function getToolDefinition() {
     })
     .join(', ')
 
-  // Collect all unique tool instructions
-  const allInstructions = availableWorkflows
-    .map((w) => w.toolInstructions)
-    .filter((inst): inst is string => !!inst)
+  // Add preset-specific instructions with clear preset -> instruction mapping
+  const presetsWithInstructions = availableWorkflows.filter((w) => w.toolInstructions)
 
   // Base description with prompt generation instructions
   let description =
@@ -677,11 +710,11 @@ function getToolDefinition() {
     'CRITICAL: Do NOT include resolution, aspect ratio, dimensions, or size information in the prompt text itself. These should ONLY be passed as separate parameters (aspectRatio, megapixels, or resolution).\n\n'
 
   // Add preset-specific instructions if available
-  if (allInstructions.length > 0) {
+  if (presetsWithInstructions.length > 0) {
     description += 'Preset-specific prompt guidelines:\n'
-    allInstructions.forEach((inst, idx) => {
-      description += `${idx + 1}. ${inst}\n`
-    })
+    for (const preset of presetsWithInstructions) {
+      description += `- ${preset.name}: ${preset.toolInstructions}\n`
+    }
     description += '\n'
   }
 

@@ -6,14 +6,16 @@ export const useDeveloperSettings = defineStore(
   'developerSettings',
   () => {
     const openDevConsoleOnStartup = ref(false)
+    const keepModelsLoaded = ref(false)
 
     return {
       openDevConsoleOnStartup,
+      keepModelsLoaded,
     }
   },
   {
     persist: {
-      pick: ['openDevConsoleOnStartup'],
+      pick: ['openDevConsoleOnStartup', 'keepModelsLoaded'],
     },
   },
 )

@@ -1,5 +1,5 @@
 <template>
-  <div class="z-10 text-foreground rounded-xl bg-background/70 border border-border">
+  <div class="z-10 text-foreground rounded-xl bg-background/70 border border-border shadow-lg">
     <div class="px-20 py-5 max-w-5xl">
       <h1 class="text-center py-1 px-4 rounded-sm text-4xl">
         {{ languages.BACKEND_MANAGE }}

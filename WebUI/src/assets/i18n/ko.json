@@ -258,6 +258,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "무음 지속 시간",
   "SETTINGS_DEVELOPER": "개발자",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "시작 시 개발자 콘솔 열기",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "모델 로드 유지",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "활성화하면 채팅 및 이미지 생성 모델이 동시에 메모리에 로드된 상태로 유지됩니다. 더 많은 VRAM이 필요하지만 채팅과 이미지 생성 간 전환 시 모델 재로드를 방지합니다.",
 
   "COM_LOAD_VIDEO": "비디오 로드",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "HD 기본 Inpaint/Outpaint 모델",

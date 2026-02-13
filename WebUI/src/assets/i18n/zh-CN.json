@@ -257,6 +257,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "静音持续时间",
   "SETTINGS_DEVELOPER": "开发者",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "启动时打开开发者控制台",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "保持模型加载",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "启用后，聊天和图像生成模型将同时保留在内存中。需要更多显存，但在聊天和图像生成之间切换时无需重新加载模型。",
   "COM_LOAD_VIDEO": "加载视频",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "默认 HD Inpaint/Outpaint 模型",
   "BACKEND_VERSION_DESCRIPTION_COMFYUI": "输入 git 提交哈希或版本标签（例如 v1.2.3 或 abc1234）",

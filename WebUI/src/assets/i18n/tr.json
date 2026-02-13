@@ -257,6 +257,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "Sessizlik Süresi",
   "SETTINGS_DEVELOPER": "Geliştirici",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Başlangıçta Geliştirici Konsolunu Aç",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "Modelleri Yüklü Tut",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "Etkinleştirildiğinde, sohbet ve görüntü oluşturma modelleri aynı anda bellekte yüklü kalır. Daha fazla VRAM gerektirir ancak sohbet ve görüntü oluşturma arasında geçiş yaparken modellerin yeniden yüklenmesini önler.",
   "COM_LOAD_VIDEO": "Video Yükle",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "Varsayılan HD Inpaint/Outpaint Modeli",
   "BACKEND_VERSION_DESCRIPTION_COMFYUI": "Git commit hash'i veya sürüm etiketi girin (örn. v1.2.3 veya abc1234)",

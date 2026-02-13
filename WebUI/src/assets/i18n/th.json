@@ -257,6 +257,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "ระยะเวลาความเงียบ",
   "SETTINGS_DEVELOPER": "นักพัฒนา",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "เปิดคอนโซลนักพัฒนาเมื่อเริ่มต้น",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "คงโมเดลไว้ในหน่วยความจำ",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "เมื่อเปิดใช้งาน โมเดลแชทและสร้างภาพจะยังคงโหลดอยู่ในหน่วยความจำพร้อมกัน ต้องใช้ VRAM มากขึ้นแต่หลีกเลี่ยงการโหลดโมเดลซ้ำเมื่อสลับระหว่างแชทและการสร้างภาพ",
   "COM_LOAD_VIDEO": "โหลดวิดีโอ",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "โมเดล HD Inpaint/Outpaint เริ่มต้น",
   "BACKEND_VERSION_DESCRIPTION_COMFYUI": "ป้อนแฮชคอมมิต git หรือแท็กเวอร์ชัน (เช่น v1.2.3 หรือ abc1234)",

@@ -36,14 +36,15 @@
 
     <!-- Main Image Display -->
     <div class="flex justify-center items-center relative">
-      <div class="flex justify-center items-center relative bg-accent rounded-lg gap-2" style="">
+      <div class="relative bg-accent rounded-lg min-w-[400px] min-h-[300px]">
+        <!-- Media content -->
         <div
           v-show="images.length > 0 && currentImage"
           class="flex justify-center items-center"
           :draggable="currentImage && !is3D(currentImage) ? true : false"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
-          <!-- Modern placeholder for queued/generating images without preview (exclude stopped) -->
+          <!-- Placeholder for queued/generating images without preview (exclude stopped) -->
           <div
             v-if="
               currentImage &&
@@ -52,7 +53,7 @@
               (currentImage.state === 'queued' || currentImage.state === 'generating') &&
               !hasValidImageUrl(currentImage)
             "
-            class="flex items-center justify-center bg-gradient-to-br from-accent/30 to-muted/20 min-w-[400px] min-h-[300px] rounded-sm"
+            class="flex items-center justify-center bg-gradient-to-br from-accent/30 to-muted/20 w-[400px] h-[300px] rounded-sm"
           >
             <div class="flex flex-col items-center justify-center gap-4">
               <Spinner class="w-16 h-16 text-primary/40" />
@@ -78,7 +79,12 @@
             class=""
           />
         </div>
-        <div v-show="processing" class="w-full h-full flex justify-center items-center">
+
+        <!-- Progress overlay (absolutely positioned over the content) -->
+        <div
+          v-show="processing"
+          class="absolute inset-0 flex justify-center items-center rounded-lg"
+        >
           <loading-bar
             v-if="
               currentState &&
@@ -102,42 +108,48 @@
           />
           <ImageGenerationProgress v-else :step-text="stepText || 'Preparing...'" />
         </div>
+
+        <!-- Action buttons (absolutely positioned on the right side) -->
         <div
           v-show="currentImage && (!(currentImage?.state === 'generating') || !processing)"
-          class="flex flex-col items-center justify-center gap-2"
+          class="absolute top-1/2 -translate-y-1/2 -right-8 flex flex-col items-center justify-center gap-2"
         >
-          <button
+          <IconButton
+            v-if="currentImage && currentImage.state !== 'generating'"
+            icon="i-transfer"
+            :tooltip="languages.COM_POST_TO_IMAGE_EDIT"
+            @click="postImageToMode(currentImage, 'imageEdit')"
+          />
+          <IconButton
+            v-if="currentImage && currentImage.state !== 'generating' && !is3D(currentImage)"
+            icon="i-video"
+            :tooltip="languages.COM_POST_TO_VIDEO"
+            @click="postImageToMode(currentImage, 'video')"
+          />
+          <IconButton
             v-show="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-info"
+            :tooltip="languages.COM_OPEN_PARAMS"
             @click="showParamsDialog"
-            :title="languages.COM_OPEN_PARAMS"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-info w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-zoom-in"
+            :tooltip="languages.COM_ZOOM_IN"
             @click="openImage(currentImage)"
-            :title="languages.COM_ZOOM_IN"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-zoom-in w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-copy"
+            :tooltip="languages.COM_COPY"
             @click="copyImage(currentImage)"
-            :title="languages.COM_COPY"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-copy w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-folder"
+            :tooltip="languages.COM_OPEN_LOCATION"
             @click="openImageInFolder(currentImage)"
-            :title="languages.COM_OPEN_LOCATION"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-folder w-4 h-4"></span>
-          </button>
+          />
         </div>
       </div>
       <info-table
@@ -163,9 +175,12 @@ import {
   MediaItem,
   isVideo,
   is3D,
+  useImageGenerationPresets,
   type GenerateState,
 } from '@/assets/js/store/imageGenerationPresets'
+import { usePromptStore } from '@/assets/js/store/promptArea'
 import Model3DViewer from '@/components/Model3DViewer.vue'
+import IconButton from '@/components/ui/IconButton.vue'
 
 interface Props {
   images: MediaItem[]
@@ -178,6 +193,8 @@ interface Props {
 const props = defineProps<Props>()
 const i18nState = useI18N().state
 const languages = i18nState
+const imageGeneration = useImageGenerationPresets()
+const promptStore = usePromptStore()
 const showInfoParams = ref(false)
 
 // Check if imageUrl is the transparent placeholder
@@ -238,6 +255,11 @@ const dragImage = (item: MediaItem | null) => (event: Event) => {
 function showParamsDialog() {
   showInfoParams.value = true
   console.log(currentImage.value?.settings)
+}
+
+async function postImageToMode(image: MediaItem, mode: WorkflowModeType) {
+  await imageGeneration.copyImageAsInputForMode(image, mode)
+  promptStore.setCurrentMode(mode)
 }
 
 function openImage(image: MediaItem) {

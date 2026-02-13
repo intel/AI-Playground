@@ -2,7 +2,7 @@
   "type": "comfy",
   "name": "Control Face",
   "displayPriority": 200,
-  "tags": ["SDXL", "JuggernautXL", "1024x1024"],
+  "tags": ["SDXL", "JuggernautXL"],
   "description": "Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
   "backend": "comfyui",
   "category": "create-images",
@@ -18,14 +18,6 @@
     "onnxruntime"
   ],
   "requiredModels": [
-    {
-      "type": "checkpoints",
-      "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
-    },
-    {
-      "type": "lora",
-      "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
-    },
     {
       "type": "faceswap",
       "model": "Aitrepreneur/insightface/inswapper_128.onnx",
@@ -160,66 +152,332 @@
       "nodeInput": "image"
     }
   ],
+  "variants": [
+    {
+      "name": "Fast",
+      "overrides": {
+        "description": "Fast version of Control Face using SDXL with a fast LoRA. Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
+        "tags": ["SDXL", "JuggernautXL", "4-steps"],
+        "requiredModels": [
+          {
+            "type": "checkpoints",
+            "model": "RunDiffusion/Juggernaut-XL-v9/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+          },
+          {
+            "type": "lora",
+            "model": "latent-consistency/lcm-lora-sdxl/pytorch_lora_weights.safetensors"
+          },
+          {
+            "type": "faceswap",
+            "model": "Aitrepreneur/insightface/inswapper_128.onnx",
+            "additionalLicenceLink": "https://huggingface.co/datasets/Gourieff/ReActor"
+          },
+          {
+            "type": "facerestore",
+            "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "3": {
+            "inputs": {
+              "seed": 826090,
+              "steps": 4,
+              "cfg": 1.5,
+              "sampler_name": "lcm",
+              "scheduler": "simple",
+              "denoise": 1,
+              "model": ["19", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "latent_image": ["5", 0]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "5": {
+            "inputs": {
+              "width": 896,
+              "height": 896,
+              "batch_size": 1
+            },
+            "class_type": "EmptyLatentImage",
+            "_meta": {
+              "title": "Empty Latent Image"
+            }
+          },
+          "6": {
+            "inputs": {
+              "text": "a photograph of a dude",
+              "clip": ["19", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "7": {
+            "inputs": {
+              "text": "nsfw",
+              "clip": ["19", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "negativePrompt"
+            }
+          },
+          "8": {
+            "inputs": {
+              "samples": ["3", 0],
+              "vae": ["26", 2]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "19": {
+            "inputs": {
+              "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
+              "strength_model": 1,
+              "strength_clip": 1,
+              "model": ["26", 0],
+              "clip": ["26", 1]
+            },
+            "class_type": "LoraLoader",
+            "_meta": {
+              "title": "Load LoRA"
+            }
+          },
+          "25": {
+            "inputs": {
+              "input_image": ["8", 0]
+            }
+          },
+          "26": {
+            "inputs": {
+              "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple",
+            "_meta": {
+              "title": "Load Checkpoint"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Quality",
+      "overrides": {
+        "description": "Higher quality version of Control Face using Z-Image-Turbo to generate the image.  Generate images with a likeness you control. Load image with a face to guide the likeness then describe  character. ",
+        "tags": ["Z-Image-Turbo"],
+        "requiredCustomNodes": [
+          "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed",
+          "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211",
+          "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"
+        ],
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Comfy-Org/z_image_turbo/split_files/diffusion_models/z_image_turbo_bf16.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Comfy-Org/z_image_turbo/split_files/text_encoders/qwen_3_4b.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Comfy-Org/z_image_turbo/split_files/vae/ae.safetensors"
+          },
+          {
+            "type": "faceswap",
+            "model": "Aitrepreneur/insightface/inswapper_128.onnx",
+            "additionalLicenceLink": "https://huggingface.co/datasets/Gourieff/ReActor"
+          },
+          {
+            "type": "facerestore",
+            "model": "gmk123/GFPGAN/GFPGANv1.4.pth"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+          }
+        ],
+        "resolutionConfig": {
+          "megapixels": [
+            { "label": "0.25", "totalPixels": 262144 },
+            { "label": "0.5", "totalPixels": 495616 },
+            { "label": "0.8", "totalPixels": 802816 },
+            { "label": "1.0", "totalPixels": 1048576 },
+            { "label": "1.2", "totalPixels": 1254400 },
+            { "label": "1.5", "totalPixels": 1557504 }
+          ],
+          "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
+        },
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 9,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "height"
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "1024x1024",
+            "settingName": "resolution"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "25": {
+            "inputs": {
+              "input_image": ["43", 0]
+            }
+          },
+          "39": {
+            "inputs": {
+              "clip_name": "Comfy-Org---z_image_turbo\\split_files\\text_encoders\\qwen_3_4b.safetensors",
+              "type": "lumina2",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": {
+              "title": "Load CLIP"
+            }
+          },
+          "40": {
+            "inputs": {
+              "vae_name": "Comfy-Org---z_image_turbo\\split_files\\vae\\ae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+              "title": "Load VAE"
+            }
+          },
+          "41": {
+            "inputs": {
+              "width": 1024,
+              "height": 1024,
+              "batch_size": 1
+            },
+            "class_type": "EmptySD3LatentImage",
+            "_meta": {
+              "title": "EmptySD3LatentImage"
+            }
+          },
+          "42": {
+            "inputs": {
+              "conditioning": ["45", 0]
+            },
+            "class_type": "ConditioningZeroOut",
+            "_meta": {
+              "title": "ConditioningZeroOut"
+            }
+          },
+          "43": {
+            "inputs": {
+              "samples": ["44", 0],
+              "vae": ["40", 0]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+              "title": "VAE Decode"
+            }
+          },
+          "44": {
+            "inputs": {
+              "seed": 173570575905267,
+              "steps": 9,
+              "cfg": 1,
+              "sampler_name": "res_multistep",
+              "scheduler": "simple",
+              "denoise": 1,
+              "model": ["47", 0],
+              "positive": ["45", 0],
+              "negative": ["42", 0],
+              "latent_image": ["41", 0]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "45": {
+            "inputs": {
+              "text": "a photograph of a dude",
+              "clip": ["39", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "46": {
+            "inputs": {
+              "unet_name": "Comfy-Org---z_image_turbo\\split_files\\diffusion_models\\z_image_turbo_bf16.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+              "title": "Load Diffusion Model"
+            }
+          },
+          "47": {
+            "inputs": {
+              "shift": 3,
+              "model": ["46", 0]
+            },
+            "class_type": "ModelSamplingAuraFlow",
+            "_meta": {
+              "title": "ModelSamplingAuraFlow"
+            }
+          }
+        }
+      }
+    }
+  ],
   "comfyUiApiWorkflow": {
-    "3": {
-      "inputs": {
-        "seed": 826090,
-        "steps": 4,
-        "cfg": 1.5,
-        "sampler_name": "lcm",
-        "scheduler": "simple",
-        "denoise": 1,
-        "model": ["19", 0],
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "latent_image": ["5", 0]
-      },
-      "class_type": "KSampler",
-      "_meta": {
-        "title": "KSampler"
-      }
-    },
-    "5": {
-      "inputs": {
-        "width": 896,
-        "height": 896,
-        "batch_size": 1
-      },
-      "class_type": "EmptyLatentImage",
-      "_meta": {
-        "title": "Empty Latent Image"
-      }
-    },
-    "6": {
-      "inputs": {
-        "text": "a photograph of a dude",
-        "clip": ["19", 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "prompt"
-      }
-    },
-    "7": {
-      "inputs": {
-        "text": "nsfw",
-        "clip": ["19", 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "negativePrompt"
-      }
-    },
-    "8": {
-      "inputs": {
-        "samples": ["3", 0],
-        "vae": ["26", 2]
-      },
-      "class_type": "VAEDecode",
-      "_meta": {
-        "title": "VAE Decode"
-      }
-    },
     "9": {
       "inputs": {
         "filename_prefix": "AIPG_Image",
@@ -238,28 +496,6 @@
       "class_type": "LoadImage",
       "_meta": {
         "title": "Load Image"
-      }
-    },
-    "19": {
-      "inputs": {
-        "lora_name": "latent-consistency---lcm-lora-sdxl\\pytorch_lora_weights.safetensors",
-        "strength_model": 1,
-        "strength_clip": 1,
-        "model": ["26", 0],
-        "clip": ["26", 1]
-      },
-      "class_type": "LoraLoader",
-      "_meta": {
-        "title": "Load LoRA"
-      }
-    },
-    "26": {
-      "inputs": {
-        "ckpt_name": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
-      },
-      "class_type": "CheckpointLoaderSimple",
-      "_meta": {
-        "title": "Load Checkpoint"
       }
     },
     "25": {

@@ -7,6 +7,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "toolCategory": "edit-images",
+  "toolInstructions": "Use this workflow when the user wants to turn a sketch or line drawing into a photorealistic image. Provide a detailed prompt describing the scene, environment, lighting, weather, and mood. The sketch structure will be preserved via ControlNet edge detection while the prompt guides the photorealistic rendering. For example, if the user provides a sketch of a house, expand the prompt to 'a cozy suburban house with a garden, bright sunny day, blue sky with white clouds, green lawn, photorealistic, 8k, highly detailed'. Prefer the Fast variant unless higher quality is requested.",
   "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
   "requiredPythonPackages": [],
   "requiredModels": [

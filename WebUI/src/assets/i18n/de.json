@@ -275,6 +275,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "Stille-Dauer",
   "SETTINGS_DEVELOPER": "Entwickler",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Entwicklerkonsole beim Start öffnen",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "Modelle geladen halten",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "Wenn aktiviert, bleiben Chat- und Bildgenerierungsmodelle gleichzeitig im Speicher geladen. Benötigt mehr VRAM, vermeidet aber das Neuladen von Modellen beim Wechsel zwischen Chat und Bildgenerierung.",
 
   "BACKEND_STOP": "Backend stoppen",
   "BACKEND_START": "Backend starten",

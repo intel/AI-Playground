@@ -92,71 +92,57 @@
           "
           class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
         >
-          <button
+          <IconButton
             v-if="
               currentImage &&
               currentImage?.state !== 'generating' &&
               (props.mode === 'imageGen' || props.mode === 'imageEdit')
             "
+            icon="i-transfer"
+            :tooltip="languages.COM_POST_TO_IMAGE_EDIT"
             @click="postImageToMode(currentImage, 'imageEdit')"
-            :title="languages.COM_POST_TO_IMAGE_EDIT"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-transfer w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="
               currentImage &&
               currentImage?.state !== 'generating' &&
               (props.mode === 'imageGen' || props.mode === 'imageEdit') &&
               !is3D(currentImage)
             "
+            icon="i-video"
+            :tooltip="languages.COM_POST_TO_VIDEO"
             @click="postImageToMode(currentImage, 'video')"
-            :title="languages.COM_POST_TO_VIDEO"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-video w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-show="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-info"
+            :tooltip="languages.COM_OPEN_PARAMS"
             @click="showParamsDialog"
-            :title="languages.COM_OPEN_PARAMS"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-info w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-zoom-in"
+            :tooltip="languages.COM_ZOOM_IN"
             @click="openImage(currentImage)"
-            :title="languages.COM_ZOOM_IN"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-zoom-in w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-copy"
+            :tooltip="languages.COM_COPY"
             @click="copyImage(currentImage)"
-            :title="languages.COM_COPY"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-copy w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage && !(currentImage?.state === 'generating')"
+            icon="i-folder"
+            :tooltip="languages.COM_OPEN_LOCATION"
             @click="openImageInFolder(currentImage)"
-            :title="languages.COM_OPEN_LOCATION"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-folder w-4 h-4"></span>
-          </button>
-          <button
+          />
+          <IconButton
             v-if="currentImage"
+            icon="i-delete"
+            :tooltip="languages.COM_DELETE"
             @click="deleteImage(currentImage)"
-            :title="languages.COM_DELETE"
-            class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center"
-          >
-            <span class="svg-icon text-foreground i-delete w-4 h-4"></span>
-          </button>
+          />
         </div>
       </div>
       <info-table
@@ -184,6 +170,7 @@ import {
   useImageGenerationPresets,
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
+import IconButton from '@/components/ui/IconButton.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { checkIfNsfwBlocked } from '@/lib/utils'
 

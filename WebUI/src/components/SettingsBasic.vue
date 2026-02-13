@@ -111,6 +111,30 @@
         }}</Label>
         <Checkbox id="open-dev-console" v-model="developerSettings.openDevConsoleOnStartup" />
       </div>
+      <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+        <div class="flex items-center gap-2">
+          <Label class="whitespace-nowrap">{{
+            languages.SETTINGS_DEVELOPER_KEEP_MODELS_LOADED || 'Keep Models Loaded'
+          }}</Label>
+          <TooltipProvider :delay-duration="200">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" class="max-w-[300px]">
+                {{
+                  languages.SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO
+                    || 'When enabled, chat and image generation models stay loaded in memory simultaneously. Requires more VRAM but avoids reloading models when switching between chat and image generation.'
+                }}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <Checkbox
+          id="keep-models-loaded"
+          v-model="developerSettings.keepModelsLoaded"
+        />
+      </div>
     </div>
     <div class="flex justify-between items-center">
       <p>
@@ -162,6 +186,7 @@ import DropDownNew from '@/components/DropDownNew.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18N } from '@/assets/js/store/i18n'
 import { Spinner } from './ui/spinner'
 import { Button } from '@/components/ui/button'

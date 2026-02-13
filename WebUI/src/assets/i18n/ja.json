@@ -258,6 +258,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "無音の長さ",
   "SETTINGS_DEVELOPER": "開発者",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "起動時に開発者コンソールを開く",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "モデルを読み込んだまま保持",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "有効にすると、チャットと画像生成のモデルが同時にメモリに読み込まれたままになります。より多くのVRAMが必要ですが、チャットと画像生成の切り替え時にモデルの再読み込みを回避できます。",
 
   "COM_LOAD_VIDEO": "動画を読み込む",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "HDデフォルトインペイント/アウトペイントモデル",

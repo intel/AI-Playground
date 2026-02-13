@@ -7,6 +7,7 @@
   "category": "edit-images",
   "description": "Create a 3D mesh from a 2D image ready for 3D printing or other 3D tools like Blender",
   "toolCategory": "edit-images",
+  "toolInstructions": "Use this workflow when the user wants to convert a 2D image into a 3D model or mesh. This is a no-prompt workflow: the prompt parameter is ignored. The workflow uses Hunyuan3D-2 to generate a 3D GLB mesh from the input image. Use the Preview variant for quick results or Standard for higher quality. This is resource-intensive (high VRAM). Best for single objects with clear outlines rather than complex scenes.",
   "requiredCustomNodes": [],
   "requiredPythonPackages": [],
   "requiredModels": [],

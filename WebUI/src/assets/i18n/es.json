@@ -258,6 +258,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "Duración del silencio",
   "SETTINGS_DEVELOPER": "Desarrollador",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Abrir consola de desarrollador al iniciar",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "Mantener modelos cargados",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "Cuando está activado, los modelos de chat y generación de imágenes permanecen cargados en memoria simultáneamente. Requiere más VRAM pero evita recargar modelos al cambiar entre chat y generación de imágenes.",
 
   "COM_LOAD_VIDEO": "Cargar video",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "Modelo HD predeterminado de inpaint/outpaint",

@@ -7,6 +7,7 @@
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
   "toolCategory": "edit-images",
+  "toolInstructions": "Use this workflow as the default for prompt-driven image editing: adding, removing, changing, or combining elements in a photo. Provide a clear, descriptive prompt that specifies what to change. For example, if the user says 'make it sunset', expand the prompt to describe the desired result like 'the same scene at golden hour sunset with warm orange and pink sky, long shadows, soft warm lighting'. Focus on describing the desired outcome, not the editing operation. The Flux Kontext model understands contextual edits well. Prefer the Fast variant for quick edits unless the user requests higher quality.",
   "requiredCustomNodes": [
     "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
@@ -76,7 +77,7 @@
       "label": "Width",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": 512,
+      "defaultValue": 1024,
       "settingName": "width",
       "nodeTitle": "width",
       "nodeInput": "a"
@@ -86,7 +87,7 @@
       "label": "Height",
       "displayed": false,
       "modifiable": false,
-      "defaultValue": 512,
+      "defaultValue": 1024,
       "settingName": "height",
       "nodeTitle": "height",
       "nodeInput": "a"
@@ -96,7 +97,7 @@
       "label": "Resolution",
       "displayed": false,
       "modifiable": true,
-      "defaultValue": "512x512",
+      "defaultValue": "1024x1024",
       "settingName": "resolution"
     },
     {
@@ -532,7 +533,7 @@
     },
     "34": {
       "inputs": {
-        "a": 512,
+        "a": 1024,
         "b": 0,
         "operation": "add"
       },
@@ -543,7 +544,7 @@
     },
     "35": {
       "inputs": {
-        "a": 512,
+        "a": 1024,
         "b": 0,
         "operation": "add"
       },

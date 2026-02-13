@@ -284,6 +284,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "Silence Duration",
   "SETTINGS_DEVELOPER": "Developer",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Open Developer Console on Startup",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "Keep Models Loaded",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "When enabled, chat and image generation models stay loaded in memory simultaneously. Requires more VRAM but avoids reloading models when switching between chat and image generation.",
 
   "BACKEND_STOP": "Stop Backend",
   "BACKEND_START": "Start Backend",

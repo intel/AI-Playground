@@ -7,6 +7,7 @@ import { useBackendServices, type BackendServiceName } from '../store/backendSer
 import { usePresets, type Preset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
+import { useDeveloperSettings } from '../store/developerSettings'
 
 const ImageEditOutputSchema = z.object({
   id: z.string(),
@@ -26,42 +27,12 @@ export const ImageEditToolOutputSchema = z
 
 export type ImageEditToolOutput = z.infer<typeof ImageEditToolOutputSchema>
 
-function findLatestUserProvidedImage(messages: ModelMessage[]): FilePart | null {
-  return (
-    messages
-      .filter((msg) => Array.isArray(msg.content))
-      .flatMap((msg) => msg.content as Array<{ type: string; mediaType?: string }>)
-      .findLast(
-        (part): part is FilePart =>
-          part.type === 'file' && part.mediaType?.startsWith('image/') === true,
-      ) || null
-  )
-}
-
 function convertFilePartToDataUrl(data: FilePart['data']): string {
   if (typeof data === 'string' && data.startsWith('data:image/')) {
     return data
   }
   console.error('[ComfyUIImageEdit Tool] Unsupported file part data format:', data)
   throw new Error('Only data URL images are supported')
-}
-
-function findLatestGeneratedImage(messages: ModelMessage[]): string | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i]
-    if (msg.role === 'tool' && Array.isArray(msg.content)) {
-      for (const part of msg.content) {
-        if (
-          part.type === 'tool-result' &&
-          (part.toolName === 'comfyUI' || part.toolName === 'comfyUiImageEdit')
-        ) {
-          const image = extractImageGenToolResult(part)
-          if (image?.imageUrl) return image.imageUrl
-        }
-      }
-    }
-  }
-  return null
 }
 
 // Helper to extract images from tool result output
@@ -81,13 +52,65 @@ function extractImageGenToolResult(part: any): { type?: string; imageUrl?: strin
   )
 }
 
-function findSourceImage(messages: ModelMessage[]): string | null {
-  const generatedImage = findLatestGeneratedImage(messages)
-  if (generatedImage) return generatedImage
+// Check if the user dragged/attached an image into the current prompt (last user message).
+// This takes priority over any other image in the conversation.
+function findImageInCurrentPrompt(messages: ModelMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) continue
 
-  const imagePart = findLatestUserProvidedImage(messages)
-  if (!imagePart) return null
-  return convertFilePartToDataUrl(imagePart.data)
+    const imagePart = (msg.content as Array<{ type: string; mediaType?: string }>).findLast(
+      (part): part is FilePart =>
+        part.type === 'file' && part.mediaType?.startsWith('image/') === true,
+    )
+    if (imagePart) {
+      console.log('[ComfyUIImageEdit Tool] Found image in current user prompt')
+      return convertFilePartToDataUrl(imagePart.data)
+    }
+    // Found the last user message but it has no image - stop looking
+    break
+  }
+  return null
+}
+
+// Walk backwards through conversation to find the most recent image regardless of source.
+// Checks each message for either a generated image (tool result) or an uploaded image (user file),
+// returning whichever appears latest in the conversation.
+function findLatestImageInConversation(messages: ModelMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (!Array.isArray(msg.content)) continue
+
+    // Check tool result messages for generated images
+    if (msg.role === 'tool') {
+      for (const part of msg.content) {
+        if (
+          part.type === 'tool-result' &&
+          (part.toolName === 'comfyUI' || part.toolName === 'comfyUiImageEdit')
+        ) {
+          const image = extractImageGenToolResult(part)
+          if (image?.imageUrl) return image.imageUrl
+        }
+      }
+    }
+
+    // Check user messages for uploaded images
+    if (msg.role === 'user') {
+      const imagePart = (msg.content as Array<{ type: string; mediaType?: string }>).findLast(
+        (part): part is FilePart =>
+          part.type === 'file' && part.mediaType?.startsWith('image/') === true,
+      )
+      if (imagePart) return convertFilePartToDataUrl(imagePart.data)
+    }
+  }
+  return null
+}
+
+// Image selection priority:
+// 1. Image dragged into the current prompt (explicit user intent)
+// 2. Most recent image in conversation by message position (generated or uploaded)
+function findSourceImage(messages: ModelMessage[]): string | null {
+  return findImageInCurrentPrompt(messages) ?? findLatestImageInConversation(messages)
 }
 
 async function convertToDataUri(imageUrl: string): Promise<string> {
@@ -113,7 +136,11 @@ async function convertToDataUri(imageUrl: string): Promise<string> {
   throw new Error(`Unsupported image URL format: ${imageUrl}`)
 }
 
-export function getAvailableEditWorkflows(): Array<{ name: string; description?: string }> {
+export function getAvailableEditWorkflows(): Array<{
+  name: string
+  description?: string
+  toolInstructions?: string
+}> {
   const presets = usePresets()
   return presets.presets
     .filter((p: Preset) => {
@@ -121,7 +148,11 @@ export function getAvailableEditWorkflows(): Array<{ name: string; description?:
       if (p.toolCategory !== 'edit-images') return false
       return true
     })
-    .map((p: Preset) => ({ name: p.name, description: p.description }))
+    .map((p: Preset) => ({
+      name: p.name,
+      description: p.description,
+      toolInstructions: p.toolInstructions,
+    }))
 }
 
 function findFastVariant(preset: Preset): string | null {
@@ -160,7 +191,7 @@ async function stopChatBackend(): Promise<void> {
 }
 
 type ImageEditArgs = {
-  workflow?: string
+  workflow: string
   variant?: string
   prompt: string
   negativePrompt?: string
@@ -221,7 +252,9 @@ export async function executeImageEdit(
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
   await delay(100)
 
-  await stopChatBackend()
+  if (!useDeveloperSettings().keepModelsLoaded) {
+    await stopChatBackend()
+  }
 
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
@@ -241,10 +274,9 @@ export async function executeImageEdit(
     return createErrorResult('ComfyUI backend is not running. Please start it first.')
   }
 
-  const requestedWorkflow = args.workflow || 'Edit By Prompt'
+  const requestedWorkflow = args.workflow
   let preset: Preset | null =
     presets.presets.find((p) => p.name === requestedWorkflow && p.toolCategory === 'edit-images') ||
-    presets.presets.find((p) => p.type === 'comfy' && p.toolCategory === 'edit-images') ||
     null
 
   if (!preset || preset.type !== 'comfy') {
@@ -388,7 +420,9 @@ export async function executeImageEdit(
     )
   } finally {
     await restoreState()
-    await comfyUi.free()
+    if (!useDeveloperSettings().keepModelsLoaded) {
+      await comfyUi.free()
+    }
   }
 }
 
@@ -399,32 +433,40 @@ function getToolDefinition() {
     .map((w) => w.name + (w.name === defaultWorkflow ? ' (default)' : ''))
     .join(', ')
 
-  const baseDescription =
+  let description =
     'Use this tool to edit or modify an existing image from the conversation based on a text prompt. ' +
     'This tool takes the most recent image from the conversation (uploaded or generated) and applies edits.\n\n' +
-    'IMPORTANT: This tool requires an image to already exist in the conversation.'
+    'IMPORTANT: This tool requires an image to already exist in the conversation.\n\n' +
+    'VARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive.\n\n'
 
-  const description =
-    workflows.length > 0
-      ? `${baseDescription}\n\nAvailable edit workflows: ${workflowOptions}`
-      : baseDescription
+  // Add preset-specific tool instructions with clear preset -> instruction mapping
+  const presetsWithInstructions = workflows.filter((w) => w.toolInstructions)
+  if (presetsWithInstructions.length > 0) {
+    description += 'Preset-specific prompt guidelines:\n'
+    for (const preset of presetsWithInstructions) {
+      description += `- ${preset.name}: ${preset.toolInstructions}\n`
+    }
+    description += '\n'
+  }
 
-  const workflowSchema =
-    workflows.length > 0
-      ? z
-          .enum(workflows.map((w) => w.name) as [string, ...string[]])
-          .optional()
-          .describe(`Edit workflow. Available: ${workflowOptions}. Default: ${defaultWorkflow}`)
-      : z.string().optional().describe(`Edit workflow to use. Default: ${defaultWorkflow}`)
+  description += `Available edit workflows: ${workflowOptions}`
+
+  const workflowNames = workflows.map((w) => w.name) as [string, ...string[]]
 
   return {
     description,
     inputSchema: z.object({
-      workflow: workflowSchema,
+      workflow: z
+        .enum(workflowNames)
+        .describe(
+          `Edit workflow to use. Available: ${workflowOptions}. Use "${defaultWorkflow}" unless the user explicitly requests a different workflow.`,
+        ),
       variant: z
         .string()
         .optional()
-        .describe('Optional variant name (e.g., "Fast", "Standard", "Quality").'),
+        .describe(
+          'Optional variant name (e.g., "Fast", "Standard", "Quality"). If not specified, "Fast" variant will be used by default when available.',
+        ),
       prompt: z.string().describe('Description of the edit to apply to the image.'),
       negativePrompt: z.string().optional().describe('Things to avoid in the edit'),
       seed: z

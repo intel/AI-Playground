@@ -77,11 +77,24 @@ export const useModels = defineStore(
       // Helper to check if a model name is an mmproj vision helper (not directly selectable)
       const isMmprojHelper = (name: string) => name.toLowerCase().includes('mmproj')
 
-      // Preserve models.json order: predefined models first, then non-predefined downloads
+      // Reconstruct custom models from persisted metadata that aren't in predefined or downloaded lists
+      const knownModelNames = new Set([...predefinedModelNames, ...downloadedModelNames])
+      const customModelsFromMetadata = Object.entries(customModelMetadata.value)
+        .filter(([name]) => !knownModelNames.has(name))
+        .map(([name, metadata]) => ({
+          name,
+          type: (metadata.backend ?? 'llamaCPP') as ModelType,
+        }))
+
+      // Preserve models.json order: predefined models first, then non-predefined downloads,
+      // then custom models from persisted metadata (survives restart even if not yet downloaded)
       models.value = [
         ...predefinedModels, // Keep models.json order (first = highest priority)
         ...downloadedModels.filter(notPredefined), // Add non-predefined downloads at end
-        ...models.value.filter(notPredefined).filter(notYetDownloaded),
+        ...customModelsFromMetadata, // Custom models from persisted metadata
+        ...models.value.filter(notPredefined).filter(notYetDownloaded).filter(
+          (m) => !customModelsFromMetadata.some((cm) => cm.name === m.name),
+        ),
       ]
         .map<Model>((m) => {
           const predefinedModel = predefinedModels.find((pm) => pm.name === m.name)
@@ -379,6 +392,7 @@ export const useModels = defineStore(
       updateHfEndpoint,
       downloadList,
       paths,
+      customModelMetadata,
       addModel,
       refreshModels,
       download,

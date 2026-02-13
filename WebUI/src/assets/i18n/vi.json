@@ -257,6 +257,8 @@
   "SETTINGS_AUDIO_SILENCE_DURATION": "Thời gian im lặng",
   "SETTINGS_DEVELOPER": "Nhà phát triển",
   "SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP": "Mở Console nhà phát triển khi khởi động",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED": "Giữ mô hình đã tải",
+  "SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO": "Khi được bật, các mô hình trò chuyện và tạo hình ảnh sẽ được giữ trong bộ nhớ cùng lúc. Yêu cầu nhiều VRAM hơn nhưng tránh tải lại mô hình khi chuyển đổi giữa trò chuyện và tạo hình ảnh.",
   "COM_LOAD_VIDEO": "Tải video",
   "SETTINGS_MODEL_SD_HD_INPAINT_MODEL": "Mô hình HD Inpaint/Outpaint mặc định",
   "BACKEND_VERSION_DESCRIPTION_COMFYUI": "Nhập hash commit git hoặc thẻ phiên bản (ví dụ: v1.2.3 hoặc abc1234)",
