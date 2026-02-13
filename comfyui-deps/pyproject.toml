@@ -39,7 +39,7 @@ dependencies = [
   "onnx>=1.14.0",
   "onnxruntime",
   "opencv-python>=4.7.0.72",
-  "Pillow>=10.3.0",
+  "Pillow>=12.1.1",
   "protobuf>=6.33.5",
   "psutil",
   "pydantic-settings~=2.0",
