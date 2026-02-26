@@ -57,7 +57,7 @@
         </Tooltip>
       </TooltipProvider>
     </div>
-    <div class="flex justify-center">
+    <div class="flex justify-center gap-2">
       <input
         :id="id"
         :accept="acceptedImageTypes.join(',')"
@@ -75,6 +75,14 @@
         "
         >{{ languages.COM_LOAD_IMAGE }}</label
       >
+      <button
+        type="button"
+        @click="handleCameraClick"
+        class="p-1 rounded hover:bg-muted"
+        title="Capture from camera"
+      >
+        <CameraIcon class="w-5 h-5 text-muted-foreground" />
+      </button>
     </div>
   </div>
 </template>
@@ -86,6 +94,7 @@ import { cn, isImageUrl, saveImageToMediaInput } from '@/lib/utils'
 import { useDropZone } from '@vueuse/core'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { CameraIcon } from '@heroicons/vue/24/solid'
 
 const props = defineProps<{
   imageUrlRef: WritableComputedRef<string>
@@ -163,5 +172,11 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
     }
     reader.readAsDataURL(file)
   }
+}
+
+function handleCameraClick() {
+  dialogStore.showCameraDialog((file: File) => {
+    processFiles([file], props.imageUrlRef as Ref<string, string>)
+  })
 }
 </script>

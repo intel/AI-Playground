@@ -128,6 +128,15 @@
             class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
             variant="secondary"
             v-if="promptStore.getCurrentMode() === 'chat'"
+            @click="handleCameraClick"
+            title="Capture image from camera"
+          >
+            <CameraIcon class="w-5 h-5" />
+          </Button>
+          <Button
+            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
+            variant="secondary"
+            v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
             :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
             :title="
@@ -184,6 +193,20 @@
         </div>
       </div>
     </div>
+
+    <!-- Camera Capture Dialog -->
+    <div
+      v-if="dialogStore.cameraDialogVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    >
+      <div class="bg-background rounded-lg p-6 w-full max-w-lg mx-4 shadow-xl">
+        <h2 class="text-lg font-semibold mb-4">Capture Image</h2>
+        <CameraCapture @capture="dialogStore.handleCameraCapture" />
+        <div class="mt-4 flex justify-end">
+          <Button variant="outline" @click="dialogStore.closeCameraDialog()">Close</Button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -218,11 +241,14 @@ import {
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
 } from '@heroicons/vue/24/outline'
+import { CameraIcon } from '@heroicons/vue/24/solid'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
 import { Context } from '@/components/ui/context'
 import Button from '@/components/ui/button/Button.vue'
+import { useDialogStore } from '@/assets/js/store/dialogs'
+import CameraCapture from '@/components/CameraCapture.vue'
 
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
@@ -237,6 +263,7 @@ const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
 const textareaRef = ref<HTMLTextAreaElement>()
 const presetsStore = usePresets()
+const dialogStore = useDialogStore()
 
 audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
 
@@ -438,6 +465,12 @@ async function handleRecordingClick() {
       toast.error(audioRecorder.error)
     }
   }
+}
+
+function handleCameraClick() {
+  dialogStore.showCameraDialog(async (file: File) => {
+    await handleImageFiles([file])
+  })
 }
 
 function fastGenerate(e: KeyboardEvent) {

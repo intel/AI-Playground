@@ -51,6 +51,10 @@ export const useDialogStore = defineStore('dialog', () => {
   const installationProgressDialogVisible = ref(false)
   const installationProgressData = ref<InstallationProgressData | null>(null)
 
+  // Camera dialog state
+  const cameraDialogVisible = ref(false)
+  const cameraCaptureCallback = ref<((file: File) => void) | null>(null)
+
   // Mask editor dialog state
   const maskEditorDialogVisible = ref(false)
   const maskEditorMode = ref<'inpaint' | 'outpaint'>('inpaint')
@@ -120,6 +124,23 @@ export const useDialogStore = defineStore('dialog', () => {
       installationProgressData.value.showModelDownload = true
       installationProgressData.value.modelDownloadList = downloadList
     }
+  }
+
+  function showCameraDialog(callback?: (file: File) => void) {
+    cameraCaptureCallback.value = callback || null
+    cameraDialogVisible.value = true
+  }
+
+  function handleCameraCapture(file: File) {
+    if (cameraCaptureCallback.value) {
+      cameraCaptureCallback.value(file)
+    }
+    closeCameraDialog()
+  }
+
+  function closeCameraDialog() {
+    cameraDialogVisible.value = false
+    cameraCaptureCallback.value = null
   }
 
   function showMaskEditorDialog(mode: 'inpaint' | 'outpaint', originalImageUrl?: string) {
@@ -275,6 +296,12 @@ export const useDialogStore = defineStore('dialog', () => {
     updateInstallationProgress,
     closeInstallationProgressDialog,
     transitionToModelDownload,
+
+    // Camera dialog
+    cameraDialogVisible,
+    showCameraDialog,
+    closeCameraDialog,
+    handleCameraCapture,
 
     // Mask editor dialog
     maskEditorDialogVisible,
