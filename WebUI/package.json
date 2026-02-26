@@ -13,6 +13,7 @@
     "lint:eslint": "eslint . --fix",
     "lint": "eslint . --fix",
     "format": "prettier --write .",
+    "type-check": "vue-tsc --noEmit",
     "lint:ci": "eslint .",
     "format:ci": "prettier --check ."
   },

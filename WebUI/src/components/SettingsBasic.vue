@@ -123,17 +123,14 @@
               </TooltipTrigger>
               <TooltipContent side="bottom" class="max-w-[300px]">
                 {{
-                  languages.SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO
-                    || 'When enabled, chat and image generation models stay loaded in memory simultaneously. Requires more VRAM but avoids reloading models when switching between chat and image generation.'
+                  languages.SETTINGS_DEVELOPER_KEEP_MODELS_LOADED_INFO ||
+                  'When enabled, chat and image generation models stay loaded in memory simultaneously. Requires more VRAM but avoids reloading models when switching between chat and image generation.'
                 }}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Checkbox
-          id="keep-models-loaded"
-          v-model="developerSettings.keepModelsLoaded"
-        />
+        <Checkbox id="keep-models-loaded" v-model="developerSettings.keepModelsLoaded" />
       </div>
     </div>
     <div class="flex justify-between items-center">

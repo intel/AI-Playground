@@ -82,7 +82,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
-import { cn } from '@/lib/utils'
+import { cn, isImageUrl, saveImageToMediaInput } from '@/lib/utils'
 import { useDropZone } from '@vueuse/core'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -103,15 +103,7 @@ const dialogStore = useDialogStore()
 
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
 
-const hasImage = computed(() => {
-  const value = props.imageUrlRef.value
-  return (
-    value &&
-    typeof value === 'string' &&
-    value !== '' &&
-    value.match(/^data:image\/(png|jpeg|webp);base64,/)
-  )
-})
+const hasImage = computed(() => isImageUrl(props.imageUrlRef.value))
 
 // Determine which image URL to display (always show preview if modified)
 const displayImageUrl = computed(() => {
@@ -153,7 +145,7 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
     }
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       if (
         !e.target ||
         !(e.target instanceof FileReader) ||
@@ -163,10 +155,11 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
         console.error('Failed to read file')
         return
       }
-      inputCurrent.value = e.target.result
-      // Clear preview when a new image is loaded
+      const dataUri = e.target.result
+      const aipgMediaUrl = await saveImageToMediaInput(dataUri)
+      inputCurrent.value = aipgMediaUrl
       dialogStore.clearMaskEditorPreview()
-      emit('imageLoaded', e.target.result)
+      emit('imageLoaded', aipgMediaUrl)
     }
     reader.readAsDataURL(file)
   }

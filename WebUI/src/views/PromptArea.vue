@@ -189,7 +189,13 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
-import { mapModeToLabel, downscaleImageTo1MP, imageUrlToDataUri } from '@/lib/utils.ts'
+import type { FileUIPart } from 'ai'
+import {
+  mapModeToLabel,
+  downscaleImageTo1MP,
+  imageUrlToDataUri,
+  saveImageToMediaInput,
+} from '@/lib/utils.ts'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
 import { usePromptStore } from '@/assets/js/store/promptArea'
@@ -300,38 +306,12 @@ const emits = defineEmits<{
   (e: 'openSettings'): void
 }>()
 
-const imagePreview = computed(() => {
-  if (openAiCompatibleChat.fileInput) {
-    const urls = []
-    let id = 0
-    for (const file of openAiCompatibleChat.fileInput) {
-      const url = URL.createObjectURL(file)
-      urls.push({ id, url, file })
-      id++
-    }
-    return urls
-  }
-  return []
-})
+const imagePreview = computed(() =>
+  openAiCompatibleChat.fileInput.map((part, id) => ({ id, url: part.url, part })),
+)
 
-// Remove image at specified index
 function removeImage(index: number) {
-  if (!openAiCompatibleChat.fileInput) return
-
-  // Revoke object URL for the removed image
-  const preview = imagePreview.value.find((p) => p.id === index)
-  if (preview) {
-    URL.revokeObjectURL(preview.url)
-  }
-
-  // Convert FileList to array and remove the file at index
-  const files = Array.from(openAiCompatibleChat.fileInput)
-  files.splice(index, 1)
-
-  // Create new FileList with remaining files
-  const fileList = new DataTransfer()
-  files.forEach((file) => fileList.items.add(file))
-  openAiCompatibleChat.fileInput = fileList.files
+  openAiCompatibleChat.fileInput = openAiCompatibleChat.fileInput.filter((_, i) => i !== index)
 }
 
 const isProcessing = computed(() => {
@@ -513,23 +493,21 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
   const imageUrl = URL.createObjectURL(imageFile)
 
   try {
-    // Convert to data URI for ComfyUI
     const dataUri = await imageUrlToDataUri(imageUrl)
+    const aipgMediaUrl = await saveImageToMediaInput(dataUri)
 
-    // Find first image input
     const firstImageInput = imageGeneration.comfyInputs.find((input) => input.type === 'image')
 
     if (firstImageInput) {
-      // Set the image input value
-      firstImageInput.current.value = dataUri
+      firstImageInput.current.value = aipgMediaUrl
 
-      // Create MediaItem and add to history (same as "Send to Edit")
       const imageItem: ImageMediaItem = {
+        createdAt: Date.now(),
         id: crypto.randomUUID(),
         type: 'image',
         mode: 'imageEdit',
         state: 'done',
-        imageUrl: dataUri,
+        imageUrl: aipgMediaUrl,
         sourceImageUrl: imageUrl,
         fromImageGen: true,
         settings: {},
@@ -551,36 +529,36 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
   }
 }
 
-// Handle image files with downscaling for chat mode
+async function handleChatImageUpload(imageFiles: File[]) {
+  const filesToProcess = await Promise.all(
+    imageFiles.map((file) => downscaleImageTo1MP(file)),
+  ).catch((error) => {
+    console.error('Error downscaling images:', error)
+    return imageFiles
+  })
+
+  const parts: FileUIPart[] = []
+  for (const file of filesToProcess) {
+    const objectUrl = URL.createObjectURL(file)
+    try {
+      const dataUri = await imageUrlToDataUri(objectUrl)
+      const aipgUrl = await saveImageToMediaInput(dataUri)
+      parts.push({ type: 'file', mediaType: file.type, url: aipgUrl, filename: file.name })
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }
+  openAiCompatibleChat.fileInput = parts
+}
+
+// Handle image files: ComfyUI upload vs chat/other → fileInput as aipg-media
 async function handleImageFiles(imageFiles: File[]) {
   if (imageFiles.length === 0) return
 
-  // For ComfyUI modes, route to ComfyUI-specific handler
-  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
-  if (comfyUiModes.includes(promptStore.getCurrentMode()) && shouldShowImageUploadButton.value) {
-    await handleComfyUIImageUpload(imageFiles)
-    return
-  }
-
-  // Downscale images if in chat mode (images are only sent to vision-capable models)
   if (promptStore.getCurrentMode() === 'chat') {
-    try {
-      const downscaledFiles = await Promise.all(imageFiles.map((file) => downscaleImageTo1MP(file)))
-      const imageFileList = new DataTransfer()
-      downscaledFiles.forEach((file) => imageFileList.items.add(file))
-      openAiCompatibleChat.fileInput = imageFileList.files
-    } catch (error) {
-      console.error('Error downscaling images:', error)
-      // Fallback to original files if downscaling fails
-      const imageFileList = new DataTransfer()
-      imageFiles.forEach((file) => imageFileList.items.add(file))
-      openAiCompatibleChat.fileInput = imageFileList.files
-    }
+    await handleChatImageUpload(imageFiles)
   } else {
-    // For non-chat modes, use original files
-    const imageFileList = new DataTransfer()
-    imageFiles.forEach((file) => imageFileList.items.add(file))
-    openAiCompatibleChat.fileInput = imageFileList.files
+    await handleComfyUIImageUpload(imageFiles)
   }
 }
 

@@ -7,7 +7,7 @@ import { usePresets, type ComfyInput } from './presets'
 import { useUIStore } from './ui'
 import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
-import { imageUrlToDataUri } from '@/lib/utils'
+import { imageUrlToDataUri, saveImageToMediaInput } from '@/lib/utils'
 
 export type GenerateState =
   | 'no_start'
@@ -431,12 +431,21 @@ export const useImageGenerationPresets = defineStore(
     }
 
     async function copyImageAsInputForMode(image: MediaItem, mode: WorkflowModeType) {
-      const newImage: MediaItem = { ...image, id: crypto.randomUUID() }
+      const newImage: MediaItem = { ...image, id: crypto.randomUUID(), createdAt: Date.now() }
       newImage.mode = mode
       if (image.type === 'image' && newImage.type === 'image') {
-        // Convert blob URL to base64 data URI for ComfyUI compatibility
         newImage.sourceImageUrl = image.imageUrl
-        newImage.imageUrl = await imageUrlToDataUri(image.imageUrl)
+        if (image.imageUrl.startsWith('aipg-media://')) {
+          newImage.imageUrl = image.imageUrl
+        } else {
+          try {
+            const dataUri = await imageUrlToDataUri(image.imageUrl)
+            newImage.imageUrl = await saveImageToMediaInput(dataUri)
+          } catch (error) {
+            console.error('Error copying image as input for mode', error)
+            toast.error('Error copying image as input for mode')
+          }
+        }
         newImage.fromImageGen = true
       }
 

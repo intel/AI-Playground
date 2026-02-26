@@ -183,6 +183,7 @@ async function checkGitRefExists(gitExe: string, workDir: string, ref: string): 
 }
 
 export async function filterPartnerPresets() {
+  if (!app.isPackaged) return
   const presets = await fs.promises.readdir(presetDirTargetPath, { withFileTypes: true })
   const acerPresets = presets.filter((p) => p.name.startsWith('Acer'))
   const acerVisionArtIsInstalled = await getFromRegistry(

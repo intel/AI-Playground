@@ -92,9 +92,10 @@ export const useModels = defineStore(
         ...predefinedModels, // Keep models.json order (first = highest priority)
         ...downloadedModels.filter(notPredefined), // Add non-predefined downloads at end
         ...customModelsFromMetadata, // Custom models from persisted metadata
-        ...models.value.filter(notPredefined).filter(notYetDownloaded).filter(
-          (m) => !customModelsFromMetadata.some((cm) => cm.name === m.name),
-        ),
+        ...models.value
+          .filter(notPredefined)
+          .filter(notYetDownloaded)
+          .filter((m) => !customModelsFromMetadata.some((cm) => cm.name === m.name)),
       ]
         .map<Model>((m) => {
           const predefinedModel = predefinedModels.find((pm) => pm.name === m.name)

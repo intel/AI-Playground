@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Chat } from '@ai-sdk/vue'
 import {
   convertToModelMessages,
+  type FileUIPart,
   DefaultChatTransport,
   LanguageModelUsage,
   streamText,
@@ -17,6 +18,7 @@ import z from 'zod'
 import { AipgTools } from '../tools/tools'
 import * as toast from '../toast'
 import { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider'
+import { imageUrlToDataUri } from '@/lib/utils'
 
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
@@ -94,7 +96,28 @@ export const useOpenAiCompatibleChat = defineStore(
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
-      let messages = convertToModelMessages(m.messages) //.filter((m) => m.role !== 'tool')
+      let messages = convertToModelMessages(m.messages)
+
+      // Convert aipg-media image URLs to base64 for the backend
+      messages = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg
+          const content = await Promise.all(
+            msg.content.map(async (part) => {
+              if (
+                part.type === 'file' &&
+                part.mediaType?.startsWith('image/') &&
+                typeof part.data === 'string' &&
+                part.data.startsWith('aipg-media://')
+              ) {
+                return { ...part, data: await imageUrlToDataUri(part.data) }
+              }
+              return part
+            }),
+          )
+          return { ...msg, content }
+        }),
+      )
 
       // Filter out annotatedImageUrl json from tool results
       messages = messages.map((m) => {
@@ -291,7 +314,7 @@ export const useOpenAiCompatibleChat = defineStore(
     })
 
     const messageInput = ref('')
-    const fileInput = ref<FileList | null>(null)
+    const fileInput = ref<FileUIPart[]>([])
     const temporarySystemPrompt = ref<string | null>(null)
 
     async function generate(question: string) {
@@ -302,10 +325,8 @@ export const useOpenAiCompatibleChat = defineStore(
       manuallyStopped.value = false
 
       // 2. Block if images attached to non-vision model
-      if (fileInput.value && !textInference.modelSupportsVision) {
-        const hasImageFiles = Array.from(fileInput.value).some((file) =>
-          file.type.startsWith('image/'),
-        )
+      if (fileInput.value.length > 0 && !textInference.modelSupportsVision) {
+        const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
         if (hasImageFiles) {
           const errorMessage =
             'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
@@ -329,7 +350,7 @@ export const useOpenAiCompatibleChat = defineStore(
       try {
         await chat.sendMessage({
           text: messageInput.value,
-          files: fileInput.value ? fileInput.value : undefined,
+          files: fileInput.value.length > 0 ? fileInput.value : undefined,
           metadata: {
             model: textInference.activeModel,
             timestamp: Date.now(),
@@ -347,12 +368,12 @@ export const useOpenAiCompatibleChat = defineStore(
         }
       }
 
-      // 6. Persist conversation
+      // 6. Persist conversation (sanitize base64 image parts to aipg-media)
       conversations.updateConversation(messages.value, conversations.activeKey)
 
       // 7. Clear inputs
       messageInput.value = ''
-      fileInput.value = null
+      fileInput.value = []
     }
 
     async function stop() {
@@ -368,12 +389,11 @@ export const useOpenAiCompatibleChat = defineStore(
       conversations.updateConversation(messages.value, conversations.activeKey)
     }
 
-    function removeMessage(messageId: string) {
+    async function removeMessage(messageId: string) {
       const chat = chats[conversations.activeKey]
       if (!chat) return
       const indexOfAssistantMeessage = chat.messages.findIndex((m) => m.id === messageId)
       console.log('removeMessage', { messageId, indexOfAssistantMeessage, messages: chat.messages })
-      // remove also the user message before the assistant message
       if (indexOfAssistantMeessage > 0) {
         chat.messages.splice(indexOfAssistantMeessage - 1, 2)
       } else {

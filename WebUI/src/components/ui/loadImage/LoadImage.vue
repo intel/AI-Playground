@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
-import { cn } from '@/lib/utils'
+import { cn, isImageUrl, saveImageToMediaInput } from '@/lib/utils'
 import { useDropZone } from '@vueuse/core'
 
 const props = defineProps<{
@@ -78,15 +78,7 @@ const emit = defineEmits<{
 
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
 
-const hasImage = computed(() => {
-  const value = props.imageUrlRef.value
-  return (
-    value &&
-    typeof value === 'string' &&
-    value !== '' &&
-    value.match(/^data:image\/(png|jpeg|webp);base64,/)
-  )
-})
+const hasImage = computed(() => isImageUrl(props.imageUrlRef.value))
 
 const imgDropZone = useTemplateRef('imgDropZone')
 
@@ -117,7 +109,7 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
     }
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       if (
         !e.target ||
         !(e.target instanceof FileReader) ||
@@ -127,8 +119,10 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
         console.error('Failed to read file')
         return
       }
-      inputCurrent.value = e.target.result
-      emit('imageLoaded', e.target.result)
+      const dataUri = e.target.result
+      const aipgMediaUrl = await saveImageToMediaInput(dataUri)
+      inputCurrent.value = aipgMediaUrl
+      emit('imageLoaded', aipgMediaUrl)
     }
     reader.readAsDataURL(file)
   }

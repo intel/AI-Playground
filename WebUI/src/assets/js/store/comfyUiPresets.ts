@@ -7,6 +7,7 @@ import * as toast from '../toast'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { usePromptStore } from './promptArea'
 import { z } from 'zod'
+import { imageUrlToDataUri, isImageUrl } from '@/lib/utils'
 
 const WEBSOCKET_OPEN = 1
 
@@ -694,13 +695,12 @@ export const useComfyUiPresets = defineStore(
         const hasNoDefault = input.defaultValue === '' || input.defaultValue === undefined
 
         if (isImageType && isDisplayed && isModifiable && hasNoDefault) {
-          // Check if current value is empty or invalid
           const value = input.current.value
           const isEmpty = value === '' || value === undefined || value === null
           const isString = typeof value === 'string'
-          const isValidDataUri = isString && value.match(/^data:image\/(png|jpeg|webp);base64,/)
+          const isValid = isString && value !== '' && isImageUrl(value)
 
-          if (isEmpty || !isString || !isValidDataUri) {
+          if (isEmpty || !isValid) {
             missingInputs.push(input.label)
           }
         }
@@ -727,20 +727,18 @@ export const useComfyUiPresets = defineStore(
           }
         }
         if (input.type === 'image' || input.type === 'inpaintMask') {
-          // Check if image is optional and empty - if so, use black pixel
-          const isEmpty =
-            typeof input.current.value !== 'string' ||
-            input.current.value === '' ||
-            !input.current.value.match(/^data:image\/(png|jpeg|webp);base64,/)
+          const rawValue = input.current.value
+          const isEmpty = typeof rawValue !== 'string' || rawValue === '' || !isImageUrl(rawValue)
           const isOptional = input.optional === true
 
           let imageDataUri: string
           if (isEmpty && isOptional && input.type === 'image') {
-            // Use black pixel image for optional empty images
             imageDataUri =
               'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
-          } else if (typeof input.current.value === 'string') {
-            imageDataUri = input.current.value
+          } else if (typeof rawValue === 'string' && rawValue !== '') {
+            imageDataUri = rawValue.startsWith('aipg-media://')
+              ? await imageUrlToDataUri(rawValue)
+              : rawValue
           } else {
             continue
           }

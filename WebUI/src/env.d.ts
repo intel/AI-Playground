@@ -71,6 +71,7 @@ type electronAPI = {
   getInitialPage(): Promise<AipgPage>
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
+  saveImageToMediaInput(dataUri: string): Promise<string>
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void
   screenChange(callback: (width: number, height: number) => void): void

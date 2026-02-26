@@ -84,6 +84,8 @@ let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
+const mediaInputDir = path.join(mediaDir, 'input')
+fs.mkdirSync(mediaInputDir, { recursive: true })
 let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -520,6 +522,24 @@ function initEventHandle() {
     } catch (error) {
       appLogger.error(`${JSON.stringify(error, Object.getOwnPropertyNames, 2)}`, 'electron-backend')
     }
+  })
+
+  ipcMain.handle('saveImageToMediaInput', async (_event, dataUri: string) => {
+    if (typeof dataUri !== 'string' || !dataUri.startsWith('data:image/')) {
+      throw new Error('saveImageToMediaInput: expected a data URI (data:image/...)')
+    }
+    const match = dataUri.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/)
+    if (!match) {
+      throw new Error('saveImageToMediaInput: unsupported image type or malformed data URI')
+    }
+    const mimeSubtype = match[1]
+    const base64Data = match[2]
+    const ext = mimeSubtype === 'jpeg' ? 'jpg' : mimeSubtype
+    const filename = `${randomUUID()}.${ext}`
+    const filePath = path.join(mediaInputDir, filename)
+    const buffer = Buffer.from(base64Data, 'base64')
+    await fs.promises.writeFile(filePath, buffer)
+    return `input/${filename}`
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
