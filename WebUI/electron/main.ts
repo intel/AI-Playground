@@ -90,6 +90,9 @@ let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+if (!app.isPackaged && process.env.AIPG_DEBUGGING_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', process.env.AIPG_DEBUGGING_PORT)
+}
 // const APP_TOOL_HEIGHT = 209;
 const appSize = {
   width: 820,
