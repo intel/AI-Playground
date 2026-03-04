@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke('getDownloadedEmbeddingModels'),
+  getComfyUIModels: (modelType: string) => ipcRenderer.invoke('getComfyUIModels', modelType),
+  getPlatform: () => ipcRenderer.invoke('getPlatform') as Promise<NodeJS.Platform>,
   openImageWithSystem: (url: string) => ipcRenderer.send('openImageWithSystem', url),
   openImageInFolder: (url: string) => ipcRenderer.send('openImageInFolder', url),
   setFullScreen: (enable: boolean) => ipcRenderer.send('setFullScreen', enable),

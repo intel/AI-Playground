@@ -79,7 +79,7 @@
       ></Input>
 
       <drop-down-new
-        v-else-if="input.type === 'stringList'"
+        v-else-if="input.type === 'stringList' || input.type === 'model'"
         :items="
           (input.options || []).map((opt) => ({
             label: String(opt),

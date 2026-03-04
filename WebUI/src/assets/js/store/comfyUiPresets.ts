@@ -1,7 +1,12 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
 import { ComfyUIApiWorkflow } from './presets'
-import { useImageGenerationPresets, type MediaItem } from './imageGenerationPresets'
+import {
+  useImageGenerationPresets,
+  modelNameForComfyApi,
+  OPTIONAL_MODEL_NONE,
+  type MediaItem,
+} from './imageGenerationPresets'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
@@ -167,6 +172,94 @@ function modifySettingInWorkflow(
     workflow[key].inputs[inputName] = value
   } else if (workflow[key]?.inputs?.['a'] !== undefined) {
     workflow[key].inputs['a'] = value
+  }
+}
+
+/** ComfyUI node input names that hold model/file paths; separator is OS-dependent (see main.ts preset handling). */
+const COMFY_MODEL_PATH_INPUTS = new Set([
+  'ckpt_name',
+  'lora_name',
+  'vae_name',
+  'unet_name',
+  'clip_name',
+  'model_name',
+  'control_net_name',
+])
+
+function normalizeModelPathsInWorkflow(
+  workflow: ComfyUIApiWorkflow,
+  platform: NodeJS.Platform,
+): void {
+  for (const node of Object.values(workflow)) {
+    const inputs = (node as { inputs?: Record<string, unknown> }).inputs
+    if (!inputs) continue
+    for (const [inputName, value] of Object.entries(inputs)) {
+      if (COMFY_MODEL_PATH_INPUTS.has(inputName) && typeof value === 'string') {
+        inputs[inputName] = modelNameForComfyApi(value, platform)
+      }
+    }
+  }
+}
+
+/**
+ * Bypass a node by rewiring its outputs to its upstream and removing the node.
+ * Supported: LoraLoader (output 0 = model from input "model", output 1 = clip from input "clip").
+ */
+function bypassNode(workflow: ComfyUIApiWorkflow, nodeId: string): void {
+  const node = workflow[nodeId] as
+    | { class_type?: string; inputs?: Record<string, unknown> }
+    | undefined
+  if (!node?.inputs) return
+  const classType = node.class_type
+  let rewire: [number, [string, number]][]
+  if (classType === 'LoraLoader') {
+    const model = node.inputs.model as [string, number] | undefined
+    const clip = node.inputs.clip as [string, number] | undefined
+    if (!model || !clip) return
+    rewire = [
+      [0, model],
+      [1, clip],
+    ]
+  } else {
+    return
+  }
+  for (const entry of Object.values(workflow)) {
+    const inputs = (entry as { inputs?: Record<string, unknown> }).inputs
+    if (!inputs) continue
+    for (const key of Object.keys(inputs)) {
+      const v = inputs[key]
+      if (
+        Array.isArray(v) &&
+        v.length === 2 &&
+        typeof v[0] === 'string' &&
+        typeof v[1] === 'number'
+      ) {
+        if (v[0] === nodeId) {
+          const slot = v[1]
+          const upstream = rewire.find(([s]) => s === slot)?.[1]
+          if (upstream) inputs[key] = upstream
+        }
+      }
+    }
+  }
+  delete workflow[nodeId]
+}
+
+/** Rewire and remove optional model nodes whose value is None (e.g. LoRA bypass). */
+function bypassOptionalModelNodes(workflow: ComfyUIApiWorkflow): void {
+  const imageGeneration = useImageGenerationPresets()
+  for (const input of imageGeneration.comfyInputs) {
+    if (
+      input.type !== 'model' ||
+      input.optional !== true ||
+      input.current.value !== OPTIONAL_MODEL_NONE
+    ) {
+      continue
+    }
+    const keys = findKeysByTitle(workflow, input.nodeTitle)
+    for (const key of keys) {
+      bypassNode(workflow, key)
+    }
   }
 }
 
@@ -709,7 +802,10 @@ export const useComfyUiPresets = defineStore(
       return missingInputs
     }
 
-    async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
+    async function modifyDynamicSettingsInWorkflow(
+      mutableWorkflow: ComfyUIApiWorkflow,
+      platform: NodeJS.Platform,
+    ) {
       for (const input of imageGeneration.comfyInputs) {
         const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle)
         if (keys.length === 0) {
@@ -724,6 +820,20 @@ export const useComfyUiPresets = defineStore(
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
+          }
+        }
+        if (input.type === 'model') {
+          if (input.current.value === OPTIONAL_MODEL_NONE) {
+            // Node will be bypassed by bypassOptionalModelNodes; do not set value
+            continue
+          }
+          if (mutableWorkflow[keys[0]].inputs !== undefined) {
+            const value =
+              typeof input.current.value === 'string'
+                ? modelNameForComfyApi(input.current.value, platform)
+                : input.current.value
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = value
           }
         }
         if (input.type === 'image' || input.type === 'inpaintMask') {
@@ -836,6 +946,7 @@ export const useComfyUiPresets = defineStore(
         imageGeneration.currentState = 'install_workflow_components'
         await installCustomNodesForActivePresetFully()
 
+        const platform = await window.electronAPI.getPlatform()
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
           JSON.stringify(preset.comfyUiApiWorkflow),
         )
@@ -849,7 +960,9 @@ export const useComfyUiPresets = defineStore(
         modifySettingInWorkflow(mutableWorkflow, 'prompt', imageGeneration.prompt)
         modifySettingInWorkflow(mutableWorkflow, 'negativePrompt', imageGeneration.negativePrompt)
 
-        await modifyDynamicSettingsInWorkflow(mutableWorkflow)
+        await modifyDynamicSettingsInWorkflow(mutableWorkflow, platform)
+        bypassOptionalModelNodes(mutableWorkflow)
+        normalizeModelPathsInWorkflow(mutableWorkflow, platform)
 
         loaderNodes.value = [
           ...findKeysByClassType(mutableWorkflow, 'CheckpointLoaderSimple'),

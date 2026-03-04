@@ -9,10 +9,22 @@
   "mediaType": "image",
   "resolutionConfig": {
     "megapixels": [
-      { "label": "0.25", "totalPixels": 262144 },
-      { "label": "0.5", "totalPixels": 495616 },
-      { "label": "0.8", "totalPixels": 802816 },
-      { "label": "1.0", "totalPixels": 1048576 }
+      {
+        "label": "0.25",
+        "totalPixels": 262144
+      },
+      {
+        "label": "0.5",
+        "totalPixels": 495616
+      },
+      {
+        "label": "0.8",
+        "totalPixels": 802816
+      },
+      {
+        "label": "1.0",
+        "totalPixels": 1048576
+      }
     ],
     "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
   },
@@ -134,17 +146,25 @@
       "modifiable": true
     },
     {
-      "type": "stringList",
+      "type": "model",
       "label": "Model",
       "displayed": true,
       "modifiable": true,
       "defaultValue": "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
       "nodeTitle": "Load Checkpoint",
       "nodeInput": "ckpt_name",
-      "options": [
-        "RunDiffusion---Juggernaut-XL-v9\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
-        "Lykon---DreamShaper\\DreamShaper_8_pruned.safetensors"
-      ]
+      "modelType": "checkpoints"
+    },
+    {
+      "type": "model",
+      "label": "LoRA",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "None",
+      "nodeTitle": "Load LoRA",
+      "nodeInput": "lora_name",
+      "modelType": "loras",
+      "optional": true
     },
     {
       "type": "stringList",
@@ -209,7 +229,7 @@
         "sampler_name": "dpmpp_2m",
         "scheduler": "normal",
         "denoise": 1,
-        "model": ["4", 0],
+        "model": ["10", 0],
         "positive": ["6", 0],
         "negative": ["7", 0],
         "latent_image": ["5", 0]
@@ -228,6 +248,19 @@
         "title": "Load Checkpoint"
       }
     },
+    "10": {
+      "inputs": {
+        "lora_name": "None",
+        "strength_model": 1,
+        "strength_clip": 1,
+        "model": ["4", 0],
+        "clip": ["4", 1]
+      },
+      "class_type": "LoraLoader",
+      "_meta": {
+        "title": "Load LoRA"
+      }
+    },
     "5": {
       "inputs": {
         "width": 1024,
@@ -242,7 +275,7 @@
     "6": {
       "inputs": {
         "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
-        "clip": ["4", 1]
+        "clip": ["10", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {
@@ -252,7 +285,7 @@
     "7": {
       "inputs": {
         "text": "nsfw",
-        "clip": ["4", 1]
+        "clip": ["10", 1]
       },
       "class_type": "CLIPTextEncode",
       "_meta": {

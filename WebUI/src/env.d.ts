@@ -93,6 +93,8 @@ type electronAPI = {
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<Model[]>
+  getComfyUIModels(modelType: string): Promise<string[]>
+  getPlatform(): Promise<NodeJS.Platform>
   openImageWithSystem(url: string): void
   openImageInFolder(url: string): void
   setFullScreen(enable: boolean): void

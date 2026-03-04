@@ -35,6 +35,7 @@ const SettingSchema = z.object({
     'image',
     'video',
     'stringList',
+    'model',
     'outpaintCanvas',
     'inpaintMask',
   ]),
@@ -59,6 +60,16 @@ const ComfyInputSchema = SettingSchema.extend({
   step: z.number().optional(),
   // Optional flag for image inputs - when true and empty, injects black pixel
   optional: z.boolean().optional(),
+  // For type 'model': ComfyUI model type (e.g. 'checkpoints', 'loras') — options are loaded from disk + requiredModels
+  modelType: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (value.type === 'model' && !value.modelType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['modelType'],
+      message: 'modelType is required when type is "model"',
+    })
+  }
 })
 
 // Required Model Schema

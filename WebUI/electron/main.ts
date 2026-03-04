@@ -627,6 +627,12 @@ function initEventHandle() {
     return pathsManager.scanEmbedding()
   })
 
+  ipcMain.handle('getComfyUIModels', (_event, modelType: string) => {
+    return pathsManager.scanComfyUIModels(modelType)
+  })
+
+  ipcMain.handle('getPlatform', () => process.platform)
+
   ipcMain.handle('addDocumentToRAGList', (_event, document: IndexedDocument) => {
     return handleUtilityFunction<IndexedDocument, IndexedDocument>(
       'addDocumentToRAGList',
