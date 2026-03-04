@@ -308,9 +308,9 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
         this.appLogger.info('Configuring extra model paths for comfyUI', this.name)
         const extraModelPathsYaml = path.join(this.serviceDir, 'extra_model_paths.yaml')
-        const comfyUIModelsBasePath = path.resolve(this.baseDir, 'models/ComfyUI')
+        const comfyUIModelsPath = path.join('..', 'models/ComfyUI')
         const extraModelsYaml = `aipg:
-  base_path: ${comfyUIModelsBasePath}
+  base_path: ${comfyUIModelsPath}
   checkpoints: checkpoints
   loras: |
     loras
