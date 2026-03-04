@@ -1,3 +1,4 @@
+import { Config } from 'dompurify'
 import DOMPurify from 'dompurify'
 
 /**
@@ -85,7 +86,7 @@ const MARKDOWN_CONFIG = {
   ALLOW_DATA_ATTR: true,
   // Allow target="_blank" on links
   ALLOW_UNKNOWN_PROTOCOLS: false,
-} satisfies DOMPurify.Config
+} satisfies Config
 
 /**
  * Sanitizes HTML output from the markdown parser.

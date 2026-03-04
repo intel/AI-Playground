@@ -96,7 +96,7 @@ export const useOpenAiCompatibleChat = defineStore(
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
-      let messages = convertToModelMessages(m.messages)
+      let messages = await convertToModelMessages(m.messages)
 
       // Convert aipg-media image URLs to base64 for the backend
       messages = await Promise.all(
@@ -125,7 +125,7 @@ export const useOpenAiCompatibleChat = defineStore(
         return {
           ...m,
           content: m.content.map((part) => {
-            if (part.toolName === 'visualizeObjectDetections' && part.output.type === 'json') {
+            if (part.type === 'tool-result' && part.toolName === 'visualizeObjectDetections' && part.output.type === 'json') {
               return {
                 ...part,
                 output: {
