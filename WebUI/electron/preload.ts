@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       embeddingModelName,
       contextSize,
     ),
+  ensureComfyUIBackendRunning: () => ipcRenderer.invoke('ensureComfyUIBackendRunning'),
   startTranscriptionServer: (modelName: string) =>
     ipcRenderer.invoke('startTranscriptionServer', modelName),
   stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),

@@ -18,7 +18,8 @@
 
 import os
 from transformers import pipeline
-from torchvision import transforms
+import numpy as np
+from PIL import Image
 import torch
 import folder_paths
 
@@ -52,7 +53,7 @@ class SafetyChecker:
             device=device,
         )  # init pipeline
         result = predict(
-            transforms.ToPILImage()(image[0].cpu().permute(2, 0, 1))
+            Image.fromarray((image[0].cpu().numpy() * 255).astype(np.uint8))
         )  # Convert to expected format
         score = next(item["score"] for item in result if item["label"] == "nsfw")
         output = image

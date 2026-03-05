@@ -861,6 +861,36 @@ function initEventHandle() {
     },
   )
 
+  ipcMain.handle('ensureComfyUIBackendRunning', async () => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready', starting: false }
+    }
+    const service = serviceRegistry.getService('comfyui-backend')
+    if (!service) {
+      return { success: false, error: 'ComfyUI service not found', starting: false }
+    }
+    if (service.currentStatus === 'running') {
+      return { success: true, starting: false }
+    }
+    if (service.currentStatus === 'starting') {
+      return { success: true, starting: true }
+    }
+    try {
+      const result = await service.start()
+      if (result === 'running') return { success: true, starting: false }
+      if (result === 'starting') return { success: true, starting: true }
+      return {
+        success: false,
+        starting: false,
+        error: `ComfyUI backend status: ${result}`,
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      appLogger.error(`Failed to start ComfyUI backend: ${errorMessage}`, 'electron-backend')
+      return { success: false, error: errorMessage, starting: false }
+    }
+  })
+
   ipcMain.handle(
     'getEmbeddingServerUrl',
     async (_event: IpcMainInvokeEvent, serviceName: string) => {

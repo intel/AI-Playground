@@ -126,6 +126,11 @@ type electronAPI = {
     embeddingModelName?: string,
     contextSize?: number,
   ): Promise<{ success: boolean; error?: string }>
+  ensureComfyUIBackendRunning(): Promise<{
+    success: boolean
+    error?: string
+    starting?: boolean
+  }>
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>

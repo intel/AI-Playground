@@ -287,6 +287,13 @@ export const useComfyUiPresets = defineStore(
     let generateIdx: number = 0
     let queuedImages: MediaItem[] = []
 
+    const pendingGenerationRequest = ref<{
+      imageIds: string[]
+      mode: WorkflowModeType
+      sourceImage?: string
+    } | null>(null)
+    const pendingRetryTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
       return backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
@@ -561,10 +568,43 @@ export const useComfyUiPresets = defineStore(
         console.warn('ComfyUI backend not running, cannot start websocket')
         return
       }
+
       const comfyWsUrl = `ws://localhost:${comfyPort.value}/ws?clientId=${clientId}`
+
+      if (websocket.value) {
+        const state = websocket.value.readyState
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+          console.info('ComfyUI websocket already connected or connecting, reusing')
+          return
+        }
+        console.info('Closing stale websocket connection before creating new one')
+        try {
+          websocket.value.close()
+        } catch (e) {
+          console.warn('Error closing stale websocket:', e)
+        }
+        websocket.value = null
+      }
+
       console.info('Connecting to ComfyUI', { comfyWsUrl })
       websocket.value = new WebSocket(comfyWsUrl)
       websocket.value.binaryType = 'arraybuffer'
+
+      websocket.value.addEventListener('open', () => {
+        console.info('ComfyUI websocket connection established')
+      })
+
+      websocket.value.addEventListener('close', (event) => {
+        console.info('ComfyUI websocket connection closed', {
+          code: event.code,
+          reason: event.reason,
+        })
+      })
+
+      websocket.value.addEventListener('error', (error) => {
+        console.error('ComfyUI websocket error:', error)
+      })
+
       websocket.value.addEventListener('message', (event) => {
         try {
           if (event.data instanceof ArrayBuffer) {
@@ -752,8 +792,48 @@ export const useComfyUiPresets = defineStore(
     }
 
     watchEffect(() => {
-      if (comfyPort && comfyUiState.value?.status === 'running') {
+      const isRunning = comfyPort.value != null && comfyUiState.value?.status === 'running'
+
+      if (isRunning) {
         connectToComfyUi()
+
+        if (pendingGenerationRequest.value) {
+          console.info('Backend is now running, auto-retrying pending generation')
+          const pending = pendingGenerationRequest.value
+
+          if (pendingRetryTimer.value !== null) {
+            clearTimeout(pendingRetryTimer.value)
+            pendingRetryTimer.value = null
+          }
+
+          const attemptRetry = () => {
+            pendingRetryTimer.value = setTimeout(() => {
+              pendingRetryTimer.value = null
+              if (websocket.value?.readyState !== WEBSOCKET_OPEN) {
+                console.info('Websocket not yet open, re-scheduling pending generation retry')
+                attemptRetry()
+                return
+              }
+              pendingGenerationRequest.value = null
+              generate(pending.imageIds, pending.mode, pending.sourceImage)
+            }, 500)
+          }
+          attemptRetry()
+        }
+      } else {
+        if (pendingRetryTimer.value !== null) {
+          clearTimeout(pendingRetryTimer.value)
+          pendingRetryTimer.value = null
+        }
+        if (websocket.value) {
+          console.info('Backend is not running, closing websocket connection')
+          try {
+            websocket.value.close()
+          } catch (e) {
+            console.warn('Error closing websocket:', e)
+          }
+          websocket.value = null
+        }
       }
     })
 
@@ -927,6 +1007,36 @@ export const useComfyUiPresets = defineStore(
         console.warn('Already processing')
         return
       }
+
+      try {
+        const result = await window.electronAPI.ensureComfyUIBackendRunning()
+        if (!result.success) {
+          console.error('Failed to ensure ComfyUI backend is running:', result.error)
+          toast.error('Failed to start ComfyUI backend')
+          resetGenerationState()
+          return
+        }
+
+        if (result.starting) {
+          console.info('ComfyUI backend is starting, queueing generation request')
+          pendingGenerationRequest.value = { imageIds, mode, sourceImage }
+          resetGenerationState()
+          return
+        }
+      } catch (error) {
+        console.error('Error checking backend:', error)
+        toast.error('Failed to check backend compatibility')
+        resetGenerationState()
+        return
+      }
+
+      if (comfyUiState.value?.status !== 'running') {
+        console.warn('ComfyUI backend is not running. Current status:', comfyUiState.value?.status)
+        pendingGenerationRequest.value = { imageIds, mode, sourceImage }
+        resetGenerationState()
+        return
+      }
+
       if (websocket.value?.readyState !== WEBSOCKET_OPEN) {
         console.warn('Websocket not open')
         return
