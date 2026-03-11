@@ -34,9 +34,9 @@ const LlamaCppRawValueTimingsSchema = z.object({
 
 const LlamaCppRawValueSchema = z.object({
   choices: z.array(z.any()).optional(),
-  created: z.number(),
-  id: z.string(),
-  model: z.string(),
+  created: z.number().optional(),
+  id: z.string().optional(),
+  model: z.string().optional(),
   system_fingerprint: z.string().optional(),
   object: z.string().optional(),
   usage: z
@@ -95,6 +95,7 @@ export const useOpenAiCompatibleChat = defineStore(
       let finishTime: number = 0
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
+      let usageFromRawChunk: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
       let messages = await convertToModelMessages(m.messages)
 
@@ -192,8 +193,48 @@ export const useOpenAiCompatibleChat = defineStore(
         onChunk: (chunk) => {
           if (chunk.chunk.type === 'raw') {
             const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
-            if (rawValue.success && rawValue.data.timings) {
-              timings = rawValue.data.timings
+            if (rawValue.success) {
+              if (rawValue.data.timings) {
+                timings = rawValue.data.timings
+              }
+              if (rawValue.data.usage) {
+                const u = rawValue.data.usage
+                usageFromRawChunk = {
+                  inputTokens: u.prompt_tokens,
+                  outputTokens: u.completion_tokens,
+                  totalTokens: u.total_tokens,
+                  inputTokenDetails: {
+                    noCacheTokens: undefined,
+                    cacheReadTokens: undefined,
+                    cacheWriteTokens: undefined,
+                  },
+                  outputTokenDetails: {},
+                } as LanguageModelUsage
+                if (!timings) {
+                  const now = Date.now()
+                  const promptMs = Math.max(
+                    0,
+                    firstTokenTime ? firstTokenTime - startOfRequestTime : 0,
+                  )
+                  const predictedMs = Math.max(
+                    0,
+                    firstTokenTime ? now - firstTokenTime : now - startOfRequestTime,
+                  )
+                  timings = {
+                    cache_n: 0,
+                    prompt_n: u.prompt_tokens,
+                    prompt_ms: promptMs,
+                    prompt_per_token_ms: u.prompt_tokens > 0 ? promptMs / u.prompt_tokens : 0,
+                    prompt_per_second: promptMs > 0 ? (u.prompt_tokens / promptMs) * 1000 : 0,
+                    predicted_n: u.completion_tokens,
+                    predicted_ms: predictedMs,
+                    predicted_per_token_ms:
+                      u.completion_tokens > 0 ? predictedMs / u.completion_tokens : 0,
+                    predicted_per_second:
+                      predictedMs > 0 ? (u.completion_tokens / predictedMs) * 1000 : 0,
+                  }
+                }
+              }
             }
           }
           if (
@@ -218,26 +259,28 @@ export const useOpenAiCompatibleChat = defineStore(
           console.log('Stream finished:', result)
           if (result.usage) {
             usage = result.usage
+          } else if (usageFromRawChunk) {
+            usage = usageFromRawChunk
           }
           if (!timings) {
+            const effectiveUsage = result.usage ?? usageFromRawChunk
+            const promptMs = Math.max(0, firstTokenTime ? firstTokenTime - startOfRequestTime : 0)
+            const predictedMs = Math.max(
+              0,
+              firstTokenTime ? finishTime - firstTokenTime : finishTime - startOfRequestTime,
+            )
+            const inputTokens = effectiveUsage?.inputTokens ?? 0
+            const outputTokens = effectiveUsage?.outputTokens ?? 0
             timings = {
-              cache_n: result.usage?.cachedInputTokens ?? 0,
-              prompt_n: result.usage?.inputTokens ?? 0,
-              prompt_ms: firstTokenTime - startOfRequestTime,
-              prompt_per_token_ms: result.usage?.inputTokens
-                ? (firstTokenTime - startOfRequestTime) / result.usage.inputTokens
-                : 0,
-              prompt_per_second: result.usage?.inputTokens
-                ? result.usage.inputTokens / ((firstTokenTime - startOfRequestTime) / 1000)
-                : 0,
-              predicted_n: result.usage?.outputTokens ?? 0,
-              predicted_ms: finishTime - firstTokenTime,
-              predicted_per_token_ms: result.usage?.outputTokens
-                ? (finishTime - firstTokenTime) / result.usage.outputTokens
-                : 0,
-              predicted_per_second: result.usage?.outputTokens
-                ? result.usage.outputTokens / ((finishTime - firstTokenTime) / 1000)
-                : 0,
+              cache_n: effectiveUsage?.cachedInputTokens ?? 0,
+              prompt_n: inputTokens,
+              prompt_ms: promptMs,
+              prompt_per_token_ms: inputTokens > 0 ? promptMs / inputTokens : 0,
+              prompt_per_second: promptMs > 0 ? (inputTokens / promptMs) * 1000 : 0,
+              predicted_n: outputTokens,
+              predicted_ms: predictedMs,
+              predicted_per_token_ms: outputTokens > 0 ? predictedMs / outputTokens : 0,
+              predicted_per_second: predictedMs > 0 ? (outputTokens / predictedMs) * 1000 : 0,
             }
           }
         },
