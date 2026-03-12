@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { usePresetSwitching } from './presetSwitching'
+import { useBackendServices } from './backendServices'
+import { useDialogStore } from './dialogs'
+import { useGlobalSetup } from './globalSetup'
 
 /**
  * Maps a mode to its corresponding preset categories.
@@ -38,6 +41,34 @@ export const usePromptStore = defineStore('prompt', () => {
    * Uses the preset switching orchestrator to ensure proper settings loading.
    */
   function setCurrentMode(mode: ModeType) {
+    const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
+    if (comfyUiModes.includes(mode)) {
+      const backendServices = useBackendServices()
+      const servicesLoaded = backendServices.serviceInfoUpdateReceived
+      const comfyUIService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
+
+      if (servicesLoaded && comfyUIService && comfyUIService.isSetUp === false) {
+        const dialogStore = useDialogStore()
+        const globalSetup = useGlobalSetup()
+
+        const modeNames: Record<ModeType, string> = {
+          imageGen: 'Image Generation',
+          imageEdit: 'Image Editing',
+          video: 'Video Generation',
+          chat: 'Chat',
+        }
+
+        dialogStore.showWarningDialog(
+          `ComfyUI is required for ${modeNames[mode]}. Would you like to install it now?`,
+          () => {
+            globalSetup.loadingState = 'manageInstallations'
+            dialogStore.closeWarningDialog()
+          },
+        )
+        return
+      }
+    }
+
     const presetSwitching = usePresetSwitching()
 
     // Set the mode first

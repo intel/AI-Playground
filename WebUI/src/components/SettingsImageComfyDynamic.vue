@@ -79,7 +79,7 @@
       ></Input>
 
       <drop-down-new
-        v-else-if="input.type === 'stringList'"
+        v-else-if="input.type === 'stringList' || input.type === 'model'"
         :items="
           (input.options || []).map((opt) => ({
             label: String(opt),
@@ -133,6 +133,7 @@ function handleImageLoaded(imageUrl: string) {
   // Create MediaItem and add to history (same as "Send to Edit")
   const imageItem: ImageMediaItem = {
     id: crypto.randomUUID(),
+    createdAt: Date.now(),
     type: 'image',
     mode: 'imageEdit',
     state: 'done',

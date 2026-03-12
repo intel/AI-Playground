@@ -1,12 +1,18 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
 import { ComfyUIApiWorkflow } from './presets'
-import { useImageGenerationPresets, type MediaItem } from './imageGenerationPresets'
+import {
+  useImageGenerationPresets,
+  modelNameForComfyApi,
+  OPTIONAL_MODEL_NONE,
+  type MediaItem,
+} from './imageGenerationPresets'
 import { useI18N } from './i18n'
 import * as toast from '../toast'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { usePromptStore } from './promptArea'
 import { z } from 'zod'
+import { imageUrlToDataUri, isImageUrl } from '@/lib/utils'
 
 const WEBSOCKET_OPEN = 1
 
@@ -169,6 +175,94 @@ function modifySettingInWorkflow(
   }
 }
 
+/** ComfyUI node input names that hold model/file paths; separator is OS-dependent (see main.ts preset handling). */
+const COMFY_MODEL_PATH_INPUTS = new Set([
+  'ckpt_name',
+  'lora_name',
+  'vae_name',
+  'unet_name',
+  'clip_name',
+  'model_name',
+  'control_net_name',
+])
+
+function normalizeModelPathsInWorkflow(
+  workflow: ComfyUIApiWorkflow,
+  platform: NodeJS.Platform,
+): void {
+  for (const node of Object.values(workflow)) {
+    const inputs = (node as { inputs?: Record<string, unknown> }).inputs
+    if (!inputs) continue
+    for (const [inputName, value] of Object.entries(inputs)) {
+      if (COMFY_MODEL_PATH_INPUTS.has(inputName) && typeof value === 'string') {
+        inputs[inputName] = modelNameForComfyApi(value, platform)
+      }
+    }
+  }
+}
+
+/**
+ * Bypass a node by rewiring its outputs to its upstream and removing the node.
+ * Supported: LoraLoader (output 0 = model from input "model", output 1 = clip from input "clip").
+ */
+function bypassNode(workflow: ComfyUIApiWorkflow, nodeId: string): void {
+  const node = workflow[nodeId] as
+    | { class_type?: string; inputs?: Record<string, unknown> }
+    | undefined
+  if (!node?.inputs) return
+  const classType = node.class_type
+  let rewire: [number, [string, number]][]
+  if (classType === 'LoraLoader') {
+    const model = node.inputs.model as [string, number] | undefined
+    const clip = node.inputs.clip as [string, number] | undefined
+    if (!model || !clip) return
+    rewire = [
+      [0, model],
+      [1, clip],
+    ]
+  } else {
+    return
+  }
+  for (const entry of Object.values(workflow)) {
+    const inputs = (entry as { inputs?: Record<string, unknown> }).inputs
+    if (!inputs) continue
+    for (const key of Object.keys(inputs)) {
+      const v = inputs[key]
+      if (
+        Array.isArray(v) &&
+        v.length === 2 &&
+        typeof v[0] === 'string' &&
+        typeof v[1] === 'number'
+      ) {
+        if (v[0] === nodeId) {
+          const slot = v[1]
+          const upstream = rewire.find(([s]) => s === slot)?.[1]
+          if (upstream) inputs[key] = upstream
+        }
+      }
+    }
+  }
+  delete workflow[nodeId]
+}
+
+/** Rewire and remove optional model nodes whose value is None (e.g. LoRA bypass). */
+function bypassOptionalModelNodes(workflow: ComfyUIApiWorkflow): void {
+  const imageGeneration = useImageGenerationPresets()
+  for (const input of imageGeneration.comfyInputs) {
+    if (
+      input.type !== 'model' ||
+      input.optional !== true ||
+      input.current.value !== OPTIONAL_MODEL_NONE
+    ) {
+      continue
+    }
+    const keys = findKeysByTitle(workflow, input.nodeTitle)
+    for (const key of keys) {
+      bypassNode(workflow, key)
+    }
+  }
+}
+
 import type { InstallationPhase } from './dialogs'
 
 export type InstallationProgressCallback = (progress: {
@@ -192,6 +286,13 @@ export const useComfyUiPresets = defineStore(
     const loaderNodes = ref<string[]>([])
     let generateIdx: number = 0
     let queuedImages: MediaItem[] = []
+
+    const pendingGenerationRequest = ref<{
+      imageIds: string[]
+      mode: WorkflowModeType
+      sourceImage?: string
+    } | null>(null)
+    const pendingRetryTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
     const backendServices = useBackendServices()
     const comfyUiState = computed(() => {
@@ -467,10 +568,43 @@ export const useComfyUiPresets = defineStore(
         console.warn('ComfyUI backend not running, cannot start websocket')
         return
       }
+
       const comfyWsUrl = `ws://localhost:${comfyPort.value}/ws?clientId=${clientId}`
+
+      if (websocket.value) {
+        const state = websocket.value.readyState
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+          console.info('ComfyUI websocket already connected or connecting, reusing')
+          return
+        }
+        console.info('Closing stale websocket connection before creating new one')
+        try {
+          websocket.value.close()
+        } catch (e) {
+          console.warn('Error closing stale websocket:', e)
+        }
+        websocket.value = null
+      }
+
       console.info('Connecting to ComfyUI', { comfyWsUrl })
       websocket.value = new WebSocket(comfyWsUrl)
       websocket.value.binaryType = 'arraybuffer'
+
+      websocket.value.addEventListener('open', () => {
+        console.info('ComfyUI websocket connection established')
+      })
+
+      websocket.value.addEventListener('close', (event) => {
+        console.info('ComfyUI websocket connection closed', {
+          code: event.code,
+          reason: event.reason,
+        })
+      })
+
+      websocket.value.addEventListener('error', (error) => {
+        console.error('ComfyUI websocket error:', error)
+      })
+
       websocket.value.addEventListener('message', (event) => {
         try {
           if (event.data instanceof ArrayBuffer) {
@@ -658,8 +792,48 @@ export const useComfyUiPresets = defineStore(
     }
 
     watchEffect(() => {
-      if (comfyPort && comfyUiState.value?.status === 'running') {
+      const isRunning = comfyPort.value != null && comfyUiState.value?.status === 'running'
+
+      if (isRunning) {
         connectToComfyUi()
+
+        if (pendingGenerationRequest.value) {
+          console.info('Backend is now running, auto-retrying pending generation')
+          const pending = pendingGenerationRequest.value
+
+          if (pendingRetryTimer.value !== null) {
+            clearTimeout(pendingRetryTimer.value)
+            pendingRetryTimer.value = null
+          }
+
+          const attemptRetry = () => {
+            pendingRetryTimer.value = setTimeout(() => {
+              pendingRetryTimer.value = null
+              if (websocket.value?.readyState !== WEBSOCKET_OPEN) {
+                console.info('Websocket not yet open, re-scheduling pending generation retry')
+                attemptRetry()
+                return
+              }
+              pendingGenerationRequest.value = null
+              generate(pending.imageIds, pending.mode, pending.sourceImage)
+            }, 500)
+          }
+          attemptRetry()
+        }
+      } else {
+        if (pendingRetryTimer.value !== null) {
+          clearTimeout(pendingRetryTimer.value)
+          pendingRetryTimer.value = null
+        }
+        if (websocket.value) {
+          console.info('Backend is not running, closing websocket connection')
+          try {
+            websocket.value.close()
+          } catch (e) {
+            console.warn('Error closing websocket:', e)
+          }
+          websocket.value = null
+        }
       }
     })
 
@@ -694,13 +868,12 @@ export const useComfyUiPresets = defineStore(
         const hasNoDefault = input.defaultValue === '' || input.defaultValue === undefined
 
         if (isImageType && isDisplayed && isModifiable && hasNoDefault) {
-          // Check if current value is empty or invalid
           const value = input.current.value
           const isEmpty = value === '' || value === undefined || value === null
           const isString = typeof value === 'string'
-          const isValidDataUri = isString && value.match(/^data:image\/(png|jpeg|webp);base64,/)
+          const isValid = isString && value !== '' && isImageUrl(value)
 
-          if (isEmpty || !isString || !isValidDataUri) {
+          if (isEmpty || !isValid) {
             missingInputs.push(input.label)
           }
         }
@@ -709,7 +882,10 @@ export const useComfyUiPresets = defineStore(
       return missingInputs
     }
 
-    async function modifyDynamicSettingsInWorkflow(mutableWorkflow: ComfyUIApiWorkflow) {
+    async function modifyDynamicSettingsInWorkflow(
+      mutableWorkflow: ComfyUIApiWorkflow,
+      platform: NodeJS.Platform,
+    ) {
       for (const input of imageGeneration.comfyInputs) {
         const keys = findKeysByTitle(mutableWorkflow, input.nodeTitle)
         if (keys.length === 0) {
@@ -726,21 +902,33 @@ export const useComfyUiPresets = defineStore(
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = input.current.value
           }
         }
+        if (input.type === 'model') {
+          if (input.current.value === OPTIONAL_MODEL_NONE) {
+            // Node will be bypassed by bypassOptionalModelNodes; do not set value
+            continue
+          }
+          if (mutableWorkflow[keys[0]].inputs !== undefined) {
+            const value =
+              typeof input.current.value === 'string'
+                ? modelNameForComfyApi(input.current.value, platform)
+                : input.current.value
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = value
+          }
+        }
         if (input.type === 'image' || input.type === 'inpaintMask') {
-          // Check if image is optional and empty - if so, use black pixel
-          const isEmpty =
-            typeof input.current.value !== 'string' ||
-            input.current.value === '' ||
-            !input.current.value.match(/^data:image\/(png|jpeg|webp);base64,/)
+          const rawValue = input.current.value
+          const isEmpty = typeof rawValue !== 'string' || rawValue === '' || !isImageUrl(rawValue)
           const isOptional = input.optional === true
 
           let imageDataUri: string
           if (isEmpty && isOptional && input.type === 'image') {
-            // Use black pixel image for optional empty images
             imageDataUri =
               'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
-          } else if (typeof input.current.value === 'string') {
-            imageDataUri = input.current.value
+          } else if (typeof rawValue === 'string' && rawValue !== '') {
+            imageDataUri = rawValue.startsWith('aipg-media://')
+              ? await imageUrlToDataUri(rawValue)
+              : rawValue
           } else {
             continue
           }
@@ -819,6 +1007,36 @@ export const useComfyUiPresets = defineStore(
         console.warn('Already processing')
         return
       }
+
+      try {
+        const result = await window.electronAPI.ensureComfyUIBackendRunning()
+        if (!result.success) {
+          console.error('Failed to ensure ComfyUI backend is running:', result.error)
+          toast.error('Failed to start ComfyUI backend')
+          resetGenerationState()
+          return
+        }
+
+        if (result.starting) {
+          console.info('ComfyUI backend is starting, queueing generation request')
+          pendingGenerationRequest.value = { imageIds, mode, sourceImage }
+          resetGenerationState()
+          return
+        }
+      } catch (error) {
+        console.error('Error checking backend:', error)
+        toast.error('Failed to check backend compatibility')
+        resetGenerationState()
+        return
+      }
+
+      if (comfyUiState.value?.status !== 'running') {
+        console.warn('ComfyUI backend is not running. Current status:', comfyUiState.value?.status)
+        pendingGenerationRequest.value = { imageIds, mode, sourceImage }
+        resetGenerationState()
+        return
+      }
+
       if (websocket.value?.readyState !== WEBSOCKET_OPEN) {
         console.warn('Websocket not open')
         return
@@ -838,6 +1056,7 @@ export const useComfyUiPresets = defineStore(
         imageGeneration.currentState = 'install_workflow_components'
         await installCustomNodesForActivePresetFully()
 
+        const platform = await window.electronAPI.getPlatform()
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
           JSON.stringify(preset.comfyUiApiWorkflow),
         )
@@ -851,7 +1070,9 @@ export const useComfyUiPresets = defineStore(
         modifySettingInWorkflow(mutableWorkflow, 'prompt', imageGeneration.prompt)
         modifySettingInWorkflow(mutableWorkflow, 'negativePrompt', imageGeneration.negativePrompt)
 
-        await modifyDynamicSettingsInWorkflow(mutableWorkflow)
+        await modifyDynamicSettingsInWorkflow(mutableWorkflow, platform)
+        bypassOptionalModelNodes(mutableWorkflow)
+        normalizeModelPathsInWorkflow(mutableWorkflow, platform)
 
         loaderNodes.value = [
           ...findKeysByClassType(mutableWorkflow, 'CheckpointLoaderSimple'),

@@ -10,6 +10,15 @@ export const aipgBaseDir = app.isPackaged
   : path.join(__dirname, '../../../')
 const buildResources = app.isPackaged ? aipgBaseDir : path.join(aipgBaseDir, 'build', 'resources')
 const uvPath = path.join(buildResources, 'uv.exe')
+const uvEnv = (extraEnv = {}) => (
+  {
+    ...process.env,
+    UV_NO_ENV_FILE: '1',
+    UV_NO_CONFIG: '1',
+    UV_PYTHON_INSTALL_DIR: path.join(aipgBaseDir, 'python-interpreter'),
+    VIRTUAL_ENV: undefined,
+    ...extraEnv
+  })
 
 const assertUv = async (logger: ReturnType<typeof loggerFor>) => {
   try {
@@ -37,7 +46,7 @@ const uv = (uvCommand: string[], logger: ReturnType<typeof loggerFor>) =>
   new Promise<void>((resolve, reject) => {
     logger.info(`Spawning UV process with command: ${uvCommand.join(' ')}`)
     const uvProcess = spawn(uvPath, uvCommand, {
-      env: { ...process.env, UV_NO_ENV_FILE: '1', UV_NO_CONFIG: '1', VIRTUAL_ENV: undefined },
+      env: uvEnv(),
     })
 
     const stdoutChunks: string[] = []
@@ -74,7 +83,7 @@ const uvWithJsonOutput = (uvCommand: string[], logger: ReturnType<typeof loggerF
     (resolve, reject) => {
       logger.info(`Spawning UV process with command: ${uvCommand.join(' ')}`)
       const uvProcess = spawn(uvPath, uvCommand, {
-        env: { ...process.env, UV_NO_ENV_FILE: '1', UV_NO_CONFIG: '1', VIRTUAL_ENV: undefined },
+        env: uvEnv(),
       })
 
       let stdout = ''
@@ -134,18 +143,20 @@ const isHashMismatchError = (errorMessage: string): boolean => {
 export const installBackend = async (backend: string, onCacheCorruptionDetected?: () => void) => {
   const logger = loggerFor(`uv.sync.${backend}`)
   await assertUv(logger)
-  const uvCommand = ['sync', '--directory', aipgBaseDir, '--project', backend]
-  logger.info(`Installing backend: ${backend} with ${JSON.stringify(uvCommand)}`)
-
+  const uvVenvCommand = ['venv', '--directory', aipgBaseDir, '--project', backend, '--allow-existing', '--relocatable']
+  const uvSyncCommand = ['sync', '--directory', aipgBaseDir, '--project', backend]
+  logger.info(`Installing backend: ${backend} with ${JSON.stringify(uvVenvCommand)} and ${JSON.stringify(uvSyncCommand)}`)
   try {
-    return await uv(uvCommand, logger)
+    await uv(uvVenvCommand, logger)
+    return await uv(uvSyncCommand, logger)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
 
     if (isHashMismatchError(errorMessage)) {
       logger.warn('Hash mismatch detected in UV cache, retrying with --no-cache')
       onCacheCorruptionDetected?.()
-      const noCacheCommand = [...uvCommand, '--no-cache']
+      await uv(uvVenvCommand, logger)
+      const noCacheCommand = [...uvSyncCommand, '--no-cache']
       return await uv(noCacheCommand, logger)
     }
 

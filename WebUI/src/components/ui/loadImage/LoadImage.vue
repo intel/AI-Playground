@@ -36,7 +36,7 @@
         class="w-64 py-4 object-scale-down"
       />
     </div>
-    <div class="flex justify-center">
+    <div class="flex justify-center gap-2">
       <input
         :id="id"
         :accept="acceptedImageTypes.join(',')"
@@ -54,6 +54,14 @@
         "
         >{{ languages.COM_LOAD_IMAGE }}</label
       >
+      <button
+        type="button"
+        @click="handleCameraClick"
+        class="p-1 rounded hover:bg-muted"
+        title="Capture from camera"
+      >
+        <CameraIcon class="w-5 h-5 text-muted-foreground" />
+      </button>
     </div>
   </div>
 </template>
@@ -61,8 +69,10 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
-import { cn } from '@/lib/utils'
+import { cn, isImageUrl, saveImageToMediaInput } from '@/lib/utils'
 import { useDropZone } from '@vueuse/core'
+import { useDialogStore } from '@/assets/js/store/dialogs'
+import { CameraIcon } from '@heroicons/vue/24/solid'
 
 const props = defineProps<{
   imageUrlRef: WritableComputedRef<string>
@@ -76,17 +86,11 @@ const emit = defineEmits<{
   (e: 'imageLoaded', imageUrl: string): void
 }>()
 
+const dialogStore = useDialogStore()
+
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
 
-const hasImage = computed(() => {
-  const value = props.imageUrlRef.value
-  return (
-    value &&
-    typeof value === 'string' &&
-    value !== '' &&
-    value.match(/^data:image\/(png|jpeg|webp);base64,/)
-  )
-})
+const hasImage = computed(() => isImageUrl(props.imageUrlRef.value))
 
 const imgDropZone = useTemplateRef('imgDropZone')
 
@@ -117,7 +121,7 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
     }
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       if (
         !e.target ||
         !(e.target instanceof FileReader) ||
@@ -127,10 +131,18 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
         console.error('Failed to read file')
         return
       }
-      inputCurrent.value = e.target.result
-      emit('imageLoaded', e.target.result)
+      const dataUri = e.target.result
+      const aipgMediaUrl = await saveImageToMediaInput(dataUri)
+      inputCurrent.value = aipgMediaUrl
+      emit('imageLoaded', aipgMediaUrl)
     }
     reader.readAsDataURL(file)
   }
+}
+
+function handleCameraClick() {
+  dialogStore.showCameraDialog((file: File) => {
+    processFiles([file], props.imageUrlRef as Ref<string, string>)
+  })
 }
 </script>

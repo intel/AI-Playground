@@ -1,13 +1,39 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { watch } from 'vue'
 import { useComfyUiPresets } from './comfyUiPresets'
 import { useI18N } from './i18n'
 import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from './backendServices'
 import { usePresets, type ComfyInput } from './presets'
+
+/** Convert requiredModels "repo/path/file.safetensors" to ComfyUI format "repo---path\\file.safetensors" */
+function requiredModelToComfyUIName(modelPath: string): string {
+  const parts = modelPath.split('/')
+  if (parts.length < 2) return modelPath
+  const firstTwo = parts.slice(0, 2).join('---')
+  const rest = parts.slice(2).join('\\')
+  return rest ? `${firstTwo}\\${rest}` : firstTwo
+}
+
+/** Normalize to ComfyUI format (backslash) so disk scan and requiredModels dedupe correctly across OS. */
+function normalizeComfyUIModelName(name: string): string {
+  return name.replace(/\//g, '\\')
+}
+
+/** Value for optional model inputs when the node should be bypassed (e.g. no LoRA). */
+export const OPTIONAL_MODEL_NONE = 'None'
+
+/**
+ * Convert stored model name to the path separator ComfyUI expects for the current OS.
+ * Matches preset handling in main.ts: Windows expects backslash, non-Windows expects forward slash.
+ */
+export function modelNameForComfyApi(name: string, platform: NodeJS.Platform): string {
+  return platform === 'win32' ? name.replace(/\//g, '\\') : name.replace(/\\/g, '/')
+}
 import { useUIStore } from './ui'
 import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
-import { imageUrlToDataUri } from '@/lib/utils'
+import { imageUrlToDataUri, saveImageToMediaInput } from '@/lib/utils'
 
 export type GenerateState =
   | 'no_start'
@@ -221,6 +247,8 @@ export const useImageGenerationPresets = defineStore(
       return activePreset.value.backend as 'comfyui'
     })
 
+    const modelOptionsByType = ref<Record<string, string[]>>({})
+
     const comfyInputs = computed(() => {
       if (!activePreset.value || activePreset.value.backend !== 'comfyui') return []
       const inputRef = (input: ComfyInput): string => `${input.nodeTitle}.${input.nodeInput}`
@@ -234,9 +262,17 @@ export const useImageGenerationPresets = defineStore(
       }
       const getSavedOrDefault = (input: ComfyInput) => {
         const settingsKey = getSettingsKey()
-        if (!settingsKey) return input.defaultValue
-        const saved = comfyInputsPerPreset.value[settingsKey]?.[inputRef(input)]
-        return saved ?? input.defaultValue
+        const raw = settingsKey
+          ? (comfyInputsPerPreset.value[settingsKey]?.[inputRef(input)] ?? input.defaultValue)
+          : input.defaultValue
+        if (
+          input.type === 'model' &&
+          input.optional === true &&
+          (raw === undefined || raw === '' || raw === OPTIONAL_MODEL_NONE)
+        ) {
+          return OPTIONAL_MODEL_NONE
+        }
+        return raw
       }
 
       const comfyInputs = activePreset.value.settings.filter(
@@ -255,7 +291,11 @@ export const useImageGenerationPresets = defineStore(
           },
         })
 
-        return { ...input, current }
+        const base = { ...input, current }
+        if (input.type === 'model' && input.modelType) {
+          return { ...base, options: modelOptionsByType.value[input.modelType] ?? [] }
+        }
+        return base
       })
     })
 
@@ -265,6 +305,58 @@ export const useImageGenerationPresets = defineStore(
       Record<PresetName, Record<NodeInputReference, unknown> | undefined>
     >({})
     const settingsPerPreset = ref<Record<PresetName, Record<string, unknown>>>({})
+
+    let modelOptionsLoadToken = 0
+
+    async function loadModelOptionsForActivePreset() {
+      const loadToken = ++modelOptionsLoadToken
+      const preset = activePreset.value
+      if (!preset || preset.backend !== 'comfyui') {
+        modelOptionsByType.value = {}
+        return
+      }
+      const modelInputs = preset.settings.filter(
+        (s): s is ComfyInput & { modelType: string } =>
+          'nodeTitle' in s && 'nodeInput' in s && s.type === 'model' && !!s.modelType,
+      )
+      const modelTypes = [...new Set(modelInputs.map((s) => s.modelType))]
+      const required = preset.requiredModels ?? []
+      const optionalModelTypes = new Set(
+        modelInputs.filter((s) => s.optional === true).map((s) => s.modelType),
+      )
+      const nextOptions: Record<string, string[]> = {}
+      for (const modelType of modelTypes) {
+        let fromDisk: string[] = []
+        try {
+          fromDisk = await window.electronAPI.getComfyUIModels(modelType)
+        } catch (e) {
+          console.error('Failed to load ComfyUI models', { modelType, error: e })
+          // ComfyUI path may be missing or backend not running; still show required models
+        }
+        const fromRequired = required
+          .filter((r) => r.type === modelType)
+          .map((r) => requiredModelToComfyUIName(r.model))
+        const normalizedRequired = fromRequired.map(normalizeComfyUIModelName)
+        const normalizedDisk = fromDisk.map(normalizeComfyUIModelName)
+        let merged = [...new Set([...normalizedRequired, ...normalizedDisk])]
+        if (optionalModelTypes.has(modelType)) {
+          merged = [OPTIONAL_MODEL_NONE, ...merged]
+        }
+        nextOptions[modelType] = merged
+      }
+      if (loadToken === modelOptionsLoadToken) {
+        modelOptionsByType.value = nextOptions
+      }
+    }
+
+    // Watch preset object so we re-run after preset reload (same name, new definition) and on preset switch
+    watch(
+      () => activePreset.value,
+      () => {
+        loadModelOptionsForActivePreset()
+      },
+      { immediate: true },
+    )
 
     // Watch resolution changes and sync to target width/height ComfyInputs (for inpainting with target resolution)
     watch(resolution, (newResolution) => {
@@ -431,12 +523,21 @@ export const useImageGenerationPresets = defineStore(
     }
 
     async function copyImageAsInputForMode(image: MediaItem, mode: WorkflowModeType) {
-      const newImage: MediaItem = { ...image, id: crypto.randomUUID() }
+      const newImage: MediaItem = { ...image, id: crypto.randomUUID(), createdAt: Date.now() }
       newImage.mode = mode
       if (image.type === 'image' && newImage.type === 'image') {
-        // Convert blob URL to base64 data URI for ComfyUI compatibility
         newImage.sourceImageUrl = image.imageUrl
-        newImage.imageUrl = await imageUrlToDataUri(image.imageUrl)
+        if (image.imageUrl.startsWith('aipg-media://')) {
+          newImage.imageUrl = image.imageUrl
+        } else {
+          try {
+            const dataUri = await imageUrlToDataUri(image.imageUrl)
+            newImage.imageUrl = await saveImageToMediaInput(dataUri)
+          } catch (error) {
+            console.error('Error copying image as input for mode', error)
+            toast.error('Error copying image as input for mode')
+          }
+        }
         newImage.fromImageGen = true
       }
 
@@ -695,16 +796,17 @@ export const useImageGenerationPresets = defineStore(
           >
 
           const filteredInputs: typeof comfyInputsPerPreset = {}
-          Object.entries(comfyInputsPerPreset)
-            .filter(([_, inputs]) => inputs !== undefined)
-            .map(([presetName, inputs]) => [
-              presetName,
-              Object.fromEntries(
-                Object.entries(inputs as Record<string, unknown>).filter(([key]) =>
-                  ['image', 'inpaintMask', 'video'].includes(key),
-                ),
-              ),
-            ])
+          for (const [presetName, inputs] of Object.entries(comfyInputsPerPreset)) {
+            if (inputs === undefined) continue
+            const filtered: Record<string, unknown> = {}
+            for (const [key, value] of Object.entries(inputs as Record<string, unknown>)) {
+              const isDataUri =
+                typeof value === 'string' &&
+                (value.startsWith('data:image/') || value.startsWith('data:video/'))
+              if (!isDataUri) filtered[key] = value
+            }
+            filteredInputs[presetName] = filtered
+          }
           const imagesToPersist = Array.isArray(state.generatedImages)
             ? state.generatedImages
                 .filter((img) => img && img.state === 'done')

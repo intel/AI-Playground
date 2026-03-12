@@ -39,15 +39,17 @@
             </p>
             <img
               v-if="
-                message.parts.find(
-                  (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
-                )
+                message.parts
+                  .toReversed()
+                  .find((part) => part.type === 'file' && part.mediaType?.startsWith('image/'))
               "
               :src="
                 (
-                  message.parts.find(
-                    (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
-                  ) as { url?: string }
+                  message.parts
+                    .toReversed()
+                    .find(
+                      (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
+                    ) as { url?: string }
                 )?.url
               "
               alt="Generated Image"

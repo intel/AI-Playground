@@ -128,6 +128,15 @@
             class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
             variant="secondary"
             v-if="promptStore.getCurrentMode() === 'chat'"
+            @click="handleCameraClick"
+            title="Capture image from camera"
+          >
+            <CameraIcon class="w-5 h-5" />
+          </Button>
+          <Button
+            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
+            variant="secondary"
+            v-if="promptStore.getCurrentMode() === 'chat'"
             @click="handleRecordingClick"
             :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
             :title="
@@ -184,12 +193,32 @@
         </div>
       </div>
     </div>
+
+    <!-- Camera Capture Dialog -->
+    <div
+      v-if="dialogStore.cameraDialogVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    >
+      <div class="bg-background rounded-lg p-6 w-full max-w-lg mx-4 shadow-xl">
+        <h2 class="text-lg font-semibold mb-4">Capture Image</h2>
+        <CameraCapture @capture="dialogStore.handleCameraCapture" />
+        <div class="mt-4 flex justify-end">
+          <Button variant="outline" @click="dialogStore.closeCameraDialog()">Close</Button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { getCurrentInstance, ref, computed, watch } from 'vue'
-import { mapModeToLabel, downscaleImageTo1MP, imageUrlToDataUri } from '@/lib/utils.ts'
+import type { FileUIPart } from 'ai'
+import {
+  mapModeToLabel,
+  downscaleImageTo1MP,
+  imageUrlToDataUri,
+  saveImageToMediaInput,
+} from '@/lib/utils.ts'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
 import { usePromptStore } from '@/assets/js/store/promptArea'
@@ -212,11 +241,14 @@ import {
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
 } from '@heroicons/vue/24/outline'
+import { CameraIcon } from '@heroicons/vue/24/solid'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
 import { Context } from '@/components/ui/context'
 import Button from '@/components/ui/button/Button.vue'
+import { useDialogStore } from '@/assets/js/store/dialogs'
+import CameraCapture from '@/components/CameraCapture.vue'
 
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
@@ -231,6 +263,7 @@ const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
 const textareaRef = ref<HTMLTextAreaElement>()
 const presetsStore = usePresets()
+const dialogStore = useDialogStore()
 
 audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
 
@@ -300,38 +333,12 @@ const emits = defineEmits<{
   (e: 'openSettings'): void
 }>()
 
-const imagePreview = computed(() => {
-  if (openAiCompatibleChat.fileInput) {
-    const urls = []
-    let id = 0
-    for (const file of openAiCompatibleChat.fileInput) {
-      const url = URL.createObjectURL(file)
-      urls.push({ id, url, file })
-      id++
-    }
-    return urls
-  }
-  return []
-})
+const imagePreview = computed(() =>
+  openAiCompatibleChat.fileInput.map((part, id) => ({ id, url: part.url, part })),
+)
 
-// Remove image at specified index
 function removeImage(index: number) {
-  if (!openAiCompatibleChat.fileInput) return
-
-  // Revoke object URL for the removed image
-  const preview = imagePreview.value.find((p) => p.id === index)
-  if (preview) {
-    URL.revokeObjectURL(preview.url)
-  }
-
-  // Convert FileList to array and remove the file at index
-  const files = Array.from(openAiCompatibleChat.fileInput)
-  files.splice(index, 1)
-
-  // Create new FileList with remaining files
-  const fileList = new DataTransfer()
-  files.forEach((file) => fileList.items.add(file))
-  openAiCompatibleChat.fileInput = fileList.files
+  openAiCompatibleChat.fileInput = openAiCompatibleChat.fileInput.filter((_, i) => i !== index)
 }
 
 const isProcessing = computed(() => {
@@ -460,6 +467,12 @@ async function handleRecordingClick() {
   }
 }
 
+function handleCameraClick() {
+  dialogStore.showCameraDialog(async (file: File) => {
+    await handleImageFiles([file])
+  })
+}
+
 function fastGenerate(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -513,23 +526,21 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
   const imageUrl = URL.createObjectURL(imageFile)
 
   try {
-    // Convert to data URI for ComfyUI
     const dataUri = await imageUrlToDataUri(imageUrl)
+    const aipgMediaUrl = await saveImageToMediaInput(dataUri)
 
-    // Find first image input
     const firstImageInput = imageGeneration.comfyInputs.find((input) => input.type === 'image')
 
     if (firstImageInput) {
-      // Set the image input value
-      firstImageInput.current.value = dataUri
+      firstImageInput.current.value = aipgMediaUrl
 
-      // Create MediaItem and add to history (same as "Send to Edit")
       const imageItem: ImageMediaItem = {
+        createdAt: Date.now(),
         id: crypto.randomUUID(),
         type: 'image',
         mode: 'imageEdit',
         state: 'done',
-        imageUrl: dataUri,
+        imageUrl: aipgMediaUrl,
         sourceImageUrl: imageUrl,
         fromImageGen: true,
         settings: {},
@@ -551,36 +562,36 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
   }
 }
 
-// Handle image files with downscaling for chat mode
+async function handleChatImageUpload(imageFiles: File[]) {
+  const filesToProcess = await Promise.all(
+    imageFiles.map((file) => downscaleImageTo1MP(file)),
+  ).catch((error) => {
+    console.error('Error downscaling images:', error)
+    return imageFiles
+  })
+
+  const parts: FileUIPart[] = []
+  for (const file of filesToProcess) {
+    const objectUrl = URL.createObjectURL(file)
+    try {
+      const dataUri = await imageUrlToDataUri(objectUrl)
+      const aipgUrl = await saveImageToMediaInput(dataUri)
+      parts.push({ type: 'file', mediaType: file.type, url: aipgUrl, filename: file.name })
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }
+  openAiCompatibleChat.fileInput = parts
+}
+
+// Handle image files: ComfyUI upload vs chat/other → fileInput as aipg-media
 async function handleImageFiles(imageFiles: File[]) {
   if (imageFiles.length === 0) return
 
-  // For ComfyUI modes, route to ComfyUI-specific handler
-  const comfyUiModes: ModeType[] = ['imageGen', 'imageEdit', 'video']
-  if (comfyUiModes.includes(promptStore.getCurrentMode()) && shouldShowImageUploadButton.value) {
-    await handleComfyUIImageUpload(imageFiles)
-    return
-  }
-
-  // Downscale images if in chat mode (images are only sent to vision-capable models)
   if (promptStore.getCurrentMode() === 'chat') {
-    try {
-      const downscaledFiles = await Promise.all(imageFiles.map((file) => downscaleImageTo1MP(file)))
-      const imageFileList = new DataTransfer()
-      downscaledFiles.forEach((file) => imageFileList.items.add(file))
-      openAiCompatibleChat.fileInput = imageFileList.files
-    } catch (error) {
-      console.error('Error downscaling images:', error)
-      // Fallback to original files if downscaling fails
-      const imageFileList = new DataTransfer()
-      imageFiles.forEach((file) => imageFileList.items.add(file))
-      openAiCompatibleChat.fileInput = imageFileList.files
-    }
+    await handleChatImageUpload(imageFiles)
   } else {
-    // For non-chat modes, use original files
-    const imageFileList = new DataTransfer()
-    imageFiles.forEach((file) => imageFileList.items.add(file))
-    openAiCompatibleChat.fileInput = imageFileList.files
+    await handleComfyUIImageUpload(imageFiles)
   }
 }
 

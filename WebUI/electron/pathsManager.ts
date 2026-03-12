@@ -91,6 +91,40 @@ export class PathsManager {
 
     return [...modelsSet]
   }
+  /**
+   * List available ComfyUI models for a given model type (e.g. checkpoints, loras).
+   * Returns relative paths from the type directory, using OS path separator (e.g. "SubDir\\model.safetensors").
+   */
+  scanComfyUIModels(modelType: string): string[] {
+    const dir = (this.modelPaths as Record<string, string>)[modelType]
+    if (!dir || !fs.existsSync(dir)) {
+      return []
+    }
+    const baseDir = path.resolve(dir)
+    const seen = new Set<string>()
+    const walk = (currentDir: string, relativePrefix: string): void => {
+      let entries: fs.Dirent[] = []
+      try {
+        entries = fs.readdirSync(currentDir, { withFileTypes: true })
+      } catch (error) {
+        console.error(`Failed to read model directory "${currentDir}"`, error)
+        return
+      }
+      for (const ent of entries) {
+        const fullPath = path.join(currentDir, ent.name)
+        const relativePath = relativePrefix ? `${relativePrefix}${path.sep}${ent.name}` : ent.name
+        if (ent.isDirectory()) {
+          walk(fullPath, relativePath)
+        } else if (ent.isFile()) {
+          const normalized = relativePath.replace(/\//g, path.sep)
+          seen.add(normalized)
+        }
+      }
+    }
+    walk(baseDir, '')
+    return [...seen].sort()
+  }
+
   scanEmbedding(): Model[] {
     const embeddingModels: Model[] = []
     llmBackendTypes.forEach((backend) => {

@@ -668,12 +668,36 @@ export abstract class LongLivedPythonApiService implements ApiService {
     )
     this.desiredStatus = 'stopped'
     this.setStatus('stopping')
-    this.encapsulatedProcess?.kill()
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve('killedprocess (hopefully)')
-      }, 1000)
-    })
+
+    const proc = this.encapsulatedProcess
+    if (!proc) {
+      this.setStatus('stopped')
+      return 'stopped'
+    }
+
+    // Try graceful shutdown first with SIGTERM
+    proc.kill('SIGTERM')
+
+    // Wait up to 2 seconds for the process to exit gracefully
+    const gracefulExit = await Promise.race([
+      new Promise<boolean>((resolve) => {
+        proc.once('exit', () => resolve(true))
+      }),
+      new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(false), 2000)
+      }),
+    ])
+
+    if (!gracefulExit) {
+      // Force kill if graceful shutdown failed
+      this.appLogger.warn(
+        `Backend ${this.name} did not exit gracefully within 2s, sending SIGKILL`,
+        this.name,
+      )
+      proc.kill('SIGKILL')
+      // Give a short time for the forced kill to take effect
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
 
     this.encapsulatedProcess = null
     this.setStatus('stopped')

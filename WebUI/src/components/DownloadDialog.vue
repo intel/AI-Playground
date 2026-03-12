@@ -187,6 +187,7 @@ import * as util from '@/assets/js/util'
 import * as toast from '@/assets/js/toast'
 import { useModels } from '@/assets/js/store/models'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
+import { EtaEstimator } from '@/lib/etaEstimator'
 
 const i18nState = useI18N().state
 const globalSetup = useGlobalSetup()
@@ -210,16 +211,19 @@ let abortController: AbortController
 const animate = ref(false)
 const readTerms = ref(false)
 const downloadModelRender = ref<DownloadModelRender[]>([])
+const etaEstimator = new EtaEstimator(100)
 
 function dataProcess(line: string) {
   console.log(line)
   const dataJson = line.slice(5)
   const data = JSON.parse(dataJson) as LLMOutCallback
   switch (data.type) {
-    case 'download_model_progress':
-      curDownloadTip.value = `${i18nState.COM_DOWNLOAD_MODEL} ${data.repo_id}\r\n${data.download_size}/${data.total_size} ${data.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${data.speed}`
+    case 'download_model_progress': {
+      const etaStr = etaEstimator.updateAndEstimate(data.percent)
+      curDownloadTip.value = `${i18nState.COM_DOWNLOAD_MODEL} ${data.repo_id}\r\n${data.download_size}/${data.total_size} ${data.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${data.speed} ETA: ${etaStr}`
       percent.value = data.percent
       break
+    }
     case 'download_model_completed':
       completeCount.value++
       const allTaskCount = downloadModelRender.value.length

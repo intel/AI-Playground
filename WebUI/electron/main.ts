@@ -42,6 +42,7 @@ import { exec } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
+import { cleanupTempFolders } from './tempFolderCleanup'
 import { appLoggerInstance } from './logging/logger.ts'
 import {
   aiplaygroundApiServiceRegistry,
@@ -84,10 +85,15 @@ let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
+const mediaInputDir = path.join(mediaDir, 'input')
+fs.mkdirSync(mediaInputDir, { recursive: true })
 let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+if (!app.isPackaged && process.env.AIPG_DEBUGGING_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', process.env.AIPG_DEBUGGING_PORT)
+}
 // const APP_TOOL_HEIGHT = 209;
 const appSize = {
   width: 820,
@@ -522,6 +528,24 @@ function initEventHandle() {
     }
   })
 
+  ipcMain.handle('saveImageToMediaInput', async (_event, dataUri: string) => {
+    if (typeof dataUri !== 'string' || !dataUri.startsWith('data:image/')) {
+      throw new Error('saveImageToMediaInput: expected a data URI (data:image/...)')
+    }
+    const match = dataUri.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/)
+    if (!match) {
+      throw new Error('saveImageToMediaInput: unsupported image type or malformed data URI')
+    }
+    const mimeSubtype = match[1]
+    const base64Data = match[2]
+    const ext = mimeSubtype === 'jpeg' ? 'jpg' : mimeSubtype
+    const filename = `${randomUUID()}.${ext}`
+    const filePath = path.join(mediaInputDir, filename)
+    const buffer = Buffer.from(base64Data, 'base64')
+    await fs.promises.writeFile(filePath, buffer)
+    return `input/${filename}`
+  })
+
   /** Get command line parameters when launched from IPOS to decide the default home page */
   ipcMain.handle('getInitialPage', () => {
     const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
@@ -606,6 +630,12 @@ function initEventHandle() {
   ipcMain.handle('getDownloadedEmbeddingModels', (_event) => {
     return pathsManager.scanEmbedding()
   })
+
+  ipcMain.handle('getComfyUIModels', (_event, modelType: string) => {
+    return pathsManager.scanComfyUIModels(modelType)
+  })
+
+  ipcMain.handle('getPlatform', () => process.platform)
 
   ipcMain.handle('addDocumentToRAGList', (_event, document: IndexedDocument) => {
     return handleUtilityFunction<IndexedDocument, IndexedDocument>(
@@ -830,6 +860,36 @@ function initEventHandle() {
       }
     },
   )
+
+  ipcMain.handle('ensureComfyUIBackendRunning', async () => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready', starting: false }
+    }
+    const service = serviceRegistry.getService('comfyui-backend')
+    if (!service) {
+      return { success: false, error: 'ComfyUI service not found', starting: false }
+    }
+    if (service.currentStatus === 'running') {
+      return { success: true, starting: false }
+    }
+    if (service.currentStatus === 'starting') {
+      return { success: true, starting: true }
+    }
+    try {
+      const result = await service.start()
+      if (result === 'running') return { success: true, starting: false }
+      if (result === 'starting') return { success: true, starting: true }
+      return {
+        success: false,
+        starting: false,
+        error: `ComfyUI backend status: ${result}`,
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      appLogger.error(`Failed to start ComfyUI backend: ${errorMessage}`, 'electron-backend')
+      return { success: false, error: errorMessage, starting: false }
+    }
+  })
 
   ipcMain.handle(
     'getEmbeddingServerUrl',
@@ -1361,6 +1421,15 @@ app.whenReady().then(async () => {
     app.exit()
   } else {
     const settings = await loadSettings()
+
+    const modelsDir = path.resolve(
+      app.isPackaged
+        ? path.join(process.resourcesPath, 'models')
+        : path.join(__dirname, '../../../models'),
+    )
+    // Start temp-folder cleanup without blocking application startup
+    void cleanupTempFolders(modelsDir)
+
     initEventHandle()
 
     // Custom protocol docking is file protocol

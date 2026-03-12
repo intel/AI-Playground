@@ -223,6 +223,25 @@ export function isBase64ImageDataUri(url: string | undefined | null): boolean {
 }
 
 /**
+ * Checks if a string is a displayable image URL (base64 data URI or aipg-media).
+ * Use this for "has image" UI checks (e.g. img src, drop zones).
+ */
+export function isImageUrl(url: string | undefined | null): boolean {
+  if (!url || typeof url !== 'string') return false
+  return isBase64ImageDataUri(url) || url.startsWith('aipg-media://')
+}
+
+/**
+ * Saves an image data URI to media/input and returns an aipg-media URL.
+ * @param dataUri - data:image/(png|jpeg|webp);base64,... string
+ * @returns aipg-media://input/<filename>
+ */
+export async function saveImageToMediaInput(dataUri: string): Promise<string> {
+  const pathSegment = await window.electronAPI.saveImageToMediaInput(dataUri)
+  return `aipg-media://${pathSegment}`
+}
+
+/**
  * Converts a blob URL (or any image URL) to a base64 data URI.
  * If the URL is already a base64 data URI, it returns it unchanged.
  * @param url - The URL to convert (blob:, http:, or data: URL)
