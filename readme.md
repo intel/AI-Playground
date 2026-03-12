@@ -7,7 +7,7 @@
 <img width="2025" height="593" alt="image" src="https://github.com/user-attachments/assets/76c47f53-cd1b-419c-9ffb-43ba2369c84b" />
 
 
-Welcome to Intel AI Playground. An open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, code assistance, document search, image analysis, image and video generation. All features run offline and are powered by your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU or Intel Arc™ dGPU Series A or B with 8GB+ of vRAM.
+Welcome to Intel AI Playground, an open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, code assistance, document search, image analysis, image and video generation. All features run offline and are powered by your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU or Intel Arc™ dGPU Series A or B with 8GB+ of vRAM.
 
 AI Playground is intended to act as an offline alternative to cloud tools such Gemini ChatGPT and Grok.  AI Playground leverages libraries from GitHub and Huggingface including:
 - Image Diffusion (PyTorch 2.10): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Z-Image, Wan2.1 VACE, LTX-Video
