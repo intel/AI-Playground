@@ -59,6 +59,20 @@ export const useBackendServices = defineStore(
       () => comfyUiParameters.value ?? comfyUiDefaultParameters.value,
     )
 
+    // LlamaCPP startup parameters (persisted). null = use default from backend.
+    const llamaCppParameters = ref<string | null>(null)
+
+    // Default parameters fetched from backend via IPC
+    const llamaCppDefaultParameters = ref<string>('')
+    window.electronAPI.getLlamaCppDefaultParameters().then((v) => {
+      llamaCppDefaultParameters.value = v
+    })
+
+    // Effective parameters: user override or default
+    const effectiveLlamaCppParameters = computed(
+      () => llamaCppParameters.value ?? llamaCppDefaultParameters.value,
+    )
+
     // Full version state (not persisted - computed from live data + overrides)
     const versionState = ref<BackendVersionState>({
       'ai-backend': {},
@@ -262,6 +276,9 @@ export const useBackendServices = defineStore(
       if (serviceName === 'comfyui-backend') {
         serviceSettings.comfyUiParameters = effectiveComfyUiParameters.value
       }
+      if (serviceName === 'llamacpp-backend') {
+        serviceSettings.llamaCppParameters = effectiveLlamaCppParameters.value
+      }
       await updateServiceSettings(serviceSettings)
       window.electronAPI.setUpService(serviceName)
       const result = await listener!.awaitFinalizationAndResetData()
@@ -306,6 +323,12 @@ export const useBackendServices = defineStore(
         await updateServiceSettings({
           serviceName: 'comfyui-backend',
           comfyUiParameters: effectiveComfyUiParameters.value,
+        })
+      }
+      if (serviceName === 'llamacpp-backend') {
+        await updateServiceSettings({
+          serviceName: 'llamacpp-backend',
+          llamaCppParameters: effectiveLlamaCppParameters.value,
         })
       }
       return window.electronAPI.startService(serviceName)
@@ -465,6 +488,9 @@ export const useBackendServices = defineStore(
       comfyUiParameters,
       comfyUiDefaultParameters,
       effectiveComfyUiParameters,
+      llamaCppParameters,
+      llamaCppDefaultParameters,
+      effectiveLlamaCppParameters,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
@@ -488,7 +514,12 @@ export const useBackendServices = defineStore(
   },
   {
     persist: {
-      pick: ['versionOverrides', 'lastSelectedDeviceIdPerBackend', 'comfyUiParameters'],
+      pick: [
+        'versionOverrides',
+        'lastSelectedDeviceIdPerBackend',
+        'comfyUiParameters',
+        'llamaCppParameters',
+      ],
     },
   },
 )

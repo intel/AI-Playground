@@ -18,6 +18,7 @@ type ServiceSettings = {
   version?: string
   releaseTag?: string
   comfyUiParameters?: string
+  llamaCppParameters?: string
 }
 
 type DemoModeSettings = {
@@ -107,6 +108,7 @@ type electronAPI = {
   ): void
   wakeupComfyUIService(): void
   getComfyUiDefaultParameters(): Promise<string>
+  getLlamaCppDefaultParameters(): Promise<string>
   getServices(): Promise<ApiServiceInformation[]>
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
 

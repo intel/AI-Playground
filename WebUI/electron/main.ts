@@ -52,6 +52,7 @@ import {
   ComfyUiBackendService,
   COMFYUI_DEFAULT_PARAMETERS,
 } from './subprocesses/comfyUIBackendService'
+import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -704,6 +705,7 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getComfyUiDefaultParameters', () => COMFYUI_DEFAULT_PARAMETERS)
+  ipcMain.handle('getLlamaCppDefaultParameters', () => LLAMACPP_DEFAULT_PARAMETERS)
 
   ipcMain.handle('detectDevices', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
