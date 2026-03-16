@@ -228,7 +228,7 @@
         "steps": 20,
         "cfg": 7,
         "sampler_name": "dpmpp_2m",
-        "scheduler": "normal",
+        "scheduler": "karras",
         "denoise": 1,
         "model": ["4", 0],
         "positive": ["6", 0],
