@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref } from 'vue'
+import { parse } from '../markdownParser';
 
 // todo: Consider adding "add-l-l-m-dialog" as well
 export type PresetRequirementsData = {
@@ -65,7 +66,7 @@ export const useDialogStore = defineStore('dialog', () => {
   const maskEditorIsModified = ref(false)
 
   function showWarningDialog(message: string, func: () => void) {
-    warningMessage.value = message
+    warningMessage.value = parse(message) as string
     warningConfirmFunction.value = func
     warningDialogVisible.value = true
   }

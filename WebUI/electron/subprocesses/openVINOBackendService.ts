@@ -629,7 +629,7 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   private async downloadOvms(): Promise<void> {
-    const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.4/ovms_windows_python_on.zip`
+    const downloadUrl = `https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/weekly/2026.1.0.fb0bdbd1/ovms_windows_python_on.zip`
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists

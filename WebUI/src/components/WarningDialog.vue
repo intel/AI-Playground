@@ -12,7 +12,7 @@
           <button @click="cancelConfirm" class="bg-muted text-foreground py-1 px-4 rounded">
             {{ i18nState.COM_CANCEL }}
           </button>
-          <button @click="confirmAdd" class="bg-muted text-foreground py-1 px-4 rounded">
+          <button @click="confirmAdd" class="bg-primary text-foreground py-1 px-4 rounded">
             {{ i18nState.COM_CONFIRM }}
           </button>
         </div>

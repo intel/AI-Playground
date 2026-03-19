@@ -51,15 +51,8 @@ export const usePromptStore = defineStore('prompt', () => {
         const dialogStore = useDialogStore()
         const globalSetup = useGlobalSetup()
 
-        const modeNames: Record<ModeType, string> = {
-          imageGen: 'Image Generation',
-          imageEdit: 'Image Editing',
-          video: 'Video Generation',
-          chat: 'Chat',
-        }
-
         dialogStore.showWarningDialog(
-          `ComfyUI is required for ${modeNames[mode]}. Would you like to install it now?`,
+          `This mode requires you to have the ComfyUI backend component installed. You can choose **Confirm** to install now or **Cancel** to install later from App Settings.`,
           () => {
             globalSetup.loadingState = 'manageInstallations'
             dialogStore.closeWarningDialog()

@@ -65,8 +65,11 @@ export const thinkingModels: Record<string, string> = {
   'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
   'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-cw-ov': '</think>\n\n',
   'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-gq-ov': '</think>\n\n',
+  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-nf4-ov': '</think>\n\n',
   'OpenVINO/Qwen3-8B-int4-cw-ov': '</think>\n\n',
   'unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0.gguf': '<|start|>assistant<|channel|>final<|message|>',
+  'OpenVINO/gpt-oss-20b-int4-ov': '<|start|>assistant<|channel|>final<|message|>',
 }
 
 // A friendly display name for each backend
