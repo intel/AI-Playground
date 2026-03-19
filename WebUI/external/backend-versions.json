@@ -1,6 +1,6 @@
 {
-  "comfyui-backend": { "version": "v0.10.0" },
-  "llamacpp-backend": { "version": "b7446" },
+  "comfyui-backend": { "version": "v0.17.0" },
+  "llamacpp-backend": { "version": "b8429" },
   "openvino-backend": { "version": "2026.1.0" },
   "ollama-backend": {
     "releaseTag": "v2.3.0-nightly",

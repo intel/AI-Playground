@@ -156,7 +156,7 @@ export function getBundledComfyUiGitRefSync(): string {
       `Failed to read bundled ComfyUI ref from ${versionsFilePath}: ${e}`,
       'backend-version',
     )
-    const fallback = 'v0.10.0'
+    const fallback = 'v0.17.0'
     bundledComfyUiGitRefCache = fallback
     return fallback
   }
