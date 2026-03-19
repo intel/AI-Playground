@@ -10,16 +10,32 @@ import {
   patchFile,
   createEnhancedErrorDetails,
 } from './service.ts'
-import { aipgBaseDir, checkBackendWithDetails, installBackend } from './uvBasedBackends/uv.ts'
+import {
+  aipgBaseDir,
+  checkBackend,
+  checkBackendWithDetails,
+  ensureBackendVenv,
+  installBackend,
+  pipInstallRequirementsFromFile,
+} from './uvBasedBackends/uv.ts'
+import {
+  COMFYUI_DEPS_MARKER_FILENAME,
+  normalizeComfyUiRef,
+  useLockedComfyUiDeps,
+  type ComfyUiDepsMarker,
+} from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
 import { levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode } from './comfyuiTools.ts'
+import { getBundledComfyUiGitRefSync } from '../remoteUpdates.ts'
 type Device = Omit<InferenceDevice, 'selected'>
 
 export const COMFYUI_DEFAULT_PARAMETERS = '--lowvram --reserve-vram 6.0'
+
+const UPSTREAM_PYPROJECT_BACKUP = 'pyproject.toml.aipg-upstream'
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
@@ -44,7 +60,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   healthEndpointUrl = `${this.baseUrl}/queue`
 
   private readonly remoteUrl = 'https://github.com/comfyanonymous/ComfyUI.git'
-  private revision = 'v0.3.66'
+  private revision = getBundledComfyUiGitRefSync()
   private environmentMismatchError: ErrorDetails | null = null
 
   private comfyUiParametersString: string = COMFYUI_DEFAULT_PARAMETERS
@@ -63,9 +79,28 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       }
     })
 
-    // For ComfyUI, only check if venv exists, not exact lockfile match
     try {
-      const checkDetails = await checkBackendWithDetails(this.serviceFolder, this.pythonEnvDir)
+      const marker = await this.readDepsMarker()
+      const normRev = normalizeComfyUiRef(this.revision)
+      const markerMatches = marker?.revision === normRev
+
+      if (marker?.mode === 'flexible') {
+        if (!markerMatches) {
+          this.appLogger.info(
+            `ComfyUI deps marker revision ${marker.revision} != target ${normRev}, needs reinstall`,
+            this.name,
+          )
+          return false
+        }
+      }
+
+      const skipLockfileCheck = marker?.mode === 'flexible' && markerMatches
+
+      const checkDetails = await checkBackendWithDetails(
+        this.serviceFolder,
+        this.pythonEnvDir,
+        skipLockfileCheck ? { skipLockfileCheck: true } : undefined,
+      )
 
       // If venv doesn't exist, service is not set up
       if (!checkDetails.venvExists) {
@@ -139,11 +174,23 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   async getCurrentVersion(): Promise<string | undefined> {
     try {
-      const gitOutput = await this.git.run(['-C', this.serviceDir, 'rev-parse', 'HEAD'])
-      const versionMatch = gitOutput.match(/HEAD detached at ([0-9a-f]{7,})|v(\d+\.\d+\.\d+)/)
-      if (versionMatch) {
-        return versionMatch[1]
+      try {
+        const tag = await this.git.run(
+          ['-C', this.serviceDir, 'describe', '--tags', '--exact-match'],
+          {},
+          this.serviceDir,
+        )
+        const t = tag.trim()
+        if (t) return normalizeComfyUiRef(t)
+      } catch {
+        /* not exactly on a tag */
       }
+      const hash = await this.git.run(
+        ['-C', this.serviceDir, 'rev-parse', '--short', 'HEAD'],
+        {},
+        this.serviceDir,
+      )
+      return normalizeComfyUiRef(hash.trim())
     } catch (e) {
       this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
       return undefined
@@ -171,6 +218,121 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       this.appLogger.error(`failed to get installed ComfyUI version: ${e}`, this.name)
     }
     return undefined
+  }
+
+  private async readDepsMarker(): Promise<ComfyUiDepsMarker | null> {
+    const markerPath = path.join(this.serviceDir, COMFYUI_DEPS_MARKER_FILENAME)
+    try {
+      const raw = await fs.promises.readFile(markerPath, 'utf-8')
+      const parsed = JSON.parse(raw) as ComfyUiDepsMarker
+      if (parsed.mode !== 'locked' && parsed.mode !== 'flexible') return null
+      if (typeof parsed.revision !== 'string') return null
+      return parsed
+    } catch {
+      return null
+    }
+  }
+
+  private async writeDepsMarker(marker: ComfyUiDepsMarker): Promise<void> {
+    const markerPath = path.join(this.serviceDir, COMFYUI_DEPS_MARKER_FILENAME)
+    await fs.promises.writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf-8')
+  }
+
+  private async checkoutMatchesRevision(requested: string): Promise<boolean> {
+    try {
+      const want = (
+        await this.git.run(
+          ['-C', this.serviceDir, 'rev-parse', `${requested}^{commit}`],
+          {},
+          this.serviceDir,
+        )
+      ).trim()
+      const head = (
+        await this.git.run(['-C', this.serviceDir, 'rev-parse', 'HEAD'], {}, this.serviceDir)
+      ).trim()
+      return want.toLowerCase() === head.toLowerCase()
+    } catch {
+      return false
+    }
+  }
+
+  private async restoreComfyUiPyprojectAndLockFromHead(): Promise<void> {
+    try {
+      await this.git.run(
+        ['-C', this.serviceDir, 'checkout', 'HEAD', '--', 'pyproject.toml'],
+        {},
+        this.serviceDir,
+      )
+    } catch {
+      this.appLogger.info('restore pyproject.toml from HEAD skipped (missing or failed)', this.name)
+    }
+    try {
+      await this.git.run(
+        ['-C', this.serviceDir, 'checkout', 'HEAD', '--', 'uv.lock'],
+        {},
+        this.serviceDir,
+      )
+    } catch {
+      this.appLogger.info('restore uv.lock from HEAD skipped (missing or failed)', this.name)
+    }
+  }
+
+  private async installComfyUiFlexibleDeps(): Promise<void> {
+    const flexiblePyprojectSource = path.join(aipgBaseDir, 'comfyui-deps', 'pyproject-flexible-venv.toml')
+    const pyprojectTarget = path.join(this.serviceDir, 'pyproject.toml')
+    const backupPath = path.join(this.serviceDir, UPSTREAM_PYPROJECT_BACKUP)
+    const requirementsPath = path.join(this.serviceDir, 'requirements.txt')
+
+    if (!(await filesystem.pathExists(requirementsPath))) {
+      throw new Error(
+        `ComfyUI has no requirements.txt at ${requirementsPath}. This ComfyUI ref may use pyproject-only deps — use the pinned version ${getBundledComfyUiGitRefSync()} (see shipped backend-versions.json) or extend the installer.`,
+      )
+    }
+
+    await this.restoreComfyUiPyprojectAndLockFromHead()
+
+    const uvLockInTree = path.join(this.serviceDir, 'uv.lock')
+    if (await filesystem.pathExists(uvLockInTree)) {
+      await filesystem.remove(uvLockInTree)
+    }
+
+    if (await filesystem.pathExists(backupPath)) {
+      await filesystem.remove(backupPath)
+    }
+
+    let hadUpstreamPyproject = false
+    if (await filesystem.pathExists(pyprojectTarget)) {
+      await filesystem.move(pyprojectTarget, backupPath)
+      hadUpstreamPyproject = true
+    }
+
+    await filesystem.copyFile(flexiblePyprojectSource, pyprojectTarget)
+
+    try {
+      await ensureBackendVenv(this.serviceFolder)
+      this.appLogger.info(
+        'Installing ComfyUI core deps from requirements.txt (flexible / non-pinned ref)',
+        this.name,
+      )
+      await pipInstallRequirementsFromFile(this.serviceFolder, requirementsPath, () => {
+        this.win.webContents.send('show-toast', {
+          type: 'warning',
+          message:
+            'UV cache corruption detected while installing ComfyUI requirements. Retrying without cache — this may take longer.',
+        })
+      })
+    } finally {
+      try {
+        await filesystem.remove(pyprojectTarget)
+      } catch {
+        /* ignore */
+      }
+      if (hadUpstreamPyproject) {
+        await filesystem.move(backupPath, pyprojectTarget)
+      } else {
+        await filesystem.copyFile(flexiblePyprojectSource, pyprojectTarget)
+      }
+    }
   }
 
   get_info(): ApiServiceInformation {
@@ -228,15 +390,14 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         return false
       }
 
-      // Check if it's a valid git repo
       try {
-        const version = await this.getCurrentVersion()
-        if (version === this.revision) {
-          this.appLogger.info('comfyUI already cloned, skipping', this.name)
+        const matches = await this.checkoutMatchesRevision(this.revision)
+        if (matches) {
+          this.appLogger.info('comfyUI already cloned at requested revision, skipping', this.name)
           return true
         }
         this.appLogger.info(
-          `ComfyUI version ${version?.[1]} does not match ${this.revision}. Removing...`,
+          `ComfyUI checkout does not match requested revision ${this.revision}. Removing...`,
           this.name,
         )
         throw new Error('Version mismatch')
@@ -258,42 +419,68 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         await this.git.run(['-C', this.serviceDir, 'checkout', this.revision], {}, this.serviceDir)
       }
 
-      // Copy ComfyUI dependency files and install using bundled uv
       const comfyUIDepsDir = path.join(aipgBaseDir, 'comfyui-deps')
       const pyprojectSource = path.join(comfyUIDepsDir, 'pyproject.toml')
       const uvLockSource = path.join(comfyUIDepsDir, 'uv.lock')
       const pyprojectTarget = path.join(this.serviceDir, 'pyproject.toml')
       const uvLockTarget = path.join(this.serviceDir, 'uv.lock')
+      const useLocked = useLockedComfyUiDeps(this.revision, getBundledComfyUiGitRefSync())
+      const normRev = normalizeComfyUiRef(this.revision)
+      const existingMarker = await this.readDepsMarker()
+      const markerMatches = existingMarker?.revision === normRev
 
-      // Check if dependencies are already installed
-      let needsInstall = false
-      try {
-        await checkProject(this.serviceDir)
-        this.appLogger.info('ComfyUI dependencies already installed, skipping', this.name)
-      } catch (_checkError) {
-        needsInstall = true
-      }
+      if (useLocked) {
+        let needsInstall = true
+        if (existingMarker?.mode === 'locked' && markerMatches) {
+          try {
+            await checkBackend(this.serviceFolder)
+            needsInstall = false
+            this.appLogger.info('ComfyUI locked deps already synced, skipping', this.name)
+          } catch {
+            needsInstall = true
+          }
+        }
 
-      if (needsInstall) {
-        // Copy dependency specification files
-        this.appLogger.info(
-          `Copying pyproject.toml from ${pyprojectSource} to ${pyprojectTarget}`,
-          this.name,
-        )
-        await filesystem.copyFile(pyprojectSource, pyprojectTarget)
+        if (needsInstall) {
+          this.appLogger.info(
+            `Copying bundled pyproject.toml and uv.lock for ${getBundledComfyUiGitRefSync()}`,
+            this.name,
+          )
+          await filesystem.copyFile(pyprojectSource, pyprojectTarget)
+          await filesystem.copyFile(uvLockSource, uvLockTarget)
+          this.appLogger.info('Installing ComfyUI dependencies using bundled uv (locked)', this.name)
+          await installBackend(this.serviceFolder, () => {
+            this.win.webContents.send('show-toast', {
+              type: 'warning',
+              message:
+                'UV cache corruption detected. Retrying installation without cache. This may take longer. You can manually clear the cache at %LOCALAPPDATA%/uv/cache',
+            })
+          })
+        }
+        await this.writeDepsMarker({ mode: 'locked', revision: normRev })
+      } else {
+        let needsInstall = true
+        if (
+          existingMarker?.mode === 'flexible' &&
+          markerMatches &&
+          filesystem.existsSync(this.pythonEnvDir)
+        ) {
+          needsInstall = false
+          this.appLogger.info(
+            'ComfyUI flexible deps already installed for this revision, skipping',
+            this.name,
+          )
+        }
 
-        this.appLogger.info(`Copying uv.lock from ${uvLockSource} to ${uvLockTarget}`, this.name)
-        await filesystem.copyFile(uvLockSource, uvLockTarget)
-
-        // Install dependencies
-        this.appLogger.info('Installing ComfyUI dependencies using bundled uv', this.name)
-        await installBackend(this.serviceDir, () => {
+        if (needsInstall) {
           this.win.webContents.send('show-toast', {
             type: 'warning',
             message:
-              'UV cache corruption detected. Retrying installation without cache. This may take longer. You can manually clear the cache at %LOCALAPPDATA%/uv/cache',
+              'Installing custom ComfyUI versions may not be compatible with the bundled workflows. If you encounter issues, please clear the version override and reinstall the ComfyUI backend.',
           })
-        })
+          await this.installComfyUiFlexibleDeps()
+        }
+        await this.writeDepsMarker({ mode: 'flexible', revision: normRev })
       }
     }
 
@@ -505,8 +692,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         )
       }
 
-      // Device-specific requirements and extra wheels are no longer needed
-      // as uv handles all dependencies through pyproject.toml and uv.lock
+      // Locked ref: uv.lock + pyproject; other refs: requirements.txt + UV torch config
       yield {
         serviceName: this.name,
         step: currentStep,
@@ -550,7 +736,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       ...levelZeroDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       PIP_CONFIG_FILE: 'nul',
       UV_NO_CONFIG: '1',
-      UV_TORCH_BACKEND: process.platform === 'win32' ? 'xpu' : undefined,
+      UV_TORCH_BACKEND: process.platform === 'win32' ? 'xpu' : 'cpu',
     }
   }
 
@@ -683,8 +869,4 @@ except Exception as e:
       didProcessExitEarlyTracker: didProcessExitEarlyTracker,
     }
   }
-}
-
-function checkProject(_serviceDir: string) {
-  throw new Error('Function not implemented.')
 }

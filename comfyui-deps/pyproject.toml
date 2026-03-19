@@ -1,4 +1,6 @@
 [project]
+# Tested dependency set for ComfyUI: regenerate uv.lock from this tree after bumps.
+# Keep in sync with the ComfyUI git ref in WebUI/external/backend-versions.json (comfyui-backend.version).
 name = "aipg-comfyui"
 version = "0.10.0"
 requires-python = "==3.12.*"

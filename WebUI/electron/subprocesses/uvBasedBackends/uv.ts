@@ -140,6 +140,50 @@ const isHashMismatchError = (errorMessage: string): boolean => {
   return /hash mismatch/i.test(errorMessage)
 }
 
+export const ensureBackendVenv = async (backend: string) => {
+  const logger = loggerFor(`uv.venv.${backend}`)
+  await assertUv(logger)
+  const uvVenvCommand = [
+    'venv',
+    '--directory',
+    aipgBaseDir,
+    '--project',
+    backend,
+    '--allow-existing',
+    '--relocatable',
+  ]
+  logger.info(`Ensuring venv for backend: ${backend} with ${JSON.stringify(uvVenvCommand)}`)
+  await uv(uvVenvCommand, logger)
+}
+
+/**
+ * Install packages from requirements.txt into the backend venv using `uv pip`
+ * (does not mutate pyproject.toml dependencies — unlike `uv add -r`).
+ */
+export const pipInstallRequirementsFromFile = async (
+  backend: string,
+  requirementsTxtPath: string,
+  onCacheCorruptionDetected?: () => void,
+) => {
+  const logger = loggerFor(`uv.pip-req.${backend}`)
+  await assertUv(logger)
+  const projectDir = path.join(aipgBaseDir, backend)
+  const uvCommand = ['pip', 'install', '--directory', projectDir, '-r', requirementsTxtPath]
+  logger.info(`pip install -r via uv: ${JSON.stringify(uvCommand)}`)
+  try {
+    await uv(uvCommand, logger)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (isHashMismatchError(errorMessage)) {
+      logger.warn('Hash mismatch in UV cache during pip install, retrying with --no-cache')
+      onCacheCorruptionDetected?.()
+      await uv([...uvCommand, '--no-cache'], logger)
+      return
+    }
+    throw error
+  }
+}
+
 export const installBackend = async (backend: string, onCacheCorruptionDetected?: () => void) => {
   const logger = loggerFor(`uv.sync.${backend}`)
   await assertUv(logger)
@@ -191,6 +235,7 @@ export interface BackendCheckDetails {
 export const checkBackendWithDetails = async (
   backend: string,
   venvPath: string,
+  options?: { skipLockfileCheck?: boolean },
 ): Promise<BackendCheckDetails> => {
   const logger = loggerFor(`uv.check-details.${backend}`)
   await assertUv(logger)
@@ -204,6 +249,17 @@ export const checkBackendWithDetails = async (
   } catch {
     logger.info(`Venv directory does not exist at ${venvPath}`)
     venvExists = false
+  }
+
+  if (options?.skipLockfileCheck && venvExists) {
+    logger.info(`Skipping uv lockfile check for ${backend} (flexible ComfyUI deps mode)`)
+    return {
+      venvExists: true,
+      action: 'check',
+      needsInstallation: false,
+      envMismatch: false,
+      exitCode: 0,
+    }
   }
 
   // Run uv sync --check with JSON output

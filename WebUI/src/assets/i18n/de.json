@@ -287,7 +287,7 @@
   "BACKEND_SETTINGS_DESCRIPTION": "Konfigurieren Sie die Einstellungen für das {backend} Backend. Änderungen erfordern möglicherweise einen Neustart oder eine Neuinstallation, um wirksam zu werden.",
   "BACKEND_VERSION": "Version",
   "BACKEND_VERSION_DESCRIPTION": "Die Git-Referenz, die für das Backend verwendet werden soll. Dies kann ein Versions-Tag oder ein Commit-Hash sein.",
-  "BACKEND_VERSION_DESCRIPTION_COMFYUI": "Geben Sie einen Git-Commit-Hash oder Versions-Tag ein (z.B. v1.2.3 oder abc1234)",
+  "BACKEND_VERSION_DESCRIPTION_COMFYUI": "Geben Sie einen Git-Commit-Hash oder Versions-Tag ein (z.B. v1.2.3 oder abc1234). Die voreingestellte App-Standardversion nutzt ein geprüftes Lockfile; andere Versionen installieren über die requirements.txt von ComfyUI (weniger vorhersehbar).",
   "BACKEND_VERSION_DESCRIPTION_LLAMACPP": "Geben Sie eine Build-Nummer ein (z.B. b6048)",
   "BACKEND_VERSION_DESCRIPTION_OPENVINO": "Geben Sie eine Versionsnummer ein (z.B. 2025.2.0)",
   "BACKEND_VERSION_DESCRIPTION_OLLAMA": "Geben Sie Release-Tag und Version ein",
