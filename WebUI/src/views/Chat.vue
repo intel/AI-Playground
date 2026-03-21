@@ -634,7 +634,7 @@ watch(
 </script>
 
 <style>
-.shiki {
+.hljs {
   padding-left: 0.5rem;
   border-bottom-left-radius: calc(var(--radius) - 2px);
   border-bottom-right-radius: calc(var(--radius) - 2px);
