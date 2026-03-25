@@ -5,6 +5,7 @@
   "tags": ["no-prompt", "BMG only"],
   "backend": "comfyui",
   "description": "Add color to a black and white photo",
+  "extendedDescription": "Colorize a black and white image. Load a black and white photo. Select a model style. Then click generate.",
   "category": "edit-images",
   "toolCategory": "edit-images",
   "toolInstructions": "Use this workflow when the user wants to colorize a black-and-white or grayscale photo. This is a no-prompt workflow: the prompt parameter is ignored. Simply select this workflow and the image will be automatically colorized using DDColor. Best for restoring color to old photographs or converting grayscale images to color.",

@@ -4,6 +4,7 @@
   "displayPriority": 300,
   "tags": ["Flux.2-Klein"],
   "description": "Precisely generate images, with text and adherence to prompt using Flux.2-Klein",
+  "extendedDescription": "Generate high resolution images that can look extremly photo realistic allowing you to position objects in the image and define their color. Create a long prompt that describes objects in the scene both backround and forground. Include information on the mood and style of the image. Define location and color of any object.",
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",

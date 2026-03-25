@@ -8,6 +8,7 @@ import { useBackendServices } from './backendServices'
 import { useDialogStore } from './dialogs'
 import { useGlobalSetup } from './globalSetup'
 import { useI18N } from './i18n'
+import { useDemoMode } from './demoMode'
 
 /**
  * Maps a preset to its corresponding UI mode based on type and category.
@@ -42,6 +43,40 @@ const backendToService = {
 
 type LlmBackend = keyof typeof backendToService
 
+/** Presets that require high system/GPU memory (24GB system or 16GB GPU) */
+const HIGH_MEMORY_PRESETS = new Set([
+  'Pro Image',
+  'Pro 2 Image',
+  'Edit By Prompt',
+  'Edit by Prompt 2',
+  'Image To 3D Model',
+])
+
+/** Presets for video generation (best on discrete GPUs with 16GB+ vRAM) */
+const VIDEO_VRAM_PRESETS = new Set(['LTX-Video', 'Wan2.1-VACE'])
+
+const MEMORY_ALERT_SUPPRESS_PREFIX = 'memoryAlertSuppress_'
+
+function getMemoryAlertSuppressKey(presetName: string): string {
+  return MEMORY_ALERT_SUPPRESS_PREFIX + presetName
+}
+
+function isMemoryAlertSuppressed(presetName: string): boolean {
+  try {
+    return localStorage.getItem(getMemoryAlertSuppressKey(presetName)) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setMemoryAlertSuppressed(presetName: string): void {
+  try {
+    localStorage.setItem(getMemoryAlertSuppressKey(presetName), '1')
+  } catch {
+    // ignore
+  }
+}
+
 export type PresetSwitchOptions = {
   /** Specific variant to select */
   variant?: string
@@ -58,6 +93,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   const dialogStore = useDialogStore()
   const globalSetup = useGlobalSetup()
   const i18nState = useI18N().state
+  const demoMode = useDemoMode()
 
   // Switching state
   const isSwitching = ref(false)
@@ -73,6 +109,45 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
     return backendInfo
       ? backendInfo.status === 'running' || backendInfo.status === 'stopped'
       : false
+  }
+
+  /**
+   * Apply the preset switch (update state, variant, mode, load settings, last-used).
+   * Used when no gating dialog is shown, or when user confirms the memory alert.
+   */
+  function applyPresetSwitch(
+    preset: Preset,
+    presetName: string,
+    options: PresetSwitchOptions,
+  ): void {
+    presets.activePresetName = presetName
+
+    if (options.variant) {
+      presets.setActiveVariant(presetName, options.variant)
+    } else if (preset.variants && preset.variants.length > 0) {
+      const currentVariant = presets.activeVariantName[presetName]
+      if (!currentVariant) {
+        const firstVariant = preset.variants[0].name
+        presets.setActiveVariant(presetName, firstVariant)
+      }
+    }
+
+    if (!options.skipModeSwitch) {
+      const mode = presetToMode(preset)
+      promptStore.setModeOnly(mode)
+    }
+
+    if (preset.type === 'chat') {
+      const textInference = useTextInference()
+      textInference.loadSettingsForActivePreset()
+    } else if (preset.type === 'comfy') {
+      const imageGeneration = useImageGenerationPresets()
+      imageGeneration.loadSettingsForActivePreset()
+    }
+
+    if (!options.skipLastUsedUpdate && preset.category) {
+      presets.setLastUsedPreset(preset.category, presetName)
+    }
   }
 
   /**
@@ -112,41 +187,30 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         }
       }
 
-      // 3. Update central state
-      presets.activePresetName = presetName
+      const isGatedMemoryPreset =
+        preset.type === 'comfy' &&
+        (HIGH_MEMORY_PRESETS.has(presetName) || VIDEO_VRAM_PRESETS.has(presetName))
+      const shouldShowMemoryAlert =
+        isGatedMemoryPreset && !isMemoryAlertSuppressed(presetName) && !demoMode.enabled
 
-      // 4. Set variant if specified, or auto-select first variant if preset has variants
-      if (options.variant) {
-        presets.setActiveVariant(presetName, options.variant)
-      } else if (preset.variants && preset.variants.length > 0) {
-        const currentVariant = presets.activeVariantName[presetName]
-        if (!currentVariant) {
-          const firstVariant = preset.variants[0].name
-          presets.setActiveVariant(presetName, firstVariant)
-        }
+      if (shouldShowMemoryAlert) {
+        const message = HIGH_MEMORY_PRESETS.has(presetName)
+          ? i18nState.MEMORY_ALERT_HIGH_MEMORY
+          : i18nState.MEMORY_ALERT_VIDEO_VRAM
+        dialogStore.showWarningDialog(
+          message,
+          (dontShowAgain) => {
+            applyPresetSwitch(preset, presetName, options)
+            if (dontShowAgain) setMemoryAlertSuppressed(presetName)
+            dialogStore.closeWarningDialog()
+            console.log(`[PresetSwitching] Switched to preset (after confirm): ${presetName}`)
+          },
+          { dontShowAgainKey: presetName },
+        )
+        return { success: false }
       }
 
-      // 5. Switch mode based on preset type (unless skipped)
-      if (!options.skipModeSwitch) {
-        const mode = presetToMode(preset)
-        // Use setModeOnly to avoid triggering the preset-loading logic in setCurrentMode
-        promptStore.setModeOnly(mode)
-      }
-
-      // 6. Load settings based on preset type (backend preparation deferred to inference time)
-      if (preset.type === 'chat') {
-        const textInference = useTextInference()
-        textInference.loadSettingsForActivePreset()
-      } else if (preset.type === 'comfy') {
-        const imageGeneration = useImageGenerationPresets()
-        imageGeneration.loadSettingsForActivePreset()
-      }
-
-      // 7. Update last-used tracking (unless skipped)
-      if (!options.skipLastUsedUpdate && preset.category) {
-        presets.setLastUsedPreset(preset.category, presetName)
-      }
-
+      applyPresetSwitch(preset, presetName, options)
       console.log(`[PresetSwitching] Successfully switched to preset: ${presetName}`)
       return { success: true }
     } catch (error) {

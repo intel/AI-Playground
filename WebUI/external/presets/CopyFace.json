@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Edit an image to have a likeness you control. Load image with a face you want to change, then load a reference face to guide the likeness.",
+  "extendedDescription": "Change the likeness of an existing image/photo to the likeness of a reference image. Load in an image you want to change to Oringinal Image. Then load a close up image of a persons face you want on the original image. Click generate without entering a prompt",
   "requiredCustomNodes": ["Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed"],
   "requiredPythonPackages": [
     "stringzilla==3.12.6",

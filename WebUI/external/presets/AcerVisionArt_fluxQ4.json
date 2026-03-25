@@ -124,7 +124,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,

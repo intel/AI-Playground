@@ -5,7 +5,7 @@
   "enablePreviewFeatures": true,
   "isDemoModeEnabled": false,
   "demoModeResetInSeconds": 60,
-  "demoModePresetsDir": "presets_essentials_demo",
+  "demoModePresetsDir": "presets_demo",
   "demoModePasscode": "0451",
   "languageOverride": null,
   "remoteRepository": "asdf/ai-playground"

@@ -31,7 +31,19 @@
 
     <div v-if="selectedPreset" class="flex flex-col gap-4">
       <div class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold">{{ selectedPreset.name }}</h2>
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-semibold">{{ selectedPreset.name }}</h2>
+          <TooltipProvider v-if="extendedDescription" :delay-duration="200">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <InformationCircleIcon class="w-6 h-6 stroke-2 text-muted-foreground/60 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="right" class="max-w-[320px] text-sm text-justify whitespace-pre-line">
+                {{ extendedDescription }}
+              </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+        </div>
         <VariantSelector
           v-if="selectedPreset.variants && selectedPreset.variants.length > 0"
           v-model="selectedVariantValue"
@@ -42,6 +54,7 @@
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
         {{ presetsStore.activePresetWithVariant?.description || selectedPreset.description }}
       </p>
+
       <div
         v-if="
           presetsStore.activePresetWithVariant?.tags &&
@@ -69,7 +82,9 @@ import { backendToService } from '@/assets/js/store/textInference'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
 import { Card } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import * as toast from '@/assets/js/toast'
+import { InformationCircleIcon} from '@heroicons/vue/24/outline'
 interface Props {
   categories?: string[]
   type?: string
@@ -139,6 +154,17 @@ const selectedVariantValue = computed({
     // Emit variant change for parent to handle via orchestrator
     emits('update:variant', selectedPresetName.value, value)
   },
+})
+
+const extendedDescription = computed(() => {
+  const preset = selectedPreset.value
+  const raw = preset?.extendedDescription
+  if (raw == null) return undefined
+  if (typeof raw === 'string') return raw
+  const variant = activeVariantName.value
+  if (variant && variant in raw) return raw[variant]
+  const first = Object.values(raw)[0]
+  return typeof first === 'string' ? first : undefined
 })
 
 function isPresetDisabled(preset: Preset): boolean {

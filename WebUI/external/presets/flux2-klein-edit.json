@@ -7,6 +7,7 @@
   "category": "edit-images",
   "toolCategory": "edit-images",
   "description": "Add remove, edit or combine elements into photos description what to change. Uses the Flux2 Klein model.",
+  "extendedDescription": "Edit images by describing a change. This preset provides an experience between FAST and QUALITY options of EditByPrompt. Add a reference image, then describe changes to the image. Add multiple images then describe in the prompt how these images come together in a new single image.",
   "toolInstructions": "Use this workflow for prompt-driven image editing: adding, removing, changing, or combining elements in a photo. Provide a clear, descriptive prompt that specifies what to change. For example, if the user says 'make it sunset', expand the prompt to describe the desired result like 'the same scene at golden hour sunset with warm orange and pink sky, long shadows, soft warm lighting'. Focus on describing the desired outcome, not the editing operation. The Flux Kontext model understands contextual edits well. Prefer the Fast variant for quick edits unless the user requests higher quality.",
   "requiredCustomNodes": [
     "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
@@ -106,7 +107,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,

@@ -4,6 +4,7 @@
   "displayPriority": 300,
   "tags": ["Z-Image-Turbo"],
   "description": "Precisely generate images, with text and adherence to prompt using Z-Image-Turbo",
+  "extendedDescription": "Generate high resolution images that looks the most photorealistic and accurate to your prompt allowing you to position objects and define color and add text.Create a long prompt that describes objects in the scene both backround and forground. Include information on the mood and style of the image. Define location and color of any object and any text in the image",
   "backend": "comfyui",
   "category": "create-images",
   "mediaType": "image",

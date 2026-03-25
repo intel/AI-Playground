@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Extend an image beyond its borders by sizing and positioning an image in a new space, then generate new content around it",
+  "extendedDescription": "Create a version of an image where you've extended the image in a direction beyond its original borders. Load an image you want to outpaint. Set the mode for Draft or HD to guide the resolution of the outpaint. Open the Mask editor. Resize and move the image to a side or location where the original content should be, leaving an empty area you want to fill with new content. Close the editor. In the prompt describe loosely without detail, the subject of the original image, followed by detail of what should be seen in the empty area. Then generate",
   "requiredCustomNodes": [
     "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
@@ -620,7 +621,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,

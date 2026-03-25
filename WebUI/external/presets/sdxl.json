@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "create-images",
   "description": "Generate high quality images using SDXL",
+  "extendedDescription": "Generate higher resolution images that look photo realistic with imperfections in details and hands. To use, type a long description of what you want in the foreground and background. Include information the style (photorealism, watercolor, etc)",
   "mediaType": "image",
   "toolCategory": "create-images",
   "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. SDXL produces higher quality images than SD1.5, so emphasize photorealistic details and professional quality. Even if the user requests something simple like 'a cat', expand it to a full prompt like 'a beautiful orange tabby cat sitting on a windowsill, soft natural lighting, detailed fur texture, photorealistic, 8k, highly detailed, professional photography, shallow depth of field'.",
@@ -210,7 +211,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,

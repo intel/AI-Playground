@@ -2,6 +2,10 @@
   "type": "comfy",
   "name": "Wan2.1-VACE",
   "description": "Image to Video generation using Wan2.1-VACE. Recommended for systems with discreet GPUs with high vRAM.",
+  "extendedDescription": {
+    "Fast": "Generate short video clips from a starting image. Load an image and set the aspect ratio to match the ratio of the image Keep resolution to 0.25-0.5MP. Write a prompt that describes the core subject of the video in detail. Describe the action of the subject. Describe the camera movement. Describe the background of the scene and generate",
+    "Video2Video": "Generate short video clips that match the movement from an existing video. Load a reference image of a character you want to animate. Load a short video of a person moving in a way you want to animate your character. The duration of this clip should match the duration of your final video Write a prompt that describes your character and the action and movement in your reference video and generate."
+  },
   "displayPriority": 200,
   "tags": ["dGPU", "high vRAM"],
   "backend": "comfyui",

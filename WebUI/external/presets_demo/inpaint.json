@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Regenerate portions of an image by masking an area that will change based on your prompt",
+  "extendedDescription": "Change or regenerate part of an image. Load an image you want to edit or fix. Set the mode for Draft or HD to guide the resolution of the inpainting and image. Click the Mask Editor button. Use your mouse to paint over the area that should change or be fixed then close the editor. In the prompt describe the what should be filled or put in that masked area, then generate",
   "requiredCustomNodes": [
     "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"

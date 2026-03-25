@@ -4,6 +4,7 @@
   "displayPriority": 700,
   "tags": ["JuggernautXL", "ControlNet", "1024x1024"],
   "description": "Turn rough sketches into stunning photos. Load a sketch and describe the location, weather and environment",
+  "extendedDescription": "Turn line drawings into photo realistic images. Load a sketch or line image. Add a description to the prompt that describes the lighting (or time of day), the location, weather and other details of that should guide the photo version",
   "backend": "comfyui",
   "category": "edit-images",
   "toolCategory": "edit-images",

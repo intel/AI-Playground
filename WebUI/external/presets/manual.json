@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "create-images",
   "description": "Advanced mode to manually control the model, CFG, sampler and more. But be sure resolution and settings fit the model selected",
+  "extendedDescription": "Generate Draft or HD images using alternative models and parameters not exposed in those presets. Download alternative SD1.5 or SDXL Checkpoints and place in Resources/Models/ComfyUI/Checkpoints folder and alternative LoRAs and place in Resources/Models/ComfyUI/LoRA Restart the app then select these model and set the resolution and parameters to match those models settings",
   "mediaType": "image",
   "resolutionConfig": {
     "megapixels": [
@@ -111,7 +112,7 @@
     },
     {
       "type": "string",
-      "label": "Negative Prompt",
+      "label": "Neg. Prompt",
       "displayed": true,
       "modifiable": true,
       "defaultValue": "nsfw",
@@ -135,7 +136,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,
