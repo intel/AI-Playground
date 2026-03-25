@@ -13,6 +13,8 @@ import { binary, extract } from './tools.ts'
 
 const execAsync = promisify(exec)
 
+export const LLAMACPP_DEFAULT_PARAMETERS = '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa off'
+
 interface LlamaServerProcess {
   process: ChildProcess
   port: number
@@ -65,6 +67,8 @@ export class LlamaCppBackendService implements ApiService {
   readonly appLogger = appLoggerInstance
 
   private version = 'b7278'
+
+  private llamaCppParametersString: string = LLAMACPP_DEFAULT_PARAMETERS
 
   updatePort(newPort: number) {
     this.port = newPort
@@ -296,6 +300,13 @@ export class LlamaCppBackendService implements ApiService {
     if (settings.version) {
       this.version = settings.version
       this.appLogger.info(`applied new LlamaCPP version ${this.version}`, this.name)
+    }
+    if (typeof settings.llamaCppParameters === 'string') {
+      this.llamaCppParametersString = settings.llamaCppParameters
+      this.appLogger.info(
+        `applied new LlamaCPP startup parameters: ${this.llamaCppParametersString}`,
+        this.name,
+      )
     }
   }
 
@@ -538,15 +549,9 @@ export class LlamaCppBackendService implements ApiService {
         modelPath,
         '--port',
         port.toString(),
-        '--gpu-layers',
-        '999',
         '--ctx-size',
         ctxSize.toString(),
-        '--log-prefix',
-        '--jinja',
-        '--no-mmap',
-        '-fa',
-        'off',
+        ...this.llamaCppParametersString.split(/\s+/).filter(Boolean),
       ]
 
       const modelFolder = path.dirname(modelPath)

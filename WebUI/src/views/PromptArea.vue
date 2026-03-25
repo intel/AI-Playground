@@ -1,6 +1,6 @@
 <template>
   <div id="prompt-area" class="text-foreground flex flex-col w-full pt-4">
-    <div class="flex flex-col items-center gap-7 text-base px-4">
+    <div class="group flex flex-col items-center gap-7 text-base px-4">
       <div v-if="contextError" class="flex items-center gap-3">
         <p class="text-red-500">{{ contextError }}</p>
       </div>
@@ -65,131 +65,166 @@
             </button>
           </div>
         </div>
-        <textarea
-          ref="textareaRef"
-          class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
-          :class="{
-            [`pt-${checkedRagDocuments.length > 0 && canAttachDocuments && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
-            'opacity-50 cursor-not-allowed': !isPromptModifiable,
-            'border-primary bg-primary/10': isOverDropZone,
-          }"
-          :placeholder="getTextAreaPlaceholder()"
-          v-model="prompt"
-          :disabled="isTextAreaDisabled"
-          @keydown="fastGenerate"
-        ></textarea>
-        <div class="absolute bottom-14 left-3 flex gap-2">
-          <div
-            v-for="preview in imagePreview"
-            :key="preview.id"
-            class="relative max-h-12 max-w-12 mr-2 aspect-square group"
-          >
-            <img
-              :src="preview.url"
-              alt="Image Preview"
-              class="w-full h-full object-contain border border-dashed border-border rounded-md"
-            />
-            <button
-              @click="removeImage(preview.id)"
-              class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
-              title="Remove image"
-            >
-              <XMarkIcon class="size-4" />
-            </button>
-          </div>
-          <div
-            v-if="shouldShowImageUploadButton"
-            class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer origin-bottom-left"
-            :class="{ 'border-primary bg-primary/10': isOverDropZone }"
-          >
-            <Label htmlFor="file-attachment"><PlusIcon class="size-4 cursor-pointer" /></Label>
-            <input
-              type="file"
-              class="hidden"
-              id="file-attachment"
-              :accept="getAcceptedFileTypes()"
-              multiple
-              @change="handleFileInput"
-            />
-          </div>
-        </div>
-        <div class="absolute bottom-4 left-3 flex gap-2">
-          <Button
-            v-for="mode in ['chat', 'imageGen', 'imageEdit', 'video'] as ModeType[]"
-            :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
-            :key="mode"
-            @click="promptStore.setCurrentMode(mode)"
-          >
-            {{ mapModeToLabel(mode) }}
-          </Button>
-        </div>
-        <div class="absolute bottom-4 right-3 flex gap-2">
-          <Button
-            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
-            variant="secondary"
-            v-if="promptStore.getCurrentMode() === 'chat'"
-            @click="handleCameraClick"
-            title="Capture image from camera"
-          >
-            <CameraIcon class="w-5 h-5" />
-          </Button>
-          <Button
-            class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
-            variant="secondary"
-            v-if="promptStore.getCurrentMode() === 'chat'"
-            @click="handleRecordingClick"
-            :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
-            :title="
-              !speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''
-            "
-          >
-            <i
-              v-if="!audioRecorder.isTranscribing"
-              class="svg-icon w-5 h-5"
-              :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
-            ></i>
+        <div class="relative w-full">
+          <template v-if="demoMode.enabled && isFirstPrompt">
+            <Popover :open="isTextareaFocused">
+              <PopoverAnchor as-child>
+                <div
+                  class="pointer-events-none absolute left-3 -top-2 size-1 overflow-hidden opacity-0"
+                  aria-hidden="true"
+                />
+              </PopoverAnchor>
+              <PopoverContent
+                side="top"
+                align="start"
+                :side-offset="10"
+                class="z-[40010] w-auto min-w-0 rounded-xl border-[1.5px] border-[var(--demo-popover-border)] bg-[var(--demo-popover-bg)] p-3 text-[var(--demo-text-color)] shadow-[0px_0.75px_4.95px_var(--demo-popover-shadow)] dark:border-[var(--demo-popover-border)] dark:bg-[var(--demo-popover-bg)] dark:text-[var(--demo-text-color)]"
+                @open-auto-focus.prevent
+              >
+                <div @mousedown.prevent @touchstart.prevent>
+                  <DemoSamplePrompts />
+                </div>
+              </PopoverContent>
+            </Popover>
+          </template>
+          <textarea
+            id="prompt-input"
+            ref="textareaRef"
+            class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
+            :class="{
+              [`pt-${checkedRagDocuments.length > 0 && canAttachDocuments && promptStore.getCurrentMode() === 'chat' ? 8 : 3}`]: true,
+              'opacity-50 cursor-not-allowed text-transparent placeholder-transparent':
+                !isPromptModifiable,
+              'border-primary bg-primary/10': isOverDropZone,
+            }"
+            :placeholder="getTextAreaPlaceholder()"
+            @focus="isTextareaFocused = true"
+            @blur="isTextareaFocused = false"
+            v-model="prompt"
+            :disabled="isTextAreaDisabled"
+            @keydown="fastGenerate"
+          ></textarea>
+          <div class="absolute bottom-14 left-3 flex gap-2">
             <div
-              v-if="audioRecorder.isRecording"
-              class="absolute -top-11 flex gap-1 items-end h-10"
+              v-for="preview in imagePreview"
+              :key="preview.id"
+              class="relative max-h-12 max-w-12 mr-2 aspect-square group"
             >
-              <div
-                v-for="i in 5"
-                :key="i"
-                class="w-1.5 bg-primary rounded-full transition-all duration-100"
-                :style="{
-                  height: `${Math.max(6, (audioRecorder.audioLevel / 100) * 40 * (i / 5))}px`,
-                  opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.35,
-                }"
-              ></div>
+              <img
+                :src="preview.url"
+                alt="Image Preview"
+                class="w-full h-full object-contain border border-dashed border-border rounded-md"
+              />
+              <button
+                @click="removeImage(preview.id)"
+                class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                title="Remove image"
+              >
+                <XMarkIcon class="size-4" />
+              </button>
             </div>
-          </Button>
-          <Button
-            class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-normal"
-            @click="$emit('openSettings')"
-          >
-            {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
-          </Button>
-          <Button
-            v-if="readyForNewSubmit"
-            @click="handleSubmitPromptClick"
-            class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
-          >
-            →
-          </Button>
-          <Button
-            v-else-if="!isStopping"
-            @click="handleCancelClick"
-            class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
-          >
-            <i class="svg-icon w-4 h-4 i-stop"></i>
-          </Button>
-          <Button
-            v-else
-            disabled
-            class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
-          >
-            <i class="svg-icon w-4 h-4 i-loading"></i>
-          </Button>
+            <div
+              v-if="shouldShowImageUploadButton"
+              class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer origin-bottom-left"
+              :class="{ 'border-primary bg-primary/10': isOverDropZone }"
+              id="plus-icon"
+            >
+              <Label htmlFor="file-attachment" @click="handlePlusIconClick">
+                <PlusIcon class="size-4 cursor-pointer" />
+              </Label>
+              <input
+                type="file"
+                class="hidden"
+                id="file-attachment"
+                :accept="getAcceptedFileTypes()"
+                multiple
+                @change="handleFileInput"
+              />
+            </div>
+          </div>
+          <div id="mode-buttons" class="absolute bottom-4 left-3 flex gap-2">
+            <Button
+              v-for="mode in modesWithPresets"
+              :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
+              :key="mode"
+              :id="'mode-button-' + mode"
+              @click="handleModeClick(mode)"
+            >
+              {{ mapModeToLabel(mode) }}
+            </Button>
+          </div>
+          <div class="absolute bottom-4 right-3 flex gap-2">
+            <Button
+              id="camera-button"
+              class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
+              variant="secondary"
+              v-if="promptStore.getCurrentMode() === 'chat'"
+              @click="handleCameraClick"
+              title="Capture image from camera"
+            >
+              <CameraIcon class="w-5 h-5" />
+            </Button>
+            <Button
+              id="microphone-button"
+              class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
+              variant="secondary"
+              v-if="promptStore.getCurrentMode() === 'chat'"
+              @click="handleRecordingClick"
+              :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
+              :title="
+                !speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''
+              "
+            >
+              <i
+                v-if="!audioRecorder.isTranscribing"
+                class="svg-icon w-5 h-5"
+                :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
+              ></i>
+              <div
+                v-if="audioRecorder.isRecording"
+                class="absolute -top-11 flex gap-1 items-end h-10"
+              >
+                <div
+                  v-for="i in 5"
+                  :key="i"
+                  class="w-1.5 bg-primary rounded-full transition-all duration-100"
+                  :style="{
+                    height: `${Math.max(6, (audioRecorder.audioLevel / 100) * 40 * (i / 5))}px`,
+                    opacity: audioRecorder.audioLevel > (i - 1) * 20 ? 1 : 0.35,
+                  }"
+                ></div>
+              </div>
+            </Button>
+            <Button
+              id="advanced-settings-button"
+              class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-normal"
+              @click="handleAdvancedSettingsClick"
+            >
+              {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
+            </Button>
+            <Button
+              v-if="readyForNewSubmit"
+              @click="handleSubmitPromptClick"
+              id="send-button"
+              class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
+            >
+              →
+            </Button>
+            <Button
+              v-else-if="!isStopping"
+              @click="handleCancelClick"
+              class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+            >
+              <i class="svg-icon w-4 h-4 i-stop"></i>
+            </Button>
+            <Button
+              v-else
+              disabled
+              class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+            >
+              <i class="svg-icon w-4 h-4 i-loading"></i>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -211,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, ref, computed, watch } from 'vue'
+import { getCurrentInstance, ref, computed, watch, nextTick } from 'vue'
 import type { FileUIPart } from 'ai'
 import {
   mapModeToLabel,
@@ -249,6 +284,9 @@ import { Context } from '@/components/ui/context'
 import Button from '@/components/ui/button/Button.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import CameraCapture from '@/components/CameraCapture.vue'
+import { useDemoMode, type DemoButtonId } from '@/assets/js/store/demoMode'
+import DemoSamplePrompts from '@/components/DemoSamplePrompts.vue'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
@@ -262,8 +300,10 @@ const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
 const textareaRef = ref<HTMLTextAreaElement>()
+const isTextareaFocused = ref(false)
 const presetsStore = usePresets()
 const dialogStore = useDialogStore()
+const demoMode = useDemoMode()
 
 audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
 
@@ -305,6 +345,21 @@ const shouldShowImageUploadButton = computed(() => {
 
   // For chat mode, use existing logic (vision model + RAG documents)
   return canAttachImages.value || canAttachDocuments.value
+})
+
+const modesWithPresets = computed(() => {
+  const modes: ModeType[] = []
+  if (presetsStore.chatPresets.length > 0) modes.push('chat')
+  if (presetsStore.imageGenPresets.length > 0) modes.push('imageGen')
+  if (presetsStore.imageEditPresets.length > 0) modes.push('imageEdit')
+  if (presetsStore.videoPresets.length > 0) modes.push('video')
+  return modes
+})
+
+watch([modesWithPresets, () => promptStore.getCurrentMode()], ([modes, currentMode]) => {
+  if (modes.length > 0 && currentMode && !modes.includes(currentMode)) {
+    promptStore.setCurrentMode(modes[0])
+  }
 })
 
 // Get checked RAG documents for display
@@ -352,6 +407,38 @@ const isProcessing = computed(() => {
 const isStopping = computed(() => imageGeneration.stopping)
 
 const readyForNewSubmit = computed(() => !promptStore.promptSubmitted && !isProcessing.value)
+
+const isFirstPrompt = computed(() => {
+  const mode = promptStore.getCurrentMode()
+
+  const isFirstChatPrompt =
+    mode === 'chat' &&
+    !openAiCompatibleChat.messages?.length &&
+    !openAiCompatibleChat.processing &&
+    !textInference.isPreparingBackend
+
+  const isFirstImageGenPrompt =
+    mode === 'imageGen' &&
+    (!imageGeneration.selectedGeneratedImageId ||
+      imageGeneration.selectedGeneratedImageId === 'new') &&
+    !imageGeneration.processing
+
+  // Demo preloads an edit input via copyImageAsInputForMode, which sets selectedEditedImageId.
+  // Still show the sample until a real workflow output exists (those omit fromImageGen; inputs set it true).
+  const hasCompletedImageEditOutput = imageGeneration.generatedImages.some(
+    (item) =>
+      item.mode === 'imageEdit' &&
+      item.state === 'done' &&
+      item.type === 'image' &&
+      item.fromImageGen !== true,
+  )
+  const isFirstImageEditPrompt =
+    mode === 'imageEdit' &&
+    !imageGeneration.processing &&
+    (!imageGeneration.selectedEditedImageId || (demoMode.enabled && !hasCompletedImageEditOutput))
+
+  return isFirstChatPrompt || isFirstImageGenPrompt || isFirstImageEditPrompt
+})
 
 // Check if prompt is modifiable for ComfyUI presets
 const isPromptModifiable = computed(() => {
@@ -431,6 +518,17 @@ watch(
   },
 )
 
+// Accept programmatically injected prompt text (e.g. from demo sample prompts)
+watch(
+  () => promptStore.injectedPromptText,
+  (text) => {
+    if (text !== null) {
+      prompt.value = text
+      promptStore.injectedPromptText = null
+    }
+  },
+)
+
 function getTextAreaPlaceholder() {
   switch (promptStore.getCurrentMode()) {
     case 'chat':
@@ -456,6 +554,7 @@ function handleCancelClick() {
 }
 
 async function handleRecordingClick() {
+  if (demoMode.triggerFirstTimeHelp('microphone-button')) return
   if (audioRecorder.isRecording) {
     audioRecorder.stopRecording()
   } else {
@@ -468,9 +567,27 @@ async function handleRecordingClick() {
 }
 
 function handleCameraClick() {
+  if (demoMode.triggerFirstTimeHelp('camera-button')) return
   dialogStore.showCameraDialog(async (file: File) => {
     await handleImageFiles([file])
   })
+}
+
+function handleModeClick(mode: ModeType) {
+  const buttonId = `mode-button-${mode}` as DemoButtonId
+  promptStore.setCurrentMode(mode)
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        demoMode.triggerFirstTimeHelp(buttonId)
+      })
+    })
+  })
+}
+
+function handleAdvancedSettingsClick() {
+  if (demoMode.triggerFirstTimeHelp('advanced-settings-button')) return
+  emits('openSettings')
 }
 
 function fastGenerate(e: KeyboardEvent) {
@@ -593,6 +710,19 @@ async function handleImageFiles(imageFiles: File[]) {
   } else {
     await handleComfyUIImageUpload(imageFiles)
   }
+}
+
+function handlePlusIconClick(event: MouseEvent) {
+  if (demoMode.triggerFirstTimeHelp('plus-icon')) {
+    event.preventDefault()
+    return
+  }
+  if (demoMode.enabled) {
+    event.preventDefault()
+    toast.show('Clicking this feature is disabled during demo.')
+    return
+  }
+  // Let the Label's default behavior open the file dialog
 }
 
 // Handle file input change

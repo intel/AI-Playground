@@ -1,22 +1,44 @@
 <template>
-  <div class="flex flex-col gap-4">
-    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label class="whitespace-nowrap">Megapixels</Label>
-      <drop-down-new
+  <TooltipProvider :delay-duration="200">
+    <div class="flex flex-col gap-4">
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
+          <Label class="whitespace-nowrap truncate min-w-0">Megapixels</Label>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" class="max-w-[300px] text-sm text-justify">
+              {{ languages.SETTINGS_IMAGE_INFO_MEGAPIXEL }}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <drop-down-new
         :title="'Megapixels'"
         :value="megaPixelsIndex.toString()"
         :items="megaPixelsDropdownItems"
+        :disabled="props.disabled || demoMode.enabled"
         @change="
           (value) => {
             megaPixelsIndex = parseInt(value)
           }
         "
       />
-    </div>
+      </div>
 
-    <div class="grid grid-cols-[120px_1fr] items-end gap-4">
-      <Label class="whitespace-nowrap">Aspect Ratio</Label>
-      <div class="flex flex-row justify-between items-stretch">
+      <div class="grid grid-cols-[120px_1fr] items-end gap-4">
+        <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
+          <Label class="whitespace-nowrap truncate min-w-0">Aspect Ratio</Label>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" class="max-w-[300px] text-sm text-justify">
+              {{ languages.SETTINGS_IMAGE_INFO_ASPECT_RATIO }}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <div class="flex flex-row justify-between items-stretch">
         <div
           v-for="(res, i) in resolutionsPerMegaPixelsOption[megaPixelsIndex]"
           :key="`res-${i}`"
@@ -64,18 +86,28 @@
             {{ res.aspectRatio }}
           </span>
         </div>
+        </div>
       </div>
-    </div>
 
-    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label class="whitespace-nowrap">Resolution</Label>
-      <div class="flex gap-2 items-center">
+      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
+          <Label class="whitespace-nowrap truncate min-w-0">Resolution</Label>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" class="max-w-[300px] text-sm text-justify">
+              {{ languages.SETTINGS_IMAGE_INFO_RESOLUTION }}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <div class="flex gap-2 items-center">
         <input
           v-model.number="widthInput"
           type="number"
           min="1"
           class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled"
+          :disabled="props.disabled || demoMode.enabled"
         />
         <span class="text-muted-foreground">×</span>
         <input
@@ -83,11 +115,12 @@
           type="number"
           min="1"
           class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled"
+          :disabled="props.disabled || demoMode.enabled"
         />
+        </div>
       </div>
     </div>
-  </div>
+  </TooltipProvider>
 </template>
 
 <script setup lang="ts">
@@ -102,9 +135,16 @@ import {
 } from '@/assets/js/store/imageGenerationUtils'
 import type { ComfyUiPreset } from '@/assets/js/store/presets'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18N } from '@/assets/js/store/i18n'
 import DropDownNew from '@/components/DropDownNew.vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
+
+const languages = useI18N().state
+
+const demoMode = useDemoMode()
 
 const imageGeneration = useImageGenerationPresets()
 

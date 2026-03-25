@@ -2,6 +2,10 @@
   "type": "comfy",
   "name": "Wan2.1-VACE",
   "description": "Image to Video generation using Wan2.1-VACE. Recommended for systems with discreet GPUs with high vRAM.",
+  "extendedDescription": {
+    "Fast": "Generate short video clips from a starting image. Load an image and set the aspect ratio to match the ratio of the image Keep resolution to 0.25-0.5MP. Write a prompt that describes the core subject of the video in detail. Describe the action of the subject. Describe the camera movement. Describe the background of the scene and generate",
+    "Video2Video": "Generate short video clips that match the movement from an existing video. Load a reference image of a character you want to animate. Load a short video of a person moving in a way you want to animate your character. The duration of this clip should match the duration of your final video Write a prompt that describes your character and the action and movement in your reference video and generate."
+  },
   "displayPriority": 200,
   "tags": ["dGPU", "high vRAM"],
   "backend": "comfyui",
@@ -16,7 +20,7 @@
     "useLookupTable": false
   },
   "requiredCustomNodes": [
-    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+    "city96/ComfyUI-GGUF@6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
     "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
     "Fannovel16/comfyui_controlnet_aux@59b027e088c1c8facf7258f6e392d16d204b4d27"
   ],
@@ -155,24 +159,50 @@
         "comfyUiApiWorkflow": {
           "105": {
             "inputs": {
+              "text": "",
               "clip": ["115", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Positive Prompt)"
             }
           },
           "107": {
             "inputs": {
+              "text": "nsfw",
               "clip": ["115", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Negative Prompt)"
             }
           },
           "108": {
             "inputs": {
+              "seed": 0,
               "steps": 4,
               "cfg": 1,
-              "model": ["110", 0]
+              "sampler_name": "uni_pc",
+              "scheduler": "simple",
+              "denoise": 1,
+              "model": ["110", 0],
+              "positive": ["109", 0],
+              "negative": ["109", 1],
+              "latent_image": ["109", 2]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
             }
           },
           "110": {
             "inputs": {
+              "shift": 8,
               "model": ["115", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": {
+              "title": "ModelSamplingSD3"
             }
           },
           "115": {

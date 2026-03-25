@@ -6,6 +6,7 @@
   "backend": "comfyui",
   "category": "edit-images",
   "description": "Add,remove, edit, or combine elements in photos by describing what to change",
+  "extendedDescription": "Edit images by describing a change. Add a reference image, then describe changes to the image. Set FAST mode for simple edits and fast generation times. Select QUALITY for more detailed edits and longer generation times",
   "toolCategory": "edit-images",
   "toolInstructions": "Use this workflow as the default for prompt-driven image editing: adding, removing, changing, or combining elements in a photo. Provide a clear, descriptive prompt that specifies what to change. For example, if the user says 'make it sunset', expand the prompt to describe the desired result like 'the same scene at golden hour sunset with warm orange and pink sky, long shadows, soft warm lighting'. Focus on describing the desired outcome, not the editing operation. The Flux Kontext model understands contextual edits well. Prefer the Fast variant for quick edits unless the user requests higher quality.",
   "requiredCustomNodes": [
@@ -126,7 +127,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,

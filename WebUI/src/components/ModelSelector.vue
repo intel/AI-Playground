@@ -49,6 +49,10 @@ const items = computed(() => {
       if (requirements.toolCalling && !m.supportsToolCalling) return false
       if (requirements.reasoning && !m.supportsReasoning) return false
       if (requirements.npuSupport && !m.npuSupport) return false
+      if (textInference.backend === 'openVINO') {
+        if (textInference.runningOnOpenvinoNpu && !m.npuSupport) return false
+        if (!textInference.runningOnOpenvinoNpu && m.npuSupport) return false
+      }
       // Filter out vision and reasoning models for txt2txt only presets
       if (requirements.txt2TxtOnly && (m.supportsVision || m.supportsReasoning)) return false
       // Only show predefined models unless advancedMode is enabled OR

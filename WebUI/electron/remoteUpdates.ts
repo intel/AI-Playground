@@ -132,6 +132,36 @@ export const resolveBackendVersion = async (
   return undefined
 }
 
+let bundledComfyUiGitRefCache: string | null = null
+
+/**
+ * ComfyUI git ref from **shipped** `external/backend-versions.json` (not remote resolve).
+ * Matches the ref the bundled `comfyui-deps/uv.lock` was built for; used for default
+ * checkout and lock-vs-flexible dependency install.
+ */
+export function getBundledComfyUiGitRefSync(): string {
+  if (bundledComfyUiGitRefCache !== null) {
+    return bundledComfyUiGitRefCache
+  }
+  const versionsFilePath = path.join(externalResourcesDir(), 'backend-versions.json')
+  try {
+    const raw = fs.readFileSync(versionsFilePath, 'utf-8')
+    const parsed = BackendVersionsSchema.parse(JSON.parse(raw))
+    const v = parsed['comfyui-backend'].version
+    bundledComfyUiGitRefCache = v
+    appLoggerInstance.info(`Bundled ComfyUI git ref from local JSON: ${v}`, 'backend-version')
+    return v
+  } catch (e) {
+    appLoggerInstance.error(
+      `Failed to read bundled ComfyUI ref from ${versionsFilePath}: ${e}`,
+      'backend-version',
+    )
+    const fallback = 'v0.17.0'
+    bundledComfyUiGitRefCache = fallback
+    return fallback
+  }
+}
+
 const loadLocalModels = async () => {
   const modelsFilePath = path.join(externalResourcesDir(), 'models.json')
   try {

@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "chatPreset": "Basic Chat",
+    "chatModel": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf",
+    "imageGenPreset": "Draft Image",
+    "imageEditPreset": "Upscale"
+  },
+  "inputImage": "demo_cat.png",
+  "samplePrompts": [
+    {
+      "title": "Image Generation Example",
+      "description": "Create an image from a text prompt:",
+      "prompt": "cute kitten",
+      "mode": "imageGen"
+    },
+    {
+      "title": "Image Upscale Example",
+      "description": "Upscale an image by 4x. An image is already given:",
+      "prompt": "Upscale an image by 4x",
+      "mode": "imageEdit"
+    }
+  ],
+  "enabledModes": ["imageGen", "imageEdit"],
+  "notificationDotButtons": [
+    "mode-button-imageGen",
+    "mode-button-imageEdit",
+    "app-settings-button",
+    "advanced-settings-button"
+  ]
+}

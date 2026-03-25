@@ -10,8 +10,17 @@
       "filter": ["*.py", "model_config.json", "pyproject.toml", "uv.lock"]
     },
     {
+      "from": "../OpenVINO",
+      "to": "OpenVINO",
+      "filter": ["*.py", "pyproject.toml", "uv.lock"]
+    },
+    {
       "from": "external/presets",
       "to": "presets"
+    },
+    {
+      "from": "external/presets_demo",
+      "to": "presets_demo"
     },
     {
       "from": "../device-service",

@@ -2,6 +2,11 @@
   "type": "comfy",
   "name": "LTX-Video",
   "description": "Image to Video generation using LTX-Video. Recommended for systems with discreet GPUs with high vRAM.",
+  "extendedDescription": {
+    "Text2Video": "Generate short video clips from a text description. Keep at 0.25 megapixel for most usages, set the aspect ration, and frame count - 54 frames is a good starting point. Write a prompt that describes the core subject of the video in detail. Describe the action of the subject. Describe the camera movement. Describe the background of the scene",
+    "Image2Video": "Generate short video clips from a starting image. Load an image and set the aspect ratio to matches ratio of the image Keep resolution to 0.25-0.5MP. Write a prompt that describes the core subject of the video in detail. Describe the action of the subject. Describe the camera movement. Describe the background of the scene",
+    "Start2End": "Generate short video clip with a start and ending frame. Load a start and end frame that has the same subject or content in the image but differ over time. Set the the aspect ratio to matches ratio of the images. Keep resolution to 0.25-0.5MP. Write a prompt that describes the core subject of the video. Describe what happens between to cause the frames to change over time. Describe any camera movement if any."
+  },
   "displayPriority": 300,
   "tags": ["LTX Video", "high-vram"],
   "backend": "comfyui",
@@ -18,7 +23,7 @@
   },
   "requiredCustomNodes": [
     "kijai/ComfyUI-KJNodes@086ac449a21e9f5e3b970313c2287713b67e8b95",
-    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+    "city96/ComfyUI-GGUF@6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
     "Lightricks/ComfyUI-LTXVideo@5d6b4abffe908186bda980a063f58c506fd58560",
     "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"

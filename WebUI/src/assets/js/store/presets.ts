@@ -1,6 +1,7 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { z } from 'zod'
 import { ref, computed } from 'vue'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 
 // DeepPartial utility type
@@ -110,6 +111,10 @@ const ComfyUIApiWorkflowSchema = z.record(
 const BasePresetFieldsSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
+  /** Optional how-to instructions shown in PresetSelector tooltip; string or variant name -> text */
+  extendedDescription: z
+    .union([z.string(), z.record(z.string(), z.string())])
+    .optional(),
   image: z.string().optional(), // base64 encoded image
   category: z.string().optional(),
   displayPriority: z.number().default(0),
@@ -705,6 +710,7 @@ export const usePresets = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['activePresetName', 'activeVariantName', 'settingsPerPreset', 'lastUsedPresetName'],
     },
   },

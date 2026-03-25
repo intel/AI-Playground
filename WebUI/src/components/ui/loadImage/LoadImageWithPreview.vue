@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-2">
     <div ref="imgDropZone" class="flex justify-center relative">
       <div
-        v-show="isOverDropZone"
+        v-show="isOverDropZone && !props.disabled"
         class="bg-background/70 absolute inset-0 flex items-center justify-center text-foreground text-lg z-10"
       >
         {{ languages.COM_LOAD_IMAGE }}
@@ -63,13 +63,15 @@
         :accept="acceptedImageTypes.join(',')"
         type="file"
         class="hidden"
+        :disabled="props.disabled"
         v-on:change="(e: Event) => handleFilesEvent(imageUrlRef as Ref<string, string>)(e)"
       />
       <label
-        :for="id"
+        :for="props.disabled ? undefined : id"
         :class="
           cn(
-            'text-base bg-primary py-1 px-6 rounded-sm hover:opacity-90 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ',
+            'text-base bg-primary py-1 px-6 rounded-sm',
+            props.disabled ? 'opacity-50 cursor-default' : 'hover:opacity-90 hover:cursor-pointer',
             props.class,
           )
         "
@@ -102,6 +104,7 @@ const props = defineProps<{
   modelValue?: string | number
   class?: HTMLAttributes['class']
   id: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -128,7 +131,10 @@ const displayImageUrl = computed(() => {
 const imgDropZone = useTemplateRef('imgDropZone')
 
 const { isOverDropZone } = useDropZone(imgDropZone, {
-  onDrop: (files) => processFiles(files, props.imageUrlRef),
+  onDrop: (files) => {
+    if (props.disabled) return
+    processFiles(files, props.imageUrlRef)
+  },
   dataTypes: acceptedImageTypes,
   multiple: false,
   preventDefaultForUnhandled: false,

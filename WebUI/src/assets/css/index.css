@@ -2,7 +2,6 @@
 @config "../../../tailwind.config.cjs";
 @import './theme.css';
 @import './main.css';
-@import './demo-mode.css';
 @import './pc.css';
 @import './compontents.css';
 @import './svg.css';
@@ -50,6 +49,22 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 209 100% 60%;
     --radius: 0.5rem;
+
+    /* Demo mode variables - light theme overrides */
+    --demo-accent: hsl(219, 100%, 29%);
+    --demo-popover-bg: hsl(var(--card));
+    --demo-indicator-bg: hsl(var(--card));
+    --demo-popover-border: hsl(var(--border));
+    --demo-popover-shadow: rgb(0 0 0 / 0.1);
+    --demo-title-color: var(--demo-accent);
+    --demo-text-color: hsl(var(--foreground));
+    --demo-button-color: var(--demo-accent);
+
+    /* Demo mode z-index scale (shared across all themes) */
+    --demo-z-popover: 20000;
+    --demo-z-dialog: 30000;
+    --demo-z-sample: 40000;
+    --demo-z-sample-btn: 50000;
   }
 
   /* Dark Theme */
@@ -74,6 +89,16 @@
     --input: 280 30% 18%;
     --ring: 280 98.4% 50.6%;
     --radius: 0.5rem;
+
+    /* Demo mode variables */
+    --demo-accent: #00c4fa;
+    --demo-popover-bg: #0a0622;
+    --demo-indicator-bg: #000032;
+    --demo-popover-border: var(--demo-accent);
+    --demo-popover-shadow: var(--demo-accent);
+    --demo-title-color: #00bfff;
+    --demo-text-color: #fff;
+    --demo-button-color: var(--demo-accent);
   }
 
   /* Intel Core Ultra Theme (lnl) */
@@ -98,6 +123,16 @@
     --input: 209 30% 25%;
     --ring: 209 100% 60%;
     --radius: 0.5rem;
+
+    /* Demo mode variables */
+    --demo-accent: #00c4fa;
+    --demo-popover-bg: #0a0622;
+    --demo-indicator-bg: #000032;
+    --demo-popover-border: var(--demo-accent);
+    --demo-popover-shadow: var(--demo-accent);
+    --demo-title-color: #00bfff;
+    --demo-text-color: #fff;
+    --demo-button-color: var(--demo-accent);
   }
 
   /* Intel Arc Theme (bmg) */
@@ -122,6 +157,16 @@
     --input: 280 30% 18%;
     --ring: 280 98.4% 50.6%;
     --radius: 0.5rem;
+
+    /* Demo mode variables */
+    --demo-accent: #00c4fa;
+    --demo-popover-bg: #0a0622;
+    --demo-indicator-bg: #000032;
+    --demo-popover-border: var(--demo-accent);
+    --demo-popover-shadow: var(--demo-accent);
+    --demo-title-color: #00bfff;
+    --demo-text-color: #fff;
+    --demo-button-color: var(--demo-accent);
   }
 }
 

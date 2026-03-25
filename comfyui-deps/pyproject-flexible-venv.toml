@@ -1,0 +1,54 @@
+# Minimal project metadata + full [tool.uv] for `uv pip install -r` when ComfyUI
+# is checked out at a ref other than shipped backend-versions.json (comfyui-backend).
+# Keep [tool.uv] in sync with pyproject.toml.
+
+[project]
+name = "aipg-comfyui-flexible"
+version = "0.0.0"
+requires-python = "==3.12.*"
+dependencies = []
+
+[tool.uv]
+python-preference = "only-managed"
+link-mode = "clone"
+index-strategy = "unsafe-best-match"
+required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+prerelease = "if-necessary-or-explicit"
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+
+[tool.uv.pip]
+torch-backend = "xpu"
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+]
+torchaudio = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+]
+torchvision = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+]
+pytorch-triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+insightface = [
+  { url = "https://github.com/TNG/AI-Playground/releases/download/insightface-0.7.3/insightface-0.7.3-cp312-cp312-macosx_11_0_arm64.whl", marker = "sys_platform == 'darwin'" },
+  { url = "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

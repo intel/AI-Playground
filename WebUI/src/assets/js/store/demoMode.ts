@@ -1,49 +1,165 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import { applyDemoModeExplicitDefaults } from './demoModeDefaults'
 
-const answerInitial = {
-  show: false,
-  finished: false,
+export type DemoButtonId =
+  | 'mode-button-chat'
+  | 'mode-button-imageGen'
+  | 'mode-button-imageEdit'
+  | 'mode-button-video'
+  | 'camera-button'
+  | 'microphone-button'
+  | 'app-settings-button'
+  | 'advanced-settings-button'
+  | 'plus-icon'
+
+export const FALLBACK_NOTIFICATION_DOT_BUTTONS: DemoButtonId[] = [
+  'mode-button-chat',
+  'mode-button-imageGen',
+  'mode-button-imageEdit',
+  'camera-button',
+  'microphone-button',
+  'app-settings-button',
+  'advanced-settings-button',
+  'plus-icon',
+]
+
+const FALLBACK_ENABLED_MODES: ModeType[] = ['chat', 'imageGen', 'imageEdit', 'video']
+
+function createInitialVisitedState(
+  notificationDotButtons: DemoButtonId[],
+  enabledModes: ModeType[],
+): Record<DemoButtonId, boolean> {
+  const state = Object.fromEntries(notificationDotButtons.map((id) => [id, false])) as Record<
+    DemoButtonId,
+    boolean
+  >
+  const modeButtonPrefix = 'mode-button-'
+  for (const id of notificationDotButtons) {
+    if (id.startsWith(modeButtonPrefix)) {
+      const mode = id.slice(modeButtonPrefix.length) as ModeType
+      if (!enabledModes.includes(mode)) {
+        state[id] = true
+      }
+    }
+  }
+  return state
 }
-const createInitial = {
-  show: false,
-  finished: false,
+
+type ExplicitDefaultsState = 'idle' | 'applying' | 'applied'
+
+type DriverJsComponent = {
+  triggerFirstTimeHelp: (buttonId: DemoButtonId) => void
 }
-type EnhanceFeature = 'upscale' | 'prompt' | 'inpaint' | 'outpaint'
-const enhanceInitial = {
-  showUpscale: false,
-  showPrompt: false,
-  showInpaint: false,
-  showOutpaint: false,
-  finishedUpscale: false,
-  finishedPrompt: false,
-  finishedInpaint: false,
-  finishedOutpaint: false,
-  feature: 'upscale' as EnhanceFeature,
-  imageAvailable: false,
-  show: false,
-  finished: false,
-}
+
+let driverJsRef: DriverJsComponent | null = null
+
 export const useDemoMode = defineStore('demoMode', () => {
+  // NOTE: Demo mode UI strings (tour text, sample prompts, dialog labels) are intentionally
+  // English-only. Demo mode targets trade-show kiosks where English is the expected language.
+  // Existing DEMO_* keys in en-US.json are legacy and unused by the current driver.js tour.
   const enabled = ref(false)
+  const profile = ref<DemoProfile | null>(null)
+  const productMode = ref<ProductMode>('professional')
+  const explicitDefaultsState = ref<ExplicitDefaultsState>('idle')
+  const visitedButtons = ref<Record<DemoButtonId, boolean>>(
+    createInitialVisitedState(FALLBACK_NOTIFICATION_DOT_BUTTONS, FALLBACK_ENABLED_MODES),
+  )
+  const showResetDialog = ref(false)
+
+  const notificationDotButtonIds = computed<DemoButtonId[]>(
+    () =>
+      (profile.value?.notificationDotButtons as DemoButtonId[]) ??
+      FALLBACK_NOTIFICATION_DOT_BUTTONS,
+  )
+
+  function markAsVisited(buttonId: DemoButtonId) {
+    visitedButtons.value[buttonId] = true
+  }
+
+  function isVisited(buttonId: DemoButtonId): boolean {
+    return visitedButtons.value[buttonId]
+  }
+
+  function registerDriverJs(ref: DriverJsComponent) {
+    driverJsRef = ref
+  }
+
+  function triggerFirstTimeHelp(buttonId: DemoButtonId): boolean {
+    if (!enabled.value) return false
+    if (isVisited(buttonId)) return false
+    markAsVisited(buttonId)
+    driverJsRef?.triggerFirstTimeHelp(buttonId)
+    return true
+  }
+
+  // --- User activity detection ---
 
   let resetTimer: null | ReturnType<typeof setTimeout> = null
   let trackUserInteractionInterval: null | ReturnType<typeof setInterval> = null
+  // Sticky user activation (navigator.userActivation.hasBeenActive) is not reset by location.reload()
+  // in Chromium/Electron — it is tied to the Window and never clears. Track interaction since this
+  // page load ourselves so the reset timer only starts after a real user gesture post-reload.
+  let userInteractedThisLoad = false
+
+  const USER_IDLE_THRESHOLD_MS = 5000
+  let lastMouseMove = 0
+  const onMouseMove = () => {
+    lastMouseMove = Date.now()
+  }
+  function isUserActive(): boolean {
+    return navigator.userActivation.isActive || Date.now() - lastMouseMove < USER_IDLE_THRESHOLD_MS
+  }
 
   const resetInSeconds = ref<null | number>(null)
+  const passcode = ref('')
+  const hasPasscode = computed(() => passcode.value.length > 0)
   window.electronAPI.getDemoModeSettings().then((res) => {
     enabled.value = res.isDemoModeEnabled
+    profile.value = res.profile ?? null
+    productMode.value = res.productMode ?? 'professional'
     resetInSeconds.value = res.demoModeResetInSeconds
-    if (res.isDemoModeEnabled && res.demoModeResetInSeconds) trackUserInteraction()
+    passcode.value = res.demoModePasscode ?? ''
+
+    // Re-initialize visited state with profile data (or fallbacks)
+    const dotButtons =
+      (profile.value?.notificationDotButtons as DemoButtonId[]) ?? FALLBACK_NOTIFICATION_DOT_BUTTONS
+    const enabledModes = profile.value?.enabledModes ?? FALLBACK_ENABLED_MODES
+    visitedButtons.value = createInitialVisitedState(dotButtons, enabledModes)
+
+    if (res.isDemoModeEnabled && res.demoModeResetInSeconds) {
+      const markInteracted = (e: Event) => {
+        if (e.isTrusted) userInteractedThisLoad = true
+      }
+      // Delay attaching listeners so load/focus spurious events don't start the reset timer
+      const GRACE_MS = 1000
+      window.setTimeout(() => {
+        window.addEventListener('click', markInteracted, { capture: true, once: true })
+        window.addEventListener('keydown', markInteracted, { capture: true, once: true })
+        window.addEventListener('mousemove', onMouseMove)
+      }, GRACE_MS)
+      trackUserInteraction()
+    }
   })
 
-  const answer = ref(answerInitial)
-  const create = ref(createInitial)
-  const enhance = ref(enhanceInitial)
+  const showDemoToggle = computed(() => hasPasscode.value)
 
-  const pages = {
-    answer,
-    create,
-    enhance,
+  function stopActivityTracking() {
+    if (trackUserInteractionInterval) {
+      clearInterval(trackUserInteractionInterval)
+      trackUserInteractionInterval = null
+    }
+    if (resetTimer) {
+      clearTimeout(resetTimer)
+      resetTimer = null
+    }
+    window.removeEventListener('mousemove', onMouseMove)
+  }
+
+  function resetDemo() {
+    stopActivityTracking()
+    sessionStorage.clear()
+    location.reload()
   }
 
   const trackUserInteraction = () => {
@@ -52,132 +168,74 @@ export const useDemoMode = defineStore('demoMode', () => {
       trackUserInteractionInterval = null
     }
     trackUserInteractionInterval = setInterval(() => {
-      if (!navigator.userActivation.hasBeenActive) return
-      if (navigator.userActivation.isActive) {
+      if (!userInteractedThisLoad) return
+      if (isUserActive()) {
         if (resetTimer) {
           clearTimeout(resetTimer)
           resetTimer = null
         }
       } else {
-        if (!resetTimer && resetInSeconds.value) {
-          console.log(
-            `demo mode reset timer started, resetting after ${resetInSeconds.value} seconds`,
-          )
+        if (!resetTimer && resetInSeconds.value && !showResetDialog.value) {
           resetTimer = setTimeout(() => {
-            location.reload()
+            resetTimer = null
+            showResetDialog.value = true
           }, resetInSeconds.value * 1000)
         }
       }
     }, 1000)
   }
 
-  const escapeDemo = (e: Event) => {
-    e.stopPropagation()
-    create.value.show = false
-    enhance.value.show = false
-    answer.value.show = false
+  function cancelReset() {
+    showResetDialog.value = false
   }
 
-  function calculateMaskPenDim() {
-    const maskPenRef = document.getElementById('mask-pen')?.getBoundingClientRect()
+  async function applyExplicitDefaults() {
+    if (!enabled.value || explicitDefaultsState.value !== 'idle') return
 
-    if (maskPenRef) {
-      setTimeout(() => {
-        const inpaintOverlayContent = document.getElementById('inpaintOverlayContent')
-        if (inpaintOverlayContent && inpaintOverlayContent.style) {
-          inpaintOverlayContent.style.top = `${maskPenRef.bottom - 145}px`
-          inpaintOverlayContent.style.left = `${maskPenRef.left - 445}px`
-        }
-      }, 50)
+    explicitDefaultsState.value = 'applying'
+    try {
+      // Brief delay so dependent stores (presets, models) finish their own async initialisation
+      // after the app reaches "running" state before we override their values.
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await applyDemoModeExplicitDefaults()
+    } finally {
+      explicitDefaultsState.value = 'applied'
     }
   }
 
-  function triggerHelp(page: AipgPage, force = false) {
-    if (!enabled.value) return
-    console.log('demo mode triggered for ', {
-      page,
-      force,
-    })
-    if (page === 'learn-more') return
-    if (!force && pages[page].value.finished) return
-    if (page !== 'enhance') {
-      pages[page].value.show = true
-      pages[page].value.finished = true
-    } else {
-      switch (enhance.value.feature) {
-        case 'upscale':
-          if (enhance.value.finishedUpscale && !force) break
-          enhance.value.showUpscale = true
-          enhance.value.finishedUpscale = true
-          pages[page].value.show = true
-          break
-        case 'prompt':
-          if (enhance.value.finishedPrompt && !force) break
-          enhance.value.showPrompt = true
-          enhance.value.finishedPrompt = true
-          pages[page].value.show = true
-          break
-        case 'inpaint':
-          if (!enhance.value.imageAvailable) break
-          if (enhance.value.finishedInpaint && !force) return
-          setTimeout(() => {
-            const maskPenRef: HTMLElement = document.getElementById('mask-pen') as HTMLElement
-            const isMaskPenVisible = window.getComputedStyle(maskPenRef).display !== 'none'
-            if (isMaskPenVisible) {
-              enhance.value.showInpaint = true
-              enhance.value.finishedInpaint = true
-              pages[page].value.show = true
-              calculateMaskPenDim()
-            }
-          }, 100)
-          break
-        case 'outpaint':
-          if (enhance.value.finishedOutpaint && !force) break
-          enhance.value.showOutpaint = true
-          enhance.value.finishedOutpaint = true
-          pages[page].value.show = true
-          break
-      }
-    }
+  function verifyPasscode(input: string): boolean {
+    return input === passcode.value
   }
 
-  watch(
-    () => enhance.value.show,
-    (showEnhance) => {
-      if (!showEnhance) {
-        enhance.value.showUpscale = false
-        enhance.value.showPrompt = false
-        enhance.value.showInpaint = false
-        enhance.value.showOutpaint = false
-      }
-    },
-  )
-
-  watch(
-    () => enhance.value.feature,
-    () => {
-      if (!enabled.value) return
-      if (!enhance.value.show) triggerHelp('enhance')
-    },
-  )
-
-  watch(
-    [() => answer.value.show, () => create.value.show, () => enhance.value.show],
-    ([a, c, e]) => {
-      if (c || e || a) {
-        setTimeout(() => document.addEventListener('click', escapeDemo), 50)
+  async function setEnabled(value: boolean) {
+    try {
+      const result = await window.electronAPI.updateLocalSettings({ isDemoModeEnabled: value })
+      if (result.success) {
+        enabled.value = value
+        setTimeout(() => location.reload(), 1000)
       } else {
-        document.removeEventListener('click', escapeDemo)
+        console.error('Failed to update demo mode setting')
       }
-    },
-  )
+    } catch (error) {
+      console.error('Failed to toggle demo mode:', error)
+    }
+  }
 
   return {
     enabled,
-    answer,
-    create,
-    enhance,
-    triggerHelp,
+    profile,
+    productMode,
+    notificationDotButtonIds,
+    showDemoToggle,
+    showResetDialog,
+    isVisited,
+    registerDriverJs,
+    triggerFirstTimeHelp,
+    applyExplicitDefaults,
+    verifyPasscode,
+    setEnabled,
+    cancelReset,
+    resetDemo,
   }
 })
 

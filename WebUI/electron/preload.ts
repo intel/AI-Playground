@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('debugLog', (_event, value) => callback(value)),
   wakeupComfyUIService: () => ipcRenderer.send('wakeupComfyUIService'),
   getComfyUiDefaultParameters: () => ipcRenderer.invoke('getComfyUiDefaultParameters'),
+  getLlamaCppDefaultParameters: () => ipcRenderer.invoke('getLlamaCppDefaultParameters'),
   onServiceSetUpProgress: (callback: (data: SetupProgress) => void) =>
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>

@@ -31,9 +31,19 @@
 
     <!-- Regular inputs -->
     <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label>
-        {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
-      </Label>
+      <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
+        <Label class="truncate min-w-0">
+          {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
+        </Label>
+        <Tooltip v-if="getSettingTooltipKey(input)">
+          <TooltipTrigger as-child>
+            <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent side="right" class="max-w-[300px] text-sm text-justify">
+            {{ languages[getSettingTooltipKey(input)!] }}
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
       <!--    Number    -->
       <div v-if="input.type === 'number'" class="flex gap-2">
@@ -52,6 +62,7 @@
         v-if="input.type === 'image' && hasMaskEditing"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
         :image-url-ref="input.current as WritableComputedRef<string>"
+        :disabled="!isModifiable(input)"
         @image-loaded="handleImageLoaded"
       ></LoadImageWithPreview>
 
@@ -60,6 +71,7 @@
         v-else-if="input.type === 'image'"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
         :image-url-ref="input.current as WritableComputedRef<string>"
+        :disabled="!isModifiable(input)"
         @image-loaded="handleImageLoaded"
       ></LoadImage>
 
@@ -120,6 +132,7 @@ import Slider from './ui/slider/Slider.vue'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ImageMediaItem } from '@/assets/js/store/imageGenerationPresets'
 
 const imageGeneration = useImageGenerationPresets()
@@ -206,4 +219,14 @@ const hasMaskEditing = computed(() => {
     (input) => input.type === 'inpaintMask' || input.type === 'outpaintCanvas',
   )
 })
+
+// i18n key for setting tooltips (e.g. Safety Check)
+function getSettingTooltipKey(
+  input: (typeof imageGeneration.comfyInputs)[0],
+): string | undefined {
+  if (input.label === 'Safety Check' || input.nodeTitle === 'SafetyCheckerStrength') {
+    return 'SETTINGS_IMAGE_INFO_SAFETY_CHECKER'
+  }
+  return undefined
+}
 </script>

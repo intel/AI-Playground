@@ -629,7 +629,7 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   private async downloadOvms(): Promise<void> {
-    const downloadUrl = `https://github.com/openvinotoolkit/model_server/releases/download/v2025.4/ovms_windows_python_on.zip`
+    const downloadUrl = `https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/weekly/2026.1.0.fb0bdbd1/ovms_windows_python_on.zip`
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
@@ -813,6 +813,7 @@ export class OpenVINOBackendService implements ApiService {
   ): Promise<OvmsServerProcess> {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const maxPromptLen = contextSize ?? 8192
 
       this.appLogger.info(
         `Starting OVMS server for model: ${modelRepoId} on port ${this.port} with device ${selectedDevice}`,
@@ -840,7 +841,13 @@ export class OpenVINOBackendService implements ApiService {
         'hermes3',
         '--reasoning_parser',
         'qwen3',
+        '--cache_dir',
+        'cache',
       ]
+
+      if (selectedDevice.startsWith('NPU')) {
+        args.push('--max_prompt_len', maxPromptLen.toString())
+      }
 
       this.appLogger.info(`OVMS launch args: ${args.join(' ')}`, this.name)
 
@@ -973,6 +980,8 @@ export class OpenVINOBackendService implements ApiService {
         'embeddings',
         '--pooling',
         'CLS',
+        '--cache_dir',
+        'cache',
       ]
 
       this.appLogger.info(`OVMS embedding launch args: ${args.join(' ')}`, this.name)
@@ -1108,6 +1117,8 @@ export class OpenVINOBackendService implements ApiService {
         // '2',
         '--task',
         'speech2text',
+        '--cache_dir',
+        'cache',
       ]
 
       this.appLogger.info(`OVMS transcription launch args: ${args.join(' ')}`, this.name)

@@ -17,21 +17,28 @@ const externalRes = path.resolve(
 )
 
 const gitExePath = path.join(resourcesBaseDir, 'portable-git', 'cmd', 'git.exe')
-const presetDirTargetPath = path.join(externalRes, 'presets')
 const presetDirSpareGitRepoPath = path.join(externalRes, 'presets_intel')
-const intelPresetDirPath = path.join(presetDirSpareGitRepoPath, 'WebUI', 'external', 'presets')
-const presetDirBakTargetPath = path.join(externalRes, 'presets_bak')
 
 const gitRef = app.getVersion()
 
 export async function updateIntelPresets(
   remoteRepository: string,
+  presetDirName: string = 'presets',
 ): Promise<UpdatePresetsFromIntelResult> {
+  const presetDirTargetPath = path.join(externalRes, presetDirName)
+  const intelPresetDirPath = path.join(
+    presetDirSpareGitRepoPath,
+    'WebUI',
+    'external',
+    presetDirName,
+  )
+  const presetDirBakTargetPath = path.join(externalRes, `${presetDirName}_bak`)
+  const sparseCheckoutPattern = `WebUI/external/${presetDirName}/*`
   try {
-    await fetchNewIntelPresets(remoteRepository)
-    await backUpCurrentPresets()
-    await replaceCurrentPresetsWithIntelPresets()
-    await filterPartnerPresets()
+    await fetchNewIntelPresets(remoteRepository, sparseCheckoutPattern)
+    await backUpCurrentPresets(presetDirTargetPath, presetDirBakTargetPath)
+    await replaceCurrentPresetsWithIntelPresets(presetDirTargetPath, intelPresetDirPath)
+    await filterPartnerPresets(presetDirTargetPath)
     return {
       result: 'success',
       backupDir: presetDirBakTargetPath,
@@ -61,13 +68,13 @@ export async function updateIntelPresets(
   }
 }
 
-async function fetchNewIntelPresets(remoteRepository: string) {
+async function fetchNewIntelPresets(remoteRepository: string, sparseCheckoutPattern: string) {
   const remoteRepoUrl = `https://github.com/${remoteRepository}`
   logger.info(`fetching intel presets from ${remoteRepoUrl} and ref ${gitRef}`, logSourceName, true)
   const gitExe = existingFileOrError(gitExePath)
   const gitWorkDir = presetDirSpareGitRepoPath
   await prepareSparseGitRepoDir(gitWorkDir)
-  await prepareSparseGitCheckout(gitWorkDir, gitExe, remoteRepoUrl)
+  await prepareSparseGitCheckout(gitWorkDir, gitExe, remoteRepoUrl, sparseCheckoutPattern)
 
   // Check if the git ref exists before attempting checkout
   const refExists = await checkGitRefExists(gitExe, gitWorkDir, gitRef)
@@ -84,19 +91,22 @@ async function fetchNewIntelPresets(remoteRepository: string) {
   await spawnProcessAsync(gitExe, ['checkout', gitRef], processLogHandler, {}, gitWorkDir)
   await spawnProcessAsync(gitExe, ['pull'], processLogHandler, {}, gitWorkDir)
   logger.info(
-    `cloned current intel presets from ${gitRef} into ${presetDirBakTargetPath}`,
+    `cloned current intel presets from ${gitRef} into ${presetDirSpareGitRepoPath}`,
     logSourceName,
     true,
   )
 }
 
-async function backUpCurrentPresets() {
+async function backUpCurrentPresets(presetDirTargetPath: string, presetDirBakTargetPath: string) {
   await copyFileWithDirs(presetDirTargetPath, presetDirBakTargetPath)
   logger.info(`backed up current user presets at ${presetDirBakTargetPath}`, logSourceName, true)
   return
 }
 
-async function replaceCurrentPresetsWithIntelPresets() {
+async function replaceCurrentPresetsWithIntelPresets(
+  presetDirTargetPath: string,
+  intelPresetDirPath: string,
+) {
   if (fs.existsSync(presetDirTargetPath)) {
     logger.warn(`removing previous preset dir at ${presetDirTargetPath}`, logSourceName, true)
     await fs.promises.rm(presetDirTargetPath, { recursive: true, force: true })
@@ -119,7 +129,12 @@ async function prepareSparseGitRepoDir(dirPath: string) {
   logger.info(`reusing existing dir ${dirPath} for fetching remote presets`, logSourceName, true)
 }
 
-async function prepareSparseGitCheckout(workDir: string, gitExe: string, remoteRepoUrl: string) {
+async function prepareSparseGitCheckout(
+  workDir: string,
+  gitExe: string,
+  remoteRepoUrl: string,
+  sparseCheckoutPattern: string,
+) {
   const sparseCheckoutConfigFile = path.join(workDir, '.git', 'info', 'sparse-checkout')
   if (!fs.existsSync(sparseCheckoutConfigFile)) {
     await spawnProcessAsync(gitExe, ['init'], processLogHandler, {}, workDir)
@@ -137,7 +152,7 @@ async function prepareSparseGitCheckout(workDir: string, gitExe: string, remoteR
       {},
       workDir,
     )
-    await fs.promises.writeFile(sparseCheckoutConfigFile, 'WebUI/external/presets/*', {
+    await fs.promises.writeFile(sparseCheckoutConfigFile, sparseCheckoutPattern, {
       encoding: 'utf-8',
       flag: 'w',
     })
@@ -182,7 +197,7 @@ async function checkGitRefExists(gitExe: string, workDir: string, ref: string): 
   }
 }
 
-export async function filterPartnerPresets() {
+export async function filterPartnerPresets(presetDirTargetPath: string) {
   if (!app.isPackaged) return
   const presets = await fs.promises.readdir(presetDirTargetPath, { withFileTypes: true })
   const acerPresets = presets.filter((p) => p.name.startsWith('Acer'))

@@ -8,11 +8,25 @@
         :class="{ 'animate-scale-in': animate }"
       >
         <p v-html="warningMessage"></p>
+        <div
+          v-if="warningDontShowAgainKey"
+          class="flex items-center gap-2 self-start"
+        >
+          <input
+            id="warning-dont-show-again"
+            v-model="dontShowAgainChecked"
+            type="checkbox"
+            class="rounded border-border"
+          />
+          <label for="warning-dont-show-again" class="text-sm cursor-pointer">
+            {{ i18nState.COM_DO_NOT_SHOW_AGAIN }}
+          </label>
+        </div>
         <div class="flex justify-center items-center gap-9">
           <button @click="cancelConfirm" class="bg-muted text-foreground py-1 px-4 rounded">
             {{ i18nState.COM_CANCEL }}
           </button>
-          <button @click="confirmAdd" class="bg-muted text-foreground py-1 px-4 rounded">
+          <button @click="confirmAdd" class="bg-primary text-foreground py-1 px-4 rounded">
             {{ i18nState.COM_CONFIRM }}
           </button>
         </div>
@@ -22,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { storeToRefs } from 'pinia'
@@ -30,11 +44,18 @@ import { storeToRefs } from 'pinia'
 const i18nState = useI18N().state
 const dialogStore = useDialogStore()
 const animate = ref(false)
+const dontShowAgainChecked = ref(false)
 
-const { warningMessage, warningConfirmFunction, warningDialogVisible } = storeToRefs(dialogStore)
+const {
+  warningMessage,
+  warningConfirmFunction,
+  warningDialogVisible,
+  warningDontShowAgainKey,
+} = storeToRefs(dialogStore)
 
 watch(warningDialogVisible, (newValue) => {
   if (newValue) {
+    dontShowAgainChecked.value = false
     animate.value = false
     nextTick(() => {
       animate.value = true
@@ -45,7 +66,12 @@ watch(warningDialogVisible, (newValue) => {
 })
 
 function confirmAdd() {
-  warningConfirmFunction.value()
+  const fn = warningConfirmFunction.value
+  if (warningDontShowAgainKey.value) {
+    fn(dontShowAgainChecked.value)
+  } else {
+    fn()
+  }
   dialogStore.closeWarningDialog()
 }
 

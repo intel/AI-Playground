@@ -23,6 +23,7 @@ from exceptions import DownloadException
 model_list_cache = dict()
 model_lock = Lock()
 
+
 class HFFileItem:
     relpath: str
     size: int
@@ -32,6 +33,7 @@ class HFFileItem:
         self.relpath = relpath
         self.size = size
         self.url = url
+
 
 class HFDownloadItem:
     name: str
@@ -64,7 +66,8 @@ class NotEnoughDiskSpaceException(Exception):
 
 
 def getTmpPath(repo_id: str):
-    return sha256(repo_id.encode('utf-8')).hexdigest()[0:16] + "_tmp"
+    return sha256(repo_id.encode("utf-8")).hexdigest()[0:16] + "_tmp"
+
 
 class HFPlaygroundDownloader:
     fs: HfFileSystem
@@ -86,7 +89,7 @@ class HFPlaygroundDownloader:
     hf_token: str | None
 
     def __init__(self, hf_token=None) -> None:
-        self.fs = HfFileSystem()
+        self.fs = HfFileSystem(token=hf_token)
         self.total_size = 0
         self.download_size = 0
         self.thread_lock = Lock()
@@ -95,18 +98,25 @@ class HFPlaygroundDownloader:
     def hf_url_exists(self, repo_id: str):
         return self.fs.exists(repo_id)
 
-    def probe_type(self, repo_id : str):
+    def probe_type(self, repo_id: str):
         return model_info(utils.trim_repo(repo_id)).pipeline_tag
 
     def is_gated(self, repo_id: str):
         try:
-            info = model_info(utils.trim_repo(repo_id))
-            return info.gated
+            info = model_info(utils.trim_repo(repo_id), token=self.hf_token)
+            return info.gated or info.private
         except Exception as ex:
             print(f"Error while trying to determine whether {repo_id} is gated: {ex}")
             return False
 
-    def download(self, repo_id: str, model_type: str, backend: str, model_path: str, thread_count: int = 4):
+    def download(
+        self,
+        repo_id: str,
+        model_type: str,
+        backend: str,
+        model_path: str,
+        thread_count: int = 4,
+    ):
         print(f"at download {backend}")
         self.repo_id = repo_id
         self.total_size = 0
@@ -127,7 +137,9 @@ class HFPlaygroundDownloader:
         if cache_item is None:
             file_list = list()
             self.populate_file_list(file_list, repo_id, model_type)
-            model_list_cache.__setitem__(key, {"size": self.total_size, "queue": file_list})
+            model_list_cache.__setitem__(
+                key, {"size": self.total_size, "queue": file_list}
+            )
         else:
             self.total_size = cache_item["size"]
             file_list: list = cache_item["queue"]
@@ -163,14 +175,16 @@ class HFPlaygroundDownloader:
                     HFDownloadItem(file.relpath, file.size, file.url, 0, save_filename)
                 )
 
-    def enum_specific_file(self, file_list: List, repo_id: str, model_type: str) -> bool:
+    def enum_specific_file(
+        self, file_list: List, repo_id: str, model_type: str
+    ) -> bool:
         """
         Enumerate a specific file reference (e.g., namespace/repo/file.gguf).
         Returns True if the specific file was successfully added, False otherwise.
         """
         try:
             file_info = self.fs.info(repo_id)
-            size = file_info.get('size', 0)
+            size = file_info.get("size", 0)
             self.total_size += size
 
             relative_path = path.relpath(repo_id, utils.trim_repo(repo_id))
@@ -185,14 +199,18 @@ class HFPlaygroundDownloader:
             print(f"Warning: Failed to get info for specific file {repo_id}: {e}")
             return False
 
-    def populate_file_list(self, file_list: List, repo_id: str, model_type: str) -> None:
+    def populate_file_list(
+        self, file_list: List, repo_id: str, model_type: str
+    ) -> None:
         """
         Populate file list with either specific file or directory enumeration.
         Handles the common pattern of checking if it's a specific file reference,
         and falling back to directory enumeration if needed.
         """
         if is_specific_file_reference(repo_id):
-            specific_file_found = self.enum_specific_file(file_list, repo_id, model_type)
+            specific_file_found = self.enum_specific_file(
+                file_list, repo_id, model_type
+            )
             if not specific_file_found:
                 self.enum_file_list(file_list, repo_id, model_type)
         else:
@@ -261,10 +279,11 @@ class HFPlaygroundDownloader:
                 subfolder = path.dirname(relative_path).replace("\\", "/")
                 filename = path.basename(relative_path)
                 url = hf_hub_url(
-                    repo_id=utils.trim_repo(self.repo_id), subfolder=subfolder, filename=filename
+                    repo_id=utils.trim_repo(self.repo_id),
+                    subfolder=subfolder,
+                    filename=filename,
                 )
                 file_list.append(HFFileItem(relative_path, size, url))
-
 
     def enum_sd_unet(self, file_list: List[str | Dict[str, Any]]):
         cur_level = 0
@@ -311,29 +330,35 @@ class HFPlaygroundDownloader:
             shutil.rmtree(self.save_path_tmp)
 
     def move_to_desired_position(self, retriable: bool = True):
-        desired_repo_root_dir_name = os.path.join(self.save_path, utils.repo_local_root_dir_name(self.repo_id))
+        desired_repo_root_dir_name = os.path.join(
+            self.save_path, utils.repo_local_root_dir_name(self.repo_id)
+        )
         move_to_flat_structure = False
         # face restore and insightface model need to be in a flat structure to work with reactor node
         if "facerestore" in self.save_path or "insightface" in self.save_path:
             move_to_flat_structure = True
-            desired_repo_root_dir_name = path.abspath(path.join(self.save_path, self.repo_id.replace("/", "---")))
+            desired_repo_root_dir_name = path.abspath(
+                path.join(self.save_path, self.repo_id.replace("/", "---"))
+            )
         elif "nsfw_detector" in self.save_path:
             move_to_flat_structure = True
-            desired_repo_root_dir_name = path.abspath(path.join(self.save_path, 'vit-base-nsfw-detector'))
+            desired_repo_root_dir_name = path.abspath(
+                path.join(self.save_path, "vit-base-nsfw-detector")
+            )
             if not os.path.exists(desired_repo_root_dir_name):
                 os.makedirs(desired_repo_root_dir_name)
         try:
             if os.path.exists(desired_repo_root_dir_name) or move_to_flat_structure:
                 for item in os.listdir(self.save_path_tmp):
-                    shutil.move(os.path.join(self.save_path_tmp, item), desired_repo_root_dir_name)
+                    shutil.move(
+                        os.path.join(self.save_path_tmp, item),
+                        desired_repo_root_dir_name,
+                    )
                 shutil.rmtree(self.save_path_tmp)
             else:
-                rename(
-                    self.save_path_tmp,
-                    path.abspath(desired_repo_root_dir_name)
-                )
+                rename(self.save_path_tmp, path.abspath(desired_repo_root_dir_name))
         except Exception as e:
-            if (retriable):
+            if retriable:
                 sleep(5)
                 self.move_to_desired_position(retriable=False)
             else:
@@ -373,36 +398,37 @@ class HFPlaygroundDownloader:
             )
             fw = open(file.save_filename, "ab")
         else:
-            response = requests.get(
-                file.url, stream=True, headers=headers
-            )
+            response = requests.get(file.url, stream=True, headers=headers)
             fw = open(file.save_filename, "wb")
 
         return response, fw
 
-    def is_access_granted(self, repo_id: str, model_type: str, backend : str):
+    def is_access_granted(self, repo_id: str, model_type: str, backend: str):
 
         repo_id = utils.trim_repo(repo_id)
-        headers={}
-        if (self.hf_token is not None):
+        headers = {}
+        if self.hf_token is not None:
             headers["Authorization"] = f"Bearer {self.hf_token}"
 
         self.file_queue = queue.Queue()
         self.repo_id = repo_id
-        self.save_path = path.join(utils.get_model_path(model_type,backend))
+        self.save_path = path.join(utils.get_model_path(model_type, backend))
         self.save_path_tmp = path.abspath(
             path.join(self.save_path, getTmpPath(repo_id))
         )
 
-        file_list = list()
-        self.populate_file_list(file_list, repo_id, model_type)
-        self.build_queue(file_list)
-        file = self.file_queue.get_nowait()
+        try:
+            file_list = list()
+            self.populate_file_list(file_list, repo_id, model_type)
+            self.build_queue(file_list)
+            file = self.file_queue.get_nowait()
+        except Exception as ex:
+            print(f"Error checking access for {repo_id}: {ex}")
+            return False
 
         response = requests.head(file.url, headers=headers, allow_redirects=True)
 
         return response.status_code == 200
-
 
     def download_model_file(self):
         try:
@@ -448,8 +474,12 @@ class HFPlaygroundDownloader:
         self.download_stop = True
 
 
-def test_download_progress(repo_id: int, dowanlod_size: int, total_size: int, speed: int):
-    print(f"download {repo_id} {dowanlod_size/1024}/{total_size /1024}KB  speed {speed}/s")
+def test_download_progress(
+    repo_id: int, dowanlod_size: int, total_size: int, speed: int
+):
+    print(
+        f"download {repo_id} {dowanlod_size / 1024}/{total_size / 1024}KB  speed {speed}/s"
+    )
 
 
 def test_download_complete(repo_id: int, ex: Exception):
@@ -463,7 +493,9 @@ def init():
     downloader = HFPlaygroundDownloader()
     downloader.on_download_progress = test_download_progress
     downloader.on_download_completed = test_download_complete
-    total_size = downloader.download("RunDiffusion/Juggernaut-X-v10", 1, thread_count=1, backend="default")
+    total_size = downloader.download(
+        "RunDiffusion/Juggernaut-X-v10", 1, thread_count=1, backend="default"
+    )
     print(f"total-size: {total_size}")
 
 

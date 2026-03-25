@@ -4,6 +4,7 @@
   "displayPriority": 200,
   "tags": ["SDXL", "JuggernautXL"],
   "description": "Generate images with a likeness you control. Load image with a face to guide the likeness, then describe the character to generate",
+  "extendedDescription": "Generate an image of a person while guiding the likeness from a reference photo. Choose a mode for either fast generation at lower quality vs a higher quality longer generation time. Load an image that has a single face in the image. Describe a scene with a single character. Describe the background, the mood and the pose and profession or aesthetic of the character",
   "backend": "comfyui",
   "category": "create-images",
   "toolCategory": "edit-images",
@@ -123,7 +124,7 @@
     },
     {
       "type": "number",
-      "label": "Safety Checker Strength",
+      "label": "Safety Check",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,
@@ -287,7 +288,7 @@
         "requiredCustomNodes": [
           "Gourieff/comfyui-reactor@d2318ad140582c6d0b68c51df342319b502006ed",
           "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211",
-          "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54"
+          "city96/ComfyUI-GGUF@6ea2651e7df66d7585f6ffee804b20e92fb38b8a"
         ],
         "requiredModels": [
           {

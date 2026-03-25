@@ -28,6 +28,7 @@ const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
 export const usePromptStore = defineStore('prompt', () => {
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
+  const injectedPromptText = ref<string | null>(null)
 
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
   const cancelCallbacks = ref<Partial<Record<ModeType, () => void>>>({})
@@ -51,15 +52,8 @@ export const usePromptStore = defineStore('prompt', () => {
         const dialogStore = useDialogStore()
         const globalSetup = useGlobalSetup()
 
-        const modeNames: Record<ModeType, string> = {
-          imageGen: 'Image Generation',
-          imageEdit: 'Image Editing',
-          video: 'Video Generation',
-          chat: 'Chat',
-        }
-
         dialogStore.showWarningDialog(
-          `ComfyUI is required for ${modeNames[mode]}. Would you like to install it now?`,
+          `This mode requires you to have the ComfyUI backend component installed. You can choose **Confirm** to install now or **Cancel** to install later from App Settings.`,
           () => {
             globalSetup.loadingState = 'manageInstallations'
             dialogStore.closeWarningDialog()
@@ -124,9 +118,14 @@ export const usePromptStore = defineStore('prompt', () => {
     currentMode.value = mode
   }
 
+  function injectPromptText(text: string) {
+    injectedPromptText.value = text
+  }
+
   return {
     currentMode,
     promptSubmitted,
+    injectedPromptText,
     getCurrentMode,
     setCurrentMode,
     setModeOnly,
@@ -136,5 +135,6 @@ export const usePromptStore = defineStore('prompt', () => {
     unregisterSubmitCallback,
     registerCancelCallback,
     unregisterCancelCallback,
+    injectPromptText,
   }
 })

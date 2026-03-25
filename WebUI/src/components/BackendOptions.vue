@@ -79,11 +79,12 @@ const getFormSchema = (backend: BackendServiceName) => {
       )
 
     case 'llamacpp-backend':
-      // LlamaCPP: build numbers like b6048
+      // LlamaCPP: build numbers like b6048, plus optional startup parameters
       return toTypedSchema(
         z
           .object({
             version: z.string().regex(/^b\d+$/, 'Must be a valid build number (e.g. b6048)'),
+            llamaCppParameters: z.string().optional(),
           })
           .passthrough(),
       )
@@ -184,6 +185,12 @@ const getInitialFormValues = () => {
     return {
       ...values,
       comfyUiParameters: backendServices.effectiveComfyUiParameters,
+    }
+  }
+  if (props.backend === 'llamacpp-backend') {
+    return {
+      ...values,
+      llamaCppParameters: backendServices.effectiveLlamaCppParameters,
     }
   }
   return values
@@ -334,7 +341,8 @@ const handleVersionAction = async () => {
 const hasUserOverride = computed(
   () =>
     !!backendServices.versionState[props.backend].uiOverride ||
-    (props.backend === 'comfyui-backend' && backendServices.comfyUiParameters !== null),
+    (props.backend === 'comfyui-backend' && backendServices.comfyUiParameters !== null) ||
+    (props.backend === 'llamacpp-backend' && backendServices.llamaCppParameters !== null),
 )
 
 // Clear the user override
@@ -342,6 +350,9 @@ const clearOverride = () => {
   backendServices.versionState[props.backend].uiOverride = undefined
   if (props.backend === 'comfyui-backend') {
     backendServices.comfyUiParameters = null
+  }
+  if (props.backend === 'llamacpp-backend') {
+    backendServices.llamaCppParameters = null
   }
   settingsDialogOpen.value = false
   menuOpen.value = false
@@ -469,6 +480,16 @@ const showMenuButton = computed(
                       !params || params === backendServices.comfyUiDefaultParameters ? null : params
                   }
 
+                  // Save llamaCppParameters separately (not part of version override)
+                  if (props.backend === 'llamacpp-backend' && 'llamaCppParameters' in values) {
+                    const params = (values as { llamaCppParameters?: string }).llamaCppParameters
+                    // Store null if empty or matches default (meaning 'use default')
+                    backendServices.llamaCppParameters =
+                      !params || params === backendServices.llamaCppDefaultParameters
+                        ? null
+                        : params
+                  }
+
                   settingsDialogOpen = false
                   menuOpen = false
                 })
@@ -553,6 +574,33 @@ const showMenuButton = computed(
                       {{
                         i18nState.BACKEND_COMFYUI_PARAMETERS_DESCRIPTION ||
                         'Command-line arguments passed to ComfyUI on startup. Restart required to apply changes.'
+                      }}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+
+                <!-- LlamaCPP startup parameters -->
+                <FormField
+                  v-if="backend === 'llamacpp-backend'"
+                  v-slot="{ componentField }"
+                  name="llamaCppParameters"
+                >
+                  <FormItem class="mt-4">
+                    <FormLabel>{{
+                      i18nState.BACKEND_LLAMACPP_PARAMETERS_LABEL || 'Startup Parameters'
+                    }}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        :placeholder="backendServices.llamaCppDefaultParameters"
+                        v-bind="componentField"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {{
+                        i18nState.BACKEND_LLAMACPP_PARAMETERS_DESCRIPTION ||
+                        'Command-line arguments passed to llama-server on startup. Applied on next model load.'
                       }}
                     </FormDescription>
                     <FormMessage />
