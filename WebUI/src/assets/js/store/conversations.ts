@@ -1,4 +1,5 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { AipgUiMessage } from './openAiCompatibleChat'
 
 export const useConversations = defineStore(
@@ -60,6 +61,7 @@ export const useConversations = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['conversationList'],
       afterHydrate: (ctx) =>
         addNewConversationIfLatestIsNotEmpty(ctx.store.$state.conversationList),

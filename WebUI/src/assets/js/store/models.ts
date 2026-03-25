@@ -1,4 +1,5 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { LlmBackend } from './textInference'
 import { useBackendServices } from './backendServices'
 
@@ -407,6 +408,7 @@ export const useModels = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['hfToken', 'customModelMetadata', 'hfEndpoint'],
     },
   },

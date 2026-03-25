@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { Chat } from '@ai-sdk/vue'
 import {
   convertToModelMessages,
@@ -126,7 +127,11 @@ export const useOpenAiCompatibleChat = defineStore(
         return {
           ...m,
           content: m.content.map((part) => {
-            if (part.type === 'tool-result' && part.toolName === 'visualizeObjectDetections' && part.output.type === 'json') {
+            if (
+              part.type === 'tool-result' &&
+              part.toolName === 'visualizeObjectDetections' &&
+              part.output.type === 'json'
+            ) {
               return {
                 ...part,
                 output: {
@@ -464,6 +469,7 @@ export const useOpenAiCompatibleChat = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: [],
     },
   },

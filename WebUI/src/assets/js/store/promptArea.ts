@@ -28,6 +28,7 @@ const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
 export const usePromptStore = defineStore('prompt', () => {
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
+  const injectedPromptText = ref<string | null>(null)
 
   const submitCallbacks = ref<Partial<Record<ModeType, (prompt: string) => void>>>({})
   const cancelCallbacks = ref<Partial<Record<ModeType, () => void>>>({})
@@ -117,9 +118,14 @@ export const usePromptStore = defineStore('prompt', () => {
     currentMode.value = mode
   }
 
+  function injectPromptText(text: string) {
+    injectedPromptText.value = text
+  }
+
   return {
     currentMode,
     promptSubmitted,
+    injectedPromptText,
     getCurrentMode,
     setCurrentMode,
     setModeOnly,
@@ -129,5 +135,6 @@ export const usePromptStore = defineStore('prompt', () => {
     unregisterSubmitCallback,
     registerCancelCallback,
     unregisterCancelCallback,
+    injectPromptText,
   }
 })

@@ -23,6 +23,7 @@ comfyui_python_env = "../comfyui-backend-env"
 
 # ComfyUI model paths (defaults only)
 comfy_ui_model_paths = {
+    "checkpoint": "../models/ComfyUI/checkpoints",
     "checkpoints": "../models/ComfyUI/checkpoints",
     "unet": "../models/ComfyUI/unet",
     "clip": "../models/ComfyUI/clip",

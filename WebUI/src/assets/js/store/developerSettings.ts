@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { acceptHMRUpdate } from 'pinia'
+import { demoAwareStorage } from '../demoAwareStorage'
 
 export const useDeveloperSettings = defineStore(
   'developerSettings',
@@ -15,6 +16,7 @@ export const useDeveloperSettings = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['openDevConsoleOnStartup', 'keepModelsLoaded'],
     },
   },

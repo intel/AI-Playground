@@ -107,7 +107,7 @@
           },
           "6": {
             "inputs": {
-              "text": "upperbody shot,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+              "text": "upperbody shot, long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
               "clip": ["10", 1]
             },
             "class_type": "CLIPTextEncode",

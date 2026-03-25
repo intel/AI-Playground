@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { acceptHMRUpdate } from 'pinia'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import { useDialogStore } from './dialogs'
@@ -176,6 +177,7 @@ export const useSpeechToText = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['enabled'],
     },
   },

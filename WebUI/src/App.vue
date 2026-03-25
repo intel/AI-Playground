@@ -15,11 +15,17 @@
     :class="{ 'bg-muted/50': theme.active === 'light' }"
   >
     <div class="flex items-center">
-      <h1 class="select-none flex gap-3 items-baseline">
+      <h1 class="select-none flex gap-2 items-baseline">
         <span style="color: #00c4fa">AI</span>
         <span>PLAYGROUND</span>
+        <span v-if="demoMode.productMode === 'essentials'" class="text-muted-foreground font-medium"
+          >essentials</span
+        >
         <span v-if="platformTitle" class="text-sm font-normal">{{ platformTitle }}</span>
       </h1>
+    </div>
+    <div class="flex items-center">
+      <DemoModeIndicator />
     </div>
     <div class="flex justify-between items-center gap-5">
       <button
@@ -39,6 +45,20 @@
       >
         <ServerStackIcon class="size-6 text-foreground"></ServerStackIcon>
       </button>
+      <div
+        id="demo-buttons-group"
+        v-if="demoMode.enabled && globalSetup.loadingState === 'running'"
+        class="flex gap-2"
+      >
+        <button
+          id="demo-need-help-button"
+          class="bg-demo-button text-white px-3 rounded text-xs cursor-pointer"
+          style="height: 30px; min-width: 90px"
+          @click="triggerHelpForCurrentMode(true)"
+        >
+          {{ languages.DEMO_NEED_HELP }}
+        </button>
+      </div>
       <button
         v-if="!demoMode.enabled"
         :title="languages.COM_MINI"
@@ -135,16 +155,19 @@
     }"
   >
     <SideModalHistory
+      id="history-panel"
       :isVisible="uiStore.showHistory"
       :mode="promptStore.getCurrentMode()"
       @close="uiStore.closeHistory()"
       @conversation-selected="chatRef?.scrollToBottom"
     />
+
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
       <div class="fixed top-18 left-4 z-5">
         <button
+          id="show-history-button"
           v-show="!uiStore.showHistory"
           @click="openHistory"
           class="text-foreground px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
@@ -159,16 +182,20 @@
           'bottom-27': footerExpanded,
         }"
       >
-        <button
-          @click="openAppSettings"
-          class="svg-icon i-setup w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
-          title="App Settings"
-        ></button>
-        <button
-          @click="openDevTools"
-          class="svg-icon i-code w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
-          title="Developer Tools"
-        ></button>
+        <div id="app-settings-button" class="relative">
+          <button
+            @click="openAppSettings"
+            class="svg-icon i-setup w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
+            title="App Settings"
+          ></button>
+        </div>
+        <DemoModeBlocker>
+          <button
+            @click="openDevTools"
+            class="svg-icon i-code w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
+            title="Developer Tools"
+          ></button>
+        </DemoModeBlocker>
       </div>
       <Chat v-if="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
       <WorkflowResult
@@ -207,6 +234,11 @@
       v-show="dialogStore.installationProgressDialogVisible"
     ></installation-progress-dialog>
     <MaskEditorDialog />
+
+    <!-- Demo Mode Overlay -->
+    <DemoModeOverlayDriverJsRef ref="demoModeOverlayDriverJs" />
+    <DemoModeNotificationDots />
+    <DemoModeAutoresetDialog v-if="demoMode.showResetDialog" />
   </main>
 
   <footer
@@ -273,6 +305,7 @@ import WarningDialog from '@/components/WarningDialog.vue'
 import PresetRequirementsDialog from '@/components/PresetRequirementsDialog.vue'
 import InstallationProgressDialog from '@/components/InstallationProgressDialog.vue'
 import MaskEditorDialog from '@/components/MaskEditorDialog.vue'
+import DemoModeIndicator from '@/components/DemoModeIndicator.vue'
 import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
@@ -288,6 +321,10 @@ import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vu
 import { useUIStore } from '@/assets/js/store/ui.ts'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
 import * as toast from '@/assets/js/toast'
+import DemoModeOverlayDriverJsRef from './components/DemoModeOverlayDriverJs.vue'
+import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
+import DemoModeNotificationDots from '@/components/DemoModeNotificationDots.vue'
+import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 
 const backendServices = useBackendServices()
 const theme = useTheme()
@@ -299,6 +336,7 @@ const uiStore = useUIStore()
 const speechToText = useSpeechToText()
 
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
+const demoModeOverlayDriverJs = ref<InstanceType<typeof DemoModeOverlayDriverJsRef>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
@@ -469,6 +507,29 @@ function openSpecificSettings() {
 }
 
 function openAppSettings() {
+  if (demoMode.triggerFirstTimeHelp('app-settings-button')) return
   showAppSettings.value = true
 }
+
+function triggerHelpForCurrentMode(_force = false) {
+  demoModeOverlayDriverJs.value?.triggerContextHelp?.(
+    promptStore.getCurrentMode(),
+    showAppSettings.value,
+    showSpecificSettings.value,
+  )
+}
+
+function startTour() {
+  demoModeOverlayDriverJs.value?.startTour?.()
+}
+
+watch(
+  () => globalSetup.loadingState,
+  (state) => {
+    if (state === 'running' && demoMode.enabled) {
+      void demoMode.applyExplicitDefaults()
+      setTimeout(() => startTour(), 2200)
+    }
+  },
+)
 </script>

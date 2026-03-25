@@ -10,15 +10,14 @@ export const aipgBaseDir = app.isPackaged
   : path.join(__dirname, '../../../')
 const buildResources = app.isPackaged ? aipgBaseDir : path.join(aipgBaseDir, 'build', 'resources')
 const uvPath = path.join(buildResources, 'uv.exe')
-const uvEnv = (extraEnv = {}) => (
-  {
-    ...process.env,
-    UV_NO_ENV_FILE: '1',
-    UV_NO_CONFIG: '1',
-    UV_PYTHON_INSTALL_DIR: path.join(aipgBaseDir, 'python-interpreter'),
-    VIRTUAL_ENV: undefined,
-    ...extraEnv
-  })
+const uvEnv = (extraEnv = {}) => ({
+  ...process.env,
+  UV_NO_ENV_FILE: '1',
+  UV_NO_CONFIG: '1',
+  UV_PYTHON_INSTALL_DIR: path.join(aipgBaseDir, 'python-interpreter'),
+  VIRTUAL_ENV: undefined,
+  ...extraEnv,
+})
 
 const assertUv = async (logger: ReturnType<typeof loggerFor>) => {
   try {
@@ -187,9 +186,19 @@ export const pipInstallRequirementsFromFile = async (
 export const installBackend = async (backend: string, onCacheCorruptionDetected?: () => void) => {
   const logger = loggerFor(`uv.sync.${backend}`)
   await assertUv(logger)
-  const uvVenvCommand = ['venv', '--directory', aipgBaseDir, '--project', backend, '--allow-existing', '--relocatable']
+  const uvVenvCommand = [
+    'venv',
+    '--directory',
+    aipgBaseDir,
+    '--project',
+    backend,
+    '--allow-existing',
+    '--relocatable',
+  ]
   const uvSyncCommand = ['sync', '--directory', aipgBaseDir, '--project', backend]
-  logger.info(`Installing backend: ${backend} with ${JSON.stringify(uvVenvCommand)} and ${JSON.stringify(uvSyncCommand)}`)
+  logger.info(
+    `Installing backend: ${backend} with ${JSON.stringify(uvVenvCommand)} and ${JSON.stringify(uvSyncCommand)}`,
+  )
   try {
     await uv(uvVenvCommand, logger)
     return await uv(uvSyncCommand, logger)

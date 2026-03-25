@@ -278,7 +278,11 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }
 
   private async installComfyUiFlexibleDeps(): Promise<void> {
-    const flexiblePyprojectSource = path.join(aipgBaseDir, 'comfyui-deps', 'pyproject-flexible-venv.toml')
+    const flexiblePyprojectSource = path.join(
+      aipgBaseDir,
+      'comfyui-deps',
+      'pyproject-flexible-venv.toml',
+    )
     const pyprojectTarget = path.join(this.serviceDir, 'pyproject.toml')
     const backupPath = path.join(this.serviceDir, UPSTREAM_PYPROJECT_BACKUP)
     const requirementsPath = path.join(this.serviceDir, 'requirements.txt')
@@ -448,7 +452,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           )
           await filesystem.copyFile(pyprojectSource, pyprojectTarget)
           await filesystem.copyFile(uvLockSource, uvLockTarget)
-          this.appLogger.info('Installing ComfyUI dependencies using bundled uv (locked)', this.name)
+          this.appLogger.info(
+            'Installing ComfyUI dependencies using bundled uv (locked)',
+            this.name,
+          )
           await installBackend(this.serviceFolder, () => {
             this.win.webContents.send('show-toast', {
               type: 'warning',

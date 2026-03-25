@@ -1,6 +1,8 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { watch } from 'vue'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { useComfyUiPresets } from './comfyUiPresets'
+import { useDemoMode } from './demoMode'
 import { useI18N } from './i18n'
 import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from './backendServices'
@@ -34,6 +36,11 @@ import { useUIStore } from './ui'
 import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
 import { imageUrlToDataUri, saveImageToMediaInput } from '@/lib/utils'
+import {
+  getDemoModeInputImage,
+  getDemoModeSketchInputImage,
+  getDemoModeUpscaleInputImage,
+} from './demoModeDefaults'
 
 export type GenerateState =
   | 'no_start'
@@ -130,6 +137,7 @@ export { findBestResolution } from './imageGenerationUtils'
 export const useImageGenerationPresets = defineStore(
   'imageGenerationPresets',
   () => {
+    const demoMode = useDemoMode()
     const presetsStore = usePresets()
     const comfyUi = useComfyUiPresets()
     const backendServices = useBackendServices()
@@ -520,6 +528,50 @@ export const useImageGenerationPresets = defineStore(
           console.log('### loaded image into first dynamic image input', image.id)
         }
       }
+
+      preloadImageDuringDemo()
+    }
+
+    async function preloadImageDuringDemo() {
+      if (demoMode.enabled && activePreset.value?.category === 'edit-images') {
+        const imageInput = comfyInputs.value.find((input) => input.type === 'image')
+        let demoImage: string | null
+        switch (activePreset.value?.name) {
+          case 'Sketch to Photo':
+            demoImage = getDemoModeSketchInputImage()
+            break
+          case 'Upscale':
+            demoImage = getDemoModeUpscaleInputImage()
+            break
+          default:
+            demoImage = getDemoModeInputImage()
+        }
+        if (imageInput && demoImage) {
+          imageInput.current.value = await imageUrlToDataUri(demoImage)
+        }
+
+        // Also add the demo image to the history if not already present for this preset
+        if (demoImage) {
+          const alreadyInHistory = generatedImages.value.some(
+            (img) =>
+              img.mode === 'imageEdit' &&
+              img.type === 'image' &&
+              img.fromImageGen &&
+              img.sourceImageUrl === demoImage,
+          )
+          if (!alreadyInHistory) {
+            const sourceItem: ImageMediaItem = {
+              id: 'demo-source',
+              type: 'image',
+              state: 'done',
+              mode: 'imageEdit',
+              imageUrl: demoImage,
+              settings: {},
+            }
+            await copyImageAsInputForMode(sourceItem, 'imageEdit')
+          }
+        }
+      }
     }
 
     async function copyImageAsInputForMode(image: MediaItem, mode: WorkflowModeType) {
@@ -784,6 +836,7 @@ export const useImageGenerationPresets = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       debug: true,
       pick: ['settingsPerPreset', 'comfyInputsPerPreset', 'generatedImages'],
       serializer: {

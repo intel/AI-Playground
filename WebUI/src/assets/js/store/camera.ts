@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { demoAwareStorage } from '../demoAwareStorage'
 
 export type CameraDevice = {
   deviceId: string
@@ -136,6 +137,7 @@ export const useCameraStore = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['selectedDeviceId'],
     },
   },

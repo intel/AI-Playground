@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { z } from 'zod'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices, type BackendServiceName } from './backendServices'
 import { useModels } from './models'
 import { Document } from '@langchain/classic/document'
@@ -1307,6 +1308,9 @@ export const useTextInference = defineStore(
       checkModelAvailability,
       prepareRagContext,
 
+      // NPU support
+      runningOnOpenvinoNpu,
+
       // Preset management
       activePreset,
       resetActivePresetSettings,
@@ -1339,6 +1343,7 @@ export const useTextInference = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: [
         'backend',
         'selectedModels',

@@ -309,7 +309,7 @@ async function initializeDownloadDialog() {
     })
     const gatedResponse = await fetch(`${globalSetup.apiHost}/api/isModelGated`, {
       method: 'POST',
-      body: JSON.stringify(downloadList.value),
+      body: JSON.stringify([downloadList.value, models.hfToken]),
       headers: {
         'Content-Type': 'application/json',
       },

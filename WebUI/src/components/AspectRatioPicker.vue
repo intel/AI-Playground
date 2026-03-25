@@ -6,6 +6,7 @@
         :title="'Megapixels'"
         :value="megaPixelsIndex.toString()"
         :items="megaPixelsDropdownItems"
+        :disabled="props.disabled || demoMode.enabled"
         @change="
           (value) => {
             megaPixelsIndex = parseInt(value)
@@ -75,7 +76,7 @@
           type="number"
           min="1"
           class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled"
+          :disabled="props.disabled || demoMode.enabled"
         />
         <span class="text-muted-foreground">×</span>
         <input
@@ -83,7 +84,7 @@
           type="number"
           min="1"
           class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled"
+          :disabled="props.disabled || demoMode.enabled"
         />
       </div>
     </div>
@@ -103,8 +104,11 @@ import {
 import type { ComfyUiPreset } from '@/assets/js/store/presets'
 import { Label } from '@/components/ui/label'
 import DropDownNew from '@/components/DropDownNew.vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 
 const props = defineProps<SliderRootProps & { class?: string }>()
+
+const demoMode = useDemoMode()
 
 const imageGeneration = useImageGenerationPresets()
 

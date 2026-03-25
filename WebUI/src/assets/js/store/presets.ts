@@ -1,6 +1,7 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { z } from 'zod'
 import { ref, computed } from 'vue'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 
 // DeepPartial utility type
@@ -705,6 +706,7 @@ export const usePresets = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['activePresetName', 'activeVariantName', 'settingsPerPreset', 'lastUsedPresetName'],
     },
   },

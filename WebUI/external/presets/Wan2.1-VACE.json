@@ -16,7 +16,7 @@
     "useLookupTable": false
   },
   "requiredCustomNodes": [
-    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+    "city96/ComfyUI-GGUF@6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
     "Kosinkadink/ComfyUI-VideoHelperSuite@a7ce59e381934733bfae03b1be029756d6ce936d",
     "Fannovel16/comfyui_controlnet_aux@59b027e088c1c8facf7258f6e392d16d204b4d27"
   ],
@@ -155,24 +155,50 @@
         "comfyUiApiWorkflow": {
           "105": {
             "inputs": {
+              "text": "",
               "clip": ["115", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Positive Prompt)"
             }
           },
           "107": {
             "inputs": {
+              "text": "nsfw",
               "clip": ["115", 1]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+              "title": "CLIP Text Encode (Negative Prompt)"
             }
           },
           "108": {
             "inputs": {
+              "seed": 0,
               "steps": 4,
               "cfg": 1,
-              "model": ["110", 0]
+              "sampler_name": "uni_pc",
+              "scheduler": "simple",
+              "denoise": 1,
+              "model": ["110", 0],
+              "positive": ["109", 0],
+              "negative": ["109", 1],
+              "latent_image": ["109", 2]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
             }
           },
           "110": {
             "inputs": {
+              "shift": 8,
               "model": ["115", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": {
+              "title": "ModelSamplingSD3"
             }
           },
           "115": {

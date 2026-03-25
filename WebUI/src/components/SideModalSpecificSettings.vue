@@ -1,5 +1,6 @@
 <template>
   <SideModalBase
+    id="advanced-settings-sidebar"
     :is-visible="isVisible"
     :title="`${mapModeToLabel(mode)} Settings`"
     side="right"

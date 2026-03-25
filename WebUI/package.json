@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "type-check": "vue-tsc --noEmit",
     "lint:ci": "eslint .",
-    "format:ci": "prettier --check ."
+    "format:ci": "prettier --check .",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",
@@ -37,6 +38,7 @@
     "clsx": "^2.1.1",
     "cross-env": "^10.1.0",
     "dompurify": "^3.3.3",
+    "driver.js": "^1.4.0",
     "extract-zip": "^2.0.1",
     "get-port": "^7.1.0",
     "koffi": "^2.15.2",

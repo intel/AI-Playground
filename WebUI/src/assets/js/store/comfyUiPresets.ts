@@ -1,5 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { ComfyUIApiWorkflow } from './presets'
 import {
   useImageGenerationPresets,
@@ -1168,6 +1169,7 @@ export const useComfyUiPresets = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: [],
     },
   },

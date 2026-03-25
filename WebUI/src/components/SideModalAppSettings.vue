@@ -1,5 +1,11 @@
 <template>
-  <SideModalBase :is-visible="isVisible" title="App Settings" side="left" @close="$emit('close')">
+  <SideModalBase
+    id="app-settings-sidebar"
+    :is-visible="isVisible"
+    title="App Settings"
+    side="left"
+    @close="$emit('close')"
+  >
     <SettingsBasic />
   </SideModalBase>
 </template>

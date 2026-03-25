@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import z from 'zod'
+import { demoAwareStorage } from '../demoAwareStorage'
 
 const backends = [
   'openvino-backend',
@@ -514,6 +515,7 @@ export const useBackendServices = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: [
         'versionOverrides',
         'lastSelectedDeviceIdPerBackend',

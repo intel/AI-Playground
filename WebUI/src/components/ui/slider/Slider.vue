@@ -45,7 +45,7 @@ const handleValueCommit = (value: number[]) => {
   <SliderRoot
     :class="
       cn(
-        'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full',
+        'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed data-[disabled]:pointer-events-none',
         props.class,
       )
     "
@@ -62,7 +62,7 @@ const handleValueCommit = (value: number[]) => {
     <SliderThumb
       v-for="(_, key) in internalModelValue"
       :key="key"
-      class="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+      class="block h-5 w-5 cursor-pointer rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[disabled]:cursor-default data-[disabled]:pointer-events-none"
     />
   </SliderRoot>
 </template>

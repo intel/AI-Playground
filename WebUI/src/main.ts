@@ -4,8 +4,10 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { useI18N } from './assets/js/store/i18n'
 
+const settings = await window.electronAPI.getDemoModeSettings()
+window.__AIPG_DEMO_MODE__ = settings.isDemoModeEnabled
+
 const app = createApp(App)
-app.use(createPinia())
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 app.use(pinia)

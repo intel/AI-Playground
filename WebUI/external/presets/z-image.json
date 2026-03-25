@@ -21,7 +21,7 @@
     "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
   },
   "requiredCustomNodes": [
-    "city96/ComfyUI-GGUF@b3ec875a68d94b758914fd48d30571d953bb7a54",
+    "city96/ComfyUI-GGUF@6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],

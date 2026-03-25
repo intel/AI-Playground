@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { Ollama } from 'ollama/browser'
+import { demoAwareStorage } from '../demoAwareStorage'
 import { useTextInference } from './textInference'
 
 export const useOllama = defineStore(
@@ -37,6 +38,7 @@ export const useOllama = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: [],
     },
   },

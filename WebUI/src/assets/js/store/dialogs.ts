@@ -1,6 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref } from 'vue'
-import { parse } from '../markdownParser';
+import { parse } from '../markdownParser'
 
 // todo: Consider adding "add-l-l-m-dialog" as well
 export type PresetRequirementsData = {

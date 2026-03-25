@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { demoAwareStorage } from '../demoAwareStorage'
 
 const knownThemes: Theme[] = ['dark', 'lnl', 'bmg', 'light']
 export const useTheme = defineStore(
@@ -31,6 +32,7 @@ export const useTheme = defineStore(
   },
   {
     persist: {
+      storage: demoAwareStorage,
       pick: ['selected'],
     },
   },

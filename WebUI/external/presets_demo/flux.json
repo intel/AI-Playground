@@ -1,0 +1,320 @@
+{
+  "type": "comfy",
+  "name": "Pro Image",
+  "displayPriority": 300,
+  "tags": ["Flux.2-Klein"],
+  "description": "Precisely generate images, with text and adherence to prompt using Flux.2-Klein",
+  "backend": "comfyui",
+  "category": "create-images",
+  "mediaType": "image",
+  "toolCategory": "create-images",
+  "toolInstructions": "Generate a detailed, descriptive prompt that includes: subject details, composition, style, lighting, colors, mood, and quality tags. Flux.1-Schnell produces very high quality images with excellent prompt understanding, so be specific about artistic style, composition, and visual details. Even if the user requests something simple like 'a landscape', expand it to a full prompt like 'a breathtaking mountain landscape at sunset, dramatic clouds, golden hour lighting, cinematic composition, highly detailed, photorealistic, 8k, professional photography, wide angle view'.",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 },
+      { "label": "0.8", "totalPixels": 802816 },
+      { "label": "1.0", "totalPixels": 1048576 },
+      { "label": "1.2", "totalPixels": 1254400 },
+      { "label": "1.5", "totalPixels": 1557504 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
+  },
+  "requiredCustomNodes": [
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "black-forest-labs/FLUX.2-klein-4b-fp8/flux-2-klein-4b-fp8.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/text_encoders/qwen_3_4b_fp4_flux2.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/vae-text-encorder-for-flux-klein-4b/split_files/vae/flux2-vae.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 4,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "1024x1024",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "number",
+      "label": "Safety Checker Strength",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.93,
+      "displayed": true,
+      "modifiable": false
+    },
+    {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": false,
+      "defaultValue": false,
+      "settingName": "showPreview"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "1": {
+      "inputs": {
+        "unet_name": "black-forest-labs---FLUX.2-klein-4b-fp8\\flux-2-klein-4b-fp8.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "inputs": {
+        "clip_name": "Comfy-Org---vae-text-encorder-for-flux-klein-4b\\split_files\\text_encoders\\qwen_3_4b_fp4_flux2.safetensors",
+        "type": "flux2",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "3": {
+      "inputs": {
+        "vae_name": "Comfy-Org---vae-text-encorder-for-flux-klein-4b\\split_files\\vae\\flux2-vae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "inputs": {
+        "text": "cheese",
+        "clip": ["2", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "5": {
+      "inputs": {
+        "conditioning": ["4", 0]
+      },
+      "class_type": "ConditioningZeroOut",
+      "_meta": {
+        "title": "ConditioningZeroOut"
+      }
+    },
+    "6": {
+      "inputs": {
+        "cfg": 1.1,
+        "model": ["1", 0],
+        "positive": ["4", 0],
+        "negative": ["5", 0]
+      },
+      "class_type": "CFGGuider",
+      "_meta": {
+        "title": "CFGGuider"
+      }
+    },
+    "7": {
+      "inputs": {
+        "steps": 4,
+        "width": ["16", 0],
+        "height": ["17", 0]
+      },
+      "class_type": "Flux2Scheduler",
+      "_meta": {
+        "title": "Flux2Scheduler"
+      }
+    },
+    "8": {
+      "inputs": {
+        "width": ["16", 0],
+        "height": ["17", 0],
+        "batch_size": 1
+      },
+      "class_type": "EmptyFlux2LatentImage",
+      "_meta": {
+        "title": "EmptyFlux2LatentImage"
+      }
+    },
+    "9": {
+      "inputs": {
+        "noise_seed": 853476
+      },
+      "class_type": "RandomNoise",
+      "_meta": {
+        "title": "RandomNoise"
+      }
+    },
+    "10": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": {
+        "title": "KSamplerSelect"
+      }
+    },
+    "11": {
+      "inputs": {
+        "noise": ["9", 0],
+        "guider": ["6", 0],
+        "sampler": ["10", 0],
+        "sigmas": ["7", 0],
+        "latent_image": ["8", 0]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "12": {
+      "inputs": {
+        "samples": ["11", 0],
+        "vae": ["3", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "13": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["98", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["12", 0]
+      },
+      "class_type": "SafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.93
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
+      }
+    },
+    "16": {
+      "inputs": {
+        "a": 1248,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "width"
+      }
+    },
+    "17": {
+      "inputs": {
+        "a": 1248,
+        "b": 0,
+        "operation": "add"
+      },
+      "class_type": "IntMathOperation",
+      "_meta": {
+        "title": "height"
+      }
+    }
+  }
+}

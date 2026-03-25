@@ -50,7 +50,6 @@
           @click="showUploader = !showUploader"
           :disabled="processing"
           :title="languages.ANSWER_RAG_OPEN_DIALOG"
-          :class="{ 'demo-mode-overlay-content': demoMode.answer.show }"
         >
           <span>{{ documentButtonText }}</span>
         </Button>
@@ -173,7 +172,6 @@ import ModelSelector from '@/components/ModelSelector.vue'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
-import { useDemoMode } from '@/assets/js/store/demoMode.ts'
 import Rag from '@/components/Rag.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
@@ -189,7 +187,6 @@ const i18nState = useI18N().state
 const textInference = useTextInference()
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
-const demoMode = useDemoMode()
 const backendServices = useBackendServices()
 
 // Get the active chat preset

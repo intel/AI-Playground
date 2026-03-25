@@ -1,4 +1,5 @@
 declare interface Window {
+  __AIPG_DEMO_MODE__?: boolean
   chrome: Chrome
   electronAPI: electronAPI
   envVars: { platformTitle: string; productVersion: string; debugToolsEnabled: boolean }
@@ -21,13 +22,40 @@ type ServiceSettings = {
   llamaCppParameters?: string
 }
 
+type SamplePrompt = {
+  title: string
+  description: string
+  prompt: string
+  mode: ModeType
+  presetName?: string
+}
+
+type DemoProfile = {
+  defaults: {
+    chatPreset: string
+    chatModel: string
+    imageGenPreset?: string
+    imageEditPreset?: string
+  }
+  inputImage: string | null
+  samplePrompts: SamplePrompt[]
+  enabledModes: ModeType[]
+  notificationDotButtons: string[]
+}
+
+type ProductMode = 'professional' | 'essentials'
+
 type DemoModeSettings = {
   isDemoModeEnabled: boolean
   demoModeResetInSeconds: null | number
+  demoModePasscode?: string
+  productMode: ProductMode
+  profile?: DemoProfile | null
 }
 
-// AipgPage type kept for backward compatibility with demoMode, but old UI pages are no longer used
+// AipgPage type kept for backward compatibility with getInitialPage IPC handler
 type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
+type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
 type ModeType = 'chat' | WorkflowModeType
 
