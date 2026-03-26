@@ -98,7 +98,9 @@
 
         <div v-if="modifiableOrDisplayed('seed')" class="flex flex-col gap-2">
           <div class="flex items-center justify-between gap-2 min-w-0 max-w-[120px]">
-            <Label class="truncate min-w-0"> {{ languages.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }} </Label>
+            <Label class="truncate min-w-0">
+              {{ languages.SETTINGS_MODEL_SEED }}: {{ imageGeneration.seed }}
+            </Label>
             <Tooltip>
               <TooltipTrigger as-child>
                 <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
@@ -156,7 +158,9 @@
           class="max-w-md mx-auto flex items-center gap-2"
         >
           <a
-            :href="backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl"
+            :href="
+              backendServices.info.find((item) => item.serviceName === 'comfyui-backend')?.baseUrl
+            "
             target="_blank"
             class="flex-1"
           >
@@ -172,8 +176,8 @@
           </Tooltip>
         </div>
 
-      <!-- todo: needs to actually do something -->
-      <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
+        <!-- todo: needs to actually do something -->
+        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
       </div>
     </TooltipProvider>
   </div>

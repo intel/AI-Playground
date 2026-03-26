@@ -14,6 +14,7 @@ import { binary, extract } from './tools.ts'
 const execAsync = promisify(exec)
 
 export const LLAMACPP_DEFAULT_PARAMETERS = '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa off'
+const platformExtension = process.platform === 'darwin' ? 'tar.gz' : 'zip'
 
 interface LlamaServerProcess {
   process: ChildProcess
@@ -88,7 +89,7 @@ export class LlamaCppBackendService implements ApiService {
     this.serviceDir = path.resolve(path.join(this.baseDir, 'LlamaCPP'))
     this.llamaCppDir = path.resolve(path.join(this.serviceDir, 'llama-cpp'))
     this.llamaCppExePath = path.resolve(path.join(this.llamaCppDir, binary('llama-server')))
-    this.zipPath = path.resolve(path.join(this.serviceDir, 'llama-cpp.zip'))
+    this.zipPath = path.resolve(path.join(this.serviceDir, `llama-cpp.${platformExtension}`))
 
     // Check if already set up
     this.isSetUp = this.serviceIsSetUp()
@@ -439,7 +440,7 @@ export class LlamaCppBackendService implements ApiService {
 
   private async downloadLlamacpp(): Promise<void> {
     const platformArch = process.platform === 'darwin' ? 'macos-arm64' : 'win-vulkan-x64'
-    const downloadUrl = `https://github.com/ggml-org/llama.cpp/releases/download/${this.version}/llama-${this.version}-bin-${platformArch}.zip`
+    const downloadUrl = `https://github.com/ggml-org/llama.cpp/releases/download/${this.version}/llama-${this.version}-bin-${platformArch}.${platformExtension}`
     this.appLogger.info(`Downloading Llamacpp from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
@@ -476,12 +477,16 @@ export class LlamaCppBackendService implements ApiService {
     try {
       await extract(this.zipPath, this.llamaCppDir)
       if (process.platform !== 'win32') {
-        filesystem.readdirSync(path.join(this.llamaCppDir, 'build/bin')).forEach((file) => {
-          filesystem.renameSync(
-            path.join(this.llamaCppDir, 'build/bin', file),
-            path.join(this.llamaCppDir, file),
-          )
-        })
+        const llamaServerBinary = binary('llama-server')
+        if (!filesystem.existsSync(path.join(this.llamaCppDir, llamaServerBinary))) {
+          const sourceDir = this.findParentOfBinary(this.llamaCppDir, llamaServerBinary)
+          if (!sourceDir) {
+            throw new Error(`Could not find ${llamaServerBinary} in extracted LlamaCPP archive`)
+          }
+          for (const file of filesystem.readdirSync(sourceDir)) {
+            filesystem.renameSync(path.join(sourceDir, file), path.join(this.llamaCppDir, file))
+          }
+        }
       }
 
       this.appLogger.info(`LlamaCPP extracted successfully`, this.name)
@@ -489,6 +494,18 @@ export class LlamaCppBackendService implements ApiService {
       this.appLogger.error(`Failed to extract LlamaCPP: ${error}`, this.name)
       throw error
     }
+  }
+
+  private findParentOfBinary(dir: string, binaryName: string): string | undefined {
+    for (const entry of filesystem.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isFile() && entry.name === binaryName) return dir
+      if (entry.isDirectory()) {
+        const found = this.findParentOfBinary(fullPath, binaryName)
+        if (found) return found
+      }
+    }
+    return undefined
   }
 
   async start(): Promise<BackendStatus> {

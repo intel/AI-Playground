@@ -221,9 +221,7 @@ const hasMaskEditing = computed(() => {
 })
 
 // i18n key for setting tooltips (e.g. Safety Check)
-function getSettingTooltipKey(
-  input: (typeof imageGeneration.comfyInputs)[0],
-): string | undefined {
+function getSettingTooltipKey(input: (typeof imageGeneration.comfyInputs)[0]): string | undefined {
   if (input.label === 'Safety Check' || input.nodeTitle === 'SafetyCheckerStrength') {
     return 'SETTINGS_IMAGE_INFO_SAFETY_CHECKER'
   }

@@ -54,14 +54,11 @@
               "
               alt="Generated Image"
             />
-            <div
+            <MarkdownRenderer
               :class="textInference.fontSizeClass"
-              v-html="
-                sanitizeMarkdown(
-                  parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string,
-                )
-              "
-            ></div>
+              :content="message.parts.find((part) => part.type === 'text')?.text ?? ''"
+              :on-copy="copyText"
+            />
             <button
               class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
               :title="languages.COM_COPY"
@@ -161,25 +158,17 @@
                     <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4" />
                   </button>
                 </div>
-                <div
+                <MarkdownRenderer
                   v-if="showThinkingTextPerMessageId[message.id]"
                   class="border-l-2 border-border pl-4 text-muted-foreground"
-                  v-html="
-                    sanitizeMarkdown(
-                      parse(
-                        message.parts.find((part) => part.type === 'reasoning')?.text ?? '',
-                      ) as string,
-                    )
-                  "
-                ></div>
+                  :content="message.parts.find((part) => part.type === 'reasoning')?.text ?? ''"
+                  :on-copy="copyText"
+                />
               </template>
-              <div
-                v-html="
-                  sanitizeMarkdown(
-                    parse(message.parts.find((part) => part.type === 'text')?.text ?? '') as string,
-                  )
-                "
-              ></div>
+              <MarkdownRenderer
+                :content="message.parts.find((part) => part.type === 'text')?.text ?? ''"
+                :on-copy="copyText"
+              />
 
               <!-- Render tool parts -->
               <template
@@ -316,8 +305,7 @@
 import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
-import { parse } from '@/assets/js/markdownParser.ts'
-import { sanitizeMarkdown } from '@/lib/sanitize'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
@@ -330,7 +318,6 @@ import {
 import { useComfyUiPresets } from '@/assets/js/store/comfyUiPresets'
 import { ToolUIPart } from 'ai'
 import { AipgTools } from '@/assets/js/tools/tools'
-import { base64ToString } from 'uint8array-extras'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
@@ -397,16 +384,6 @@ watch(
     if (autoScrollEnabled.value) {
       nextTick(() => scrollToBottom())
     }
-    nextTick(() => {
-      if (chatPanel.value) {
-        chatPanel.value.querySelectorAll('.copy-code').forEach((item) => {
-          const el = item as HTMLElement
-          el.classList.remove('hidden')
-          el.removeEventListener('click', copyCode)
-          el.addEventListener('click', copyCode)
-        })
-      }
-    })
   },
   { deep: true, immediate: true },
 )
@@ -455,12 +432,6 @@ function scrollToBottom(smooth = true) {
       behavior: smooth ? 'smooth' : 'auto',
     })
   }
-}
-
-function copyCode(e: MouseEvent) {
-  if (!(e.target instanceof HTMLElement)) return
-  if (!e.target?.dataset?.code) return
-  copyText(base64ToString(e.target?.dataset?.code))
 }
 
 function copyText(text: string) {
@@ -663,7 +634,7 @@ watch(
 </script>
 
 <style>
-.shiki {
+.hljs {
   padding-left: 0.5rem;
   border-bottom-left-radius: calc(var(--radius) - 2px);
   border-bottom-right-radius: calc(var(--radius) - 2px);

@@ -36,13 +36,18 @@
           <TooltipProvider v-if="extendedDescription" :delay-duration="200">
             <Tooltip>
               <TooltipTrigger as-child>
-                <InformationCircleIcon class="w-6 h-6 stroke-2 text-muted-foreground/60 cursor-help" />
+                <InformationCircleIcon
+                  class="w-6 h-6 stroke-2 text-muted-foreground/60 cursor-help"
+                />
               </TooltipTrigger>
-              <TooltipContent side="right" class="max-w-[320px] text-sm text-justify whitespace-pre-line">
+              <TooltipContent
+                side="right"
+                class="max-w-[320px] text-sm text-justify whitespace-pre-line"
+              >
                 {{ extendedDescription }}
               </TooltipContent>
             </Tooltip>
-        </TooltipProvider>
+          </TooltipProvider>
         </div>
         <VariantSelector
           v-if="selectedPreset.variants && selectedPreset.variants.length > 0"
@@ -84,7 +89,7 @@ import VariantSelector, { type VariantOption } from '@/components/VariantSelecto
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import * as toast from '@/assets/js/toast'
-import { InformationCircleIcon} from '@heroicons/vue/24/outline'
+import { InformationCircleIcon } from '@heroicons/vue/24/outline'
 interface Props {
   categories?: string[]
   type?: string
