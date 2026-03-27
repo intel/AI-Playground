@@ -139,14 +139,6 @@
     "maxContextSize": 131072
   },
   {
-    "name": "OpenVINO/Mistral-7B-Instruct-v0.2-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 32768
-  },
-  {
     "name": "OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": false,
@@ -211,15 +203,6 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "maxContextSize": 32768
-  },
-  {
-    "name": "OpenVINO/Phi-3-mini-4k-instruct-int4-gq-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 4096,
-    "npuSupport": true
   },
   {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-gq-ov",
