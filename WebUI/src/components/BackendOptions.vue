@@ -90,13 +90,18 @@ const getFormSchema = (backend: BackendServiceName) => {
       )
 
     case 'openvino-backend':
-      // OpenVINO: package versions like 2025.2.0 or 2025.2.0.1
+      // OpenVINO: version like 2025.2.0, optional releaseTag (hex hash) for weekly builds
       return toTypedSchema(
         z
           .object({
             version: z
               .string()
               .regex(/^\d+\.\d+\.\d+(\.\d+)?$/, 'Must be a valid version number (e.g. 2025.2.0)'),
+            releaseTag: z
+              .string()
+              .regex(/^[0-9a-f]{6,40}$/, 'Must be a hex commit hash (6-40 characters)')
+              .optional()
+              .or(z.literal('')),
           })
           .passthrough(),
       )
@@ -146,7 +151,7 @@ const getVersionPlaceholder = (backend: BackendServiceName) => {
     case 'llamacpp-backend':
       return 'b6048'
     case 'openvino-backend':
-      return '2025.2.0'
+      return '2026.1.0'
     case 'ollama-backend':
       return 'v2.3.0-nightly'
     default:
@@ -164,7 +169,8 @@ const getVersionDescription = (backend: BackendServiceName) => {
       return i18nState.BACKEND_VERSION_DESCRIPTION_LLAMACPP || 'Enter a build number (e.g. b6048)'
     case 'openvino-backend':
       return (
-        i18nState.BACKEND_VERSION_DESCRIPTION_OPENVINO || 'Enter a version number (e.g. 2025.2.0)'
+        i18nState.BACKEND_VERSION_DESCRIPTION_OPENVINO ||
+        'Enter a version number (e.g. 2026.1.0). Add a release tag below for weekly builds.'
       )
     case 'ollama-backend':
       return i18nState.BACKEND_VERSION_DESCRIPTION_OLLAMA || 'Enter release tag and version'
@@ -272,7 +278,7 @@ function hasVersionChange(serviceName: BackendServiceName): boolean {
   const effectiveTarget = getEffectiveTarget(serviceName)
   if (!effectiveTarget || !versionState.installed) return false
 
-  if (serviceName === 'ollama-backend') {
+  if (serviceName === 'ollama-backend' || serviceName === 'openvino-backend') {
     return (
       versionState.installed.version !== effectiveTarget.version ||
       versionState.installed.releaseTag !== effectiveTarget.releaseTag
@@ -548,6 +554,33 @@ const showMenuButton = computed(
                     </FormControl>
                     <FormDescription>
                       {{ getVersionDescription(backend) }}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+
+                <!-- OpenVINO weekly release tag -->
+                <FormField
+                  v-if="backend === 'openvino-backend'"
+                  v-slot="{ componentField }"
+                  name="releaseTag"
+                >
+                  <FormItem class="mt-4">
+                    <FormLabel>{{
+                      i18nState.BACKEND_RELEASE_TAG || 'Release Tag'
+                    }}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="72cc0624"
+                        v-bind="componentField"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {{
+                        i18nState.BACKEND_OPENVINO_RELEASE_TAG_DESCRIPTION ||
+                        'Hex commit hash for weekly builds. Leave empty to use a regular release.'
+                      }}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
