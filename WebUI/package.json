@@ -77,7 +77,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
     "adm-zip": "^0.5.16",
-    "electron": "^40.8.0",
+    "electron": "^40.8.5",
     "electron-builder": "^26.8.1",
     "electron-builder-squirrel-windows": "^26.8.1",
     "eslint": "^10.0.3",
