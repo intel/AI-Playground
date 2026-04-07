@@ -1,5 +1,13 @@
 [
   {
+    "name": "LiquidAI/LFM2.5-350M-GGUF/LFM2.5-350M-Q4_K_M.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": false,
+    "maxContextSize": 1024
+  },
+  {
     "name": "bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,

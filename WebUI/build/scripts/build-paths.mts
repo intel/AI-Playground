@@ -57,10 +57,12 @@ export const GET_PIP_SCRIPT_URL = 'https://bootstrap.pypa.io/get-pip.py'
 export const SEVEN_ZR_EXE_URL = {
   win32: 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe',
   darwin: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz',
+  linux: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-linux-x64.tar.xz',
 }
 export const UV_URL = {
   win32: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-pc-windows-msvc.zip',
   darwin: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-aarch64-apple-darwin.tar.gz',
+  linux: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz',
 }
 
 /**
@@ -97,7 +99,7 @@ export interface BuildPaths {
 /**
  * Get complete build paths configuration
  */
-export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
+export function getBuildPaths(target: 'win32' | 'darwin' | 'linux'): BuildPaths {
   return {
     repoRoot: REPO_ROOT,
     buildDir: BUILD_DIR,
@@ -132,7 +134,7 @@ export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
  */
 export function logBuildPaths(): void {
   const target = z
-    .enum(['win32', 'darwin'])
+    .enum(['win32', 'darwin', 'linux'])
     .safeParse(process.env.TARGET_PLATFORM || process.platform)
   if (!target.success) {
     console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)

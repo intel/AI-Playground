@@ -14,7 +14,7 @@ import { execSync } from 'child_process'
 import AdmZip from 'adm-zip'
 
 const target = z
-  .enum(['win32', 'darwin'])
+  .enum(['win32', 'darwin', 'linux'])
   .safeParse(process.env.TARGET_PLATFORM || process.platform)
 if (!target.success) {
   console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
@@ -134,10 +134,10 @@ async function main(): Promise<void> {
 
     // extract uv binary from downloaded archive and move to
 
-    // extract downloads if packed - handle tar.gz, tar.xz on darwin, zip on win32
+    // extract downloads if packed - handle tar.gz, tar.xz on darwin/linux, zip on win32
     for (const download of downloads) {
       if (
-        target.data === 'darwin' &&
+        (target.data === 'darwin' || target.data === 'linux') &&
         (download.filePath.endsWith('.tar.gz') || download.filePath.endsWith('.tar.xz'))
       ) {
         console.log(`📦 Extracting ${download.filePath}...`)
@@ -162,9 +162,13 @@ async function main(): Promise<void> {
       }
     }
 
-    // move uv-aarch64-apple-darwin/uv to resourcesDir/uv.exe on darwin
-    if (target.data === 'darwin') {
-      const uvBinaryPath = path.join(buildPaths.tmpDir, 'uv-aarch64-apple-darwin', 'uv')
+    // move uv binary to resourcesDir/uv.exe (all platforms use uv.exe name for consistency)
+    const uvSourcePaths: Record<string, string> = {
+      darwin: path.join(buildPaths.tmpDir, 'uv-aarch64-apple-darwin', 'uv'),
+      linux: path.join(buildPaths.tmpDir, 'uv-x86_64-unknown-linux-gnu', 'uv'),
+    }
+    if (target.data in uvSourcePaths) {
+      const uvBinaryPath = uvSourcePaths[target.data]
       const destinationPath = path.join(buildPaths.resourcesDir, 'uv.exe')
       if (existsSync(uvBinaryPath)) {
         renameSync(uvBinaryPath, destinationPath)
@@ -174,21 +178,14 @@ async function main(): Promise<void> {
       }
     }
 
-    // move 7zz to resourcesDir/7zr.exe on darwin
-    if (target.data === 'darwin') {
-      const sevenZrPath = path.join(buildPaths.tmpDir, '7zz')
-      const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
-      if (existsSync(sevenZrPath)) {
-        renameSync(sevenZrPath, destinationPath)
-        console.log(`✅ Moved ${sevenZrPath} to ${destinationPath}`)
-      } else {
-        console.error(`❌ 7zr binary not found: ${sevenZrPath}`)
-      }
+    // move 7zip binary to resourcesDir/7zr.exe (all platforms use 7zr.exe name for consistency)
+    const sevenZipSourcePaths: Record<string, string> = {
+      darwin: path.join(buildPaths.tmpDir, '7zz'),
+      linux: path.join(buildPaths.tmpDir, '7zz'),
+      win32: path.join(buildPaths.tmpDir, '7zr.exe'),
     }
-
-    // move 7zr.exe to resourcesDir/7zr.exe on win32
-    if (target.data === 'win32') {
-      const sevenZrPath = path.join(buildPaths.tmpDir, '7zr.exe')
+    {
+      const sevenZrPath = sevenZipSourcePaths[target.data]
       const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
       if (existsSync(sevenZrPath)) {
         renameSync(sevenZrPath, destinationPath)

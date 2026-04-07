@@ -289,3 +289,53 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 | `electron/subprocesses/langchain.ts` | RAG utility process (document splitting, embedding, vector search) |
 | `electron/subprocesses/deviceDetection.ts` | Intel GPU device detection and env var setup |
 | `electron/logging/logger.ts` | Logging, sends `debugLog` events to renderer |
+
+## Cursor Cloud specific instructions
+
+### Running the dev server
+
+```bash
+cd /workspace/WebUI
+npm run fetch-external-resources   # first time only — downloads uv + 7zip binaries
+DISPLAY=:1 npm run dev
+```
+
+The Vite dev server starts on `http://localhost:25413` and Electron opens automatically.
+A virtual framebuffer (`Xvfb`) is already running on `:1`.
+
+### Backend services on Linux
+
+The `ai-backend` and `llamacpp-backend` services work on Linux (Ubuntu x64):
+
+- Run `npm run fetch-external-resources` once to download `uv` and `7zip` binaries for
+  the current platform (placed in `build/resources/`).
+- Start the Electron app with `DISPLAY=:1 npm run dev`. On the setup dialog, click
+  **Install** next to `AI Playground` (ai-backend) and `Llama.cpp - GGUF` (llamacpp-backend).
+- `ai-backend` runs a Python Flask server on port 59000 (health: `GET /healthy`).
+- `llamacpp-backend` downloads the `ubuntu-x64` CPU build from GitHub releases and
+  provides on-demand LLM inference (health: `GET /health`).
+- ComfyUI and OpenVINO are not yet supported on Linux.
+
+### Testing inference end-to-end
+
+A small test model (`LFM2.5-350M-Q4_K_M.gguf`, ~255 MB) is registered in `models.json`.
+To test inference:
+
+1. Start the app, install both backends via the setup dialog, then click **Continue**.
+2. Open **Chat Settings**, select **LFM2.5-350M-Q4_K_M.gguf** from the Model dropdown.
+3. Type a message and send — the app auto-downloads the model from HuggingFace on first use.
+4. The llamacpp-backend will load the model and serve streaming responses.
+
+**Network requirement**: Model downloads redirect through `cas-bridge.xethub.hf.co`
+(HuggingFace Xet CDN). This domain must be in the egress allowlist. Allowlist changes
+only take effect on new VM sessions — a running VM will not pick up changes.
+
+### Known issues
+
+- **`npm install` requires `--legacy-peer-deps`** due to a `zod@4` vs `zod@3` peer
+  conflict from `@browserbasehq/stagehand` (transitive dep of `@langchain/community`).
+- **`electron/test/subprocesses/service.test.ts` fails** because the `electron` path alias
+  in `vitest.config.ts` shadows the `electron` package mock. This is a pre-existing issue
+  on the `dev` branch — 4 of 5 test files (24 tests) pass.
+- **Prettier reports 2 pre-existing formatting issues** in `electron/subprocesses/openVINOBackendService.ts`
+  and `src/components/BackendOptions.vue` on the `dev` branch.

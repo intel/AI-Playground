@@ -109,9 +109,16 @@ export class AiBackendService extends LongLivedPythonApiService {
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+    const pathSep = process.platform === 'win32' ? ';' : ':'
     const additionalEnvVariables = {
       VIRTUAL_ENV: this.pythonEnvDir,
-      PATH: `${path.join(this.pythonEnvDir, 'bin')};${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PATH: [
+        path.join(this.pythonEnvDir, 'bin'),
+        path.join(this.pythonEnvDir, 'Scripts'),
+        path.join(this.pythonEnvDir, 'Library', 'bin'),
+        process.env.PATH,
+        path.join(this.git.dir, 'cmd'),
+      ].join(pathSep),
       PYTHONNOUSERSITE: 'true',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,

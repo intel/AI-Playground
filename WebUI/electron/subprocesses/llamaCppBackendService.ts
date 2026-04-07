@@ -14,7 +14,7 @@ import { binary, extract } from './tools.ts'
 const execAsync = promisify(exec)
 
 export const LLAMACPP_DEFAULT_PARAMETERS = '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa off'
-const platformExtension = process.platform === 'darwin' ? 'tar.gz' : 'zip'
+const platformExtension = process.platform === 'win32' ? 'zip' : 'tar.gz'
 
 interface LlamaServerProcess {
   process: ChildProcess
@@ -439,7 +439,12 @@ export class LlamaCppBackendService implements ApiService {
   }
 
   private async downloadLlamacpp(): Promise<void> {
-    const platformArch = process.platform === 'darwin' ? 'macos-arm64' : 'win-vulkan-x64'
+    const platformArchMap: Record<string, string> = {
+      darwin: 'macos-arm64',
+      linux: 'ubuntu-x64',
+      win32: 'win-vulkan-x64',
+    }
+    const platformArch = platformArchMap[process.platform] ?? 'win-vulkan-x64'
     const downloadUrl = `https://github.com/ggml-org/llama.cpp/releases/download/${this.version}/llama-${this.version}-bin-${platformArch}.${platformExtension}`
     this.appLogger.info(`Downloading Llamacpp from ${downloadUrl}`, this.name)
 
