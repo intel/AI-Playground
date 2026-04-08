@@ -14,9 +14,7 @@ def main():
             if not dev.startswith("GPU"):
                 continue
             try:
-                from openvino.properties import intel_gpu
-
-                device_id = core.get_property(dev, intel_gpu.device_id)
+                device_id = core.get_property(dev, "GPU_DEVICE_ID")
             except Exception:
                 device_id = None
             try:
