@@ -1,13 +1,13 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "3.0.3-beta",
+  "version": "3.1.0-alpha",
   "scripts": {
     "dev": "cross-env VITE_DEBUG_TOOLS=\"true\" VITE_PLATFORM_TITLE=\"from Intel®\" AIPG_DEBUGGING_PORT=\"29222\" vite",
     "preview": "vite preview",
     "fetch-external-resources": "node --experimental-strip-types ./build/scripts/fetch-external-resources.mts",
     "patch-nsis-files": "node --experimental-strip-types ./build/scripts/patch-nsis-template.mts",
-    "build": "npm run patch-nsis-files && cross-env-shell VITE_PLATFORM_TITLE=\"from Intel®\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64 --publish never\"",
+    "build": "npm run patch-nsis-files && cross-env-shell VITE_PLATFORM_TITLE=\"from Intel®\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --win --x64 --publish never && node --experimental-strip-types ./build/scripts/warn-bundled-wheels.mts\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint:eslint": "eslint . --fix",
