@@ -47,6 +47,10 @@
       "to": "model_config.json"
     },
     {
+      "from": "external/mcp.json",
+      "to": "mcp.json"
+    },
+    {
       "from": "build/settings.json",
       "to": "settings.json"
     },

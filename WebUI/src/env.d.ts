@@ -81,6 +81,45 @@ type DemoModeSettings = {
   profile?: DemoProfile | null
 }
 
+type McpConnectionState = 'stopped' | 'starting' | 'running' | 'error'
+
+type McpStatus = {
+  state: McpConnectionState
+  lastError?: string
+}
+
+type McpToolInfo = {
+  name: string
+  description?: string
+  inputSchema: Record<string, unknown>
+}
+
+type McpServerInfo = {
+  id: string
+  name: string
+}
+
+type McpServerConfig =
+  | {
+      type?: 'stdio'
+      command: string
+      args?: string[]
+      env?: Record<string, string>
+      displayName?: string
+    }
+  | {
+      type: 'http'
+      url: string
+      headers?: Record<string, string>
+      displayName?: string
+    }
+
+type McpToolCallResult = {
+  isError?: boolean
+  content?: unknown
+  structuredContent?: unknown
+}
+
 // AipgPage type kept for backward compatibility with getInitialPage IPC handler
 type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
 type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
@@ -205,6 +244,35 @@ type electronAPI = {
     downloadCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     uninstallCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     listInstalledCustomNodes(): Promise<string[]>
+  }
+  mcp: {
+    listServers(): Promise<McpServerInfo[]>
+    startServer(serverId: string): Promise<McpStatus>
+    stopServer(serverId: string): Promise<McpStatus>
+    getServerStatus(serverId: string): Promise<McpStatus>
+    listServerTools(serverId: string): Promise<McpToolInfo[]>
+    invokeServerTool(
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ): Promise<McpToolCallResult>
+    openConfig(): void
+    openConfigInFolder(): void
+    reloadConfig(): Promise<McpServerInfo[]>
+    addServer(
+      serverId: string,
+      config:
+        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
+        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+    ): Promise<void>
+    getServerConfig(serverId: string): Promise<McpServerConfig>
+    updateServer(
+      serverId: string,
+      config:
+        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
+        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+    ): Promise<void>
+    removeServer(serverId: string): Promise<void>
   }
 }
 

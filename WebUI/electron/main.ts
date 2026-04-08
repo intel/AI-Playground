@@ -57,6 +57,23 @@ import { AiBackendService } from './subprocesses/aiBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
+import {
+  getMcpServerStatus,
+  invokeMcpServerTool,
+  listMcpServers,
+  listMcpServerTools,
+  startMcpServer,
+  stopAllMcpServers,
+  stopMcpServer,
+} from './subprocesses/mcpManager'
+import {
+  addMcpServer,
+  getMcpConfigPath,
+  getMcpServerConfig,
+  updateMcpServer,
+  removeMcpServer,
+  type McpServerConfig,
+} from './subprocesses/mcpServers'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
@@ -441,6 +458,7 @@ function handleUtilityFunction<T, R>(
 }
 
 app.on('quit', async () => {
+  await stopAllMcpServers()
   if (singleInstanceLock) {
     app.releaseSingleInstanceLock()
   }
@@ -450,6 +468,7 @@ app.on('quit', async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', async () => {
   try {
+    await stopAllMcpServers()
     await serviceRegistry?.stopAllServices()
   } catch {}
   if (process.platform !== 'darwin') {
@@ -1428,6 +1447,83 @@ function initEventHandle() {
       throw new Error('ComfyUI backend service not found')
     }
     return comfyuiTools.listInstalledCustomNodes(comfyService.serviceDir)
+  })
+
+  // MCP server IPC handlers
+  ipcMain.handle('mcp:startServer', async (_event, serverId: string) => {
+    return await startMcpServer(serverId)
+  })
+
+  ipcMain.handle('mcp:listServers', () => {
+    return listMcpServers()
+  })
+
+  ipcMain.handle('mcp:stopServer', async (_event, serverId: string) => {
+    return await stopMcpServer(serverId)
+  })
+
+  ipcMain.handle('mcp:getServerStatus', (_event, serverId: string) => {
+    return getMcpServerStatus(serverId)
+  })
+
+  ipcMain.handle('mcp:listServerTools', async (_event, serverId: string) => {
+    return await listMcpServerTools(serverId)
+  })
+
+  ipcMain.handle(
+    'mcp:invokeServerTool',
+    async (_event, serverId: string, toolName: string, args: Record<string, unknown>) => {
+      return await invokeMcpServerTool(serverId, toolName, args)
+    },
+  )
+
+  // MCP config file handlers
+  // TODO: Consider consolidating with openImageWithSystem/openImageInFolder
+  // into generic openFileWithSystem/openFileInFolder that take file paths
+  ipcMain.on('mcp:openConfig', () => {
+    const configPath = getMcpConfigPath()
+    shell.openPath(configPath)
+  })
+
+  ipcMain.on('mcp:openConfigInFolder', () => {
+    const configPath = getMcpConfigPath()
+    if (process.platform === 'win32') {
+      exec(`explorer.exe /select, "${configPath}"`)
+    } else {
+      shell.showItemInFolder(configPath)
+    }
+  })
+
+  ipcMain.handle('mcp:reloadConfig', async () => {
+    await stopAllMcpServers()
+    return listMcpServers()
+  })
+
+  ipcMain.handle(
+    'mcp:addServer',
+    async (
+      _event,
+      serverId: string,
+      config:
+        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
+        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+    ) => {
+      return addMcpServer(serverId, config)
+    },
+  )
+
+  ipcMain.handle('mcp:getServerConfig', (_event, serverId: string) => {
+    return getMcpServerConfig(serverId)
+  })
+
+  ipcMain.handle('mcp:updateServer', async (_event, serverId: string, config: McpServerConfig) => {
+    await stopMcpServer(serverId)
+    return updateMcpServer(serverId, config)
+  })
+
+  ipcMain.handle('mcp:removeServer', async (_event, serverId: string) => {
+    await stopMcpServer(serverId)
+    return removeMcpServer(serverId)
   })
 
   const getAssetPathFromUrl = (url: string) => {

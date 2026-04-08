@@ -19,6 +19,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/mcp": "^1.0.25",
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/openai-compatible": "^2.0.35",
     "@ai-sdk/vue": "^3.0.116",
@@ -28,6 +29,7 @@
     "@langchain/community": "^1.1.22",
     "@langchain/core": "^1.1.31",
     "@langchain/openai": "^1.2.12",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@radix-icons/vue": "^1.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@vee-validate/zod": "^4.15.1",

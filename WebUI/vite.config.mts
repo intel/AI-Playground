@@ -89,6 +89,7 @@ export default defineConfig(({ command }) => {
     server: {
       host: '127.0.0.1',
       port: 25413,
+      hmr: true,
       proxy: {
         '^/api/': {
           changeOrigin: true,

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "datetime": {
+      "displayName": "DateTime MCP",
+      "command": "uvx",
+      "args": ["mcp-server-time"]
+    }
+  }
+}
