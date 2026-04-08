@@ -48,7 +48,6 @@
     "marked": "^17.0.4",
     "marked-highlight": "^2.2.0",
     "highlight.js": "^11.11.1",
-    "ollama": "^0.6.3",
     "partysocket": "^1.1.16",
     "pdf-parse": "1.1.4",
     "pinia": "^3.0.4",

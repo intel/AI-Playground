@@ -13,10 +13,8 @@ export type LlmBackend = z.infer<typeof LlmBackendSchema>
 type LlmBackendKV = { [key in LlmBackend]: string | null }
 
 export const backendToService = {
-  ipexLLM: 'ai-backend',
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
-  ollama: 'ollama-backend',
 } as const
 
 export type LlmModel = {
@@ -77,7 +75,6 @@ export const thinkingModels: Record<string, string> = {
 export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
   llamaCPP: 'llamaCPP - GGUF',
   openVINO: 'OpenVINO',
-  ollama: 'Ollama',
 }
 
 export const textInferenceBackendDescription: Record<LlmBackend, string> = {
@@ -85,13 +82,11 @@ export const textInferenceBackendDescription: Record<LlmBackend, string> = {
     'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
   openVINO:
     'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
-  ollama: 'potato',
 }
 
 export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
   llamaCPP: ['Lightweight', 'Portable'],
   openVINO: ['Intel', 'Optimized', 'Fast'],
-  ollama: ['Integrated', 'CLI'],
 }
 
 export const useTextInference = defineStore(
@@ -110,13 +105,11 @@ export const useTextInference = defineStore(
     const selectedModels = ref<LlmBackendKV>({
       llamaCPP: null,
       openVINO: null,
-      ollama: null,
     })
 
     const selectedEmbeddingModels = ref<LlmBackendKV>({
       llamaCPP: null,
       openVINO: null,
-      ollama: null,
     })
 
     // Backend readiness state tracking
@@ -124,12 +117,10 @@ export const useTextInference = defineStore(
       lastUsedModel: {
         llamaCPP: null,
         openVINO: null,
-        ollama: null,
       } as LlmBackendKV,
       lastUsedContextSize: {
         llamaCPP: null,
         openVINO: null,
-        ollama: null,
       } as Record<LlmBackend, number | null>,
       isPreparingBackend: false,
     })
@@ -138,7 +129,7 @@ export const useTextInference = defineStore(
 
     const llmModels: Ref<LlmModel[]> = computed(() => {
       const llmTypeModels = models.models.filter((m) =>
-        ['llamaCPP', 'openVINO', 'ollama'].includes(m.type),
+        (llmBackendTypes as readonly string[]).includes(m.type),
       )
 
       // Find first model for each type (already in priority order from models.json)
@@ -202,16 +193,6 @@ export const useTextInference = defineStore(
         }
       })
 
-      // Add Ollama embedding models
-      if (backend.value === 'ollama') {
-        newEmbeddingModels.push({
-          name: 'ollama-embedding',
-          type: 'ollama',
-          downloaded: true,
-          active: true,
-        })
-      }
-
       console.log('llmEmbeddingModels changed', newEmbeddingModels)
       return newEmbeddingModels
     })
@@ -242,13 +223,11 @@ export const useTextInference = defineStore(
     const backendToAipgBackendName = {
       openVINO: 'openvino',
       llamaCPP: 'llama_cpp',
-      ollama: 'ollama',
     } as const
 
     const backendToAipgModelType = {
       openVINO: 'openvinoLLM',
       llamaCPP: 'ggufLLM',
-      ollama: 'llm', // Using LLM type for Ollama
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {
@@ -385,11 +364,6 @@ export const useTextInference = defineStore(
     )
 
     async function getDownloadParamsForCurrentModelIfRequired(type: 'llm' | 'embedding') {
-      // For Ollama backend, we don't need to download models from a repository
-      if (backend.value === 'ollama') {
-        return []
-      }
-
       let model: string | undefined
       if (type === 'llm') {
         model = activeModel.value
@@ -945,14 +919,11 @@ export const useTextInference = defineStore(
           throw error
         }
       }
-      // Ollama manages its own model loading and doesn't need ensureBackendReadiness
 
-      const backendToInferenceService = {
+      const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
         llamaCPP: 'llamacpp-backend',
         openVINO: 'openvino-backend',
-        ipexLLM: 'ai-backend',
-        ollama: 'ollama-backend' as BackendServiceName,
-      } as const
+      }
       const inferenceBackendService = backendToInferenceService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
       backendServices.updateLastUsedBackend(inferenceBackendService)

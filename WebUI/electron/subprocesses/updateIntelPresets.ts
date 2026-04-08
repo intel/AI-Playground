@@ -12,28 +12,26 @@ const processLogHandler = (data: string) => {
 const logSourceName = 'updateIntelPresets'
 
 const resourcesBaseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
-const externalRes = path.resolve(
-  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
+const modesBaseDir = path.resolve(
+  app.isPackaged
+    ? path.join(process.resourcesPath, 'modes')
+    : path.join(__dirname, '../../../modes/'),
 )
 
 const gitExePath = path.join(resourcesBaseDir, 'portable-git', 'cmd', 'git.exe')
-const presetDirSpareGitRepoPath = path.join(externalRes, 'presets_intel')
+const presetDirSpareGitRepoPath = path.join(modesBaseDir, '..', 'presets_intel')
 
 const gitRef = app.getVersion()
 
 export async function updateIntelPresets(
   remoteRepository: string,
-  presetDirName: string = 'presets',
+  mode: string,
+  variant: string,
+  presetDirTargetPath: string,
 ): Promise<UpdatePresetsFromIntelResult> {
-  const presetDirTargetPath = path.join(externalRes, presetDirName)
-  const intelPresetDirPath = path.join(
-    presetDirSpareGitRepoPath,
-    'WebUI',
-    'external',
-    presetDirName,
-  )
-  const presetDirBakTargetPath = path.join(externalRes, `${presetDirName}_bak`)
-  const sparseCheckoutPattern = `WebUI/external/${presetDirName}/*`
+  const intelPresetDirPath = path.join(presetDirSpareGitRepoPath, 'modes', mode, variant)
+  const presetDirBakTargetPath = `${presetDirTargetPath}_bak`
+  const sparseCheckoutPattern = `modes/${mode}/${variant}/*`
   try {
     await fetchNewIntelPresets(remoteRepository, sparseCheckoutPattern)
     await backUpCurrentPresets(presetDirTargetPath, presetDirBakTargetPath)
@@ -60,7 +58,7 @@ export async function updateIntelPresets(
     logger.error(`updating intel presets failed due to ${e}`, logSourceName, true)
     if (!fs.existsSync(presetDirTargetPath)) {
       logger.info(`restoring previous presets from  ${presetDirBakTargetPath}`, logSourceName, true)
-      await copyFileWithDirs(intelPresetDirPath, presetDirTargetPath)
+      await copyFileWithDirs(presetDirBakTargetPath, presetDirTargetPath)
     }
     return {
       result: 'error',

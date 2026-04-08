@@ -1,0 +1,4 @@
+{
+  "essentialsGpuDeviceIds": ["0xFD80", "0xFD81"],
+  "defaultRecommendation": "studio"
+}

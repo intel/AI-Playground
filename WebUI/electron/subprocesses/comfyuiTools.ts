@@ -7,6 +7,7 @@ import {
   isPackageInstalled as uvIsPackageInstalled,
   installPypiPackage as uvInstallPackage,
   installRequirementsTxt,
+  installExtraWheels,
   aipgBaseDir,
 } from './uvBasedBackends/uv'
 
@@ -258,6 +259,8 @@ export async function downloadCustomNode(
   nodeRepoData: ComfyUICustomNodeRepoId,
   comfyUiRootPath: string,
 ): Promise<boolean> {
+  const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
+
   if (isCustomNodeInstalled(nodeRepoData, comfyUiRootPath)) {
     appLoggerInstance.info(
       `Node repo ${JSON.stringify(nodeRepoData)} already exists. Omitting`,
@@ -268,7 +271,6 @@ export async function downloadCustomNode(
 
   try {
     const expectedGitUrl = `https://github.com/${nodeRepoData.username}/${nodeRepoData.repoName}`
-    const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
     const potentialNodeRequirements = path.join(expectedCustomNodePath, 'requirements.txt')
 
     // Install the git repo
@@ -283,12 +285,15 @@ export async function downloadCustomNode(
     // Install pip requirements using uv
     await installPipRequirements(potentialNodeRequirements)
 
+    await installExtraWheels(COMFYUI_BACKEND)
+
     appLoggerInstance.info(
       `Successfully installed custom node ${nodeRepoData.username}/${nodeRepoData.repoName}`,
       'comfyui-tools',
     )
     return true
   } catch (error) {
+    removeExistingResource(expectedCustomNodePath)
     appLoggerInstance.error(
       `Failed to install custom comfy node ${nodeRepoData.username}/${nodeRepoData.repoName} due to: ${error}`,
       'comfyui-tools',

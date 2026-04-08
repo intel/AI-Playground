@@ -271,37 +271,5 @@
     "type": "embedding",
     "backend": "llamaCPP",
     "maxContextSize": 32768
-  },
-  {
-    "name": "deepseek-r1:1.5b",
-    "type": "ollama",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 8192
-  },
-  {
-    "name": "gemma3:4b",
-    "type": "ollama",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "gemma3n:e2b",
-    "type": "ollama",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "qwen3:8b",
-    "type": "ollama",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 128000
   }
 ]

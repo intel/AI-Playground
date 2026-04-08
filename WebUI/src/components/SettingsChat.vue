@@ -207,9 +207,7 @@ const showTools = computed(() => activeChatPreset.value?.showTools ?? false)
 const lockDeviceToNpu = computed(() => activeChatPreset.value?.lockDeviceToNpu ?? false)
 const advancedMode = computed(() => activeChatPreset.value?.advancedMode ?? false)
 
-// Get available backends from preset
-// Note: Fallback only includes standard backends (not Ollama) to avoid showing Ollama
-// when no preset is selected or when the preset doesn't explicitly include it
+// Get available backends from preset (fallback when none configured on preset)
 const availableBackends = computed(() => {
   return activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
 })

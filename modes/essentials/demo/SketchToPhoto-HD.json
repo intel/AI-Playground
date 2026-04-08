@@ -107,16 +107,24 @@
       "settingName": "safetyCheck"
     },
     {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": false,
+      "defaultValue": false,
+      "settingName": "showPreview"
+    },
+    {
       "type": "number",
-      "label": "Safety Check",
+      "label": "Safety Checker Strength",
       "nodeTitle": "SafetyCheckerStrength",
       "nodeInput": "b",
       "min": 0,
       "max": 1,
       "step": 0.05,
-      "defaultValue": 0.5,
+      "defaultValue": 0.93,
       "displayed": true,
-      "modifiable": true
+      "modifiable": false
     },
     {
       "type": "number",
@@ -158,7 +166,7 @@
       "type": "image",
       "label": "Reference Image",
       "displayed": true,
-      "modifiable": true,
+      "modifiable": false,
       "defaultValue": "",
       "nodeTitle": "Load Image",
       "nodeInput": "image"
@@ -180,6 +188,18 @@
           {
             "type": "controlNet",
             "model": "stabilityai/control-lora/control-LoRAs-rank128/control-lora-canny-rank128.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
           }
         ],
         "settings": [
@@ -312,7 +332,7 @@
       "inputs": {
         "op": "Sub",
         "a": 1,
-        "b": 0.5
+        "b": 0.93
       },
       "class_type": "CM_FloatBinaryOperation",
       "_meta": {

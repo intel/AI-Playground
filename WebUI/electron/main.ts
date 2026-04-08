@@ -53,6 +53,7 @@ import {
   COMFYUI_DEFAULT_PARAMETERS,
 } from './subprocesses/comfyUIBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
+import { AiBackendService } from './subprocesses/aiBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -79,6 +80,12 @@ process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? '../..' : '../..
 const externalRes = path.resolve(
   app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
 )
+
+const modesDir = path.resolve(
+  app.isPackaged
+    ? path.join(process.resourcesPath, 'modes')
+    : path.join(__dirname, '../../../modes/'),
+)
 const singleInstanceLock = app.requestSingleInstanceLock()
 
 const appLogger = appLoggerInstance
@@ -103,18 +110,16 @@ const appSize = {
   maxChatContentHeight: 0,
 }
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
-const ProductModeSchema = z.enum(['professional', 'essentials'])
+const ProductModeSchema = z.enum(['studio', 'essentials'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
-  enablePreviewFeatures: z.boolean().default(false),
   isAdminExec: z.boolean().default(false),
   availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg', 'light']),
   currentTheme: ThemeSchema.default('bmg'),
-  productMode: ProductModeSchema.default('professional'),
+  productMode: ProductModeSchema.optional(),
   isDemoModeEnabled: z.boolean().default(false),
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
-  demoModePresetsDir: z.string().optional(),
   demoModePasscode: z.string().optional(),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
@@ -123,27 +128,51 @@ const LocalSettingsSchema = z.object({
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
 
-/**
- * Resolves the preset directory name based on product mode and demo mode.
- *
- * When demo mode is enabled and a custom `demoModePresetsDir` is set, that value
- * takes precedence (backward-compatible override). Otherwise:
- *
- *   professional + non-demo → presets
- *   professional + demo    → presets_demo
- *   essentials   + non-demo → presets_essentials
- *   essentials   + demo    → presets_essentials_demo
- */
-function getPresetsDirName(s: LocalSettings): string {
-  if (s.isDemoModeEnabled && s.demoModePresetsDir) {
-    return s.demoModePresetsDir
-  }
-  const base = s.productMode === 'essentials' ? 'presets_essentials' : 'presets'
-  return s.isDemoModeEnabled ? `${base}_demo` : base
+function getPresetsDir(s: LocalSettings): string {
+  const mode = s.productMode === 'essentials' ? 'essentials' : 'studio'
+  const variant = s.isDemoModeEnabled ? 'demo' : 'presets'
+  return path.join(modesDir, mode, variant)
 }
 
 let settings = LocalSettingsSchema.parse({})
 let demoProfile: DemoProfile | null = null
+
+/** Packaged app: single JSON next to resources. Dev: never write here (Vite watches the repo). */
+function getPackagedSettingsPath(): string {
+  return path.join(process.resourcesPath, 'settings.json')
+}
+
+/** Dev-only defaults shipped in the repo (read-only for the app). */
+function getDevSettingsDefaultsPath(): string {
+  return path.join(__dirname, '../../external/settings-dev.json')
+}
+
+/** Writable path: packaged = resources settings; dev = userData overlay (avoids Vite reload loops). */
+function getWritableSettingsPath(): string {
+  if (app.isPackaged) {
+    return getPackagedSettingsPath()
+  }
+  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+}
+
+function persistLocalSettingsToDisk(): void {
+  const settingPath = getWritableSettingsPath()
+  const serialized = JSON.stringify(LocalSettingsSchema.parse(settings), null, 2)
+  const tmpPath = `${settingPath}.${randomUUID()}.tmp`
+  try {
+    fs.mkdirSync(path.dirname(settingPath), { recursive: true })
+    fs.writeFileSync(tmpPath, serialized, { encoding: 'utf8' })
+    fs.renameSync(tmpPath, settingPath)
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmpPath)
+    } catch {
+      // ignore cleanup failure
+    }
+    appLogger.error(`failed to persist local settings: ${e}`, 'electron-backend')
+  }
+}
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'aipg-media',
@@ -158,24 +187,46 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 async function loadSettings() {
-  const settingPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'settings.json')
-    : path.join(__dirname, '../../external/settings-dev.json')
+  settings = LocalSettingsSchema.parse({})
 
-  appLogger.info(`loading settings from ${settingPath}`, 'electron-backend')
-  if (fs.existsSync(settingPath)) {
-    try {
-      settings = LocalSettingsSchema.parse(
-        JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' })),
-      )
-    } catch (e) {
-      appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+  if (app.isPackaged) {
+    const packagedPath = getPackagedSettingsPath()
+    appLogger.info(`loading packaged settings from ${packagedPath}`, 'electron-backend')
+    if (fs.existsSync(packagedPath)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(packagedPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+      }
+    }
+  } else {
+    const defaultsPath = getDevSettingsDefaultsPath()
+    appLogger.info(`loading dev defaults from ${defaultsPath}`, 'electron-backend')
+    if (fs.existsSync(defaultsPath)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(defaultsPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load dev defaults: ${e}`, 'electron-backend')
+      }
+    }
+    const userPath = getWritableSettingsPath()
+    appLogger.info(`loading dev user settings from ${userPath}`, 'electron-backend')
+    if (fs.existsSync(userPath)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(userPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load dev user settings: ${e}`, 'electron-backend')
+      }
     }
   }
+
   appLogger.info(`settings loaded: ${JSON.stringify({ settings })}`, 'electron-backend')
 
   if (settings.isDemoModeEnabled) {
-    const presetsDir = path.join(externalRes, getPresetsDirName(settings))
+    const presetsDir = getPresetsDir(settings)
     try {
       demoProfile = loadDemoProfile(presetsDir, appLogger)
     } catch (e) {
@@ -460,10 +511,81 @@ function initEventHandle() {
     }
   })
 
+  ipcMain.handle('getLocalSettings', () => {
+    return LocalSettingsSchema.parse(settings)
+  })
+
   ipcMain.handle('updateLocalSettings', (_event, updates: Partial<LocalSettings>) => {
     Object.assign(settings, updates)
+    if ('productMode' in updates && settings.isDemoModeEnabled) {
+      const presetsDir = getPresetsDir(settings)
+      try {
+        demoProfile = loadDemoProfile(presetsDir, appLogger)
+      } catch (e) {
+        appLogger.error(
+          `Failed to reload demo profile after product mode change: ${e}`,
+          'demo-profile',
+        )
+      }
+    }
+    persistLocalSettingsToDisk()
     appLogger.info(`Updated local settings: ${JSON.stringify(updates)}`, 'electron-backend')
     return { success: true }
+  })
+
+  ipcMain.handle('detectHardwareForModeRecommendation', async () => {
+    if (!serviceRegistry) {
+      return {
+        success: false,
+        error: 'Service registry not ready',
+        recommendedMode: 'studio' as const,
+        detectedDevices: [],
+      }
+    }
+    const service = serviceRegistry.getService('ai-backend')
+    if (!service || !(service instanceof AiBackendService)) {
+      return {
+        success: false,
+        error: 'ai-backend service not found',
+        recommendedMode: 'studio' as const,
+        detectedDevices: [],
+      }
+    }
+
+    const hwResult = await service.detectHardwareDevices()
+
+    const recommendationsPath = path.join(externalRes, 'hardware-recommendations.json')
+    let essentialsIds: string[] = []
+    let defaultRec: ProductMode = 'studio'
+    try {
+      const raw = fs.readFileSync(recommendationsPath, 'utf-8')
+      const config = JSON.parse(raw)
+      essentialsIds = (config.essentialsGpuDeviceIds ?? []).map((id: string) => id.toLowerCase())
+      defaultRec = config.defaultRecommendation ?? 'studio'
+    } catch (e) {
+      appLogger.warn(`Failed to read hardware-recommendations.json: ${e}`, 'electron-backend')
+    }
+
+    let recommendedMode: ProductMode = defaultRec
+    if (hwResult.success) {
+      const gpuIds = hwResult.gpuDevices
+        .map((d) => d.gpuDeviceId)
+        .filter((id): id is string => id !== null)
+        .map((id) => id.toLowerCase())
+
+      if (gpuIds.length === 0 || gpuIds.every((id) => essentialsIds.includes(id))) {
+        recommendedMode = 'essentials'
+      } else {
+        recommendedMode = 'studio'
+      }
+    }
+
+    return {
+      success: hwResult.success,
+      recommendedMode,
+      detectedDevices: hwResult.gpuDevices,
+      error: hwResult.error,
+    }
   })
 
   ipcMain.handle('getWinSize', () => {
@@ -593,7 +715,6 @@ function initEventHandle() {
       isDemoModeEnabled: settings.isDemoModeEnabled,
       demoModeResetInSeconds: settings.demoModeResetInSeconds,
       demoModePasscode: settings.demoModePasscode,
-      productMode: settings.productMode,
       profile: demoProfile,
     }
   })
@@ -1061,12 +1182,14 @@ function initEventHandle() {
   })
 
   ipcMain.handle('updatePresetsFromIntelRepo', () => {
-    return updateIntelPresets(settings.remoteRepository, getPresetsDirName(settings))
+    const mode = settings.productMode === 'essentials' ? 'essentials' : 'studio'
+    const variant = settings.isDemoModeEnabled ? 'demo' : 'presets'
+    return updateIntelPresets(settings.remoteRepository, mode, variant, getPresetsDir(settings))
   })
 
   // Preset management IPC handlers
   ipcMain.handle('reloadPresets', async () => {
-    const presetsDir = path.join(externalRes, getPresetsDirName(settings))
+    const presetsDir = getPresetsDir(settings)
     try {
       await filterPartnerPresets(presetsDir)
     } catch (error) {

@@ -6,7 +6,7 @@ Concise reference for AI coding agents working in this repository.
 
 Electron + Vue.js desktop app for AI inference on Intel GPUs. Multi-process architecture:
 Electron main process orchestrates Vue.js frontend and multiple Python/native backend services
-(AI Backend, ComfyUI, LlamaCPP, OpenVINO, Ollama). Frontend code lives in `WebUI/`.
+(AI Backend, ComfyUI, LlamaCPP, OpenVINO). Frontend code lives in `WebUI/`.
 
 ## Mandatory Rules
 
@@ -182,7 +182,7 @@ There is **no Vue Router**. Navigation is state-driven:
 - Once running, `promptStore.currentMode` controls which view renders: `chat` → `Chat.vue`, `imageGen`/`imageEdit`/`video` → `WorkflowResult.vue`
 - `PromptArea.vue` is the shared prompt input bar across all modes
 
-### Backend Services (5 services, dynamic ports)
+### Backend Services (4 services, dynamic ports)
 
 Managed by `electron/subprocesses/apiServiceRegistry.ts`. Each service spawns a child process and exposes an OpenAI-compatible HTTP API:
 
@@ -192,14 +192,13 @@ Managed by `electron/subprocesses/apiServiceRegistry.ts`. Each service spawns a 
 | `llamacpp-backend` | 39000-39999 | `llama-server` (native) | `/health` | GGUF model inference (LLM + embedding sub-servers) |
 | `openvino-backend` | 29000-29999 | `ovms` (native) | `/v2/health/ready` | OpenVINO inference (LLM + embedding + transcription sub-servers) |
 | `comfyui-backend` | 49000-49999 | ComfyUI `main.py` (Python) | `/queue` | Image/video/3D generation via workflows |
-| `ollama-backend` | 40000-41000 | `ollama` (native) | `/api/version` | Ollama inference (preview feature) |
 
 ### Three Communication Patterns
 
 1. **Electron IPC** (renderer ↔ main): ALL service lifecycle — start, stop, setup, device selection, `ensureBackendReadiness`. Renderer calls `window.electronAPI.*`, main handles via `ipcMain.handle()`. Main pushes events via `win.webContents.send()`.
 
 2. **Direct HTTP** (renderer → backend): For actual AI operations after service is ready:
-   - **Chat inference**: Vercel AI SDK `streamText()` → `{backendUrl}/v1/chat/completions` (LlamaCpp/OpenVINO/Ollama)
+   - **Chat inference**: Vercel AI SDK `streamText()` → `{backendUrl}/v1/chat/completions` (LlamaCpp/OpenVINO)
    - **Model management**: `fetch()` → Flask ai-backend `/api/*` (download, check, size)
    - **Image generation**: `fetch()` → ComfyUI `/prompt`, `/upload/image`, `/interrupt`, `/free`
 
@@ -254,12 +253,11 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 - `demoMode` — Demo mode overlay + auto-reset timer. IPC: `getDemoModeSettings`. No deps.
 - `speechToText` — STT enabled state, initialization. Deps: `backendServices`, `models`, `dialogs`, `globalSetup`
 - `audioRecorder` — Browser MediaRecorder, transcription via AI SDK. Deps: `backendServices` (lazy)
-- `ollama` — Ollama model pull progress. Deps: `textInference`
 - `developerSettings` — Dev console on startup toggle. No deps.
 
 ### Feature → File Map
 
-**Chat/LLM**: `views/Chat.vue` → stores: `openAiCompatibleChat`, `textInference`, `conversations`, `presets` → electron: `ensureBackendReadiness` IPC → backend: `llamacpp`/`openvino`/`ollama` via Vercel AI SDK
+**Chat/LLM**: `views/Chat.vue` → stores: `openAiCompatibleChat`, `textInference`, `conversations`, `presets` → electron: `ensureBackendReadiness` IPC → backend: `llamacpp`/`openvino` via Vercel AI SDK
 
 **Image/Video Generation**: `views/WorkflowResult.vue` → stores: `imageGenerationPresets`, `comfyUiPresets`, `presets` → electron: service lifecycle IPC → backend: `comfyui-backend` via direct HTTP
 
@@ -285,7 +283,6 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 | `electron/subprocesses/llamaCppBackendService.ts` | LlamaCPP native server (LLM + embedding sub-servers) |
 | `electron/subprocesses/openVINOBackendService.ts` | OpenVINO OVMS (LLM + embedding + transcription sub-servers) |
 | `electron/subprocesses/comfyUIBackendService.ts` | ComfyUI Python server |
-| `electron/subprocesses/ollamaBackendService.ts` | Ollama binary (preview) |
 | `electron/subprocesses/langchain.ts` | RAG utility process (document splitting, embedding, vector search) |
 | `electron/subprocesses/deviceDetection.ts` | Intel GPU device detection and env var setup |
 | `electron/logging/logger.ts` | Logging, sends `debugLog` events to renderer |

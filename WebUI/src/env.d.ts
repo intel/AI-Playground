@@ -43,13 +43,41 @@ type DemoProfile = {
   notificationDotButtons: string[]
 }
 
-type ProductMode = 'professional' | 'essentials'
+type ProductMode = 'studio' | 'essentials'
+
+/** Mirrors electron/main LocalSettingsSchema (renderer copy for IPC typing). */
+type LocalSettings = {
+  debug: boolean
+  deviceArchOverride: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | null
+  isAdminExec: boolean
+  availableThemes: Array<'dark' | 'lnl' | 'bmg' | 'light'>
+  currentTheme: 'dark' | 'lnl' | 'bmg' | 'light'
+  productMode?: ProductMode
+  isDemoModeEnabled: boolean
+  demoModeResetInSeconds: number | null
+  demoModePasscode?: string
+  languageOverride: string | null
+  remoteRepository: string
+  huggingfaceEndpoint: string
+}
+
+type GpuHardwareDevice = {
+  device: string
+  name: string
+  gpuDeviceId: string | null
+}
+
+type HardwareRecommendationResult = {
+  success: boolean
+  recommendedMode: ProductMode
+  detectedDevices: GpuHardwareDevice[]
+  error?: string
+}
 
 type DemoModeSettings = {
   isDemoModeEnabled: boolean
   demoModeResetInSeconds: null | number
   demoModePasscode?: string
-  productMode: ProductMode
   profile?: DemoProfile | null
 }
 
@@ -86,6 +114,8 @@ type electronAPI = {
   getLocaleSettings(): Promise<LocaleSettings>
   getThemeSettings(): Promise<ThemeSettings>
   updateLocalSettings(updates: Partial<LocalSettings>): Promise<{ success: boolean }>
+  getLocalSettings(): Promise<LocalSettings>
+  detectHardwareForModeRecommendation(): Promise<HardwareRecommendationResult>
   setWinSize(width: number, height: number): Promise<void>
   showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
   showMessageBox(options: Electron.MessageBoxOptions): Promise<number>
@@ -453,12 +483,7 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName =
-  | 'ai-backend'
-  | 'comfyui-backend'
-  | 'llamacpp-backend'
-  | 'openvino-backend'
-  | 'ollama-backend'
+type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
 
 type InferenceDevice = {
   id: string
@@ -491,10 +516,10 @@ type ApiServiceInformation = {
 
 type Model = {
   name: string
-  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP' | 'ollama'
+  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP'
   default: boolean
   downloaded?: boolean | undefined
-  backend?: 'openVINO' | 'llamaCPP' | 'ollama' | undefined
+  backend?: 'openVINO' | 'llamaCPP' | undefined
   supportsToolCalling?: boolean
   supportsVision?: boolean
   maxContextSize?: number

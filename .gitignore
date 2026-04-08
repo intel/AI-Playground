@@ -11,6 +11,8 @@ WebUI/external/service/
 WebUI/external/workflows_intel/
 WebUI/external/workflows_bak/
 
+*.pyc
+
 *.7z
 *.whl
 hijacks/

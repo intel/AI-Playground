@@ -15,12 +15,8 @@
       "filter": ["*.py", "pyproject.toml", "uv.lock"]
     },
     {
-      "from": "external/presets",
-      "to": "presets"
-    },
-    {
-      "from": "external/presets_demo",
-      "to": "presets_demo"
+      "from": "../modes",
+      "to": "modes"
     },
     {
       "from": "../device-service",
@@ -53,6 +49,10 @@
     {
       "from": "build/settings.json",
       "to": "settings.json"
+    },
+    {
+      "from": "external/hardware-recommendations.json",
+      "to": "hardware-recommendations.json"
     },
     {
       "from": "../service/static/assets/",

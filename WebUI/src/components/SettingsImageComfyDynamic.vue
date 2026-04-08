@@ -32,7 +32,12 @@
     <!-- Regular inputs -->
     <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
       <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-        <Label class="truncate min-w-0">
+        <Label
+          :title="
+            languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label
+          "
+          class="truncate min-w-0"
+        >
           {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
         </Label>
         <Tooltip v-if="getSettingTooltipKey(input)">

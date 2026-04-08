@@ -172,6 +172,18 @@
       </div>
       <div class="flex flex-col pt-5">
         <button
+          type="button"
+          :disabled="demoMode.enabled"
+          @click="switchProductMode"
+          class="bg-muted hover:bg-muted/80 px-3 py-1.5 rounded-lg text-sm mb-2 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+        >
+          {{
+            i18nState.SETTINGS_SWITCH_PRODUCT_MODE ||
+            languages.SETTINGS_SWITCH_PRODUCT_MODE ||
+            'Switch Product Mode'
+          }}
+        </button>
+        <button
           @click="globalSetup.loadingState = 'manageInstallations'"
           class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm"
         >
@@ -195,6 +207,7 @@ import { useSpeechToText } from '@/assets/js/store/speechToText'
 import { useDeveloperSettings } from '@/assets/js/store/developerSettings'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import { useProductMode } from '@/assets/js/store/productMode'
 import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
@@ -218,6 +231,7 @@ const theme = useTheme()
 const presetsStore = usePresets()
 const i18nState = useI18N().state
 const languages = i18nState
+const productModeStore = useProductMode()
 const speechToText = useSpeechToText()
 const developerSettings = useDeveloperSettings()
 const dialogStore = useDialogStore()
@@ -371,6 +385,12 @@ async function loadPresetsFromIntel() {
   } else {
     toast.error('Synchronisation failed')
   }
+}
+
+async function switchProductMode() {
+  if (demoMode.enabled) return
+  await productModeStore.detectRecommendation()
+  globalSetup.loadingState = 'selectProductMode'
 }
 
 // Watch for changes to enabled state and ensure server is running

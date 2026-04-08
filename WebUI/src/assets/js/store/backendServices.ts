@@ -3,13 +3,7 @@ import { ref, computed, watch } from 'vue'
 import z from 'zod'
 import { demoAwareStorage } from '../demoAwareStorage'
 
-const backends = [
-  'openvino-backend',
-  'ai-backend',
-  'comfyui-backend',
-  'llamacpp-backend',
-  'ollama-backend',
-] as const
+const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
 
 export type BackendServiceName = (typeof backends)[number]
 
@@ -39,7 +33,6 @@ export const useBackendServices = defineStore(
       'ai-backend': null,
       'comfyui-backend': null,
       'llamacpp-backend': null,
-      'ollama-backend': null,
       'openvino-backend': null,
     })
 
@@ -79,7 +72,6 @@ export const useBackendServices = defineStore(
       'ai-backend': {},
       'comfyui-backend': {},
       'llamacpp-backend': {},
-      'ollama-backend': {},
       'openvino-backend': {},
     })
 

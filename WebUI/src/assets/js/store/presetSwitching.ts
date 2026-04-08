@@ -38,10 +38,24 @@ function presetToMode(preset: Preset): ModeType {
 const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
-  ollama: 'ollama-backend',
 } as const
 
 type LlmBackend = keyof typeof backendToService
+
+/** Duplicated from promptArea to avoid pulling presetSwitching into that module's import graph. */
+const MODE_TO_CATEGORIES: Record<ModeType, string[]> = {
+  chat: ['chat'],
+  imageGen: ['create-images'],
+  imageEdit: ['edit-images'],
+  video: ['create-videos'],
+}
+
+const MODE_TO_PRESET_TYPE: Record<ModeType, 'chat' | 'comfy'> = {
+  chat: 'chat',
+  imageGen: 'comfy',
+  imageEdit: 'comfy',
+  video: 'comfy',
+}
 
 /** Presets that require high system/GPU memory (24GB system or 16GB GPU) */
 const HIGH_MEMORY_PRESETS = new Set([
@@ -272,6 +286,29 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
     return presetToMode(preset)
   }
 
+  /**
+   * After built-in preset files change (e.g. product mode), keep or replace the active preset
+   * for the current UI mode without memory-alert dialogs.
+   */
+  async function reconcileActivePresetAfterCatalogReload(): Promise<void> {
+    const mode = promptStore.currentMode
+    const categories = MODE_TO_CATEGORIES[mode]
+    const presetType = MODE_TO_PRESET_TYPE[mode]
+    const name = presets.activePresetName
+    if (name) {
+      const preset = presets.presets.find((p) => p.name === name)
+      if (preset && presetToMode(preset) === mode) {
+        if (preset.type === 'chat') {
+          useTextInference().loadSettingsForActivePreset()
+        } else {
+          useImageGenerationPresets().loadSettingsForActivePreset()
+        }
+        return
+      }
+    }
+    await switchToLastUsedForCategory(categories, presetType, { skipModeSwitch: true })
+  }
+
   return {
     // State
     isSwitching: computed(() => isSwitching.value),
@@ -282,6 +319,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
     switchPreset,
     switchVariant,
     switchToLastUsedForCategory,
+    reconcileActivePresetAfterCatalogReload,
 
     // Utilities
     getModeForPreset,

@@ -16,6 +16,7 @@ import {
   checkBackendWithDetails,
   ensureBackendVenv,
   installBackend,
+  installExtraWheels,
   pipInstallRequirementsFromFile,
 } from './uvBasedBackends/uv.ts'
 import {
@@ -635,6 +636,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         debugMessage: `installing comfyUI base repo`,
       }
       await setupComfyUiBaseService()
+      await installExtraWheels(this.serviceFolder)
+
       yield {
         serviceName: this.name,
         step: currentStep,

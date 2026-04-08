@@ -245,6 +245,7 @@
   "WORKFLOW_HIGH_VRAM_INFO": "Bu model çok fazla VRAM gerektiriyor. Düşük performans yaşarsanız çözünürlüğü düşürün ve/veya ComfyUI backend'ini yeniden başlatın",
   "WORKFLOW_HIGH_VRAM_WARNING": "yüksek VRAM gerekli",
   "LOADING_VERIFYING_BACKENDS": "Backend'ler doğrulanıyor",
+  "LOADING_AUTO_INSTALLING": "AI Playground kuruluyor...",
   "LOADING_AI_PLAYGROUND_LOADING": "AI Playground Yükleniyor",
   "COM_CLEAR_HISTORY": "Geçmişi Temizle",
   "INPUT_PROMPT": "Prompt",

@@ -341,10 +341,38 @@ export const checkBackendWithDetails = async (
 export const installWheel = async (backend: string, wheelPath: string) => {
   const logger = loggerFor(`uv.wheel.${backend}`)
   await assertUv(logger)
-  const uvCommand = ['pip', 'install', '--directory', path.join(aipgBaseDir, backend), wheelPath]
+  const uvCommand = [
+    'pip',
+    'install',
+    '--no-deps',
+    '--directory',
+    path.join(aipgBaseDir, backend),
+    wheelPath,
+  ]
   logger.info(`Installing wheel: ${wheelPath} with ${JSON.stringify(uvCommand)}`)
 
   return uv(uvCommand, logger)
+}
+
+export const installExtraWheels = async (backend: string) => {
+  const logger = loggerFor(`uv.wheels.${backend}`)
+  const wheelDir = app.isPackaged ? aipgBaseDir : path.join(aipgBaseDir, 'WebUI', 'external')
+  logger.info(`Scanning for extra wheels in ${wheelDir}`)
+  let entries: string[]
+  try {
+    entries = await fs.promises.readdir(wheelDir)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      logger.info(`No extra wheels directory found at ${wheelDir}`)
+      return
+    }
+    throw error
+  }
+  const wheelFiles = entries.filter((e) => e.endsWith('.whl'))
+  logger.info(`Found extra wheels: ${JSON.stringify(wheelFiles)}`)
+  for (const whl of wheelFiles) {
+    await installWheel(backend, path.join(wheelDir, whl))
+  }
 }
 
 /**

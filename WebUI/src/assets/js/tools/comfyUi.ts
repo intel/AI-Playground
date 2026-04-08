@@ -2,11 +2,12 @@ import { z } from 'zod'
 import { watch } from 'vue'
 import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
-import { useBackendServices, type BackendServiceName } from '../store/backendServices'
+import { useBackendServices } from '../store/backendServices'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
+import { chatBackends } from './chatBackends'
 import {
   DEFAULT_RESOLUTION_CONFIG,
   getResolutionsFromConfig,
@@ -26,13 +27,6 @@ const globalDefaultSettings = {
   batchSize: 4,
   negativePrompt: 'nsfw',
 }
-
-// Chat backends to be stopped to free resources for image generation
-const chatBackends: BackendServiceName[] = [
-  'llamacpp-backend',
-  'openvino-backend',
-  'ollama-backend',
-]
 
 async function stopChatBackend(): Promise<void> {
   console.log('[ComfyUI Tool] Stopping chat backend to free resources for image generation')

@@ -3,11 +3,12 @@ import { watch } from 'vue'
 import { FilePart, ModelMessage, tool } from 'ai'
 import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
-import { useBackendServices, type BackendServiceName } from '../store/backendServices'
+import { useBackendServices } from '../store/backendServices'
 import { usePresets, type Preset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
+import { chatBackends } from './chatBackends'
 
 const ImageEditOutputSchema = z.object({
   id: z.string(),
@@ -164,13 +165,6 @@ function getPresetDefault(preset: Preset, settingName: string): unknown {
   return preset.settings.find((s: { settingName?: string }) => s.settingName === settingName)
     ?.defaultValue
 }
-
-// Chat backends to be stopped to free resources for image editing
-const chatBackends: BackendServiceName[] = [
-  'llamacpp-backend',
-  'openvino-backend',
-  'ollama-backend',
-]
 
 async function stopChatBackend(): Promise<void> {
   console.log('[ComfyUIImageEdit Tool] Stopping chat backend to free resources for image editing')
