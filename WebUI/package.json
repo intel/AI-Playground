@@ -57,7 +57,7 @@
     "remove": "^0.1.5",
     "sudo-prompt": "^9.2.1",
     "tailwind-merge": "^3.5.0",
-    "three": "^0.183.2",
+    "three": "^0.182.0",
     "uint8array-extras": "^1.5.0",
     "unplugin-auto-import": "^21.0.0",
     "vee-validate": "^4.15.1",
