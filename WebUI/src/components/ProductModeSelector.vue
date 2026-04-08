@@ -38,29 +38,39 @@
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="flex items-baseline gap-2 flex-wrap">
-              <span class="text-lg font-bold">{{ option.title }}</span>
-              <span v-if="option.subtitle" class="text-lg font-bold text-muted-foreground">{{
-                option.subtitle
-              }}</span>
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+              <div class="flex items-baseline gap-2 flex-wrap min-w-0">
+                <span class="text-lg font-bold text-[#00c4fa] tracking-tight -mr-1">{{ option.titleOne }}</span>
+                <span class="text-lg font-bold tracking-tight">{{ option.titleTwo }}</span>
+                <span
+                  v-if="option.subtitle"
+                  class="text-lg font-medium text-muted-foreground tracking-tight"
+                >
+                  {{ option.subtitle }}
+                </span>
+              </div>
+
               <span
                 v-if="recommendedMode === option.mode"
-                class="ml-1 text-sm font-semibold text-green-500"
+                class="text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-green-500"
               >
                 Recommended
               </span>
               <span
                 v-else-if="option.mode === 'studio' && recommendedMode === 'essentials'"
-                class="ml-1 text-sm font-semibold text-amber-500"
+                class="text-xs font-semibold uppercase tracking-wider text-amber-500"
               >
                 Insufficient Hardware Detected
               </span>
             </div>
 
-            <p class="text-sm text-muted-foreground pt-1">{{ option.description }}</p>
+            <p class="text-sm text-foreground pt-1">{{ option.description }}</p>
 
-            <ul class="text-sm text-muted-foreground pt-2 pl-4 list-disc space-y-0.5">
-              <li v-for="(feature, idx) in option.features" :key="idx">{{ feature }}</li>
+            <ul class="text-sm pt-3 pl-5 list-disc space-y-1">
+              <li v-for="(feature, idx) in option.features" :key="idx">
+                <span class="text-foreground font-medium">{{ feature.label }}</span>
+                <span class="text-foreground/90">{{ feature.detail }}</span>
+              </li>
             </ul>
 
             <p class="text-xs text-muted-foreground pt-2 italic">
@@ -125,28 +135,36 @@ watch(
 const modeOptions = [
   {
     mode: 'essentials' as ProductMode,
-    title: 'AI Playground',
+    titleOne: 'AI',
+    titleTwo: 'PLAYGROUND',
     subtitle: 'essentials',
     description:
       'Focused feature set, purpose built for low power, lightweight, and power efficient Intel Core AI PCs.',
     features: [
-      'Chat: Knowledge chat, document search, and analysis',
-      'Image Gen: Draft, HD, and Manual image generation modes',
-      'Image Edit: Upscale, SketchToPhoto, Inpaint, Outpaint',
+      { label: 'Chat:', detail: ' Knowledge chat, document search, and analysis' },
+      { label: 'Image Gen:', detail: ' Draft, HD, and Manual image generation modes' },
+      { label: 'Image Edit:', detail: ' Upscale, SketchToPhoto, Inpaint, Outpaint' },
     ],
     supportedHardware: 'Intel® Core™ Series 3 with 12GB RAM',
   },
   {
     mode: 'studio' as ProductMode,
-    title: 'AI Playground',
+    titleOne: 'AI',
+    titleTwo: 'PLAYGROUND',
     subtitle: 'studio',
     description:
       'Full feature set of demanding offline AI workloads across chat, vision, image and video, targeting the GPU.',
     features: [
-      'Chat: Advanced chat with reasoning, vision, agentic, and multi-modal chat.',
-      'Image Gen: Advanced image gen with high realism and prompt adherence',
-      'Image Edit: Semantic prompt driven image editing, style control, and 3D model generation',
-      'Video Generation Support',
+      {
+        label: 'Chat:',
+        detail: ' Advanced chat with reasoning, vision, agentic, and multi-modal chat.',
+      },
+      { label: 'Image Gen:', detail: ' Advanced image gen with high realism and prompt adherence' },
+      {
+        label: 'Image Edit:',
+        detail: ' Semantic prompt driven image editing, style control, and 3D model generation',
+      },
+      { label: 'Video:', detail: ' Video Generation Support' },
     ],
     supportedHardware:
       'Intel® Core™ Ultra Series 3, Series 2V/2H, Series 1H with 16GB RAM; Intel Arc GPU Series A & B with 8GB of vRAM',

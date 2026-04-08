@@ -16,7 +16,7 @@
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-2 items-baseline">
-        <span style="color: #00c4fa">AI</span>
+        <span class="text-[#00c4fa]">AI</span>
         <span>PLAYGROUND</span>
         <span v-if="productModeStore.productMode" class="text-muted-foreground/60 font-medium">{{
           productModeStore.productMode === 'essentials' ? 'essentials' : 'studio'

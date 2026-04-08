@@ -293,12 +293,18 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 
 ```bash
 cd /workspace/WebUI
-npm run fetch-external-resources   # first time only — downloads uv + 7zip binaries
+npm run fetch-external-resources   # required on Linux if `build/resources/uv.exe` is missing
 DISPLAY=:1 npm run dev
 ```
 
 The Vite dev server starts on `http://localhost:25413` and Electron opens automatically.
 A virtual framebuffer (`Xvfb`) is already running on `:1`.
+
+**Linux prerequisite (don’t skip):**
+
+- If you see errors like `UV executable not found`, run `npm run fetch-external-resources` from `WebUI/`.
+- This downloads platform binaries into `build/resources/` (notably `uv.exe` and `7zr.exe`) which are required
+  for the `ai-backend` setup during `npm run dev`.
 
 ### Backend services on Linux
 
