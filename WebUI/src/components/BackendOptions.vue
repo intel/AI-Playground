@@ -41,7 +41,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { mapServiceNameToDisplayName, compareVersions } from '@/lib/utils'
-import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
 
 const props = defineProps<{
@@ -64,50 +63,42 @@ const getFormSchema = (backend: BackendServiceName) => {
   switch (backend) {
     case 'comfyui-backend':
       // ComfyUI: git hash (7-40 chars) or version tag (e.g. v1.0.0), plus optional startup parameters
-      return toTypedSchema(
-        z
-          .object({
-            version: z
-              .string()
-              .regex(/^[0-9a-f]{7,40}$/, 'Must be a valid git hash (7-40 characters)')
-              .or(
-                z.string().regex(/^v\d+\.\d+\.\d+$/, 'Must be a valid version tag (e.g. v1.0.0)'),
-              ),
-            comfyUiParameters: z.string().optional(),
-          })
-          .passthrough(),
-      )
+      return z
+        .object({
+          version: z
+            .string()
+            .regex(/^[0-9a-f]{7,40}$/, 'Must be a valid git hash (7-40 characters)')
+            .or(z.string().regex(/^v\d+\.\d+\.\d+$/, 'Must be a valid version tag (e.g. v1.0.0)')),
+          comfyUiParameters: z.string().optional(),
+        })
+        .passthrough()
 
     case 'llamacpp-backend':
       // LlamaCPP: build numbers like b6048, plus optional startup parameters
-      return toTypedSchema(
-        z
-          .object({
-            version: z.string().regex(/^b\d+$/, 'Must be a valid build number (e.g. b6048)'),
-            llamaCppParameters: z.string().optional(),
-          })
-          .passthrough(),
-      )
+      return z
+        .object({
+          version: z.string().regex(/^b\d+$/, 'Must be a valid build number (e.g. b6048)'),
+          llamaCppParameters: z.string().optional(),
+        })
+        .passthrough()
 
     case 'openvino-backend':
       // OpenVINO: version like 2025.2.0, optional releaseTag (hex hash) for weekly builds
-      return toTypedSchema(
-        z
-          .object({
-            version: z
-              .string()
-              .regex(/^\d+\.\d+\.\d+(\.\d+)?$/, 'Must be a valid version number (e.g. 2025.2.0)'),
-            releaseTag: z
-              .string()
-              .regex(/^[0-9a-f]{6,40}$/, 'Must be a hex commit hash (6-40 characters)')
-              .optional()
-              .or(z.literal('')),
-          })
-          .passthrough(),
-      )
+      return z
+        .object({
+          version: z
+            .string()
+            .regex(/^\d+\.\d+\.\d+(\.\d+)?$/, 'Must be a valid version number (e.g. 2025.2.0)'),
+          releaseTag: z
+            .string()
+            .regex(/^[0-9a-f]{6,40}$/, 'Must be a hex commit hash (6-40 characters)')
+            .optional()
+            .or(z.literal('')),
+        })
+        .passthrough()
 
     default:
-      return toTypedSchema(z.object({}).passthrough())
+      return z.object({}).passthrough()
   }
 }
 

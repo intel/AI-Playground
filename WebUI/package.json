@@ -32,7 +32,6 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@radix-icons/vue": "^1.0.0",
     "@tailwindcss/vite": "^4.2.1",
-    "@vee-validate/zod": "^4.15.1",
     "@vueuse/core": "^14.2.1",
     "ai": "6.0.111",
     "autoprefixer": "^10.4.27",
@@ -62,7 +61,7 @@
     "three": "^0.182.0",
     "uint8array-extras": "^1.5.0",
     "unplugin-auto-import": "^21.0.0",
-    "vee-validate": "^4.15.1",
+    "vee-validate": "^5.0.0-beta.1",
     "vue": "^3.5.30",
     "word-extractor": "^1.0.4",
     "zod": "^4.3.6"
@@ -95,7 +94,9 @@
   },
   "overrides": {
     "pdf-parse": "1.1.4",
-    "file-type": "^21.3.4"
+    "file-type": "^21.3.4",
+    "@browserbasehq/stagehand": "^3.2.1",
+    "openai": "^6.34.0"
   },
   "debug": {
     "env": {
