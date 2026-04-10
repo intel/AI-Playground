@@ -2671,9 +2671,9 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.10.0-1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:7fbbf409143a4fe0812a40c0b46a436030a7e1d14fe8c5234dfbe44df47f617e" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.10.0-2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:358bd7125cbec6e692d60618a5eec7f55a51b29e3652a849fd42af021d818023" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.10.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:45a1c5057629444aeb1c452c18298fa7f30f2f7aeadd4dc41f9d340980294407" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0-1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:7fbbf409143a4fe0812a40c0b46a436030a7e1d14fe8c5234dfbe44df47f617e" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0-2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:358bd7125cbec6e692d60618a5eec7f55a51b29e3652a849fd42af021d818023" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:45a1c5057629444aeb1c452c18298fa7f30f2f7aeadd4dc41f9d340980294407" },
 ]
 
 [[package]]
@@ -2712,7 +2712,7 @@ dependencies = [
     { name = "umf", marker = "sys_platform == 'win32'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/xpu/torch-2.10.0%2Bxpu-cp312-cp312-win_amd64.whl", hash = "sha256:3ad605be4728b6d3a28a44d07dd794b1a9e45551b0057815bf25eb2a6d6a56a7" },
+    { url = "https://download-r2.pytorch.org/whl/xpu/torch-2.10.0%2Bxpu-cp312-cp312-win_amd64.whl", hash = "sha256:3ad605be4728b6d3a28a44d07dd794b1a9e45551b0057815bf25eb2a6d6a56a7" },
 ]
 
 [[package]]
@@ -2877,7 +2877,7 @@ dependencies = [
     { name = "pyelftools", marker = "sys_platform == 'win32'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/triton_xpu-3.6.0-cp312-cp312-win_amd64.whl" },
+    { url = "https://download-r2.pytorch.org/whl/triton_xpu-3.6.0-cp312-cp312-win_amd64.whl" },
 ]
 
 [[package]]
@@ -2986,15 +2986,15 @@ wheels = [
 
 [[package]]
 name = "uv"
-version = "0.10.12"
+version = "0.11.6"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8d/b7/6a27678654caa7f2240d9c5be9bd032bfff90a58858f0078575e7a9b6d9f/uv-0.10.12.tar.gz", hash = "sha256:fa722691c7ae5c023778ad0b040ab8619367bcfe44fd0d9e05a58751af86cdf8", size = 3988720, upload-time = "2026-03-19T21:50:41.015Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/dd/f3/8aceeab67ea69805293ab290e7ca8cc1b61a064d28b8a35c76d8eba063dd/uv-0.11.6.tar.gz", hash = "sha256:e3b21b7e80024c95ff339fcd147ac6fc3dd98d3613c9d45d3a1f4fd1057f127b", size = 4073298, upload-time = "2026-04-09T12:09:01.738Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/90/4fd10d7337a084847403cdbff288395a6a12adbaaac975943df4f46c2d31/uv-0.10.12-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:e0f0ef58f0ba6fbfaf5f91b67aad6852252c49b8f78015a2a5800cf74c7538d5", size = 21852701, upload-time = "2026-03-19T21:51:06.216Z" },
-    { url = "https://files.pythonhosted.org/packages/ce/db/c41ace81b8ef5d5952433df38e321c0b6e5f88ce210c508b14f84817963f/uv-0.10.12-py3-none-macosx_11_0_arm64.whl", hash = "sha256:551f799d53e397843b6cde7e3c61de716fb487da512a21a954b7d0cbc06967e0", size = 20454594, upload-time = "2026-03-19T21:50:53.693Z" },
-    { url = "https://files.pythonhosted.org/packages/81/83/9225e3032f24fcb3b80ff97bbd4c28230de19f0f6b25dbad3ba6efda035e/uv-0.10.12-py3-none-win32.whl", hash = "sha256:cca36540d637c80d11d8a44a998a068355f0c78b75ec6b0f152ecbf89dfdd67b", size = 21739726, upload-time = "2026-03-19T21:50:46.155Z" },
-    { url = "https://files.pythonhosted.org/packages/b5/9c/1954092ce17c00a8c299d39f8121e4c8d60f22a69c103f34d8b8dc68444d/uv-0.10.12-py3-none-win_amd64.whl", hash = "sha256:76ebe11572409dfbe20ec25a823f9bc8781400ece5356aa33ec44903af7ec316", size = 24219668, upload-time = "2026-03-19T21:51:03.591Z" },
-    { url = "https://files.pythonhosted.org/packages/37/92/9ca420deb5a7b6716d8746e1b05eb2c35a305ff3b4aa57061919087d82dd/uv-0.10.12-py3-none-win_arm64.whl", hash = "sha256:6727e3a0208059cd4d621684e580d5e254322dacbd806e0d218360abd0d48a68", size = 22544602, upload-time = "2026-03-19T21:51:22.678Z" },
+    { url = "https://files.pythonhosted.org/packages/52/db/d27519a9e1a5ffee9d71af1a811ad0e19ce7ab9ae815453bef39dd479389/uv-0.11.6-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:5be013888420f96879c6e0d3081e7bcf51b539b034a01777041934457dfbedf3", size = 23214721, upload-time = "2026-04-09T12:09:32.228Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/8f/4399fa8b882bd7e0efffc829f73ab24d117d490a93e6bc7104a50282b854/uv-0.11.6-py3-none-macosx_11_0_arm64.whl", hash = "sha256:ffa5dc1cbb52bdce3b8447e83d1601a57ad4da6b523d77d4b47366db8b1ceb18", size = 21750109, upload-time = "2026-04-09T12:09:24.357Z" },
+    { url = "https://files.pythonhosted.org/packages/27/e0/bbd4ba7c2e5067bbba617d87d306ec146889edaeeaa2081d3e122178ca08/uv-0.11.6-py3-none-win32.whl", hash = "sha256:6e8344f38fa29f85dcfd3e62dc35a700d2448f8e90381077ef393438dcd5012e", size = 22865693, upload-time = "2026-04-09T12:09:21.415Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/33/1983ce113c538a856f2d620d16e39691962ecceef091a84086c5785e32e5/uv-0.11.6-py3-none-win_amd64.whl", hash = "sha256:a28bea69c1186303d1200f155c7a28c449f8a4431e458fcf89360cc7ef546e40", size = 25371258, upload-time = "2026-04-09T12:09:40.52Z" },
+    { url = "https://files.pythonhosted.org/packages/35/01/be0873f44b9c9bc250fcbf263367fcfc1f59feab996355bcb6b52fff080d/uv-0.11.6-py3-none-win_arm64.whl", hash = "sha256:a78f6d64b9950e24061bc7ec7f15ff8089ad7f5a976e7b65fcadce58fe02f613", size = 23869585, upload-time = "2026-04-09T12:09:29.425Z" },
 ]
 
 [[package]]
