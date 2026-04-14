@@ -35,16 +35,16 @@
 </template>
 
 <script setup lang="ts">
-import { useGlobalSetup } from '@/assets/js/store/globalSetup.ts'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
 
-const globalSetup = useGlobalSetup()
+const setupWizard = useSetupWizard()
 
 const emits = defineEmits<{
   (e: 'close'): void
 }>()
 
-async function onConfirm() {
-  globalSetup.loadingState = 'manageInstallations'
+function onConfirm() {
+  setupWizard.openWizard()
 }
 
 function concludeDialog() {

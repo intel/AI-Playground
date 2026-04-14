@@ -92,17 +92,38 @@
             @click="() => (textInference.metricsEnabled = !textInference.metricsEnabled)"
           />
         </div>
-        <!-- Enable Tools toggle - only shown when preset has showTools enabled -->
+        <!-- Built-in Tools toggle - only shown when preset has showTools enabled -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
           class="grid grid-cols-[120px_1fr] items-center gap-4"
         >
-          <Label class="whitespace-nowrap">Enable Tools</Label>
+          <Label class="whitespace-nowrap">Built-in tools:</Label>
           <Checkbox
             id="tools"
-            :model-value="textInference.toolsEnabled"
-            @click="() => (textInference.toolsEnabled = !textInference.toolsEnabled)"
+            :model-value="textInference.aipgToolsEnabled"
+            @click="() => (textInference.aipgToolsEnabled = !textInference.aipgToolsEnabled)"
           />
+        </div>
+
+        <!-- MCP Tools toggle -->
+        <div
+          v-if="showTools && textInference.modelSupportsToolCalling"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">MCP tools:</Label>
+          <Checkbox
+            id="mcp-tools"
+            :model-value="textInference.mcpToolsEnabled"
+            @click="() => (textInference.mcpToolsEnabled = !textInference.mcpToolsEnabled)"
+          />
+        </div>
+
+        <div
+          v-if="showTools && textInference.modelSupportsToolCalling"
+          class="pl-2 pt-2"
+          :class="{ 'opacity-50': !textInference.mcpToolsEnabled }"
+        >
+          <SettingsMcp />
         </div>
 
         <!-- Embeddings selector - only shown when RAG is enabled -->
@@ -173,12 +194,14 @@ import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import Rag from '@/components/Rag.vue'
+import SettingsMcp from '@/components/SettingsMcp.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 import * as toast from '@/assets/js/toast'
+import { useProductMode } from '@/assets/js/store/productMode'
 
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
@@ -188,6 +211,7 @@ const textInference = useTextInference()
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
 const backendServices = useBackendServices()
+const productModeStore = useProductMode()
 
 // Get the active chat preset
 const activeChatPreset = computed(() => {
@@ -207,11 +231,13 @@ const showTools = computed(() => activeChatPreset.value?.showTools ?? false)
 const lockDeviceToNpu = computed(() => activeChatPreset.value?.lockDeviceToNpu ?? false)
 const advancedMode = computed(() => activeChatPreset.value?.advancedMode ?? false)
 
-// Get available backends from preset
-// Note: Fallback only includes standard backends (not Ollama) to avoid showing Ollama
-// when no preset is selected or when the preset doesn't explicitly include it
+// Get available backends from preset (fallback when none configured on preset)
 const availableBackends = computed(() => {
-  return activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
+  const base = activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
+  if (productModeStore.productMode === 'nvidia') {
+    return base.filter((b) => b !== 'openVINO')
+  }
+  return base
 })
 
 // Backend items for dropdown

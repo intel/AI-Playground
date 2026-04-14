@@ -7,6 +7,8 @@ describe('deviceArch', () => {
       expect(getDeviceArch(0x4f80)).toBe('acm')
       expect(getDeviceArch(0x7d40)).toBe('mtl')
       expect(getDeviceArch(0xe202)).toBe('bmg')
+      expect(getDeviceArch(0xfd80)).toBe('wcl')
+      expect(getDeviceArch(0xfd81)).toBe('wcl')
     })
 
     it('should return "unknown" for unknown device IDs', () => {
@@ -20,6 +22,7 @@ describe('deviceArch', () => {
       expect(getArchPriority('bmg')).toBe(5)
       expect(getArchPriority('acm')).toBe(4)
       expect(getArchPriority('arl_h')).toBe(3)
+      expect(getArchPriority('wcl')).toBe(2)
       expect(getArchPriority('lnl')).toBe(2)
       expect(getArchPriority('mtl')).toBe(1)
       expect(getArchPriority('unknown')).toBe(0)

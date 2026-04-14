@@ -3,7 +3,7 @@
     <div class="px-20 py-5 max-w-5xl">
       <h1 class="text-center py-1 px-4 rounded-sm text-4xl">
         {{
-          demoMode.productMode === 'essentials'
+          productModeStore.productMode === 'essentials'
             ? languages.BACKEND_MANAGE_ESSENTIALS
             : languages.BACKEND_MANAGE
         }}
@@ -288,7 +288,7 @@ import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import type { ErrorDetails } from '../../electron/subprocesses/service'
-import { useDemoMode } from '@/assets/js/store/demoMode'
+import { useProductMode } from '@/assets/js/store/productMode'
 
 const emits = defineEmits<{
   (e: 'close'): void
@@ -300,7 +300,7 @@ type ExtendedApiServiceInformation = ApiServiceInformation & {
 }
 
 const backendServices = useBackendServices()
-const demoMode = useDemoMode()
+const productModeStore = useProductMode()
 
 // App version for AI Backend display (fetched directly to avoid timing issues with globalSetup.initSetup)
 const appVersion = ref('...')
@@ -329,13 +329,16 @@ const alreadyInstalledOrRequiredComponents = computed(
 const toBeInstalledComponents = ref(new Set<BackendServiceName>())
 
 const components = computed(() => {
-  return backendServices.info.map((item) => ({
-    enabled:
-      alreadyInstalledOrRequiredComponents.value.has(item.serviceName) ||
-      toBeInstalledComponents.value.has(item.serviceName),
-    isLoading: loadingComponents.value.has(item.serviceName),
-    ...item,
-  }))
+  const isNvidiaMode = productModeStore.productMode === 'nvidia'
+  return backendServices.info
+    .filter((item) => !(isNvidiaMode && item.serviceName === 'openvino-backend'))
+    .map((item) => ({
+      enabled:
+        alreadyInstalledOrRequiredComponents.value.has(item.serviceName) ||
+        toBeInstalledComponents.value.has(item.serviceName),
+      isLoading: loadingComponents.value.has(item.serviceName),
+      ...item,
+    }))
 })
 
 function isSomethingLoading(): boolean {
@@ -549,14 +552,6 @@ function hasVersionChange(serviceName: BackendServiceName): boolean {
   const versionState = backendServices.versionState[serviceName]
   const effectiveTarget = getEffectiveTarget(serviceName)
   if (!effectiveTarget || !versionState.installed) return false
-
-  // For Ollama, compare both version and releaseTag
-  if (serviceName === 'ollama-backend') {
-    return (
-      versionState.installed.version !== effectiveTarget.version ||
-      versionState.installed.releaseTag !== effectiveTarget.releaseTag
-    )
-  }
 
   // Normalize versions for comparison (handles OpenVINO subversions)
   const installedNorm = normalizeVersionForComparison(

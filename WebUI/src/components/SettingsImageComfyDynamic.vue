@@ -32,7 +32,12 @@
     <!-- Regular inputs -->
     <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
       <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-        <Label class="truncate min-w-0">
+        <Label
+          :title="
+            languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label
+          "
+          class="truncate min-w-0"
+        >
           {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
         </Label>
         <Tooltip v-if="getSettingTooltipKey(input)">
@@ -221,9 +226,7 @@ const hasMaskEditing = computed(() => {
 })
 
 // i18n key for setting tooltips (e.g. Safety Check)
-function getSettingTooltipKey(
-  input: (typeof imageGeneration.comfyInputs)[0],
-): string | undefined {
+function getSettingTooltipKey(input: (typeof imageGeneration.comfyInputs)[0]): string | undefined {
   if (input.label === 'Safety Check' || input.nodeTitle === 'SafetyCheckerStrength') {
     return 'SETTINGS_IMAGE_INFO_SAFETY_CHECKER'
   }

@@ -14,16 +14,16 @@
           </Tooltip>
         </div>
         <drop-down-new
-        :title="'Megapixels'"
-        :value="megaPixelsIndex.toString()"
-        :items="megaPixelsDropdownItems"
-        :disabled="props.disabled || demoMode.enabled"
-        @change="
-          (value) => {
-            megaPixelsIndex = parseInt(value)
-          }
-        "
-      />
+          :title="'Megapixels'"
+          :value="megaPixelsIndex.toString()"
+          :items="megaPixelsDropdownItems"
+          :disabled="props.disabled || demoMode.enabled"
+          @change="
+            (value) => {
+              megaPixelsIndex = parseInt(value)
+            }
+          "
+        />
       </div>
 
       <div class="grid grid-cols-[120px_1fr] items-end gap-4">
@@ -39,53 +39,53 @@
           </Tooltip>
         </div>
         <div class="flex flex-row justify-between items-stretch">
-        <div
-          v-for="(res, i) in resolutionsPerMegaPixelsOption[megaPixelsIndex]"
-          :key="`res-${i}`"
-          @click="
-            () => {
-              if (!props.disabled) resolutionIndex = i
-            }
-          "
-          :className="
-            clsx('flex flex-col items-center justify-end gap-1 transition-colors', {
-              'cursor-pointer': !props.disabled,
-            })
-          "
-        >
           <div
-            :className="
-              clsx('transition-colors', {
-                'bg-background border-2': i % 2 === 0,
-                'border-border': (resolutionIndex !== i || disabled) && i % 2 === 0,
-                'border-primary': resolutionIndex === i && !disabled && i % 2 === 0,
-              })
+            v-for="(res, i) in resolutionsPerMegaPixelsOption[megaPixelsIndex]"
+            :key="`res-${i}`"
+            @click="
+              () => {
+                if (!props.disabled) resolutionIndex = i
+              }
             "
-            :style="
-              (() => {
-                const aspectRatio =
-                  aspectRatios.find((ar) => ar.label === res.aspectRatio)?.value ?? 1
-                const area = 600
-                const width = Math.sqrt(area * aspectRatio)
-                const height = area / width
-                return {
-                  width: `${width.toFixed(0)}px`,
-                  height: `${height.toFixed(0)}px`,
-                }
-              })()
-            "
-          ></div>
-          <span
             :className="
-              clsx('text-xs select-none transition-colors', {
-                'text-muted-foreground': resolutionIndex !== i || disabled,
-                'text-primary font-semibold': resolutionIndex === i && !disabled,
+              clsx('flex flex-col items-center justify-end gap-1 transition-colors', {
+                'cursor-pointer': !props.disabled,
               })
             "
           >
-            {{ res.aspectRatio }}
-          </span>
-        </div>
+            <div
+              :className="
+                clsx('transition-colors', {
+                  'bg-background border-2': i % 2 === 0,
+                  'border-border': (resolutionIndex !== i || disabled) && i % 2 === 0,
+                  'border-primary': resolutionIndex === i && !disabled && i % 2 === 0,
+                })
+              "
+              :style="
+                (() => {
+                  const aspectRatio =
+                    aspectRatios.find((ar) => ar.label === res.aspectRatio)?.value ?? 1
+                  const area = 600
+                  const width = Math.sqrt(area * aspectRatio)
+                  const height = area / width
+                  return {
+                    width: `${width.toFixed(0)}px`,
+                    height: `${height.toFixed(0)}px`,
+                  }
+                })()
+              "
+            ></div>
+            <span
+              :className="
+                clsx('text-xs select-none transition-colors', {
+                  'text-muted-foreground': resolutionIndex !== i || disabled,
+                  'text-primary font-semibold': resolutionIndex === i && !disabled,
+                })
+              "
+            >
+              {{ res.aspectRatio }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -102,21 +102,21 @@
           </Tooltip>
         </div>
         <div class="flex gap-2 items-center">
-        <input
-          v-model.number="widthInput"
-          type="number"
-          min="1"
-          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled || demoMode.enabled"
-        />
-        <span class="text-muted-foreground">×</span>
-        <input
-          v-model.number="heightInput"
-          type="number"
-          min="1"
-          class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          :disabled="props.disabled || demoMode.enabled"
-        />
+          <input
+            v-model.number="widthInput"
+            type="number"
+            min="1"
+            class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            :disabled="props.disabled || demoMode.enabled"
+          />
+          <span class="text-muted-foreground">×</span>
+          <input
+            v-model.number="heightInput"
+            type="number"
+            min="1"
+            class="w-full rounded-lg bg-input border border-border text-foreground py-1 px-2 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            :disabled="props.disabled || demoMode.enabled"
+          />
         </div>
       </div>
     </div>

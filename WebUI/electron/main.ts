@@ -56,12 +56,94 @@ import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendServi
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
+import {
+  getMcpServerStatus,
+  invokeMcpServerTool,
+  listMcpServers,
+  listMcpServerTools,
+  startMcpServer,
+  stopAllMcpServers,
+  stopMcpServer,
+} from './subprocesses/mcpManager'
+import {
+  addMcpServer,
+  getMcpConfigPath,
+  getMcpServerConfig,
+  updateMcpServer,
+  removeMcpServer,
+  type McpServerConfig,
+} from './subprocesses/mcpServers'
 import { externalResourcesDir, getMediaDir } from './util.ts'
 import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
+import {
+  detectGpuHardwareDevices,
+  type GpuHardwareDevice,
+} from './subprocesses/hardwareDiscovery.ts'
 import z from 'zod'
+
+const ProductModeUiI18nSchema = z.object({
+  titleOne: z.string(),
+  titleTwo: z.string(),
+  subtitle: z.string().optional(),
+  description: z.string(),
+  supportedHardware: z.string(),
+  features: z.array(z.object({ labelKey: z.string(), detailKey: z.string() })).optional(),
+})
+
+const ProductModeFileSchema = z.object({
+  mode: z.enum(['studio', 'essentials', 'nvidia']),
+  priority: z.number(),
+  recommendForIntelDeviceIds: z.array(z.string()).default([]),
+  recommendForNvidia: z.boolean().default(false),
+  experimental: z.boolean().default(false),
+  displayOrder: z.number(),
+  requiresNvidiaGpu: z.boolean().default(false),
+  includePresets: z.array(z.string()).optional(),
+  excludePresets: z.array(z.string()).optional(),
+  ui: z.object({
+    i18n: ProductModeUiI18nSchema,
+  }),
+})
+type ProductModeFileConfig = z.infer<typeof ProductModeFileSchema>
+
+function loadProductModeConfigs(): ProductModeFileConfig[] {
+  try {
+    const modeDirs = fs
+      .readdirSync(modesDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name !== 'base')
+
+    const configs: ProductModeFileConfig[] = []
+    for (const dir of modeDirs) {
+      const modeFile = path.join(modesDir, dir.name, 'mode.json')
+      if (!fs.existsSync(modeFile)) continue
+      const raw = fs.readFileSync(modeFile, 'utf-8')
+      const parsed = ProductModeFileSchema.parse(JSON.parse(raw))
+      configs.push({
+        ...parsed,
+        recommendForIntelDeviceIds: parsed.recommendForIntelDeviceIds.map((id) => id.toLowerCase()),
+      })
+    }
+    return configs
+  } catch (e) {
+    appLogger.warn(`Failed to read product mode configs: ${e}`, 'electron-backend')
+    return []
+  }
+}
+
+function loadModeConfig(mode: string): ProductModeFileConfig | null {
+  const modeFile = path.join(modesDir, mode, 'mode.json')
+  if (!fs.existsSync(modeFile)) return null
+  try {
+    const raw = fs.readFileSync(modeFile, 'utf-8')
+    return ProductModeFileSchema.parse(JSON.parse(raw))
+  } catch (e) {
+    appLogger.warn(`Failed to read mode config for ${mode}: ${e}`, 'electron-backend')
+    return null
+  }
+}
 
 // }
 // The built directory structure
@@ -78,6 +160,12 @@ process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? '../..' : '../..
 
 const externalRes = path.resolve(
   app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
+)
+
+const modesDir = path.resolve(
+  app.isPackaged
+    ? path.join(process.resourcesPath, 'modes')
+    : path.join(__dirname, '../../../modes/'),
 )
 const singleInstanceLock = app.requestSingleInstanceLock()
 
@@ -103,18 +191,16 @@ const appSize = {
   maxChatContentHeight: 0,
 }
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
-const ProductModeSchema = z.enum(['professional', 'essentials'])
+const ProductModeSchema = z.enum(['studio', 'essentials', 'nvidia'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
-  deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
-  enablePreviewFeatures: z.boolean().default(false),
+  deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'wcl', 'lnl', 'mtl']).nullable().default(null),
   isAdminExec: z.boolean().default(false),
   availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg', 'light']),
   currentTheme: ThemeSchema.default('bmg'),
-  productMode: ProductModeSchema.default('professional'),
+  productMode: ProductModeSchema.optional(),
   isDemoModeEnabled: z.boolean().default(false),
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
-  demoModePresetsDir: z.string().optional(),
   demoModePasscode: z.string().optional(),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
@@ -123,27 +209,144 @@ const LocalSettingsSchema = z.object({
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
 
-/**
- * Resolves the preset directory name based on product mode and demo mode.
- *
- * When demo mode is enabled and a custom `demoModePresetsDir` is set, that value
- * takes precedence (backward-compatible override). Otherwise:
- *
- *   professional + non-demo → presets
- *   professional + demo    → presets_demo
- *   essentials   + non-demo → presets_essentials
- *   essentials   + demo    → presets_essentials_demo
- */
-function getPresetsDirName(s: LocalSettings): string {
-  if (s.isDemoModeEnabled && s.demoModePresetsDir) {
-    return s.demoModePresetsDir
+function resolveProductMode(s: LocalSettings): string {
+  return s.productMode === 'essentials'
+    ? 'essentials'
+    : s.productMode === 'nvidia'
+      ? 'nvidia'
+      : 'studio'
+}
+
+type PresetLoadConfig = {
+  baseDir: string
+  modeDir: string
+  imageFallbackDirs: string[]
+  includePresets?: string[]
+  excludePresets?: string[]
+}
+
+function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
+  const mode = resolveProductMode(s)
+  const variant = s.isDemoModeEnabled ? 'demo' : 'presets'
+  const modeConfig = loadModeConfig(mode)
+  const basePresetsDir = path.join(modesDir, 'base', 'presets')
+  return {
+    baseDir: path.join(modesDir, 'base', variant),
+    modeDir: path.join(modesDir, mode, variant),
+    imageFallbackDirs: variant === 'demo' ? [basePresetsDir] : [],
+    includePresets: modeConfig?.includePresets,
+    excludePresets: modeConfig?.excludePresets,
   }
-  const base = s.productMode === 'essentials' ? 'presets_essentials' : 'presets'
-  return s.isDemoModeEnabled ? `${base}_demo` : base
+}
+
+function getModeDemoDir(s: LocalSettings): string {
+  return path.join(modesDir, resolveProductMode(s), 'demo')
+}
+
+type PresetFile = { content: string; image: string | null }
+
+function findPresetImage(baseName: string, dirs: string[]): string | null {
+  for (const dir of dirs) {
+    for (const ext of ['.png', '.jpg', '.jpeg']) {
+      const imagePath = path.join(dir, `${baseName}${ext}`)
+      if (fs.existsSync(imagePath)) return imagePath
+    }
+  }
+  return null
+}
+
+async function readPresetsFromDir(
+  dir: string,
+  imageFallbackDirs: string[] = [],
+): Promise<Map<string, PresetFile>> {
+  const result = new Map<string, PresetFile>()
+  if (!fs.existsSync(dir)) return result
+
+  await fs.promises.mkdir(dir, { recursive: true })
+  const files = await fs.promises.readdir(dir)
+  const presetFiles = files.filter((f) => f.endsWith('.json') && !f.startsWith('_'))
+
+  await Promise.all(
+    presetFiles.map(async (file) => {
+      const raw = await fs.promises.readFile(path.join(dir, file), { encoding: 'utf-8' })
+      const content = process.platform !== 'win32' ? raw.replaceAll('\\\\', '/') : raw
+
+      const baseName = path.basename(file, '.json')
+      let imageBase64: string | null = null
+      const imagePath = findPresetImage(baseName, [dir, ...imageFallbackDirs])
+      if (imagePath) {
+        try {
+          const imageBuffer = await fs.promises.readFile(imagePath)
+          const ext = path.extname(imagePath).toLowerCase()
+          const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
+          imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+        } catch (error) {
+          appLogger.warn(`Failed to read image file ${imagePath}: ${error}`, 'electron-backend')
+        }
+      }
+
+      result.set(baseName, { content, image: imageBase64 })
+    }),
+  )
+  return result
+}
+
+function applyPresetFilter(
+  presets: Map<string, PresetFile>,
+  config: PresetLoadConfig,
+): Map<string, PresetFile> {
+  if (config.includePresets) {
+    const allowed = new Set(config.includePresets)
+    for (const key of presets.keys()) {
+      if (!allowed.has(key)) presets.delete(key)
+    }
+  } else if (config.excludePresets) {
+    for (const excluded of config.excludePresets) {
+      presets.delete(excluded)
+    }
+  }
+  return presets
 }
 
 let settings = LocalSettingsSchema.parse({})
 let demoProfile: DemoProfile | null = null
+
+/** Packaged app: single JSON next to resources. Dev: never write here (Vite watches the repo). */
+function getPackagedSettingsPath(): string {
+  return path.join(process.resourcesPath, 'settings.json')
+}
+
+/** Dev-only defaults shipped in the repo (read-only for the app). */
+function getDevSettingsDefaultsPath(): string {
+  return path.join(__dirname, '../../external/settings-dev.json')
+}
+
+/** Writable path: packaged = resources settings; dev = userData overlay (avoids Vite reload loops). */
+function getWritableSettingsPath(): string {
+  if (app.isPackaged) {
+    return getPackagedSettingsPath()
+  }
+  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+}
+
+function persistLocalSettingsToDisk(): void {
+  const settingPath = getWritableSettingsPath()
+  const serialized = JSON.stringify(LocalSettingsSchema.parse(settings), null, 2)
+  const tmpPath = `${settingPath}.${randomUUID()}.tmp`
+  try {
+    fs.mkdirSync(path.dirname(settingPath), { recursive: true })
+    fs.writeFileSync(tmpPath, serialized, { encoding: 'utf8' })
+    fs.renameSync(tmpPath, settingPath)
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmpPath)
+    } catch {
+      // ignore cleanup failure
+    }
+    appLogger.error(`failed to persist local settings: ${e}`, 'electron-backend')
+  }
+}
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'aipg-media',
@@ -158,26 +361,49 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 async function loadSettings() {
-  const settingPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'settings.json')
-    : path.join(__dirname, '../../external/settings-dev.json')
+  settings = LocalSettingsSchema.parse({})
 
-  appLogger.info(`loading settings from ${settingPath}`, 'electron-backend')
-  if (fs.existsSync(settingPath)) {
-    try {
-      settings = LocalSettingsSchema.parse(
-        JSON.parse(fs.readFileSync(settingPath, { encoding: 'utf8' })),
-      )
-    } catch (e) {
-      appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+  if (app.isPackaged) {
+    const packagedPath = getPackagedSettingsPath()
+    appLogger.info(`loading packaged settings from ${packagedPath}`, 'electron-backend')
+    if (fs.existsSync(packagedPath)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(packagedPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+      }
+    }
+  } else {
+    const defaultsPath = getDevSettingsDefaultsPath()
+    appLogger.info(`loading dev defaults from ${defaultsPath}`, 'electron-backend')
+    if (fs.existsSync(defaultsPath)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(defaultsPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load dev defaults: ${e}`, 'electron-backend')
+      }
+    }
+    const userPath = getWritableSettingsPath()
+    appLogger.info(`loading dev user settings from ${userPath}`, 'electron-backend')
+    if (fs.existsSync(userPath)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(userPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load dev user settings: ${e}`, 'electron-backend')
+      }
     }
   }
+
   appLogger.info(`settings loaded: ${JSON.stringify({ settings })}`, 'electron-backend')
 
   if (settings.isDemoModeEnabled) {
-    const presetsDir = path.join(externalRes, getPresetsDirName(settings))
+    const modeDemoDir = getModeDemoDir(settings)
+    const baseDemoDir = path.join(modesDir, 'base', 'demo')
     try {
-      demoProfile = loadDemoProfile(presetsDir, appLogger)
+      demoProfile = loadDemoProfile(modeDemoDir, baseDemoDir, appLogger)
     } catch (e) {
       appLogger.error(`Failed to load demo profile: ${e}`, 'demo-profile')
     }
@@ -390,6 +616,7 @@ function handleUtilityFunction<T, R>(
 }
 
 app.on('quit', async () => {
+  await stopAllMcpServers()
   if (singleInstanceLock) {
     app.releaseSingleInstanceLock()
   }
@@ -399,6 +626,7 @@ app.on('quit', async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', async () => {
   try {
+    await stopAllMcpServers()
     await serviceRegistry?.stopAllServices()
   } catch {}
   if (process.platform !== 'darwin') {
@@ -460,10 +688,79 @@ function initEventHandle() {
     }
   })
 
+  ipcMain.handle('getLocalSettings', () => {
+    return LocalSettingsSchema.parse(settings)
+  })
+
   ipcMain.handle('updateLocalSettings', (_event, updates: Partial<LocalSettings>) => {
     Object.assign(settings, updates)
+    const shouldReloadDemoProfile =
+      settings.isDemoModeEnabled && ('productMode' in updates || 'isDemoModeEnabled' in updates)
+    if (shouldReloadDemoProfile) {
+      const modeDemoDir = getModeDemoDir(settings)
+      const baseDemoDir = path.join(modesDir, 'base', 'demo')
+      try {
+        demoProfile = loadDemoProfile(modeDemoDir, baseDemoDir, appLogger)
+      } catch (e) {
+        appLogger.error(`Failed to reload demo profile after settings change: ${e}`, 'demo-profile')
+      }
+    }
+    persistLocalSettingsToDisk()
     appLogger.info(`Updated local settings: ${JSON.stringify(updates)}`, 'electron-backend')
     return { success: true }
+  })
+
+  ipcMain.handle('detectHardwareForModeRecommendation', async () => {
+    let detected: GpuHardwareDevice[] = []
+    let hasNvidia = false
+    let detectSuccess = true
+
+    try {
+      const probe = await detectGpuHardwareDevices()
+      detected = probe.detected
+      hasNvidia = probe.hasNvidia
+      appLogger.info(`Detected GPU devices: ${JSON.stringify(detected)}`, 'electron-backend')
+      appLogger.info(`Has NVIDIA: ${hasNvidia}`, 'electron-backend')
+    } catch (e) {
+      detectSuccess = false
+      appLogger.warn(`GPU detection failed: ${e}`, 'electron-backend')
+    }
+
+    const configs = loadProductModeConfigs()
+
+    const modeCatalog = configs
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((c) => ({
+        mode: c.mode,
+        experimental: c.experimental,
+        ui: c.ui,
+      }))
+
+    const gpuIds = detected
+      .map((d) => d.gpuDeviceId)
+      .filter((id): id is string => id !== null)
+      .map((id) => id.toLowerCase())
+
+    // Highest priority wins.
+    const eligible = configs
+      .filter((c) => c.mode !== 'nvidia' || hasNvidia)
+      .filter((c) => {
+        if (c.mode === 'nvidia') return c.recommendForNvidia === true
+        if (!c.recommendForIntelDeviceIds.length) return false
+        if (gpuIds.length === 0) return false
+        return gpuIds.some((id) => c.recommendForIntelDeviceIds.includes(id))
+      })
+      .sort((a, b) => b.priority - a.priority)
+
+    const recommendedMode: ProductMode = eligible[0]?.mode ?? 'studio'
+
+    return {
+      success: detectSuccess,
+      recommendedMode,
+      detectedDevices: detected,
+      hasNvidiaGpu: hasNvidia,
+      modeCatalog,
+    }
   })
 
   ipcMain.handle('getWinSize', () => {
@@ -593,7 +890,6 @@ function initEventHandle() {
       isDemoModeEnabled: settings.isDemoModeEnabled,
       demoModeResetInSeconds: settings.demoModeResetInSeconds,
       demoModePasscode: settings.demoModePasscode,
-      productMode: settings.productMode,
       profile: demoProfile,
     }
   })
@@ -1061,59 +1357,37 @@ function initEventHandle() {
   })
 
   ipcMain.handle('updatePresetsFromIntelRepo', () => {
-    return updateIntelPresets(settings.remoteRepository, getPresetsDirName(settings))
+    const mode = resolveProductMode(settings)
+    const variant = settings.isDemoModeEnabled ? 'demo' : 'presets'
+    const config = getPresetLoadConfig(settings)
+    return updateIntelPresets(
+      settings.remoteRepository,
+      mode,
+      variant,
+      config.baseDir,
+      config.modeDir,
+    )
   })
 
-  // Preset management IPC handlers
   ipcMain.handle('reloadPresets', async () => {
-    const presetsDir = path.join(externalRes, getPresetsDirName(settings))
+    const config = getPresetLoadConfig(settings)
     try {
-      await filterPartnerPresets(presetsDir)
+      await filterPartnerPresets(config.baseDir)
     } catch (error) {
       appLogger.error(`Failed to filter partner presets: ${error}`, 'electron-backend')
     }
     try {
-      // Ensure presets directory exists
-      await fs.promises.mkdir(presetsDir, { recursive: true })
-      const files = await fs.promises.readdir(presetsDir)
-      const presetFiles = files.filter((file) => file.endsWith('.json') && !file.startsWith('_'))
-      const presets = await Promise.all(
-        presetFiles.map(async (file) => {
-          const presetContent = await fs.promises.readFile(path.join(presetsDir, file), {
-            encoding: 'utf-8',
-          })
-          const osSpecificPreset =
-            process.platform !== 'win32' ? presetContent.replaceAll('\\\\', '/') : presetContent
-
-          // Check for image file with same name
-          const presetNameWithoutExt = path.basename(file, '.json')
-          const imageExtensions = ['.png', '.jpg', '.jpeg']
-          let imageBase64: string | null = null
-
-          for (const ext of imageExtensions) {
-            const imagePath = path.join(presetsDir, `${presetNameWithoutExt}${ext}`)
-            if (fs.existsSync(imagePath)) {
-              try {
-                const imageBuffer = await fs.promises.readFile(imagePath)
-                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
-                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
-                break
-              } catch (error) {
-                appLogger.warn(
-                  `Failed to read image file ${imagePath}: ${error}`,
-                  'electron-backend',
-                )
-              }
-            }
-          }
-
-          return {
-            content: osSpecificPreset,
-            image: imageBase64,
-          }
-        }),
+      const basePresets = applyPresetFilter(
+        await readPresetsFromDir(config.baseDir, config.imageFallbackDirs),
+        config,
       )
-      return presets
+      const modePresets = await readPresetsFromDir(config.modeDir, config.imageFallbackDirs)
+
+      for (const [name, preset] of modePresets) {
+        basePresets.set(name, preset)
+      }
+
+      return [...basePresets.values()]
     } catch (error) {
       appLogger.error(`Failed to load presets: ${error}`, 'electron-backend')
       return []
@@ -1132,46 +1406,8 @@ function initEventHandle() {
     try {
       const userDataPath = app.getPath('documents')
       const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
-      if (!fs.existsSync(presetsPath)) {
-        return []
-      }
-      const files = await fs.promises.readdir(presetsPath)
-      const presetFiles = files.filter((file) => file.endsWith('.json'))
-      const presets = await Promise.all(
-        presetFiles.map(async (file) => {
-          const presetContent = await fs.promises.readFile(path.join(presetsPath, file), {
-            encoding: 'utf-8',
-          })
-
-          // Check for image file with same name
-          const presetNameWithoutExt = path.basename(file, '.json')
-          const imageExtensions = ['.png', '.jpg', '.jpeg']
-          let imageBase64: string | null = null
-
-          for (const ext of imageExtensions) {
-            const imagePath = path.join(presetsPath, `${presetNameWithoutExt}${ext}`)
-            if (fs.existsSync(imagePath)) {
-              try {
-                const imageBuffer = await fs.promises.readFile(imagePath)
-                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
-                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
-                break
-              } catch (error) {
-                appLogger.warn(
-                  `Failed to read image file ${imagePath}: ${error}`,
-                  'electron-backend',
-                )
-              }
-            }
-          }
-
-          return {
-            content: presetContent,
-            image: imageBase64,
-          }
-        }),
-      )
-      return presets
+      const presets = await readPresetsFromDir(presetsPath)
+      return [...presets.values()]
     } catch (error) {
       appLogger.error(`Failed to load user presets: ${error}`, 'electron-backend')
       return []
@@ -1255,7 +1491,13 @@ function initEventHandle() {
   })
 
   ipcMain.handle('comfyui:installPypiPackage', async (_event, packageSpecifier: string) => {
-    return await comfyuiTools.installPypiPackage(packageSpecifier)
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
+    return await comfyuiTools.installPypiPackage(
+      packageSpecifier,
+      comfyService?.getTorchBackendEnv(),
+    )
   })
 
   ipcMain.handle(
@@ -1280,7 +1522,15 @@ function initEventHandle() {
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
       }
-      return await comfyuiTools.downloadCustomNode(nodeRepoData, comfyService.serviceDir)
+      const envAndWheels: comfyuiTools.ComfyUiInstallOptions = {
+        extraEnv: comfyService.getTorchBackendEnv(),
+        skipExtraWheels: comfyService.comfyUiVariantName !== 'xpu',
+      }
+      return await comfyuiTools.downloadCustomNode(
+        nodeRepoData,
+        comfyService.serviceDir,
+        envAndWheels,
+      )
     },
   )
 
@@ -1305,6 +1555,83 @@ function initEventHandle() {
       throw new Error('ComfyUI backend service not found')
     }
     return comfyuiTools.listInstalledCustomNodes(comfyService.serviceDir)
+  })
+
+  // MCP server IPC handlers
+  ipcMain.handle('mcp:startServer', async (_event, serverId: string) => {
+    return await startMcpServer(serverId)
+  })
+
+  ipcMain.handle('mcp:listServers', () => {
+    return listMcpServers()
+  })
+
+  ipcMain.handle('mcp:stopServer', async (_event, serverId: string) => {
+    return await stopMcpServer(serverId)
+  })
+
+  ipcMain.handle('mcp:getServerStatus', (_event, serverId: string) => {
+    return getMcpServerStatus(serverId)
+  })
+
+  ipcMain.handle('mcp:listServerTools', async (_event, serverId: string) => {
+    return await listMcpServerTools(serverId)
+  })
+
+  ipcMain.handle(
+    'mcp:invokeServerTool',
+    async (_event, serverId: string, toolName: string, args: Record<string, unknown>) => {
+      return await invokeMcpServerTool(serverId, toolName, args)
+    },
+  )
+
+  // MCP config file handlers
+  // TODO: Consider consolidating with openImageWithSystem/openImageInFolder
+  // into generic openFileWithSystem/openFileInFolder that take file paths
+  ipcMain.on('mcp:openConfig', () => {
+    const configPath = getMcpConfigPath()
+    shell.openPath(configPath)
+  })
+
+  ipcMain.on('mcp:openConfigInFolder', () => {
+    const configPath = getMcpConfigPath()
+    if (process.platform === 'win32') {
+      exec(`explorer.exe /select, "${configPath}"`)
+    } else {
+      shell.showItemInFolder(configPath)
+    }
+  })
+
+  ipcMain.handle('mcp:reloadConfig', async () => {
+    await stopAllMcpServers()
+    return listMcpServers()
+  })
+
+  ipcMain.handle(
+    'mcp:addServer',
+    async (
+      _event,
+      serverId: string,
+      config:
+        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
+        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+    ) => {
+      return addMcpServer(serverId, config)
+    },
+  )
+
+  ipcMain.handle('mcp:getServerConfig', (_event, serverId: string) => {
+    return getMcpServerConfig(serverId)
+  })
+
+  ipcMain.handle('mcp:updateServer', async (_event, serverId: string, config: McpServerConfig) => {
+    await stopMcpServer(serverId)
+    return updateMcpServer(serverId, config)
+  })
+
+  ipcMain.handle('mcp:removeServer', async (_event, serverId: string) => {
+    await stopMcpServer(serverId)
+    return removeMcpServer(serverId)
   })
 
   const getAssetPathFromUrl = (url: string) => {

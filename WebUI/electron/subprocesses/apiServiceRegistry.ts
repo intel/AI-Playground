@@ -6,10 +6,9 @@ import { appLoggerInstance } from '../logging/logger.ts'
 import getPort, { portNumbers } from 'get-port'
 import { LlamaCppBackendService } from './llamaCppBackendService.ts'
 import { OpenVINOBackendService } from './openVINOBackendService.ts'
-import { OllamaBackendService } from './ollamaBackendService.ts'
 import { LocalSettings } from '../main.ts'
 
-export type backend = 'ai-backend' | 'comfyui-backend' | 'ollama-backend'
+export type backend = 'ai-backend' | 'openvino-backend' | 'comfyui-backend' | 'llamacpp-backend'
 
 export interface ApiServiceRegistry {
   register(apiService: ApiService): void
@@ -187,16 +186,6 @@ export async function aiplaygroundApiServiceRegistry(
         settings,
       ),
     )
-    if (settings.enablePreviewFeatures) {
-      instance.register(
-        new OllamaBackendService(
-          'ollama-backend',
-          await getPort({ port: portNumbers(40000, 41000) }),
-          win,
-          settings,
-        ),
-      )
-    }
 
     // Automatically start all set-up services in the background
     // This happens regardless of frontend state, making it more reliable

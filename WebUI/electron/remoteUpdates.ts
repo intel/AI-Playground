@@ -14,7 +14,6 @@ const BackendVersionsSchema = z.object({
   'comfyui-backend': BackendVersionSchema,
   'llamacpp-backend': BackendVersionSchema,
   'openvino-backend': BackendVersionSchema,
-  'ollama-backend': BackendVersionSchema,
 })
 type BackendVersions = z.infer<typeof BackendVersionsSchema>
 

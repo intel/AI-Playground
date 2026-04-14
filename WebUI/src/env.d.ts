@@ -43,14 +43,103 @@ type DemoProfile = {
   notificationDotButtons: string[]
 }
 
-type ProductMode = 'professional' | 'essentials'
+type ProductMode = 'studio' | 'essentials' | 'nvidia'
+
+/** Mirrors electron/main LocalSettingsSchema (renderer copy for IPC typing). */
+type LocalSettings = {
+  debug: boolean
+  deviceArchOverride: 'bmg' | 'acm' | 'arl_h' | 'wcl' | 'lnl' | 'mtl' | null
+  isAdminExec: boolean
+  availableThemes: Array<'dark' | 'lnl' | 'bmg' | 'light'>
+  currentTheme: 'dark' | 'lnl' | 'bmg' | 'light'
+  productMode?: ProductMode
+  isDemoModeEnabled: boolean
+  demoModeResetInSeconds: number | null
+  demoModePasscode?: string
+  languageOverride: string | null
+  remoteRepository: string
+  huggingfaceEndpoint: string
+}
+
+type GpuHardwareDevice = {
+  device: string
+  name: string
+  gpuDeviceId: string | null
+}
+
+type ProductModeCatalogFeatureI18n = {
+  labelKey: string
+  detailKey: string
+}
+
+type ProductModeCatalogUiI18n = {
+  titleOne: string
+  titleTwo: string
+  subtitle?: string
+  description: string
+  supportedHardware: string
+  features?: ProductModeCatalogFeatureI18n[]
+}
+
+type ProductModeCatalogEntry = {
+  mode: ProductMode
+  experimental: boolean
+  ui: { i18n: ProductModeCatalogUiI18n }
+}
+
+type HardwareRecommendationResult = {
+  success: boolean
+  recommendedMode: ProductMode
+  detectedDevices: GpuHardwareDevice[]
+  hasNvidiaGpu: boolean
+  modeCatalog: ProductModeCatalogEntry[]
+  error?: string
+}
 
 type DemoModeSettings = {
   isDemoModeEnabled: boolean
   demoModeResetInSeconds: null | number
   demoModePasscode?: string
-  productMode: ProductMode
   profile?: DemoProfile | null
+}
+
+type McpConnectionState = 'stopped' | 'starting' | 'running' | 'error'
+
+type McpStatus = {
+  state: McpConnectionState
+  lastError?: string
+}
+
+type McpToolInfo = {
+  name: string
+  description?: string
+  inputSchema: Record<string, unknown>
+}
+
+type McpServerInfo = {
+  id: string
+  name: string
+}
+
+type McpServerConfig =
+  | {
+      type?: 'stdio'
+      command: string
+      args?: string[]
+      env?: Record<string, string>
+      displayName?: string
+    }
+  | {
+      type: 'http'
+      url: string
+      headers?: Record<string, string>
+      displayName?: string
+    }
+
+type McpToolCallResult = {
+  isError?: boolean
+  content?: unknown
+  structuredContent?: unknown
 }
 
 // AipgPage type kept for backward compatibility with getInitialPage IPC handler
@@ -86,6 +175,8 @@ type electronAPI = {
   getLocaleSettings(): Promise<LocaleSettings>
   getThemeSettings(): Promise<ThemeSettings>
   updateLocalSettings(updates: Partial<LocalSettings>): Promise<{ success: boolean }>
+  getLocalSettings(): Promise<LocalSettings>
+  detectHardwareForModeRecommendation(): Promise<HardwareRecommendationResult>
   setWinSize(width: number, height: number): Promise<void>
   showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>
   showMessageBox(options: Electron.MessageBoxOptions): Promise<number>
@@ -175,6 +266,35 @@ type electronAPI = {
     downloadCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     uninstallCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     listInstalledCustomNodes(): Promise<string[]>
+  }
+  mcp: {
+    listServers(): Promise<McpServerInfo[]>
+    startServer(serverId: string): Promise<McpStatus>
+    stopServer(serverId: string): Promise<McpStatus>
+    getServerStatus(serverId: string): Promise<McpStatus>
+    listServerTools(serverId: string): Promise<McpToolInfo[]>
+    invokeServerTool(
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ): Promise<McpToolCallResult>
+    openConfig(): void
+    openConfigInFolder(): void
+    reloadConfig(): Promise<McpServerInfo[]>
+    addServer(
+      serverId: string,
+      config:
+        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
+        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+    ): Promise<void>
+    getServerConfig(serverId: string): Promise<McpServerConfig>
+    updateServer(
+      serverId: string,
+      config:
+        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
+        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+    ): Promise<void>
+    removeServer(serverId: string): Promise<void>
   }
 }
 
@@ -453,12 +573,7 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName =
-  | 'ai-backend'
-  | 'comfyui-backend'
-  | 'llamacpp-backend'
-  | 'openvino-backend'
-  | 'ollama-backend'
+type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
 
 type InferenceDevice = {
   id: string
@@ -491,10 +606,10 @@ type ApiServiceInformation = {
 
 type Model = {
   name: string
-  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP' | 'ollama'
+  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP'
   default: boolean
   downloaded?: boolean | undefined
-  backend?: 'openVINO' | 'llamaCPP' | 'ollama' | undefined
+  backend?: 'openVINO' | 'llamaCPP' | undefined
   supportsToolCalling?: boolean
   supportsVision?: boolean
   maxContextSize?: number

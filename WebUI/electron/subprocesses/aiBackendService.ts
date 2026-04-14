@@ -1,10 +1,21 @@
-import * as filesystem from 'fs-extra'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
-import { aipgBaseDir, checkBackend, installBackend, installWheel } from './uvBasedBackends/uv.ts'
+import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
+
+export type GpuHardwareDevice = {
+  device: string
+  name: string
+  gpuDeviceId: string | null
+}
+
+export type HardwareDetectionResult = {
+  success: boolean
+  gpuDevices: GpuHardwareDevice[]
+  error?: string
+}
 
 export class AiBackendService extends LongLivedPythonApiService {
   isSetUp: boolean = false
@@ -64,14 +75,9 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      await installBackend(this.serviceFolder)
-
-      this.appLogger.info('scanning for extra wheels', this.name)
-      const wheelFiles = (await filesystem.readdir(this.wheelDir)).filter((e) => e.endsWith('.whl'))
-      this.appLogger.info(`found extra wheels: ${JSON.stringify(wheelFiles)}`, this.name)
-      for (const wheelFile of wheelFiles) {
-        await installWheel(this.serviceFolder, path.join(this.wheelDir, wheelFile))
-      }
+      const extraEnv =
+        this.settings.productMode === 'nvidia' ? { UV_TORCH_BACKEND: 'cu128' } : undefined
+      await installBackend(this.serviceFolder, undefined, extraEnv)
 
       yield {
         serviceName: this.name,
@@ -109,9 +115,16 @@ export class AiBackendService extends LongLivedPythonApiService {
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+    const pathSep = process.platform === 'win32' ? ';' : ':'
     const additionalEnvVariables = {
       VIRTUAL_ENV: this.pythonEnvDir,
-      PATH: `${path.join(this.pythonEnvDir, 'bin')};${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'Library', 'bin')};${process.env.PATH};${path.join(this.git.dir, 'cmd')}`,
+      PATH: [
+        path.join(this.pythonEnvDir, 'bin'),
+        path.join(this.pythonEnvDir, 'Scripts'),
+        path.join(this.pythonEnvDir, 'Library', 'bin'),
+        process.env.PATH,
+        path.join(this.git.dir, 'cmd'),
+      ].join(pathSep),
       PYTHONNOUSERSITE: 'true',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,

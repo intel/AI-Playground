@@ -168,7 +168,9 @@
               id="microphone-button"
               class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
               variant="secondary"
-              v-if="promptStore.getCurrentMode() === 'chat'"
+              v-if="
+                promptStore.getCurrentMode() === 'chat' && !productModeStore.isNvidiaModeSelected
+              "
               @click="handleRecordingClick"
               :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
               :title="
@@ -285,6 +287,7 @@ import Button from '@/components/ui/button/Button.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import CameraCapture from '@/components/CameraCapture.vue'
 import { useDemoMode, type DemoButtonId } from '@/assets/js/store/demoMode'
+import { useProductMode } from '@/assets/js/store/productMode'
 import DemoSamplePrompts from '@/components/DemoSamplePrompts.vue'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 
@@ -304,6 +307,7 @@ const isTextareaFocused = ref(false)
 const presetsStore = usePresets()
 const dialogStore = useDialogStore()
 const demoMode = useDemoMode()
+const productModeStore = useProductMode()
 
 audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
 

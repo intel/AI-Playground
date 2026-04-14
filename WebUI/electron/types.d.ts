@@ -1,12 +1,10 @@
 // Type declarations for the WebUI project
 
-// Extend BackendServiceName to include 'ollama-backend'
 declare type BackendServiceName =
   | 'ai-backend'
   | 'comfyui-backend'
   | 'llamacpp-backend'
   | 'openvino-backend'
-  | 'ollama-backend'
 
 // Declare BackendStatus type
 declare type BackendStatus =

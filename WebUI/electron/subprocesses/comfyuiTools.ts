@@ -6,7 +6,8 @@ import { appLoggerInstance } from '../logging/logger'
 import {
   isPackageInstalled as uvIsPackageInstalled,
   installPypiPackage as uvInstallPackage,
-  installRequirementsTxt,
+  pipInstallRequirementsFromFile,
+  installExtraWheels,
   aipgBaseDir,
 } from './uvBasedBackends/uv'
 
@@ -159,7 +160,10 @@ export async function getGitRef(repoDir: string): Promise<string | undefined> {
 /**
  * Install pip requirements from requirements.txt using uv
  */
-async function installPipRequirements(requirementsTxtPath: string): Promise<void> {
+async function installPipRequirements(
+  requirementsTxtPath: string,
+  extraEnv?: Record<string, string>,
+): Promise<void> {
   appLoggerInstance.info(
     `Installing python requirements from ${requirementsTxtPath} using uv`,
     'comfyui-tools',
@@ -171,7 +175,7 @@ async function installPipRequirements(requirementsTxtPath: string): Promise<void
   }
 
   try {
-    await installRequirementsTxt(COMFYUI_BACKEND, requirementsTxtPath)
+    await pipInstallRequirementsFromFile(COMFYUI_BACKEND, requirementsTxtPath, undefined, extraEnv)
     appLoggerInstance.info('Python requirements installation completed', 'comfyui-tools')
   } catch (error) {
     appLoggerInstance.error(
@@ -197,7 +201,10 @@ export async function isPackageInstalled(packageSpecifier: string): Promise<bool
 /**
  * Install a Python package via uv pip
  */
-export async function installPypiPackage(packageSpecifier: string): Promise<void> {
+export async function installPypiPackage(
+  packageSpecifier: string,
+  extraEnv?: Record<string, string>,
+): Promise<void> {
   if (await isPackageInstalled(packageSpecifier)) {
     appLoggerInstance.info(
       `Package ${packageSpecifier} already installed. Omitting installation`,
@@ -211,7 +218,7 @@ export async function installPypiPackage(packageSpecifier: string): Promise<void
       `Installing python package ${packageSpecifier} using uv`,
       'comfyui-tools',
     )
-    await uvInstallPackage(COMFYUI_BACKEND, packageSpecifier)
+    await uvInstallPackage(COMFYUI_BACKEND, packageSpecifier, extraEnv)
     appLoggerInstance.info('Python package installation completed', 'comfyui-tools')
   } catch (error) {
     appLoggerInstance.error(
@@ -254,10 +261,18 @@ function patchCustomNodeIfRequired(
 /**
  * Download and install a ComfyUI custom node
  */
+export type ComfyUiInstallOptions = {
+  extraEnv?: Record<string, string>
+  skipExtraWheels?: boolean
+}
+
 export async function downloadCustomNode(
   nodeRepoData: ComfyUICustomNodeRepoId,
   comfyUiRootPath: string,
+  options?: ComfyUiInstallOptions,
 ): Promise<boolean> {
+  const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
+
   if (isCustomNodeInstalled(nodeRepoData, comfyUiRootPath)) {
     appLoggerInstance.info(
       `Node repo ${JSON.stringify(nodeRepoData)} already exists. Omitting`,
@@ -268,7 +283,6 @@ export async function downloadCustomNode(
 
   try {
     const expectedGitUrl = `https://github.com/${nodeRepoData.username}/${nodeRepoData.repoName}`
-    const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
     const potentialNodeRequirements = path.join(expectedCustomNodePath, 'requirements.txt')
 
     // Install the git repo
@@ -281,7 +295,16 @@ export async function downloadCustomNode(
     patchCustomNodeIfRequired(expectedCustomNodePath, nodeRepoData)
 
     // Install pip requirements using uv
-    await installPipRequirements(potentialNodeRequirements)
+    await installPipRequirements(potentialNodeRequirements, options?.extraEnv)
+
+    if (!options?.skipExtraWheels) {
+      await installExtraWheels(COMFYUI_BACKEND)
+    } else {
+      appLoggerInstance.info(
+        'Skipping bundled extra wheels installation (non-XPU variant)',
+        'comfyui-tools',
+      )
+    }
 
     appLoggerInstance.info(
       `Successfully installed custom node ${nodeRepoData.username}/${nodeRepoData.repoName}`,
@@ -289,6 +312,7 @@ export async function downloadCustomNode(
     )
     return true
   } catch (error) {
+    removeExistingResource(expectedCustomNodePath)
     appLoggerInstance.error(
       `Failed to install custom comfy node ${nodeRepoData.username}/${nodeRepoData.repoName} due to: ${error}`,
       'comfyui-tools',

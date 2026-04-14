@@ -62,7 +62,7 @@ describe('loadDemoProfile', () => {
 
   it('returns null when _profile.json does not exist', () => {
     const logger = { warn: vi.fn() }
-    const result = loadDemoProfile(tmpDir, logger)
+    const result = loadDemoProfile(tmpDir, tmpDir, logger)
     expect(result).toBeNull()
     expect(logger.warn).toHaveBeenCalledOnce()
   })
@@ -73,13 +73,13 @@ describe('loadDemoProfile', () => {
       samplePrompts: [],
     }
     writeFileSync(path.join(tmpDir, '_profile.json'), JSON.stringify(profile))
-    const result = loadDemoProfile(tmpDir)
+    const result = loadDemoProfile(tmpDir, tmpDir)
     expect(result).not.toBeNull()
     expect(result!.defaults.chatPreset).toBe('X')
     expect(result!.inputImage).toBeNull()
   })
 
-  it('resolves inputImage to a data URI', () => {
+  it('resolves inputImage from the mode demo dir', () => {
     const pngBuffer = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
       'base64',
@@ -92,7 +92,29 @@ describe('loadDemoProfile', () => {
     }
     writeFileSync(path.join(tmpDir, '_profile.json'), JSON.stringify(profile))
 
-    const result = loadDemoProfile(tmpDir)
+    const result = loadDemoProfile(tmpDir, tmpDir)
+    expect(result!.inputImage).toMatch(/^data:image\/png;base64,/)
+  })
+
+  it('resolves inputImage from the base demo dir when not in mode dir', () => {
+    const baseDir = path.join(tmpDir, 'base')
+    const modeDir = path.join(tmpDir, 'mode')
+    mkdirSync(baseDir, { recursive: true })
+    mkdirSync(modeDir, { recursive: true })
+
+    const pngBuffer = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    writeFileSync(path.join(baseDir, 'test.png'), pngBuffer)
+
+    const profile = {
+      defaults: { chatPreset: 'X', chatModel: 'Y' },
+      inputImage: 'test.png',
+    }
+    writeFileSync(path.join(modeDir, '_profile.json'), JSON.stringify(profile))
+
+    const result = loadDemoProfile(modeDir, baseDir)
     expect(result!.inputImage).toMatch(/^data:image\/png;base64,/)
   })
 
@@ -102,16 +124,16 @@ describe('loadDemoProfile', () => {
       inputImage: 'nonexistent.jpg',
     }
     writeFileSync(path.join(tmpDir, '_profile.json'), JSON.stringify(profile))
-    expect(() => loadDemoProfile(tmpDir)).toThrow(/not found/)
+    expect(() => loadDemoProfile(tmpDir, tmpDir)).toThrow(/not found/)
   })
 
   it('throws on malformed JSON', () => {
     writeFileSync(path.join(tmpDir, '_profile.json'), '{bad json')
-    expect(() => loadDemoProfile(tmpDir)).toThrow()
+    expect(() => loadDemoProfile(tmpDir, tmpDir)).toThrow()
   })
 
   it('throws on schema validation failure', () => {
     writeFileSync(path.join(tmpDir, '_profile.json'), JSON.stringify({ wrong: true }))
-    expect(() => loadDemoProfile(tmpDir)).toThrow()
+    expect(() => loadDemoProfile(tmpDir, tmpDir)).toThrow()
   })
 })
