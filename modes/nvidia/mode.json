@@ -1,0 +1,19 @@
+{
+  "mode": "nvidia",
+  "priority": 10,
+  "recommendForIntelDeviceIds": [],
+  "recommendForNvidia": true,
+  "experimental": true,
+  "displayOrder": 30,
+  "requiresNvidiaGpu": false,
+  "excludePresets": ["npu-chat"],
+  "ui": {
+    "i18n": {
+      "titleOne": "PRODUCT_MODE_NVIDIA_TITLE_ONE",
+      "titleTwo": "PRODUCT_MODE_NVIDIA_TITLE_TWO",
+      "subtitle": "PRODUCT_MODE_NVIDIA_SUBTITLE",
+      "description": "PRODUCT_MODE_NVIDIA_DESCRIPTION",
+      "supportedHardware": "PRODUCT_MODE_NVIDIA_SUPPORTED_HARDWARE"
+    }
+  }
+}

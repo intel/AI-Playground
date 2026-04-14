@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { usePresetSwitching } from './presetSwitching'
 import { useBackendServices } from './backendServices'
 import { useDialogStore } from './dialogs'
-import { useGlobalSetup } from './globalSetup'
+import { useSetupWizard } from './setupWizard'
 
 /**
  * Maps a mode to its corresponding preset categories.
@@ -26,6 +26,8 @@ const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
 }
 
 export const usePromptStore = defineStore('prompt', () => {
+  const setupWizard = useSetupWizard()
+
   const currentMode = ref<ModeType>('chat')
   const promptSubmitted = ref(false)
   const injectedPromptText = ref<string | null>(null)
@@ -50,12 +52,11 @@ export const usePromptStore = defineStore('prompt', () => {
 
       if (servicesLoaded && comfyUIService && comfyUIService.isSetUp === false) {
         const dialogStore = useDialogStore()
-        const globalSetup = useGlobalSetup()
 
         dialogStore.showWarningDialog(
           `This mode requires you to have the ComfyUI backend component installed. You can choose **Confirm** to install now or **Cancel** to install later from App Settings.`,
           () => {
-            globalSetup.loadingState = 'manageInstallations'
+            setupWizard.openWizard()
             dialogStore.closeWarningDialog()
           },
         )

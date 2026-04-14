@@ -15,12 +15,8 @@
       "filter": ["*.py", "pyproject.toml", "uv.lock"]
     },
     {
-      "from": "external/presets",
-      "to": "presets"
-    },
-    {
-      "from": "external/presets_demo",
-      "to": "presets_demo"
+      "from": "../modes",
+      "to": "modes"
     },
     {
       "from": "../device-service",
@@ -39,6 +35,14 @@
       "to": "uv.exe"
     },
     {
+      "from": "../build/resources/xpu-smi.exe",
+      "to": "device-service/xpu-smi.exe"
+    },
+    {
+      "from": "../build/resources/xpum.dll",
+      "to": "device-service/xpum.dll"
+    },
+    {
       "from": "external/backend-versions.json",
       "to": "backend-versions.json"
     },
@@ -51,8 +55,16 @@
       "to": "model_config.json"
     },
     {
+      "from": "external/mcp.json",
+      "to": "mcp.json"
+    },
+    {
       "from": "build/settings.json",
       "to": "settings.json"
+    },
+    {
+      "from": "external/hardware-recommendations.json",
+      "to": "hardware-recommendations.json"
     },
     {
       "from": "../service/static/assets/",

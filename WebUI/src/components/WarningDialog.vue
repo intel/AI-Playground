@@ -8,10 +8,7 @@
         :class="{ 'animate-scale-in': animate }"
       >
         <p v-html="warningMessage"></p>
-        <div
-          v-if="warningDontShowAgainKey"
-          class="flex items-center gap-2 self-start"
-        >
+        <div v-if="warningDontShowAgainKey" class="flex items-center gap-2 self-start">
           <input
             id="warning-dont-show-again"
             v-model="dontShowAgainChecked"
@@ -46,12 +43,8 @@ const dialogStore = useDialogStore()
 const animate = ref(false)
 const dontShowAgainChecked = ref(false)
 
-const {
-  warningMessage,
-  warningConfirmFunction,
-  warningDialogVisible,
-  warningDontShowAgainKey,
-} = storeToRefs(dialogStore)
+const { warningMessage, warningConfirmFunction, warningDialogVisible, warningDontShowAgainKey } =
+  storeToRefs(dialogStore)
 
 watch(warningDialogVisible, (newValue) => {
   if (newValue) {

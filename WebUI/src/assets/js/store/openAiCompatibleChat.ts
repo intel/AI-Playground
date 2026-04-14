@@ -8,17 +8,20 @@ import {
   DefaultChatTransport,
   LanguageModelUsage,
   streamText,
+  stepCountIs,
+  type ToolSet,
   UIDataTypes,
   UIMessage,
 } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations } from './conversations'
-import { availableTools } from '../tools/tools'
+import { aipgTools } from '../tools/tools'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
 import * as toast from '../toast'
-import { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider'
+import { LanguageModelV2ToolResultOutput, JSONSchema7 } from '@ai-sdk/provider'
+import { dynamicTool, jsonSchema } from '@ai-sdk/provider-utils'
 import { imageUrlToDataUri } from '@/lib/utils'
 
 const LlamaCppRawValueTimingsSchema = z.object({
@@ -51,8 +54,6 @@ const LlamaCppRawValueSchema = z.object({
 })
 
 export type AipgMetadata = {
-  reasoningStarted?: number
-  reasoningFinished?: number
   model?: string
   timestamp?: number
   conversationTitle?: string
@@ -82,21 +83,104 @@ export const useOpenAiCompatibleChat = defineStore(
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
+        fetch: (url, init) => {
+          const requestUrl = new URL(url as string)
+          const currentBaseUrl = textInference.currentBackendUrl
+          if (currentBaseUrl) {
+            const latestBase = new URL(currentBaseUrl)
+            requestUrl.hostname = latestBase.hostname
+            requestUrl.port = latestBase.port
+          }
+          return globalThis.fetch(requestUrl.toString(), init)
+        },
       }).chatModel(textInference.activeModel?.split('/').join('---') ?? ''),
     )
+
+    function isToolEnabled(toolName: string): boolean {
+      const name = toolName.toLowerCase()
+      // These blender tools fill up context, but still only work with separate api keys
+      const excludedKeywords = ['hyper', 'rodin', 'sketchfab', 'hunyuan', 'polyhaven']
+      return !excludedKeywords.some((keyword) => name.includes(keyword))
+    }
+
+    async function resolveTools(): Promise<ToolSet> {
+      if (!textInference.modelSupportsToolCalling) return {}
+
+      const builtinTools = resolveBuiltinTools()
+      const mcpTools = await resolveMcpTools()
+      return { ...builtinTools, ...mcpTools }
+    }
+
+    function resolveBuiltinTools(): ToolSet {
+      if (!textInference.aipgToolsEnabled) return {}
+      return { ...aipgTools }
+    }
+
+    async function resolveMcpTools(): Promise<ToolSet> {
+      if (!textInference.mcpToolsEnabled) return {}
+
+      const resolvedTools: ToolSet = {}
+      let servers: Awaited<ReturnType<typeof window.electronAPI.mcp.listServers>>
+      try {
+        servers = await window.electronAPI.mcp.listServers()
+      } catch (error) {
+        console.error('Failed to list MCP servers:', error)
+        return {}
+      }
+
+      for (const server of servers) {
+        let status: Awaited<ReturnType<typeof window.electronAPI.mcp.getServerStatus>>
+        try {
+          status = await window.electronAPI.mcp.getServerStatus(server.id)
+        } catch (error) {
+          console.error(`Failed to get MCP server status for ${server.id}:`, error)
+          continue
+        }
+        if (status.state !== 'running') {
+          continue
+        }
+
+        let allMcpTools: Awaited<ReturnType<typeof window.electronAPI.mcp.listServerTools>>
+        try {
+          allMcpTools = await window.electronAPI.mcp.listServerTools(server.id)
+        } catch (error) {
+          console.error(`Failed to list MCP tools for ${server.id}:`, error)
+          continue
+        }
+        const mcpTools = allMcpTools.filter((t) => isToolEnabled(t.name))
+
+        for (const mcpTool of mcpTools) {
+          const aiToolName = `mcp__${server.id}__${mcpTool.name}`
+          resolvedTools[aiToolName] = dynamicTool({
+            description: mcpTool.description || `${server.name} tool: ${mcpTool.name}`,
+            inputSchema: jsonSchema({
+              ...mcpTool.inputSchema,
+              properties: mcpTool.inputSchema.properties ?? {},
+              additionalProperties: false,
+            } as JSONSchema7),
+            execute: async (input) => {
+              const args = input as Record<string, unknown>
+              return await window.electronAPI.mcp.invokeServerTool(server.id, mcpTool.name, args)
+            },
+          }) as ToolSet[string]
+        }
+      }
+
+      return resolvedTools
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const customFetch = async (_: any, options: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const m = JSON.parse(options.body) as any
-      let reasoningStarted: number = 0
-      let reasoningFinished: number = 0
+      const reasoningTimings = new Map<string, { started: number; finished: number }>()
       const startOfRequestTime: number = Date.now()
       let firstTokenTime: number = 0
       let finishTime: number = 0
       let timings: z.infer<typeof LlamaCppRawValueTimingsSchema> | undefined = undefined
       let usage: LanguageModelUsage | undefined = undefined
       let usageFromRawChunk: LanguageModelUsage | undefined = undefined
+      let lastStepUsage: LanguageModelUsage | undefined = undefined
       const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
       let messages = await convertToModelMessages(m.messages)
 
@@ -172,15 +256,18 @@ export const useOpenAiCompatibleChat = defineStore(
       console.log(
         'textInference.modelSupportsToolCalling:',
         textInference.modelSupportsToolCalling,
-        'textInference.toolsEnabled:',
-        textInference.toolsEnabled,
+        'textInference.aipgToolsEnabled:',
+        textInference.aipgToolsEnabled,
+        'textInference.mcpToolsEnabled:',
+        textInference.mcpToolsEnabled,
       )
-      const shouldEnableTools = textInference.modelSupportsToolCalling && textInference.toolsEnabled
+      const availableTools = await resolveTools()
+      const hasTools = Object.keys(availableTools).length > 0
 
       console.log('customFetch called with messages:', {
         messages,
         systemPromptToUse,
-        shouldEnableTools,
+        hasTools,
       })
       const result = await streamText({
         model: model.value,
@@ -190,9 +277,10 @@ export const useOpenAiCompatibleChat = defineStore(
         maxOutputTokens: textInference.maxTokens,
         temperature: textInference.temperature,
         includeRawChunks: true,
-        ...(shouldEnableTools
+        ...(hasTools
           ? {
               tools: availableTools,
+              stopWhen: stepCountIs(20),
             }
           : {}),
         onChunk: (chunk) => {
@@ -242,21 +330,33 @@ export const useOpenAiCompatibleChat = defineStore(
               }
             }
           }
-          if (
-            !firstTokenTime &&
-            (chunk.chunk.type === 'reasoning-delta' || chunk.chunk.type === 'text-delta')
-          ) {
-            firstTokenTime = Date.now()
+          // Track per-block reasoning timing. The SDK reuses the same reasoning ID (e.g., "reasoning-0")
+          // across multiple tool call cycles, but onChunk never receives reasoning-start/reasoning-end.
+          // We detect a new reasoning block by a >100ms gap since the last delta (tool execution time).
+          if (chunk.chunk.type === 'reasoning-delta') {
+            if (!firstTokenTime) {
+              firstTokenTime = Date.now()
+            }
+            const reasoningId = chunk.chunk.id
+            const now = Date.now()
+            let timing = reasoningTimings.get(reasoningId)
+            if (!timing || now - timing.finished > 100) {
+              timing = { started: now, finished: now }
+              reasoningTimings.set(reasoningId, timing)
+            } else {
+              timing.finished = now
+            }
+            chunk.chunk.providerMetadata = {
+              aipg: {
+                reasoningStarted: timing.started,
+                reasoningFinished: timing.finished,
+              },
+            }
           }
-          if (chunk.chunk.type === 'reasoning-delta' && !reasoningStarted) {
-            reasoningStarted = Date.now()
-            console.log('Reasoning started at:', reasoningStarted)
-            chunk.chunk.providerMetadata = { aipg: { reasoningStarted } }
-          }
-          if (chunk.chunk.type === 'text-delta' && reasoningStarted && !reasoningFinished) {
-            reasoningFinished = Date.now()
-            console.log('Reasoning finished at:', reasoningFinished)
-            chunk.chunk.providerMetadata = { aipg: { reasoningStarted, reasoningFinished } }
+          if (chunk.chunk.type === 'text-delta') {
+            if (!firstTokenTime) {
+              firstTokenTime = Date.now()
+            }
           }
         },
         onFinish: (result) => {
@@ -290,30 +390,28 @@ export const useOpenAiCompatibleChat = defineStore(
           }
         },
       })
+
       return result.toUIMessageStreamResponse({
         sendReasoning: true,
         messageMetadata: (options) => {
-          // Always include reasoning timing from outer scope if available
-          const baseMetadata = {
-            reasoningStarted: reasoningStarted || undefined,
-            reasoningFinished: reasoningFinished || undefined,
-          }
-
           if (options.part.type === 'text-delta' || options.part.type === 'reasoning-delta') {
-            return baseMetadata
+            return {}
           }
 
-          let totalUsage: LanguageModelUsage | undefined = undefined
+          if (options.part.type === 'finish-step') {
+            lastStepUsage = options.part.usage
+          }
+
+          let effectiveUsage: LanguageModelUsage | undefined = undefined
           if (options.part.type === 'finish') {
-            totalUsage = options.part.totalUsage
+            effectiveUsage = lastStepUsage ?? options.part.totalUsage
           }
 
           return {
-            ...baseMetadata,
             model: textInference.activeModel,
             timestamp: Date.now(),
             timings,
-            usage: totalUsage ?? usage,
+            usage: effectiveUsage ?? usage,
           }
         },
       })

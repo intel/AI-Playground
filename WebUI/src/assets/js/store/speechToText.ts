@@ -5,8 +5,9 @@ import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import { useDialogStore } from './dialogs'
-import { useGlobalSetup } from './globalSetup'
 import * as toast from '@/assets/js/toast'
+import { useSetupWizard } from './setupWizard'
+import { useProductMode } from './productMode'
 
 export const WHISPER_MODEL_NAME = 'OpenVINO/whisper-base-int8-ov'
 
@@ -18,8 +19,8 @@ export const useSpeechToText = defineStore(
     const backendServices = useBackendServices()
     const models = useModels()
     const dialogStore = useDialogStore()
-    const globalSetup = useGlobalSetup()
-
+    const setupWizard = useSetupWizard()
+    const productMode = useProductMode()
     /**
      * Ensures the transcription server is running when STT is enabled.
      * This method checks if the server is already running and starts it if needed.
@@ -55,6 +56,11 @@ export const useSpeechToText = defineStore(
      * This should be called once during app initialization after backends are started.
      */
     async function initialize(): Promise<void> {
+      if (productMode.isNvidiaModeSelected) {
+        enabled.value = false
+        return
+      }
+
       if (!enabled.value) return
 
       initializing.value = true
@@ -102,6 +108,10 @@ export const useSpeechToText = defineStore(
      * @returns Promise that resolves when the toggle operation is complete
      */
     async function toggle(isEnabled: boolean): Promise<void> {
+      if (isEnabled && productMode.isNvidiaModeSelected) {
+        return
+      }
+
       if (isEnabled) {
         // Check if OpenVINO backend is installed
         const openVinoService = backendServices.info.find(
@@ -109,11 +119,10 @@ export const useSpeechToText = defineStore(
         )
 
         if (!openVinoService || !openVinoService.isSetUp) {
-          // Show warning dialog to install OVMS
           dialogStore.showWarningDialog(
             'OpenVINO backend is required for Speech To Text. Please install it first.',
             () => {
-              globalSetup.loadingState = 'manageInstallations'
+              setupWizard.openWizard()
             },
           )
           return

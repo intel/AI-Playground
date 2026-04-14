@@ -68,7 +68,8 @@ export class OpenVINOBackendService implements ApiService {
   // Logger
   readonly appLogger = appLoggerInstance
 
-  private version = '2025.3'
+  private version = '2026.1.0'
+  private releaseTag: string | undefined = '72cc0624'
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.name = name
@@ -476,6 +477,13 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   async updateSettings(settings: ServiceSettings): Promise<void> {
+    if (settings.releaseTag !== undefined) {
+      this.releaseTag = settings.releaseTag || undefined
+      this.appLogger.info(
+        `applied new OpenVINO Model Server release tag ${this.releaseTag ?? '(none)'}`,
+        this.name,
+      )
+    }
     if (settings.version) {
       this.version = settings.version
       this.appLogger.info(`applied new OpenVINO Model Server version ${this.version}`, this.name)
@@ -629,7 +637,10 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   private async downloadOvms(): Promise<void> {
-    const downloadUrl = `https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/weekly/2026.1.0.fb0bdbd1/ovms_windows_python_on.zip`
+    const baseUrl =
+      'https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages'
+    const versionPath = this.releaseTag ? `weekly/${this.version}.${this.releaseTag}` : this.version
+    const downloadUrl = `${baseUrl}/${versionPath}/ovms_windows_python_on.zip`
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
@@ -701,6 +712,11 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   async start(): Promise<BackendStatus> {
+    if (this.settings.productMode === 'nvidia') {
+      this.appLogger.info('Skipping OpenVINO start in NVIDIA mode', this.name)
+      return this.currentStatus
+    }
+
     // In this architecture, model server is started on-demand via ensureBackendReadiness
     // This method is kept for ApiService interface compatibility
     if (this.currentStatus === 'running') {

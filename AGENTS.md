@@ -6,7 +6,7 @@ Concise reference for AI coding agents working in this repository.
 
 Electron + Vue.js desktop app for AI inference on Intel GPUs. Multi-process architecture:
 Electron main process orchestrates Vue.js frontend and multiple Python/native backend services
-(AI Backend, ComfyUI, LlamaCPP, OpenVINO, Ollama). Frontend code lives in `WebUI/`.
+(AI Backend, ComfyUI, LlamaCPP, OpenVINO). Frontend code lives in `WebUI/`.
 
 ## Mandatory Rules
 
@@ -102,6 +102,7 @@ Python backend (`service/`) uses **Ruff** for linting (runs in CI via GitHub Act
 - Store files: **camelCase** in `WebUI/src/assets/js/store/` (e.g., `backendServices.ts`).
 - Store hooks use `use` prefix: `useBackendServices`, `useTextInference`.
 - Stores may import other stores for composition.
+- **Store instantiation**: Always use a regular `import` at the top of the file and call `const someStore = useSomeStore()` at the top of the `defineStore` setup function or `<script setup>` block. **Never** use dynamic `import()` or inline `useSomeStore()` calls inside nested functions/callbacks.
 
 ### Import Ordering
 
@@ -182,7 +183,7 @@ There is **no Vue Router**. Navigation is state-driven:
 - Once running, `promptStore.currentMode` controls which view renders: `chat` → `Chat.vue`, `imageGen`/`imageEdit`/`video` → `WorkflowResult.vue`
 - `PromptArea.vue` is the shared prompt input bar across all modes
 
-### Backend Services (5 services, dynamic ports)
+### Backend Services (4 services, dynamic ports)
 
 Managed by `electron/subprocesses/apiServiceRegistry.ts`. Each service spawns a child process and exposes an OpenAI-compatible HTTP API:
 
@@ -192,14 +193,13 @@ Managed by `electron/subprocesses/apiServiceRegistry.ts`. Each service spawns a 
 | `llamacpp-backend` | 39000-39999 | `llama-server` (native) | `/health` | GGUF model inference (LLM + embedding sub-servers) |
 | `openvino-backend` | 29000-29999 | `ovms` (native) | `/v2/health/ready` | OpenVINO inference (LLM + embedding + transcription sub-servers) |
 | `comfyui-backend` | 49000-49999 | ComfyUI `main.py` (Python) | `/queue` | Image/video/3D generation via workflows |
-| `ollama-backend` | 40000-41000 | `ollama` (native) | `/api/version` | Ollama inference (preview feature) |
 
 ### Three Communication Patterns
 
 1. **Electron IPC** (renderer ↔ main): ALL service lifecycle — start, stop, setup, device selection, `ensureBackendReadiness`. Renderer calls `window.electronAPI.*`, main handles via `ipcMain.handle()`. Main pushes events via `win.webContents.send()`.
 
 2. **Direct HTTP** (renderer → backend): For actual AI operations after service is ready:
-   - **Chat inference**: Vercel AI SDK `streamText()` → `{backendUrl}/v1/chat/completions` (LlamaCpp/OpenVINO/Ollama)
+   - **Chat inference**: Vercel AI SDK `streamText()` → `{backendUrl}/v1/chat/completions` (LlamaCpp/OpenVINO)
    - **Model management**: `fetch()` → Flask ai-backend `/api/*` (download, check, size)
    - **Image generation**: `fetch()` → ComfyUI `/prompt`, `/upload/image`, `/interrupt`, `/free`
 
@@ -254,12 +254,11 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 - `demoMode` — Demo mode overlay + auto-reset timer. IPC: `getDemoModeSettings`. No deps.
 - `speechToText` — STT enabled state, initialization. Deps: `backendServices`, `models`, `dialogs`, `globalSetup`
 - `audioRecorder` — Browser MediaRecorder, transcription via AI SDK. Deps: `backendServices` (lazy)
-- `ollama` — Ollama model pull progress. Deps: `textInference`
 - `developerSettings` — Dev console on startup toggle. No deps.
 
 ### Feature → File Map
 
-**Chat/LLM**: `views/Chat.vue` → stores: `openAiCompatibleChat`, `textInference`, `conversations`, `presets` → electron: `ensureBackendReadiness` IPC → backend: `llamacpp`/`openvino`/`ollama` via Vercel AI SDK
+**Chat/LLM**: `views/Chat.vue` → stores: `openAiCompatibleChat`, `textInference`, `conversations`, `presets` → electron: `ensureBackendReadiness` IPC → backend: `llamacpp`/`openvino` via Vercel AI SDK
 
 **Image/Video Generation**: `views/WorkflowResult.vue` → stores: `imageGenerationPresets`, `comfyUiPresets`, `presets` → electron: service lifecycle IPC → backend: `comfyui-backend` via direct HTTP
 
@@ -285,7 +284,64 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 | `electron/subprocesses/llamaCppBackendService.ts` | LlamaCPP native server (LLM + embedding sub-servers) |
 | `electron/subprocesses/openVINOBackendService.ts` | OpenVINO OVMS (LLM + embedding + transcription sub-servers) |
 | `electron/subprocesses/comfyUIBackendService.ts` | ComfyUI Python server |
-| `electron/subprocesses/ollamaBackendService.ts` | Ollama binary (preview) |
 | `electron/subprocesses/langchain.ts` | RAG utility process (document splitting, embedding, vector search) |
 | `electron/subprocesses/deviceDetection.ts` | Intel GPU device detection and env var setup |
 | `electron/logging/logger.ts` | Logging, sends `debugLog` events to renderer |
+
+## Cursor Cloud specific instructions
+
+### Running the dev server
+
+```bash
+cd /workspace/WebUI
+npm run fetch-external-resources   # required on Linux if `build/resources/uv.exe` is missing
+DISPLAY=:1 npm run dev
+```
+
+The Vite dev server starts on `http://localhost:25413` and Electron opens automatically.
+A virtual framebuffer (`Xvfb`) is already running on `:1`.
+
+**Linux prerequisite (don’t skip):**
+
+- If you see errors like `UV executable not found`, run `npm run fetch-external-resources` from `WebUI/`.
+- This downloads platform binaries into `build/resources/` (notably `uv.exe` and `7zr.exe`) which are required
+  for the `ai-backend` setup during `npm run dev`.
+
+### Backend services on Linux
+
+The `ai-backend` and `llamacpp-backend` services work on Linux (Ubuntu x64):
+
+- Run `npm run fetch-external-resources` once to download `uv` and `7zip` binaries for
+  the current platform (placed in `build/resources/`).
+- Start the Electron app with `DISPLAY=:1 npm run dev`. On the setup dialog, click
+  **Install** next to `AI Playground` (ai-backend) and `Llama.cpp - GGUF` (llamacpp-backend).
+- `ai-backend` runs a Python Flask server on port 59000 (health: `GET /healthy`).
+- `llamacpp-backend` downloads the `ubuntu-x64` CPU build from GitHub releases and
+  provides on-demand LLM inference (health: `GET /health`).
+- ComfyUI and OpenVINO are not yet supported on Linux.
+
+### Testing inference end-to-end
+
+A small test model (`LFM2.5-350M-Q4_K_M.gguf`, ~255 MB) is available in dev mode only.
+It is injected by the models store (`WebUI/src/assets/js/store/models.ts`) when
+`debugToolsEnabled` is true (i.e., when running via `npm run dev`). It is not listed
+in `models.json`. To test inference:
+
+1. Start the app via `npm run dev`, install both backends via the setup dialog, then click **Continue**.
+2. Open **Chat Settings**, select **LFM2.5-350M-Q4_K_M.gguf** from the Model dropdown.
+3. Type a message and send — the app auto-downloads the model from HuggingFace on first use.
+4. The llamacpp-backend will load the model and serve streaming responses.
+
+**Network requirement**: Model downloads redirect through `cas-bridge.xethub.hf.co`
+(HuggingFace Xet CDN). This domain must be in the egress allowlist. Allowlist changes
+only take effect on new VM sessions — a running VM will not pick up changes.
+
+### Known issues
+
+- **`npm install` requires `--legacy-peer-deps`** due to a `zod@4` vs `zod@3` peer
+  conflict from `@browserbasehq/stagehand` (transitive dep of `@langchain/community`).
+- **`electron/test/subprocesses/service.test.ts` fails** because the `electron` path alias
+  in `vitest.config.ts` shadows the `electron` package mock. This is a pre-existing issue
+  on the `dev` branch — 4 of 5 test files (24 tests) pass.
+- **Prettier reports 2 pre-existing formatting issues** in `electron/subprocesses/openVINOBackendService.ts`
+  and `src/components/BackendOptions.vue` on the `dev` branch.

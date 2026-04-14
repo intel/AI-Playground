@@ -29,6 +29,18 @@ export type Model = {
   isPredefined?: boolean // true if model is defined in models.json
 }
 
+const devOnlyModels: Model[] = [
+  {
+    name: 'LiquidAI/LFM2.5-350M-GGUF/LFM2.5-350M-Q4_K_M.gguf',
+    downloaded: false,
+    type: 'llamaCPP',
+    supportsToolCalling: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    maxContextSize: 1024,
+  },
+]
+
 export const useModels = defineStore(
   'models',
   () => {
@@ -51,6 +63,9 @@ export const useModels = defineStore(
 
     async function refreshModels() {
       const predefinedModels = (await window.electronAPI.loadModels()) as Model[]
+      if (window.envVars.debugToolsEnabled) {
+        predefinedModels.push(...devOnlyModels)
+      }
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
       const openVINOLLMModels = await window.electronAPI.getDownloadedOpenVINOLLMModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()

@@ -37,6 +37,7 @@ export async function spawnProcessAsync(
   logHandler: (data: string) => void = () => {},
   extraEnv?: object,
   workDir?: string,
+  timeoutMs?: number,
 ): Promise<string> {
   const startTime = Date.now()
   const timestamp = new Date().toISOString()
@@ -71,7 +72,37 @@ export async function spawnProcessAsync(
   })
 
   return new Promise<string>((resolve, reject) => {
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+    const clearSpawnTimeout = () => {
+      if (timeoutHandle !== null) {
+        clearTimeout(timeoutHandle)
+        timeoutHandle = null
+      }
+    }
+
+    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+      timeoutHandle = setTimeout(() => {
+        const duration = Date.now() - startTime
+        try {
+          spawnedProcess.kill('SIGKILL')
+        } catch {
+          /* ignore */
+        }
+        const result: ProcessResult = {
+          stdout: stdOut.join(''),
+          stderr: stdErr.join('') + `\nProcess timeout after ${timeoutMs}ms`,
+          exitCode: -1,
+          command,
+          args,
+          duration,
+          timestamp,
+        }
+        reject(new ProcessError(result))
+      }, timeoutMs)
+    }
+
     spawnedProcess.on('exit', (code) => {
+      clearSpawnTimeout()
       const duration = Date.now() - startTime
       const result: ProcessResult = {
         stdout: stdOut.join(''),
@@ -91,6 +122,7 @@ export async function spawnProcessAsync(
     })
 
     spawnedProcess.on('error', (err) => {
+      clearSpawnTimeout()
       const duration = Date.now() - startTime
       const result: ProcessResult = {
         stdout: stdOut.join(''),

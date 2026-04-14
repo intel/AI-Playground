@@ -60,7 +60,6 @@ export const useDemoMode = defineStore('demoMode', () => {
   // Existing DEMO_* keys in en-US.json are legacy and unused by the current driver.js tour.
   const enabled = ref(false)
   const profile = ref<DemoProfile | null>(null)
-  const productMode = ref<ProductMode>('professional')
   const explicitDefaultsState = ref<ExplicitDefaultsState>('idle')
   const visitedButtons = ref<Record<DemoButtonId, boolean>>(
     createInitialVisitedState(FALLBACK_NOTIFICATION_DOT_BUTTONS, FALLBACK_ENABLED_MODES),
@@ -114,18 +113,26 @@ export const useDemoMode = defineStore('demoMode', () => {
   const resetInSeconds = ref<null | number>(null)
   const passcode = ref('')
   const hasPasscode = computed(() => passcode.value.length > 0)
-  window.electronAPI.getDemoModeSettings().then((res) => {
+
+  function applyDemoSettingsPayload(res: DemoModeSettings) {
     enabled.value = res.isDemoModeEnabled
     profile.value = res.profile ?? null
-    productMode.value = res.productMode ?? 'professional'
     resetInSeconds.value = res.demoModeResetInSeconds
     passcode.value = res.demoModePasscode ?? ''
 
-    // Re-initialize visited state with profile data (or fallbacks)
     const dotButtons =
       (profile.value?.notificationDotButtons as DemoButtonId[]) ?? FALLBACK_NOTIFICATION_DOT_BUTTONS
     const enabledModes = profile.value?.enabledModes ?? FALLBACK_ENABLED_MODES
     visitedButtons.value = createInitialVisitedState(dotButtons, enabledModes)
+  }
+
+  async function refreshFromMainConfig() {
+    const res = await window.electronAPI.getDemoModeSettings()
+    applyDemoSettingsPayload(res)
+  }
+
+  window.electronAPI.getDemoModeSettings().then((res) => {
+    applyDemoSettingsPayload(res)
 
     if (res.isDemoModeEnabled && res.demoModeResetInSeconds) {
       const markInteracted = (e: Event) => {
@@ -224,7 +231,6 @@ export const useDemoMode = defineStore('demoMode', () => {
   return {
     enabled,
     profile,
-    productMode,
     notificationDotButtonIds,
     showDemoToggle,
     showResetDialog,
@@ -236,6 +242,7 @@ export const useDemoMode = defineStore('demoMode', () => {
     setEnabled,
     cancelReset,
     resetDemo,
+    refreshFromMainConfig,
   }
 })
 

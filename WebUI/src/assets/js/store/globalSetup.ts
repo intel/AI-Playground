@@ -1,8 +1,8 @@
-import { defineStore } from 'pinia'
+import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ModelLists } from './models'
 import { useModels } from './models'
 
-type GlobalSetupState = 'running' | 'verifyBackend' | 'manageInstallations' | 'loading' | 'failed'
+type GlobalSetupState = 'running' | 'verifyBackend' | 'setupWizard' | 'loading' | 'failed'
 
 export const useGlobalSetup = defineStore('globalSetup', () => {
   const state = reactive<KVObject>({
@@ -24,7 +24,6 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     const setupData = await window.electronAPI.getInitSetting()
     const apiServiceInformation = await window.electronAPI.getServices()
 
-    // Initialize model paths in models store
     const modelsStore = useModels()
     modelsStore.initPaths(setupData.modelPaths)
     models.value = setupData.modelLists
@@ -47,3 +46,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     initSetup,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useGlobalSetup, import.meta.hot))
+}

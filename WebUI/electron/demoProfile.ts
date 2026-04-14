@@ -36,16 +36,18 @@ const MIME_TYPES: Record<string, string> = {
 }
 
 /**
- * Loads and validates _profile.json from the given presets directory.
- * If `inputImage` is specified, reads the file and converts to a data URI.
- * Returns null if the file doesn't exist (logs a warning).
+ * Loads and validates _profile.json from the mode-specific demo directory.
+ * If `inputImage` is specified, resolves it from the mode dir first, then the
+ * base dir, reads the file, and converts to a data URI.
+ * Returns null if _profile.json doesn't exist (logs a warning).
  * Throws on malformed JSON or schema validation failure.
  */
 export function loadDemoProfile(
-  presetsDir: string,
+  modeDemoDir: string,
+  baseDemoDir: string,
   logger?: { warn: (msg: string, tag: string) => void },
 ): DemoProfile | null {
-  const profilePath = path.join(presetsDir, '_profile.json')
+  const profilePath = path.join(modeDemoDir, '_profile.json')
 
   if (!fs.existsSync(profilePath)) {
     logger?.warn(`Demo mode enabled but no _profile.json found at ${profilePath}`, 'demo-profile')
@@ -56,10 +58,13 @@ export function loadDemoProfile(
   const profile = DemoProfileSchema.parse(raw)
 
   if (profile.inputImage) {
-    const imagePath = path.join(presetsDir, profile.inputImage)
+    const modeImagePath = path.join(modeDemoDir, profile.inputImage)
+    const baseImagePath = path.join(baseDemoDir, profile.inputImage)
+    const imagePath = fs.existsSync(modeImagePath) ? modeImagePath : baseImagePath
+
     if (!fs.existsSync(imagePath)) {
       throw new Error(
-        `Demo profile references inputImage "${profile.inputImage}" but file not found at ${imagePath}`,
+        `Demo profile references inputImage "${profile.inputImage}" but file not found in ${modeDemoDir} or ${baseDemoDir}`,
       )
     }
     const ext = path.extname(imagePath).toLowerCase()

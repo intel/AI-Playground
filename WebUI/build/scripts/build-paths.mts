@@ -57,11 +57,22 @@ export const GET_PIP_SCRIPT_URL = 'https://bootstrap.pypa.io/get-pip.py'
 export const SEVEN_ZR_EXE_URL = {
   win32: 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe',
   darwin: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz',
+  linux: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-linux-x64.tar.xz',
 }
 export const UV_URL = {
-  win32: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-pc-windows-msvc.zip',
-  darwin: 'https://github.com/astral-sh/uv/releases/download/0.9.5/uv-aarch64-apple-darwin.tar.gz',
+  win32: 'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-x86_64-pc-windows-msvc.zip',
+  darwin: 'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-aarch64-apple-darwin.tar.gz',
+  linux:
+    'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-x86_64-unknown-linux-gnu.tar.gz',
 }
+export const XPU_SMI_URL = {
+  win32:
+    'https://github.com/intel/xpumanager/releases/download/v1.3.6/xpu-smi-1.3.6-20260206.143316.1004f6cb_win.zip',
+  // For now we only bundle the Windows CLI. Linux users can rely on the system package manager.
+  // (The app's Linux support currently doesn't include OpenVINO/ComfyUI anyway.)
+  darwin: null,
+  linux: null,
+} as const
 
 /**
  * Build configuration interface
@@ -91,13 +102,14 @@ export interface BuildPaths {
     getPipScript: string
     sevenZipExe: string
     uv: string
+    xpuSmiWinZip?: string
   }
 }
 
 /**
  * Get complete build paths configuration
  */
-export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
+export function getBuildPaths(target: 'win32' | 'darwin' | 'linux'): BuildPaths {
   return {
     repoRoot: REPO_ROOT,
     buildDir: BUILD_DIR,
@@ -123,6 +135,7 @@ export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
       getPipScript: GET_PIP_SCRIPT_URL,
       sevenZipExe: SEVEN_ZR_EXE_URL[target],
       uv: UV_URL[target],
+      ...(target === 'win32' && XPU_SMI_URL.win32 ? { xpuSmiWinZip: XPU_SMI_URL.win32 } : {}),
     },
   }
 }
@@ -132,7 +145,7 @@ export function getBuildPaths(target: 'win32' | 'darwin'): BuildPaths {
  */
 export function logBuildPaths(): void {
   const target = z
-    .enum(['win32', 'darwin'])
+    .enum(['win32', 'darwin', 'linux'])
     .safeParse(process.env.TARGET_PLATFORM || process.platform)
   if (!target.success) {
     console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)

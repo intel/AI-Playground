@@ -3,13 +3,7 @@ import { ref, computed, watch } from 'vue'
 import z from 'zod'
 import { demoAwareStorage } from '../demoAwareStorage'
 
-const backends = [
-  'openvino-backend',
-  'ai-backend',
-  'comfyui-backend',
-  'llamacpp-backend',
-  'ollama-backend',
-] as const
+const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
 
 export type BackendServiceName = (typeof backends)[number]
 
@@ -39,7 +33,6 @@ export const useBackendServices = defineStore(
       'ai-backend': null,
       'comfyui-backend': null,
       'llamacpp-backend': null,
-      'ollama-backend': null,
       'openvino-backend': null,
     })
 
@@ -79,7 +72,6 @@ export const useBackendServices = defineStore(
       'ai-backend': {},
       'comfyui-backend': {},
       'llamacpp-backend': {},
-      'ollama-backend': {},
       'openvino-backend': {},
     })
 
@@ -159,6 +151,8 @@ export const useBackendServices = defineStore(
       }
     })
 
+    const latestSetupProgress = ref(new Map<BackendServiceName, SetupProgress>())
+
     window.electronAPI.onServiceSetUpProgress(async (data) => {
       const associatedListener = serviceListeners.get(data.serviceName)
       if (!associatedListener) {
@@ -166,6 +160,14 @@ export const useBackendServices = defineStore(
         return
       }
       associatedListener.addData(data)
+
+      if (data.status === 'executing') {
+        latestSetupProgress.value.set(data.serviceName, data)
+        latestSetupProgress.value = new Map(latestSetupProgress.value)
+      } else {
+        latestSetupProgress.value.delete(data.serviceName)
+        latestSetupProgress.value = new Map(latestSetupProgress.value)
+      }
     })
 
     const serviceInfoUpdatePresent = computed(() => currentServiceInfo.value.length > 0)
@@ -272,7 +274,7 @@ export const useBackendServices = defineStore(
       }
 
       const versions = versionState.value[serviceName]
-      const targetVersionSettings = versions.uiOverride ?? versions.target
+      const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
       const serviceSettings: ServiceSettings = { serviceName, ...targetVersionSettings }
       if (serviceName === 'comfyui-backend') {
         serviceSettings.comfyUiParameters = effectiveComfyUiParameters.value
@@ -511,6 +513,7 @@ export const useBackendServices = defineStore(
       shouldShowInstallationDialog,
       startAllSetUpServicesInBackground,
       backendStartupInProgress,
+      latestSetupProgress,
     }
   },
   {

@@ -84,7 +84,7 @@
     </div>
   </DemoModeBlocker>
 
-  <div class="flex flex-col gap-3 pt-4">
+  <div v-if="!productModeStore.isNvidiaModeSelected" class="flex flex-col gap-3 pt-4">
     <div>
       <p>{{ languages.SETTINGS_AUDIO }}</p>
       <div class="pl-2 pt-4">
@@ -172,10 +172,11 @@
       </div>
       <div class="flex flex-col pt-5">
         <button
-          @click="globalSetup.loadingState = 'manageInstallations'"
-          class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm"
+          :disabled="demoMode.enabled"
+          @click="openSetupWizard"
+          class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
         >
-          {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
+          {{ languages.SETTINGS_SETUP_WIZARD || 'Setup Wizard' }}
         </button>
       </div>
     </div>
@@ -185,7 +186,6 @@
 
 <script setup lang="ts">
 import { computed, watch, ref } from 'vue'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
@@ -209,9 +209,12 @@ import { useI18N } from '@/assets/js/store/i18n'
 import { Spinner } from './ui/spinner'
 import { Button } from '@/components/ui/button'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
+import { useProductMode } from '@/assets/js/store/productMode'
 
+const productModeStore = useProductMode()
 const demoMode = useDemoMode()
-const globalSetup = useGlobalSetup()
+const setupWizardStore = useSetupWizard()
 const backendServices = useBackendServices()
 const models = useModels()
 const theme = useTheme()
@@ -371,6 +374,11 @@ async function loadPresetsFromIntel() {
   } else {
     toast.error('Synchronisation failed')
   }
+}
+
+function openSetupWizard() {
+  if (demoMode.enabled) return
+  setupWizardStore.openWizard()
 }
 
 // Watch for changes to enabled state and ensure server is running

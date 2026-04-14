@@ -1,45 +1,33 @@
-import { Marked, Token } from 'marked'
-import { bundledLanguagesAlias, bundledLanguages, createHighlighter } from 'shiki'
+import { Marked, Token, Tokens } from 'marked'
+import hljs from 'highlight.js'
 import { stringToBase64 } from 'uint8array-extras'
-import { markedShiki } from './markedShikiSync'
 
-const langs = Object.keys(bundledLanguages).concat(Object.keys(bundledLanguagesAlias))
+import 'highlight.js/styles/github-dark-dimmed.css'
 
 const startMarker = '===ORIGINALCODE'
 const endMarker = 'ENDOFORIGINALCODE==='
 const replaceRegex = new RegExp(`${startMarker}(.*?)${endMarker}`, 'gs')
 
-let highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null
-createHighlighter({
-  langs,
-  themes: ['github-dark-dimmed'],
-}).then((h) => {
-  highlighter = h
-})
+const codeRenderer = {
+  renderer: {
+    code(token: Tokens.Code) {
+      const lang = token.lang || 'plaintext'
+      const code = token.text
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext'
+      const highlighted = hljs.highlight(code, { language }).value
 
-const highlight = (code: string, lang: string, props: string[]) => {
-  const highlighted = highlighter
-    ? highlighter.codeToHtml(code, {
-        lang: langs.includes(lang) ? lang : 'text',
-        theme: 'github-dark-dimmed',
-        meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
-      })
-    : code
-  return highlighted
-}
-
-const codeRenderer = markedShiki({
-  highlight,
-  container: `<div class=" rounded-md my-4 code-section">
+      return `<div class=" rounded-md my-4 code-section">
         <div class="flex justify-between items-center sticky -top-4 text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
-          <span>%l</span>
-          <button class="hidden flex items-center justify-end copy-code" ${startMarker}%t${endMarker}>
+          <span>${language.toUpperCase()}</span>
+          <button class="hidden flex items-center justify-end copy-code" ${startMarker}${code}${endMarker}>
             <span class="svg-icon i-copy w-4 h-4 mr-1 pointer-events-none"></span><span class="pointer-events-none">Copy</span>
           </button>
         </div>
-        %s
-      </div>`,
-})
+        <pre class="hljs"><code class="hljs">${highlighted}</code></pre>
+      </div>`
+    },
+  },
+}
 
 const htmlEscaper = {
   walkTokens: (token: Token) => {

@@ -16,11 +16,11 @@
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-2 items-baseline">
-        <span style="color: #00c4fa">AI</span>
+        <span class="text-[#00c4fa]">AI</span>
         <span>PLAYGROUND</span>
-        <span v-if="demoMode.productMode === 'essentials'" class="text-muted-foreground font-medium"
-          >essentials</span
-        >
+        <span v-if="productModeStore.productMode" class="text-muted-foreground/60 font-medium">{{
+          productModeStore.productMode === 'essentials' ? 'essentials' : 'studio'
+        }}</span>
         <span v-if="platformTitle" class="text-sm font-normal">{{ platformTitle }}</span>
       </h1>
     </div>
@@ -35,9 +35,9 @@
           () => {
             const curState = globalSetup.loadingState
             if (curState === 'running') {
-              globalSetup.loadingState = 'manageInstallations'
-            } else if (curState === 'manageInstallations') {
-              globalSetup.loadingState = 'running'
+              setupWizardStore.openWizard()
+            } else if (curState === 'setupWizard') {
+              setupWizardStore.dismiss()
             }
           }
         "
@@ -90,10 +90,10 @@
     ></loading-bar>
   </main>
   <main
-    v-show="globalSetup.loadingState === 'manageInstallations'"
+    v-show="globalSetup.loadingState === 'setupWizard'"
     class="flex-auto flex items-center justify-center"
   >
-    <installation-management @close="concludeLoadingState"></installation-management>
+    <SetupWizard />
   </main>
   <main
     v-show="globalSetup.loadingState === 'loading'"
@@ -293,10 +293,11 @@
 
 <script setup lang="ts">
 import LoadingBar from './components/LoadingBar.vue'
-import InstallationManagement from './components/InstallationManagement.vue'
+import SetupWizard from './components/SetupWizard.vue'
 import PromptArea from '@/views/PromptArea.vue'
 import './assets/css/index.css'
 import { useGlobalSetup } from './assets/js/store/globalSetup'
+import { useProductMode } from './assets/js/store/productMode'
 import DownloadDialog from '@/components/DownloadDialog.vue'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useTheme } from './assets/js/store/theme.ts'
@@ -306,34 +307,33 @@ import PresetRequirementsDialog from '@/components/PresetRequirementsDialog.vue'
 import InstallationProgressDialog from '@/components/InstallationProgressDialog.vue'
 import MaskEditorDialog from '@/components/MaskEditorDialog.vue'
 import DemoModeIndicator from '@/components/DemoModeIndicator.vue'
-import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
 import WorkflowResult from '@/views/WorkflowResult.vue'
 import Chat from '@/views/Chat.vue'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { useUIStore } from '@/assets/js/store/ui.ts'
-import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import * as toast from '@/assets/js/toast'
 import DemoModeOverlayDriverJsRef from './components/DemoModeOverlayDriverJs.vue'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
 import DemoModeNotificationDots from '@/components/DemoModeNotificationDots.vue'
 import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 
-const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
+const productModeStore = useProductMode()
 const demoMode = useDemoMode()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const uiStore = useUIStore()
-const speechToText = useSpeechToText()
+const setupWizardStore = useSetupWizard()
 
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const demoModeOverlayDriverJs = ref<InstanceType<typeof DemoModeOverlayDriverJsRef>>()
@@ -403,7 +403,7 @@ onBeforeMount(async () => {
       e.preventDefault()
     }
   })
-  await setInitalLoadingState()
+  await setupWizardStore.initialize()
 })
 
 onMounted(async () => {
@@ -438,36 +438,6 @@ onMounted(async () => {
     }
   })
 })
-
-async function setInitalLoadingState() {
-  console.log('setting loading state')
-  // Wait for service info (non-blocking check)
-  if (!backendServices.serviceInfoUpdateReceived) {
-    globalSetup.loadingState = 'verifyBackend'
-    setTimeout(setInitalLoadingState, 1000)
-    return
-  }
-
-  // Check if installation dialog is needed
-  // Wait for setup checks to complete before deciding
-  const needsInstallation = await backendServices.shouldShowInstallationDialog()
-  if (needsInstallation) {
-    globalSetup.loadingState = 'manageInstallations'
-    // Note: Backends are now started automatically by the service registry
-    // This call is kept as a fallback for manual restarts
-    backendServices.startAllSetUpServicesInBackground()
-    return
-  }
-
-  await concludeLoadingState()
-}
-
-async function concludeLoadingState() {
-  await globalSetup.initSetup()
-  globalSetup.loadingState = 'running'
-  backendServices.startAllSetUpServicesInBackground()
-  speechToText.initialize()
-}
 
 function miniWindow() {
   window.electronAPI.miniWindow()

@@ -1,0 +1,18 @@
+{
+  "mode": "studio",
+  "priority": 3,
+  "recommendForIntelDeviceIds": [],
+  "recommendForNvidia": false,
+  "experimental": false,
+  "displayOrder": 20,
+  "requiresNvidiaGpu": false,
+  "ui": {
+    "i18n": {
+      "titleOne": "PRODUCT_MODE_STUDIO_TITLE_ONE",
+      "titleTwo": "PRODUCT_MODE_STUDIO_TITLE_TWO",
+      "subtitle": "PRODUCT_MODE_STUDIO_SUBTITLE",
+      "description": "PRODUCT_MODE_STUDIO_DESCRIPTION",
+      "supportedHardware": "PRODUCT_MODE_STUDIO_SUPPORTED_HARDWARE"
+    }
+  }
+}
