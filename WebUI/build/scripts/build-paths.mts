@@ -60,10 +60,10 @@ export const SEVEN_ZR_EXE_URL = {
   linux: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-linux-x64.tar.xz',
 }
 export const UV_URL = {
-  win32: 'https://github.com/astral-sh/uv/releases/download/0.11.4/uv-x86_64-pc-windows-msvc.zip',
-  darwin: 'https://github.com/astral-sh/uv/releases/download/0.11.4/uv-aarch64-apple-darwin.tar.gz',
+  win32: 'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-x86_64-pc-windows-msvc.zip',
+  darwin: 'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-aarch64-apple-darwin.tar.gz',
   linux:
-    'https://github.com/astral-sh/uv/releases/download/0.11.4/uv-x86_64-unknown-linux-gnu.tar.gz',
+    'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-x86_64-unknown-linux-gnu.tar.gz',
 }
 export const XPU_SMI_URL = {
   win32:
