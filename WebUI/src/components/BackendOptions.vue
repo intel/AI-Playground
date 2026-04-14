@@ -43,6 +43,7 @@ import { Button } from '@/components/ui/button'
 import { mapServiceNameToDisplayName, compareVersions } from '@/lib/utils'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
+import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
 
 const props = defineProps<{
   backend: BackendServiceName
@@ -50,10 +51,7 @@ const props = defineProps<{
 const backendServices = useBackendServices()
 const i18nState = useI18N().state
 const backendStatus = computed(
-  () =>
-    backendServices.info.filter(
-      (backendService) => backendService.serviceName === props.backend,
-    )[0]['status'],
+  () => backendServices.info.find((s) => s.serviceName === props.backend)?.status ?? 'notInstalled',
 )
 
 const menuOpen = ref(false)
@@ -113,12 +111,6 @@ const getFormSchema = (backend: BackendServiceName) => {
 
 const formSchema = computed(() => getFormSchema(props.backend))
 
-const showStart = computed(() => {
-  return backendStatus.value === 'stopped' || backendStatus.value === 'notYetStarted'
-})
-const showStop = computed(() => {
-  return backendStatus.value === 'running'
-})
 const showReinstall = computed(() => {
   return backendStatus.value !== 'installing' && backendStatus.value !== 'notInstalled'
 })
@@ -179,25 +171,6 @@ const getInitialFormValues = () => {
     }
   }
   return values
-}
-
-// Handler for starting a service with enhanced error handling
-const handleStartService = async () => {
-  try {
-    const status = await backendServices.startService(props.backend)
-    if (status !== 'running') {
-      // Service failed to start - check for detailed error information
-      const errorDetails = backendServices.getServiceErrorDetails(props.backend)
-      if (errorDetails) {
-        console.error(`Service ${props.backend} failed to start. Error details available.`)
-      } else {
-        console.error(`Service ${props.backend} failed to start.`)
-      }
-    }
-  } catch (error) {
-    // Exception during startup
-    console.error(`Service ${props.backend} startup failed:`, error)
-  }
 }
 
 // Handler for reinstalling a service with enhanced error handling
@@ -381,28 +354,16 @@ const clearOverride = () => {
 }
 
 const showMenuButton = computed(
-  () =>
-    showStart.value ||
-    showStop.value ||
-    showReinstall.value ||
-    showSettings.value ||
-    showVersionAction.value,
+  () => showReinstall.value || showSettings.value || showVersionAction.value,
 )
 </script>
 
 <template>
   <DropdownMenu v-model:open="menuOpen" v-if="showMenuButton">
-    <DropdownMenuTrigger><span class="svg-icon i-setup w-6 h-6"></span></DropdownMenuTrigger>
+    <DropdownMenuTrigger><Cog6ToothIcon class="size-6" /></DropdownMenuTrigger>
     <DropdownMenuContent>
       <DropdownMenuLabel>{{ mapServiceNameToDisplayName(backend) }}</DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuItem v-if="showStop" @click="() => backendServices.stopService(backend)">{{
-        i18nState.BACKEND_STOP
-      }}</DropdownMenuItem>
-      <DropdownMenuItem v-if="showStart" @click="handleStartService">{{
-        i18nState.BACKEND_START
-      }}</DropdownMenuItem>
-
       <!-- Version action: Update/Downgrade -->
       <DropdownMenuItem
         v-if="showVersionAction"

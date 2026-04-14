@@ -65,6 +65,14 @@ export const UV_URL = {
   linux:
     'https://github.com/astral-sh/uv/releases/download/0.11.4/uv-x86_64-unknown-linux-gnu.tar.gz',
 }
+export const XPU_SMI_URL = {
+  win32:
+    'https://github.com/intel/xpumanager/releases/download/v1.3.6/xpu-smi-1.3.6-20260206.143316.1004f6cb_win.zip',
+  // For now we only bundle the Windows CLI. Linux users can rely on the system package manager.
+  // (The app's Linux support currently doesn't include OpenVINO/ComfyUI anyway.)
+  darwin: null,
+  linux: null,
+} as const
 
 /**
  * Build configuration interface
@@ -94,6 +102,7 @@ export interface BuildPaths {
     getPipScript: string
     sevenZipExe: string
     uv: string
+    xpuSmiWinZip?: string
   }
 }
 
@@ -126,6 +135,7 @@ export function getBuildPaths(target: 'win32' | 'darwin' | 'linux'): BuildPaths 
       getPipScript: GET_PIP_SCRIPT_URL,
       sevenZipExe: SEVEN_ZR_EXE_URL[target],
       uv: UV_URL[target],
+      ...(target === 'win32' && XPU_SMI_URL.win32 ? { xpuSmiWinZip: XPU_SMI_URL.win32 } : {}),
     },
   }
 }

@@ -84,7 +84,7 @@
     </div>
   </DemoModeBlocker>
 
-  <div class="flex flex-col gap-3 pt-4">
+  <div v-if="!productModeStore.isNvidiaModeSelected" class="flex flex-col gap-3 pt-4">
     <div>
       <p>{{ languages.SETTINGS_AUDIO }}</p>
       <div class="pl-2 pt-4">
@@ -172,22 +172,11 @@
       </div>
       <div class="flex flex-col pt-5">
         <button
-          type="button"
           :disabled="demoMode.enabled"
-          @click="switchProductMode"
-          class="bg-muted hover:bg-muted/80 px-3 py-1.5 rounded-lg text-sm mb-2 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+          @click="openSetupWizard"
+          class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
         >
-          {{
-            i18nState.SETTINGS_SWITCH_PRODUCT_MODE ||
-            languages.SETTINGS_SWITCH_PRODUCT_MODE ||
-            'Switch Product Mode'
-          }}
-        </button>
-        <button
-          @click="globalSetup.loadingState = 'manageInstallations'"
-          class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded-lg text-sm"
-        >
-          {{ languages.SETTINGS_MODEL_MANAGE_BACKEND }}
+          {{ languages.SETTINGS_SETUP_WIZARD || 'Setup Wizard' }}
         </button>
       </div>
     </div>
@@ -197,7 +186,6 @@
 
 <script setup lang="ts">
 import { computed, watch, ref } from 'vue'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useModels } from '@/assets/js/store/models'
 import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
@@ -207,7 +195,6 @@ import { useSpeechToText } from '@/assets/js/store/speechToText'
 import { useDeveloperSettings } from '@/assets/js/store/developerSettings'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { useDemoMode } from '@/assets/js/store/demoMode'
-import { useProductMode } from '@/assets/js/store/productMode'
 import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
@@ -222,16 +209,18 @@ import { useI18N } from '@/assets/js/store/i18n'
 import { Spinner } from './ui/spinner'
 import { Button } from '@/components/ui/button'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
+import { useProductMode } from '@/assets/js/store/productMode'
 
+const productModeStore = useProductMode()
 const demoMode = useDemoMode()
-const globalSetup = useGlobalSetup()
+const setupWizardStore = useSetupWizard()
 const backendServices = useBackendServices()
 const models = useModels()
 const theme = useTheme()
 const presetsStore = usePresets()
 const i18nState = useI18N().state
 const languages = i18nState
-const productModeStore = useProductMode()
 const speechToText = useSpeechToText()
 const developerSettings = useDeveloperSettings()
 const dialogStore = useDialogStore()
@@ -387,10 +376,9 @@ async function loadPresetsFromIntel() {
   }
 }
 
-async function switchProductMode() {
+function openSetupWizard() {
   if (demoMode.enabled) return
-  await productModeStore.detectRecommendation()
-  globalSetup.loadingState = 'selectProductMode'
+  setupWizardStore.openWizard()
 }
 
 // Watch for changes to enabled state and ensure server is running

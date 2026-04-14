@@ -151,6 +151,8 @@ export const useBackendServices = defineStore(
       }
     })
 
+    const latestSetupProgress = ref(new Map<BackendServiceName, SetupProgress>())
+
     window.electronAPI.onServiceSetUpProgress(async (data) => {
       const associatedListener = serviceListeners.get(data.serviceName)
       if (!associatedListener) {
@@ -158,6 +160,14 @@ export const useBackendServices = defineStore(
         return
       }
       associatedListener.addData(data)
+
+      if (data.status === 'executing') {
+        latestSetupProgress.value.set(data.serviceName, data)
+        latestSetupProgress.value = new Map(latestSetupProgress.value)
+      } else {
+        latestSetupProgress.value.delete(data.serviceName)
+        latestSetupProgress.value = new Map(latestSetupProgress.value)
+      }
     })
 
     const serviceInfoUpdatePresent = computed(() => currentServiceInfo.value.length > 0)
@@ -264,7 +274,7 @@ export const useBackendServices = defineStore(
       }
 
       const versions = versionState.value[serviceName]
-      const targetVersionSettings = versions.uiOverride ?? versions.target
+      const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
       const serviceSettings: ServiceSettings = { serviceName, ...targetVersionSettings }
       if (serviceName === 'comfyui-backend') {
         serviceSettings.comfyUiParameters = effectiveComfyUiParameters.value
@@ -503,6 +513,7 @@ export const useBackendServices = defineStore(
       shouldShowInstallationDialog,
       startAllSetUpServicesInBackground,
       backendStartupInProgress,
+      latestSetupProgress,
     }
   },
   {

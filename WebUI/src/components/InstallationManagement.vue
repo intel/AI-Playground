@@ -329,13 +329,16 @@ const alreadyInstalledOrRequiredComponents = computed(
 const toBeInstalledComponents = ref(new Set<BackendServiceName>())
 
 const components = computed(() => {
-  return backendServices.info.map((item) => ({
-    enabled:
-      alreadyInstalledOrRequiredComponents.value.has(item.serviceName) ||
-      toBeInstalledComponents.value.has(item.serviceName),
-    isLoading: loadingComponents.value.has(item.serviceName),
-    ...item,
-  }))
+  const isNvidiaMode = productModeStore.productMode === 'nvidia'
+  return backendServices.info
+    .filter((item) => !(isNvidiaMode && item.serviceName === 'openvino-backend'))
+    .map((item) => ({
+      enabled:
+        alreadyInstalledOrRequiredComponents.value.has(item.serviceName) ||
+        toBeInstalledComponents.value.has(item.serviceName),
+      isLoading: loadingComponents.value.has(item.serviceName),
+      ...item,
+    }))
 })
 
 function isSomethingLoading(): boolean {

@@ -107,14 +107,6 @@
     "maxContextSize": 262144
   },
   {
-    "name": "LiquidAI/LFM2.5-350M-GGUF/LFM2.5-350M-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 1024
-  },
-  {
     "name": "unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-UD-Q4_K_XL.gguf",
     "mmproj": "unsloth/gemma-4-E4B-it-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",

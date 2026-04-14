@@ -62,6 +62,10 @@ const ID2ARCH: { [key: number]: Arch } = {
   0x7d51: 'arl_h',
   0x7dd1: 'arl_h',
   // 0x7D41: "arl",
+
+  // wcl
+  0xfd80: 'wcl',
+  0xfd81: 'wcl',
 }
 
 export function getDeviceArch(deviceId: number): Arch {
@@ -76,6 +80,8 @@ export function getArchPriority(arch: Arch): number {
       return 4
     case 'arl_h':
       return 3
+    case 'wcl':
+      return 2
     case 'lnl':
       return 2
     case 'mtl':
@@ -113,4 +119,4 @@ export const getBestDevice = (
     .map((d) => ({ id: d.id, distanceToBest: levenshteinDistance(d.name, bestDeviceName) }))
     .toSorted((a, b) => a.distanceToBest - b.distanceToBest)[0].id
 
-export type Arch = 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | 'unknown'
+export type Arch = 'bmg' | 'acm' | 'arl_h' | 'wcl' | 'lnl' | 'mtl' | 'unknown'

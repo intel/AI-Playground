@@ -2,14 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ModelLists } from './models'
 import { useModels } from './models'
 
-type GlobalSetupState =
-  | 'running'
-  | 'verifyBackend'
-  | 'autoInstalling'
-  | 'selectProductMode'
-  | 'manageInstallations'
-  | 'loading'
-  | 'failed'
+type GlobalSetupState = 'running' | 'verifyBackend' | 'setupWizard' | 'loading' | 'failed'
 
 export const useGlobalSetup = defineStore('globalSetup', () => {
   const state = reactive<KVObject>({

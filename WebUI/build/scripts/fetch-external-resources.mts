@@ -120,6 +120,9 @@ async function main(): Promise<void> {
     const downloads = await Promise.all([
       downloadFileIfNotPresent(buildPaths.resourceUrls.uv),
       downloadFileIfNotPresent(buildPaths.resourceUrls.sevenZipExe),
+      ...(buildPaths.resourceUrls.xpuSmiWinZip
+        ? [downloadFileIfNotPresent(buildPaths.resourceUrls.xpuSmiWinZip)]
+        : []),
     ])
 
     // Check for any download failures
@@ -192,6 +195,17 @@ async function main(): Promise<void> {
         console.log(`✅ Moved ${sevenZrPath} to ${destinationPath}`)
       } else {
         console.error(`❌ 7zr binary not found: ${sevenZrPath}`)
+      }
+    }
+
+    // xpu-smi: Win32-only zip contains xpu-smi.exe + xpum.dll; keep file names as-is.
+    if (target.data === 'win32') {
+      const xpuSmiExe = path.join(buildPaths.resourcesDir, 'xpu-smi.exe')
+      const xpumDll = path.join(buildPaths.resourcesDir, 'xpum.dll')
+      if (existsSync(xpuSmiExe) && existsSync(xpumDll)) {
+        console.log(`✅ Found xpu-smi resources: ${xpuSmiExe}, ${xpumDll}`)
+      } else {
+        console.log('ℹ️  xpu-smi assets not found after extraction (skipping)')
       }
     }
 

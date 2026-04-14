@@ -35,6 +35,14 @@
       "to": "uv.exe"
     },
     {
+      "from": "../build/resources/xpu-smi.exe",
+      "to": "device-service/xpu-smi.exe"
+    },
+    {
+      "from": "../build/resources/xpum.dll",
+      "to": "device-service/xpum.dll"
+    },
+    {
       "from": "external/backend-versions.json",
       "to": "backend-versions.json"
     },

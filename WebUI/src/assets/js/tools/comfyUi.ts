@@ -7,7 +7,7 @@ import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { chatBackends } from './chatBackends'
+import { chatBackends, restartChatBackend } from './chatBackends'
 import {
   DEFAULT_RESOLUTION_CONFIG,
   getResolutionsFromConfig,
@@ -587,6 +587,7 @@ export async function executeComfyGeneration(args: {
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
       await comfyUi.free()
+      await restartChatBackend()
     }
   }
 }

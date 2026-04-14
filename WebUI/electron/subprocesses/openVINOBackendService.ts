@@ -712,6 +712,11 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   async start(): Promise<BackendStatus> {
+    if (this.settings.productMode === 'nvidia') {
+      this.appLogger.info('Skipping OpenVINO start in NVIDIA mode', this.name)
+      return this.currentStatus
+    }
+
     // In this architecture, model server is started on-demand via ensureBackendReadiness
     // This method is kept for ApiService interface compatibility
     if (this.currentStatus === 'running') {

@@ -11,6 +11,7 @@ WebUI/external/service/
 WebUI/external/workflows_intel/
 WebUI/external/workflows_bak/
 
+*.DS_Store
 *.pyc
 
 *.7z

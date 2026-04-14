@@ -6,9 +6,9 @@ import { useImageGenerationPresets } from './imageGenerationPresets'
 import { usePromptStore } from './promptArea'
 import { useBackendServices } from './backendServices'
 import { useDialogStore } from './dialogs'
-import { useGlobalSetup } from './globalSetup'
 import { useI18N } from './i18n'
 import { useDemoMode } from './demoMode'
+import { useSetupWizard } from './setupWizard'
 
 /**
  * Maps a preset to its corresponding UI mode based on type and category.
@@ -105,9 +105,9 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   const promptStore = usePromptStore()
   const backendServices = useBackendServices()
   const dialogStore = useDialogStore()
-  const globalSetup = useGlobalSetup()
   const i18nState = useI18N().state
   const demoMode = useDemoMode()
+  const setupWizard = useSetupWizard()
 
   // Switching state
   const isSwitching = ref(false)
@@ -115,14 +115,12 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   const switchError = ref<string | null>(null)
 
   /**
-   * Check if a chat backend is available (running or can be started)
+   * Check if a chat backend is available (installed and can be started on demand)
    */
   function isBackendAvailable(backend: LlmBackend): boolean {
     const serviceName = backendToService[backend]
     const backendInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-    return backendInfo
-      ? backendInfo.status === 'running' || backendInfo.status === 'stopped'
-      : false
+    return backendInfo?.isSetUp ?? false
   }
 
   /**
@@ -195,7 +193,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
 
         if (!hasAvailableBackend) {
           dialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
-            globalSetup.loadingState = 'manageInstallations'
+            setupWizard.openWizard()
           })
           return { success: false, error: 'Required backend not available' }
         }

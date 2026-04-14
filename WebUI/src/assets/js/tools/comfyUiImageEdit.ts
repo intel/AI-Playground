@@ -8,7 +8,7 @@ import { usePresets, type Preset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { chatBackends } from './chatBackends'
+import { chatBackends, restartChatBackend } from './chatBackends'
 
 const ImageEditOutputSchema = z.object({
   id: z.string(),
@@ -416,6 +416,7 @@ export async function executeImageEdit(
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
       await comfyUi.free()
+      await restartChatBackend()
     }
   }
 }

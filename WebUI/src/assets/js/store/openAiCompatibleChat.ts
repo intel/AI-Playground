@@ -83,6 +83,16 @@ export const useOpenAiCompatibleChat = defineStore(
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
+        fetch: (url, init) => {
+          const requestUrl = new URL(url as string)
+          const currentBaseUrl = textInference.currentBackendUrl
+          if (currentBaseUrl) {
+            const latestBase = new URL(currentBaseUrl)
+            requestUrl.hostname = latestBase.hostname
+            requestUrl.port = latestBase.port
+          }
+          return globalThis.fetch(requestUrl.toString(), init)
+        },
       }).chatModel(textInference.activeModel?.split('/').join('---') ?? ''),
     )
 

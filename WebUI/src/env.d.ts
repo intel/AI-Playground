@@ -43,12 +43,12 @@ type DemoProfile = {
   notificationDotButtons: string[]
 }
 
-type ProductMode = 'studio' | 'essentials'
+type ProductMode = 'studio' | 'essentials' | 'nvidia'
 
 /** Mirrors electron/main LocalSettingsSchema (renderer copy for IPC typing). */
 type LocalSettings = {
   debug: boolean
-  deviceArchOverride: 'bmg' | 'acm' | 'arl_h' | 'lnl' | 'mtl' | null
+  deviceArchOverride: 'bmg' | 'acm' | 'arl_h' | 'wcl' | 'lnl' | 'mtl' | null
   isAdminExec: boolean
   availableThemes: Array<'dark' | 'lnl' | 'bmg' | 'light'>
   currentTheme: 'dark' | 'lnl' | 'bmg' | 'light'
@@ -67,10 +67,32 @@ type GpuHardwareDevice = {
   gpuDeviceId: string | null
 }
 
+type ProductModeCatalogFeatureI18n = {
+  labelKey: string
+  detailKey: string
+}
+
+type ProductModeCatalogUiI18n = {
+  titleOne: string
+  titleTwo: string
+  subtitle?: string
+  description: string
+  supportedHardware: string
+  features?: ProductModeCatalogFeatureI18n[]
+}
+
+type ProductModeCatalogEntry = {
+  mode: ProductMode
+  experimental: boolean
+  ui: { i18n: ProductModeCatalogUiI18n }
+}
+
 type HardwareRecommendationResult = {
   success: boolean
   recommendedMode: ProductMode
   detectedDevices: GpuHardwareDevice[]
+  hasNvidiaGpu: boolean
+  modeCatalog: ProductModeCatalogEntry[]
   error?: string
 }
 

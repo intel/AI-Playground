@@ -1,7 +1,9 @@
+import path from 'node:path'
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
 import { appLoggerInstance } from '../logging/logger'
 import { loadMcpServers, type McpServerConfig } from './mcpServers'
+import { uvPath } from './uvBasedBackends/uv'
 
 type HttpTransportConfig = {
   type: 'http'
@@ -31,6 +33,23 @@ export type McpToolCallResult = {
   isError?: boolean
   content?: unknown
   structuredContent?: unknown
+}
+
+const UV_COMMANDS = new Set(['uv', 'uv.exe'])
+const UVX_COMMANDS = new Set(['uvx', 'uvx.exe'])
+
+function resolveStdioCommand(
+  command: string,
+  args: string[] = [],
+): { command: string; args: string[] } {
+  const basename = path.basename(command).toLowerCase()
+  if (UV_COMMANDS.has(basename)) {
+    return { command: uvPath, args }
+  }
+  if (UVX_COMMANDS.has(basename)) {
+    return { command: uvPath, args: ['tool', 'run', ...args] }
+  }
+  return { command, args }
 }
 
 const clients = new Map<string, MCPClient>()
@@ -100,9 +119,11 @@ export async function startMcpServer(serverId: string): Promise<McpStatus> {
             ),
           )
 
+          const resolved = resolveStdioCommand(config.command, config.args)
+
           transport = new Experimental_StdioMCPTransport({
-            command: config.command,
-            args: config.args,
+            command: resolved.command,
+            args: resolved.args,
             env: stdioEnv,
           })
         } else if ('url' in config) {

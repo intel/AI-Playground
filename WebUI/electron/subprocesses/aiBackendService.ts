@@ -1,4 +1,3 @@
-import * as filesystem from 'fs-extra'
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
@@ -51,78 +50,6 @@ export class AiBackendService extends LongLivedPythonApiService {
 
   async detectDevices() {}
 
-  async detectHardwareDevices(): Promise<HardwareDetectionResult> {
-    const pythonExe = path.join(
-      this.pythonEnvDir,
-      process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
-    )
-    const detectScript = path.join(this.serviceDir, 'detect_hardware.py')
-
-    if (!filesystem.existsSync(pythonExe) || !filesystem.existsSync(detectScript)) {
-      this.appLogger.info('Python environment or detect_hardware.py not available', this.name)
-      return { success: false, gpuDevices: [], error: 'Detection script not available' }
-    }
-
-    this.appLogger.info('Detecting GPU hardware using OpenVINO', this.name)
-
-    return new Promise((resolve) => {
-      const childProcess = spawn(pythonExe, [detectScript], {
-        cwd: this.serviceDir,
-        windowsHide: true,
-        env: {
-          ...process.env,
-          VIRTUAL_ENV: this.pythonEnvDir,
-          PATH: `${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'bin')};${process.env.PATH}`,
-          PYTHONNOUSERSITE: 'true',
-        },
-      })
-
-      let stdout = ''
-      let stderr = ''
-
-      childProcess.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString()
-      })
-      childProcess.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString()
-      })
-
-      childProcess.on('error', (error: Error) => {
-        this.appLogger.error(`Hardware detection process error: ${error}`, this.name)
-        resolve({ success: false, gpuDevices: [], error: error.message })
-      })
-
-      childProcess.on('exit', (code: number | null) => {
-        if (code === 0) {
-          try {
-            const result = JSON.parse(stdout.trim())
-            if (result.success && Array.isArray(result.gpuDevices)) {
-              this.appLogger.info(
-                `Hardware detection found GPUs: ${JSON.stringify(result.gpuDevices)}`,
-                this.name,
-              )
-              resolve({ success: true, gpuDevices: result.gpuDevices })
-            } else {
-              this.appLogger.warn(`Hardware detection script error: ${result.error}`, this.name)
-              resolve({ success: false, gpuDevices: [], error: result.error })
-            }
-          } catch (_parseError) {
-            this.appLogger.error(`Failed to parse hardware detection output: ${stdout}`, this.name)
-            resolve({ success: false, gpuDevices: [], error: 'Failed to parse output' })
-          }
-        } else {
-          this.appLogger.warn(`Hardware detection exited with code ${code}: ${stderr}`, this.name)
-          resolve({ success: false, gpuDevices: [], error: `Process exited with code ${code}` })
-        }
-      })
-
-      setTimeout(() => {
-        childProcess.kill('SIGTERM')
-        resolve({ success: false, gpuDevices: [], error: 'Hardware detection timed out' })
-      }, 30000)
-    })
-  }
-
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)
@@ -148,7 +75,9 @@ export class AiBackendService extends LongLivedPythonApiService {
         status: 'executing',
         debugMessage: `installing dependencies`,
       }
-      await installBackend(this.serviceFolder)
+      const extraEnv =
+        this.settings.productMode === 'nvidia' ? { UV_TORCH_BACKEND: 'cu128' } : undefined
+      await installBackend(this.serviceFolder, undefined, extraEnv)
 
       yield {
         serviceName: this.name,

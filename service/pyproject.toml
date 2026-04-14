@@ -10,7 +10,6 @@ dependencies = [
   "Requests",
   "setuptools",
   "huggingface_hub",
-  "openvino",
 ]
 [tool.uv]
 python-preference = "only-managed"

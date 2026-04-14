@@ -1,10 +1,12 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { useBackendServices } from './backendServices'
-import { useGlobalSetup } from './globalSetup'
 
 export const useProductMode = defineStore('productMode', () => {
   const productMode = ref<ProductMode | null>(null)
   const hardwareRecommendation = ref<HardwareRecommendationResult | null>(null)
+  const isNvidiaModeAvailable = computed(
+    () => (hardwareRecommendation.value?.hasNvidiaGpu ?? false) === true,
+  )
+  const isNvidiaModeSelected = computed(() => productMode.value === 'nvidia')
 
   async function hydrateFromMain() {
     try {
@@ -31,6 +33,8 @@ export const useProductMode = defineStore('productMode', () => {
         success: false,
         recommendedMode: 'studio',
         detectedDevices: [],
+        hasNvidiaGpu: false,
+        modeCatalog: [],
       }
     }
   }
@@ -40,26 +44,10 @@ export const useProductMode = defineStore('productMode', () => {
     await syncToMain()
   }
 
-  async function ensureReady(): Promise<'ready' | 'needsSelection' | 'installFailed'> {
-    const globalSetup = useGlobalSetup()
-    const backendServices = useBackendServices()
-
+  async function ensureReady(): Promise<'ready' | 'needsSelection'> {
     await hydrateFromMain()
 
-    const aiBackend = backendServices.info.find((s) => s.serviceName === 'ai-backend')
-    if (aiBackend && !aiBackend.isSetUp) {
-      globalSetup.loadingState = 'autoInstalling'
-      console.log('Auto-installing ai-backend service')
-      const result = await backendServices.setUpService('ai-backend')
-      if (!result.success) {
-        console.error('Failed to auto-install ai-backend:', result.errorDetails)
-        return 'installFailed'
-      }
-      await backendServices.startService('ai-backend')
-    }
-
     if (!productMode.value) {
-      globalSetup.loadingState = 'autoInstalling'
       await detectRecommendation()
       return 'needsSelection'
     }
@@ -71,6 +59,8 @@ export const useProductMode = defineStore('productMode', () => {
   return {
     productMode,
     hardwareRecommendation,
+    isNvidiaModeAvailable,
+    isNvidiaModeSelected,
     hydrateFromMain,
     syncToMain,
     detectRecommendation,

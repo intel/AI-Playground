@@ -35,9 +35,9 @@
           () => {
             const curState = globalSetup.loadingState
             if (curState === 'running') {
-              globalSetup.loadingState = 'manageInstallations'
-            } else if (curState === 'manageInstallations') {
-              globalSetup.loadingState = 'running'
+              setupWizardStore.openWizard()
+            } else if (curState === 'setupWizard') {
+              setupWizardStore.dismiss()
             }
           }
         "
@@ -80,37 +80,20 @@
     </div>
   </header>
   <main
-    v-show="
-      globalSetup.loadingState === 'verifyBackend' || globalSetup.loadingState === 'autoInstalling'
-    "
+    v-show="globalSetup.loadingState === 'verifyBackend'"
     class="flex-auto flex items-center justify-center"
   >
     <loading-bar
-      :text="
-        globalSetup.loadingState === 'autoInstalling'
-          ? languages.LOADING_AUTO_INSTALLING
-          : languages.LOADING_VERIFYING_BACKENDS
-      "
+      :text="languages.LOADING_VERIFYING_BACKENDS"
       class="w-3/5"
       style="word-spacing: 8px"
     ></loading-bar>
   </main>
   <main
-    v-show="globalSetup.loadingState === 'selectProductMode'"
+    v-show="globalSetup.loadingState === 'setupWizard'"
     class="flex-auto flex items-center justify-center"
   >
-    <product-mode-selector
-      :key="productModeSelectorKey"
-      :recommended-mode="productModeStore.hardwareRecommendation?.recommendedMode ?? null"
-      :current-mode="productModeStore.productMode"
-      @select="onProductModeSelected"
-    />
-  </main>
-  <main
-    v-show="globalSetup.loadingState === 'manageInstallations'"
-    class="flex-auto flex items-center justify-center"
-  >
-    <installation-management @close="concludeLoadingState"></installation-management>
+    <SetupWizard />
   </main>
   <main
     v-show="globalSetup.loadingState === 'loading'"
@@ -310,8 +293,7 @@
 
 <script setup lang="ts">
 import LoadingBar from './components/LoadingBar.vue'
-import InstallationManagement from './components/InstallationManagement.vue'
-import ProductModeSelector from './components/ProductModeSelector.vue'
+import SetupWizard from './components/SetupWizard.vue'
 import PromptArea from '@/views/PromptArea.vue'
 import './assets/css/index.css'
 import { useGlobalSetup } from './assets/js/store/globalSetup'
@@ -325,7 +307,6 @@ import PresetRequirementsDialog from '@/components/PresetRequirementsDialog.vue'
 import InstallationProgressDialog from '@/components/InstallationProgressDialog.vue'
 import MaskEditorDialog from '@/components/MaskEditorDialog.vue'
 import DemoModeIndicator from '@/components/DemoModeIndicator.vue'
-import { useBackendServices } from './assets/js/store/backendServices.ts'
 import { ServerStackIcon } from '@heroicons/vue/24/solid'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
@@ -338,16 +319,13 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { useUIStore } from '@/assets/js/store/ui.ts'
-import { useSpeechToText } from '@/assets/js/store/speechToText'
-import { usePresets } from '@/assets/js/store/presets'
-import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import * as toast from '@/assets/js/toast'
 import DemoModeOverlayDriverJsRef from './components/DemoModeOverlayDriverJs.vue'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
 import DemoModeNotificationDots from '@/components/DemoModeNotificationDots.vue'
 import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 
-const backendServices = useBackendServices()
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
 const productModeStore = useProductMode()
@@ -355,9 +333,7 @@ const demoMode = useDemoMode()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const uiStore = useUIStore()
-const speechToText = useSpeechToText()
-const presetsStore = usePresets()
-const presetSwitching = usePresetSwitching()
+const setupWizardStore = useSetupWizard()
 
 const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const demoModeOverlayDriverJs = ref<InstanceType<typeof DemoModeOverlayDriverJsRef>>()
@@ -388,20 +364,6 @@ const licenseUrl = computed(() => `${gitHubRepoUrl.value}LICENSE`)
 
 const mode = useColorMode()
 mode.value = 'dark'
-
-/** Only one pending poll for backend readiness (avoids stacked timers if onBeforeMount runs twice). */
-let initialLoadingPollHandle: ReturnType<typeof setTimeout> | null = null
-
-/** Remount mode selector whenever the screen is shown so selection syncs with committed `productMode`. */
-const productModeSelectorKey = ref(0)
-watch(
-  () => globalSetup.loadingState,
-  (state, prev) => {
-    if (state === 'selectProductMode' && prev !== 'selectProductMode') {
-      productModeSelectorKey.value += 1
-    }
-  },
-)
 
 const zoomIn = (event: KeyboardEvent) => {
   if (event.ctrlKey && event.code === 'Equal') window.electronAPI.zoomIn()
@@ -441,7 +403,7 @@ onBeforeMount(async () => {
       e.preventDefault()
     }
   })
-  await setInitialLoadingState()
+  await setupWizardStore.initialize()
 })
 
 onMounted(async () => {
@@ -476,80 +438,6 @@ onMounted(async () => {
     }
   })
 })
-
-async function setInitialLoadingState() {
-  console.log('setting loading state')
-  if (!backendServices.serviceInfoUpdateReceived) {
-    globalSetup.loadingState = 'verifyBackend'
-    if (initialLoadingPollHandle !== null) {
-      clearTimeout(initialLoadingPollHandle)
-    }
-    initialLoadingPollHandle = setTimeout(() => {
-      initialLoadingPollHandle = null
-      void setInitialLoadingState()
-    }, 1000)
-    return
-  }
-
-  if (initialLoadingPollHandle !== null) {
-    clearTimeout(initialLoadingPollHandle)
-    initialLoadingPollHandle = null
-  }
-
-  const result = await productModeStore.ensureReady()
-
-  if (result === 'installFailed') {
-    if (!productModeStore.productMode) {
-      globalSetup.loadingState = 'selectProductMode'
-      return
-    }
-    await proceedAfterModeSelection()
-    return
-  }
-
-  if (result === 'needsSelection') {
-    globalSetup.loadingState = 'selectProductMode'
-    return
-  }
-
-  await proceedAfterModeSelection()
-}
-
-async function onProductModeSelected(mode: ProductMode) {
-  await productModeStore.selectMode(mode)
-  await proceedAfterModeSelection()
-}
-
-/**
- * Presets store loads from main on first import, before ensureReady() syncs Pinia productMode
- * to Electron — so we always re-fetch after main knows the real mode.
- */
-async function syncPresetsForCurrentProductMode() {
-  await productModeStore.syncToMain()
-  await presetsStore.reloadAfterProductModeChange()
-  await presetSwitching.reconcileActivePresetAfterCatalogReload()
-  if (demoMode.enabled) {
-    await demoMode.refreshFromMainConfig()
-  }
-}
-
-async function proceedAfterModeSelection() {
-  await syncPresetsForCurrentProductMode()
-  const needsInstallation = await backendServices.shouldShowInstallationDialog()
-  if (needsInstallation) {
-    globalSetup.loadingState = 'manageInstallations'
-    backendServices.startAllSetUpServicesInBackground()
-    return
-  }
-  await concludeLoadingState()
-}
-
-async function concludeLoadingState() {
-  await globalSetup.initSetup()
-  globalSetup.loadingState = 'running'
-  backendServices.startAllSetUpServicesInBackground()
-  speechToText.initialize()
-}
 
 function miniWindow() {
   window.electronAPI.miniWindow()

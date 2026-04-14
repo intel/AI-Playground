@@ -53,7 +53,6 @@ import {
   COMFYUI_DEFAULT_PARAMETERS,
 } from './subprocesses/comfyUIBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
-import { AiBackendService } from './subprocesses/aiBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
 import * as comfyuiTools from './subprocesses/comfyuiTools'
@@ -79,7 +78,72 @@ import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
+import {
+  detectGpuHardwareDevices,
+  type GpuHardwareDevice,
+} from './subprocesses/hardwareDiscovery.ts'
 import z from 'zod'
+
+const ProductModeUiI18nSchema = z.object({
+  titleOne: z.string(),
+  titleTwo: z.string(),
+  subtitle: z.string().optional(),
+  description: z.string(),
+  supportedHardware: z.string(),
+  features: z.array(z.object({ labelKey: z.string(), detailKey: z.string() })).optional(),
+})
+
+const ProductModeFileSchema = z.object({
+  mode: z.enum(['studio', 'essentials', 'nvidia']),
+  priority: z.number(),
+  recommendForIntelDeviceIds: z.array(z.string()).default([]),
+  recommendForNvidia: z.boolean().default(false),
+  experimental: z.boolean().default(false),
+  displayOrder: z.number(),
+  requiresNvidiaGpu: z.boolean().default(false),
+  includePresets: z.array(z.string()).optional(),
+  excludePresets: z.array(z.string()).optional(),
+  ui: z.object({
+    i18n: ProductModeUiI18nSchema,
+  }),
+})
+type ProductModeFileConfig = z.infer<typeof ProductModeFileSchema>
+
+function loadProductModeConfigs(): ProductModeFileConfig[] {
+  try {
+    const modeDirs = fs
+      .readdirSync(modesDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name !== 'base')
+
+    const configs: ProductModeFileConfig[] = []
+    for (const dir of modeDirs) {
+      const modeFile = path.join(modesDir, dir.name, 'mode.json')
+      if (!fs.existsSync(modeFile)) continue
+      const raw = fs.readFileSync(modeFile, 'utf-8')
+      const parsed = ProductModeFileSchema.parse(JSON.parse(raw))
+      configs.push({
+        ...parsed,
+        recommendForIntelDeviceIds: parsed.recommendForIntelDeviceIds.map((id) => id.toLowerCase()),
+      })
+    }
+    return configs
+  } catch (e) {
+    appLogger.warn(`Failed to read product mode configs: ${e}`, 'electron-backend')
+    return []
+  }
+}
+
+function loadModeConfig(mode: string): ProductModeFileConfig | null {
+  const modeFile = path.join(modesDir, mode, 'mode.json')
+  if (!fs.existsSync(modeFile)) return null
+  try {
+    const raw = fs.readFileSync(modeFile, 'utf-8')
+    return ProductModeFileSchema.parse(JSON.parse(raw))
+  } catch (e) {
+    appLogger.warn(`Failed to read mode config for ${mode}: ${e}`, 'electron-backend')
+    return null
+  }
+}
 
 // }
 // The built directory structure
@@ -127,10 +191,10 @@ const appSize = {
   maxChatContentHeight: 0,
 }
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
-const ProductModeSchema = z.enum(['studio', 'essentials'])
+const ProductModeSchema = z.enum(['studio', 'essentials', 'nvidia'])
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
-  deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'lnl', 'mtl']).nullable().default(null),
+  deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'wcl', 'lnl', 'mtl']).nullable().default(null),
   isAdminExec: z.boolean().default(false),
   availableThemes: z.array(ThemeSchema).default(['dark', 'lnl', 'bmg', 'light']),
   currentTheme: ThemeSchema.default('bmg'),
@@ -145,10 +209,103 @@ const LocalSettingsSchema = z.object({
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
 
-function getPresetsDir(s: LocalSettings): string {
-  const mode = s.productMode === 'essentials' ? 'essentials' : 'studio'
+function resolveProductMode(s: LocalSettings): string {
+  return s.productMode === 'essentials'
+    ? 'essentials'
+    : s.productMode === 'nvidia'
+      ? 'nvidia'
+      : 'studio'
+}
+
+type PresetLoadConfig = {
+  baseDir: string
+  modeDir: string
+  imageFallbackDirs: string[]
+  includePresets?: string[]
+  excludePresets?: string[]
+}
+
+function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
+  const mode = resolveProductMode(s)
   const variant = s.isDemoModeEnabled ? 'demo' : 'presets'
-  return path.join(modesDir, mode, variant)
+  const modeConfig = loadModeConfig(mode)
+  const basePresetsDir = path.join(modesDir, 'base', 'presets')
+  return {
+    baseDir: path.join(modesDir, 'base', variant),
+    modeDir: path.join(modesDir, mode, variant),
+    imageFallbackDirs: variant === 'demo' ? [basePresetsDir] : [],
+    includePresets: modeConfig?.includePresets,
+    excludePresets: modeConfig?.excludePresets,
+  }
+}
+
+function getModeDemoDir(s: LocalSettings): string {
+  return path.join(modesDir, resolveProductMode(s), 'demo')
+}
+
+type PresetFile = { content: string; image: string | null }
+
+function findPresetImage(baseName: string, dirs: string[]): string | null {
+  for (const dir of dirs) {
+    for (const ext of ['.png', '.jpg', '.jpeg']) {
+      const imagePath = path.join(dir, `${baseName}${ext}`)
+      if (fs.existsSync(imagePath)) return imagePath
+    }
+  }
+  return null
+}
+
+async function readPresetsFromDir(
+  dir: string,
+  imageFallbackDirs: string[] = [],
+): Promise<Map<string, PresetFile>> {
+  const result = new Map<string, PresetFile>()
+  if (!fs.existsSync(dir)) return result
+
+  await fs.promises.mkdir(dir, { recursive: true })
+  const files = await fs.promises.readdir(dir)
+  const presetFiles = files.filter((f) => f.endsWith('.json') && !f.startsWith('_'))
+
+  await Promise.all(
+    presetFiles.map(async (file) => {
+      const raw = await fs.promises.readFile(path.join(dir, file), { encoding: 'utf-8' })
+      const content = process.platform !== 'win32' ? raw.replaceAll('\\\\', '/') : raw
+
+      const baseName = path.basename(file, '.json')
+      let imageBase64: string | null = null
+      const imagePath = findPresetImage(baseName, [dir, ...imageFallbackDirs])
+      if (imagePath) {
+        try {
+          const imageBuffer = await fs.promises.readFile(imagePath)
+          const ext = path.extname(imagePath).toLowerCase()
+          const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
+          imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+        } catch (error) {
+          appLogger.warn(`Failed to read image file ${imagePath}: ${error}`, 'electron-backend')
+        }
+      }
+
+      result.set(baseName, { content, image: imageBase64 })
+    }),
+  )
+  return result
+}
+
+function applyPresetFilter(
+  presets: Map<string, PresetFile>,
+  config: PresetLoadConfig,
+): Map<string, PresetFile> {
+  if (config.includePresets) {
+    const allowed = new Set(config.includePresets)
+    for (const key of presets.keys()) {
+      if (!allowed.has(key)) presets.delete(key)
+    }
+  } else if (config.excludePresets) {
+    for (const excluded of config.excludePresets) {
+      presets.delete(excluded)
+    }
+  }
+  return presets
 }
 
 let settings = LocalSettingsSchema.parse({})
@@ -243,9 +400,10 @@ async function loadSettings() {
   appLogger.info(`settings loaded: ${JSON.stringify({ settings })}`, 'electron-backend')
 
   if (settings.isDemoModeEnabled) {
-    const presetsDir = getPresetsDir(settings)
+    const modeDemoDir = getModeDemoDir(settings)
+    const baseDemoDir = path.join(modesDir, 'base', 'demo')
     try {
-      demoProfile = loadDemoProfile(presetsDir, appLogger)
+      demoProfile = loadDemoProfile(modeDemoDir, baseDemoDir, appLogger)
     } catch (e) {
       appLogger.error(`Failed to load demo profile: ${e}`, 'demo-profile')
     }
@@ -536,15 +694,15 @@ function initEventHandle() {
 
   ipcMain.handle('updateLocalSettings', (_event, updates: Partial<LocalSettings>) => {
     Object.assign(settings, updates)
-    if ('productMode' in updates && settings.isDemoModeEnabled) {
-      const presetsDir = getPresetsDir(settings)
+    const shouldReloadDemoProfile =
+      settings.isDemoModeEnabled && ('productMode' in updates || 'isDemoModeEnabled' in updates)
+    if (shouldReloadDemoProfile) {
+      const modeDemoDir = getModeDemoDir(settings)
+      const baseDemoDir = path.join(modesDir, 'base', 'demo')
       try {
-        demoProfile = loadDemoProfile(presetsDir, appLogger)
+        demoProfile = loadDemoProfile(modeDemoDir, baseDemoDir, appLogger)
       } catch (e) {
-        appLogger.error(
-          `Failed to reload demo profile after product mode change: ${e}`,
-          'demo-profile',
-        )
+        appLogger.error(`Failed to reload demo profile after settings change: ${e}`, 'demo-profile')
       }
     }
     persistLocalSettingsToDisk()
@@ -553,57 +711,55 @@ function initEventHandle() {
   })
 
   ipcMain.handle('detectHardwareForModeRecommendation', async () => {
-    if (!serviceRegistry) {
-      return {
-        success: false,
-        error: 'Service registry not ready',
-        recommendedMode: 'studio' as const,
-        detectedDevices: [],
-      }
-    }
-    const service = serviceRegistry.getService('ai-backend')
-    if (!service || !(service instanceof AiBackendService)) {
-      return {
-        success: false,
-        error: 'ai-backend service not found',
-        recommendedMode: 'studio' as const,
-        detectedDevices: [],
-      }
-    }
+    let detected: GpuHardwareDevice[] = []
+    let hasNvidia = false
+    let detectSuccess = true
 
-    const hwResult = await service.detectHardwareDevices()
-
-    const recommendationsPath = path.join(externalRes, 'hardware-recommendations.json')
-    let essentialsIds: string[] = []
-    let defaultRec: ProductMode = 'studio'
     try {
-      const raw = fs.readFileSync(recommendationsPath, 'utf-8')
-      const config = JSON.parse(raw)
-      essentialsIds = (config.essentialsGpuDeviceIds ?? []).map((id: string) => id.toLowerCase())
-      defaultRec = config.defaultRecommendation ?? 'studio'
+      const probe = await detectGpuHardwareDevices()
+      detected = probe.detected
+      hasNvidia = probe.hasNvidia
+      appLogger.info(`Detected GPU devices: ${JSON.stringify(detected)}`, 'electron-backend')
+      appLogger.info(`Has NVIDIA: ${hasNvidia}`, 'electron-backend')
     } catch (e) {
-      appLogger.warn(`Failed to read hardware-recommendations.json: ${e}`, 'electron-backend')
+      detectSuccess = false
+      appLogger.warn(`GPU detection failed: ${e}`, 'electron-backend')
     }
 
-    let recommendedMode: ProductMode = defaultRec
-    if (hwResult.success) {
-      const gpuIds = hwResult.gpuDevices
-        .map((d) => d.gpuDeviceId)
-        .filter((id): id is string => id !== null)
-        .map((id) => id.toLowerCase())
+    const configs = loadProductModeConfigs()
 
-      if (gpuIds.length === 0 || gpuIds.every((id) => essentialsIds.includes(id))) {
-        recommendedMode = 'essentials'
-      } else {
-        recommendedMode = 'studio'
-      }
-    }
+    const modeCatalog = configs
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((c) => ({
+        mode: c.mode,
+        experimental: c.experimental,
+        ui: c.ui,
+      }))
+
+    const gpuIds = detected
+      .map((d) => d.gpuDeviceId)
+      .filter((id): id is string => id !== null)
+      .map((id) => id.toLowerCase())
+
+    // Highest priority wins.
+    const eligible = configs
+      .filter((c) => c.mode !== 'nvidia' || hasNvidia)
+      .filter((c) => {
+        if (c.mode === 'nvidia') return c.recommendForNvidia === true
+        if (!c.recommendForIntelDeviceIds.length) return false
+        if (gpuIds.length === 0) return false
+        return gpuIds.some((id) => c.recommendForIntelDeviceIds.includes(id))
+      })
+      .sort((a, b) => b.priority - a.priority)
+
+    const recommendedMode: ProductMode = eligible[0]?.mode ?? 'studio'
 
     return {
-      success: hwResult.success,
+      success: detectSuccess,
       recommendedMode,
-      detectedDevices: hwResult.gpuDevices,
-      error: hwResult.error,
+      detectedDevices: detected,
+      hasNvidiaGpu: hasNvidia,
+      modeCatalog,
     }
   })
 
@@ -1201,61 +1357,37 @@ function initEventHandle() {
   })
 
   ipcMain.handle('updatePresetsFromIntelRepo', () => {
-    const mode = settings.productMode === 'essentials' ? 'essentials' : 'studio'
+    const mode = resolveProductMode(settings)
     const variant = settings.isDemoModeEnabled ? 'demo' : 'presets'
-    return updateIntelPresets(settings.remoteRepository, mode, variant, getPresetsDir(settings))
+    const config = getPresetLoadConfig(settings)
+    return updateIntelPresets(
+      settings.remoteRepository,
+      mode,
+      variant,
+      config.baseDir,
+      config.modeDir,
+    )
   })
 
-  // Preset management IPC handlers
   ipcMain.handle('reloadPresets', async () => {
-    const presetsDir = getPresetsDir(settings)
+    const config = getPresetLoadConfig(settings)
     try {
-      await filterPartnerPresets(presetsDir)
+      await filterPartnerPresets(config.baseDir)
     } catch (error) {
       appLogger.error(`Failed to filter partner presets: ${error}`, 'electron-backend')
     }
     try {
-      // Ensure presets directory exists
-      await fs.promises.mkdir(presetsDir, { recursive: true })
-      const files = await fs.promises.readdir(presetsDir)
-      const presetFiles = files.filter((file) => file.endsWith('.json') && !file.startsWith('_'))
-      const presets = await Promise.all(
-        presetFiles.map(async (file) => {
-          const presetContent = await fs.promises.readFile(path.join(presetsDir, file), {
-            encoding: 'utf-8',
-          })
-          const osSpecificPreset =
-            process.platform !== 'win32' ? presetContent.replaceAll('\\\\', '/') : presetContent
-
-          // Check for image file with same name
-          const presetNameWithoutExt = path.basename(file, '.json')
-          const imageExtensions = ['.png', '.jpg', '.jpeg']
-          let imageBase64: string | null = null
-
-          for (const ext of imageExtensions) {
-            const imagePath = path.join(presetsDir, `${presetNameWithoutExt}${ext}`)
-            if (fs.existsSync(imagePath)) {
-              try {
-                const imageBuffer = await fs.promises.readFile(imagePath)
-                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
-                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
-                break
-              } catch (error) {
-                appLogger.warn(
-                  `Failed to read image file ${imagePath}: ${error}`,
-                  'electron-backend',
-                )
-              }
-            }
-          }
-
-          return {
-            content: osSpecificPreset,
-            image: imageBase64,
-          }
-        }),
+      const basePresets = applyPresetFilter(
+        await readPresetsFromDir(config.baseDir, config.imageFallbackDirs),
+        config,
       )
-      return presets
+      const modePresets = await readPresetsFromDir(config.modeDir, config.imageFallbackDirs)
+
+      for (const [name, preset] of modePresets) {
+        basePresets.set(name, preset)
+      }
+
+      return [...basePresets.values()]
     } catch (error) {
       appLogger.error(`Failed to load presets: ${error}`, 'electron-backend')
       return []
@@ -1274,46 +1406,8 @@ function initEventHandle() {
     try {
       const userDataPath = app.getPath('documents')
       const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
-      if (!fs.existsSync(presetsPath)) {
-        return []
-      }
-      const files = await fs.promises.readdir(presetsPath)
-      const presetFiles = files.filter((file) => file.endsWith('.json'))
-      const presets = await Promise.all(
-        presetFiles.map(async (file) => {
-          const presetContent = await fs.promises.readFile(path.join(presetsPath, file), {
-            encoding: 'utf-8',
-          })
-
-          // Check for image file with same name
-          const presetNameWithoutExt = path.basename(file, '.json')
-          const imageExtensions = ['.png', '.jpg', '.jpeg']
-          let imageBase64: string | null = null
-
-          for (const ext of imageExtensions) {
-            const imagePath = path.join(presetsPath, `${presetNameWithoutExt}${ext}`)
-            if (fs.existsSync(imagePath)) {
-              try {
-                const imageBuffer = await fs.promises.readFile(imagePath)
-                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg'
-                imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`
-                break
-              } catch (error) {
-                appLogger.warn(
-                  `Failed to read image file ${imagePath}: ${error}`,
-                  'electron-backend',
-                )
-              }
-            }
-          }
-
-          return {
-            content: presetContent,
-            image: imageBase64,
-          }
-        }),
-      )
-      return presets
+      const presets = await readPresetsFromDir(presetsPath)
+      return [...presets.values()]
     } catch (error) {
       appLogger.error(`Failed to load user presets: ${error}`, 'electron-backend')
       return []
@@ -1397,7 +1491,13 @@ function initEventHandle() {
   })
 
   ipcMain.handle('comfyui:installPypiPackage', async (_event, packageSpecifier: string) => {
-    return await comfyuiTools.installPypiPackage(packageSpecifier)
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
+    return await comfyuiTools.installPypiPackage(
+      packageSpecifier,
+      comfyService?.getTorchBackendEnv(),
+    )
   })
 
   ipcMain.handle(
@@ -1422,7 +1522,15 @@ function initEventHandle() {
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
       }
-      return await comfyuiTools.downloadCustomNode(nodeRepoData, comfyService.serviceDir)
+      const envAndWheels: comfyuiTools.ComfyUiInstallOptions = {
+        extraEnv: comfyService.getTorchBackendEnv(),
+        skipExtraWheels: comfyService.comfyUiVariantName !== 'xpu',
+      }
+      return await comfyuiTools.downloadCustomNode(
+        nodeRepoData,
+        comfyService.serviceDir,
+        envAndWheels,
+      )
     },
   )
 

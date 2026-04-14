@@ -201,6 +201,7 @@ import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 import * as toast from '@/assets/js/toast'
+import { useProductMode } from '@/assets/js/store/productMode'
 
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
@@ -210,6 +211,7 @@ const textInference = useTextInference()
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
 const backendServices = useBackendServices()
+const productModeStore = useProductMode()
 
 // Get the active chat preset
 const activeChatPreset = computed(() => {
@@ -231,7 +233,11 @@ const advancedMode = computed(() => activeChatPreset.value?.advancedMode ?? fals
 
 // Get available backends from preset (fallback when none configured on preset)
 const availableBackends = computed(() => {
-  return activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
+  const base = activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
+  if (productModeStore.productMode === 'nvidia') {
+    return base.filter((b) => b !== 'openVINO')
+  }
+  return base
 })
 
 // Backend items for dropdown

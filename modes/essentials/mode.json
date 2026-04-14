@@ -1,0 +1,29 @@
+{
+  "mode": "essentials",
+  "priority": 20,
+  "recommendForIntelDeviceIds": ["0xFD80", "0xFD81"],
+  "recommendForNvidia": false,
+  "experimental": false,
+  "displayOrder": 10,
+  "requiresNvidiaGpu": false,
+  "includePresets": [
+    "basic-chat",
+    "inpaint",
+    "manual",
+    "outpaint",
+    "rag-chat",
+    "sd15",
+    "sdxl",
+    "SketchToPhoto-HD",
+    "upscale"
+  ],
+  "ui": {
+    "i18n": {
+      "titleOne": "PRODUCT_MODE_ESSENTIALS_TITLE_ONE",
+      "titleTwo": "PRODUCT_MODE_ESSENTIALS_TITLE_TWO",
+      "subtitle": "PRODUCT_MODE_ESSENTIALS_SUBTITLE",
+      "description": "PRODUCT_MODE_ESSENTIALS_DESCRIPTION",
+      "supportedHardware": "PRODUCT_MODE_ESSENTIALS_SUPPORTED_HARDWARE"
+    }
+  }
+}

@@ -8,6 +8,24 @@ version = "0.0.0"
 requires-python = "==3.12.*"
 dependencies = []
 
+[project.optional-dependencies]
+xpu = [
+  "torch>=2.10.0",
+  "torchaudio",
+  "torchvision",
+  "triton-xpu>=3.6.0; sys_platform != 'darwin'",
+]
+cpu = [
+  "torch>=2.10.0",
+  "torchaudio",
+  "torchvision",
+]
+cuda = [
+  "torch>=2.10.0",
+  "torchaudio",
+  "torchvision",
+]
+
 [tool.uv]
 python-preference = "only-managed"
 link-mode = "clone"
@@ -15,28 +33,35 @@ index-strategy = "unsafe-best-match"
 required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
 prerelease = "if-necessary-or-explicit"
 environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+conflicts = [
+  [
+    { extra = "xpu" },
+    { extra = "cpu" },
+    { extra = "cuda" },
+  ],
+]
 
 [tool.uv.pip]
 torch-backend = "xpu"
 
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
-  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "cpu" },
 ]
 torchaudio = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
-  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "cpu" },
 ]
 torchvision = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
-  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
-]
-pytorch-triton-xpu = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "cpu" },
 ]
 triton-xpu = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
 ]
 insightface = [
   { url = "https://github.com/TNG/AI-Playground/releases/download/insightface-0.7.3/insightface-0.7.3-cp312-cp312-macosx_11_0_arm64.whl", marker = "sys_platform == 'darwin'" },
@@ -51,4 +76,9 @@ explicit = true
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true

@@ -1,11 +1,13 @@
 <template>
   <div class="z-10 text-foreground rounded-xl bg-background/70 border border-border shadow-lg">
     <div class="px-20 py-5 max-w-5xl">
-      <h1 class="text-center py-1 px-4 rounded-sm text-4xl">AI Playground Installation Manager</h1>
+      <h1 class="text-center py-1 px-4 rounded-sm text-4xl">
+        {{ languages.PRODUCT_MODE_SELECTOR_PAGE_TITLE }}
+      </h1>
 
       <div class="flex flex-col gap-4 pt-8">
         <label
-          v-for="option in modeOptions"
+          v-for="option in resolvedOptions"
           :key="option.mode"
           class="flex items-start gap-4 p-5 rounded-lg border cursor-pointer transition-colors"
           :class="
@@ -40,7 +42,9 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-start justify-between gap-4 flex-wrap">
               <div class="flex items-baseline gap-2 flex-wrap min-w-0">
-                <span class="text-lg font-bold text-[#00c4fa] tracking-tight -mr-1">{{ option.titleOne }}</span>
+                <span class="text-lg font-bold text-[#00c4fa] tracking-tight -mr-1">{{
+                  option.titleOne
+                }}</span>
                 <span class="text-lg font-bold tracking-tight">{{ option.titleTwo }}</span>
                 <span
                   v-if="option.subtitle"
@@ -51,22 +55,31 @@
               </div>
 
               <span
+                v-if="option.experimental"
+                class="text-xs font-semibold uppercase tracking-wider text-gray-400"
+              >
+                {{ languages.PRODUCT_MODE_BADGE_EXPERIMENTAL }}
+              </span>
+              <span
                 v-if="recommendedMode === option.mode"
                 class="text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-green-500"
               >
-                Recommended
+                {{ languages.PRODUCT_MODE_BADGE_RECOMMENDED }}
               </span>
               <span
                 v-else-if="option.mode === 'studio' && recommendedMode === 'essentials'"
                 class="text-xs font-semibold uppercase tracking-wider text-amber-500"
               >
-                Insufficient Hardware Detected
+                {{ languages.PRODUCT_MODE_BADGE_INSUFFICIENT_HARDWARE }}
               </span>
             </div>
 
             <p class="text-sm text-foreground pt-1">{{ option.description }}</p>
 
-            <ul class="text-sm pt-3 pl-5 list-disc space-y-1">
+            <ul
+              v-if="(option.features?.length ?? 0) > 0"
+              class="text-sm pt-3 pl-5 list-disc space-y-1"
+            >
               <li v-for="(feature, idx) in option.features" :key="idx">
                 <span class="text-foreground font-medium">{{ feature.label }}</span>
                 <span class="text-foreground/90">{{ feature.detail }}</span>
@@ -74,7 +87,7 @@
             </ul>
 
             <p class="text-xs text-muted-foreground pt-2 italic">
-              Supported Hardware: {{ option.supportedHardware }}
+              {{ languages.PRODUCT_MODE_SUPPORTED_HARDWARE_LEAD }} {{ option.supportedHardware }}
             </p>
           </div>
         </label>
@@ -86,7 +99,7 @@
           @click="confirmSelection"
           class="bg-primary py-2 px-8 rounded text-primary-foreground font-medium disabled:opacity-50"
         >
-          Continue
+          {{ languages.PRODUCT_MODE_CONTINUE }}
         </button>
       </div>
 
@@ -99,8 +112,10 @@
 
 <script setup lang="ts">
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import { useI18N } from '@/assets/js/store/i18n'
 
 const props = defineProps<{
+  modeCatalog: ProductModeCatalogEntry[]
   recommendedMode: ProductMode | null
   /** Committed tier from settings; pre-selects this when reopening the manager (matches app header). */
   currentMode?: ProductMode | null
@@ -110,7 +125,30 @@ const emits = defineEmits<{
   (e: 'select', mode: ProductMode): void
 }>()
 
+const i18n = useI18N()
+const languages = i18n.state
+
+function t(key: string) {
+  return i18n.state[key] ?? key
+}
+
 const selectedMode = ref<ProductMode | null>(null)
+
+const resolvedOptions = computed(() =>
+  props.modeCatalog.map((entry) => ({
+    mode: entry.mode,
+    experimental: entry.experimental,
+    titleOne: t(entry.ui.i18n.titleOne),
+    titleTwo: t(entry.ui.i18n.titleTwo),
+    subtitle: entry.ui.i18n.subtitle ? t(entry.ui.i18n.subtitle) : '',
+    description: t(entry.ui.i18n.description),
+    supportedHardware: t(entry.ui.i18n.supportedHardware),
+    features: entry.ui.i18n.features?.map((f) => ({
+      label: t(f.labelKey),
+      detail: t(f.detailKey),
+    })),
+  })),
+)
 
 watch(
   () => props.currentMode,
@@ -131,45 +169,6 @@ watch(
   },
   { immediate: true },
 )
-
-const modeOptions = [
-  {
-    mode: 'essentials' as ProductMode,
-    titleOne: 'AI',
-    titleTwo: 'PLAYGROUND',
-    subtitle: 'essentials',
-    description:
-      'Focused feature set, purpose built for low power, lightweight, and power efficient Intel Core AI PCs.',
-    features: [
-      { label: 'Chat:', detail: ' Knowledge chat, document search, and analysis' },
-      { label: 'Image Gen:', detail: ' Draft, HD, and Manual image generation modes' },
-      { label: 'Image Edit:', detail: ' Upscale, SketchToPhoto, Inpaint, Outpaint' },
-    ],
-    supportedHardware: 'Intel® Core™ Series 3 with 12GB RAM',
-  },
-  {
-    mode: 'studio' as ProductMode,
-    titleOne: 'AI',
-    titleTwo: 'PLAYGROUND',
-    subtitle: 'studio',
-    description:
-      'Full feature set of demanding offline AI workloads across chat, vision, image and video, targeting the GPU.',
-    features: [
-      {
-        label: 'Chat:',
-        detail: ' Advanced chat with reasoning, vision, agentic, and multi-modal chat.',
-      },
-      { label: 'Image Gen:', detail: ' Advanced image gen with high realism and prompt adherence' },
-      {
-        label: 'Image Edit:',
-        detail: ' Semantic prompt driven image editing, style control, and 3D model generation',
-      },
-      { label: 'Video:', detail: ' Video Generation Support' },
-    ],
-    supportedHardware:
-      'Intel® Core™ Ultra Series 3, Series 2V/2H, Series 1H with 16GB RAM; Intel Arc GPU Series A & B with 8GB of vRAM',
-  },
-]
 
 function confirmSelection() {
   if (selectedMode.value) {
