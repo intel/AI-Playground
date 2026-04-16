@@ -3,7 +3,7 @@
        src="https://scan.coverity.com/projects/30694/badge.svg"/>
 </a>
 
-# AI PLAYGROUND 3.0.3 beta
+# AI PLAYGROUND
 <img width="2025" height="593" alt="image" src="https://github.com/user-attachments/assets/76c47f53-cd1b-419c-9ffb-43ba2369c84b" />
 
 
@@ -34,11 +34,11 @@ AI Playground alpha and beta installers are currently available downloadable exe
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.0.2 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.3-beta_hf) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.3-beta_hf/AI-Playground-installer.exe) :new:
+:new: **AI Playground 3.1.0 alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.0.3-beta_hf) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.0.3-beta_hf/AI-Playground-installer.exe) :new:
 
-### Installation Process for v3.0
+### Installation Process for v3.x
 1. The installer only installs the Electron frontend, so it completes very quickly.
-2. On the first run, AI Playground Setup window appears where you install needed backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
+2. On the first run, AI Playground Setup window appears where you can select from hardware modes and needed backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
 3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/AI-Playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
 ### Troubleshooting Installation
