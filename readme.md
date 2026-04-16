@@ -10,12 +10,12 @@
 Welcome to AI Playground open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, code assistance, document search, image analysis, image and video generation. All features run offline and are powered by your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU or Intel Arc™ dGPU Series A or B with 8GB+ of vRAM.
 
 AI Playground is intended to act as an offline alternative to cloud tools such Gemini ChatGPT and Grok.  AI Playground leverages libraries from GitHub and Huggingface including:
-- Image Diffusion (PyTorch 2.10): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Z-Image, Wan2.1 VACE, LTX-Video
-- LLM: GGUF (Llama.cpp Vulkan) - Qwen3 VL, GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
+- Image Diffusion (PyTorch): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Z-Image, Wan2.1 VACE, LTX-Video
+- LLM: GGUF (Llama.cpp Vulkan) - Gemma4, Qwen3.5, Qwen3 VL, GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
 <img width="3221" height="1849" alt="image" src="https://github.com/user-attachments/assets/da8f2870-3d48-49ac-bf82-8feb44f460ee" />
 
 As a local alternative to cloud AI service, AI Playground is intended to give consumers and AI curious prosumers easy and intuitive access to a wide variety of generative AI features using their Intel powered AI PC. This means you can be offline, without loading sensitive or personal data to 3rd party sites, for free, in a single app without having to know how to install and manage multiple AI backend frameworks.   Key features:
-- Latest and greatest chat models: Support for Qwen 3 VL, Mistral 7B, DeepSeek R1 or GPT-OSS, AI playground makes a variety of chat models available to users
+- Latest and greatest chat models: Support for Gemma4, Qwen3.5, Qwen 3 VL, Mistral 7B, DeepSeek R1 or GPT-OSS, AI playground makes a variety of chat models available to users
 - Vision, Reasoning and RAG: Chat features support Vision, Reasoning and RAG to analyze and get deep answers on both visual and text content
 Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Document RAG with Mistral 7B Instruct
 - Image Generation: From Stable Diffusion 1.5, SDXL, Flux.1 and Z-image models AI Playground is making a breadth of image generation from quick easy low-res draft generation to high quality image generation
@@ -104,7 +104,8 @@ AI Playground does not ship with any generative AI models but does make models a
 
 Models currently linked from the application 
 
-### AI Model & License Registry
+<details>
+  <summary><h3>AI Model & License Registry</h3> </summary>
 
 | Model Path / Name | Model Card (HF) | License Link |
 | :--- | :--- | :--- |
@@ -162,7 +163,7 @@ Models currently linked from the application
 | TinyLlama 1.1B Chat (OV) | [Model Card](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | Whisper (OV) | [Model Card](https://huggingface.co/openai/whisper-large-v3) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 
-
+</details>
 
 Be sure to check license terms for any model used in AI Playground especially taking note of any restrictions.
 
