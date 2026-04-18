@@ -297,7 +297,7 @@
   "SETTINGS_IMAGE_INFO_NEGATIVE_PROMPT": "Add terms and descriptions to guide image generation on what NOT to generate",
   "SETTINGS_IMAGE_INFO_SEED": "Copy and paste a seed # here from a previous generated image to recreate that image. Clear if you wish the images to be random and not deterministic. Click the dice to generate a random seed number. If batch count is higher than 1 and a seed is entered, then the subsequent images will be generated sequentially from the seed number",
   "SETTINGS_IMAGE_INFO_SHOW_PREVIEW": "Turn off if you want to hide a preview of the image as it is being generated.",
-  "SETTINGS_IMAGE_INFO_SAFETY_CHECKER": "Adjust up to increase the likelihood of inappropriate images being censored. Adjust down to decrease the sensitivity to censoring of images",
+  "SETTINGS_IMAGE_INFO_SAFETY_CHECKER": "Adjust up to make the safety filter stricter. Adjust down to reduce false positives when safe images are being blocked.",
   "SETTINGS_IMAGE_INFO_COMFYUI": "Click this to launch the ComfyUI application, where you can create workflows and generate content directly from that tool",
   "MEMORY_ALERT_HIGH_MEMORY": "This feature requires high memory use and can exceed 24GB of system memory or 16GB of GPU memory",
   "MEMORY_ALERT_VIDEO_VRAM": "Video generation is best run on discrete GPUs with 16GB or more vRAM",

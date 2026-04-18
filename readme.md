@@ -34,7 +34,7 @@ AI Playground alpha and beta installers are currently available downloadable exe
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.1.0 alpha (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.1.0-alpha/AI-Playground-installer.exe) :new:
+:new: **AI Playground 3.2.0 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.2.0-beta/AI-Playground-installer.exe) :new:
 
 ### Installation Process for v3.x
 1. The installer only installs the Electron frontend, so it completes very quickly.

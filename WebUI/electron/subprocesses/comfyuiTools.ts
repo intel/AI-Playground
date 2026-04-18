@@ -26,7 +26,7 @@ const REACTOR_SFW_PATCH = `from transformers import pipeline
 from PIL import Image
 import logging
 
-SCORE = 0.965 # 0.965 and less - is safety content
+SCORE = 0.985 # Higher threshold reduces false positives while keeping a high-confidence block
 
 logging.getLogger('transformers').setLevel(logging.ERROR)
 from scripts.reactor_logger import logger
@@ -39,8 +39,7 @@ def nsfw_image(img_path: str, model_path: str):
         # Find the element with 'nsfw' label
         for item in result:
             if item["label"] == "nsfw":
-                # Return True if nsfw score is above threshold (indicating NSFW content)
-                # Return False if nsfw score is below threshold (indicating safe content)
+                # Only block very high-confidence classifications to reduce false positives
                 return True if item["score"] > SCORE else False
         # If no 'nsfw' label found, consider it safe
         return False

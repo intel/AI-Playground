@@ -24,6 +24,20 @@ function normalizeComfyUIModelName(name: string): string {
 
 /** Value for optional model inputs when the node should be bypassed (e.g. no LoRA). */
 export const OPTIONAL_MODEL_NONE = 'None'
+const DEFAULT_SAFETY_CHECKER_STRENGTH = 0.2
+
+function normalizeComfyInputDefault(input: ComfyInput): ComfyInput {
+  if (input.nodeTitle !== 'SafetyCheckerStrength' || typeof input.defaultValue !== 'number') {
+    return input
+  }
+
+  return {
+    ...input,
+    // `SafetyCheckerStrength` is inverted before reaching the classifier threshold.
+    // Lowering the default here reduces false positives without removing the filter.
+    defaultValue: Math.min(input.defaultValue, DEFAULT_SAFETY_CHECKER_STRENGTH),
+  }
+}
 
 /**
  * Convert stored model name to the path separator ComfyUI expects for the current OS.
@@ -283,9 +297,9 @@ export const useImageGenerationPresets = defineStore(
         return raw
       }
 
-      const comfyInputs = activePreset.value.settings.filter(
-        (s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s,
-      )
+      const comfyInputs = activePreset.value.settings
+        .filter((s): s is ComfyInput => 'nodeTitle' in s && 'nodeInput' in s)
+        .map(normalizeComfyInputDefault)
       return comfyInputs.map((input) => {
         const _current = ref(getSavedOrDefault(input))
 
