@@ -431,7 +431,7 @@ function closeInstallations() {
 function getInfoURL(serviceName: string) {
   switch (serviceName) {
     case 'ai-backend':
-      return 'https://github.com/intel/ai-playground'
+      return 'https://github.com/gungwang/AI-Playground'
     case 'comfyui-backend':
       return 'https://github.com/comfyanonymous/ComfyUI'
     case 'llamacpp-backend':

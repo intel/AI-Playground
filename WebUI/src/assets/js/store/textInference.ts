@@ -98,7 +98,7 @@ export const useTextInference = defineStore(
     const presetsStore = usePresets()
     const backend = ref<LlmBackend>('llamaCPP')
     const ragList = ref<IndexedDocument[]>([])
-    const defaultSystemPrompt = `You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
+    const defaultSystemPrompt = `You are a helpful AI assistant embedded in an application called Gungwang AI Playground, developed by Gungwang.
       You assist users by answering questions and providing information based on your training data and any additional context provided.`
     const systemPrompt = ref<string>(defaultSystemPrompt)
 

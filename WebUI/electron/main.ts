@@ -11,8 +11,8 @@ if (isAdmin()) {
 
   MessageBoxW(
     null,
-    'For security reasons, AI Playground cannot be executed with administrative permissions. Please restart AI Playground from a Windows account without Administrator rights.',
-    'AI Playground',
+    'For security reasons, Gungwang AI Playground cannot be executed with administrative permissions. Please restart the app from a Windows account without Administrator rights.',
+    'Gungwang AI Playground',
     MB_ICONINFORMATION,
   )
 
@@ -203,7 +203,7 @@ const LocalSettingsSchema = z.object({
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
   demoModePasscode: z.string().optional(),
   languageOverride: z.string().nullable().default(null),
-  remoteRepository: z.string().default('intel/ai-playground'),
+  remoteRepository: z.string().default('gungwang/AI-Playground'),
   huggingfaceEndpoint: z.string().default('https://huggingface.co'),
 })
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
@@ -326,7 +326,7 @@ function getWritableSettingsPath(): string {
   if (app.isPackaged) {
     return getPackagedSettingsPath()
   }
-  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+  return path.join(app.getPath('userData'), 'gungwang-ai-playground-local-settings.json')
 }
 
 function persistLocalSettingsToDisk(): void {
@@ -1396,7 +1396,7 @@ function initEventHandle() {
 
   ipcMain.handle('getUserPresetsPath', async () => {
     const userDataPath = app.getPath('documents')
-    const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+    const presetsPath = path.join(userDataPath, 'Gungwang AI Playground', 'presets')
     // Ensure directory exists
     await fs.promises.mkdir(presetsPath, { recursive: true })
     return presetsPath
@@ -1405,7 +1405,7 @@ function initEventHandle() {
   ipcMain.handle('loadUserPresets', async () => {
     try {
       const userDataPath = app.getPath('documents')
-      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      const presetsPath = path.join(userDataPath, 'Gungwang AI Playground', 'presets')
       const presets = await readPresetsFromDir(presetsPath)
       return [...presets.values()]
     } catch (error) {
@@ -1417,7 +1417,7 @@ function initEventHandle() {
   ipcMain.handle('saveUserPreset', async (_event, presetContent: string) => {
     try {
       const userDataPath = app.getPath('documents')
-      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      const presetsPath = path.join(userDataPath, 'Gungwang AI Playground', 'presets')
       await fs.promises.mkdir(presetsPath, { recursive: true })
 
       // Parse to get preset name for filename

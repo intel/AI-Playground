@@ -4,7 +4,7 @@
   >
     <div class="px-12 py-5 max-w-5xl w-5xl">
       <h1 class="text-center py-1 px-4 rounded-sm text-3xl font-bold">
-        {{ languages.SETUP_WIZARD_TITLE || 'AI Playground Setup' }}
+        {{ languages.SETUP_WIZARD_TITLE || 'Gungwang AI Playground Setup' }}
       </h1>
 
       <!-- Two-column layout: Product Mode | Components -->
@@ -319,7 +319,7 @@ const resolvedModeOptions = computed(() => {
 function getInfoURL(serviceName: string): string | undefined {
   switch (serviceName) {
     case 'ai-backend':
-      return 'https://github.com/intel/ai-playground'
+      return 'https://github.com/gungwang/AI-Playground'
     case 'comfyui-backend':
       return 'https://github.com/comfyanonymous/ComfyUI'
     case 'llamacpp-backend':

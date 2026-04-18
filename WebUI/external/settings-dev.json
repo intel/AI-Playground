@@ -8,6 +8,6 @@
   "demoModeResetInSeconds": 60,
   "demoModePasscode": "0451",
   "languageOverride": null,
-  "remoteRepository": "asdf/ai-playground",
+  "remoteRepository": "gungwang/AI-Playground",
   "huggingfaceEndpoint": "https://huggingface.co"
 }

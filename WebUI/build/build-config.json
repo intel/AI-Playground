@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "com.gungwang.aiplayground",
   "asar": true,
-  "copyright": "Copyright © Intel. All rights reserved",
+  "copyright": "Copyright © Gungwang",
   "extraResources": [
     {
       "from": "../service",
@@ -80,7 +80,7 @@
       "filter": ["*.whl"]
     }
   ],
-  "productName": "AI Playground",
+  "productName": "Gungwang AI Playground",
   "directories": {
     "app": ".",
     "output": "../build/electron",
@@ -104,6 +104,7 @@
         "arch": ["x64"]
       }
     ],
+    "signAndEditExecutable": false,
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",

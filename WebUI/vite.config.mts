@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite'
 import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import electron from 'vite-plugin-electron'
-import pkg from './package.json'
 import tailwindcss from '@tailwindcss/vite'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(
+  fs.readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
+) as { dependencies?: Record<string, string> }
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {

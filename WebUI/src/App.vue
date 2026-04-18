@@ -16,8 +16,8 @@
   >
     <div class="flex items-center">
       <h1 class="select-none flex gap-2 items-baseline">
-        <span class="text-[#00c4fa]">AI</span>
-        <span>PLAYGROUND</span>
+        <span class="text-[#00c4fa]">GUNGWANG</span>
+        <span>AI PLAYGROUND</span>
         <span v-if="productModeStore.productMode" class="text-muted-foreground/60 font-medium">{{
           productModeStore.productMode === 'essentials' ? 'essentials' : 'studio'
         }}</span>
@@ -260,13 +260,13 @@
     <div v-show="footerExpanded" class="w-full flex justify-between items-center pb-2">
       <div>
         <p>
-          Al Playground from Intel Corporation
-          <a href="https://github.com/intel/ai-playground" target="_blank" class="text-primary"
-            >https://github.com/intel/ai-playground</a
+          Gungwang AI Playground
+          <a href="https://github.com/gungwang/AI-Playground" target="_blank" class="text-primary"
+            >https://github.com/gungwang/AI-Playground</a
           >
         </p>
         <p>
-          AI Playground version: v{{ productVersion }}
+          Gungwang AI Playground version: v{{ productVersion }}
           <a :href="userGuideUrl" target="_blank" class="text-primary"> User Guide</a>
 
           <a :href="noticesUrl" target="_blank" class="text-primary">
@@ -357,7 +357,7 @@ const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
 const debugToolsEnabled = window.envVars.debugToolsEnabled
 
-const gitHubRepoUrl = ref('https://github.com/intel/ai-playground/blob/main/')
+const gitHubRepoUrl = ref('https://github.com/gungwang/AI-Playground/blob/main/')
 const userGuideUrl = computed(() => `${gitHubRepoUrl.value}AI%20Playground%20Users%20Guide.pdf`)
 const noticesUrl = computed(() => `${gitHubRepoUrl.value}notices-disclaimers.md`)
 const licenseUrl = computed(() => `${gitHubRepoUrl.value}LICENSE`)

@@ -17,10 +17,11 @@ const BackendVersionsSchema = z.object({
 })
 type BackendVersions = z.infer<typeof BackendVersionsSchema>
 
+const defaultRemoteRef = 'main'
+
 const getRemoteBaseUrl = (settings?: LocalSettings): string => {
-  const remoteRepository = settings?.remoteRepository ?? 'intel/ai-playground'
-  const appVersion = app.getVersion()
-  return `https://raw.githubusercontent.com/${remoteRepository}/refs/heads/${appVersion}/WebUI/external/`
+  const remoteRepository = settings?.remoteRepository ?? 'gungwang/AI-Playground'
+  return `https://raw.githubusercontent.com/${remoteRepository}/refs/heads/${defaultRemoteRef}/WebUI/external/`
 }
 
 const getRemoteVersionsUrl = (settings?: LocalSettings): string => {
@@ -32,9 +33,8 @@ const getRemoteModelsUrl = (settings?: LocalSettings): string => {
 }
 
 export const getGitHubRepoUrl = (settings?: LocalSettings): string => {
-  const remoteRepository = settings?.remoteRepository ?? 'intel/ai-playground'
-  const appVersion = app.getVersion()
-  return `https://github.com/${remoteRepository}/blob/${appVersion}/`
+  const remoteRepository = settings?.remoteRepository ?? 'gungwang/AI-Playground'
+  return `https://github.com/${remoteRepository}/blob/${defaultRemoteRef}/`
 }
 
 const loadLocalVersions = async (): Promise<BackendVersions> => {

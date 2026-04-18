@@ -93,7 +93,7 @@ export function mapServiceNameToDisplayName(serviceName: string) {
     case 'comfyui-backend':
       return 'ComfyUI'
     case 'ai-backend':
-      return 'AI Playground'
+      return 'Gungwang AI Playground'
     case 'llamacpp-backend':
       return 'Llama.cpp - GGUF'
     case 'openvino-backend':
