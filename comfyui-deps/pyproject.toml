@@ -24,7 +24,7 @@ dependencies = [
   "ftfy",
   "fvcore",
   "gguf>=0.13.0",
-  "gitpython>=3.1.49",
+  "gitpython>=3.1.50",
   "huggingface-hub>0.20",
   "imageio-ffmpeg",
   "importlib_metadata",
