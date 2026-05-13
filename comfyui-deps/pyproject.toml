@@ -83,9 +83,9 @@ dependencies = [
 
 [project.optional-dependencies]
 xpu = [
-  "torch>=2.11.0",
-  "torchaudio",
-  "torchvision",
+  "torch==2.11.0",
+  "torchaudio==2.11.0",
+  "torchvision==0.26.0",
   "triton-xpu>=3.6.0; sys_platform != 'darwin'",
 ]
 cpu = [
