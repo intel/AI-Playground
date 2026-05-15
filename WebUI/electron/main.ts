@@ -42,7 +42,6 @@ import { exec } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
-import { cleanupTempFolders } from './tempFolderCleanup'
 import { appLoggerInstance } from './logging/logger.ts'
 import {
   aiplaygroundApiServiceRegistry,
@@ -52,6 +51,7 @@ import {
   ComfyUiBackendService,
   COMFYUI_DEFAULT_PARAMETERS,
 } from './subprocesses/comfyUIBackendService'
+import { AiBackendService } from './subprocesses/aiBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
@@ -67,8 +67,10 @@ import {
 } from './subprocesses/mcpManager'
 import {
   addMcpServer,
+  detectAndRegisterAutoMcpServers,
   getMcpConfigPath,
   getMcpServerConfig,
+  isAutoDetectId,
   updateMcpServer,
   removeMcpServer,
   type McpServerConfig,
@@ -205,6 +207,13 @@ const LocalSettingsSchema = z.object({
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
   huggingfaceEndpoint: z.string().default('https://huggingface.co'),
+  mcpAutoDetectionDismissed: z.array(z.string()).default([]),
+  // Allowed OpenVINO devices for image-gen dropdowns (in-process upscale +
+  // OVMS image variants). Case-insensitive prefix match against device IDs.
+  // Default excludes NPU because RealESRGAN_x4plus and SDXL exceed current
+  // Intel NPU memory budgets on most shipping hardware. Override per-machine
+  // by editing settings.json, e.g. ["AUTO", "CPU", "GPU", "NPU"] to re-enable.
+  openvinoImageGenDevices: z.array(z.string()).default(['CPU', 'GPU']),
 })
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
@@ -494,12 +503,22 @@ async function createWindow() {
           headers.append(name, value)
         }
       }
-      append('Access-Control-Allow-Origin', '*')
+      // Defer to the upstream backend's `Access-Control-Allow-Origin` if
+      // it is already set. Otherwise the backend's specific origin (e.g.
+      // `http://localhost:25413`) gets joined with our wildcard, yielding
+      // `http://localhost:25413, *` which browsers reject as invalid.
+      if (!headers.has('Access-Control-Allow-Origin')) {
+        headers.append('Access-Control-Allow-Origin', '*')
+      }
       append('Access-Control-Allow-Methods', 'GET')
       append('Access-Control-Allow-Methods', 'POST')
       append('Access-Control-Allow-Headers', 'x-requested-with')
       append('Access-Control-Allow-Headers', 'Content-Type')
       append('Access-Control-Allow-Headers', 'Authorization')
+      // Loopback auth token header used by AI Playground's renderer to
+      // authenticate to the ai-backend Flask service. Must be in the
+      // preflight allow-list or the browser blocks the request.
+      append('Access-Control-Allow-Headers', 'X-AIPG-Auth')
       details.responseHeaders = Object.fromEntries([...headers.entries()].map(([k, v]) => [k, [v]]))
       callback(details)
     } else {
@@ -1002,6 +1021,46 @@ function initEventHandle() {
     return serviceRegistry.getServiceInformation()
   })
 
+  ipcMain.handle('getBackendAuthToken', (_event: IpcMainInvokeEvent, serviceName: string) => {
+    if (!serviceRegistry) {
+      return ''
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (service instanceof AiBackendService) {
+      return service.getLoopbackAuthToken()
+    }
+    if (service instanceof ComfyUiBackendService) {
+      return service.getLoopbackAuthToken()
+    }
+    return ''
+  })
+
+  ipcMain.handle('comfyui:openInBrowser', async () => {
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
+    if (!comfyService) {
+      return { success: false, error: 'ComfyUI backend service not found' }
+    }
+    const baseUrl = comfyService.baseUrl
+    if (!baseUrl) {
+      return { success: false, error: 'ComfyUI backend has no base URL yet' }
+    }
+    const token = comfyService.getLoopbackAuthToken()
+    // /aipg/launch (provided by the bundled aipg-auth custom_node) validates
+    // launch_token against AIPG_LOOPBACK_TOKEN, then issues an HttpOnly,
+    // SameSite=Strict aipg_session cookie and redirects to /. After that
+    // the user's default browser uses the cookie for all subsequent
+    // requests; the launch_token does not need to live in browser history.
+    const url = `${baseUrl}/aipg/launch?launch_token=${encodeURIComponent(token)}`
+    try {
+      await shell.openExternal(url)
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
   ipcMain.handle('uninstall', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received uninstall too early during aipg startup', 'electron-backend')
@@ -1338,6 +1397,91 @@ function initEventHandle() {
     return { success: false, error: 'Transcription server not supported' }
   })
 
+  ipcMain.handle(
+    'ensureOvmsImageReady',
+    async (
+      _event: IpcMainInvokeEvent,
+      serviceName: string,
+      modelName: string,
+      keepModelsLoaded?: boolean,
+      resolution?: string,
+    ) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        return { success: false, error: `Service ${serviceName} not found` }
+      }
+
+      if ('startImageServer' in service && typeof service.startImageServer === 'function') {
+        try {
+          await service.startImageServer(modelName, keepModelsLoaded, resolution)
+          const url =
+            'getImageServerUrl' in service && typeof service.getImageServerUrl === 'function'
+              ? service.getImageServerUrl()
+              : null
+          if (url) {
+            return { success: true, url }
+          }
+          return { success: false, error: 'Image server started but URL not available' }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          appLogger.error(
+            `Failed to ensure OVMS image readiness: ${errorMessage}`,
+            'electron-backend',
+          )
+          return { success: false, error: errorMessage }
+        }
+      }
+
+      return { success: false, error: 'Image server not supported by this backend' }
+    },
+  )
+
+  ipcMain.handle('stopOvmsImageServer', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('stopImageServer' in service && typeof service.stopImageServer === 'function') {
+      try {
+        await service.stopImageServer()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop OVMS image server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Image server not supported' }
+  })
+
+  ipcMain.handle('getOvmsImageServerUrl', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('getImageServerUrl' in service && typeof service.getImageServerUrl === 'function') {
+      const imageUrl = service.getImageServerUrl()
+      if (imageUrl) {
+        return { success: true, url: imageUrl }
+      }
+      return { success: false, error: 'Image server not running' }
+    }
+
+    return { success: false, error: 'Image server not supported' }
+  })
+
   ipcMain.on('ondragstart', async (event, filePath) => {
     const imagePath = getAssetPathFromUrl(filePath)
     if (!imagePath) return
@@ -1557,6 +1701,15 @@ function initEventHandle() {
     return comfyuiTools.listInstalledCustomNodes(comfyService.serviceDir)
   })
 
+  // Auto-detect MCP servers (e.g., Acer MCP service installed via WindowsApps).
+  // Runs on every startup so newly installed services are picked up and stale
+  // versioned paths get refreshed after MSIX/Store updates.
+  try {
+    detectAndRegisterAutoMcpServers(settings.mcpAutoDetectionDismissed ?? [])
+  } catch (e) {
+    appLogger.warn(`MCP auto-detect failed: ${e}`, 'mcp')
+  }
+
   // MCP server IPC handlers
   ipcMain.handle('mcp:startServer', async (_event, serverId: string) => {
     return await startMcpServer(serverId)
@@ -1631,7 +1784,12 @@ function initEventHandle() {
 
   ipcMain.handle('mcp:removeServer', async (_event, serverId: string) => {
     await stopMcpServer(serverId)
-    return removeMcpServer(serverId)
+    const result = removeMcpServer(serverId)
+    if (isAutoDetectId(serverId) && !settings.mcpAutoDetectionDismissed.includes(serverId)) {
+      settings.mcpAutoDetectionDismissed = [...settings.mcpAutoDetectionDismissed, serverId]
+      persistLocalSettingsToDisk()
+    }
+    return result
   })
 
   const getAssetPathFromUrl = (url: string) => {
@@ -1787,14 +1945,6 @@ app.whenReady().then(async () => {
     app.exit()
   } else {
     const settings = await loadSettings()
-
-    const modelsDir = path.resolve(
-      app.isPackaged
-        ? path.join(process.resourcesPath, 'models')
-        : path.join(__dirname, '../../../models'),
-    )
-    // Start temp-folder cleanup without blocking application startup
-    void cleanupTempFolders(modelsDir)
 
     initEventHandle()
 

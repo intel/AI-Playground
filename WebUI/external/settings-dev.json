@@ -9,5 +9,6 @@
   "demoModePasscode": "0451",
   "languageOverride": null,
   "remoteRepository": "asdf/ai-playground",
-  "huggingfaceEndpoint": "https://huggingface.co"
+  "huggingfaceEndpoint": "https://huggingface.co",
+  "openvinoImageGenDevices": ["CPU", "GPU"]
 }

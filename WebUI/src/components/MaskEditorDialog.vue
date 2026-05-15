@@ -44,6 +44,7 @@
             @update:cropX="(v) => updateValue('CropImage', 'x', v)"
             @update:cropY="(v) => updateValue('CropImage', 'y', v)"
             @update:preview="handlePreviewUpdate"
+            @composite-export="handleOutpaintCompositeExport"
           />
 
           <!-- Inpaint Mask Editor -->
@@ -226,5 +227,17 @@ function handlePreviewUpdate(previewUrl: string) {
   }
   // Update the preview
   dialogStore.setMaskEditorPreview(previewUrl)
+}
+
+function handleOutpaintCompositeExport(dataUri: string) {
+  const input = imageGeneration.comfyInputs.find((i) => i.type === 'outpaintCanvas')
+  if (input?.current) {
+    input.current.value = dataUri
+  } else {
+    nextTick(() => {
+      const retry = imageGeneration.comfyInputs.find((i) => i.type === 'outpaintCanvas')
+      if (retry?.current) retry.current.value = dataUri
+    })
+  }
 }
 </script>

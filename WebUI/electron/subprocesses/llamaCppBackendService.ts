@@ -16,6 +16,61 @@ const execAsync = promisify(exec)
 export const LLAMACPP_DEFAULT_PARAMETERS = '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa off'
 const platformExtension = process.platform === 'win32' ? 'zip' : 'tar.gz'
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
+
+/**
+ * Sanitize the user-supplied LlamaCPP parameter string from settings so a
+ * malicious or accidental value cannot widen the attack surface:
+ *
+ * - drop any `--host <addr>` / `--host=<addr>` whose address is not a loopback
+ *   host (`127.0.0.1`, `localhost`, `::1`),
+ * - drop any bare `--host` (which would consume the next token as the host),
+ * - drop any flag value of `0.0.0.0`.
+ *
+ * The caller is expected to also append a trailing `--host 127.0.0.1` so even
+ * a future llama-server default change cannot expose the port.
+ */
+export function sanitizeUserLlamaCppParameters(
+  raw: string,
+  warn?: (msg: string) => void,
+): string[] {
+  const tokens = raw.split(/\s+/).filter(Boolean)
+  const out: string[] = []
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]
+    if (t.startsWith('--host=')) {
+      const value = t.slice('--host='.length)
+      if (!LOOPBACK_HOSTS.has(value)) {
+        warn?.(`Refusing user-supplied --host=${value}; only loopback addresses are allowed`)
+        continue
+      }
+      out.push(t)
+      continue
+    }
+    if (t === '--host') {
+      const value = tokens[i + 1]
+      if (value === undefined || value.startsWith('--')) {
+        warn?.('Refusing bare --host; only loopback addresses are allowed')
+        continue
+      }
+      if (!LOOPBACK_HOSTS.has(value)) {
+        warn?.(`Refusing user-supplied --host ${value}; only loopback addresses are allowed`)
+        i++
+        continue
+      }
+      out.push(t, value)
+      i++
+      continue
+    }
+    if (t === '0.0.0.0' || t === '--host=0.0.0.0') {
+      warn?.(`Refusing user-supplied non-loopback bind value: ${t}`)
+      continue
+    }
+    out.push(t)
+  }
+  return out
+}
+
 interface LlamaServerProcess {
   process: ChildProcess
   port: number
@@ -566,6 +621,9 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
+      const userParameters = sanitizeUserLlamaCppParameters(this.llamaCppParametersString, (msg) =>
+        this.appLogger.warn(msg, this.name, true),
+      )
       const args = [
         '--model',
         modelPath,
@@ -573,7 +631,12 @@ export class LlamaCppBackendService implements ApiService {
         port.toString(),
         '--ctx-size',
         ctxSize.toString(),
-        ...this.llamaCppParametersString.split(/\s+/).filter(Boolean),
+        ...userParameters,
+        // Force-append --host AFTER user params so we always win, even if
+        // the user tried to inject their own --host. Defense in depth on
+        // top of llama-server's documented default (127.0.0.1).
+        '--host',
+        '127.0.0.1',
       ]
 
       const modelFolder = path.dirname(modelPath)
@@ -679,6 +742,8 @@ export class LlamaCppBackendService implements ApiService {
         modelPath,
         '--port',
         port.toString(),
+        '--host',
+        '127.0.0.1',
         '--log-prefix',
         '-b',
         '1024',

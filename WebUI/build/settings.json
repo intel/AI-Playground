@@ -2,5 +2,6 @@
   "debug": false,
   "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "light",
-  "isDemoModeEnabled": false
+  "isDemoModeEnabled": false,
+  "openvinoImageGenDevices": ["CPU", "GPU"]
 }

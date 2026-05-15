@@ -7,6 +7,7 @@ import { Document } from '@langchain/classic/document'
 import { llmBackendTypes } from '@/types/shared'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from './presets'
+import { useDeveloperSettings } from './developerSettings'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -96,6 +97,7 @@ export const useTextInference = defineStore(
     const dialogStore = useDialogStore()
     const models = useModels()
     const presetsStore = usePresets()
+    const developerSettings = useDeveloperSettings()
     const backend = ref<LlmBackend>('llamaCPP')
     const ragList = ref<IndexedDocument[]>([])
     const defaultSystemPrompt = `You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
@@ -822,6 +824,15 @@ export const useTextInference = defineStore(
 
         if (willUseRag.value && !embeddingModelName) {
           throw new Error('No embedding model selected but RAG documents are enabled')
+        }
+
+        // Stop OVMS image server to free GPU memory before loading LLM
+        if (!developerSettings.keepModelsLoaded) {
+          try {
+            await window.electronAPI.stopOvmsImageServer()
+          } catch (_e) {
+            // Ignore — server may not be running
+          }
         }
 
         await backendServices.ensureBackendReadiness(

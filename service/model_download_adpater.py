@@ -1,4 +1,3 @@
-import os
 import threading
 from queue import Empty, Queue
 import json
@@ -65,15 +64,11 @@ class Model_Downloader_Adapter:
         self.put_msg(data)
 
     def download_model_completed_callback(self, repo_id: str, ex: Optional[Exception]):
-        global _adapter
         if ex is not None:
             self.put_msg({"type": "error", "err_type": "download_exception"})
             self.has_error = True
-            self.finish = True
         else:
             self.put_msg({"type": "download_model_completed", "repo_id": repo_id})
-        
-        _adapter = None
 
     def error_callback(self, ex: Exception):
         self.has_error = True
@@ -92,8 +87,8 @@ class Model_Downloader_Adapter:
                 {
                     "type": "error",
                     "err_type": "not_enough_disk_space",
-                    "need": bytes2human(ex.requires_space),
-                    "free": bytes2human(ex.free_space),
+                    "requires_space": bytes2human(ex.requires_space),
+                    "free_space": bytes2human(ex.free_space),
                 }
             )
         elif isinstance(ex, DownloadException):
@@ -110,6 +105,7 @@ class Model_Downloader_Adapter:
         return self.generator()
 
     def __start_download(self, model_download_list: List[DownloadModelData]):
+        global _adapter
         self.finish = False
         self.user_stop = False
         try:
@@ -118,21 +114,27 @@ class Model_Downloader_Adapter:
                     break
                 if self.has_error:
                     break
-                else:
-                    self.hf_downloader.download(item.repo_id, item.type, item.backend, item.model_path)
-                    
-                    # Copy faceswap/facerestore models to ComfyUI directory after download completes
-                    # This must happen here (not in callback) to ensure file is fully written
-                    if item.backend == "comfyui" and item.type in ('faceswap', 'facerestore'):
-                        utils.copy_faceswap_facerestore_to_comfyui(
-                            item.type,
-                            item.repo_id,
-                            item.model_path
-                        )
-            self.put_msg({"type": "allComplete"})
-            self.finish = True
+                self.hf_downloader.download(
+                    item.repo_id, item.type, item.backend, item.model_path
+                )
+
+                # Copy faceswap/facerestore models to ComfyUI directory after download completes
+                # This must happen here (not in callback) to ensure file is fully written
+                if item.backend == "comfyui" and item.type in ("faceswap", "facerestore"):
+                    utils.copy_faceswap_facerestore_to_comfyui(
+                        item.type,
+                        item.repo_id,
+                        item.model_path,
+                    )
+            if not self.has_error and not self.user_stop:
+                self.put_msg({"type": "allComplete"})
         except Exception as ex:
             self.error_callback(ex)
+        finally:
+            self.finish = True
+            self.singal.set()
+            if _adapter is self:
+                _adapter = None
 
     def stop_download(self):
         self.user_stop = True

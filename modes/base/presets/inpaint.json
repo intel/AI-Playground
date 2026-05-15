@@ -283,6 +283,325 @@
           }
         }
       }
+    },
+    {
+      "name": "OpenVINO Draft",
+      "displayName": "Draft",
+      "backend": "openvino",
+      "requiresService": "openvino-backend",
+      "replaceWorkflow": true,
+      "removeSettings": ["Negative Prompt"],
+      "overrides": {
+        "tags": ["OVMS", "OpenVINO", "inpaint", "edit-images"],
+        "description": "Inpaint via an OpenAI-compatible /v3/images/edits API served by OpenVINO Model Server",
+        "extendedDescription": "Runs inpainting through ComfyUI using OVMS multipart /images/edits (image + mask + prompt). Use the mask editor: painted regions become transparent in the PNG sent to ComfyUI, which matches OVMS (white in the mask image = area to repaint). Serve an inpainting-capable model on OVMS (default id is OpenVINO/dreamshaper-8-inpainting-int8-ov). Default API base URL http://127.0.0.1:8000/v3.",
+        "resolutionConfig": {
+          "megapixels": [
+            { "label": "0.26", "totalPixels": 262144 },
+            { "label": "0.5", "totalPixels": 495616 }
+          ],
+          "aspectRatios": [
+            "21/9",
+            "16/9",
+            "3/2",
+            "4/3",
+            "1/1",
+            "3/4",
+            "2/3",
+            "9/16",
+            "9/21"
+          ]
+        },
+        "requiredCustomNodes": [],
+        "requiredPythonPackages": [],
+        "requiredModels": [
+          {
+            "type": "openvino-image",
+            "model": "OpenVINO/dreamshaper-8-inpainting-int8-ov"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 50,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 512,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 512,
+            "settingName": "height"
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "512x512",
+            "settingName": "resolution"
+          },
+          {
+            "type": "number",
+            "label": "Batch Size",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 1,
+            "settingName": "batchSize"
+          },
+          {
+            "type": "boolean",
+            "label": "Safety Check",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": false,
+            "settingName": "safetyCheck"
+          },
+          {
+            "type": "image",
+            "label": "Input Image",
+            "nodeTitle": "Load Image",
+            "nodeInput": "image",
+            "defaultValue": "",
+            "displayed": true,
+            "modifiable": true
+          },
+          {
+            "type": "inpaintMask",
+            "label": "Inpaint Mask",
+            "nodeTitle": "Load Image",
+            "nodeInput": "image",
+            "displayed": true,
+            "modifiable": true
+          },
+          {
+            "type": "string",
+            "label": "Image API base URL",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "http://127.0.0.1:8000/v3",
+            "nodeTitle": "prompt",
+            "nodeInput": "base_url"
+          },
+          {
+            "type": "string",
+            "label": "Model id",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "OpenVINO/dreamshaper-8-inpainting-int8-ov",
+            "nodeTitle": "prompt",
+            "nodeInput": "model"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "1": {
+            "inputs": {
+              "image": "input.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "2": {
+            "inputs": {
+              "image": ["1", 0],
+              "mask": ["1", 1],
+              "base_url": "http://127.0.0.1:8000/v3",
+              "model": "OpenVINO/dreamshaper-8-inpainting-int8-ov",
+              "text": "",
+              "seed": 0,
+              "steps": 50,
+              "width": 512,
+              "height": 512
+            },
+            "class_type": "OpenAICompatibleImageEdit",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "3": {
+            "inputs": {
+              "filename_prefix": "AIPG_OVMS_inpaint",
+              "images": ["2", 0]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+              "title": "Save Image"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "OpenVINO HD",
+      "displayName": "HD",
+      "backend": "openvino",
+      "requiresService": "openvino-backend",
+      "replaceWorkflow": true,
+      "removeSettings": ["Negative Prompt"],
+      "overrides": {
+        "tags": ["OVMS", "OpenVINO", "inpaint", "edit-images", "SDXL"],
+        "description": "High quality SDXL inpainting via an OpenAI-compatible /v3/images/edits API served by OpenVINO Model Server (Juggernaut-XL v9, 1024x1024)",
+        "extendedDescription": "Runs inpainting through ComfyUI using OVMS multipart /images/edits (image + mask + prompt) backed by OpenVINO/Juggernaut-XL-v9-int8-ov at 1024x1024. Use the mask editor: painted regions become transparent in the PNG sent to ComfyUI, which matches OVMS (white in the mask image = area to repaint). Default API base URL http://127.0.0.1:8000/v3.",
+        "resolutionConfig": {
+          "megapixels": [{ "label": "1.0", "totalPixels": 1048576 }],
+          "aspectRatios": [
+            "21/9",
+            "16/9",
+            "3/2",
+            "4/3",
+            "1/1",
+            "3/4",
+            "2/3",
+            "9/16",
+            "9/21"
+          ]
+        },
+        "requiredCustomNodes": [],
+        "requiredPythonPackages": [],
+        "requiredModels": [
+          {
+            "type": "openvino-image",
+            "model": "OpenVINO/Juggernaut-XL-v9-int8-ov"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 20,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "number",
+            "label": "Width",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "width"
+          },
+          {
+            "type": "number",
+            "label": "Height",
+            "displayed": false,
+            "modifiable": false,
+            "defaultValue": 1024,
+            "settingName": "height"
+          },
+          {
+            "type": "string",
+            "label": "Resolution",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": "1024x1024",
+            "settingName": "resolution"
+          },
+          {
+            "type": "number",
+            "label": "Batch Size",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 1,
+            "settingName": "batchSize"
+          },
+          {
+            "type": "boolean",
+            "label": "Safety Check",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": false,
+            "settingName": "safetyCheck"
+          },
+          {
+            "type": "image",
+            "label": "Input Image",
+            "nodeTitle": "Load Image",
+            "nodeInput": "image",
+            "defaultValue": "",
+            "displayed": true,
+            "modifiable": true
+          },
+          {
+            "type": "inpaintMask",
+            "label": "Inpaint Mask",
+            "nodeTitle": "Load Image",
+            "nodeInput": "image",
+            "displayed": true,
+            "modifiable": true
+          },
+          {
+            "type": "string",
+            "label": "Image API base URL",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "http://127.0.0.1:8000/v3",
+            "nodeTitle": "prompt",
+            "nodeInput": "base_url"
+          },
+          {
+            "type": "string",
+            "label": "Model id",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "OpenVINO/Juggernaut-XL-v9-int8-ov",
+            "nodeTitle": "prompt",
+            "nodeInput": "model"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "1": {
+            "inputs": {
+              "image": "input.png"
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "2": {
+            "inputs": {
+              "image": ["1", 0],
+              "mask": ["1", 1],
+              "base_url": "http://127.0.0.1:8000/v3",
+              "model": "OpenVINO/Juggernaut-XL-v9-int8-ov",
+              "text": "",
+              "seed": 0,
+              "steps": 20,
+              "width": 1024,
+              "height": 1024
+            },
+            "class_type": "OpenAICompatibleImageEdit",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "3": {
+            "inputs": {
+              "filename_prefix": "AIPG_OVMS_inpaint_HD",
+              "images": ["2", 0]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+              "title": "Save Image"
+            }
+          }
+        }
+      }
     }
   ],
   "settings": [

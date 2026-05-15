@@ -355,6 +355,116 @@ export async function uninstallCustomNode(
 }
 
 /**
+ * Locations where ComfyUI-Manager looks for its config.ini, varying by
+ * Manager version. Writing all of them defends against upstream renames.
+ *
+ * - Pre v3:           `<comfy>/custom_nodes/ComfyUI-Manager/config.ini`
+ * - V3 - V3.37:       `<comfy>/user/default/ComfyUI-Manager/config.ini`
+ * - V3.38+:           `<comfy>/user/__manager/config.ini`
+ *   (see https://github.com/Comfy-Org/ComfyUI-Manager/blob/main/docs/en/v3.38-userdata-security-migration.md)
+ */
+function getComfyUiManagerConfigPaths(comfyUiRootPath: string): string[] {
+  return [
+    path.join(comfyUiRootPath, 'custom_nodes', 'ComfyUI-Manager', 'config.ini'),
+    path.join(comfyUiRootPath, 'user', 'default', 'ComfyUI-Manager', 'config.ini'),
+    path.join(comfyUiRootPath, 'user', '__manager', 'config.ini'),
+  ]
+}
+
+/**
+ * Parse a minimal `[default]`-only config.ini into a record. Anything outside
+ * the `[default]` section is preserved verbatim in `tail` so we don't clobber
+ * other Manager sections.
+ */
+function parseManagerIni(raw: string): { entries: Record<string, string>; tail: string[] } {
+  const entries: Record<string, string> = {}
+  const tail: string[] = []
+  let inDefault = false
+  let sawDefault = false
+  for (const rawLine of raw.split(/\r?\n/)) {
+    const line = rawLine
+    const trimmed = line.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      inDefault = trimmed.toLowerCase() === '[default]'
+      if (inDefault) sawDefault = true
+      else tail.push(line)
+      continue
+    }
+    if (inDefault) {
+      const eq = line.indexOf('=')
+      if (eq > 0) {
+        const key = line.slice(0, eq).trim()
+        const value = line.slice(eq + 1).trim()
+        if (key) entries[key.toLowerCase()] = value
+        continue
+      }
+      // blank line or comment inside [default] — drop, will be re-emitted
+    } else if (sawDefault) {
+      tail.push(line)
+    }
+  }
+  return { entries, tail }
+}
+
+function serializeManagerIni(entries: Record<string, string>, tail: string[]): string {
+  const lines: string[] = ['[default]']
+  for (const [key, value] of Object.entries(entries)) {
+    lines.push(`${key} = ${value}`)
+  }
+  // strip leading empties from tail to keep a clean separator
+  let i = 0
+  while (i < tail.length && tail[i].trim() === '') i++
+  if (i < tail.length) {
+    lines.push('')
+    for (; i < tail.length; i++) lines.push(tail[i])
+  }
+  // ensure trailing newline
+  return lines.join('\n').replace(/\n*$/, '\n')
+}
+
+/**
+ * Configure ComfyUI-Manager with `security_level = strong` to disable the
+ * high- and middle-risk Manager API endpoints (git-URL install, pip install,
+ * uninstall/update, snapshot ops). This blocks the same RCE primitive that
+ * was exploited via the deleted `/api/comfyUi/loadCustomNodes` Flask
+ * endpoint, while keeping the Manager UI usable for browsing nodes/models.
+ *
+ * Existing keys (e.g. user-modified `preview_method`) are preserved.
+ */
+export async function configureComfyUiManagerSecurityLevel(
+  comfyUiRootPath: string,
+  level: 'strong' | 'normal' | 'normal-' | 'weak' = 'strong',
+): Promise<void> {
+  const targetPaths = getComfyUiManagerConfigPaths(comfyUiRootPath)
+  for (const targetPath of targetPaths) {
+    try {
+      await fs.promises.mkdir(path.dirname(targetPath), { recursive: true })
+      let entries: Record<string, string> = {}
+      let tail: string[] = []
+      if (fs.existsSync(targetPath)) {
+        const raw = await fs.promises.readFile(targetPath, 'utf-8')
+        const parsed = parseManagerIni(raw)
+        entries = parsed.entries
+        tail = parsed.tail
+      }
+      entries['security_level'] = level
+      await fs.promises.writeFile(targetPath, serializeManagerIni(entries, tail), 'utf-8')
+      appLoggerInstance.info(
+        `Set ComfyUI-Manager security_level=${level} at ${targetPath}`,
+        'comfyui-tools',
+      )
+    } catch (error) {
+      // Don't fail setup — Manager may not exist at this path yet (older or
+      // newer Manager versions). Just log and continue.
+      appLoggerInstance.warn(
+        `Failed to write ComfyUI-Manager config at ${targetPath}: ${error}`,
+        'comfyui-tools',
+      )
+    }
+  }
+}
+
+/**
  * List all installed custom nodes
  */
 export function listInstalledCustomNodes(comfyUiRootPath: string): string[] {

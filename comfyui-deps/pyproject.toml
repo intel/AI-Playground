@@ -13,12 +13,12 @@ dependencies = [
   "blake3",
   "chardet",
   "color-matcher",
-  "comfy-aimdo>=0.2.10",
+  "comfy-aimdo>=0.2.12",
   "comfy-kitchen>=0.2.8",
   "comfyui-embedded-docs==0.4.3",
-  "comfyui-frontend-package==1.41.18",
-  "comfyui-workflow-templates==0.9.21",
-  "diffusers>=0.35.2",
+  "comfyui-frontend-package==1.42.11",
+  "comfyui-workflow-templates==0.9.57",
+  "diffusers>=0.38.0",
   "einops",
   "filelock",
   "ftfy",
@@ -53,7 +53,7 @@ dependencies = [
   "pyyaml",
   "requests",
   "rich",
-  "safetensors>=0.4.2",
+  "safetensors>=0.8.0rc0",
   "scikit-image",
   "scikit-learn",
   "scipy",
@@ -85,18 +85,18 @@ dependencies = [
 
 [project.optional-dependencies]
 xpu = [
-  "torch==2.11.0",
-  "torchaudio==2.11.0",
-  "torchvision==0.26.0",
+  "torch>=2.12.0",
+  "torchaudio",
+  "torchvision",
   "triton-xpu>=3.6.0; sys_platform != 'darwin'",
 ]
 cpu = [
-  "torch>=2.11.0",
+  "torch>=2.12.0",
   "torchaudio",
   "torchvision",
 ]
 cuda = [
-  "torch>=2.11.0",
+  "torch>=2.12.0",
   "torchaudio",
   "torchvision",
 ]
@@ -123,16 +123,22 @@ torch-backend = "xpu"
 torch = [
   { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
   { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "xpu", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
   { index = "pytorch-cpu", extra = "cpu" },
 ]
 torchaudio = [
   { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
   { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "xpu", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
   { index = "pytorch-cpu", extra = "cpu" },
 ]
 torchvision = [
   { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
   { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "xpu", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
   { index = "pytorch-cpu", extra = "cpu" },
 ]
 triton-xpu = [
@@ -155,5 +161,5 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu128"
+url = "https://download.pytorch.org/whl/cu130"
 explicit = true

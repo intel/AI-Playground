@@ -27,6 +27,7 @@ export type McpToolInfo = {
 export type McpServerInfo = {
   id: string
   name: string
+  instructions?: string
 }
 
 export type McpToolCallResult = {
@@ -76,6 +77,7 @@ export function listMcpServers(): McpServerInfo[] {
   return Object.entries(servers).map(([id, server]) => ({
     id,
     name: server.displayName ?? id,
+    instructions: server.instructions,
   }))
 }
 

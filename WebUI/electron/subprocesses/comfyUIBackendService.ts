@@ -1,4 +1,5 @@
 import { ChildProcess, spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import fs from 'fs'
 import * as filesystem from 'fs-extra'
@@ -28,9 +29,9 @@ import {
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
 import { cudaVisibleDevicesEnv, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, app } from 'electron'
 import { LocalSettings } from '../main.ts'
-import { downloadCustomNode } from './comfyuiTools.ts'
+import { downloadCustomNode, configureComfyUiManagerSecurityLevel } from './comfyuiTools.ts'
 import { getBundledComfyUiGitRefSync } from '../remoteUpdates.ts'
 type Device = Omit<InferenceDevice, 'selected'>
 
@@ -39,6 +40,88 @@ export type ComfyUiVariant = 'xpu' | 'cuda' | 'cpu'
 export const COMFYUI_DEFAULT_PARAMETERS = '--lowvram --reserve-vram 6.0'
 
 const UPSTREAM_PYPROJECT_BACKUP = 'pyproject.toml.aipg-upstream'
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
+
+/**
+ * Returns the renderer Origin used for ComfyUI's --enable-cors-header. In
+ * dev the renderer runs on the Vite dev server origin; packaged builds load
+ * the renderer from `file://`, which the browser sends as `Origin: null`.
+ */
+function getRendererOrigin(): string {
+  if (!app.isPackaged) {
+    const devUrl = process.env['VITE_DEV_SERVER_URL']
+    if (devUrl) {
+      try {
+        const u = new URL(devUrl)
+        return `${u.protocol}//${u.host}`
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+  return 'null'
+}
+
+/**
+ * Sanitize the user-supplied ComfyUI parameter string from settings so that
+ * malicious or accidental values cannot expand the attack surface:
+ *
+ * - drop any `--listen <addr>` / `--listen=<addr>` whose address is not a
+ *   loopback host (`127.0.0.1`, `localhost`, `::1`),
+ * - drop any `--enable-cors-header [origin]` user override (we always
+ *   re-append our locked-down origin after user params),
+ * - drop any flag value of `0.0.0.0`.
+ */
+export function sanitizeUserComfyUiParameters(raw: string, warn?: (msg: string) => void): string[] {
+  const tokens = raw.split(/\s+/).filter(Boolean)
+  const out: string[] = []
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]
+    // --listen=<value> form
+    if (t.startsWith('--listen=')) {
+      const value = t.slice('--listen='.length)
+      if (!LOOPBACK_HOSTS.has(value)) {
+        warn?.(`Refusing user-supplied --listen=${value}; only loopback addresses are allowed`)
+        continue
+      }
+      out.push(t)
+      continue
+    }
+    if (t === '--listen') {
+      const value = tokens[i + 1]
+      if (value === undefined || value.startsWith('--')) {
+        // bare --listen with no arg defaults to 0.0.0.0 in ComfyUI -> reject
+        warn?.('Refusing bare --listen; only loopback addresses are allowed')
+        continue
+      }
+      if (!LOOPBACK_HOSTS.has(value)) {
+        warn?.(`Refusing user-supplied --listen ${value}; only loopback addresses are allowed`)
+        i++ // skip the value too
+        continue
+      }
+      out.push(t, value)
+      i++
+      continue
+    }
+    // --enable-cors-header=<value> form
+    if (t.startsWith('--enable-cors-header=')) {
+      warn?.(`Dropping user-supplied ${t}; CORS origin is forced by AI Playground`)
+      continue
+    }
+    if (t === '--enable-cors-header') {
+      // Skip the optional origin arg if present (heuristic: next token doesn't start with --).
+      const next = tokens[i + 1]
+      warn?.('Dropping user-supplied --enable-cors-header; CORS origin is forced by AI Playground')
+      if (next !== undefined && !next.startsWith('--')) {
+        i++
+      }
+      continue
+    }
+    out.push(t)
+  }
+  return out
+}
 
 export class ComfyUiBackendService extends LongLivedPythonApiService {
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
@@ -69,6 +152,15 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private comfyUiParametersString: string = COMFYUI_DEFAULT_PARAMETERS
   private comfyUiVariant: ComfyUiVariant = 'xpu'
   private variantMismatchToastSent = false
+
+  // Per-launch loopback auth token, regenerated on every spawn. Consumed by
+  // the bundled `aipg-auth` ComfyUI custom_node middleware which rejects any
+  // request without a matching Bearer header / ?token= query / session cookie.
+  private loopbackAuthToken: string = randomBytes(32).toString('hex')
+
+  getLoopbackAuthToken(): string {
+    return this.loopbackAuthToken
+  }
 
   private readonly variantMarkerPath = path.join(this.serviceDir, 'aipg-variant.json')
 
@@ -792,6 +884,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           extraEnv: this.getTorchBackendEnv(),
           skipExtraWheels: this.comfyUiVariant !== 'xpu',
         })
+        // Lock Manager down to security_level=strong so that even an attacker
+        // who reaches ComfyUI's loopback port cannot use the Manager API to
+        // install arbitrary git-URL custom nodes / pip packages — the same
+        // RCE primitive demonstrated in the CWE-494 report against the
+        // ai-backend's deleted /api/comfyUi/loadCustomNodes endpoint.
+        await configureComfyUiManagerSecurityLevel(this.serviceDir, 'strong')
         yield {
           serviceName: this.name,
           step: currentStep,
@@ -862,9 +960,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
+      AIPG_OPENVINO_IMAGE_MODELS: path.join(this.baseDir, 'models', 'openvino-image'),
       PIP_CONFIG_FILE: 'nul',
       UV_NO_CONFIG: '1',
       UV_TORCH_BACKEND: this.torchBackendValue,
+      // Consumed by the bundled aipg-auth ComfyUI custom_node middleware.
+      AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
     }
   }
 
@@ -1047,6 +1148,19 @@ except Exception as e:
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+    // Re-apply ComfyUI-Manager security_level=strong on every start so that
+    // (a) installs that predate this hardening get locked down on next launch,
+    // and (b) anyone tampering with config.ini gets it reverted.
+    try {
+      await configureComfyUiManagerSecurityLevel(this.serviceDir, 'strong')
+    } catch (error) {
+      this.appLogger.warn(`Failed to enforce ComfyUI-Manager security_level: ${error}`, this.name)
+    }
+
+    // Regenerate the per-launch loopback auth token so the env block of any
+    // previous ComfyUI process is no longer reusable.
+    this.loopbackAuthToken = randomBytes(32).toString('hex')
+
     // Ensure non-XPU variants don't keep stale ipex_to_cuda injection from previous installs.
     if (this.comfyUiVariant !== 'xpu') {
       const mmPath = path.join(this.serviceDir, 'comfy/model_management.py')
@@ -1071,6 +1185,20 @@ except Exception as e:
 
     const additionalEnvVariables = this.getEnvVars()
     const mediaDir = getMediaDir()
+    // --enable-cors-header is required so ComfyUI's origin_only_middleware
+    // doesn't 403 our cross-origin requests from the renderer (Vite dev origin
+    // / file:// in prod both trigger Sec-Fetch-Site: cross-site against
+    // 127.0.0.1:<port>). We pin a specific origin instead of the wildcard so
+    // a malicious page in any other browser tab cannot drive the local
+    // ComfyUI API via CORS.
+    //
+    // Also reject user-supplied --listen overrides that target non-loopback
+    // addresses (defense against malicious settings injection / accidental
+    // misconfiguration).
+    const rendererOrigin = getRendererOrigin()
+    const userParameters = sanitizeUserComfyUiParameters(this.comfyUiParametersString, (msg) =>
+      this.appLogger.warn(msg, this.name, true),
+    )
     const parameters = [
       'main.py',
       '--port',
@@ -1079,7 +1207,11 @@ except Exception as e:
       'auto',
       '--output-directory',
       mediaDir,
-      ...this.comfyUiParametersString.split(/\s+/).filter(Boolean),
+      ...userParameters,
+      // Force-append after user params so we always win, even if the user
+      // tried to inject their own --enable-cors-header.
+      '--enable-cors-header',
+      rendererOrigin,
     ]
     this.appLogger.info(
       `starting comfyui with ${JSON.stringify({ parameters, additionalEnvVariables })}`,

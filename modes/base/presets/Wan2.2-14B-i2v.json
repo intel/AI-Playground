@@ -1,0 +1,508 @@
+{
+  "type": "comfy",
+  "name": "Wan2.2-14B-i2v",
+  "description": "Image to Video generation using Wan 2.2 14B (high noise + low noise expert models). Recommended for systems with discrete GPUs and high vRAM.",
+  "extendedDescription": {
+    "Fast": "Generate short video clips from a starting image using the Lightx2v 4-step LoRAs. Load an image and set the aspect ratio to match the ratio of the image. Keep resolution to 0.25-0.5MP. Write a prompt that describes the core subject of the video in detail. Describe the action of the subject. Describe the camera movement. Describe the background of the scene.",
+    "Quality": "Generate higher quality short video clips from a starting image using the full 20-step two-stage diffusion. Slower but produces better motion fidelity than the Fast variant. Load an image, write a descriptive prompt describing subject, action, camera movement and background, then generate."
+  },
+  "displayPriority": 250,
+  "tags": ["dGPU", "high vRAM", "Wan 2.2"],
+  "backend": "comfyui",
+  "category": "create-videos",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 },
+      { "label": "0.8", "totalPixels": 802816 }
+    ],
+    "aspectRatios": [
+      "21/9",
+      "16/9",
+      "3/2",
+      "4/3",
+      "1/1",
+      "3/4",
+      "2/3",
+      "9/16",
+      "9/21"
+    ],
+    "useLookupTable": false
+  },
+  "requiredCustomNodes": [],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"
+    },
+    {
+      "type": "unet",
+      "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/vae/wan_2.1_vae.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "Comfy-Org/Wan_2.1_ComfyUI_repackaged/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 20,
+      "nodeTitle": "Steps",
+      "nodeInput": "value"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 640,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 640,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "640x640",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "number",
+      "label": "Total Frames",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 81,
+      "step": 4,
+      "min": 17,
+      "max": 161,
+      "nodeTitle": "WanImageToVideo",
+      "nodeInput": "length"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {},
+  "variants": [
+    {
+      "name": "Fast",
+      "removeSettings": ["Inference Steps"],
+      "overrides": {
+        "description": "Fast Image to Video generation using Wan 2.2 14B with the Lightx2v 4-step LoRAs.",
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"
+          },
+          {
+            "type": "unet",
+            "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/vae/wan_2.1_vae.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Comfy-Org/Wan_2.1_ComfyUI_repackaged/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+          },
+          {
+            "type": "lora",
+            "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"
+          },
+          {
+            "type": "lora",
+            "model": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged/split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "84": {
+            "inputs": {
+              "clip_name": "Comfy-Org---Wan_2.1_ComfyUI_repackaged\\split_files\\text_encoders\\umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+              "type": "wan",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": { "title": "Load CLIP" }
+          },
+          "90": {
+            "inputs": {
+              "vae_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\vae\\wan_2.1_vae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": { "title": "Load VAE" }
+          },
+          "95": {
+            "inputs": {
+              "unet_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\diffusion_models\\wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": { "title": "Load Diffusion Model (High Noise)" }
+          },
+          "96": {
+            "inputs": {
+              "unet_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\diffusion_models\\wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": { "title": "Load Diffusion Model (Low Noise)" }
+          },
+          "101": {
+            "inputs": {
+              "lora_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\loras\\wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+              "strength_model": 1.0,
+              "model": ["95", 0]
+            },
+            "class_type": "LoraLoaderModelOnly",
+            "_meta": { "title": "Load LoRA (High Noise)" }
+          },
+          "102": {
+            "inputs": {
+              "lora_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\loras\\wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+              "strength_model": 1.0,
+              "model": ["96", 0]
+            },
+            "class_type": "LoraLoaderModelOnly",
+            "_meta": { "title": "Load LoRA (Low Noise)" }
+          },
+          "104": {
+            "inputs": {
+              "shift": 5.0,
+              "model": ["101", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": { "title": "ModelSamplingSD3 (High Noise)" }
+          },
+          "103": {
+            "inputs": {
+              "shift": 5.0,
+              "model": ["102", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": { "title": "ModelSamplingSD3 (Low Noise)" }
+          },
+          "93": {
+            "inputs": {
+              "text": "",
+              "clip": ["84", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": { "title": "prompt" }
+          },
+          "89": {
+            "inputs": {
+              "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+              "clip": ["84", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": { "title": "CLIP Text Encode (Negative Prompt)" }
+          },
+          "97": {
+            "inputs": { "image": "input.png" },
+            "class_type": "LoadImage",
+            "_meta": { "title": "Load Image" }
+          },
+          "98": {
+            "inputs": {
+              "width": 640,
+              "height": 640,
+              "length": 81,
+              "batch_size": 1,
+              "positive": ["93", 0],
+              "negative": ["89", 0],
+              "vae": ["90", 0],
+              "start_image": ["97", 0]
+            },
+            "class_type": "WanImageToVideo",
+            "_meta": { "title": "WanImageToVideo" }
+          },
+          "86": {
+            "inputs": {
+              "add_noise": "enable",
+              "noise_seed": 0,
+              "steps": 4,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "start_at_step": 0,
+              "end_at_step": 2,
+              "return_with_leftover_noise": "enable",
+              "model": ["104", 0],
+              "positive": ["98", 0],
+              "negative": ["98", 1],
+              "latent_image": ["98", 2]
+            },
+            "class_type": "KSamplerAdvanced",
+            "_meta": { "title": "KSampler (High Noise)" }
+          },
+          "85": {
+            "inputs": {
+              "add_noise": "disable",
+              "noise_seed": 0,
+              "steps": 4,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "start_at_step": 2,
+              "end_at_step": 4,
+              "return_with_leftover_noise": "disable",
+              "model": ["103", 0],
+              "positive": ["98", 0],
+              "negative": ["98", 1],
+              "latent_image": ["86", 0]
+            },
+            "class_type": "KSamplerAdvanced",
+            "_meta": { "title": "KSampler (Low Noise)" }
+          },
+          "87": {
+            "inputs": {
+              "samples": ["85", 0],
+              "vae": ["90", 0]
+            },
+            "class_type": "VAEDecode",
+            "_meta": { "title": "VAE Decode" }
+          },
+          "94": {
+            "inputs": {
+              "fps": 16,
+              "images": ["87", 0]
+            },
+            "class_type": "CreateVideo",
+            "_meta": { "title": "Create Video" }
+          },
+          "108": {
+            "inputs": {
+              "filename_prefix": "AIPG_Video",
+              "format": "auto",
+              "codec": "auto",
+              "video": ["94", 0]
+            },
+            "class_type": "SaveVideo",
+            "_meta": { "title": "Save Video" }
+          }
+        }
+      }
+    },
+    {
+      "name": "Quality",
+      "overrides": {
+        "description": "Quality Image to Video generation using Wan 2.2 14B with the standard 20-step two-stage diffusion (no Lightx2v LoRA).",
+        "comfyUiApiWorkflow": {
+          "84": {
+            "inputs": {
+              "clip_name": "Comfy-Org---Wan_2.1_ComfyUI_repackaged\\split_files\\text_encoders\\umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+              "type": "wan",
+              "device": "default"
+            },
+            "class_type": "CLIPLoader",
+            "_meta": { "title": "Load CLIP" }
+          },
+          "90": {
+            "inputs": {
+              "vae_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\vae\\wan_2.1_vae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": { "title": "Load VAE" }
+          },
+          "95": {
+            "inputs": {
+              "unet_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\diffusion_models\\wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": { "title": "Load Diffusion Model (High Noise)" }
+          },
+          "96": {
+            "inputs": {
+              "unet_name": "Comfy-Org---Wan_2.2_ComfyUI_Repackaged\\split_files\\diffusion_models\\wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": { "title": "Load Diffusion Model (Low Noise)" }
+          },
+          "104": {
+            "inputs": {
+              "shift": 5.0,
+              "model": ["95", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": { "title": "ModelSamplingSD3 (High Noise)" }
+          },
+          "103": {
+            "inputs": {
+              "shift": 5.0,
+              "model": ["96", 0]
+            },
+            "class_type": "ModelSamplingSD3",
+            "_meta": { "title": "ModelSamplingSD3 (Low Noise)" }
+          },
+          "128": {
+            "inputs": { "value": 20 },
+            "class_type": "PrimitiveInt",
+            "_meta": { "title": "Steps" }
+          },
+          "127": {
+            "inputs": { "value": 10 },
+            "class_type": "PrimitiveInt",
+            "_meta": { "title": "Split Step" }
+          },
+          "93": {
+            "inputs": {
+              "text": "",
+              "clip": ["84", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": { "title": "prompt" }
+          },
+          "89": {
+            "inputs": {
+              "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+              "clip": ["84", 0]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": { "title": "CLIP Text Encode (Negative Prompt)" }
+          },
+          "97": {
+            "inputs": { "image": "input.png" },
+            "class_type": "LoadImage",
+            "_meta": { "title": "Load Image" }
+          },
+          "98": {
+            "inputs": {
+              "width": 640,
+              "height": 640,
+              "length": 81,
+              "batch_size": 1,
+              "positive": ["93", 0],
+              "negative": ["89", 0],
+              "vae": ["90", 0],
+              "start_image": ["97", 0]
+            },
+            "class_type": "WanImageToVideo",
+            "_meta": { "title": "WanImageToVideo" }
+          },
+          "86": {
+            "inputs": {
+              "add_noise": "enable",
+              "noise_seed": 0,
+              "steps": ["128", 0],
+              "cfg": 3.5,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "start_at_step": 0,
+              "end_at_step": ["127", 0],
+              "return_with_leftover_noise": "enable",
+              "model": ["104", 0],
+              "positive": ["98", 0],
+              "negative": ["98", 1],
+              "latent_image": ["98", 2]
+            },
+            "class_type": "KSamplerAdvanced",
+            "_meta": { "title": "KSampler (High Noise)" }
+          },
+          "85": {
+            "inputs": {
+              "add_noise": "disable",
+              "noise_seed": 0,
+              "steps": ["128", 0],
+              "cfg": 3.5,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "start_at_step": ["127", 0],
+              "end_at_step": ["128", 0],
+              "return_with_leftover_noise": "disable",
+              "model": ["103", 0],
+              "positive": ["98", 0],
+              "negative": ["98", 1],
+              "latent_image": ["86", 0]
+            },
+            "class_type": "KSamplerAdvanced",
+            "_meta": { "title": "KSampler (Low Noise)" }
+          },
+          "87": {
+            "inputs": {
+              "samples": ["85", 0],
+              "vae": ["90", 0]
+            },
+            "class_type": "VAEDecode",
+            "_meta": { "title": "VAE Decode" }
+          },
+          "94": {
+            "inputs": {
+              "fps": 16,
+              "images": ["87", 0]
+            },
+            "class_type": "CreateVideo",
+            "_meta": { "title": "Create Video" }
+          },
+          "108": {
+            "inputs": {
+              "filename_prefix": "AIPG_Video",
+              "format": "auto",
+              "codec": "auto",
+              "video": ["94", 0]
+            },
+            "class_type": "SaveVideo",
+            "_meta": { "title": "Save Video" }
+          }
+        }
+      }
+    }
+  ]
+}

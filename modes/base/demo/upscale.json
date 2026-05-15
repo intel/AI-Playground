@@ -9,12 +9,115 @@
   "description": "Increase resolution of an image up to 4X",
   "extendedDescription": "Select an upscale factor then drag in, or load an image to upscale. Click generate button. No prompt needed.",
   "toolInstructions": "Use this workflow when the user wants to upscale, enhance resolution, or increase the size of an existing image. This is a no-prompt workflow: the prompt parameter is ignored. Simply select this workflow and the image will be upscaled using RealESRGAN x4plus. Best for making small or low-resolution images larger and sharper.",
-  "requiredCustomNodes": ["evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"],
+  "requiredCustomNodes": [
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
       "type": "upscale",
       "model": "Comfy-Org/Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors"
+    }
+  ],
+  "variants": [
+    { "name": "Default", "overrides": {} },
+    {
+      "name": "OpenVINO Default",
+      "displayName": "Default",
+      "backend": "openvino",
+      "replaceWorkflow": true,
+      "overrides": {
+        "tags": ["OpenVINO", "no-prompt"],
+        "description": "Increase resolution of an image up to 4X with OpenVINO",
+        "extendedDescription": "Select an upscale factor then drag in, or load an image to upscale. Click generate button. No prompt needed. Runs RealESRGAN x4plus through OpenVINO in-process inside ComfyUI (does not call the OVMS server). The model is converted to OpenVINO IR with dynamic input shape on first use and cached to disk.",
+        "toolInstructions": "Use this workflow when the user wants to upscale, enhance resolution, or increase the size of an existing image. This is a no-prompt workflow: the prompt parameter is ignored. Simply select this workflow and the image will be upscaled using RealESRGAN x4plus running through OpenVINO, then resized to the requested factor. Best for making small or low-resolution images larger and sharper.",
+        "requiredCustomNodes": [],
+        "requiredPythonPackages": ["openvino"],
+        "requiredModels": [
+          {
+            "type": "upscale",
+            "model": "Comfy-Org/Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Upscale Factor",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 2,
+            "min": 1,
+            "max": 4,
+            "step": 0.1,
+            "nodeTitle": "OpenVINO Upscale",
+            "nodeInput": "target_scale"
+          },
+          {
+            "type": "string",
+            "label": "Model Path",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "Comfy-Org---Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors",
+            "nodeTitle": "OpenVINO Upscale",
+            "nodeInput": "model_path"
+          },
+          {
+            "type": "string",
+            "label": "Device",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "GPU",
+            "nodeTitle": "OpenVINO Upscale",
+            "nodeInput": "device"
+          },
+          {
+            "type": "number",
+            "label": "Tile Size",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 512,
+            "min": 64,
+            "max": 2048,
+            "step": 32,
+            "nodeTitle": "OpenVINO Upscale",
+            "nodeInput": "tile_size"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "9": {
+            "inputs": {
+              "filename_prefix": "AIPG_Image",
+              "images": ["16", 0]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+              "title": "Save Image"
+            }
+          },
+          "15": {
+            "inputs": {
+              "image": ""
+            },
+            "class_type": "LoadImage",
+            "_meta": {
+              "title": "Load Image"
+            }
+          },
+          "16": {
+            "inputs": {
+              "image": ["15", 0],
+              "model_path": "Comfy-Org---Real-ESRGAN_repackaged/RealESRGAN_x4plus.safetensors",
+              "target_scale": 2,
+              "device": "GPU",
+              "tile_size": 512
+            },
+            "class_type": "OpenVINOImageUpscale",
+            "_meta": {
+              "title": "OpenVINO Upscale"
+            }
+          }
+        }
+      }
     }
   ],
   "settings": [

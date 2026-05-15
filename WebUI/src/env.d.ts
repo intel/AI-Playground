@@ -59,6 +59,8 @@ type LocalSettings = {
   languageOverride: string | null
   remoteRepository: string
   huggingfaceEndpoint: string
+  mcpAutoDetectionDismissed: string[]
+  openvinoImageGenDevices: string[]
 }
 
 type GpuHardwareDevice = {
@@ -119,6 +121,7 @@ type McpToolInfo = {
 type McpServerInfo = {
   id: string
   name: string
+  instructions?: string
 }
 
 type McpServerConfig =
@@ -128,12 +131,14 @@ type McpServerConfig =
       args?: string[]
       env?: Record<string, string>
       displayName?: string
+      instructions?: string
     }
   | {
       type: 'http'
       url: string
       headers?: Record<string, string>
       displayName?: string
+      instructions?: string
     }
 
 type McpToolCallResult = {
@@ -229,6 +234,7 @@ type electronAPI = {
   getComfyUiDefaultParameters(): Promise<string>
   getLlamaCppDefaultParameters(): Promise<string>
   getServices(): Promise<ApiServiceInformation[]>
+  getBackendAuthToken(serviceName: string): Promise<string>
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
 
   uninstall(serviceName: string): Promise<void>
@@ -255,6 +261,14 @@ type electronAPI = {
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  ensureOvmsImageReady(
+    serviceName: string,
+    modelName: string,
+    keepModelsLoaded?: boolean,
+    resolution?: string,
+  ): Promise<{ success: boolean; url?: string; error?: string }>
+  stopOvmsImageServer(): Promise<{ success: boolean; error?: string }>
+  getOvmsImageServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
   // ComfyUI Tools - uses uv for Python package management
   comfyui: {
     isGitInstalled(): Promise<boolean>
@@ -266,6 +280,7 @@ type electronAPI = {
     downloadCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     uninstallCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     listInstalledCustomNodes(): Promise<string[]>
+    openInBrowser(): Promise<{ success: boolean; error?: string }>
   }
   mcp: {
     listServers(): Promise<McpServerInfo[]>
@@ -284,15 +299,39 @@ type electronAPI = {
     addServer(
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ): Promise<void>
     getServerConfig(serverId: string): Promise<McpServerConfig>
     updateServer(
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ): Promise<void>
     removeServer(serverId: string): Promise<void>
   }
@@ -473,7 +512,7 @@ type NotEnoughDiskSpaceExceptionCallback = {
 
 type ErrorOutCallback = {
   type: 'error'
-  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception'
+  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception' | 'repositories_not_found'
 }
 
 type DownloadModelProgressCallback = {

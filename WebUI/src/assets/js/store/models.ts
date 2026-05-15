@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { LlmBackend } from './textInference'
 import { useBackendServices } from './backendServices'
+import { aipgFetch } from '@/lib/loopbackAuth'
 
 export type ModelPaths = {
   ggufLLM: string
@@ -174,7 +175,16 @@ export const useModels = defineStore(
     }
 
     async function checkIfHuggingFaceUrlExists(repo_id: string) {
-      const response = await fetch(`${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`)
+      // Forward the user's HF token (if configured) so the backend can resolve
+      // private/gated repos. The Authorization Bearer header is the same
+      // convention used by /api/downloadModel for the HF token.
+      const headers: HeadersInit = hfToken.value?.startsWith('hf_')
+        ? { Authorization: `Bearer ${hfToken.value}` }
+        : {}
+      const response = await aipgFetch(
+        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`,
+        { headers },
+      )
       const data = await response.json()
       return data.exists
     }
@@ -245,6 +255,9 @@ export const useModels = defineStore(
         if (type === 'STT') {
           // STT path for openvino transcription models
           return pathsToUse['STT'] || ''
+        }
+        if (type === 'openvino-image') {
+          return pathsToUse['openvino-image'] || ''
         }
       }
 
@@ -377,7 +390,7 @@ export const useModels = defineStore(
         model_path: getModelPath(param.type, param.backend),
       }))
 
-      const response = await fetch(`${aipgBackendUrl()}/api/checkModelAlreadyLoaded`, {
+      const response = await aipgFetch(`${aipgBackendUrl()}/api/checkModelAlreadyLoaded`, {
         method: 'POST',
         body: JSON.stringify({ data: paramsWithPaths }),
         headers: {

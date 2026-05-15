@@ -616,13 +616,14 @@ export const useImageGenerationPresets = defineStore(
     }
 
     async function ensureModelsAreAvailable(): Promise<void> {
-      return new Promise<void>(async (resolve, reject) => {
-        const downloadList = await getMissingModels()
-        if (downloadList.length > 0) {
-          dialogStore.showDownloadDialog(downloadList, resolve, reject)
-        } else {
-          resolve()
-        }
+      // Avoid the `new Promise(async (resolve, reject) => ...)` antipattern:
+      // an exception inside an async executor becomes an unhandled rejection
+      // and the outer promise never settles. Now that getMissingModels() can
+      // throw (when a required model is unavailable), this matters.
+      const downloadList = await getMissingModels()
+      if (downloadList.length === 0) return
+      return new Promise<void>((resolve, reject) => {
+        dialogStore.showDownloadDialog(downloadList, resolve, reject)
       })
     }
 

@@ -16,7 +16,7 @@ interface OvmsServerProcess {
   process: ChildProcess
   port: number
   modelRepoId: string
-  type: 'llm' | 'embedding' | 'transcription'
+  type: 'llm' | 'embedding' | 'transcription' | 'image_generation'
   contextSize?: number
   isReady: boolean
   healthEndpointUrl: string
@@ -54,10 +54,13 @@ export class OpenVINOBackendService implements ApiService {
   private ovmsLlmProcess: OvmsServerProcess | null = null
   private ovmsEmbeddingProcess: OvmsServerProcess | null = null
   private ovmsTranscriptionProcess: OvmsServerProcess | null = null
+  private ovmsImageProcess: OvmsServerProcess | null = null
   private currentModel: string | null = null
   private currentContextSize: number | null = null
   private currentEmbeddingModel: string | null = null
   private currentTranscriptionModel: string | null = null
+  private currentImageModel: string | null = null
+  private currentImageResolution: string | null = null
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
@@ -744,6 +747,7 @@ export class OpenVINOBackendService implements ApiService {
     await this.stopOvmsLlmServer()
     await this.stopOvmsEmbeddingServer()
     await this.stopOvmsTranscriptionServer()
+    await this.stopOvmsImageServer()
 
     this.setStatus('stopped')
     return 'stopped'
@@ -818,6 +822,88 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.info('Transcription server stopped successfully', this.name)
     } catch (error) {
       this.appLogger.error(`Failed to stop transcription server: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  /**
+   * Get the image generation server URL if an image server is running
+   */
+  getImageServerUrl(): string | null {
+    if (this.ovmsImageProcess?.isReady) {
+      return `http://127.0.0.1:${this.ovmsImageProcess.port}/v3`
+    }
+    return null
+  }
+
+  /**
+   * Start image generation server, optionally stopping the LLM server first to free GPU memory.
+   * @param modelName - HuggingFace repo id (e.g. 'OpenVINO/LCM_Dreamshaper_v7-int8-ov')
+   * @param keepModelsLoaded - If true, don't stop the LLM server before starting image server
+   * @param resolution - Optional resolution in WxH format (e.g. '512x512'). When the selected
+   *   device is NPU the pipeline must be reshaped to a static shape, so this value is required
+   *   for NPU and is passed via OVMS `--resolution`. Ignored on non-NPU devices.
+   */
+  async startImageServer(
+    modelName: string,
+    keepModelsLoaded?: boolean,
+    resolution?: string,
+  ): Promise<void> {
+    try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const isNpu = selectedDevice.startsWith('NPU')
+      // Resolution only matters for NPU; ignore it on other devices so the model server
+      // keeps a dynamic pipeline and accepts whatever resolution the client asks for.
+      const effectiveResolution = isNpu ? resolution : undefined
+
+      this.appLogger.info(
+        `Starting image server for model: ${modelName}` +
+          (effectiveResolution ? ` (NPU resolution: ${effectiveResolution})` : ''),
+        this.name,
+      )
+
+      if (
+        this.ovmsImageProcess?.isReady &&
+        this.currentImageModel === modelName &&
+        this.currentImageResolution === (effectiveResolution ?? null)
+      ) {
+        this.appLogger.info(`Image server already running with model: ${modelName}`, this.name)
+        return
+      }
+
+      if (this.ovmsImageProcess) {
+        await this.stopOvmsImageServer()
+      }
+
+      if (!keepModelsLoaded) {
+        this.appLogger.info(
+          'Stopping LLM server to free GPU memory for image generation',
+          this.name,
+        )
+        await this.stopOvmsLlmServer()
+      }
+
+      await this.startOvmsImageServer(modelName, effectiveResolution)
+      this.appLogger.info(`Image server started successfully for model: ${modelName}`, this.name)
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start image server for model ${modelName}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Stop image generation server independently
+   */
+  async stopImageServer(): Promise<void> {
+    try {
+      this.appLogger.info('Stopping image server', this.name)
+      await this.stopOvmsImageServer()
+      this.appLogger.info('Image server stopped successfully', this.name)
+    } catch (error) {
+      this.appLogger.error(`Failed to stop image server: ${error}`, this.name)
       throw error
     }
   }
@@ -1238,6 +1324,148 @@ export class OpenVINOBackendService implements ApiService {
 
       this.ovmsTranscriptionProcess = null
       this.currentTranscriptionModel = null
+    }
+  }
+
+  private async startOvmsImageServer(
+    modelRepoId: string,
+    resolution?: string,
+  ): Promise<OvmsServerProcess> {
+    try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const port = await getPort({ port: portNumbers(29300, 29399) })
+
+      this.appLogger.info(
+        `Starting OVMS image server for model: ${modelRepoId} on port ${port} with device ${selectedDevice}`,
+        this.name,
+      )
+
+      const args = [
+        '--rest_bind_address',
+        '127.0.0.1',
+        '--rest_port',
+        port.toString(),
+        '--source_model',
+        modelRepoId.split('/').join('---'),
+        '--model_repository_path',
+        path.resolve(path.join(this.baseDir, 'models', 'openvino-image')),
+        '--target_device',
+        selectedDevice,
+        '--task',
+        'image_generation',
+        '--cache_dir',
+        'cache',
+      ]
+
+      // NPU requires the image generation pipeline to be reshaped to a static shape.
+      // See: https://docs.openvino.ai/2025/model-server/ovms_docs_parameters.html#image-generation
+      if (selectedDevice.startsWith('NPU')) {
+        if (!resolution) {
+          throw new Error(
+            'OVMS image generation on NPU requires a static resolution but none was provided',
+          )
+        }
+        args.push('--resolution', resolution)
+      }
+
+      this.appLogger.info(`OVMS image launch args: ${args.join(' ')}`, this.name)
+
+      const pythonDir = path.join(this.ovmsDir, 'python')
+      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
+
+      const childProcess = spawn(this.ovmsExePath, args, {
+        cwd: this.ovmsDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          OVMS_DIR: this.ovmsDir,
+          PYTHONHOME: pythonDir,
+          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+        },
+      })
+
+      const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
+      const ovmsProcess: OvmsServerProcess = {
+        process: childProcess,
+        port,
+        modelRepoId,
+        type: 'image_generation',
+        isReady: false,
+        healthEndpointUrl: healthUrl,
+      }
+
+      childProcess.stdout!.on('data', (message) => {
+        this.appLogger.info(`[OVMS Image] ${message}`, this.name)
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        this.appLogger.error(`[OVMS Image] ${message}`, this.name)
+      })
+
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`OVMS image server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`OVMS image server process exited with code: ${code}`, this.name)
+        if (this.ovmsImageProcess === ovmsProcess) {
+          this.ovmsImageProcess = null
+          this.currentImageModel = null
+          this.currentImageResolution = null
+        }
+      })
+
+      // Image model loading can be slow — use high maxAttempts
+      await this.waitForServerReady(healthUrl, childProcess, 600)
+      ovmsProcess.isReady = true
+
+      this.ovmsImageProcess = ovmsProcess
+      this.currentImageModel = modelRepoId
+      this.currentImageResolution = resolution ?? null
+
+      this.appLogger.info(`OVMS image server ready for model: ${modelRepoId}`, this.name)
+      return ovmsProcess
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start OVMS image server for model ${modelRepoId}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  private async stopOvmsImageServer(): Promise<void> {
+    if (this.ovmsImageProcess) {
+      this.appLogger.info(
+        `Stopping OVMS image server for model: ${this.currentImageModel}`,
+        this.name,
+      )
+      this.ovmsImageProcess.process.kill('SIGTERM')
+
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.ovmsImageProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing OVMS image server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+
+      this.ovmsImageProcess = null
+      this.currentImageModel = null
+      this.currentImageResolution = null
     }
   }
 

@@ -16,6 +16,9 @@ import { createHash } from 'crypto'
 import { readFile } from 'fs/promises'
 import fs from 'fs'
 
+/** OpenAI SDK v6+ rejects empty-string apiKey; local embedding servers ignore this value. */
+const LOCAL_COMPAT_OPENAI_API_KEY = 'local-rag-placeholder'
+
 let documentEmbeddingStore: LocalFileStore
 
 process.parentPort.on('message', async (message) => {
@@ -105,7 +108,7 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
 
   const underlyingEmbeddings = new OpenAIEmbeddings({
     verbose: true,
-    openAIApiKey: '',
+    openAIApiKey: LOCAL_COMPAT_OPENAI_API_KEY,
     model,
     configuration: {
       baseURL,

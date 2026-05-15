@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startDrag: (fileName: string) => ipcRenderer.send('ondragstart', fileName),
   getFilePath: (file: File) => webUtils.getPathForFile(file),
   getServices: () => ipcRenderer.invoke('getServices'),
+  getBackendAuthToken: (serviceName: string) =>
+    ipcRenderer.invoke('getBackendAuthToken', serviceName),
   updateServiceSettings: (settings: ServiceSettings) =>
     ipcRenderer.invoke('updateServiceSettings', settings),
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
@@ -127,6 +129,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('startTranscriptionServer', modelName),
   stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),
   getTranscriptionServerUrl: () => ipcRenderer.invoke('getTranscriptionServerUrl'),
+  ensureOvmsImageReady: (
+    serviceName: string,
+    modelName: string,
+    keepModelsLoaded?: boolean,
+    resolution?: string,
+  ) =>
+    ipcRenderer.invoke(
+      'ensureOvmsImageReady',
+      serviceName,
+      modelName,
+      keepModelsLoaded,
+      resolution,
+    ),
+  stopOvmsImageServer: () => ipcRenderer.invoke('stopOvmsImageServer'),
+  getOvmsImageServerUrl: () => ipcRenderer.invoke('getOvmsImageServerUrl'),
   // ComfyUI Tools
   comfyui: {
     isGitInstalled: () => ipcRenderer.invoke('comfyui:isGitInstalled'),
@@ -143,6 +160,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     uninstallCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId) =>
       ipcRenderer.invoke('comfyui:uninstallCustomNode', nodeRepoData),
     listInstalledCustomNodes: () => ipcRenderer.invoke('comfyui:listInstalledCustomNodes'),
+    openInBrowser: () => ipcRenderer.invoke('comfyui:openInBrowser'),
   },
   mcp: {
     listServers: () => ipcRenderer.invoke('mcp:listServers'),
@@ -158,15 +176,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addServer: (
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ) => ipcRenderer.invoke('mcp:addServer', serverId, config),
     getServerConfig: (serverId: string) => ipcRenderer.invoke('mcp:getServerConfig', serverId),
     updateServer: (
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ) => ipcRenderer.invoke('mcp:updateServer', serverId, config),
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
   },

@@ -218,10 +218,13 @@ const isModifiable = (input: (typeof imageGeneration.comfyInputs)[0]) => {
   return input.modifiable !== false
 }
 
-// Check if current preset has mask editing (inpaint or outpaint)
+// Inpaint / outpaint canvas UI: explicit types, or Comfy-driven outpaint (OVMS uses OutpaintDirection without outpaintCanvas)
 const hasMaskEditing = computed(() => {
   return imageGeneration.comfyInputs.some(
-    (input) => input.type === 'inpaintMask' || input.type === 'outpaintCanvas',
+    (input) =>
+      input.type === 'inpaintMask' ||
+      input.type === 'outpaintCanvas' ||
+      (input.nodeTitle === 'OutpaintDirection' && input.nodeInput === 'left'),
   )
 })
 

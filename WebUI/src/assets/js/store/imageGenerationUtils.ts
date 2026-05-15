@@ -191,8 +191,13 @@ export async function getMissingComfyuiBackendModels(
   )
   for (const item of modelsToBeLoaded) {
     if (!(await models.checkIfHuggingFaceUrlExists(item.repo_id))) {
-      toast.error(`declared model ${item.repo_id} does not exist. Aborting Generation.`)
-      return []
+      // Throw so callers (ensureModelsAreAvailable / WorkflowResult.generateImage)
+      // see the failure and abort. Returning [] previously made the caller
+      // think nothing was missing, so generation continued and OVMS attempted
+      // to clone the unavailable repo itself.
+      const message = `declared model ${item.repo_id} does not exist or is not accessible with the configured HF token. Aborting generation.`
+      toast.error(message)
+      throw new Error(message)
     }
   }
   return modelsToBeLoaded

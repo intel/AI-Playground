@@ -98,6 +98,11 @@ export type PresetSwitchOptions = {
   skipModeSwitch?: boolean
   /** Don't update last-used tracking */
   skipLastUsedUpdate?: boolean
+  /**
+   * Skip high-memory / video VRAM confirmation (e.g. LLM tool calls that temporarily
+   * switch presets must not block on a modal).
+   */
+  skipMemoryAlert?: boolean
 }
 
 export const usePresetSwitching = defineStore('presetSwitching', () => {
@@ -203,7 +208,10 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         preset.type === 'comfy' &&
         (HIGH_MEMORY_PRESETS.has(presetName) || VIDEO_VRAM_PRESETS.has(presetName))
       const shouldShowMemoryAlert =
-        isGatedMemoryPreset && !isMemoryAlertSuppressed(presetName) && !demoMode.enabled
+        isGatedMemoryPreset &&
+        !isMemoryAlertSuppressed(presetName) &&
+        !demoMode.enabled &&
+        !options.skipMemoryAlert
 
       if (shouldShowMemoryAlert) {
         const message = HIGH_MEMORY_PRESETS.has(presetName)

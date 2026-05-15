@@ -7,6 +7,8 @@ const LOG_SOURCE = 'tmpCleanup'
 
 // Matches temp folders created by model_downloader.py getTmpPath(), e.g.
 // fd824df26f56f9a3_tmp, 0a1b2c3d4e5f6789_tmp, etc.
+// These dirs hold partial Hugging Face downloads and must not be removed on app startup
+// (otherwise resume breaks). Use cleanupTempFolders only for explicit maintenance flows.
 export const TMP_FOLDER_PATTERN = /^[0-9a-f]{16}_tmp$/
 const REQUIRED_PARENT_FOLDER = 'models'
 

@@ -229,6 +229,7 @@ function saveCurrentState(
         variant: originalState.variant ?? undefined,
         skipModeSwitch: true,
         skipLastUsedUpdate: true,
+        skipMemoryAlert: true,
       })
     }
   }
@@ -306,6 +307,7 @@ export async function executeImageEdit(
       variant: selectedVariant ?? undefined,
       skipModeSwitch: true,
       skipLastUsedUpdate: true,
+      skipMemoryAlert: true,
     })
     if (!switchResult.success) {
       return createErrorResult(`Failed to switch to preset "${preset.name}"`)
@@ -336,7 +338,9 @@ export async function executeImageEdit(
 
     const imageInput = imageGeneration.comfyInputs.find(
       (input) =>
-        (input.type === 'image' || input.type === 'inpaintMask') &&
+        (input.type === 'image' ||
+          input.type === 'inpaintMask' ||
+          input.type === 'outpaintCanvas') &&
         input.displayed !== false &&
         input.modifiable !== false &&
         (input.defaultValue === '' || input.defaultValue === undefined),
