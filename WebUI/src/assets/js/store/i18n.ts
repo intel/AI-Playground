@@ -12,6 +12,7 @@ export const useI18N = defineStore('i18n', () => {
     { value: 'de', name: 'Deutsch' },
     { value: 'en-US', name: 'English' },
     { value: 'es', name: 'Español' },
+    { value: 'he', name: 'עברית' },
     { value: 'id', name: 'Bahasa Indonesia' },
     { value: 'it', name: 'Italiano' },
     { value: 'ja', name: '日本語' },
