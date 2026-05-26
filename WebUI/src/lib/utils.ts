@@ -98,6 +98,8 @@ export function mapServiceNameToDisplayName(serviceName: string) {
       return 'Llama.cpp - GGUF'
     case 'openvino-backend':
       return 'OpenVINO'
+    case 'home-agent-backend':
+      return 'Home Agent'
     default:
       return serviceName
   }
@@ -242,7 +244,7 @@ export async function saveImageToMediaInput(dataUri: string): Promise<string> {
 /**
  * Converts a blob URL (or any image URL) to a base64 data URI.
  * If the URL is already a base64 data URI, it returns it unchanged.
- * @param url - The URL to convert (blob:, http:, or data: URL)
+ * @param url - The URL to convert (blob:, http:, data:, or aipg-media: URL)
  * @returns A Promise that resolves to a base64 data URI
  */
 export async function imageUrlToDataUri(url: string): Promise<string> {
@@ -251,7 +253,18 @@ export async function imageUrlToDataUri(url: string): Promise<string> {
     return url
   }
 
-  // Fetch the URL and convert to base64
+  // aipg-media:// is a custom Electron protocol. Chromium blocks cross-origin
+  // fetch() to non-standard schemes from http(s) origins (e.g. dev server),
+  // so route the read through the main process instead.
+  if (url.startsWith('aipg-media://')) {
+    const base64 = await window.electronAPI.readAipgMediaAsBase64(url)
+    const lower = url.toLowerCase()
+    let mime = 'image/png'
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) mime = 'image/jpeg'
+    else if (lower.endsWith('.webp')) mime = 'image/webp'
+    return `data:${mime};base64,${base64}`
+  }
+
   const response = await fetch(url)
   const blob = await response.blob()
 

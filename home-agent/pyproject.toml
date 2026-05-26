@@ -1,0 +1,20 @@
+[project]
+name = "aipg-home-agent"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+  "Flask",
+  "flask-cors",
+  "Requests",
+  "python-telegram-bot",
+]
+[tool.uv]
+python-preference = "only-managed"
+link-mode = "clone"
+no-build = true
+index-strategy = "unsafe-best-match"
+required-environments = [
+  "sys_platform == 'win32'",
+  "sys_platform == 'darwin'",
+  "sys_platform == 'linux'",
+]

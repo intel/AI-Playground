@@ -86,6 +86,10 @@ const MARKDOWN_CONFIG = {
   ALLOW_DATA_ATTR: true,
   // Allow target="_blank" on links
   ALLOW_UNKNOWN_PROTOCOLS: false,
+  // Extend DOMPurify's default safe-URI regexp to permit aipg-media:// URLs,
+  // which Electron's custom protocol handler resolves to local media files.
+  ALLOWED_URI_REGEXP:
+    /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|aipg-media):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
 } satisfies Config
 
 /**

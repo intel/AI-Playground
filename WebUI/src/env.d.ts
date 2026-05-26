@@ -56,6 +56,7 @@ type LocalSettings = {
   isDemoModeEnabled: boolean
   demoModeResetInSeconds: number | null
   demoModePasscode?: string
+  isHomeAgentEnabled: boolean
   languageOverride: string | null
   remoteRepository: string
   huggingfaceEndpoint: string
@@ -197,6 +198,7 @@ type electronAPI = {
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   saveImageToMediaInput(dataUri: string): Promise<string>
+  readAipgMediaAsBase64(url: string): Promise<string>
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void
   screenChange(callback: (width: number, height: number) => void): void
@@ -334,6 +336,43 @@ type electronAPI = {
           },
     ): Promise<void>
     removeServer(serverId: string): Promise<void>
+  }
+  homeAgent: {
+    saveConfig(token: string, chatId: string): Promise<{ success: boolean; error?: string }>
+    loadConfig(): Promise<{ token: string; chatId: string } | null>
+    clearConfig(): Promise<void>
+    testTelegram(): Promise<{ success: boolean; error?: string }>
+    detectChatId(token: string): Promise<{ chatId: string } | { error: string }>
+    detectChatIdFromSaved(): Promise<{ chatId: string } | { error: string }>
+    injectToken(token: string, chatId?: string): Promise<{ status: string }>
+    pollTelegram(): Promise<
+      Array<{
+        text?: string
+        chat_id: string
+        images?: Array<{ mime: string; data_base64: string }>
+        callback?: string
+      }>
+    >
+    flushPending(): Promise<void>
+    sendTelegramReply(
+      text: string,
+      parseMode?: string,
+    ): Promise<{ success: boolean; error?: string }>
+    sendTelegramPhoto(
+      imageBase64: string,
+      caption?: string,
+    ): Promise<{ success: boolean; error?: string }>
+    sendTelegramChatAction(action?: string): Promise<{ success: boolean; error?: string }>
+    sendTelegramDraft(opts: {
+      draftId: number
+      text?: string
+      parseMode?: string
+    }): Promise<{ success: boolean; error?: string }>
+    sendTelegramKeyboard(opts: {
+      text: string
+      parseMode?: string
+      buttons: Array<Array<{ text: string; callbackData: string }>>
+    }): Promise<{ success: boolean; error?: string }>
   }
 }
 
@@ -612,7 +651,12 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
+type BackendServiceName =
+  | 'ai-backend'
+  | 'comfyui-backend'
+  | 'llamacpp-backend'
+  | 'openvino-backend'
+  | 'home-agent-backend'
 
 type InferenceDevice = {
   id: string

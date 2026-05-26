@@ -400,13 +400,7 @@ function removeImage(index: number) {
   openAiCompatibleChat.fileInput = openAiCompatibleChat.fileInput.filter((_, i) => i !== index)
 }
 
-const isProcessing = computed(() => {
-  console.log('### isProcessing', {
-    openAiCompatibleChatProcessing: openAiCompatibleChat.processing,
-    imageGenerationProcessing: imageGeneration.processing,
-  })
-  return openAiCompatibleChat.processing || imageGeneration.processing
-})
+const isProcessing = computed(() => openAiCompatibleChat.processing || imageGeneration.processing)
 
 const isStopping = computed(() => imageGeneration.stopping)
 
@@ -549,6 +543,10 @@ function getTextAreaPlaceholder() {
 }
 
 function handleSubmitPromptClick() {
+  if (!prompt.value.trim()) {
+    toast.error(languages?.COM_ERROR_NO_MESSAGE || 'Please enter a message before sending.')
+    return
+  }
   emits('autoHideFooter')
   promptStore.submitPrompt(prompt.value)
 }

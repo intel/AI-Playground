@@ -37,6 +37,7 @@ import {
   UtilityProcess,
 } from 'electron'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import fs from 'fs'
 import { exec } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -52,6 +53,7 @@ import {
   COMFYUI_DEFAULT_PARAMETERS,
 } from './subprocesses/comfyUIBackendService'
 import { AiBackendService } from './subprocesses/aiBackendService'
+import { HomeAgentBackendService } from './subprocesses/homeAgentBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
@@ -179,6 +181,17 @@ const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 const mediaInputDir = path.join(mediaDir, 'input')
 fs.mkdirSync(mediaInputDir, { recursive: true })
+
+/** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
+function getLocalPathFromAipgMediaUrl(url: string): string | null {
+  if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return null
+  const decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, ''))
+  const fullPath = path.normalize(path.join(mediaDir, decodedUrl))
+  const base = path.resolve(mediaDir)
+  const relative = path.relative(base, fullPath)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return null
+  return fullPath
+}
 let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -204,6 +217,9 @@ const LocalSettingsSchema = z.object({
   isDemoModeEnabled: z.boolean().default(false),
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
   demoModePasscode: z.string().optional(),
+  // Gates the Home Agent feature (Telegram bridge backend, setup wizard surface,
+  // header toggle, bundled preset). Default false: opt-in by editing settings.json.
+  isHomeAgentEnabled: z.boolean().default(false),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
   huggingfaceEndpoint: z.string().default('https://huggingface.co'),
@@ -239,12 +255,22 @@ function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
   const variant = s.isDemoModeEnabled ? 'demo' : 'presets'
   const modeConfig = loadModeConfig(mode)
   const basePresetsDir = path.join(modesDir, 'base', 'presets')
+  // When the Home Agent feature is disabled, drop its bundled preset so it does
+  // not appear in the chat preset selector. `includePresets` (when defined)
+  // takes precedence over `excludePresets`, so we need to filter both lists.
+  const includePresets = s.isHomeAgentEnabled
+    ? modeConfig?.includePresets
+    : modeConfig?.includePresets?.filter((p) => p !== 'home-agent-chat')
+  const baseExcludePresets = modeConfig?.excludePresets ?? []
+  const excludePresets = s.isHomeAgentEnabled
+    ? modeConfig?.excludePresets
+    : [...baseExcludePresets, 'home-agent-chat']
   return {
     baseDir: path.join(modesDir, 'base', variant),
     modeDir: path.join(modesDir, mode, variant),
     imageFallbackDirs: variant === 'demo' ? [basePresetsDir] : [],
-    includePresets: modeConfig?.includePresets,
-    excludePresets: modeConfig?.excludePresets,
+    includePresets,
+    excludePresets,
   }
 }
 
@@ -673,6 +699,10 @@ app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
 
 async function initServiceRegistry(win: BrowserWindow, settings: LocalSettings) {
   serviceRegistry = await aiplaygroundApiServiceRegistry(win, settings)
+  const homeAgent = serviceRegistry.getService('home-agent-backend')
+  if (homeAgent instanceof HomeAgentBackendService) {
+    homeAgent.registerIpcHandlers()
+  }
   return serviceRegistry
 }
 
@@ -895,6 +925,17 @@ function initEventHandle() {
     const buffer = Buffer.from(base64Data, 'base64')
     await fs.promises.writeFile(filePath, buffer)
     return `input/${filename}`
+  })
+
+  ipcMain.handle('readAipgMediaAsBase64', async (_event, url: string) => {
+    const filePath = getLocalPathFromAipgMediaUrl(url)
+    if (!filePath) {
+      throw new Error('readAipgMediaAsBase64: invalid or unsafe aipg-media URL')
+    }
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`readAipgMediaAsBase64: file not found (${path.basename(filePath)})`)
+    }
+    return fs.readFileSync(filePath).toString('base64')
   })
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
@@ -1243,6 +1284,10 @@ function initEventHandle() {
           `Backend ${serviceName} ready for LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`,
           'electron-backend',
         )
+        const homeAgentSvc = serviceRegistry?.getService('home-agent-backend')
+        if (homeAgentSvc instanceof HomeAgentBackendService) {
+          homeAgentSvc.notifyUpstreamReady(service.baseUrl ?? '')
+        }
         return { success: true }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1795,8 +1840,7 @@ function initEventHandle() {
   const getAssetPathFromUrl = (url: string) => {
     // Handle aipg-media:// URLs
     if (url.startsWith('aipg-media://')) {
-      const decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, ''))
-      return path.join(mediaDir, decodedUrl)
+      return getLocalPathFromAipgMediaUrl(url)
     }
 
     // Existing logic for HTTP URLs
@@ -1950,7 +1994,6 @@ app.whenReady().then(async () => {
 
     // Custom protocol docking is file protocol
     protocol.handle('aipg-media', async (request) => {
-      console.log('request', request)
       const decodedUrl = decodeURIComponent(
         request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/'),
       )
@@ -1958,7 +2001,7 @@ app.whenReady().then(async () => {
       const fullPath = path.join(mediaDir, decodedUrl)
 
       const normalizedPath = path.normalize(fullPath.replace(/(\/|\\)$/, ''))
-      const response = await net.fetch(`file://${normalizedPath}`)
+      const response = await net.fetch(pathToFileURL(normalizedPath).href)
       return response
     })
     const window = await createWindow()

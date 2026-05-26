@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
   saveImage: (url: string) => ipcRenderer.send('saveImage', url),
   saveImageToMediaInput: (dataUri: string) => ipcRenderer.invoke('saveImageToMediaInput', dataUri),
+  readAipgMediaAsBase64: (url: string) => ipcRenderer.invoke('readAipgMediaAsBase64', url),
   wakeupApiService: () => ipcRenderer.send('wakeupApiService'),
   openImageWin: (url: string, title: string, width: number, height: number) =>
     ipcRenderer.send('openImageWin', url, title, width, height),
@@ -211,5 +212,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
           },
     ) => ipcRenderer.invoke('mcp:updateServer', serverId, config),
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
+  },
+  homeAgent: {
+    saveConfig: (token: string, chatId: string) =>
+      ipcRenderer.invoke('homeAgent:saveConfig', token, chatId),
+    loadConfig: () => ipcRenderer.invoke('homeAgent:loadConfig'),
+    clearConfig: () => ipcRenderer.invoke('homeAgent:clearConfig'),
+    testTelegram: () => ipcRenderer.invoke('homeAgent:testTelegram'),
+    detectChatId: (token: string) => ipcRenderer.invoke('homeAgent:detectChatId', token),
+    detectChatIdFromSaved: () => ipcRenderer.invoke('homeAgent:detectChatIdFromSaved'),
+    injectToken: (token: string, chatId?: string) =>
+      ipcRenderer.invoke('homeAgent:injectToken', token, chatId),
+    pollTelegram: () => ipcRenderer.invoke('homeAgent:pollTelegram'),
+    flushPending: () => ipcRenderer.invoke('homeAgent:flushPending'),
+    sendTelegramReply: (text: string, parseMode?: string) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramReply', text, parseMode),
+    sendTelegramPhoto: (imageBase64: string, caption?: string) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramPhoto', imageBase64, caption),
+    sendTelegramChatAction: (action?: string) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramChatAction', action),
+    sendTelegramDraft: (opts: { draftId: number; text?: string; parseMode?: string }) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramDraft', opts),
+    sendTelegramKeyboard: (opts: {
+      text: string
+      parseMode?: string
+      buttons: Array<Array<{ text: string; callbackData: string }>>
+    }) => ipcRenderer.invoke('homeAgent:sendTelegramKeyboard', opts),
   },
 })

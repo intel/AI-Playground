@@ -260,15 +260,6 @@
         "title": "EmptyFlux2LatentImage"
       }
     },
-    "42": {
-      "inputs": {
-        "conditioning": ["45", 0]
-      },
-      "class_type": "ConditioningZeroOut",
-      "_meta": {
-        "title": "ConditioningZeroOut"
-      }
-    },
     "43": {
       "inputs": {
         "samples": ["44", 0],
@@ -289,7 +280,7 @@
         "denoise": 1,
         "model": ["46", 0],
         "positive": ["45", 0],
-        "negative": ["42", 0],
+        "negative": ["100", 0],
         "latent_image": ["41", 0]
       },
       "class_type": "KSampler",
@@ -337,6 +328,16 @@
       "class_type": "CM_FloatBinaryOperation",
       "_meta": {
         "title": "SafetyCheckerStrength"
+      }
+    },
+    "100": {
+      "inputs": {
+        "text": "",
+        "clip": ["39", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
       }
     }
   }

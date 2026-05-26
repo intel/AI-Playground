@@ -7,16 +7,24 @@ import { usePresets } from './presets'
 import { usePresetSwitching } from './presetSwitching'
 import { useSpeechToText } from './speechToText'
 import { useDemoMode } from './demoMode'
+import { useHomeAgent } from './homeAgent'
 import { mapStatusToColor, mapToDisplayStatus } from '@/lib/utils'
 import * as toast from '@/assets/js/toast'
 import type { ErrorDetails } from '../../../../electron/subprocesses/service'
 
-const backends: BackendServiceName[] = [
+const ALL_BACKENDS: BackendServiceName[] = [
   'ai-backend',
+  'home-agent-backend',
   'llamacpp-backend',
   'openvino-backend',
   'comfyui-backend',
 ]
+
+function getBackends(homeAgentEnabled: boolean): BackendServiceName[] {
+  return homeAgentEnabled
+    ? ALL_BACKENDS
+    : ALL_BACKENDS.filter((b) => b !== 'home-agent-backend')
+}
 
 function isBackendAvailableInProductMode(
   mode: ProductMode | null,
@@ -55,6 +63,7 @@ const knownSteps: Record<BackendServiceName, string[]> = {
     'install builtin custom nodes',
     'install comfyUI manager',
   ],
+  'home-agent-backend': ['start', 'install dependencies'],
 }
 
 const stepDisplayNames: Record<string, string> = {
@@ -77,11 +86,13 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   const presetSwitching = usePresetSwitching()
   const demoMode = useDemoMode()
   const speechToText = useSpeechToText()
+  const homeAgent = useHomeAgent()
 
   const pendingProductMode = ref<ProductMode | null>(null)
   const installSelection = ref(new Set<BackendServiceName>())
   const disabledBackends = ref(new Set<BackendServiceName>())
   const wizardDirty = ref(false)
+  const wizardPage = ref<'main' | 'homeAgentSetup'>('main')
 
   const wizardActivity = ref(new Map<BackendServiceName, string>())
 
@@ -100,7 +111,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   })
 
   const backendRows = computed<BackendRowViewModel[]>(() => {
-    return backends.map((serviceName) => {
+    return getBackends(homeAgent.isFeatureEnabled).map((serviceName) => {
       const info = backendServices.info.find((s) => s.serviceName === serviceName)
       const available = isBackendAvailableInProductMode(pendingProductMode.value, serviceName)
       const isRequired = info?.isRequired ?? serviceName === 'ai-backend'
@@ -228,7 +239,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   function seedInstallSelection() {
     const newSelection = new Set<BackendServiceName>()
-    for (const serviceName of backends) {
+    for (const serviceName of getBackends(homeAgent.isFeatureEnabled)) {
       const info = backendServices.info.find((s) => s.serviceName === serviceName)
       if (!info) continue
       if (info.isRequired) continue
@@ -239,6 +250,12 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       }
     }
     installSelection.value = newSelection
+  }
+
+  function isHomeAgentInstalledAndActive(): boolean {
+    if (!homeAgent.isFeatureEnabled) return false
+    const info = backendServices.info.find((s) => s.serviceName === 'home-agent-backend')
+    return info?.isSetUp === true && !disabledBackends.value.has('home-agent-backend')
   }
 
   async function toggleBackend(serviceName: BackendServiceName, value: boolean) {
@@ -263,7 +280,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   function setPendingMode(mode: ProductMode) {
     pendingProductMode.value = mode
-    for (const sn of backends) {
+    for (const sn of getBackends(homeAgent.isFeatureEnabled)) {
       const wasAvailable = isBackendAvailableInProductMode(
         productModeStore.productMode ?? pendingProductMode.value,
         sn,
@@ -289,6 +306,22 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       null
     seedInstallSelection()
     wizardDirty.value = false
+    wizardPage.value = 'main'
+    globalSetup.loadingState = 'setupWizard'
+  }
+
+  async function openHomeAgentSetup() {
+    if (!homeAgent.isFeatureEnabled) return
+    if (!productModeStore.hardwareRecommendation) {
+      await productModeStore.detectRecommendation()
+    }
+    pendingProductMode.value =
+      productModeStore.productMode ??
+      productModeStore.hardwareRecommendation?.recommendedMode ??
+      null
+    seedInstallSelection()
+    wizardDirty.value = false
+    wizardPage.value = 'homeAgentSetup'
     globalSetup.loadingState = 'setupWizard'
   }
 
@@ -390,6 +423,14 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       if (anyFailed) return
     }
 
+    if (homeAgent.isFeatureEnabled) {
+      const homeAgentJustInstalled = toInstall.some((r) => r.serviceName === 'home-agent-backend')
+      if (homeAgentJustInstalled || isHomeAgentInstalledAndActive()) {
+        wizardPage.value = 'homeAgentSetup'
+        return
+      }
+    }
+
     await dismiss()
     await syncPresetsForCurrentProductMode()
   }
@@ -410,6 +451,10 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     if (stopStatus !== 'stopped') {
       toast.error('Service failed to stop')
       return
+    }
+    // Clear Home Agent Telegram config on reinstall so user must re-verify
+    if (name === 'home-agent-backend') {
+      await homeAgent.clearConfig()
     }
     await installBackend(name)
   }
@@ -452,7 +497,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     await globalSetup.initSetup()
     globalSetup.loadingState = 'running'
 
-    for (const serviceName of backends) {
+    for (const serviceName of getBackends(homeAgent.isFeatureEnabled)) {
       const info = backendServices.info.find((s) => s.serviceName === serviceName)
       if (!info?.isSetUp) continue
       if (info.isRequired || installSelection.value.has(serviceName)) {
@@ -481,6 +526,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     pendingProductMode,
     installSelection,
     wizardDirty,
+    wizardPage,
     backendRows,
     isBusy,
     rowsNeedingInstall,
@@ -494,6 +540,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
     initialize,
     openWizard,
+    openHomeAgentSetup,
     setPendingMode,
     seedInstallSelection,
     toggleBackend,
@@ -517,6 +564,8 @@ function mapServiceNameToDisplayName(serviceName: string) {
       return 'Llama.cpp - GGUF'
     case 'openvino-backend':
       return 'OpenVINO'
+    case 'home-agent-backend':
+      return 'Home Agent'
     default:
       return serviceName
   }

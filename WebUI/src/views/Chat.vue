@@ -155,7 +155,10 @@
 
                 <!-- Text part -->
                 <template v-else-if="part.type === 'text'">
-                  <MarkdownRenderer :content="(part as any).text ?? ''" :on-copy="copyText" />
+                  <MarkdownRenderer
+                    :content="stripAipgMediaImages((part as any).text ?? '')"
+                    :on-copy="copyText"
+                  />
                 </template>
 
                 <!-- Tool parts -->
@@ -323,6 +326,13 @@ const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 
 const ragSourcePerMessageId = reactive<Record<string, string>>({})
 const aipgToolPartTypes = new Set(Object.keys(aipgTools).map((toolName) => `tool-${toolName}`))
+
+// Inline ![alt](aipg-media://…) tokens are also rendered as a ChatWorkflowResult
+// tool-part below, so strip them from the text part to avoid duplicate images.
+const AIPG_IMAGE_MD_RE_DISPLAY = /!\[[^\]]*]\(aipg-media:\/\/[^)]+\)/g
+function stripAipgMediaImages(text: string): string {
+  return text.replace(AIPG_IMAGE_MD_RE_DISPLAY, '').trim()
+}
 
 // Track progress for active tool calls
 const toolProgressMap = reactive<

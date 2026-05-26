@@ -3,7 +3,13 @@ import { ref, computed, watch } from 'vue'
 import z from 'zod'
 import { demoAwareStorage } from '../demoAwareStorage'
 
-const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
+const backends = [
+  'ai-backend',
+  'home-agent-backend',
+  'llamacpp-backend',
+  'openvino-backend',
+  'comfyui-backend',
+] as const
 
 export type BackendServiceName = (typeof backends)[number]
 
@@ -31,6 +37,7 @@ export const useBackendServices = defineStore(
     )
     const lastSelectedDeviceIdPerBackend = ref<Record<BackendServiceName, string | null>>({
       'ai-backend': null,
+      'home-agent-backend': null,
       'comfyui-backend': null,
       'llamacpp-backend': null,
       'openvino-backend': null,
@@ -70,6 +77,7 @@ export const useBackendServices = defineStore(
     // Full version state (not persisted - computed from live data + overrides)
     const versionState = ref<BackendVersionState>({
       'ai-backend': {},
+      'home-agent-backend': {},
       'comfyui-backend': {},
       'llamacpp-backend': {},
       'openvino-backend': {},

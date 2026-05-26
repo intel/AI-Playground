@@ -10,5 +10,6 @@
   "languageOverride": null,
   "remoteRepository": "asdf/ai-playground",
   "huggingfaceEndpoint": "https://huggingface.co",
-  "openvinoImageGenDevices": ["CPU", "GPU"]
+  "openvinoImageGenDevices": ["CPU", "GPU"],
+  "isHomeAgentEnabled": true
 }

@@ -3,5 +3,6 @@
   "availableThemes": ["dark", "lnl", "bmg", "light"],
   "currentTheme": "light",
   "isDemoModeEnabled": false,
-  "openvinoImageGenDevices": ["CPU", "GPU"]
+  "openvinoImageGenDevices": ["CPU", "GPU"],
+  "isHomeAgentEnabled": false
 }

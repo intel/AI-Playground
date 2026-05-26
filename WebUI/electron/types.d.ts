@@ -5,6 +5,7 @@ declare type BackendServiceName =
   | 'comfyui-backend'
   | 'llamacpp-backend'
   | 'openvino-backend'
+  | 'home-agent-backend'
 
 // Declare BackendStatus type
 declare type BackendStatus =

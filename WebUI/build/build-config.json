@@ -10,6 +10,11 @@
       "filter": ["*.py", "model_config.json", "pyproject.toml", "uv.lock"]
     },
     {
+      "from": "../home-agent",
+      "to": "home-agent",
+      "filter": ["*.py", "pyproject.toml", "uv.lock"]
+    },
+    {
       "from": "../OpenVINO",
       "to": "OpenVINO",
       "filter": ["*.py", "pyproject.toml", "uv.lock"]
