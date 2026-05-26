@@ -404,5 +404,10 @@
   "SETUP_WIZARD_BACKENDS_INTRO": "רכיבי החובה הדרושים לפעולה בסיסית תקינה יותקנו באופן אוטומטי לחלוטין. רכיבים אופציונליים וכלים נוספים ניתנים להפעלה או לכיבוי ידני בהתאם לרצונך.",
   "SETUP_WIZARD_UNAVAILABLE": "אינו זמין",
   "SETUP_WIZARD_UNAVAILABLE_TOOLTIP": "רכיב זה אינו נתמך או זמין לשימוש במצב החומרה שנבחר כעת.",
-  "SETTINGS_SETUP_WIZARD": "אשף ההתקנה וההגדרה"
+  "SETTINGS_SETUP_WIZARD": "אשף ההתקנה וההגדרה",
+  "COM_MODE_SETTINGS": "הגדרות {mode}",
+  "PROMPT_LETS_GENERATE": "בואו ניצור",
+  "COM_CAPTURE_IMAGE": "צילום תמונה",
+  "COM_REMOVE_FROM_CONTEXT": "הסר מההקשר",
+  "COM_REMOVE_IMAGE": "הסר תמונה"
 }

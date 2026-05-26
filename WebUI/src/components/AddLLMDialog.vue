@@ -1,7 +1,7 @@
 <template>
   <div class="dialog-container z-10">
     <div
-      class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
+      class="dialog-mask absolute start-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
     >
       <div
         class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-card shadow-2xl rounded-3xl gap-6 text-foreground"
@@ -258,6 +258,6 @@ defineExpose({ onShow })
 <style>
 ul {
   list-style-type: disc;
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 </style>

@@ -120,7 +120,7 @@
 
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
-          class="pl-2 pt-2"
+          class="ps-2 pt-2"
           :class="{ 'opacity-50': !textInference.mcpToolsEnabled }"
         >
           <SettingsMcp />

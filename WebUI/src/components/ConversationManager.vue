@@ -39,14 +39,14 @@
           <div class="relative flex justify-between items-center w-full">
             <template v-if="conversations.isNewConversation(conversationKey)">
               <div
-                class="flex items-center gap-2 px-2 py-1 rounded-md ml-1 transition-colors duration-150"
+                class="flex items-center gap-2 px-2 py-1 rounded-md ms-1 transition-colors duration-150"
               >
                 <PlusCircleIcon class="size-5" />
                 <span class="text-sm">{{ languages.ANSWER_NEW_CONVERSATION }}</span>
               </div>
             </template>
             <template v-else>
-              <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
+              <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ms-1">
                 {{
                   conversation?.[0]?.parts
                     .find((part) => part.type === 'text')
@@ -64,7 +64,7 @@
                     variant="ghost"
                     size="icon"
                     :class="[
-                      'transition-opacity duration-100 ml-2 text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
+                      'transition-opacity duration-100 ms-2 text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
                       menuOpenKey === conversationKey
                         ? 'opacity-70'
                         : 'opacity-0 group-hover:opacity-70',

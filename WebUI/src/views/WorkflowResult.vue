@@ -4,7 +4,7 @@
     id="createPanel"
     class="h-full flex flex-col p-4"
   >
-    <div class="image-panel justify-center items-center flex-auto flex relative pr-6">
+    <div class="image-panel justify-center items-center flex-auto flex relative pe-6">
       <div
         class="flex justify-center items-center relative bg-accent rounded-lg border border-border"
         style="width: min(768px, 100%); height: min(512px, 100%); aspect-ratio: 3/2"
@@ -63,7 +63,7 @@
         </div>
         <div
           v-show="imageGeneration.processing"
-          class="absolute left-0 top-0 w-full h-full flex justify-center items-center"
+          class="absolute start-0 top-0 w-full h-full flex justify-center items-center"
         >
           <loading-bar
             v-if="
@@ -90,7 +90,7 @@
           v-show="
             currentImage && (!(currentImage?.state === 'generating') || !imageGeneration.processing)
           "
-          class="absolute bottom-0 -right-8 box-content flex flex-col items-center justify-center gap-2"
+          class="absolute bottom-0 -end-8 box-content flex flex-col items-center justify-center gap-2"
         >
           <IconButton
             v-if="

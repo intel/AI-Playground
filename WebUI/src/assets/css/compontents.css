@@ -26,11 +26,11 @@
     }
 
     > .v-slide-min {
-      padding-right: 12px;
+      padding-inline-end: 12px;
     }
 
     > .v-slide-max {
-      padding-left: 12px;
+      padding-inline-start: 12px;
     }
 
     > .v-slide-position {
@@ -62,7 +62,7 @@
       background: url('@/assets/svg/slide-bar.svg');
       width: 13px;
       height: 13px;
-      transition: left ease 0.1s;
+      transition: inset-inline-start ease 0.1s;
       display: flex;
       justify-items: center;
       align-items: center;
@@ -189,11 +189,11 @@
 }
 @keyframes loading-move {
   from {
-    left: -10%;
+    inset-inline-start: -10%;
   }
 
   to {
-    left: 90%;
+    inset-inline-start: 90%;
   }
 }
 
@@ -302,11 +302,11 @@
     }
 
     > .v-slide-min {
-      padding-right: 12px;
+      padding-inline-end: 12px;
     }
 
     > .v-slide-max {
-      padding-left: 12px;
+      padding-inline-start: 12px;
     }
 
     > .v-slide-position {

@@ -405,5 +405,10 @@
   "SETUP_WIZARD_BACKENDS_INTRO": "Required components will be installed automatically. Optional components can be toggled on or off.",
   "SETUP_WIZARD_UNAVAILABLE": "Unavailable",
   "SETUP_WIZARD_UNAVAILABLE_TOOLTIP": "This component is not available in the selected hardware mode.",
-  "SETTINGS_SETUP_WIZARD": "Setup Wizard"
+  "SETTINGS_SETUP_WIZARD": "Setup Wizard",
+  "COM_MODE_SETTINGS": "{mode} Settings",
+  "PROMPT_LETS_GENERATE": "Let's Generate",
+  "COM_CAPTURE_IMAGE": "Capture Image",
+  "COM_REMOVE_FROM_CONTEXT": "Remove from context",
+  "COM_REMOVE_IMAGE": "Remove image"
 }

@@ -74,7 +74,7 @@
       <table class="text-center w-full mx-2 table-fixed">
         <tbody>
           <tr v-for="item in displayComponents" :key="item.serviceName">
-            <td style="text-align: left">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
+            <td class="text-start">{{ mapServiceNameToDisplayName(item.serviceName) }}</td>
             <td :style="{ color: mapStatusToColor(item.status) }">
               {{ mapToDisplayStatus(item.status) }}
             </td>
@@ -87,8 +87,8 @@
   <div v-if="!productModeStore.isNvidiaModeSelected" class="flex flex-col gap-3 pt-4">
     <div>
       <p>{{ languages.SETTINGS_AUDIO }}</p>
-      <div class="pl-2 pt-4">
-        <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+      <div class="ps-2 pt-4">
+        <div class="flex justify-between pe-4 items-center gap-4 mb-4">
           <Label class="whitespace-nowrap">Speech To Text</Label>
           <Checkbox
             v-if="!backendStarting"
@@ -118,14 +118,14 @@
   <DemoModeBlocker>
     <div class="flex flex-col gap-3 pt-4">
       <p>{{ languages.SETTINGS_DEVELOPER }}</p>
-      <div class="pl-2 pt-2">
-        <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+      <div class="ps-2 pt-2">
+        <div class="flex justify-between pe-4 items-center gap-4 mb-4">
           <Label class="whitespace-nowrap">{{
             languages.SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP
           }}</Label>
           <Checkbox id="open-dev-console" v-model="developerSettings.openDevConsoleOnStartup" />
         </div>
-        <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+        <div class="flex justify-between pe-4 items-center gap-4 mb-4">
           <div class="flex items-center gap-2">
             <Label class="whitespace-nowrap">{{
               languages.SETTINGS_DEVELOPER_KEEP_MODELS_LOADED || 'Keep Models Loaded'
@@ -155,7 +155,7 @@
             'Presets Management'
           }}
         </p>
-        <div class="flex pr-4 gap-2 items-center">
+        <div class="flex pe-4 gap-2 items-center">
           <div :data-tooltip="i18nState.PRESET_RELOAD_INFO">
             <button
               class="svg-icon i-refresh w-5 h-5"
@@ -409,7 +409,7 @@ async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {
 [data-tooltip]:hover::after {
   display: block;
   position: absolute;
-  right: 10px;
+  inset-inline-end: 10px;
   content: attr(data-tooltip);
   border: 1px solid hsl(var(--border));
   background: hsl(var(--muted));

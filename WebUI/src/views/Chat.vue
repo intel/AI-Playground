@@ -1,7 +1,7 @@
 <template>
   <button
     v-if="showScrollButton"
-    class="absolute bottom-65 left-1/2 transform -translate-x-1/2 bg-background text-foreground p-2 rounded-full shadow-lg z-50 hover:bg-muted transition-colors"
+    class="absolute bottom-65 start-1/2 transform -translate-x-1/2 bg-background text-foreground p-2 rounded-full shadow-lg z-50 hover:bg-muted transition-colors"
     @click="scrollToBottom()"
     title="Scroll to bottom"
   >
@@ -104,7 +104,7 @@
                   :class="textInference.nameSizeClass"
                 >
                   Source Docs
-                  <button class="ml-1">
+                  <button class="ms-1">
                     <img
                       v-if="showRagSourcePerMessageId[message.id]"
                       src="../assets/svg/arrow-up.svg"
@@ -122,7 +122,7 @@
                 showRagSourcePerMessageId[message.id] &&
                 (message.metadata?.ragSource || ragSourcePerMessageId[message.id])
               "
-              class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
+              class="my-2 text-muted-foreground border-s-2 border-primary ps-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
@@ -238,7 +238,7 @@
                 @click="copyText(getMessageTextForCopy(message))"
               >
                 <span class="svg-icon i-copy w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+                <span class="text-xs ms-1">{{ languages.COM_COPY }}</span>
               </button>
               <button
                 class="flex items-end"
@@ -249,7 +249,7 @@
                 :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
               >
                 <span class="svg-icon i-refresh w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
+                <span class="text-xs ms-1">{{ languages.COM_REGENERATE }}</span>
               </button>
               <button
                 class="flex items-end"
@@ -261,20 +261,20 @@
                 "
               >
                 <span class="svg-icon i-delete w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
+                <span class="text-xs ms-1">{{ languages.COM_DELETE }}</span>
               </button>
             </div>
             <div
               v-if="textInference.metricsEnabled && message.metadata?.timings"
               class="metrics-info text-xs text-muted-foreground"
             >
-              <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
+              <span class="me-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
+              <span class="me-2">⋅</span>
+              <span class="me-2"
                 >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }} Tokens/s</span
               >
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
+              <span class="me-2">⋅</span>
+              <span class="me-2"
                 >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
               >
             </div>
@@ -641,8 +641,8 @@ watch(
 
 <style>
 .hljs {
-  padding-left: 0.5rem;
-  border-bottom-left-radius: calc(var(--radius) - 2px);
-  border-bottom-right-radius: calc(var(--radius) - 2px);
+  padding-inline-start: 0.5rem;
+  border-end-start-radius: calc(var(--radius) - 2px);
+  border-end-end-radius: calc(var(--radius) - 2px);
 }
 </style>

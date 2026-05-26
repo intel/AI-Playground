@@ -165,7 +165,7 @@
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
-      <div class="fixed top-18 left-4 z-5">
+      <div class="fixed top-18 start-4 z-5">
         <button
           id="show-history-button"
           v-show="!uiStore.showHistory"
@@ -176,7 +176,7 @@
         </button>
       </div>
       <div
-        class="fixed left-4 z-5 flex items-center gap-3"
+        class="fixed start-4 z-5 flex items-center gap-3"
         :class="{
           'bottom-4': !footerExpanded,
           'bottom-27': footerExpanded,
@@ -210,7 +210,7 @@
       />
       <WorkflowResult v-if="promptStore.getCurrentMode() === 'video'" ref="videoRef" mode="video" />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
-      <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
+      <div v-if="!footerExpanded" class="fixed bottom-4 end-4 z-5 flex items-center gap-3">
         <button
           @click="footerExpanded = !footerExpanded"
           class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"

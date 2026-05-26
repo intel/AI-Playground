@@ -48,8 +48,8 @@
                 </div>
               </div>
               <div class="min-w-0">
-                <div class="flex items-baseline gap-1 flex-wrap">
-                  <span class="text-xs font-bold text-[#00c4fa] -mr-0.5">{{
+                <div class="flex items-baseline gap-1 flex-wrap" dir="ltr">
+                  <span class="text-xs font-bold text-[#00c4fa] -me-0.5">{{
                     option.titleOne
                   }}</span>
                   <span class="text-xs font-bold">{{ option.titleTwo }}</span>

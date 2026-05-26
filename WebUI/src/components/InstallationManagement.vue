@@ -9,16 +9,16 @@
         }}
       </h1>
       <div class="">
-        <p class="text-lg text-left pt-3 pb-3">
+        <p class="text-lg text-start pt-3 pb-3">
           {{ languages.BACKEND_REQUIRED_COMPONENTS_MESSAGE }}
         </p>
-        <p class="text-lg text-left pt-3 pb-7">
+        <p class="text-lg text-start pt-3 pb-7">
           {{ languages.BACKEND_OPTIONAL_COMPONENTS_MESSAGE }}
         </p>
         <table class="text-center w-full" style="table-layout: fixed">
           <thead>
             <tr class="font-bold">
-              <td style="text-align: left">{{ languages.BACKEND_SINGLE_COMPONENT }}</td>
+              <td class="text-start">{{ languages.BACKEND_SINGLE_COMPONENT }}</td>
               <td>{{ languages.BACKEND_TYPE }}</td>
               <td>{{ languages.BACKEND_INFORMATION }}</td>
               <td>{{ languages.BACKEND_ENABLE }}</td>
@@ -30,7 +30,7 @@
           </thead>
           <tbody>
             <tr v-for="component in components" :key="component.serviceName">
-              <td class="text-left">{{ mapServiceNameToDisplayName(component.serviceName) }}</td>
+              <td class="text-start">{{ mapServiceNameToDisplayName(component.serviceName) }}</td>
               <td class="text-center">
                 {{ component.isRequired ? languages.BACKEND_REQUIRED : languages.BACKEND_OPTIONAL }}
               </td>
@@ -639,7 +639,7 @@ function getUninstalledStatusClass(serviceName: BackendServiceName): string {
 <style>
 ul {
   list-style-type: disc;
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 
 .hover-box {

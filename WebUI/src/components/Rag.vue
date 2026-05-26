@@ -24,7 +24,7 @@
         class="flex items-center mb-2 py-1 px-2 hover:bg-primary/20 rounded-lg transition-colors duration-200"
       >
         <!-- Checkbox (aligned left) -->
-        <div class="w-[10%] flex justify-start pl-2">
+        <div class="w-[10%] flex justify-start ps-2">
           <input
             type="checkbox"
             class="w-5 h-5 accent-primary"
@@ -43,7 +43,7 @@
         </div>
 
         <!-- Delete Button (aligned right) -->
-        <div class="w-[15%] flex justify-end pr-2">
+        <div class="w-[15%] flex justify-end pe-2">
           <button
             class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
             :title="languages.COM_DELETE_FILE"
@@ -57,7 +57,7 @@
       <!-- Bottom Controls -->
       <div class="flex items-center border-t border-border py-1 px-2 pt-3 mt-2">
         <!-- Three-state Checkbox (aligned left) -->
-        <div class="w-[10%] flex justify-start pl-2">
+        <div class="w-[10%] flex justify-start ps-2">
           <input
             type="checkbox"
             class="w-5 h-5 accent-primary"
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Clear All Button (aligned right) -->
-        <div class="w-[30%] flex justify-end pr-2">
+        <div class="w-[30%] flex justify-end pe-2">
           <button
             @click="deleteAllFiles"
             :title="languages.COM_DELETE_ALL_FILES"

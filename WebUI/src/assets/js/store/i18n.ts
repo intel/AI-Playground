@@ -12,7 +12,7 @@ export const useI18N = defineStore('i18n', () => {
     { value: 'de', name: 'Deutsch' },
     { value: 'en-US', name: 'English' },
     { value: 'es', name: 'Español' },
-    { value: 'he', name: 'עברית' },
+    { value: 'he-IL', name: 'עברית' },
     { value: 'id', name: 'Bahasa Indonesia' },
     { value: 'it', name: 'Italiano' },
     { value: 'ja', name: '日本語' },
@@ -87,6 +87,13 @@ export const useI18N = defineStore('i18n', () => {
       languageOptions.value.find((item) => item.value === lang)?.name || 'Unknown'
 
     localStorage.setItem('locale', lang)
+
+    if (typeof document !== 'undefined') {
+      const rtlLanguages = ['he', 'he-IL', 'ar', 'fa', 'ur']
+      const isRTL = rtlLanguages.includes(lang)
+      document.documentElement.dir = isRTL ? 'rtl' : 'ltr'
+      document.documentElement.lang = lang
+    }
   }
 
   return {
