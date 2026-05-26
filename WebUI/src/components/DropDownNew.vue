@@ -8,6 +8,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ChevronDownIcon } from '@heroicons/vue/24/solid'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 interface DropdownItem {
   label: string
@@ -26,7 +29,7 @@ const props = defineProps<{
 const selectedItem = computed(() => {
   return (
     props.items.find((item) => item.value === props.value) || {
-      label: 'Select...',
+      label: i18nState.COM_SELECT_PLACEHOLDER,
       value: '',
       active: false,
     }

@@ -4,7 +4,9 @@
       class="px-3 py-3 flex items-center justify-between gap-2 cursor-pointer"
       @click="isExpanded = !isExpanded"
     >
-      <span class="text-sm text-muted-foreground">MCP tool call - {{ toolDisplayName }}</span>
+      <span class="text-sm text-muted-foreground"
+        >{{ i18nState.CHAT_MCP_TOOL_CALL }} {{ toolDisplayName }}</span
+      >
       <span class="text-xs rounded-md border border-border px-2 py-1" :class="stateClass">
         {{ stateLabel }}
       </span>
@@ -15,14 +17,18 @@
       class="px-3 pb-3 animate-in fade-in-0 zoom-in-95 duration-200 flex flex-col gap-2"
     >
       <details class="mt-2" v-if="part.input" open>
-        <summary class="cursor-pointer text-xs text-muted-foreground">Arguments</summary>
+        <summary class="cursor-pointer text-xs text-muted-foreground">
+          {{ i18nState.CHAT_MCP_ARGUMENTS }}
+        </summary>
         <pre class="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs leading-5">{{
           formattedInput
         }}</pre>
       </details>
 
       <details class="mt-2" v-if="part.state === 'output-available'" open>
-        <summary class="cursor-pointer text-xs text-muted-foreground">Result</summary>
+        <summary class="cursor-pointer text-xs text-muted-foreground">
+          {{ i18nState.CHAT_MCP_RESULT }}
+        </summary>
         <pre class="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs leading-5">{{
           formattedOutput
         }}</pre>
@@ -41,6 +47,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { getToolOrDynamicToolName, type DynamicToolUIPart } from 'ai'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const props = defineProps<{
   part: DynamicToolUIPart
@@ -61,10 +70,10 @@ const toolDisplayName = computed(() => {
 })
 
 const stateLabel = computed(() => {
-  if (props.state === 'input-streaming') return 'Running'
-  if (props.state === 'input-available') return 'Queued'
-  if (props.state === 'output-available') return 'Completed'
-  if (props.state === 'output-error') return 'Failed'
+  if (props.state === 'input-streaming') return i18nState.CHAT_MCP_STATE_RUNNING
+  if (props.state === 'input-available') return i18nState.CHAT_MCP_STATE_QUEUED
+  if (props.state === 'output-available') return i18nState.CHAT_MCP_STATE_COMPLETED
+  if (props.state === 'output-error') return i18nState.CHAT_MCP_STATE_FAILED
   return props.state
 })
 

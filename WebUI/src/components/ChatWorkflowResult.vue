@@ -104,9 +104,9 @@
               currentImage.state !== 'stopped' &&
               (currentImage.state === 'generating' || currentImage.state === 'queued')
             "
-            :step-text="stepText || 'Generating...'"
+            :step-text="stepText || languages.IMG_GENERATING"
           />
-          <ImageGenerationProgress v-else :step-text="stepText || 'Preparing...'" />
+          <ImageGenerationProgress v-else :step-text="stepText || languages.IMG_PREPARING" />
         </div>
 
         <!-- Action buttons (absolutely positioned on the right side) -->

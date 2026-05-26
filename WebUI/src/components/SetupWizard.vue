@@ -117,7 +117,7 @@
                     :href="getInfoURL(row.serviceName)"
                     target="_blank"
                     class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    title="Component info &amp; license"
+                    :title="languages.WIZARD_COMPONENT_INFO"
                   >
                     <svg
                       class="w-3.5 h-3.5"
@@ -186,7 +186,7 @@
                   v-if="row.status === 'failed' || row.status === 'installationFailed'"
                   @click="wizard.showErrorModal(row.serviceName)"
                   class="text-destructive hover:text-destructive/80 transition-colors"
-                  title="View error log"
+                  :title="languages.WIZARD_VIEW_ERROR_LOG"
                 >
                   <svg
                     class="w-4 h-4"

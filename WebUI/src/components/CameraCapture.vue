@@ -4,7 +4,9 @@
     <div class="flex items-center gap-4 flex-wrap">
       <!-- Device Selector -->
       <div class="flex items-center gap-2 flex-1">
-        <span class="text-sm text-muted-foreground whitespace-nowrap">Camera:</span>
+        <span class="text-sm text-muted-foreground whitespace-nowrap">{{
+          i18nState.CAM_LABEL
+        }}</span>
         <DropDownNew
           class="flex-1"
           :items="deviceItems"
@@ -18,11 +20,11 @@
       <Button
         variant="outline"
         size="sm"
-        class="ml-auto"
+        class="ms-auto"
         :disabled="cameraStore.isLoading"
         @click="cameraStore.selectNextDevice()"
       >
-        Next Camera
+        {{ i18nState.CAM_NEXT_CAMERA }}
       </Button>
     </div>
 
@@ -32,7 +34,9 @@
       class="flex items-center justify-between bg-destructive/10 border border-destructive/30 rounded-md px-4 py-2"
     >
       <span class="text-sm text-destructive">{{ cameraStore.error }}</span>
-      <Button variant="ghost" size="sm" @click="cameraStore.clearError"> Dismiss </Button>
+      <Button variant="ghost" size="sm" @click="cameraStore.clearError">
+        {{ i18nState.COM_CLOSE }}
+      </Button>
     </div>
 
     <!-- Camera View -->
@@ -53,7 +57,7 @@
       >
         <VideoCameraIcon class="h-12 w-12 text-muted-foreground mb-2" />
         <span class="text-sm text-muted-foreground">
-          {{ cameraStore.isLoading ? 'Starting Preview...' : 'Camera not active' }}
+          {{ cameraStore.isLoading ? i18nState.CAM_STARTING_PREVIEW : i18nState.CAM_NOT_ACTIVE }}
         </span>
       </div>
     </div>
@@ -61,7 +65,7 @@
     <!-- Capture Button -->
     <div class="flex justify-center">
       <Button variant="default" size="sm" :disabled="!cameraStore.isActive" @click="capture">
-        Capture
+        {{ i18nState.CAM_CAPTURE }}
       </Button>
     </div>
   </div>
@@ -72,9 +76,11 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import DropDownNew from './DropDownNew.vue'
 import { Button } from '@/components/ui/button'
 import { useCameraStore } from '@/assets/js/store/camera'
+import { useI18N } from '@/assets/js/store/i18n'
 import { VideoCameraIcon } from '@heroicons/vue/24/outline'
 
 const cameraStore = useCameraStore()
+const i18nState = useI18N().state
 const videoElement = ref<HTMLVideoElement | null>(null)
 
 const emit = defineEmits<{

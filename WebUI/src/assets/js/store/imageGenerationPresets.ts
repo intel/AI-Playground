@@ -587,7 +587,7 @@ export const useImageGenerationPresets = defineStore(
             newImage.imageUrl = await saveImageToMediaInput(dataUri)
           } catch (error) {
             console.error('Error copying image as input for mode', error)
-            toast.error('Error copying image as input for mode')
+            toast.error(i18nState.IMG_COPY_INPUT_FAILED)
           }
         }
         newImage.fromImageGen = true
@@ -700,7 +700,7 @@ export const useImageGenerationPresets = defineStore(
     async function generate(mode: WorkflowModeType = 'imageGen', sourceImage?: string) {
       console.log('### generate', mode, sourceImage, activePreset.value)
       if (!activePreset.value) {
-        toast.error('No preset selected')
+        toast.error(i18nState.IMG_NO_PRESET_SELECTED)
         return
       }
 

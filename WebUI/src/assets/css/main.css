@@ -73,7 +73,7 @@ textarea {
         background: url('@/assets/svg/tab-active-first.svg') 0px 0px no-repeat;
 
         > * {
-          margin-left: -15px;
+          margin-inline-start: -15px;
         }
       }
     }

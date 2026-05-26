@@ -9,6 +9,7 @@ import { useSpeechToText } from './speechToText'
 import { useDemoMode } from './demoMode'
 import { mapStatusToColor, mapToDisplayStatus } from '@/lib/utils'
 import * as toast from '@/assets/js/toast'
+import { useI18N } from './i18n'
 import type { ErrorDetails } from '../../../../electron/subprocesses/service'
 
 const backends: BackendServiceName[] = [
@@ -77,6 +78,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   const presetSwitching = usePresetSwitching()
   const demoMode = useDemoMode()
   const speechToText = useSpeechToText()
+  const i18n = useI18N()
 
   const pendingProductMode = ref<ProductMode | null>(null)
   const installSelection = ref(new Set<BackendServiceName>())
@@ -400,7 +402,9 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     if (result.success) {
       await restartBackend(name)
     } else {
-      const msg = result.errorDetails ? 'Setup failed — see error log for details' : 'Setup failed'
+      const msg = result.errorDetails
+        ? i18n.state.WIZARD_SETUP_FAILED_DETAILS
+        : i18n.state.WIZARD_SETUP_FAILED
       toast.error(msg)
     }
   }
@@ -408,7 +412,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   async function repairBackend(name: BackendServiceName) {
     const stopStatus = await backendServices.stopService(name)
     if (stopStatus !== 'stopped') {
-      toast.error('Service failed to stop')
+      toast.error(i18n.state.WIZARD_SERVICE_STOP_FAILED)
       return
     }
     await installBackend(name)
@@ -417,30 +421,30 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   async function restartBackend(name: BackendServiceName) {
     const stopStatus = await backendServices.stopService(name)
     if (stopStatus !== 'stopped') {
-      toast.error('Service failed to stop')
+      toast.error(i18n.state.WIZARD_SERVICE_STOP_FAILED)
       return
     }
 
     try {
-      wizardActivity.value.set(name, 'Detecting devices...')
+      wizardActivity.value.set(name, i18n.state.WIZARD_DETECTING_DEVICES)
       wizardActivity.value = new Map(wizardActivity.value)
       await backendServices.detectDevices(name)
 
-      wizardActivity.value.set(name, 'Starting...')
+      wizardActivity.value.set(name, i18n.state.WIZARD_STARTING)
       wizardActivity.value = new Map(wizardActivity.value)
       const startStatus = await backendServices.startService(name)
       if (startStatus !== 'running') {
         const errorDetails = backendServices.getServiceErrorDetails(name)
         const msg = errorDetails
-          ? 'Service failed to start — see error log for details'
-          : 'Service failed to start'
+          ? i18n.state.WIZARD_SERVICE_START_FAILED_DETAILS
+          : i18n.state.WIZARD_SERVICE_START_FAILED
         toast.error(msg)
       }
     } catch (error) {
       const errorDetails = backendServices.getServiceErrorDetails(name)
       const msg = errorDetails
-        ? 'Service startup failed — see error log for details'
-        : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`
+        ? i18n.state.WIZARD_SERVICE_STARTUP_FAILED_DETAILS
+        : `${i18n.state.WIZARD_SERVICE_STARTUP_FAILED}: ${error instanceof Error ? error.message : String(error)}`
       toast.error(msg)
     } finally {
       wizardActivity.value.delete(name)

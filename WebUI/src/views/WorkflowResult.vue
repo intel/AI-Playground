@@ -45,7 +45,9 @@
             class="absolute inset-0 flex items-center justify-center m-2 rounded"
           >
             <div class="text-center">
-              <span class="text-white text-3xl font-medium">NSFW Result<br />Blocked</span>
+              <span class="text-white text-3xl font-medium"
+                >{{ languages.WORKFLOW_NSFW_RESULT }}<br />{{ languages.WORKFLOW_BLOCKED }}</span
+              >
             </div>
           </div>
           <video

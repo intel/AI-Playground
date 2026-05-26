@@ -2,14 +2,16 @@
   <Dialog :open="true">
     <DialogContent class="z-[var(--demo-z-dialog)]">
       <DialogHeader>
-        <DialogTitle>Demo Session Timeout</DialogTitle>
+        <DialogTitle>{{ i18nState.DEMO_AUTORESET_TITLE }}</DialogTitle>
         <DialogDescription>
-          This demo session will soon reset due to inactivity. Do you want to stay?
+          {{ i18nState.DEMO_AUTORESET_DESC }}
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <Button variant="ghost" @click="reset">Reset ({{ countdown }})</Button>
-        <Button @click="stay">Stay</Button>
+        <Button variant="ghost" @click="reset"
+          >{{ i18nState.DEMO_AUTORESET_RESET }} ({{ countdown }})</Button
+        >
+        <Button @click="stay">{{ i18nState.COM_STAY }}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -26,9 +28,11 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import { useI18N } from '@/assets/js/store/i18n'
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const demoMode = useDemoMode()
+const i18nState = useI18N().state
 
 const COUNTDOWN_SECONDS = 10
 

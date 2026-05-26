@@ -5,7 +5,7 @@
       :class="[
         'bg-card shadow-lg flex flex-col z-9 border-border h-full',
         'absolute 2xl:relative top-0',
-        side === 'left' ? 'start-0 border-e w-100' : 'end-0 border-s w-130',
+        side === 'left' ? 'start-0 border-e w-100' : 'end-0 border-s w-140',
       ]"
     >
       <div class="flex items-center justify-between p-4 border-b border-border">
@@ -17,7 +17,9 @@
             :class="[
               'svg-icon w-6 h-6',
               '!hidden 2xl:!inline-block',
-              side === 'left' ? 'rtl:i-arrow-right ltr:i-arrow-left' : 'rtl:i-arrow-left ltr:i-arrow-right',
+              side === 'left'
+                ? 'rtl:i-arrow-right ltr:i-arrow-left'
+                : 'rtl:i-arrow-left ltr:i-arrow-right',
             ]"
             :title="languages.COM_CLOSE"
           />
@@ -80,9 +82,9 @@ const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : '
   .slide-right-leave-to {
     transform: translateX(100%);
   }
-  
-  :global([dir="rtl"]) .slide-right-enter-from,
-  :global([dir="rtl"]) .slide-right-leave-to {
+
+  :global([dir='rtl']) .slide-right-enter-from,
+  :global([dir='rtl']) .slide-right-leave-to {
     transform: translateX(-100%);
   }
 
@@ -90,9 +92,9 @@ const slideTransition = computed(() => (props.side === 'left' ? 'slide-left' : '
   .slide-left-leave-to {
     transform: translateX(-100%);
   }
-  
-  :global([dir="rtl"]) .slide-left-enter-from,
-  :global([dir="rtl"]) .slide-left-leave-to {
+
+  :global([dir='rtl']) .slide-left-enter-from,
+  :global([dir='rtl']) .slide-left-leave-to {
     transform: translateX(100%);
   }
 }

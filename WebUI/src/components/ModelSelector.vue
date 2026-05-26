@@ -135,7 +135,7 @@ watchEffect(() => {
     <DropdownMenuContent
       :align="'start'"
       :align-offset="-20"
-      class="w-full rounded-md p-[3px] border border-border bg-card max-h-[188px] overflow-y-auto z-[100] ml-4"
+      class="w-full rounded-md p-[3px] border border-border bg-card max-h-[188px] overflow-y-auto z-[100] ms-4"
     >
       <DropdownMenuLabel class="text-foreground px-3 py-2 text-sm font-medium">{{
         languages?.SETTINGS_TEXT_INFERENCE_MODEL
@@ -150,11 +150,11 @@ watchEffect(() => {
         >
           <div class="flex items-center flex-1 min-w-0">
             <div
-              class="w-2 h-2 rounded-full mr-2 shrink-0"
+              class="w-2 h-2 rounded-full me-2 shrink-0"
               :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
             ></div>
             <span class="flex-1 truncate">{{ item.label }}</span>
-            <div class="flex gap-1 ml-2 shrink-0">
+            <div class="flex gap-1 ms-2 shrink-0">
               <ModelCapabilities
                 :model="{
                   name: item.label,

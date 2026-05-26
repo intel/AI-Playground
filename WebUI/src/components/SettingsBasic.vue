@@ -89,7 +89,9 @@
       <p>{{ languages.SETTINGS_AUDIO }}</p>
       <div class="ps-2 pt-4">
         <div class="flex justify-between pe-4 items-center gap-4 mb-4">
-          <Label class="whitespace-nowrap">Speech To Text</Label>
+          <Label class="whitespace-normal break-words leading-tight">{{
+            languages.SETTINGS_SPEECH_TO_TEXT
+          }}</Label>
           <Checkbox
             v-if="!backendStarting"
             id="speech-to-text"
@@ -101,11 +103,11 @@
         <MicrophoneSettings v-if="speechToText.enabled" />
         <div
           v-if="speechToText.enabled && sttDevices.length > 0"
-          class="grid grid-cols-[120px_1fr] items-center gap-4 mt-4"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4 mt-4"
         >
-          <Label class="whitespace-nowrap">Device</Label>
+          <Label class="whitespace-normal break-words leading-tight">{{ languages.DEVICE }}</Label>
           <drop-down-new
-            title="STT Device"
+            :title="languages.SETTINGS_STT_DEVICE"
             @change="selectSttDevice"
             :value="selectedSttDevice?.id"
             :items="sttDeviceItems"
@@ -120,14 +122,14 @@
       <p>{{ languages.SETTINGS_DEVELOPER }}</p>
       <div class="ps-2 pt-2">
         <div class="flex justify-between pe-4 items-center gap-4 mb-4">
-          <Label class="whitespace-nowrap">{{
+          <Label class="whitespace-normal break-words leading-tight">{{
             languages.SETTINGS_DEVELOPER_OPEN_DEV_CONSOLE_ON_STARTUP
           }}</Label>
           <Checkbox id="open-dev-console" v-model="developerSettings.openDevConsoleOnStartup" />
         </div>
         <div class="flex justify-between pe-4 items-center gap-4 mb-4">
           <div class="flex items-center gap-2">
-            <Label class="whitespace-nowrap">{{
+            <Label class="whitespace-normal break-words leading-tight">{{
               languages.SETTINGS_DEVELOPER_KEEP_MODELS_LOADED || 'Keep Models Loaded'
             }}</Label>
             <TooltipProvider :delay-duration="200">
@@ -314,7 +316,7 @@ async function executeRestartBackends() {
 
     const allStopped = stopResults.every((r) => r.status === 'stopped')
     if (!allStopped) {
-      toast.error('Failed to stop one or more backends')
+      toast.error(languages.SETTINGS_BACKEND_STOP_FAILED)
       return
     }
 
@@ -330,11 +332,10 @@ async function executeRestartBackends() {
     if (allRunning) {
       toast.success(i18nState.SETTINGS_MODEL_HUGGINGFACE_APPLY_SUCCESS)
     } else {
-      toast.error('Failed to restart one or more backends')
+      toast.error(languages.SETTINGS_BACKEND_RESTART_FAILED)
     }
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to apply HuggingFace settings'
+    const errorMessage = error instanceof Error ? error.message : languages.SETTINGS_HF_APPLY_FAILED
     toast.error(errorMessage)
   }
 }
@@ -368,11 +369,11 @@ async function selectSttDevice(deviceId: string) {
 async function loadPresetsFromIntel() {
   const syncStatus = await presetsStore.loadPresetsFromIntel()
   if (syncStatus.result === 'success') {
-    toast.success(`Backed up presets at ${syncStatus.backupDir}`)
+    toast.success(`${languages.PRESETS_BACKED_UP_AT} ${syncStatus.backupDir}`)
   } else if (syncStatus.result === 'noUpdate') {
-    toast.warning('No updated presets available')
+    toast.warning(languages.PRESETS_NO_UPDATE)
   } else {
-    toast.error('Synchronisation failed')
+    toast.error(languages.PRESETS_SYNC_FAILED)
   }
 }
 
@@ -398,7 +399,7 @@ async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {
   try {
     await speechToText.toggle(enabled === true)
   } catch (_error) {
-    toast.error(`Failed to ${enabled ? 'enable' : 'disable'} Speech To Text`)
+    toast.error(enabled ? languages.STT_TOGGLE_ENABLE_FAILED : languages.STT_TOGGLE_DISABLE_FAILED)
   } finally {
     backendStarting.value = false
   }

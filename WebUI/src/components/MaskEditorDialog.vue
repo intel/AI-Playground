@@ -62,7 +62,7 @@
             class="bg-primary text-primary-foreground py-2 px-6 rounded hover:bg-primary/90 transition-colors"
             @click="dialogStore.closeMaskEditorDialog"
           >
-            Done
+            {{ i18nState.COM_DONE }}
           </button>
         </div>
       </div>
@@ -75,11 +75,13 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { useI18N } from '@/assets/js/store/i18n'
 import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
 import SettingsInpaintMask from './SettingsInpaintMask.vue'
 
 const dialogStore = useDialogStore()
 const imageGeneration = useImageGenerationPresets()
+const i18nState = useI18N().state
 
 const animate = ref(false)
 

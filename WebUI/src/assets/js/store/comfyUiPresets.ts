@@ -1013,7 +1013,7 @@ export const useComfyUiPresets = defineStore(
         const result = await window.electronAPI.ensureComfyUIBackendRunning()
         if (!result.success) {
           console.error('Failed to ensure ComfyUI backend is running:', result.error)
-          toast.error('Failed to start ComfyUI backend')
+          toast.error(i18nState.COMFY_BACKEND_START_FAILED)
           resetGenerationState()
           return
         }
@@ -1026,7 +1026,7 @@ export const useComfyUiPresets = defineStore(
         }
       } catch (error) {
         console.error('Error checking backend:', error)
-        toast.error('Failed to check backend compatibility')
+        toast.error(i18nState.COMFY_BACKEND_CHECK_FAILED)
         resetGenerationState()
         return
       }
@@ -1047,7 +1047,7 @@ export const useComfyUiPresets = defineStore(
       const missingInputs = validateRequiredImageInputs()
       if (missingInputs.length > 0) {
         const inputLabels = missingInputs.join(', ')
-        toast.error(`Missing required image inputs: ${inputLabels}`)
+        toast.error(`${i18nState.COMFY_MISSING_IMAGE_INPUTS}: ${inputLabels}`)
         resetGenerationState()
         return
       }
@@ -1125,7 +1125,7 @@ export const useComfyUiPresets = defineStore(
         imageGeneration.currentState = 'load_workflow_components'
       } catch (ex) {
         console.error('Error generating image', ex)
-        toast.error('Backend could not generate image.')
+        toast.error(i18nState.COMFY_GENERATE_FAILED)
         resetGenerationState()
       }
     }

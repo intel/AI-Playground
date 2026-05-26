@@ -22,7 +22,7 @@
               <td>{{ languages.BACKEND_TYPE }}</td>
               <td>{{ languages.BACKEND_INFORMATION }}</td>
               <td>{{ languages.BACKEND_ENABLE }}</td>
-              <td>Version</td>
+              <td>{{ languages.INSTALL_VERSION_COLUMN }}</td>
               <td>{{ languages.BACKEND_STATUS }}</td>
               <td>{{ languages.BACKEND_ACTION }}</td>
               <td class="w-6"></td>
@@ -90,13 +90,13 @@
                             class="underline decoration-dotted decoration-1"
                             :class="getUninstalledStatusClass(component.serviceName)"
                           >
-                            Not installed
+                            {{ languages.INSTALL_NOT_INSTALLED }}
                           </span>
                           <!-- Status icon -->
                           <span
                             v-if="component.isSetUp && isVersionUpToDate(component.serviceName)"
                             class="text-green-500"
-                            title="Up to date"
+                            :title="languages.INSTALL_UP_TO_DATE"
                           >
                             ✓
                           </span>
@@ -105,8 +105,8 @@
                             :class="getVersionChangeClass(component.serviceName)"
                             :title="
                               isUpgrade(component.serviceName)
-                                ? 'Update available'
-                                : 'Downgrade pending'
+                                ? languages.INSTALL_UPDATE_AVAILABLE
+                                : languages.INSTALL_DOWNGRADE_PENDING
                             "
                           >
                             {{ getVersionChangeIcon(component.serviceName) }}
@@ -120,29 +120,35 @@
                       <!-- Expanded: All version details -->
                       <div class="text-sm space-y-1">
                         <div class="flex justify-between gap-4">
-                          <span class="text-muted-foreground">Installed:</span>
+                          <span class="text-muted-foreground">{{
+                            languages.INSTALL_INSTALLED
+                          }}</span>
                           <span>{{ formatInstalledVersion(component.serviceName) }}</span>
                         </div>
                         <div class="flex justify-between gap-4">
-                          <span class="text-muted-foreground">Latest Supported:</span>
+                          <span class="text-muted-foreground">{{
+                            languages.INSTALL_LATEST_SUPPORTED
+                          }}</span>
                           <span>{{ formatOfficialTarget(component.serviceName) }}</span>
                         </div>
                         <div
                           v-if="hasUserOverride(component.serviceName)"
                           class="flex justify-between gap-4 text-amber-400"
                         >
-                          <span>Settings Override:</span>
+                          <span>{{ languages.INSTALL_SETTINGS_OVERRIDE }}</span>
                           <span>{{ formatUserOverride(component.serviceName) }}</span>
                         </div>
                         <div class="border-t border-border pt-1 mt-1 flex justify-between gap-4">
-                          <span class="text-muted-foreground">Effective:</span>
+                          <span class="text-muted-foreground">{{
+                            languages.INSTALL_EFFECTIVE
+                          }}</span>
                           <span>
                             {{ formatEffectiveTarget(component.serviceName) }}
                             <span
                               v-if="hasUserOverride(component.serviceName)"
                               class="text-amber-400"
                             >
-                              (override)
+                              ({{ languages.INSTALL_OVERRIDE_SUFFIX }})
                             </span>
                           </span>
                         </div>
@@ -154,7 +160,7 @@
                           "
                           class="border-t border-border pt-1 mt-1 text-xs text-amber-400"
                         >
-                          A newer supported version is available
+                          {{ languages.INSTALL_NEWER_AVAILABLE }}
                         </div>
                       </div>
                     </TooltipContent>
@@ -170,7 +176,7 @@
                     "
                     @click="showErrorDetails(component.serviceName)"
                     class="text-primary hover:text-primary/80 transition-colors"
-                    title="View error details"
+                    :title="languages.INSTALL_VIEW_ERROR_DETAILS"
                   >
                     <span class="svg-icon i-info w-5 h-5 align-text-top"></span>
                   </button>
@@ -281,6 +287,7 @@ import {
   compareVersions,
 } from '@/lib/utils.ts'
 import * as toast from '@/assets/js/toast.ts'
+import { useI18N } from '@/assets/js/store/i18n'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
@@ -301,6 +308,7 @@ type ExtendedApiServiceInformation = ApiServiceInformation & {
 
 const backendServices = useBackendServices()
 const productModeStore = useProductMode()
+const languages = useI18N().state
 
 // App version for AI Backend display (fetched directly to avoid timing issues with globalSetup.initSetup)
 const appVersion = ref('...')
@@ -354,8 +362,8 @@ async function installBackend(name: BackendServiceName) {
     await restartBackend(name)
   } else {
     const errorMessage = setupProgress.errorDetails
-      ? 'Setup failed - Click the info icon for details'
-      : 'Setup failed'
+      ? languages.INSTALL_SETUP_FAILED_DETAILS
+      : languages.INSTALL_SETUP_FAILED
     toast.error(errorMessage)
     loadingComponents.value.delete(name)
   }
@@ -365,7 +373,7 @@ async function repairBackend(name: BackendServiceName) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
-    toast.error('Service failed to stop')
+    toast.error(languages.INSTALL_SERVICE_STOP_FAILED)
     return
   }
   await installBackend(name)
@@ -375,7 +383,7 @@ async function restartBackend(name: BackendServiceName) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
-    toast.error('Service failed to stop')
+    toast.error(languages.INSTALL_SERVICE_STOP_FAILED)
     loadingComponents.value.delete(name)
     return
   }
@@ -386,8 +394,8 @@ async function restartBackend(name: BackendServiceName) {
       // Service failed to start - show detailed error message
       const errorDetails = backendServices.getServiceErrorDetails(name)
       const errorMessage = errorDetails
-        ? 'Service failed to start - Click the info icon for details'
-        : 'Service failed to start'
+        ? languages.INSTALL_SERVICE_START_FAILED_DETAILS
+        : languages.INSTALL_SERVICE_START_FAILED
       toast.error(errorMessage)
       loadingComponents.value.delete(name)
       return
@@ -396,8 +404,8 @@ async function restartBackend(name: BackendServiceName) {
     // Exception during startup - show detailed error message
     const errorDetails = backendServices.getServiceErrorDetails(name)
     const errorMessage = errorDetails
-      ? 'Service startup failed - Click the info icon for details'
-      : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`
+      ? languages.INSTALL_SERVICE_STARTUP_FAILED_DETAILS
+      : `${languages.INSTALL_SERVICE_STARTUP_FAILED}: ${error instanceof Error ? error.message : String(error)}`
     toast.error(errorMessage)
     loadingComponents.value.delete(name)
     return

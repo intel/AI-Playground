@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2 border border-border rounded-md p-3 mr-4">
+  <div class="flex flex-col gap-2 border border-border rounded-md p-3 me-4">
     <div
       v-for="server in mcp.allServers"
       :key="server.id"
@@ -29,12 +29,14 @@
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem @select="openEditDialog(server.id)"> Edit </DropdownMenuItem>
+            <DropdownMenuItem @select="openEditDialog(server.id)">
+              {{ i18nState.COM_EDIT }}
+            </DropdownMenuItem>
             <DropdownMenuItem
               class="text-destructive focus:text-destructive"
               @select="handleRemoveServer(server.id)"
             >
-              Remove
+              {{ i18nState.COM_REMOVE }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -42,7 +44,7 @@
     </div>
 
     <div v-if="mcp.allServers.length === 0" class="text-sm text-muted-foreground text-center py-2">
-      No MCP servers available
+      {{ i18nState.MCP_NO_SERVERS }}
     </div>
 
     <!-- Red error messages -->
@@ -59,7 +61,7 @@
 
     <!-- Footer: config actions -->
 
-    <div class="flex justify-start gap-4 pl-2">
+    <div class="flex justify-start gap-4 ps-2">
       <Button
         variant="link"
         size="sm"
@@ -67,11 +69,11 @@
         @click="showAddDialog = true"
       >
         <span class="svg-icon i-add w-4 h-4 shrink-0" />
-        Add server...
+        {{ i18nState.MCP_ADD_SERVER }}
       </Button>
       <Button variant="link" size="sm" class="px-0 text-muted-foreground gap-1" @click="openConfig">
         <span class="svg-icon i-pen w-4 h-4 shrink-0" />
-        Edit mcp.json
+        {{ i18nState.MCP_EDIT_CONFIG }}
       </Button>
       <Button
         variant="link"
@@ -80,7 +82,7 @@
         @click="openConfigInFolder"
       >
         <span class="svg-icon i-folder w-4 h-4 shrink-0" />
-        Show in folder
+        {{ i18nState.MCP_SHOW_IN_FOLDER }}
       </Button>
       <Button
         variant="link"
@@ -89,7 +91,7 @@
         @click="reloadConfig"
       >
         <span class="svg-icon i-refresh w-4 h-4 shrink-0" />
-        Reload
+        {{ i18nState.COM_RELOAD }}
       </Button>
     </div>
 
@@ -102,6 +104,9 @@
 import { onMounted, ref } from 'vue'
 import { useMcp } from '@/assets/js/store/mcp'
 import { useTextInference } from '@/assets/js/store/textInference'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import {
@@ -123,11 +128,11 @@ const editServer = ref<{ id: string; config: McpServerConfig } | undefined>()
 
 function getStatusText(serverId: string): string {
   const status = mcp.getServerStatus(serverId)
-  if (status.state === 'stopped') return 'Disconnected'
-  if (status.state === 'starting') return 'Starting...'
-  if (status.state === 'running') return 'Connected'
-  if (status.state === 'error') return 'Error'
-  return 'Disconnected'
+  if (status.state === 'stopped') return i18nState.MCP_STATE_DISCONNECTED
+  if (status.state === 'starting') return i18nState.MCP_STATE_STARTING
+  if (status.state === 'running') return i18nState.MCP_STATE_CONNECTED
+  if (status.state === 'error') return i18nState.MCP_STATE_ERROR
+  return i18nState.MCP_STATE_DISCONNECTED
 }
 
 function getStatusDotClass(serverId: string): string {
@@ -141,11 +146,11 @@ function getStatusDotClass(serverId: string): string {
 
 function getStartButtonText(serverId: string): string {
   const status = mcp.getServerStatus(serverId)
-  if (status.state === 'stopped') return 'Start'
-  if (status.state === 'starting') return 'Stop'
-  if (status.state === 'running') return 'Stop'
-  if (status.state === 'error') return 'Start'
-  return 'Start'
+  if (status.state === 'stopped') return i18nState.COM_START
+  if (status.state === 'starting') return i18nState.COM_STOP
+  if (status.state === 'running') return i18nState.COM_STOP
+  if (status.state === 'error') return i18nState.COM_START
+  return i18nState.COM_START
 }
 
 onMounted(async () => {
@@ -170,7 +175,7 @@ async function openEditDialog(serverId: string) {
     editServer.value = { id: serverId, config }
     showEditDialog.value = true
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to get server config')
+    toast.error(error instanceof Error ? error.message : i18nState.MCP_GET_CONFIG_FAILED)
   }
 }
 
@@ -178,9 +183,9 @@ async function handleRemoveServer(serverId: string) {
   try {
     await window.electronAPI.mcp.removeServer(serverId)
     await mcp.reloadConfig()
-    toast.success('MCP server removed')
+    toast.success(i18nState.MCP_SERVER_REMOVED)
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to remove server')
+    toast.error(error instanceof Error ? error.message : i18nState.MCP_REMOVE_FAILED)
   }
 }
 </script>

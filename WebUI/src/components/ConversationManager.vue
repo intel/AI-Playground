@@ -102,50 +102,56 @@
                           }
                         "
                       >
-                        Rename
+                        {{ languages.COM_RENAME }}
                       </DropdownMenuItem>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Rename conversation</DialogTitle>
-                        <DialogDescription
-                          >Set a new title for this conversation.</DialogDescription
-                        >
+                        <DialogTitle>{{ languages.CONVERSATION_RENAME_TITLE }}</DialogTitle>
+                        <DialogDescription>{{
+                          languages.CONVERSATION_RENAME_DESC
+                        }}</DialogDescription>
                       </DialogHeader>
                       <div class="mt-2">
                         <Input
                           autofocus
                           type="text"
-                          placeholder="Enter title"
+                          :placeholder="languages.COM_ENTER_TITLE"
                           v-model="renameTitle"
                           @keydown.enter.prevent="saveRename"
                         />
                       </div>
                       <DialogFooter>
-                        <Button variant="ghost" @click="cancelRename">Cancel</Button>
-                        <Button :disabled="!renameTitle.trim()" @click="saveRename">Save</Button>
+                        <Button variant="ghost" @click="cancelRename">{{
+                          languages.COM_CANCEL
+                        }}</Button>
+                        <Button :disabled="!renameTitle.trim()" @click="saveRename">{{
+                          languages.COM_SAVE
+                        }}</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
-                        Delete
+                        {{ languages.COM_DELETE }}
                       </DropdownMenuItem>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                        <AlertDialogTitle>{{
+                          languages.CONVERSATION_DELETE_TITLE
+                        }}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove this conversation and its messages.
+                          {{ languages.CONVERSATION_DELETE_DESC }}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{{ languages.COM_CANCEL }}</AlertDialogCancel>
                         <AlertDialogAction
                           @click="() => conversations.deleteConversation(conversationKey)"
                         >
-                          Delete
+                          {{ languages.COM_DELETE }}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

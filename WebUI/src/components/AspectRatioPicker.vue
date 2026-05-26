@@ -1,9 +1,11 @@
 <template>
   <TooltipProvider :delay-duration="200">
     <div class="flex flex-col gap-4">
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-          <Label class="whitespace-nowrap truncate min-w-0">Megapixels</Label>
+      <div class="grid grid-cols-[minmax(120px,max-content)_1fr] items-center gap-4">
+        <div class="flex items-center justify-between gap-2 min-w-[120px]">
+          <Label class="whitespace-normal break-words leading-tight">{{
+            languages.SETTINGS_MEGAPIXELS
+          }}</Label>
           <Tooltip>
             <TooltipTrigger as-child>
               <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
@@ -14,7 +16,7 @@
           </Tooltip>
         </div>
         <drop-down-new
-          :title="'Megapixels'"
+          :title="languages.SETTINGS_MEGAPIXELS"
           :value="megaPixelsIndex.toString()"
           :items="megaPixelsDropdownItems"
           :disabled="props.disabled || demoMode.enabled"
@@ -26,9 +28,11 @@
         />
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-end gap-4">
-        <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-          <Label class="whitespace-nowrap truncate min-w-0">Aspect Ratio</Label>
+      <div class="grid grid-cols-[minmax(120px,max-content)_1fr] items-end gap-4">
+        <div class="flex items-center justify-between gap-2 min-w-[120px]">
+          <Label class="whitespace-normal break-words leading-tight">{{
+            languages.SETTINGS_ASPECT_RATIO
+          }}</Label>
           <Tooltip>
             <TooltipTrigger as-child>
               <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />
@@ -89,9 +93,11 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-          <Label class="whitespace-nowrap truncate min-w-0">Resolution</Label>
+      <div class="grid grid-cols-[minmax(120px,max-content)_1fr] items-center gap-4">
+        <div class="flex items-center justify-between gap-2 min-w-[120px]">
+          <Label class="whitespace-normal break-words leading-tight">{{
+            languages.SETTINGS_RESOLUTION
+          }}</Label>
           <Tooltip>
             <TooltipTrigger as-child>
               <span class="svg-icon i-info w-4 h-4 shrink-0 opacity-50 cursor-help" />

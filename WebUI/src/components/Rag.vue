@@ -74,7 +74,7 @@
             :title="languages.COM_ADD_FILE_TO_RAG"
             class="bg-primary rounded-sm px-4 h-8 flex items-center justify-center hover:bg-primary/80 transition-colors duration-200"
           >
-            <span class="svg-icon text-foreground i-add w-5 h-5 mr-2"></span>
+            <span class="svg-icon text-foreground i-add w-5 h-5 me-2"></span>
             <span>{{ languages.RAG_ADD_FILES }}</span>
           </button>
         </div>
@@ -86,7 +86,7 @@
             :title="languages.COM_DELETE_ALL_FILES"
             class="bg-muted/50 rounded-sm px-2 h-8 flex items-center justify-center hover:bg-destructive/50 transition-colors duration-200"
           >
-            <span class="svg-icon text-foreground i-delete w-4 h-4 mr-1"></span>
+            <span class="svg-icon text-foreground i-delete w-4 h-4 me-1"></span>
             <span class="text-xs">{{ languages.RAG_CLEAR_ALL }}</span>
           </button>
         </div>

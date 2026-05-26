@@ -1,10 +1,24 @@
 import { defineStore } from 'pinia'
 
+const RTL_LANGUAGES = ['he', 'he-IL', 'ar', 'fa', 'ur'] as const
+
 export const useI18N = defineStore('i18n', () => {
   const langName = ref('en-US')
   const currentLanguageName = ref('English')
   const state = reactive<StringKV>({})
   let override: string | null = null
+
+  const isRTL = computed(() => (RTL_LANGUAGES as readonly string[]).includes(langName.value))
+
+  watch(
+    isRTL,
+    (rtl) => {
+      if (typeof document === 'undefined') return
+      document.documentElement.dir = rtl ? 'rtl' : 'ltr'
+      document.documentElement.lang = langName.value
+    },
+    { immediate: true },
+  )
 
   // locale naming reference:
   // https://source.chromium.org/chromium/chromium/src/+/main:ui/base/l10n/l10n_util.cc
@@ -87,18 +101,12 @@ export const useI18N = defineStore('i18n', () => {
       languageOptions.value.find((item) => item.value === lang)?.name || 'Unknown'
 
     localStorage.setItem('locale', lang)
-
-    if (typeof document !== 'undefined') {
-      const rtlLanguages = ['he', 'he-IL', 'ar', 'fa', 'ur']
-      const isRTL = rtlLanguages.includes(lang)
-      document.documentElement.dir = isRTL ? 'rtl' : 'ltr'
-      document.documentElement.lang = lang
-    }
   }
 
   return {
     state,
     langName,
+    isRTL,
     languageOptions,
     currentLanguageName,
     init,

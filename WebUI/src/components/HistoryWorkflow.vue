@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto">
+  <div class="flex flex-col space-y-2 pe-3 h-full overflow-y-auto">
     <!--  "New image" entry -->
     <div
       v-if="showNewEntryPlaceholder"
@@ -10,7 +10,7 @@
       <div
         class="relative w-[150px] h-[90px] overflow-hidden rounded-sm flex items-center justify-center bg-background"
       >
-        <span class="text-lg text-primary font-semibold">New Image</span>
+        <span class="text-lg text-primary font-semibold">{{ languages.HIST_NEW_IMAGE }}</span>
       </div>
     </div>
 
@@ -94,9 +94,9 @@
                     v-if="image.type === 'image' && nsfwBlockedImages.has(image.id)"
                     class="absolute inset-0 flex items-center justify-center bg-black/80"
                   >
-                    <span class="text-white text-xs font-medium text-center px-1"
-                      >NSFW Blocked</span
-                    >
+                    <span class="text-white text-xs font-medium text-center px-1">{{
+                      languages.HIST_NSFW_BLOCKED
+                    }}</span>
                   </div>
 
                   <div
@@ -132,7 +132,7 @@
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
-                            Remove
+                            {{ languages.COM_REMOVE }}
                           </DropdownMenuItem>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -145,7 +145,7 @@
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{{ languages.COM_CANCEL }}</AlertDialogCancel>
                             <AlertDialogAction @click="() => deleteImage(image)">
                               {{ languages.COM_REMOVE }}
                             </AlertDialogAction>
@@ -161,7 +161,9 @@
         </details>
       </template>
     </template>
-    <div v-else class="text-muted-foreground text-center p-5 italic">No images generated yet.</div>
+    <div v-else class="text-muted-foreground text-center p-5 italic">
+      {{ languages.HIST_NO_IMAGES }}
+    </div>
   </div>
 </template>
 
@@ -194,14 +196,16 @@ import {
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 import ThumbnailPreviewStrip from './ThumbnailPreviewStrip.vue'
-import { checkIfNsfwBlocked } from '@/lib/utils'
+import { checkIfNsfwBlocked, translatePresetName, translateVariantName } from '@/lib/utils'
 import { Spinner } from '@/components/ui/spinner'
+import { useI18N } from '@/assets/js/store/i18n'
 
 const props = defineProps<{
   mode: WorkflowModeType
 }>()
 
 const imageGeneration = useImageGenerationPresets()
+const languages = useI18N().state
 
 // Track which images are NSFW blocked
 const nsfwBlockedImages = ref<Set<string>>(new Set())
@@ -254,7 +258,8 @@ const imagesByDay = computed(() => {
 
 function formatPresetName(preset?: string, variant?: string): string {
   if (!preset) return ''
-  return variant ? `${preset} - ${variant}` : preset
+  const translatedPreset = translatePresetName(preset)
+  return variant ? `${translatedPreset} - ${translateVariantName(variant)}` : translatedPreset
 }
 
 function getDayLabel(timestamp?: number): string {
@@ -263,8 +268,8 @@ function getDayLabel(timestamp?: number): string {
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
 
-  if (date.toDateString() === today.toDateString()) return 'Today'
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  if (date.toDateString() === today.toDateString()) return languages.HIST_TODAY
+  if (date.toDateString() === yesterday.toDateString()) return languages.HIST_YESTERDAY
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 

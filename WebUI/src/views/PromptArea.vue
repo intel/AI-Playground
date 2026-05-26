@@ -5,7 +5,9 @@
         <p class="text-red-500">{{ contextError }}</p>
       </div>
       <div class="grid grid-cols-3 items-center gap-3 h-10">
-        <p class="text-2xl col-start-2 font-bold">{{ i18nState.PROMPT_LETS_GENERATE || "Let's Generate" }}</p>
+        <p class="text-2xl col-start-2 font-bold">
+          {{ i18nState.PROMPT_LETS_GENERATE || "Let's Generate" }}
+        </p>
         <Context
           v-if="promptStore.getCurrentMode() === 'chat'"
           :used-tokens="contextUsedTokens"
@@ -112,7 +114,7 @@
             >
               <img
                 :src="preview.url"
-                alt="Image Preview"
+                :alt="i18nState.COM_ALT_IMAGE_PREVIEW"
                 class="w-full h-full object-contain border border-dashed border-border rounded-md"
               />
               <button
@@ -173,9 +175,7 @@
               "
               @click="handleRecordingClick"
               :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
-              :title="
-                !speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''
-              "
+              :title="!speechToText.enabled ? i18nState.STT_ENABLE_HINT : ''"
             >
               <i
                 v-if="!audioRecorder.isTranscribing"
@@ -202,15 +202,23 @@
               class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-normal"
               @click="handleAdvancedSettingsClick"
             >
-              {{ i18nState.COM_MODE_SETTINGS ? i18nState.COM_MODE_SETTINGS.replace('{mode}', mapModeToLabel(promptStore.getCurrentMode())) : mapModeToLabel(promptStore.getCurrentMode()) + ' Settings' }}
+              {{
+                i18nState.COM_MODE_SETTINGS
+                  ? i18nState.COM_MODE_SETTINGS.replace(
+                      '{mode}',
+                      mapModeToLabel(promptStore.getCurrentMode()),
+                    )
+                  : mapModeToLabel(promptStore.getCurrentMode()) + ' Settings'
+              }}
             </Button>
             <Button
               v-if="readyForNewSubmit"
               @click="handleSubmitPromptClick"
               id="send-button"
-              class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
+              class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+              :title="i18nState.COM_SEND"
             >
-              →
+              <ArrowRightIcon class="size-4 rtl:rotate-180" />
             </Button>
             <Button
               v-else-if="!isStopping"
@@ -237,10 +245,14 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
       <div class="bg-background rounded-lg p-6 w-full max-w-lg mx-4 shadow-xl">
-        <h2 class="text-lg font-semibold mb-4">{{ i18nState.COM_CAPTURE_IMAGE || 'Capture Image' }}</h2>
+        <h2 class="text-lg font-semibold mb-4">
+          {{ i18nState.COM_CAPTURE_IMAGE || 'Capture Image' }}
+        </h2>
         <CameraCapture @capture="dialogStore.handleCameraCapture" />
         <div class="mt-4 flex justify-end">
-          <Button variant="outline" @click="dialogStore.closeCameraDialog()">{{ i18nState.COM_CLOSE || 'Close' }}</Button>
+          <Button variant="outline" @click="dialogStore.closeCameraDialog()">{{
+            i18nState.COM_CLOSE || 'Close'
+          }}</Button>
         </div>
       </div>
     </div>
@@ -277,6 +289,7 @@ import {
   XMarkIcon,
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
+  ArrowRightIcon,
 } from '@heroicons/vue/24/outline'
 import { CameraIcon } from '@heroicons/vue/24/solid'
 import { Label } from '@/components/ui/label'
@@ -677,7 +690,7 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
     }
   } catch (error) {
     console.error('Error processing image:', error)
-    toast.error('Failed to load image')
+    toast.error(i18nState.TOAST_FAILED_TO_LOAD_IMAGE)
   } finally {
     URL.revokeObjectURL(imageUrl)
   }
@@ -723,7 +736,7 @@ function handlePlusIconClick(event: MouseEvent) {
   }
   if (demoMode.enabled) {
     event.preventDefault()
-    toast.show('Clicking this feature is disabled during demo.')
+    toast.show(i18nState.DEMO_BLOCK_TOAST)
     return
   }
   // Let the Label's default behavior open the file dialog
@@ -749,17 +762,13 @@ async function handleFileInput(event: Event) {
 
   // Validate image attachments
   if (imageFiles.length > 0 && !canAttachImages.value) {
-    toast.error(
-      'The current model does not support image attachments. Select a vision model to attach images.',
-    )
+    toast.error(i18nState.TOAST_NO_VISION_SUPPORT)
     imageFiles.length = 0
   }
 
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
-    toast.error(
-      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
-    )
+    toast.error(i18nState.TOAST_NO_RAG_SUPPORT)
     documentFiles.length = 0
   }
 
@@ -841,7 +850,7 @@ async function onDrop(files: File[] | null) {
   if (comfyUiModes.includes(promptStore.getCurrentMode()) && shouldShowImageUploadButton.value) {
     // Filter out non-image files
     if (documentFiles.length > 0) {
-      toast.error('Only images can be uploaded in this mode.')
+      toast.error(i18nState.TOAST_ONLY_IMAGES_THIS_MODE)
     }
     // Handle images through ComfyUI handler
     if (imageFiles.length > 0) {
@@ -852,17 +861,13 @@ async function onDrop(files: File[] | null) {
 
   // Validate image attachments
   if (imageFiles.length > 0 && !canAttachImages.value) {
-    toast.error(
-      'The current model does not support image attachments. Select a vision model to attach images.',
-    )
+    toast.error(i18nState.TOAST_NO_VISION_SUPPORT)
     imageFiles.length = 0
   }
 
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
-    toast.error(
-      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
-    )
+    toast.error(i18nState.TOAST_NO_RAG_SUPPORT)
     documentFiles.length = 0
   }
 

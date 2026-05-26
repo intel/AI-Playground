@@ -13,7 +13,7 @@
         type="button"
         @click="applySample(activeSample)"
       >
-        Apply ›
+        {{ i18nState.COM_APPLY_ACTION }} ›
       </button>
     </div>
   </div>
@@ -26,48 +26,49 @@ import { populateImageEditHistory } from '@/assets/js/store/demoModeDefaults'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { useDemoMode } from '@/assets/js/store/demoMode'
 import { usePresets } from '@/assets/js/store/presets'
+import { useI18N } from '@/assets/js/store/i18n'
 
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const demoMode = useDemoMode()
 const presetsStore = usePresets()
+const i18nState = useI18N().state
 
-const FALLBACK_SAMPLES: SamplePrompt[] = [
+const FALLBACK_SAMPLES = computed<SamplePrompt[]>(() => [
   {
-    title: 'Prompt Example',
-    description: 'Ask a science question and get an answer:',
-    prompt: 'Why does water expand when it freezes?',
+    title: i18nState.SAMPLE_CHAT_TITLE,
+    description: i18nState.SAMPLE_CHAT_DESC,
+    prompt: i18nState.SAMPLE_CHAT_PROMPT,
     mode: 'chat',
   },
   {
-    title: 'Image Generation Example',
-    description: 'Create a fantastic image from a detailed prompt:',
-    prompt:
-      'A close-up photo of a hummingbird hovering to get nectar from a red rose with drops of dew. Iridescent blue and green feathers, wings a blur. Depth of field. High Dynamic Range.',
+    title: i18nState.SAMPLE_IMAGE_GEN_TITLE,
+    description: i18nState.SAMPLE_IMAGE_GEN_DESC,
+    prompt: i18nState.SAMPLE_IMAGE_GEN_PROMPT,
     mode: 'imageGen',
   },
   {
-    title: 'Image Editing Example',
-    description: 'Edit a photo by describing what to change. An image is already given:',
-    prompt: 'Remove people from the background',
+    title: i18nState.SAMPLE_IMAGE_EDIT_TITLE,
+    description: i18nState.SAMPLE_IMAGE_EDIT_DESC,
+    prompt: i18nState.SAMPLE_IMAGE_EDIT_PROMPT,
     mode: 'imageEdit',
   },
   {
-    title: 'Sketch to Photo Example',
-    description: 'Turn a sketch into a photo by describing the scene:',
-    prompt: 'Photo of a modern apartment building, tropical resort, sunset view',
+    title: i18nState.SAMPLE_SKETCH_TITLE,
+    description: i18nState.SAMPLE_SKETCH_DESC,
+    prompt: i18nState.SAMPLE_SKETCH_PROMPT,
     mode: 'imageEdit',
     presetName: 'Sketch to Photo',
   },
   {
-    title: 'Video Generation Example',
-    description: 'Create a short video from a text description.',
-    prompt: 'A golden retriever running through a field of sunflowers on a sunny day',
+    title: i18nState.SAMPLE_VIDEO_TITLE,
+    description: i18nState.SAMPLE_VIDEO_DESC,
+    prompt: i18nState.SAMPLE_VIDEO_PROMPT,
     mode: 'video',
   },
-]
+])
 
-const samples = computed(() => demoMode.profile?.samplePrompts ?? FALLBACK_SAMPLES)
+const samples = computed(() => demoMode.profile?.samplePrompts ?? FALLBACK_SAMPLES.value)
 const activeSample = computed(() => {
   const mode = promptStore.currentMode
   const presetName = presetsStore.activePreset?.name
