@@ -8,6 +8,7 @@
   "description": "Extend an image beyond its borders by sizing and positioning an image in a new space, then generate new content around it",
   "extendedDescription": "Create a version of an image where you've extended the image in a direction beyond its original borders. Load an image you want to outpaint. Set the mode for Draft or HD to guide the resolution of the outpaint. Open the Mask editor. Resize and move the image to a side or location where the original content should be, leaving an empty area you want to fill with new content. Close the editor. In the prompt describe loosely without detail, the subject of the original image, followed by detail of what should be seen in the empty area. Then generate",
   "requiredCustomNodes": [
+    "BadCafeCode/execution-inversion-demo-comfyui@d9eebfaa1a6a33067e8c9108ef093b48279c4cbb",
     "Acly/comfyui-inpaint-nodes@1e2543e5619b3f6e88b7727243c8b9c5791a7b4a",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
@@ -832,13 +833,23 @@
               "text": "",
               "seed": 0,
               "steps": 50,
-              "width": 512,
-              "height": 512
+              "width": ["60", 0],
+              "height": ["61", 0]
             },
             "class_type": "OpenAICompatibleImageEdit",
             "_meta": {
               "title": "prompt"
             }
+          },
+          "60": {
+            "inputs": { "a": 512, "b": 0, "operation": "add" },
+            "class_type": "IntMathOperation",
+            "_meta": { "title": "width" }
+          },
+          "61": {
+            "inputs": { "a": 512, "b": 0, "operation": "add" },
+            "class_type": "IntMathOperation",
+            "_meta": { "title": "height" }
           },
           "3": {
             "inputs": {
@@ -1148,13 +1159,23 @@
               "text": "",
               "seed": 0,
               "steps": 20,
-              "width": 1024,
-              "height": 1024
+              "width": ["60", 0],
+              "height": ["61", 0]
             },
             "class_type": "OpenAICompatibleImageEdit",
             "_meta": {
               "title": "prompt"
             }
+          },
+          "60": {
+            "inputs": { "a": 1024, "b": 0, "operation": "add" },
+            "class_type": "IntMathOperation",
+            "_meta": { "title": "width" }
+          },
+          "61": {
+            "inputs": { "a": 1024, "b": 0, "operation": "add" },
+            "class_type": "IntMathOperation",
+            "_meta": { "title": "height" }
           },
           "3": {
             "inputs": {
