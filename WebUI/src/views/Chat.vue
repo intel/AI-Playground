@@ -21,10 +21,10 @@
     @scroll="handleScroll"
   >
     <div
-      class="absolute inset-0 flex justify-center items-center bg-background/30 z-10"
+      class="sticky top-0 z-10 flex justify-center items-center bg-background/80 backdrop-blur-sm rounded-md py-4 px-6 mx-auto w-full max-w-md shadow-md"
       v-if="textInference.isPreparingBackend"
     >
-      <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
+      <loading-bar :text="textInference.preparationMessage" class="w-full"></loading-bar>
     </div>
 
     <!-- eslint-disable vue/require-v-for-key -->
@@ -155,7 +155,10 @@
 
                 <!-- Text part -->
                 <template v-else-if="part.type === 'text'">
-                  <MarkdownRenderer :content="(part as any).text ?? ''" :on-copy="copyText" />
+                  <MarkdownRenderer
+                    :content="stripAipgMediaImages((part as any).text ?? '')"
+                    :on-copy="copyText"
+                  />
                 </template>
 
                 <!-- Tool parts -->
@@ -324,6 +327,13 @@ const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 const ragSourcePerMessageId = reactive<Record<string, string>>({})
 const aipgToolPartTypes = new Set(Object.keys(aipgTools).map((toolName) => `tool-${toolName}`))
 
+// Inline ![alt](aipg-media://…) tokens are also rendered as a ChatWorkflowResult
+// tool-part below, so strip them from the text part to avoid duplicate images.
+const AIPG_IMAGE_MD_RE_DISPLAY = /!\[[^\]]*]\(aipg-media:\/\/[^)]+\)/g
+function stripAipgMediaImages(text: string): string {
+  return text.replace(AIPG_IMAGE_MD_RE_DISPLAY, '').trim()
+}
+
 // Track progress for active tool calls
 const toolProgressMap = reactive<
   Record<
@@ -430,9 +440,13 @@ function copyText(text: string) {
 }
 
 function getMessageTextForCopy(message: { parts: { type: string; text?: string }[] }): string {
+  // Mirror the sanitization applied to the rendered MarkdownRenderer
+  // (`stripAipgMediaImages`) so copied text matches what the user actually
+  // sees — otherwise embedded `aipg-media://` image tokens leak into the
+  // clipboard even though they are stripped on screen.
   return message.parts
     .filter((part) => part.type === 'text')
-    .map((part) => part.text ?? '')
+    .map((part) => stripAipgMediaImages(part.text ?? ''))
     .filter((t) => t.length > 0)
     .join('\n\n')
 }

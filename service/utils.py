@@ -4,7 +4,7 @@ import os
 import shlex
 import shutil
 import subprocess
-from typing import IO, List, Optional
+from typing import IO, Optional
 
 # Import from the backend_shared package
 import config
@@ -25,6 +25,13 @@ def flat_repo_local_dir_name(repo_id):
 def trim_repo(repo_id):
     """Trim a repo ID to just the first two segments"""
     return "/".join(repo_id.split("/")[:2])
+
+
+def hf_chunk_http_ok(status: int, resume_from: int) -> bool:
+    """Whether an HTTP status is acceptable for a Hugging Face file chunk download."""
+    if resume_from > 0:
+        return status in (200, 206)
+    return status == 200
 
 def is_single_file(filename: str):
     """Check if a filename is a single file (not a directory)"""

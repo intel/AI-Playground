@@ -192,8 +192,11 @@ export const useDialogStore = defineStore('dialog', () => {
     if (!maskEditorIsModified.value || maskEditorMode.value !== 'outpaint') return
     if (!maskEditorOriginalImageUrl.value) return
 
-    // Load the original image
+    // Load the original image. `aipg-media://…` is cross-origin without
+    // CORS opt-in, which would taint `previewCanvas` and make the later
+    // `toDataURL('image/png')` throw `SecurityError`.
     const img = new Image()
+    img.crossOrigin = 'anonymous'
     img.src = maskEditorOriginalImageUrl.value
 
     await new Promise<void>((resolve, reject) => {

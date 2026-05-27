@@ -37,6 +37,7 @@ comfy_ui_model_paths = {
     "lora": "../models/ComfyUI/loras",
     "loras": "../models/ComfyUI/loras",
     "inpaint": "../models/ComfyUI/inpaint",
+    "openvino-image": "../models/openvino-image",
 }
 
 # Git configuration

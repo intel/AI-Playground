@@ -9,6 +9,7 @@ import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
 import { chatBackends, restartChatBackend } from './chatBackends'
+import { imageUrlToDataUri } from '@/lib/utils'
 
 const ImageEditOutputSchema = z.object({
   id: z.string(),
@@ -114,29 +115,6 @@ function findSourceImage(messages: ModelMessage[]): string | null {
   return findImageInCurrentPrompt(messages) ?? findLatestImageInConversation(messages)
 }
 
-async function convertToDataUri(imageUrl: string): Promise<string> {
-  if (imageUrl.startsWith('data:image/')) {
-    return imageUrl
-  }
-
-  if (imageUrl.startsWith('aipg-media://')) {
-    console.log('[ComfyUIImageEdit Tool] Converting to data:image/ URI:', imageUrl)
-    const response = await fetch(imageUrl)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`)
-    }
-    const blob = await response.blob()
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
-  }
-
-  throw new Error(`Unsupported image URL format: ${imageUrl}`)
-}
-
 export function getAvailableEditWorkflows(): Array<{
   name: string
   description?: string
@@ -229,6 +207,7 @@ function saveCurrentState(
         variant: originalState.variant ?? undefined,
         skipModeSwitch: true,
         skipLastUsedUpdate: true,
+        skipMemoryAlert: true,
       })
     }
   }
@@ -306,6 +285,7 @@ export async function executeImageEdit(
       variant: selectedVariant ?? undefined,
       skipModeSwitch: true,
       skipLastUsedUpdate: true,
+      skipMemoryAlert: true,
     })
     if (!switchResult.success) {
       return createErrorResult(`Failed to switch to preset "${preset.name}"`)
@@ -336,7 +316,9 @@ export async function executeImageEdit(
 
     const imageInput = imageGeneration.comfyInputs.find(
       (input) =>
-        (input.type === 'image' || input.type === 'inpaintMask') &&
+        (input.type === 'image' ||
+          input.type === 'inpaintMask' ||
+          input.type === 'outpaintCanvas') &&
         input.displayed !== false &&
         input.modifiable !== false &&
         (input.defaultValue === '' || input.defaultValue === undefined),
@@ -349,7 +331,7 @@ export async function executeImageEdit(
     }
 
     try {
-      const dataUri = await convertToDataUri(sourceImageUrl)
+      const dataUri = await imageUrlToDataUri(sourceImageUrl)
       imageInput.current.value = dataUri
     } catch (error) {
       return createErrorResult(

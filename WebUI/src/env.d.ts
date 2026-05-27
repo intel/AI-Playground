@@ -20,6 +20,8 @@ type ServiceSettings = {
   releaseTag?: string
   comfyUiParameters?: string
   llamaCppParameters?: string
+  llamaCppBuildVariant?: 'standard' | 'ssd-offload'
+  llamaCppOffloadDrive?: string | null
 }
 
 type SamplePrompt = {
@@ -56,9 +58,14 @@ type LocalSettings = {
   isDemoModeEnabled: boolean
   demoModeResetInSeconds: number | null
   demoModePasscode?: string
+  isHomeAgentEnabled: boolean
   languageOverride: string | null
   remoteRepository: string
   huggingfaceEndpoint: string
+  mcpAutoDetectionDismissed: string[]
+  openvinoImageGenDevices: string[]
+  /** Dev unpackaged: set via settings-dev.json / userData overlay. */
+  PhisonSSDdetected?: boolean
 }
 
 type GpuHardwareDevice = {
@@ -119,6 +126,7 @@ type McpToolInfo = {
 type McpServerInfo = {
   id: string
   name: string
+  instructions?: string
 }
 
 type McpServerConfig =
@@ -128,12 +136,14 @@ type McpServerConfig =
       args?: string[]
       env?: Record<string, string>
       displayName?: string
+      instructions?: string
     }
   | {
       type: 'http'
       url: string
       headers?: Record<string, string>
       displayName?: string
+      instructions?: string
     }
 
 type McpToolCallResult = {
@@ -192,6 +202,9 @@ type electronAPI = {
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   saveImageToMediaInput(dataUri: string): Promise<string>
+  readAipgMediaAsBase64(
+    url: string,
+  ): Promise<{ success: true; data: string } | { success: false; error: string }>
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void
   screenChange(callback: (width: number, height: number) => void): void
@@ -228,7 +241,9 @@ type electronAPI = {
   wakeupComfyUIService(): void
   getComfyUiDefaultParameters(): Promise<string>
   getLlamaCppDefaultParameters(): Promise<string>
+  detectPhisonSsd(): Promise<{ detected: boolean }>
   getServices(): Promise<ApiServiceInformation[]>
+  getBackendAuthToken(serviceName: string): Promise<string>
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
 
   uninstall(serviceName: string): Promise<void>
@@ -255,6 +270,14 @@ type electronAPI = {
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  ensureOvmsImageReady(
+    serviceName: string,
+    modelName: string,
+    keepModelsLoaded?: boolean,
+    resolution?: string,
+  ): Promise<{ success: boolean; url?: string; error?: string }>
+  stopOvmsImageServer(): Promise<{ success: boolean; error?: string }>
+  getOvmsImageServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
   // ComfyUI Tools - uses uv for Python package management
   comfyui: {
     isGitInstalled(): Promise<boolean>
@@ -266,6 +289,7 @@ type electronAPI = {
     downloadCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     uninstallCustomNode(nodeRepoData: ComfyUICustomNodeRepoId): Promise<boolean>
     listInstalledCustomNodes(): Promise<string[]>
+    openInBrowser(): Promise<{ success: boolean; error?: string }>
   }
   mcp: {
     listServers(): Promise<McpServerInfo[]>
@@ -284,17 +308,78 @@ type electronAPI = {
     addServer(
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ): Promise<void>
     getServerConfig(serverId: string): Promise<McpServerConfig>
     updateServer(
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ): Promise<void>
     removeServer(serverId: string): Promise<void>
+  }
+  homeAgent: {
+    saveConfig(token: string, chatId: string): Promise<{ success: boolean; error?: string }>
+    loadConfig(): Promise<{ token: string; chatId: string } | null>
+    clearConfig(): Promise<void>
+    testTelegram(): Promise<{ success: boolean; error?: string }>
+    detectChatId(token: string): Promise<{ chatId: string } | { error: string }>
+    detectChatIdFromSaved(): Promise<{ chatId: string } | { error: string }>
+    injectToken(token: string, chatId?: string): Promise<{ status: string; error?: string }>
+    pollTelegram(): Promise<
+      Array<{
+        text?: string
+        chat_id: string
+        images?: Array<{ mime: string; data_base64: string }>
+        callback?: string
+      }>
+    >
+    flushPending(): Promise<void>
+    sendTelegramReply(
+      text: string,
+      parseMode?: string,
+    ): Promise<{ success: boolean; error?: string }>
+    sendTelegramPhoto(
+      imageBase64: string,
+      caption?: string,
+    ): Promise<{ success: boolean; error?: string }>
+    sendTelegramChatAction(action?: string): Promise<{ success: boolean; error?: string }>
+    sendTelegramDraft(opts: {
+      draftId: number
+      text?: string
+      parseMode?: string
+    }): Promise<{ success: boolean; error?: string }>
+    sendTelegramKeyboard(opts: {
+      text: string
+      parseMode?: string
+      buttons: Array<Array<{ text: string; callbackData: string }>>
+    }): Promise<{ success: boolean; error?: string }>
   }
 }
 
@@ -473,7 +558,7 @@ type NotEnoughDiskSpaceExceptionCallback = {
 
 type ErrorOutCallback = {
   type: 'error'
-  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception'
+  err_type: 'runtime_error' | 'download_exception' | 'unknown_exception' | 'repositories_not_found'
 }
 
 type DownloadModelProgressCallback = {
@@ -573,7 +658,12 @@ type CheckModelAlreadyLoadedResult = {
   already_loaded: boolean
 } & CheckModelAlreadyLoadedParameters
 
-type BackendServiceName = 'ai-backend' | 'comfyui-backend' | 'llamacpp-backend' | 'openvino-backend'
+type BackendServiceName =
+  | 'ai-backend'
+  | 'comfyui-backend'
+  | 'llamacpp-backend'
+  | 'openvino-backend'
+  | 'home-agent-backend'
 
 type InferenceDevice = {
   id: string
@@ -599,9 +689,22 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  storageTargets?: StorageTarget[]
+  llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
   installedVersion?: { version: string; releaseTag?: string }
+  llamaCppStandardArtifactReady?: boolean
+  llamaCppPhisonArtifactReady?: boolean
+  llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
+  llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
+}
+
+type StorageTarget = {
+  id: string
+  name: string
+  path: string
+  selected: boolean
 }
 
 type Model = {

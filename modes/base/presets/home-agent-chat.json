@@ -1,0 +1,23 @@
+{
+  "type": "chat",
+  "category": "home-agent",
+  "name": "Home Agent",
+  "description": "Inference profile used exclusively by the Home Agent (Telegram bridge). Tuned for tool-calling agentic behaviour over the wire.",
+  "displayPriority": 0,
+  "tags": ["Home Agent", "Telegram", "Agentic", "Tools"],
+  "backends": ["llamaCPP", "openVINO"],
+  "preferredModels": {
+    "openVINO": "OpenVINO/Qwen3-4B-int4-ov",
+    "llamaCPP": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf"
+  },
+  "systemPrompt": "/no_think You are the AI Playground Home Agent, the user's remote AI assistant accessible over a chat tool like e.g. Telegram. Be concise and clear because replies are read on a phone. You may call tools — including image generation — when they help answer the user's request. Confirm before performing destructive actions.",
+  "contextSize": 32768,
+  "maxNewTokens": 2047,
+  "temperature": 0.7,
+  "requiresToolCalling": true,
+  "showTools": true,
+  "toolsEnabledByDefault": true,
+  "enableRAG": true,
+  "advancedMode": true,
+  "requiredModels": []
+}

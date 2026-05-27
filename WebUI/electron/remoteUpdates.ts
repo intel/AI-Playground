@@ -11,6 +11,7 @@ const BackendVersionSchema = z.object({ releaseTag: z.string().optional(), versi
 type BackendVersion = z.infer<typeof BackendVersionSchema>
 const BackendVersionsSchema = z.object({
   'ai-backend': BackendVersionSchema.optional(),
+  'home-agent-backend': BackendVersionSchema.optional(),
   'comfyui-backend': BackendVersionSchema,
   'llamacpp-backend': BackendVersionSchema,
   'openvino-backend': BackendVersionSchema,

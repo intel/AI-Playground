@@ -1,5 +1,34 @@
 <template>
   <div class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto">
+    <div v-if="homeAgent.isFeatureEnabled" class="flex items-center justify-center gap-2 px-1 pb-1">
+      <span
+        class="text-xs font-medium select-none"
+        :class="filterKind === 'main' ? 'text-foreground' : 'text-muted-foreground'"
+      >
+        Local
+      </span>
+      <Switch
+        :model-value="filterKind === 'homeAgent'"
+        aria-label="Toggle between Local and Home Agent conversations"
+        @update:model-value="(checked: boolean) => switchKind(checked ? 'homeAgent' : 'main')"
+      />
+      <span
+        class="text-xs font-medium select-none"
+        :class="filterKind === 'homeAgent' ? 'text-foreground' : 'text-muted-foreground'"
+      >
+        Home Agent
+      </span>
+    </div>
+    <div
+      v-if="reversedConversationKeys.length === 0"
+      class="px-2 py-4 text-xs text-muted-foreground italic"
+    >
+      {{
+        filterKind === 'homeAgent'
+          ? 'No Home Agent conversations yet.'
+          : 'No local conversations yet.'
+      }}
+    </div>
     <div
       v-for="key in reversedConversationKeys"
       :key="key"
@@ -103,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ThumbnailPreviewStrip from './ThumbnailPreviewStrip.vue'
 import {
   DropdownMenu,
@@ -133,10 +162,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useConversations } from '@/assets/js/store/conversations'
+import { Switch } from '@/components/ui/switch'
+import { useConversations, type ThreadKind } from '@/assets/js/store/conversations'
+import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { AipgUiMessage } from '@/assets/js/store/openAiCompatibleChat'
 
 const conversations = useConversations()
+const homeAgent = useHomeAgent()
 const emits = defineEmits<{
   (e: 'conversationSelected'): void
 }>()
@@ -179,12 +211,71 @@ const images = (conversation: AipgUiMessage[]) => {
   )
 }
 
+// Local UI filter: Home Agent vs. Local (main) threads. Initialized from the
+// kind of the currently active conversation so the switch reflects whatever
+// state the rest of the app left us in (e.g. Telegram poll just moved
+// activeKey onto a Home Agent thread). Kept in sync with external activeKey
+// changes via the watcher below.
+const filterKind = ref<ThreadKind>(conversations.getThreadKind(conversations.activeKey))
+
+watch(
+  () => conversations.activeKey,
+  (k) => {
+    if (!k) return
+    filterKind.value = conversations.getThreadKind(k)
+  },
+)
+
 const reversedConversationKeys = computed(() => {
   const list = conversations.conversationList ?? {}
-  const keys = Object.keys(list).reverse()
-  console.log('Reversed conversation keys:', list, keys)
-  return keys
+  return Object.keys(list)
+    .filter((k) => conversations.getThreadKind(k) === filterKind.value)
+    .reverse()
 })
+
+// Pick the target conversation when the user flips the switch:
+//   • Home Agent → last routed remote thread (Telegram /load / desktop click),
+//     else the newest remote key, else just flip the filter (empty list).
+//   • Main → tracked `lastMainKey`, else newest main key, else allocate a new
+//     main bucket so the user always has somewhere to type.
+function switchKind(kind: ThreadKind) {
+  if (kind === filterKind.value) return
+
+  if (kind === 'homeAgent') {
+    const list = conversations.conversationList
+    const stored = homeAgent.activeRemoteConversationKey
+    if (stored && list[stored] && conversations.getThreadKind(stored) === 'homeAgent') {
+      conversations.activeKey = stored
+      return
+    }
+    const remoteKeys = homeAgent.remoteConversationKeys
+    if (remoteKeys.length > 0) {
+      const newest = [...remoteKeys].sort((a, b) => (parseInt(b) || 0) - (parseInt(a) || 0))[0]
+      conversations.activeKey = newest
+      return
+    }
+    // No remote threads exist yet — keep activeKey on the current main thread
+    // so the chat view stays usable, but flip the filter so the empty-state
+    // hint shows for Home Agent.
+    filterKind.value = 'homeAgent'
+    return
+  }
+
+  // kind === 'main'
+  const list = conversations.conversationList
+  const stored = conversations.lastMainKey
+  if (stored && list[stored] && conversations.getThreadKind(stored) === 'main') {
+    conversations.activeKey = stored
+    return
+  }
+  const mainKeys = Object.keys(list).filter((k) => conversations.getThreadKind(k) === 'main')
+  if (mainKeys.length > 0) {
+    const newest = mainKeys.sort((a, b) => (parseInt(b) || 0) - (parseInt(a) || 0))[0]
+    conversations.activeKey = newest
+    return
+  }
+  conversations.addNewConversation()
+}
 
 const conversationTitle = (key: string) => {
   const conversation = conversations.conversationList[key]
@@ -245,7 +336,6 @@ function saveRename() {
 
 const selectConversation = (key: string) => {
   conversations.activeKey = key
-  console.log('Selected conversation:', key)
   emits('conversationSelected')
 }
 </script>

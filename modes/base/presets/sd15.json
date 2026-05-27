@@ -132,6 +132,98 @@
     {
       "name": "Standard",
       "overrides": {}
+    },
+    {
+      "name": "OpenVINO Standard",
+      "displayName": "Standard",
+      "backend": "openvino",
+      "requiresService": "openvino-backend",
+      "replaceWorkflow": true,
+      "removeSettings": ["Negative Prompt"],
+      "overrides": {
+        "tags": ["OVMS", "OpenVINO", "512x512"],
+        "description": "Generate images via an OpenAI-compatible image API served by OpenVINO Model Server",
+        "extendedDescription": "Runs text-to-image through ComfyUI using a remote /v3/images/generations endpoint. For testing, run OVMS locally (default base URL http://127.0.0.1:8000/v3). Adjust the API base URL in settings when your server uses another port.",
+        "requiredCustomNodes": [],
+        "requiredPythonPackages": [],
+        "requiredModels": [
+          {
+            "type": "openvino-image",
+            "model": "OpenVINO/LCM_Dreamshaper_v7-int8-ov"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 50,
+            "settingName": "inferenceSteps"
+          },
+          {
+            "type": "number",
+            "label": "Batch Size",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 1,
+            "settingName": "batchSize"
+          },
+          {
+            "type": "boolean",
+            "label": "Safety Check",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": false,
+            "settingName": "safetyCheck"
+          },
+          {
+            "type": "string",
+            "label": "Image API base URL",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "http://127.0.0.1:8000/v3",
+            "nodeTitle": "prompt",
+            "nodeInput": "base_url"
+          },
+          {
+            "type": "string",
+            "label": "Model id",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": "OpenVINO/LCM_Dreamshaper_v7-int8-ov",
+            "nodeTitle": "prompt",
+            "nodeInput": "model"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "1": {
+            "inputs": {
+              "base_url": "http://127.0.0.1:8000/v3",
+              "model": "OpenVINO/LCM_Dreamshaper_v7-int8-ov",
+              "text": "",
+              "seed": 0,
+              "steps": 50,
+              "width": 512,
+              "height": 512
+            },
+            "class_type": "OpenAICompatibleImageGeneration",
+            "_meta": {
+              "title": "prompt"
+            }
+          },
+          "2": {
+            "inputs": {
+              "filename_prefix": "AIPG_OVMS",
+              "images": ["1", 0]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+              "title": "Save Image"
+            }
+          }
+        }
+      }
     }
   ],
   "settings": [

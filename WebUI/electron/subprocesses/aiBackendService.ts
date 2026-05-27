@@ -1,4 +1,5 @@
 import { ChildProcess, spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
 import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
@@ -19,6 +20,10 @@ export type HardwareDetectionResult = {
 
 export class AiBackendService extends LongLivedPythonApiService {
   isSetUp: boolean = false
+  // Per-launch loopback auth token. Regenerated on every spawn so that the
+  // env block of a running ai-backend cannot be reused after a restart.
+  private loopbackAuthToken: string = randomBytes(32).toString('hex')
+
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     super(name, port, win, settings)
 
@@ -31,6 +36,11 @@ export class AiBackendService extends LongLivedPythonApiService {
       this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)
     })
   }
+
+  getLoopbackAuthToken(): string {
+    return this.loopbackAuthToken
+  }
+
   readonly serviceFolder = 'service'
   readonly baseDir = path.resolve(path.join(aipgBaseDir, this.serviceFolder))
   readonly serviceDir = this.baseDir
@@ -116,6 +126,7 @@ export class AiBackendService extends LongLivedPythonApiService {
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
     const pathSep = process.platform === 'win32' ? ';' : ':'
+    this.loopbackAuthToken = randomBytes(32).toString('hex')
     const additionalEnvVariables = {
       VIRTUAL_ENV: this.pythonEnvDir,
       PATH: [
@@ -129,6 +140,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       PIP_CONFIG_FILE: 'nul',
+      AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
     }
 
     const pythonBinary = path.join(

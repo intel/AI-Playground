@@ -409,6 +409,7 @@ export async function executeComfyGeneration(args: {
         variant: originalActiveVariant ?? undefined,
         skipModeSwitch: true,
         skipLastUsedUpdate: true,
+        skipMemoryAlert: true,
       })
     }
   }
@@ -421,6 +422,7 @@ export async function executeComfyGeneration(args: {
       variant: selectedVariant ?? undefined,
       skipModeSwitch: true, // Tool calls shouldn't change the UI mode
       skipLastUsedUpdate: true, // Don't update last-used for tool-initiated switches
+      skipMemoryAlert: true,
     })
 
     if (!switchResult.success) {

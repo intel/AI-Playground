@@ -124,8 +124,26 @@ const BasePresetFieldsSchema = z.object({
   variants: z
     .array(
       z.object({
+        // Unique-within-the-preset internal identifier (used for persistence keys and
+        // lookups). Use `displayName` when the user-facing label should differ or when
+        // two backends would otherwise collide (e.g. both want "Draft" in the radio).
         name: z.string(),
+        // Optional user-facing label shown in the variant radio. Defaults to `name`.
+        displayName: z.string().optional(),
         removeSettings: z.array(z.string()).optional(), // Labels of settings to remove
+        // When set, the variant is hidden from the picker if the named backend service is
+        // missing from `backendServices.info` or has status 'notInstalled'.
+        requiresService: z.string().optional(),
+        // When true, the variant's `comfyUiApiWorkflow` fully replaces the base workflow
+        // instead of being deep-merged into it. Use when the variant runs a completely
+        // different graph (e.g. swapping a multi-node native pipeline for a single OVMS node).
+        replaceWorkflow: z.boolean().optional(),
+        // Groups variants by execution backend (e.g. 'comfyui', 'openvino'). When omitted,
+        // the variant is treated as belonging to the default 'comfyui' backend. The
+        // SettingsWorkflow Backend dropdown is built from the distinct values across
+        // a preset's variants; the quality radio in PresetSelector then filters to
+        // variants matching the active backend.
+        backend: z.string().optional(),
         overrides: z.any(), // DeepPartial<Preset> - using z.any() for flexibility
       }),
     )
@@ -134,6 +152,10 @@ const BasePresetFieldsSchema = z.object({
   mediaType: z.enum(['image', 'video', 'model3d']).optional(), // Specifies what type of media the preset generates
   toolInstructions: z.string().optional(), // Instructions for the AI on how to generate prompts for this preset
   toolCategory: z.string().optional(), // Category for tool organization (e.g., 'create-images', 'edit-images'). Presets without toolCategory are not available as tools.
+  // When true, hide this preset from the Home Agent (Telegram) /imgGen picker.
+  // Set on presets that need extra UI configuration (e.g. manual sliders, reference
+  // image uploads) and therefore can't be driven cleanly via a chat command.
+  excludeFromHomeAgentPicker: z.boolean().optional(),
 })
 
 // ComfyUI Preset Schema
@@ -180,6 +202,10 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   filterTxt2TxtOnly: z.boolean().optional(), // Filter out vision AND reasoning models
   lockDeviceToNpu: z.boolean().optional(), // Lock device selector to NPU
   advancedMode: z.boolean().optional(), // Show advanced features: unspecified models + system prompt editing + vision model support
+  // When true, the preset is hidden from the standard chat PresetSelector. Used by built-in
+  // presets that drive a specific feature (e.g. Home Agent / Telegram) and should not be
+  // selectable from the normal Chat Settings picker.
+  excludeFromChatPresetPicker: z.boolean().optional(),
 })
 
 // Discriminated Union for all Preset types
@@ -200,6 +226,24 @@ export type ComfyUiPreset = z.infer<typeof ComfyUiPresetSchema>
 export type ChatPreset = z.infer<typeof ChatPresetSchema>
 
 // ============================================================================
+// Pure derivations
+// ============================================================================
+
+/**
+ * Whether a ComfyUI preset requires the user to enter a text prompt.
+ *
+ * The single source of truth is the structured prompt setting: a preset
+ * requires a user prompt iff its `settings` contain an entry with
+ * `settingName: 'prompt'` and `modifiable: true`. The `"no-prompt"` tag
+ * is human-readable documentation only and is intentionally not consulted.
+ */
+export function presetRequiresUserPrompt(preset: ComfyUiPreset): boolean {
+  return preset.settings.some(
+    (s) => 'settingName' in s && s.settingName === 'prompt' && s.modifiable,
+  )
+}
+
+// ============================================================================
 // Preset Store
 // ============================================================================
 
@@ -211,6 +255,12 @@ export const usePresets = defineStore(
     const activeVariantName = ref<Record<string, string>>({}) // preset name -> variant name
     const settingsPerPreset = ref<Record<string, Record<string, unknown>>>({})
     const lastUsedPresetName = ref<Record<string, string | null>>({}) // category -> preset name
+    // Per-preset memory of the last variant the user picked under each backend, so that
+    // toggling Backend in SettingsWorkflow restores the previous quality choice instead
+    // of always snapping to the first variant. Shape: { [presetName]: { [backend]: variantName } }
+    const lastQualityVariantPerBackend = ref<Record<string, Record<string, string>>>({})
+
+    const DEFAULT_BACKEND = 'comfyui'
 
     // ========================================================================
     // Validation
@@ -268,6 +318,20 @@ export const usePresets = defineStore(
         )
       }
 
+      // Full workflow replacement: opt-in for variants whose workflow is structurally
+      // disjoint from the base (e.g. OVMS single-node graph replacing a native pipeline).
+      // Without this, deepMerge would union both sets of nodes producing a frankenstein.
+      if (
+        variant.replaceWorkflow &&
+        merged.type === 'comfy' &&
+        variant.overrides &&
+        typeof variant.overrides === 'object' &&
+        'comfyUiApiWorkflow' in variant.overrides &&
+        variant.overrides.comfyUiApiWorkflow
+      ) {
+        merged.comfyUiApiWorkflow = variant.overrides.comfyUiApiWorkflow as ComfyUIApiWorkflow
+      }
+
       return validatePreset(merged) || basePreset
     }
 
@@ -305,18 +369,96 @@ export const usePresets = defineStore(
         const firstVariant = getFirstVariantName(preset)
         if (firstVariant) {
           activeVariantName.value[presetName] = firstVariant
+          rememberVariantPerBackend(preset, firstVariant)
           return
         }
       }
 
       if (variantName) {
         activeVariantName.value[presetName] = variantName
+        if (preset) rememberVariantPerBackend(preset, variantName)
       } else {
         // Only delete if preset has no variants
         if (!preset || !preset.variants || preset.variants.length === 0) {
           delete activeVariantName.value[presetName]
         }
       }
+    }
+
+    function rememberVariantPerBackend(preset: Preset, variantName: string): void {
+      const variant = preset.variants?.find((v) => v.name === variantName)
+      if (!variant) return
+      const backend = variant.backend ?? DEFAULT_BACKEND
+      const map = lastQualityVariantPerBackend.value[preset.name] ?? {}
+      map[backend] = variantName
+      lastQualityVariantPerBackend.value[preset.name] = map
+    }
+
+    // ========================================================================
+    // Backend selection helpers (used by SettingsWorkflow Backend dropdown)
+    // ========================================================================
+
+    /** Distinct backend ids present across the preset's variants, in stable order
+     *  (default backend first, then others in declaration order). */
+    function getDistinctBackendsForPreset(presetName: string): string[] {
+      const preset = presets.value.find((p) => p.name === presetName)
+      if (!preset?.variants?.length) return []
+      const seen = new Set<string>()
+      const ordered: string[] = []
+      for (const v of preset.variants) {
+        const b = v.backend ?? DEFAULT_BACKEND
+        if (!seen.has(b)) {
+          seen.add(b)
+          ordered.push(b)
+        }
+      }
+      // Make sure the default backend is first when present, so the radio defaults
+      // to the native ComfyUI flow rather than whatever happens to be declared first.
+      ordered.sort((a, b) => (a === DEFAULT_BACKEND ? -1 : b === DEFAULT_BACKEND ? 1 : 0))
+      return ordered
+    }
+
+    /** All variants belonging to the given backend (raw, unfiltered by availability). */
+    function getVariantsForBackend(
+      presetName: string,
+      backend: string,
+    ): { name: string; requiresService?: string }[] {
+      const preset = presets.value.find((p) => p.name === presetName)
+      if (!preset?.variants?.length) return []
+      return preset.variants.filter((v) => (v.backend ?? DEFAULT_BACKEND) === backend)
+    }
+
+    /** Returns the active backend for a preset, derived from the active variant. */
+    function getActiveBackend(presetName: string): string | null {
+      const preset = presets.value.find((p) => p.name === presetName)
+      if (!preset?.variants?.length) return null
+      const active = activeVariantName.value[presetName] ?? getFirstVariantName(preset)
+      if (!active) return null
+      const variant = preset.variants.find((v) => v.name === active)
+      return variant?.backend ?? DEFAULT_BACKEND
+    }
+
+    /** Choose a sensible variant when the user switches backend:
+     *   1) the variant they used last time on this backend (if it still exists)
+     *   2) the first variant in that backend group whose requiresService is met
+     *   3) the first variant in that backend group regardless of availability */
+    function pickInitialVariantForBackend(presetName: string, backend: string): string | null {
+      const variants = getVariantsForBackend(presetName, backend)
+      if (variants.length === 0) return null
+
+      const remembered = lastQualityVariantPerBackend.value[presetName]?.[backend]
+      if (remembered && variants.some((v) => v.name === remembered)) {
+        return remembered
+      }
+
+      const backendServices = useBackendServices()
+      const isServiceUp = (serviceName?: string) => {
+        if (!serviceName) return true
+        const info = backendServices.info.find((s) => s.serviceName === serviceName)
+        return !!info && info.status !== 'notInstalled'
+      }
+      const firstAvailable = variants.find((v) => isServiceUp(v.requiresService))
+      return (firstAvailable ?? variants[0]).name
     }
 
     // Deep merge utility function
@@ -528,6 +670,11 @@ export const usePresets = defineStore(
           // If type is specified, filter by type
           if (type && preset.type !== type) return false
 
+          // Hide chat presets that opt out of the standard picker (e.g. Home Agent)
+          if (preset.type === 'chat' && (preset as ChatPreset).excludeFromChatPresetPicker) {
+            return false
+          }
+
           // If categories are specified, filter by category
           if (categories.length > 0) {
             const presetCategory = preset.category || 'uncategorized'
@@ -629,6 +776,7 @@ export const usePresets = defineStore(
       return presets.value.filter((p) => {
         if (p.type !== 'chat') return false
         const chatPreset = p as ChatPreset
+        if (chatPreset.excludeFromChatPresetPicker) return false
         if (chatPreset.requiresNpuSupport && !hasNpuDevice) {
           return false
         }
@@ -669,6 +817,7 @@ export const usePresets = defineStore(
       activeVariantName,
       settingsPerPreset,
       lastUsedPresetName,
+      lastQualityVariantPerBackend,
 
       // Computed
       activePreset,
@@ -697,12 +846,22 @@ export const usePresets = defineStore(
       getPresetsByCategories,
       getLastUsedPreset,
       setLastUsedPreset,
+      getDistinctBackendsForPreset,
+      getVariantsForBackend,
+      getActiveBackend,
+      pickInitialVariantForBackend,
     }
   },
   {
     persist: {
       storage: demoAwareStorage,
-      pick: ['activePresetName', 'activeVariantName', 'settingsPerPreset', 'lastUsedPresetName'],
+      pick: [
+        'activePresetName',
+        'activeVariantName',
+        'settingsPerPreset',
+        'lastUsedPresetName',
+        'lastQualityVariantPerBackend',
+      ],
     },
   },
 )

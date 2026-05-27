@@ -17,7 +17,7 @@
   "requiredModels": [
     {
       "type": "unet",
-      "model": "black-forest-labs/FLUX.2-klein-4b-fp8/flux-2-klein-4b-fp8.safetensors"
+      "model": "black-forest-labs/FLUX.2-klein-4b/flux-2-klein-4b.safetensors"
     },
     {
       "type": "clip",
@@ -169,7 +169,7 @@
   "comfyUiApiWorkflow": {
     "1": {
       "inputs": {
-        "unet_name": "black-forest-labs---FLUX.2-klein-4b-fp8\\flux-2-klein-4b-fp8.safetensors",
+        "unet_name": "black-forest-labs---FLUX.2-klein-4b\\flux-2-klein-4b.safetensors",
         "weight_dtype": "default"
       },
       "class_type": "UNETLoader",

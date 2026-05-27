@@ -46,19 +46,19 @@
               </td>
               <td>
                 <Checkbox
-                  v-if="component.status !== 'running' && !component.isLoading"
+                  v-if="llamacppGgufCheckboxVisible(component)"
                   class="mx-auto"
                   :model-value="component.enabled"
                   @update:model-value="
                     (value: boolean | 'indeterminate') => {
-                      if (value === true) {
-                        toBeInstalledComponents.add(component.serviceName)
-                      } else {
-                        toBeInstalledComponents.delete(component.serviceName)
-                      }
+                      syncInstallSelection(component.serviceName, value === true)
                     }
                   "
-                  :disabled="component.isRequired"
+                  :disabled="
+                    component.isRequired ||
+                    (component.serviceName === 'llamacpp-backend' &&
+                      backendServices.llamaCppBuildVariant === 'ssd-offload')
+                  "
                 />
                 <p v-else>-</p>
               </td>
@@ -70,6 +70,101 @@
                 >
                   {{ appVersion }}
                 </div>
+
+                <!-- Llama.cpp GGUF row: version reflects standard tree only (not Phison install). -->
+                <TooltipProvider
+                  v-else-if="component.serviceName === 'llamacpp-backend'"
+                  :delay-duration="200"
+                >
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <div class="flex flex-col items-center gap-0.5 text-sm cursor-help">
+                        <div class="flex items-center gap-1.5">
+                          <span
+                            v-if="llamacppStandardRowIsSetUp(component)"
+                            :class="getLlamaStandardVersionStatusClass(component)"
+                            style="text-decoration: underline dotted 1px"
+                          >
+                            {{ formatLlamaStandardInstalled(component) }}
+                          </span>
+                          <span
+                            v-else
+                            class="underline decoration-dotted decoration-1"
+                            :class="getLlamaStandardUninstalledStatusClass(component)"
+                          >
+                            Not installed
+                          </span>
+                          <span
+                            v-if="
+                              llamacppStandardRowIsSetUp(component) &&
+                              isLlamaStandardVersionUpToDate(component)
+                            "
+                            class="text-green-500"
+                            title="Up to date"
+                          >
+                            ✓
+                          </span>
+                          <span
+                            v-else-if="
+                              llamacppStandardRowIsSetUp(component) &&
+                              hasLlamaStandardVersionChange(component)
+                            "
+                            :class="getLlamaStandardVersionChangeClass(component)"
+                            :title="
+                              isLlamaStandardUpgrade(component)
+                                ? 'Update available'
+                                : 'Downgrade pending'
+                            "
+                          >
+                            {{ getLlamaStandardVersionChangeIcon(component) }}
+                          </span>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      class="bg-card border border-border text-foreground p-3 z-[200]"
+                    >
+                      <div class="text-sm space-y-1">
+                        <div class="flex justify-between gap-4">
+                          <span class="text-muted-foreground">Installed:</span>
+                          <span>{{ formatLlamaStandardInstalled(component) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                          <span class="text-muted-foreground">Latest Supported:</span>
+                          <span>{{ formatOfficialTarget(component.serviceName) }}</span>
+                        </div>
+                        <div
+                          v-if="hasUserOverride(component.serviceName)"
+                          class="flex justify-between gap-4 text-amber-400"
+                        >
+                          <span>Settings Override:</span>
+                          <span>{{ formatUserOverride(component.serviceName) }}</span>
+                        </div>
+                        <div class="border-t border-border pt-1 mt-1 flex justify-between gap-4">
+                          <span class="text-muted-foreground">Effective:</span>
+                          <span>
+                            {{ formatEffectiveTarget(component.serviceName) }}
+                            <span
+                              v-if="hasUserOverride(component.serviceName)"
+                              class="text-amber-400"
+                            >
+                              (override)
+                            </span>
+                          </span>
+                        </div>
+                        <div
+                          v-if="
+                            hasUserOverride(component.serviceName) &&
+                            hasNewerSupportedVersion(component.serviceName)
+                          "
+                          class="border-t border-border pt-1 mt-1 text-xs text-amber-400"
+                        >
+                          A newer supported version is available
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
                 <!-- Other backends: Version with tooltip -->
                 <TooltipProvider v-else :delay-duration="200">
@@ -161,12 +256,13 @@
                   </Tooltip>
                 </TooltipProvider>
               </td>
-              <td :style="{ color: mapStatusToColor(component.status) }" class="">
+              <td :style="{ color: componentStatusIndicatorColor(component) }" class="">
                 <div class="flex items-center gap-2">
-                  <span>{{ mapToDisplayStatus(component.status) }}</span>
+                  <span>{{ mapToDisplayStatus(llamacppStandardRowStatus(component)) }}</span>
                   <button
                     v-if="
-                      component.status === 'failed' || component.status === 'installationFailed'
+                      llamacppStandardRowStatus(component) === 'failed' ||
+                      llamacppStandardRowStatus(component) === 'installationFailed'
                     "
                     @click="showErrorDetails(component.serviceName)"
                     class="text-primary hover:text-primary/80 transition-colors"
@@ -178,11 +274,11 @@
               </td>
               <td>
                 <span
-                  v-if="component.isLoading"
+                  v-if="rowShowsLoadingSpinner(component)"
                   class="svg-icon i-loading flex-none w-5 h-5"
                 ></span>
                 <button
-                  v-else-if="component.status === 'notInstalled' && !component.isSetUp"
+                  v-else-if="needsInstall(component)"
                   @click="() => installBackend(component.serviceName)"
                   :disabled="!component.enabled || isSomethingLoading()"
                   class="bg-primary py-1 px-4 rounded"
@@ -191,7 +287,8 @@
                 </button>
                 <button
                   v-else-if="
-                    component.status === 'failed' || component.status === 'installationFailed'
+                    llamacppStandardRowStatus(component) === 'failed' ||
+                    llamacppStandardRowStatus(component) === 'installationFailed'
                   "
                   @click="() => repairBackend(component.serviceName)"
                   :disabled="!component.enabled || isSomethingLoading()"
@@ -200,7 +297,7 @@
                   {{ languages.COM_REPAIR }}
                 </button>
                 <button
-                  v-else-if="component.status === 'running'"
+                  v-else-if="llamacppStandardRowStatus(component) === 'running'"
                   @click="() => restartBackend(component.serviceName)"
                   :disabled="isSomethingLoading()"
                   class="bg-primary py-1 px-4 rounded"
@@ -208,7 +305,10 @@
                   {{ languages.COM_RESTART }}
                 </button>
                 <button
-                  v-else-if="component.status === 'stopped' || component.status === 'notYetStarted'"
+                  v-else-if="
+                    llamacppStandardRowStatus(component) === 'stopped' ||
+                    llamacppStandardRowStatus(component) === 'notYetStarted'
+                  "
                   @click="() => restartBackend(component.serviceName)"
                   :disabled="isSomethingLoading()"
                   class="bg-primary py-1 px-4 rounded"
@@ -220,6 +320,57 @@
               </td>
               <td class="w-6">
                 <BackendOptions :backend="component.serviceName"></BackendOptions>
+              </td>
+            </tr>
+            <tr v-if="backendServices.phisonSsdDetected">
+              <td class="text-left">
+                <span class="inline-flex items-center gap-2">
+                  <span
+                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    title="Llama.cpp-Phison aiDAPTIV+"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M4 7a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                      />
+                      <path
+                        d="M8 11h8M8 15h5"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                  </span>
+                  <span>{{
+                    languages.BACKEND_PHISON_AIDAPTIV_ROW || 'Llama.cpp-Phison aiDAPTIV+ SSD'
+                  }}</span>
+                </span>
+              </td>
+              <td class="text-center">{{ languages.BACKEND_OPTIONAL }}</td>
+              <td class="text-center">—</td>
+              <td class="text-center">
+                <Switch
+                  class="mx-auto"
+                  :model-value="backendServices.llamaCppBuildVariant === 'ssd-offload'"
+                  @update:model-value="togglePhisonAidaptivInstall"
+                />
+              </td>
+              <td class="text-center text-xs text-muted-foreground">
+                {{
+                  formatVersion(
+                    backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+                      ?.llamaCppPhisonInstalledVersion,
+                  )
+                }}
+              </td>
+              <td class="text-center" :style="{ color: llamacppPhisonStatusIndicatorColor }">
+                {{ mapToDisplayStatus(llamacppPhisonRowStatus) }}
+              </td>
+              <td class="text-center text-muted-foreground text-sm">—</td>
+              <td class="w-6">
+                <PhisonAidaptivOptions />
               </td>
             </tr>
           </tbody>
@@ -244,7 +395,9 @@
           {{ languages.COM_INSTALL_ALL }}
         </button>
         <button
-          :style="{ visibility: convertVisibility(somethingChanged) }"
+          :style="{
+            visibility: convertVisibility(somethingChanged && !areBoxesChecked()),
+          }"
           :disabled="!CanCloseInstallations()"
           @click="closeInstallations"
           class="flex bg-primary py-1 px-4 rounded"
@@ -284,6 +437,8 @@ import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
+import PhisonAidaptivOptions from '@/components/PhisonAidaptivOptions.vue'
+import { Switch } from '@/components/ui/switch'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
@@ -328,6 +483,24 @@ const alreadyInstalledOrRequiredComponents = computed(
 )
 const toBeInstalledComponents = ref(new Set<BackendServiceName>())
 
+function togglePhisonAidaptivInstall(enabled: boolean) {
+  if (enabled) {
+    backendServices.llamaCppBuildVariant = 'ssd-offload'
+    toBeInstalledComponents.value.add('llamacpp-backend')
+  } else {
+    backendServices.llamaCppBuildVariant = 'standard'
+  }
+  toBeInstalledComponents.value = new Set(toBeInstalledComponents.value)
+}
+
+/** Must replace the Set so Vue tracks the ref; in-place .add/.delete does not update dependents. */
+function syncInstallSelection(serviceName: BackendServiceName, selected: boolean) {
+  const next = new Set(toBeInstalledComponents.value)
+  if (selected) next.add(serviceName)
+  else next.delete(serviceName)
+  toBeInstalledComponents.value = next
+}
+
 const components = computed(() => {
   const isNvidiaMode = productModeStore.productMode === 'nvidia'
   return backendServices.info
@@ -340,6 +513,191 @@ const components = computed(() => {
       ...item,
     }))
 })
+
+/** Status column for Phison row — hides "installing" when a standard-only Llama.cpp setup runs. */
+const llamacppPhisonRowStatus = computed((): BackendStatus => {
+  const info = backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+  const status = info?.status ?? 'notInstalled'
+  if (backendServices.llamaCppBuildVariant === 'standard' && status === 'installing') {
+    return 'notInstalled'
+  }
+  if (
+    backendServices.llamaCppBuildVariant === 'standard' &&
+    (info?.llamaCppPhisonArtifactReady ?? false)
+  ) {
+    return 'stopped'
+  }
+  return status
+})
+
+function llamacppStandardRowStatus(component: ExtendedApiServiceInformation): BackendStatus {
+  if (component.serviceName !== 'llamacpp-backend') return component.status
+  if (backendServices.llamaCppBuildVariant === 'ssd-offload' && component.status === 'installing') {
+    return 'notInstalled'
+  }
+  return component.status
+}
+
+/** Status column text color: grey = not installed / inactive; green = that build installed with toggle on. */
+function componentStatusIndicatorColor(component: ExtendedApiServiceInformation): string {
+  if (component.serviceName !== 'llamacpp-backend') {
+    return mapStatusToColor(component.status)
+  }
+  const st = llamacppStandardRowStatus(component)
+  if (st === 'failed' || st === 'installationFailed') return mapStatusToColor(st)
+  if (st === 'installing' || st === 'starting' || st === 'stopping') return mapStatusToColor(st)
+
+  const standardReady = component.llamaCppStandardArtifactReady ?? false
+  if (!standardReady) return mapStatusToColor('notInstalled')
+
+  if (backendServices.llamaCppBuildVariant !== 'standard') {
+    return mapStatusToColor('notInstalled')
+  }
+
+  const toggledOn = component.enabled
+  const running = st === 'running'
+  if (standardReady && (toggledOn || running)) {
+    return mapStatusToColor('running')
+  }
+  return mapStatusToColor('notInstalled')
+}
+
+const llamacppPhisonStatusIndicatorColor = computed(() => {
+  const info = backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+  const st = llamacppPhisonRowStatus.value
+  if (st === 'failed' || st === 'installationFailed') return mapStatusToColor(st)
+  if (st === 'installing' || st === 'starting' || st === 'stopping') return mapStatusToColor(st)
+
+  const phisonReady = info?.llamaCppPhisonArtifactReady ?? false
+  if (!phisonReady) return mapStatusToColor('notInstalled')
+
+  if (backendServices.llamaCppBuildVariant === 'ssd-offload') {
+    return mapStatusToColor('running')
+  }
+  return mapStatusToColor('notInstalled')
+})
+
+function llamacppStandardRowIsSetUp(component: ExtendedApiServiceInformation): boolean {
+  if (component.serviceName !== 'llamacpp-backend') return component.isSetUp
+  return component.llamaCppStandardArtifactReady ?? false
+}
+
+/** GGUF row checkbox: after switching from Phison, service may still be "running" until standard GGUF exists — keep checkbox usable. */
+function llamacppGgufCheckboxVisible(component: ExtendedApiServiceInformation): boolean {
+  if (component.serviceName !== 'llamacpp-backend') {
+    return component.status !== 'running' && !component.isLoading
+  }
+  if (component.isLoading) return false
+  if (backendServices.llamaCppBuildVariant === 'ssd-offload') {
+    return component.status !== 'running'
+  }
+  if (!llamacppStandardRowIsSetUp(component)) {
+    return component.status !== 'installing'
+  }
+  return component.status !== 'running'
+}
+
+/** Standard GGUF install: any non-installing status while variant is standard and llama-cpp/ tree is missing. */
+function llamacppStandardNeedsInstall(component: ExtendedApiServiceInformation): boolean {
+  if (component.serviceName !== 'llamacpp-backend') return false
+  if (backendServices.llamaCppBuildVariant !== 'standard') return false
+  if (llamacppStandardRowIsSetUp(component)) return false
+  return component.status !== 'installing'
+}
+
+/**
+ * Unified per-row "needs Install button" check. For llamacpp this delegates
+ * to the variant-aware standard helper. For every other backend a fresh
+ * `notInstalled` status is what the Install button is for — previously every
+ * row went through `llamacppStandardNeedsInstall`, which short-circuits
+ * `false` for non-llama services and left the Install column blank for
+ * comfyui/openvino/ai-backend/home-agent on a fresh install.
+ */
+function needsInstall(component: ExtendedApiServiceInformation): boolean {
+  if (component.serviceName === 'llamacpp-backend') {
+    return llamacppStandardNeedsInstall(component)
+  }
+  return component.status === 'notInstalled'
+}
+
+function formatLlamaStandardInstalled(component: ExtendedApiServiceInformation): string {
+  const v = component.llamaCppStandardInstalledVersion
+  if (v) return formatVersion(v)
+  return '-'
+}
+
+function rowShowsLoadingSpinner(component: ExtendedApiServiceInformation): boolean {
+  if (!component.isLoading) return false
+  if (
+    component.serviceName === 'llamacpp-backend' &&
+    backendServices.llamaCppBuildVariant === 'ssd-offload'
+  ) {
+    return false
+  }
+  return true
+}
+
+function hasLlamaStandardVersionChange(component: ExtendedApiServiceInformation): boolean {
+  if (component.serviceName !== 'llamacpp-backend') return hasVersionChange(component.serviceName)
+  const effectiveTarget = getEffectiveTarget(component.serviceName)
+  const installed = component.llamaCppStandardInstalledVersion
+  if (!effectiveTarget?.version || !installed?.version) return false
+  const installedNorm = normalizeVersionForComparison(component.serviceName, installed.version)
+  const targetNorm = normalizeVersionForComparison(component.serviceName, effectiveTarget.version)
+  return installedNorm !== targetNorm
+}
+
+function isLlamaStandardVersionUpToDate(component: ExtendedApiServiceInformation): boolean {
+  if (component.serviceName !== 'llamacpp-backend') return isVersionUpToDate(component.serviceName)
+  const vs = backendServices.versionState['llamacpp-backend']
+  const effectiveTarget = getEffectiveTarget(component.serviceName)
+  const installed = component.llamaCppStandardInstalledVersion
+  if (!vs.target || !effectiveTarget || !installed?.version) return false
+  return !hasLlamaStandardVersionChange(component)
+}
+
+function isLlamaStandardUpgrade(component: ExtendedApiServiceInformation): boolean | null {
+  if (component.serviceName !== 'llamacpp-backend') return isUpgrade(component.serviceName)
+  const effectiveTarget = getEffectiveTarget(component.serviceName)
+  const installed = component.llamaCppStandardInstalledVersion
+  if (!effectiveTarget?.version || !installed?.version) return null
+  const installedNorm = normalizeVersionForComparison(component.serviceName, installed.version)
+  const targetNorm = normalizeVersionForComparison(component.serviceName, effectiveTarget.version)
+  if (compareVersions(installedNorm, targetNorm) < 0) return true
+  if (compareVersions(installedNorm, targetNorm) > 0) return false
+  return null
+}
+
+function getLlamaStandardVersionChangeIcon(component: ExtendedApiServiceInformation): string {
+  if (component.serviceName !== 'llamacpp-backend')
+    return getVersionChangeIcon(component.serviceName)
+  const upgrading = isLlamaStandardUpgrade(component)
+  if (upgrading === true) return '↑'
+  if (upgrading === false) return '↓'
+  return '⚠'
+}
+
+function getLlamaStandardVersionChangeClass(_component: ExtendedApiServiceInformation): string {
+  return 'text-amber-500'
+}
+
+function getLlamaStandardVersionStatusClass(component: ExtendedApiServiceInformation): string {
+  if (component.serviceName !== 'llamacpp-backend')
+    return getVersionStatusClass(component.serviceName)
+  if (hasLlamaStandardVersionChange(component) || hasNewerSupportedVersion(component.serviceName)) {
+    return 'text-amber-500'
+  }
+  return 'text-foreground'
+}
+
+function getLlamaStandardUninstalledStatusClass(component: ExtendedApiServiceInformation): string {
+  if (component.serviceName !== 'llamacpp-backend')
+    return getUninstalledStatusClass(component.serviceName)
+  if (hasLlamaStandardVersionChange(component) || hasNewerSupportedVersion(component.serviceName)) {
+    return 'text-amber-500'
+  }
+  return 'text-muted-foreground'
+}
 
 function isSomethingLoading(): boolean {
   return components.value.some((item) => item.isLoading)
@@ -407,13 +765,29 @@ async function restartBackend(name: BackendServiceName) {
 }
 
 async function installAllSelected() {
-  toBeInstalledQueue = components.value.filter(
-    (item) =>
-      item.enabled &&
-      (item.status === 'notInstalled' ||
+  toBeInstalledQueue = components.value.filter((item) => {
+    if (!item.enabled) return false
+    if (item.serviceName === 'llamacpp-backend') {
+      if (item.status === 'installing') return false
+      if (backendServices.llamaCppBuildVariant === 'standard') {
+        return (
+          !llamacppStandardRowIsSetUp(item) ||
+          item.status === 'failed' ||
+          item.status === 'installationFailed'
+        )
+      }
+      return (
+        !(item.llamaCppPhisonArtifactReady ?? false) ||
         item.status === 'failed' ||
-        item.status === 'installationFailed'),
-  )
+        item.status === 'installationFailed'
+      )
+    }
+    return (
+      item.status === 'notInstalled' ||
+      item.status === 'failed' ||
+      item.status === 'installationFailed'
+    )
+  })
   toBeInstalledQueue.forEach((item) => loadingComponents.value.add(item.serviceName))
   for (const component of toBeInstalledQueue) {
     if (component.status === 'failed' || component.status == 'installationFailed') {
@@ -456,7 +830,18 @@ function isEverythingRunning() {
 }
 
 function areBoxesChecked() {
-  return components.value.some((i) => i.status !== 'running' && i.enabled)
+  return components.value.some((i) => {
+    if (!i.enabled) return false
+    if (i.serviceName === 'llamacpp-backend') {
+      if (backendServices.llamaCppBuildVariant === 'standard') {
+        if (!llamacppStandardRowIsSetUp(i)) return true
+        return i.status !== 'running'
+      }
+      if (!(i.llamaCppPhisonArtifactReady ?? false)) return true
+      return i.status !== 'running'
+    }
+    return i.status !== 'running'
+  })
 }
 
 function convertVisibility(shouldBeVisible: boolean) {

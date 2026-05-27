@@ -24,6 +24,26 @@ model_list_cache = dict()
 model_lock = Lock()
 
 
+def _merge_move(src: str, dst: str) -> None:
+    """Move `src` to `dst`, merging into an existing destination directory tree.
+
+    Plain `shutil.move` raises `shutil.Error: Destination path '...' already exists`
+    when moving a directory whose name already exists at the destination. That happens
+    when two downloads from the same HF repo land files into the same subdirectory
+    (e.g. ERNIE-Image's `diffusion_models/turbo.safetensors` then `diffusion_models/main.safetensors`).
+    We recurse instead, replacing files at the leaves.
+    """
+    if os.path.isdir(src) and os.path.isdir(dst):
+        for item in os.listdir(src):
+            _merge_move(os.path.join(src, item), os.path.join(dst, item))
+        os.rmdir(src)
+        return
+    if os.path.isfile(dst):
+        os.remove(dst)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.move(src, dst)
+
+
 class HFFileItem:
     relpath: str
     size: int
@@ -306,6 +326,7 @@ class HFPlaygroundDownloader:
 
     def multiple_thread_download(self, thread_count: int):
         self.download_stop = False
+        report_thread = None
         if self.on_download_progress is not None:
             self.prev_sec_download_size = 0
             report_thread = self.start_report_download_progress()
@@ -325,9 +346,7 @@ class HFPlaygroundDownloader:
             self.on_download_completed(self.repo_id, self.error)
         if not self.download_stop and self.error is None:
             self.move_to_desired_position()
-        else:
-            # Download aborted
-            shutil.rmtree(self.save_path_tmp)
+        # On failure or user stop, keep save_path_tmp so partial files can resume later.
 
     def move_to_desired_position(self, retriable: bool = True):
         desired_repo_root_dir_name = os.path.join(
@@ -350,9 +369,9 @@ class HFPlaygroundDownloader:
         try:
             if os.path.exists(desired_repo_root_dir_name) or move_to_flat_structure:
                 for item in os.listdir(self.save_path_tmp):
-                    shutil.move(
+                    _merge_move(
                         os.path.join(self.save_path_tmp, item),
-                        desired_repo_root_dir_name,
+                        os.path.join(desired_repo_root_dir_name, item),
                     )
                 shutil.rmtree(self.save_path_tmp)
             else:
@@ -438,8 +457,18 @@ class HFPlaygroundDownloader:
                 while True:
                     try:
                         response, fw = self.init_download(file)
-                        if response.status_code != 200:
-                            download_retry += 2  # we only want to retry once in case of non network errors
+                        code = response.status_code
+                        if file.disk_file_size > 0 and code == 416:
+                            response.close()
+                            fw.close()
+                            if path.getsize(file.save_filename) >= file.size:
+                                break
+                            download_retry += 2
+                            raise DownloadException(file.url)
+                        if not utils.hf_chunk_http_ok(code, file.disk_file_size):
+                            response.close()
+                            fw.close()
+                            download_retry += 2
                             raise DownloadException(file.url)
                         # start download file
                         with response:

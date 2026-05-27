@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startDrag: (fileName: string) => ipcRenderer.send('ondragstart', fileName),
   getFilePath: (file: File) => webUtils.getPathForFile(file),
   getServices: () => ipcRenderer.invoke('getServices'),
+  getBackendAuthToken: (serviceName: string) =>
+    ipcRenderer.invoke('getBackendAuthToken', serviceName),
   updateServiceSettings: (settings: ServiceSettings) =>
     ipcRenderer.invoke('updateServiceSettings', settings),
   uninstall: (serviceName: string) => ipcRenderer.invoke('uninstall', serviceName),
@@ -65,6 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
   saveImage: (url: string) => ipcRenderer.send('saveImage', url),
   saveImageToMediaInput: (dataUri: string) => ipcRenderer.invoke('saveImageToMediaInput', dataUri),
+  readAipgMediaAsBase64: (url: string) => ipcRenderer.invoke('readAipgMediaAsBase64', url),
   wakeupApiService: () => ipcRenderer.send('wakeupApiService'),
   openImageWin: (url: string, title: string, width: number, height: number) =>
     ipcRenderer.send('openImageWin', url, title, width, height),
@@ -103,6 +106,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   wakeupComfyUIService: () => ipcRenderer.send('wakeupComfyUIService'),
   getComfyUiDefaultParameters: () => ipcRenderer.invoke('getComfyUiDefaultParameters'),
   getLlamaCppDefaultParameters: () => ipcRenderer.invoke('getLlamaCppDefaultParameters'),
+  detectPhisonSsd: () => ipcRenderer.invoke('detectPhisonSsd') as Promise<{ detected: boolean }>,
   onServiceSetUpProgress: (callback: (data: SetupProgress) => void) =>
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
@@ -127,6 +131,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('startTranscriptionServer', modelName),
   stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),
   getTranscriptionServerUrl: () => ipcRenderer.invoke('getTranscriptionServerUrl'),
+  ensureOvmsImageReady: (
+    serviceName: string,
+    modelName: string,
+    keepModelsLoaded?: boolean,
+    resolution?: string,
+  ) =>
+    ipcRenderer.invoke(
+      'ensureOvmsImageReady',
+      serviceName,
+      modelName,
+      keepModelsLoaded,
+      resolution,
+    ),
+  stopOvmsImageServer: () => ipcRenderer.invoke('stopOvmsImageServer'),
+  getOvmsImageServerUrl: () => ipcRenderer.invoke('getOvmsImageServerUrl'),
   // ComfyUI Tools
   comfyui: {
     isGitInstalled: () => ipcRenderer.invoke('comfyui:isGitInstalled'),
@@ -143,6 +162,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     uninstallCustomNode: (nodeRepoData: ComfyUICustomNodeRepoId) =>
       ipcRenderer.invoke('comfyui:uninstallCustomNode', nodeRepoData),
     listInstalledCustomNodes: () => ipcRenderer.invoke('comfyui:listInstalledCustomNodes'),
+    openInBrowser: () => ipcRenderer.invoke('comfyui:openInBrowser'),
   },
   mcp: {
     listServers: () => ipcRenderer.invoke('mcp:listServers'),
@@ -158,16 +178,66 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addServer: (
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ) => ipcRenderer.invoke('mcp:addServer', serverId, config),
     getServerConfig: (serverId: string) => ipcRenderer.invoke('mcp:getServerConfig', serverId),
     updateServer: (
       serverId: string,
       config:
-        | { type?: 'stdio'; command: string; args?: string[]; displayName?: string }
-        | { type: 'http'; url: string; headers?: Record<string, string>; displayName?: string },
+        | {
+            type?: 'stdio'
+            command: string
+            args?: string[]
+            displayName?: string
+            instructions?: string
+          }
+        | {
+            type: 'http'
+            url: string
+            headers?: Record<string, string>
+            displayName?: string
+            instructions?: string
+          },
     ) => ipcRenderer.invoke('mcp:updateServer', serverId, config),
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
+  },
+  homeAgent: {
+    saveConfig: (token: string, chatId: string) =>
+      ipcRenderer.invoke('homeAgent:saveConfig', token, chatId),
+    loadConfig: () => ipcRenderer.invoke('homeAgent:loadConfig'),
+    clearConfig: () => ipcRenderer.invoke('homeAgent:clearConfig'),
+    testTelegram: () => ipcRenderer.invoke('homeAgent:testTelegram'),
+    detectChatId: (token: string) => ipcRenderer.invoke('homeAgent:detectChatId', token),
+    detectChatIdFromSaved: () => ipcRenderer.invoke('homeAgent:detectChatIdFromSaved'),
+    injectToken: (token: string, chatId?: string) =>
+      ipcRenderer.invoke('homeAgent:injectToken', token, chatId),
+    pollTelegram: () => ipcRenderer.invoke('homeAgent:pollTelegram'),
+    flushPending: () => ipcRenderer.invoke('homeAgent:flushPending'),
+    sendTelegramReply: (text: string, parseMode?: string) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramReply', text, parseMode),
+    sendTelegramPhoto: (imageBase64: string, caption?: string) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramPhoto', imageBase64, caption),
+    sendTelegramChatAction: (action?: string) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramChatAction', action),
+    sendTelegramDraft: (opts: { draftId: number; text?: string; parseMode?: string }) =>
+      ipcRenderer.invoke('homeAgent:sendTelegramDraft', opts),
+    sendTelegramKeyboard: (opts: {
+      text: string
+      parseMode?: string
+      buttons: Array<Array<{ text: string; callbackData: string }>>
+    }) => ipcRenderer.invoke('homeAgent:sendTelegramKeyboard', opts),
   },
 })

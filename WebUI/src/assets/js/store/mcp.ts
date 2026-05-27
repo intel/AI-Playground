@@ -18,6 +18,7 @@ type McpToolInfo = {
 type McpServerInfo = {
   id: string
   name: string
+  instructions?: string
 }
 
 type ServerState = {

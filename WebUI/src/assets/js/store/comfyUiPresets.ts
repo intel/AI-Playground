@@ -1,7 +1,8 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { WebSocket } from 'partysocket'
 import { demoAwareStorage } from '../demoAwareStorage'
-import { ComfyUIApiWorkflow } from './presets'
+import { ComfyUIApiWorkflow, type Preset } from './presets'
+import { useDeveloperSettings } from './developerSettings'
 import {
   useImageGenerationPresets,
   modelNameForComfyApi,
@@ -14,20 +15,38 @@ import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { usePromptStore } from './promptArea'
 import { z } from 'zod'
 import { imageUrlToDataUri, isImageUrl } from '@/lib/utils'
+import { getComfyAuthToken, invalidateComfyAuthToken } from '@/lib/loopbackAuth'
+import {
+  findKeysByClassType,
+  findKeysByTitle,
+  modifySettingInWorkflow,
+} from './comfyUiWorkflowHelpers'
+
+/**
+ * Wraps fetch() with the ComfyUI loopback bearer token. The bundled
+ * `aipg-auth` ComfyUI custom_node requires this header on every non-/queue
+ * request; without it any other local process / web page could reach
+ * ComfyUI's API on 127.0.0.1.
+ */
+async function comfyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  let token = await getComfyAuthToken()
+  const buildInit = (t: string): RequestInit => {
+    const headers = new Headers(init?.headers ?? {})
+    if (t) headers.set('Authorization', `Bearer ${t}`)
+    return { ...(init ?? {}), headers }
+  }
+  let response = await fetch(input, buildInit(token))
+  if (response.status === 401) {
+    invalidateComfyAuthToken()
+    token = await getComfyAuthToken()
+    if (token) {
+      response = await fetch(input, buildInit(token))
+    }
+  }
+  return response
+}
 
 const WEBSOCKET_OPEN = 1
-
-const settingToComfyInputsName = {
-  seed: ['seed', 'noise_seed'],
-  inferenceSteps: ['steps'],
-  height: ['height'],
-  width: ['width'],
-  prompt: ['text'],
-  negativePrompt: ['text'],
-  batchSize: ['batch_size'],
-} satisfies Partial<Record<string, string[]>>
-
-type ComfySetting = keyof typeof settingToComfyInputsName
 
 const ComfyMessageSchema = z.discriminatedUnion('type', [
   z.object({
@@ -116,63 +135,27 @@ const ComfyMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
-  Object.entries(workflow)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
-    .map(([key, _value]) => key)
+const OVMS_IMAGE_CLASS_TYPES = ['OpenAICompatibleImageGeneration', 'OpenAICompatibleImageEdit']
 
-const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
-  Object.entries(workflow)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter(([_key, value]) => (value as any)?.['class_type'] === classType)
-    .map(([key, _value]) => key)
-
-const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
-  for (const inputName of settingToComfyInputsName[setting]) {
-    if (inputName === 'text') continue
-    const keys = Object.entries(workflow)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter(([_key, value]) => (value as any)?.['inputs']?.[inputName ?? ''] !== undefined)
-      .map(([key, _value]) => key)
-    if (keys.length > 0) return keys
-  }
-  return []
+function workflowUsesOvmsImage(workflow: ComfyUIApiWorkflow): boolean {
+  return OVMS_IMAGE_CLASS_TYPES.some((ct) => findKeysByClassType(workflow, ct).length > 0)
 }
 
-const getInputNameBySettingAndKey = (
-  workflow: ComfyUIApiWorkflow,
-  key: string,
-  setting: ComfySetting,
-) => {
-  for (const inputName of settingToComfyInputsName[setting]) {
-    if (workflow[key]?.inputs?.[inputName ?? '']) return inputName
-  }
-  return ''
-}
-
-function modifySettingInWorkflow(
-  workflow: ComfyUIApiWorkflow,
-  setting: ComfySetting,
-  value: unknown,
-) {
-  const keys =
-    findKeysByTitle(workflow, setting).length > 0
-      ? findKeysByTitle(workflow, setting)
-      : findKeysByInputsName(workflow, setting)
-  if (keys.length === 0) {
-    console.warn(`No key found for setting ${setting}. Skipping this setting.`)
-    return
-  }
-  if (keys.length > 1) {
-    console.warn(`Multiple keys found for setting ${setting}. Using first one`)
-  }
-  const key = keys[0]
-  const inputName = getInputNameBySettingAndKey(workflow, key, setting)
-  if (workflow[key]?.inputs?.[inputName] !== undefined) {
-    workflow[key].inputs[inputName] = value
-  } else if (workflow[key]?.inputs?.['a'] !== undefined) {
-    workflow[key].inputs['a'] = value
+function injectOvmsImageUrl(workflow: ComfyUIApiWorkflow, url: string): void {
+  for (const classType of OVMS_IMAGE_CLASS_TYPES) {
+    for (const key of findKeysByClassType(workflow, classType)) {
+      const inputs = workflow[key]?.inputs
+      if (!inputs || typeof inputs !== 'object') continue
+      if ('base_url' in inputs) {
+        inputs['base_url'] = url
+      }
+      // OVMS registers the served graph under the slash-flattened repo id
+      // (see `--source_model` in openVINOBackendService.ts), so the model
+      // sent in the OpenAI-compatible request must use the same form.
+      if ('model' in inputs && typeof inputs['model'] === 'string') {
+        inputs['model'] = inputs['model'].split('/').join('---')
+      }
+    }
   }
 }
 
@@ -180,6 +163,7 @@ function modifySettingInWorkflow(
 const COMFY_MODEL_PATH_INPUTS = new Set([
   'ckpt_name',
   'lora_name',
+  'text_encoder',
   'vae_name',
   'unet_name',
   'clip_name',
@@ -564,13 +548,26 @@ export const useComfyUiPresets = defineStore(
       }
     }
 
-    function connectToComfyUi() {
+    async function connectToComfyUi() {
       if (comfyUiState.value?.status !== 'running') {
         console.warn('ComfyUI backend not running, cannot start websocket')
         return
       }
 
-      const comfyWsUrl = `ws://localhost:${comfyPort.value}/ws?clientId=${clientId}`
+      // Browsers cannot set custom headers on WebSocket upgrades, so the
+      // bundled aipg-auth middleware accepts the loopback token via query
+      // string for the /ws endpoint.
+      //
+      // Force-refresh the token: a rejected WS upgrade just shows up as a
+      // close event with no auth-specific status code, so we can't detect
+      // and retry like we do for HTTP 401. Pulling fresh from the Electron
+      // main process on every connect attempt is cheap (single IPC) and
+      // ensures we never connect with a token from a previous ComfyUI spawn
+      // (each spawn regenerates AIPG_LOOPBACK_TOKEN).
+      const wsToken = await getComfyAuthToken(true)
+      const comfyWsUrl =
+        `ws://localhost:${comfyPort.value}/ws?clientId=${clientId}` +
+        (wsToken ? `&token=${encodeURIComponent(wsToken)}` : '')
 
       if (websocket.value) {
         const state = websocket.value.readyState
@@ -600,6 +597,13 @@ export const useComfyUiPresets = defineStore(
           code: event.code,
           reason: event.reason,
         })
+        // Drop the cached token in case the close was caused by an auth
+        // rejection on the upgrade (e.g. ComfyUI restarted with a fresh
+        // AIPG_LOOPBACK_TOKEN). The next connect attempt will pull a fresh
+        // token from the Electron main process. This is also a no-op on a
+        // clean close, since the next force-refresh in connectToComfyUi
+        // will overwrite it anyway.
+        invalidateComfyAuthToken()
       })
 
       websocket.value.addEventListener('error', (error) => {
@@ -863,7 +867,8 @@ export const useComfyUiPresets = defineStore(
         }
 
         // Check if this is a required image input
-        const isImageType = input.type === 'image' || input.type === 'inpaintMask'
+        const isImageType =
+          input.type === 'image' || input.type === 'inpaintMask' || input.type === 'outpaintCanvas'
         const isDisplayed = input.displayed !== false // defaults to true
         const isModifiable = input.modifiable !== false // defaults to true
         const hasNoDefault = input.defaultValue === '' || input.defaultValue === undefined
@@ -917,7 +922,11 @@ export const useComfyUiPresets = defineStore(
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = value
           }
         }
-        if (input.type === 'image' || input.type === 'inpaintMask') {
+        if (
+          input.type === 'image' ||
+          input.type === 'inpaintMask' ||
+          input.type === 'outpaintCanvas'
+        ) {
           const rawValue = input.current.value
           const isEmpty = typeof rawValue !== 'string' || rawValue === '' || !isImageUrl(rawValue)
           const isOptional = input.optional === true
@@ -941,8 +950,7 @@ export const useComfyUiPresets = defineStore(
           )
             .map((b) => b.toString(16).padStart(2, '0'))
             .join('')
-          // For inpaintMask, always use PNG to preserve alpha channel
-          // For regular images, extract extension from data URI
+          // PNG for alpha (inpaint / outpaint composites); else follow data URI
           let uploadImageExtension = 'png'
           if (input.type === 'image') {
             const match = imageDataUri.match(/data:image\/(png|jpeg|webp);base64,/)
@@ -955,7 +963,7 @@ export const useComfyUiPresets = defineStore(
           }
           const data = new FormData()
           data.append('image', dataURItoBlob(imageDataUri), uploadImageName)
-          await fetch(`${comfyBaseUrl.value}/upload/image`, {
+          await comfyFetch(`${comfyBaseUrl.value}/upload/image`, {
             method: 'POST',
             body: data,
           })
@@ -982,7 +990,7 @@ export const useComfyUiPresets = defineStore(
           }
           const data = new FormData()
           data.append('image', dataURItoBlob(input.current.value), uploadVideoName)
-          await fetch(`${comfyBaseUrl.value}/upload/image`, {
+          await comfyFetch(`${comfyBaseUrl.value}/upload/image`, {
             method: 'POST',
             body: data,
           })
@@ -996,6 +1004,51 @@ export const useComfyUiPresets = defineStore(
       imageGeneration.currentState = 'no_start'
       const promptStore = usePromptStore()
       promptStore.promptSubmitted = false
+    }
+
+    /**
+     * If the preset's workflow uses OVMS image nodes, ensure the OVMS image server
+     * is running with the correct model. Returns the server URL on success, null if
+     * the workflow doesn't need OVMS, or false on failure (caller should abort).
+     */
+    async function ensureOvmsImageServerIfNeeded(preset: Preset): Promise<string | null | false> {
+      if (preset.type !== 'comfy') return null
+      if (!workflowUsesOvmsImage(preset.comfyUiApiWorkflow)) return null
+
+      const modelInput = imageGeneration.comfyInputs.find(
+        (input) => 'nodeInput' in input && input.nodeInput === 'model',
+      )
+      const modelId =
+        (modelInput && 'current' in modelInput ? String(modelInput.current.value) : '') ||
+        preset.requiredModels?.[0]?.model ||
+        ''
+
+      if (!modelId) {
+        toast.error('No model id configured for OVMS image generation')
+        return false
+      }
+
+      try {
+        const { keepModelsLoaded } = useDeveloperSettings()
+        // Pass the current generation resolution so OVMS can statically reshape the image
+        // pipeline when running on NPU (required by the NPU plugin). Ignored on other devices.
+        const resolution = `${imageGeneration.width}x${imageGeneration.height}`
+        const result = await window.electronAPI.ensureOvmsImageReady(
+          'openvino-backend',
+          modelId,
+          keepModelsLoaded,
+          resolution,
+        )
+        if (result.success && result.url) {
+          return result.url
+        }
+        toast.error(`Failed to start OVMS image server: ${result.error || 'unknown error'}`)
+        return false
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        toast.error(`OVMS image server error: ${msg}`)
+        return false
+      }
     }
 
     async function generate(imageIds: string[], mode: WorkflowModeType, sourceImage?: string) {
@@ -1057,6 +1110,13 @@ export const useComfyUiPresets = defineStore(
         imageGeneration.currentState = 'install_workflow_components'
         await installCustomNodesForActivePresetFully()
 
+        // Ensure OVMS image server is ready if the workflow uses OpenAI-compatible image nodes
+        const ovmsImageUrl = await ensureOvmsImageServerIfNeeded(preset)
+        if (ovmsImageUrl === false) {
+          resetGenerationState()
+          return
+        }
+
         const platform = await window.electronAPI.getPlatform()
         const mutableWorkflow: ComfyUIApiWorkflow = JSON.parse(
           JSON.stringify(preset.comfyUiApiWorkflow),
@@ -1072,6 +1132,11 @@ export const useComfyUiPresets = defineStore(
         modifySettingInWorkflow(mutableWorkflow, 'negativePrompt', imageGeneration.negativePrompt)
 
         await modifyDynamicSettingsInWorkflow(mutableWorkflow, platform)
+
+        if (ovmsImageUrl) {
+          injectOvmsImageUrl(mutableWorkflow, ovmsImageUrl)
+        }
+
         bypassOptionalModelNodes(mutableWorkflow)
         normalizeModelPathsInWorkflow(mutableWorkflow, platform)
 
@@ -1102,7 +1167,7 @@ export const useComfyUiPresets = defineStore(
         })
         for (const image of queuedImages) {
           modifySettingInWorkflow(mutableWorkflow, 'seed', `${image.settings.seed!.toFixed(0)}`)
-          const result = await fetch(`${comfyBaseUrl.value}/prompt`, {
+          const result = await comfyFetch(`${comfyBaseUrl.value}/prompt`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1131,7 +1196,7 @@ export const useComfyUiPresets = defineStore(
     }
 
     async function freeMemoryAndUnloadModels() {
-      await fetch(`${comfyBaseUrl.value}/free`, {
+      await comfyFetch(`${comfyBaseUrl.value}/free`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1141,14 +1206,14 @@ export const useComfyUiPresets = defineStore(
     }
 
     async function stop() {
-      await fetch(`${comfyBaseUrl.value}/queue`, {
+      await comfyFetch(`${comfyBaseUrl.value}/queue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ clear: true }),
       })
-      await fetch(`${comfyBaseUrl.value}/interrupt`, {
+      await comfyFetch(`${comfyBaseUrl.value}/interrupt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -37,12 +37,15 @@ import {
   UtilityProcess,
 } from 'electron'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import fs from 'fs'
 import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execAsync = promisify(exec)
 import { randomUUID } from 'node:crypto'
 import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
-import { cleanupTempFolders } from './tempFolderCleanup'
 import { appLoggerInstance } from './logging/logger.ts'
 import {
   aiplaygroundApiServiceRegistry,
@@ -52,6 +55,8 @@ import {
   ComfyUiBackendService,
   COMFYUI_DEFAULT_PARAMETERS,
 } from './subprocesses/comfyUIBackendService'
+import { AiBackendService } from './subprocesses/aiBackendService'
+import { HomeAgentBackendService } from './subprocesses/homeAgentBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
@@ -67,8 +72,10 @@ import {
 } from './subprocesses/mcpManager'
 import {
   addMcpServer,
+  detectAndRegisterAutoMcpServers,
   getMcpConfigPath,
   getMcpServerConfig,
+  isAutoDetectId,
   updateMcpServer,
   removeMcpServer,
   type McpServerConfig,
@@ -103,6 +110,7 @@ const ProductModeFileSchema = z.object({
   requiresNvidiaGpu: z.boolean().default(false),
   includePresets: z.array(z.string()).optional(),
   excludePresets: z.array(z.string()).optional(),
+  excludeVariantBackends: z.array(z.string()).optional(),
   ui: z.object({
     i18n: ProductModeUiI18nSchema,
   }),
@@ -177,6 +185,29 @@ const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 const mediaInputDir = path.join(mediaDir, 'input')
 fs.mkdirSync(mediaInputDir, { recursive: true })
+
+/** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
+function getLocalPathFromAipgMediaUrl(url: string): string | null {
+  if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return null
+  // Strip protocol, then strip any trailing slash — Chromium occasionally
+  // appends one to custom-protocol URLs (e.g. `aipg-media://foo.png/`), and
+  // `net.fetch(file://.../foo.png/)` treats the trailing slash as "directory"
+  // and fails. Mirrors what the legacy inline handler did.
+  // `decodeURIComponent` throws `URIError` on malformed `%` sequences (e.g.
+  // `aipg-media://%E0`); treat that as an invalid URL rather than letting the
+  // exception escape into the protocol handler or IPC reply.
+  let decodedUrl: string
+  try {
+    decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, '').replace(/[/\\]+$/, ''))
+  } catch {
+    return null
+  }
+  const fullPath = path.normalize(path.join(mediaDir, decodedUrl))
+  const base = path.resolve(mediaDir)
+  const relative = path.relative(base, fullPath)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return null
+  return fullPath
+}
 let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -202,9 +233,21 @@ const LocalSettingsSchema = z.object({
   isDemoModeEnabled: z.boolean().default(false),
   demoModeResetInSeconds: z.number().min(1).nullable().default(null),
   demoModePasscode: z.string().optional(),
+  // Gates the Home Agent feature (Telegram bridge backend, setup wizard surface,
+  // header toggle, bundled preset). Default false: opt-in by editing settings.json.
+  isHomeAgentEnabled: z.boolean().default(false),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
   huggingfaceEndpoint: z.string().default('https://huggingface.co'),
+  mcpAutoDetectionDismissed: z.array(z.string()).default([]),
+  // Allowed OpenVINO devices for image-gen dropdowns (in-process upscale +
+  // OVMS image variants). Case-insensitive prefix match against device IDs.
+  // Default excludes NPU because RealESRGAN_x4plus and SDXL exceed current
+  // Intel NPU memory budgets on most shipping hardware. Override per-machine
+  // by editing settings.json, e.g. ["AUTO", "CPU", "GPU", "NPU"] to re-enable.
+  openvinoImageGenDevices: z.array(z.string()).default(['CPU', 'GPU']),
+  /** When true, skip hardware probe and treat Phison SSD as detected (optional overlay in userData settings). */
+  PhisonSSDdetected: z.boolean().optional().default(false),
 })
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
@@ -223,6 +266,7 @@ type PresetLoadConfig = {
   imageFallbackDirs: string[]
   includePresets?: string[]
   excludePresets?: string[]
+  excludeVariantBackends?: string[]
 }
 
 function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
@@ -230,12 +274,23 @@ function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
   const variant = s.isDemoModeEnabled ? 'demo' : 'presets'
   const modeConfig = loadModeConfig(mode)
   const basePresetsDir = path.join(modesDir, 'base', 'presets')
+  // When the Home Agent feature is disabled, drop its bundled preset so it does
+  // not appear in the chat preset selector. `includePresets` (when defined)
+  // takes precedence over `excludePresets`, so we need to filter both lists.
+  const includePresets = s.isHomeAgentEnabled
+    ? modeConfig?.includePresets
+    : modeConfig?.includePresets?.filter((p) => p !== 'home-agent-chat')
+  const baseExcludePresets = modeConfig?.excludePresets ?? []
+  const excludePresets = s.isHomeAgentEnabled
+    ? modeConfig?.excludePresets
+    : [...baseExcludePresets, 'home-agent-chat']
   return {
     baseDir: path.join(modesDir, 'base', variant),
     modeDir: path.join(modesDir, mode, variant),
     imageFallbackDirs: variant === 'demo' ? [basePresetsDir] : [],
-    includePresets: modeConfig?.includePresets,
-    excludePresets: modeConfig?.excludePresets,
+    includePresets,
+    excludePresets,
+    excludeVariantBackends: modeConfig?.excludeVariantBackends,
   }
 }
 
@@ -305,13 +360,30 @@ function applyPresetFilter(
       presets.delete(excluded)
     }
   }
+  if (config.excludeVariantBackends?.length) {
+    const excludedBackends = new Set(config.excludeVariantBackends)
+    for (const [key, file] of presets) {
+      try {
+        const parsed = JSON.parse(file.content)
+        if (parsed?.type !== 'comfy' || !Array.isArray(parsed.variants)) continue
+        const filtered = parsed.variants.filter(
+          (v: { backend?: string }) => !(v?.backend && excludedBackends.has(v.backend)),
+        )
+        if (filtered.length === parsed.variants.length) continue
+        parsed.variants = filtered
+        presets.set(key, { ...file, content: JSON.stringify(parsed) })
+      } catch (e) {
+        appLogger.warn(`Failed to filter variants for preset "${key}": ${e}`, 'electron-backend')
+      }
+    }
+  }
   return presets
 }
 
 let settings = LocalSettingsSchema.parse({})
 let demoProfile: DemoProfile | null = null
 
-/** Packaged app: single JSON next to resources. Dev: never write here (Vite watches the repo). */
+/** Packaged: `resources/settings.json` (same role as dev `external/settings-dev.json`). */
 function getPackagedSettingsPath(): string {
   return path.join(process.resourcesPath, 'settings.json')
 }
@@ -321,17 +393,23 @@ function getDevSettingsDefaultsPath(): string {
   return path.join(__dirname, '../../external/settings-dev.json')
 }
 
-/** Writable path: packaged = resources settings; dev = userData overlay (avoids Vite reload loops). */
+/** Dev: userData overlay so edits do not touch the repo (avoids Vite reload loops). */
+function getUserLocalSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+}
+
+/** Packaged: read/write `resources/settings.json`. Dev: read/write userData overlay only. */
 function getWritableSettingsPath(): string {
   if (app.isPackaged) {
     return getPackagedSettingsPath()
   }
-  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+  return getUserLocalSettingsPath()
 }
 
 function persistLocalSettingsToDisk(): void {
   const settingPath = getWritableSettingsPath()
-  const serialized = JSON.stringify(LocalSettingsSchema.parse(settings), null, 2)
+  const parsed = LocalSettingsSchema.parse(settings)
+  const serialized = JSON.stringify(parsed, null, 2)
   const tmpPath = `${settingPath}.${randomUUID()}.tmp`
   try {
     fs.mkdirSync(path.dirname(settingPath), { recursive: true })
@@ -356,6 +434,10 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       bypassCSP: true, // impotant
       stream: true,
+      // Required so canvases can read pixels from `aipg-media://` images
+      // (mask / outpaint editors call `getImageData()` / `toDataURL()`).
+      // The handler below must also emit `Access-Control-Allow-Origin`.
+      corsEnabled: true,
     },
   },
 ])
@@ -376,16 +458,17 @@ async function loadSettings() {
     }
   } else {
     const defaultsPath = getDevSettingsDefaultsPath()
+    let devDefaultsRaw: Record<string, unknown> | null = null
     appLogger.info(`loading dev defaults from ${defaultsPath}`, 'electron-backend')
     if (fs.existsSync(defaultsPath)) {
       try {
-        const raw = JSON.parse(fs.readFileSync(defaultsPath, { encoding: 'utf8' }))
-        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+        devDefaultsRaw = JSON.parse(fs.readFileSync(defaultsPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...devDefaultsRaw })
       } catch (e) {
         appLogger.error(`failed to load dev defaults: ${e}`, 'electron-backend')
       }
     }
-    const userPath = getWritableSettingsPath()
+    const userPath = getUserLocalSettingsPath()
     appLogger.info(`loading dev user settings from ${userPath}`, 'electron-backend')
     if (fs.existsSync(userPath)) {
       try {
@@ -394,6 +477,16 @@ async function loadSettings() {
       } catch (e) {
         appLogger.error(`failed to load dev user settings: ${e}`, 'electron-backend')
       }
+    }
+    // PhisonSSDdetected: true if userData *or* repo settings-dev says so. Repo true still beats
+    // stale userData false; userData true still works when repo has false (dev Phison UI without hardware).
+    if (devDefaultsRaw) {
+      const repoWantsPhison =
+        'PhisonSSDdetected' in devDefaultsRaw && Boolean(devDefaultsRaw.PhisonSSDdetected)
+      settings = LocalSettingsSchema.parse({
+        ...settings,
+        PhisonSSDdetected: Boolean(settings.PhisonSSDdetected) || repoWantsPhison,
+      })
     }
   }
 
@@ -494,12 +587,22 @@ async function createWindow() {
           headers.append(name, value)
         }
       }
-      append('Access-Control-Allow-Origin', '*')
+      // Defer to the upstream backend's `Access-Control-Allow-Origin` if
+      // it is already set. Otherwise the backend's specific origin (e.g.
+      // `http://localhost:25413`) gets joined with our wildcard, yielding
+      // `http://localhost:25413, *` which browsers reject as invalid.
+      if (!headers.has('Access-Control-Allow-Origin')) {
+        headers.append('Access-Control-Allow-Origin', '*')
+      }
       append('Access-Control-Allow-Methods', 'GET')
       append('Access-Control-Allow-Methods', 'POST')
       append('Access-Control-Allow-Headers', 'x-requested-with')
       append('Access-Control-Allow-Headers', 'Content-Type')
       append('Access-Control-Allow-Headers', 'Authorization')
+      // Loopback auth token header used by AI Playground's renderer to
+      // authenticate to the ai-backend Flask service. Must be in the
+      // preflight allow-list or the browser blocks the request.
+      append('Access-Control-Allow-Headers', 'X-AIPG-Auth')
       details.responseHeaders = Object.fromEntries([...headers.entries()].map(([k, v]) => [k, [v]]))
       callback(details)
     } else {
@@ -654,6 +757,10 @@ app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
 
 async function initServiceRegistry(win: BrowserWindow, settings: LocalSettings) {
   serviceRegistry = await aiplaygroundApiServiceRegistry(win, settings)
+  const homeAgent = serviceRegistry.getService('home-agent-backend')
+  if (homeAgent instanceof HomeAgentBackendService) {
+    homeAgent.registerIpcHandlers()
+  }
   return serviceRegistry
 }
 
@@ -878,6 +985,27 @@ function initEventHandle() {
     return `input/${filename}`
   })
 
+  ipcMain.handle(
+    'readAipgMediaAsBase64',
+    async (
+      _event,
+      url: string,
+    ): Promise<{ success: true; data: string } | { success: false; error: string }> => {
+      const filePath = getLocalPathFromAipgMediaUrl(url)
+      if (!filePath) {
+        return { success: false, error: 'invalid or unsafe aipg-media URL' }
+      }
+      if (!fs.existsSync(filePath)) {
+        return { success: false, error: `file not found (${path.basename(filePath)})` }
+      }
+      try {
+        return { success: true, data: fs.readFileSync(filePath).toString('base64') }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    },
+  )
+
   /** Get command line parameters when launched from IPOS to decide the default home page */
   ipcMain.handle('getInitialPage', () => {
     const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
@@ -1002,6 +1130,49 @@ function initEventHandle() {
     return serviceRegistry.getServiceInformation()
   })
 
+  ipcMain.handle('getBackendAuthToken', (_event: IpcMainInvokeEvent, serviceName: string) => {
+    if (!serviceRegistry) {
+      return ''
+    }
+    const service = serviceRegistry.getService(serviceName)
+    if (service instanceof AiBackendService) {
+      return service.getLoopbackAuthToken()
+    }
+    if (service instanceof ComfyUiBackendService) {
+      return service.getLoopbackAuthToken()
+    }
+    if (service instanceof HomeAgentBackendService) {
+      return service.getLoopbackAuthToken()
+    }
+    return ''
+  })
+
+  ipcMain.handle('comfyui:openInBrowser', async () => {
+    const comfyService = serviceRegistry?.getService('comfyui-backend') as
+      | ComfyUiBackendService
+      | undefined
+    if (!comfyService) {
+      return { success: false, error: 'ComfyUI backend service not found' }
+    }
+    const baseUrl = comfyService.baseUrl
+    if (!baseUrl) {
+      return { success: false, error: 'ComfyUI backend has no base URL yet' }
+    }
+    const token = comfyService.getLoopbackAuthToken()
+    // /aipg/launch (provided by the bundled aipg-auth custom_node) validates
+    // launch_token against AIPG_LOOPBACK_TOKEN, then issues an HttpOnly,
+    // SameSite=Strict aipg_session cookie and redirects to /. After that
+    // the user's default browser uses the cookie for all subsequent
+    // requests; the launch_token does not need to live in browser history.
+    const url = `${baseUrl}/aipg/launch?launch_token=${encodeURIComponent(token)}`
+    try {
+      await shell.openExternal(url)
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
   ipcMain.handle('uninstall', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
       appLogger.warn('received uninstall too early during aipg startup', 'electron-backend')
@@ -1039,6 +1210,41 @@ function initEventHandle() {
 
   ipcMain.handle('getComfyUiDefaultParameters', () => COMFYUI_DEFAULT_PARAMETERS)
   ipcMain.handle('getLlamaCppDefaultParameters', () => LLAMACPP_DEFAULT_PARAMETERS)
+
+  ipcMain.handle('detectPhisonSsd', async () => {
+    if (settings.PhisonSSDdetected) {
+      appLoggerInstance.info(
+        'detectPhisonSsd: returning true (PhisonSSDdetected in local settings)',
+        'electron-backend',
+      )
+      return { detected: true }
+    }
+    if (process.platform !== 'win32') {
+      return { detected: false }
+    }
+    try {
+      const { stdout } = await execAsync(
+        'powershell -NoProfile -Command "Get-PhysicalDisk | Select-Object DeviceId,FirmwareVersion | ConvertTo-Json -Compress"',
+        { timeout: 20000, windowsHide: true },
+      )
+      const trimmed = stdout.trim()
+      if (!trimmed) {
+        return { detected: false }
+      }
+      const parsed = JSON.parse(trimmed) as
+        | { FirmwareVersion?: string }
+        | Array<{ FirmwareVersion?: string }>
+      const disks = Array.isArray(parsed) ? parsed : [parsed]
+      const detected = disks.some((d) => {
+        const fw = d.FirmwareVersion
+        return typeof fw === 'string' && fw.toUpperCase().startsWith('EVFZ')
+      })
+      return { detected }
+    } catch (e) {
+      appLoggerInstance.warn(`detectPhisonSsd failed: ${e}`, 'electron-backend')
+      return { detected: false }
+    }
+  })
 
   ipcMain.handle('detectDevices', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
@@ -1184,6 +1390,10 @@ function initEventHandle() {
           `Backend ${serviceName} ready for LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`,
           'electron-backend',
         )
+        const homeAgentSvc = serviceRegistry?.getService('home-agent-backend')
+        if (homeAgentSvc instanceof HomeAgentBackendService) {
+          homeAgentSvc.notifyUpstreamReady(service.baseUrl ?? '')
+        }
         return { success: true }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1336,6 +1546,91 @@ function initEventHandle() {
     }
 
     return { success: false, error: 'Transcription server not supported' }
+  })
+
+  ipcMain.handle(
+    'ensureOvmsImageReady',
+    async (
+      _event: IpcMainInvokeEvent,
+      serviceName: string,
+      modelName: string,
+      keepModelsLoaded?: boolean,
+      resolution?: string,
+    ) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        return { success: false, error: `Service ${serviceName} not found` }
+      }
+
+      if ('startImageServer' in service && typeof service.startImageServer === 'function') {
+        try {
+          await service.startImageServer(modelName, keepModelsLoaded, resolution)
+          const url =
+            'getImageServerUrl' in service && typeof service.getImageServerUrl === 'function'
+              ? service.getImageServerUrl()
+              : null
+          if (url) {
+            return { success: true, url }
+          }
+          return { success: false, error: 'Image server started but URL not available' }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          appLogger.error(
+            `Failed to ensure OVMS image readiness: ${errorMessage}`,
+            'electron-backend',
+          )
+          return { success: false, error: errorMessage }
+        }
+      }
+
+      return { success: false, error: 'Image server not supported by this backend' }
+    },
+  )
+
+  ipcMain.handle('stopOvmsImageServer', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('stopImageServer' in service && typeof service.stopImageServer === 'function') {
+      try {
+        await service.stopImageServer()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop OVMS image server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Image server not supported' }
+  })
+
+  ipcMain.handle('getOvmsImageServerUrl', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('getImageServerUrl' in service && typeof service.getImageServerUrl === 'function') {
+      const imageUrl = service.getImageServerUrl()
+      if (imageUrl) {
+        return { success: true, url: imageUrl }
+      }
+      return { success: false, error: 'Image server not running' }
+    }
+
+    return { success: false, error: 'Image server not supported' }
   })
 
   ipcMain.on('ondragstart', async (event, filePath) => {
@@ -1557,6 +1852,15 @@ function initEventHandle() {
     return comfyuiTools.listInstalledCustomNodes(comfyService.serviceDir)
   })
 
+  // Auto-detect MCP servers (e.g., Acer MCP service installed via WindowsApps).
+  // Runs on every startup so newly installed services are picked up and stale
+  // versioned paths get refreshed after MSIX/Store updates.
+  try {
+    detectAndRegisterAutoMcpServers(settings.mcpAutoDetectionDismissed ?? [])
+  } catch (e) {
+    appLogger.warn(`MCP auto-detect failed: ${e}`, 'mcp')
+  }
+
   // MCP server IPC handlers
   ipcMain.handle('mcp:startServer', async (_event, serverId: string) => {
     return await startMcpServer(serverId)
@@ -1631,14 +1935,18 @@ function initEventHandle() {
 
   ipcMain.handle('mcp:removeServer', async (_event, serverId: string) => {
     await stopMcpServer(serverId)
-    return removeMcpServer(serverId)
+    const result = removeMcpServer(serverId)
+    if (isAutoDetectId(serverId) && !settings.mcpAutoDetectionDismissed.includes(serverId)) {
+      settings.mcpAutoDetectionDismissed = [...settings.mcpAutoDetectionDismissed, serverId]
+      persistLocalSettingsToDisk()
+    }
+    return result
   })
 
   const getAssetPathFromUrl = (url: string) => {
     // Handle aipg-media:// URLs
     if (url.startsWith('aipg-media://')) {
-      const decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, ''))
-      return path.join(mediaDir, decodedUrl)
+      return getLocalPathFromAipgMediaUrl(url)
     }
 
     // Existing logic for HTTP URLs
@@ -1788,28 +2096,30 @@ app.whenReady().then(async () => {
   } else {
     const settings = await loadSettings()
 
-    const modelsDir = path.resolve(
-      app.isPackaged
-        ? path.join(process.resourcesPath, 'models')
-        : path.join(__dirname, '../../../models'),
-    )
-    // Start temp-folder cleanup without blocking application startup
-    void cleanupTempFolders(modelsDir)
-
     initEventHandle()
 
-    // Custom protocol docking is file protocol
+    // Custom protocol docking is file protocol.
+    // Use the shared `getLocalPathFromAipgMediaUrl` helper so the protocol
+    // handler enforces the same path-traversal containment as the IPC reader
+    // — without it, crafted `aipg-media://../...` URLs could escape `mediaDir`.
     protocol.handle('aipg-media', async (request) => {
-      console.log('request', request)
-      const decodedUrl = decodeURIComponent(
-        request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/'),
-      )
-
-      const fullPath = path.join(mediaDir, decodedUrl)
-
-      const normalizedPath = path.normalize(fullPath.replace(/(\/|\\)$/, ''))
-      const response = await net.fetch(`file://${normalizedPath}`)
-      return response
+      const safePath = getLocalPathFromAipgMediaUrl(request.url)
+      if (!safePath) {
+        return new Response('Not Found', { status: 404 })
+      }
+      const upstream = await net.fetch(pathToFileURL(safePath).href)
+      // `getImageData()` / `toDataURL()` on a canvas that drew an
+      // `aipg-media://` image only succeed when the response carries CORS
+      // headers AND the `<img>` opts in via `crossorigin="anonymous"`.
+      // `*` is safe because the scheme only ever serves files under
+      // `mediaDir`, already guarded by `getLocalPathFromAipgMediaUrl`.
+      const headers = new Headers(upstream.headers)
+      headers.set('Access-Control-Allow-Origin', '*')
+      return new Response(upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers,
+      })
     })
     const window = await createWindow()
     await initServiceRegistry(window, settings)

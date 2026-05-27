@@ -1,0 +1,344 @@
+{
+  "type": "comfy",
+  "name": "Pro 3 Image",
+  "displayPriority": 250,
+  "tags": ["ERNIE-Image", "high-vram"],
+  "description": "Using ERNIE-Image Turbo from Baidu this preset produces high quality images with strong prompt adherence and accurate text in only 8 steps.",
+  "extendedDescription": "Using Pro 3 with long, detailed, and descriptive prompts that describe specifics of what's in the foreground, background, lighting, aesthetic, and style of image. Use this preset especially when wanting to accurately generate text or full sentences in an image, chart or poster-like image.",
+  "backend": "comfyui",
+  "category": "create-images",
+  "mediaType": "image",
+  "toolCategory": "create-images",
+  "toolInstructions": "Generate a detailed, descriptive prompt that specifies subjects, composition, style, lighting, colors, mood, and any literal text to render in the image. ERNIE-Image is exceptionally strong at precise text rendering, complex instruction following, and structured visual generation (posters, infographics, multi-panel comics, storyboards). When the user requests text in the image, quote the exact text in the prompt. For multi-panel or layout work, describe each panel/region explicitly. Even if the user requests something simple like 'a poster about coffee', expand it to include layout, fonts/styles, color palette, and the specific words to render.",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.5", "totalPixels": 495616 },
+      { "label": "0.8", "totalPixels": 802816 },
+      { "label": "1.0", "totalPixels": 1048576 },
+      { "label": "1.2", "totalPixels": 1254400 },
+      { "label": "1.5", "totalPixels": 1557504 }
+    ],
+    "aspectRatios": ["21/9", "16/9", "3/2", "4/3", "1/1", "3/4", "2/3", "9/16", "9/21"]
+  },
+  "requiredCustomNodes": [
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "unet",
+      "model": "Comfy-Org/ERNIE-Image/diffusion_models/ernie-image-turbo.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "Comfy-Org/ERNIE-Image/text_encoders/ministral-3-3b.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "Comfy-Org/ERNIE-Image/vae/flux2-vae.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+    },
+    {
+      "type": "nsfwdetector",
+      "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 8,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1024,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "1024x1024",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "nsfw",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "boolean",
+      "label": "Safety Check",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": true,
+      "settingName": "safetyCheck"
+    },
+    {
+      "type": "boolean",
+      "label": "Show Preview",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": true,
+      "settingName": "showPreview"
+    },
+    {
+      "type": "number",
+      "label": "Safety Check",
+      "nodeTitle": "SafetyCheckerStrength",
+      "nodeInput": "b",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultValue": 0.5,
+      "displayed": true,
+      "modifiable": true
+    }
+  ],
+  "variants": [
+    {
+      "name": "Turbo",
+      "overrides": {
+        "description": "Using ERNIE-Image Turbo from Baidu this preset produces high quality images with strong prompt adherence and accurate text in only 8 steps.",
+        "comfyUiApiWorkflow": {}
+      }
+    },
+    {
+      "name": "Standard",
+      "overrides": {
+        "description": "Using ERNIE-Image from Baidu this preset produces high quality images with strong prompt adherence and accurate text, including full sentences.",
+        "requiredModels": [
+          {
+            "type": "unet",
+            "model": "Comfy-Org/ERNIE-Image/diffusion_models/ernie-image.safetensors"
+          },
+          {
+            "type": "clip",
+            "model": "Comfy-Org/ERNIE-Image/text_encoders/ministral-3-3b.safetensors"
+          },
+          {
+            "type": "vae",
+            "model": "Comfy-Org/ERNIE-Image/vae/flux2-vae.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/config.json"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/model.safetensors"
+          },
+          {
+            "type": "nsfwdetector",
+            "model": "AdamCodd/vit-base-nsfw-detector/preprocessor_config.json"
+          }
+        ],
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": false,
+            "modifiable": true,
+            "defaultValue": 20,
+            "settingName": "inferenceSteps"
+          }
+        ],
+        "comfyUiApiWorkflow": {
+          "44": {
+            "inputs": {
+              "steps": 20,
+              "cfg": 4
+            },
+            "class_type": "KSampler",
+            "_meta": {
+              "title": "KSampler"
+            }
+          },
+          "46": {
+            "inputs": {
+              "unet_name": "Comfy-Org---ERNIE-Image\\diffusion_models\\ernie-image.safetensors",
+              "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+              "title": "Load Diffusion Model"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "9": {
+      "inputs": {
+        "filename_prefix": "AIPG_Image",
+        "images": ["98", 0]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "39": {
+      "inputs": {
+        "clip_name": "Comfy-Org---ERNIE-Image\\text_encoders\\ministral-3-3b.safetensors",
+        "type": "flux2",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "40": {
+      "inputs": {
+        "vae_name": "Comfy-Org---ERNIE-Image\\vae\\flux2-vae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "41": {
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      },
+      "class_type": "EmptyFlux2LatentImage",
+      "_meta": {
+        "title": "EmptyFlux2LatentImage"
+      }
+    },
+    "43": {
+      "inputs": {
+        "samples": ["44", 0],
+        "vae": ["40", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "44": {
+      "inputs": {
+        "seed": 0,
+        "steps": 8,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": ["46", 0],
+        "positive": ["45", 0],
+        "negative": ["100", 0],
+        "latent_image": ["41", 0]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "45": {
+      "inputs": {
+        "text": "An ornate vintage book cover for a fantasy novel titled \"THE EMERALD CIPHER\" rendered in elegant gold serif typography on a deep emerald-green leather background. Intricate filigree borders frame the cover. A small subtitle reads \"A Tale of Lost Kingdoms\" in delicate italic gold script beneath the title. Warm cinematic lighting highlights embossed textures and gilt edges. Highly detailed, photorealistic.",
+        "clip": ["39", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "prompt"
+      }
+    },
+    "46": {
+      "inputs": {
+        "unet_name": "Comfy-Org---ERNIE-Image\\diffusion_models\\ernie-image-turbo.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "98": {
+      "inputs": {
+        "threshold": ["99", 0],
+        "cuda": false,
+        "image": ["43", 0]
+      },
+      "class_type": "SafetyChecker",
+      "_meta": {
+        "title": "Intercept NSFW Outputs"
+      }
+    },
+    "99": {
+      "inputs": {
+        "op": "Sub",
+        "a": 1,
+        "b": 0.5
+      },
+      "class_type": "CM_FloatBinaryOperation",
+      "_meta": {
+        "title": "SafetyCheckerStrength"
+      }
+    },
+    "100": {
+      "inputs": {
+        "text": "",
+        "clip": ["39", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "negativePrompt"
+      }
+    }
+  }
+}

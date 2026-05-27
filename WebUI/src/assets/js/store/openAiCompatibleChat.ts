@@ -6,6 +6,7 @@ import {
   convertToModelMessages,
   type FileUIPart,
   DefaultChatTransport,
+  generateText,
   LanguageModelUsage,
   streamText,
   stepCountIs,
@@ -23,6 +24,7 @@ import * as toast from '../toast'
 import { LanguageModelV2ToolResultOutput, JSONSchema7 } from '@ai-sdk/provider'
 import { dynamicTool, jsonSchema } from '@ai-sdk/provider-utils'
 import { imageUrlToDataUri } from '@/lib/utils'
+import { getHomeAgentAuthToken, invalidateHomeAgentAuthToken } from '@/lib/loopbackAuth'
 
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
@@ -64,6 +66,12 @@ export type AipgMetadata = {
 
 export type AipgUiMessage = UIMessage<AipgMetadata, UIDataTypes, AipgTools>
 
+export type GenerateOptions = {
+  conversationKey?: string
+  clearInputs?: boolean
+  files?: FileUIPart[]
+}
+
 export const useOpenAiCompatibleChat = defineStore(
   'openAiCompatibleChat',
   () => {
@@ -83,13 +91,35 @@ export const useOpenAiCompatibleChat = defineStore(
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
-        fetch: (url, init) => {
+        fetch: async (url, init) => {
           const requestUrl = new URL(url as string)
           const currentBaseUrl = textInference.currentBackendUrl
           if (currentBaseUrl) {
             const latestBase = new URL(currentBaseUrl)
             requestUrl.hostname = latestBase.hostname
             requestUrl.port = latestBase.port
+          }
+          // When Home Agent is active, the LLM proxy lives behind the Home
+          // Agent Flask service. Attach the upstream inference URL header and
+          // the per-launch loopback auth token so the proxy accepts the call.
+          const upstreamUrl = textInference.homeAgentUpstreamUrl
+          if (upstreamUrl) {
+            let token = await getHomeAgentAuthToken()
+            const build = (t: string): RequestInit => {
+              const headers = new Headers(init?.headers)
+              headers.set('X-Upstream-Url', upstreamUrl)
+              if (t) headers.set('X-AIPG-Auth', t)
+              return { ...init, headers }
+            }
+            let response = await globalThis.fetch(requestUrl.toString(), build(token))
+            if (response.status === 401) {
+              invalidateHomeAgentAuthToken()
+              token = await getHomeAgentAuthToken(true)
+              if (token) {
+                response = await globalThis.fetch(requestUrl.toString(), build(token))
+              }
+            }
+            return response
           }
           return globalThis.fetch(requestUrl.toString(), init)
         },
@@ -114,6 +144,36 @@ export const useOpenAiCompatibleChat = defineStore(
     function resolveBuiltinTools(): ToolSet {
       if (!textInference.aipgToolsEnabled) return {}
       return { ...aipgTools }
+    }
+
+    async function resolveMcpInstructions(): Promise<string> {
+      if (!textInference.mcpToolsEnabled) return ''
+
+      let servers: Awaited<ReturnType<typeof window.electronAPI.mcp.listServers>>
+      try {
+        servers = await window.electronAPI.mcp.listServers()
+      } catch (error) {
+        console.error('Failed to list MCP servers for instructions:', error)
+        return ''
+      }
+
+      const blocks: string[] = []
+      for (const server of servers) {
+        const trimmed = server.instructions?.trim()
+        if (!trimmed) continue
+        let status: Awaited<ReturnType<typeof window.electronAPI.mcp.getServerStatus>>
+        try {
+          status = await window.electronAPI.mcp.getServerStatus(server.id)
+        } catch (error) {
+          console.error(`Failed to get MCP server status for ${server.id}:`, error)
+          continue
+        }
+        if (status.state !== 'running') continue
+        blocks.push(`## MCP server: ${server.name}\n${trimmed}`)
+      }
+
+      if (blocks.length === 0) return ''
+      return `\n\n# MCP server instructions\n\n${blocks.join('\n\n')}`
     }
 
     async function resolveMcpTools(): Promise<ToolSet> {
@@ -173,6 +233,11 @@ export const useOpenAiCompatibleChat = defineStore(
     const customFetch = async (_: any, options: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const m = JSON.parse(options.body) as any
+      // Read and strip per-request conversation key injected by DefaultChatTransport's
+      // body, so the upstream request stays a clean OpenAI-compatible payload.
+      const requestConversationKey: string | undefined =
+        typeof m._aipgConversationKey === 'string' ? m._aipgConversationKey : undefined
+      delete m._aipgConversationKey
       const reasoningTimings = new Map<string, { started: number; finished: number }>()
       const startOfRequestTime: number = Date.now()
       let firstTokenTime: number = 0
@@ -181,7 +246,12 @@ export const useOpenAiCompatibleChat = defineStore(
       let usage: LanguageModelUsage | undefined = undefined
       let usageFromRawChunk: LanguageModelUsage | undefined = undefined
       let lastStepUsage: LanguageModelUsage | undefined = undefined
-      const systemPromptToUse = temporarySystemPrompt.value || textInference.systemPrompt
+      const perConversationPrompt = requestConversationKey
+        ? temporarySystemPrompts[requestConversationKey]
+        : null
+      const baseSystemPrompt = perConversationPrompt || textInference.systemPrompt
+      const mcpInstructions = await resolveMcpInstructions()
+      const systemPromptToUse = `${baseSystemPrompt}${mcpInstructions}`
       let messages = await convertToModelMessages(m.messages)
 
       // Convert aipg-media image URLs to base64 for the backend
@@ -253,22 +323,9 @@ export const useOpenAiCompatibleChat = defineStore(
       }
 
       // Only enable tools if model supports tool calling and tools are enabled
-      console.log(
-        'textInference.modelSupportsToolCalling:',
-        textInference.modelSupportsToolCalling,
-        'textInference.aipgToolsEnabled:',
-        textInference.aipgToolsEnabled,
-        'textInference.mcpToolsEnabled:',
-        textInference.mcpToolsEnabled,
-      )
       const availableTools = await resolveTools()
       const hasTools = Object.keys(availableTools).length > 0
 
-      console.log('customFetch called with messages:', {
-        messages,
-        systemPromptToUse,
-        hasTools,
-      })
       const result = await streamText({
         model: model.value,
         messages,
@@ -361,7 +418,6 @@ export const useOpenAiCompatibleChat = defineStore(
         },
         onFinish: (result) => {
           finishTime = Date.now()
-          console.log('Stream finished:', result)
           if (result.usage) {
             usage = result.usage
           } else if (usageFromRawChunk) {
@@ -419,33 +475,31 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const chats: Record<string, Chat<AipgUiMessage>> = {}
 
+    function getOrCreateChat(conversationKey: string): Chat<AipgUiMessage> {
+      const existing = chats[conversationKey]
+      if (existing) return existing
+      conversations.ensureConversationBucket(conversationKey)
+      const chat = new Chat<AipgUiMessage>({
+        transport: new DefaultChatTransport({
+          fetch: customFetch,
+          // Tag every request with its conversation key so `customFetch` can look up
+          // the per-conversation `temporarySystemPrompts` entry. Stripped before
+          // forwarding upstream.
+          body: { timings_per_token: true, _aipgConversationKey: conversationKey },
+        }),
+        messages: conversations.conversationList[conversationKey],
+      })
+      chats[conversationKey] = chat
+      return chat
+    }
+
     watch(
       () => conversations.activeKey,
       (activeKey) => {
         if (!activeKey) return
-        if (activeKey in chats) return
-        const chat = new Chat<AipgUiMessage>({
-          transport: new DefaultChatTransport({
-            fetch: customFetch,
-            body: { timings_per_token: true },
-          }),
-          messages: conversations.conversationList[activeKey],
-        })
-        chats[activeKey] = chat
-        console.log('Created new chat for key:', {
-          activeKey,
-          chat,
-          messages: conversations.conversationList[activeKey],
-        })
+        getOrCreateChat(activeKey)
       },
       { immediate: true },
-    )
-
-    watch(
-      () => chats[conversations.activeKey]?.messages,
-      () => {
-        console.log('chat messages changed:', chats[conversations.activeKey]?.messages)
-      },
     )
 
     const messages = computed(() => chats[conversations.activeKey]?.messages)
@@ -461,65 +515,127 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const messageInput = ref('')
     const fileInput = ref<FileUIPart[]>([])
-    const temporarySystemPrompt = ref<string | null>(null)
+    // Per-conversation temporary system prompts (e.g. RAG-augmented system prompt for the
+    // current turn). Keyed by conversationKey so concurrent generate() calls — desktop
+    // chat and Home Agent side-channel — cannot leak each other's prompt.
+    const temporarySystemPrompts: Record<string, string | null> = {}
 
-    async function generate(question: string) {
-      // 1. Ensure backend and models are ready
+    function getMessagesForKey(conversationKey: string): AipgUiMessage[] | undefined {
+      // Prefer live chat instance state when present; otherwise fall back to the
+      // persisted bucket so threads that exist in `conversationList` but haven't
+      // been opened yet (e.g. Home Agent threads listed via `/history`) still
+      // return their messages.
+      const fromChat = chats[conversationKey]?.messages
+      if (fromChat) return fromChat
+      return conversations.conversationList[conversationKey]
+    }
+
+    /**
+     * One-shot non-tool generation that turns a snippet of conversation text
+     * into a 5-word-or-less summary. Reuses the same `model` wiring as the
+     * normal chat (so the X-Upstream-Url header is preserved when Home Agent
+     * is active and the active model is whatever `textInference` resolved).
+     *
+     * Caller is responsible for ensuring backend readiness (e.g. via
+     * `textInference.ensureReadyForInference()`).
+     */
+    async function summarizeMessages(messagesText: string): Promise<string> {
+      try {
+        const { text } = await generateText({
+          model: model.value,
+          prompt:
+            'Summarize this conversation in 5 words or less. ' +
+            'Output only the summary, no quotes, no punctuation.\n\n' +
+            messagesText,
+          maxOutputTokens: 24,
+        })
+        return text.trim().split(/\s+/).slice(0, 5).join(' ')
+      } catch (error) {
+        console.error('summarizeMessages failed:', error)
+        return ''
+      }
+    }
+
+    async function generate(question: string, options?: GenerateOptions) {
+      const sideChannel = options?.conversationKey !== undefined
+      const targetKey = sideChannel ? options.conversationKey! : conversations.activeKey
+      const clearInputs = options?.clearInputs ?? !sideChannel
+
+      // 1a. Reactivate the target thread's preset (if any) so the stream uses
+      //     the right model/tools/system-prompt for THIS conversation, not
+      //     whatever was last selected for an unrelated chat. For Home Agent
+      //     threads this pins the bundled Home Agent preset.
+      textInference.ensureGlobalsMatchConversation(targetKey)
+
+      // 1b. Stamp meta so the thread keeps a record of its current profile.
+      textInference.stampMetaForConversation(targetKey)
+
+      // 1c. Ensure backend and models are ready (using the now-reactivated globals)
       await textInference.ensureReadyForInference()
 
       // Reset manual stop flag
       manuallyStopped.value = false
 
-      // 2. Block if images attached to non-vision model
-      if (fileInput.value.length > 0 && !textInference.modelSupportsVision) {
-        const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
-        if (hasImageFiles) {
-          const errorMessage =
-            'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
-          toast.error(errorMessage)
-          throw new Error(errorMessage)
+      // 2. Block if images attached to non-vision model (UI path only)
+      if (!sideChannel) {
+        if (fileInput.value.length > 0 && !textInference.modelSupportsVision) {
+          const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
+          if (hasImageFiles) {
+            const errorMessage =
+              'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
+            toast.error(errorMessage)
+            throw new Error(errorMessage)
+          }
         }
       }
 
       // 3. Prepare RAG context (if RAG is enabled)
       const ragContext = await textInference.prepareRagContext(question)
-      console.log('ragContext', ragContext)
-      temporarySystemPrompt.value = ragContext.systemPrompt
+      temporarySystemPrompts[targetKey] = ragContext.systemPrompt
 
       // 4. Get chat instance and send message
-      const chat = chats[conversations.activeKey]
-      if (!chat) {
-        throw new Error(`No chat instance found for conversation: ${conversations.activeKey}`)
-      }
+      const chat = getOrCreateChat(targetKey)
 
-      messageInput.value = question
+      if (!sideChannel) {
+        messageInput.value = question
+      }
+      const effectiveFiles =
+        options?.files && options.files.length > 0
+          ? options.files
+          : !sideChannel && fileInput.value.length > 0
+            ? fileInput.value
+            : undefined
       try {
         await chat.sendMessage({
-          text: messageInput.value,
-          files: fileInput.value.length > 0 ? fileInput.value : undefined,
+          text: question,
+          files: effectiveFiles,
           metadata: {
             model: textInference.activeModel,
             timestamp: Date.now(),
           },
         })
       } finally {
-        temporarySystemPrompt.value = null
+        temporarySystemPrompts[targetKey] = null
       }
+
+      const outgoingMessages = chat.messages
 
       // 5. Store RAG source in message metadata
       if (ragContext.ragSourceText) {
-        const latestMessage = messages.value?.[messages.value.length - 1]
+        const latestMessage = outgoingMessages[outgoingMessages.length - 1]
         if (latestMessage && latestMessage.role === 'assistant' && latestMessage.metadata) {
           latestMessage.metadata.ragSource = ragContext.ragSourceText
         }
       }
 
       // 6. Persist conversation (sanitize base64 image parts to aipg-media)
-      conversations.updateConversation(messages.value, conversations.activeKey)
+      conversations.updateConversation(outgoingMessages, targetKey)
 
       // 7. Clear inputs
-      messageInput.value = ''
-      fileInput.value = []
+      if (clearInputs) {
+        messageInput.value = ''
+        fileInput.value = []
+      }
     }
 
     async function stop() {
@@ -529,17 +645,54 @@ export const useOpenAiCompatibleChat = defineStore(
     }
 
     async function regenerate(messageId: string) {
+      const targetKey = conversations.activeKey
+      // Reactivate the conversation's preset and stamp meta before regenerating
+      // so the new turn matches the thread's current profile (matches `generate`).
+      textInference.ensureGlobalsMatchConversation(targetKey)
+      textInference.stampMetaForConversation(targetKey)
+
       await textInference.ensureReadyForInference()
       manuallyStopped.value = false
-      await chats[conversations.activeKey]?.regenerate({ messageId })
-      conversations.updateConversation(messages.value, conversations.activeKey)
+
+      const chat = chats[targetKey]
+      if (!chat) return
+
+      // Find the user message that produced the assistant message being regenerated
+      // so RAG retrieval re-runs against the same question.
+      const targetIdx = chat.messages.findIndex((m) => m.id === messageId)
+      const priorUserMessage =
+        targetIdx > 0
+          ? [...chat.messages.slice(0, targetIdx)].reverse().find((m) => m.role === 'user')
+          : undefined
+      const question =
+        priorUserMessage?.parts
+          ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+          .map((p) => p.text ?? '')
+          .join('\n\n') ?? ''
+
+      const ragContext = await textInference.prepareRagContext(question)
+      temporarySystemPrompts[targetKey] = ragContext.systemPrompt
+
+      try {
+        await chat.regenerate({ messageId })
+      } finally {
+        temporarySystemPrompts[targetKey] = null
+      }
+
+      if (ragContext.ragSourceText) {
+        const latestMessage = messages.value?.[messages.value.length - 1]
+        if (latestMessage && latestMessage.role === 'assistant' && latestMessage.metadata) {
+          latestMessage.metadata.ragSource = ragContext.ragSourceText
+        }
+      }
+
+      conversations.updateConversation(messages.value, targetKey)
     }
 
     async function removeMessage(messageId: string) {
       const chat = chats[conversations.activeKey]
       if (!chat) return
       const indexOfAssistantMeessage = chat.messages.findIndex((m) => m.id === messageId)
-      console.log('removeMessage', { messageId, indexOfAssistantMeessage, messages: chat.messages })
       if (indexOfAssistantMeessage > 0) {
         chat.messages.splice(indexOfAssistantMeessage - 1, 2)
       } else {
@@ -558,6 +711,8 @@ export const useOpenAiCompatibleChat = defineStore(
       messageInput,
       fileInput,
       generate,
+      getMessagesForKey,
+      summarizeMessages,
       stop,
       processing,
       removeMessage,

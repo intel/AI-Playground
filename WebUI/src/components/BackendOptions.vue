@@ -47,6 +47,7 @@ import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
 const props = defineProps<{
   backend: BackendServiceName
 }>()
+
 const backendServices = useBackendServices()
 const i18nState = useI18N().state
 const backendStatus = computed(
@@ -72,7 +73,7 @@ const getFormSchema = (backend: BackendServiceName) => {
         .passthrough()
 
     case 'llamacpp-backend':
-      // LlamaCPP: build numbers like b6048, plus optional startup parameters
+      // LlamaCPP: build numbers like b6048, plus optional startup parameters (standard build only here)
       return z
         .object({
           version: z.string().regex(/^b\d+$/, 'Must be a valid build number (e.g. b6048)'),
@@ -158,12 +159,12 @@ const getInitialFormValues = () => {
   if (props.backend === 'llamacpp-backend') {
     return {
       ...values,
-      llamaCppParameters: backendServices.effectiveLlamaCppParameters,
+      llamaCppParameters:
+        backendServices.llamaCppParameters ?? backendServices.llamaCppDefaultParameters,
     }
   }
   return values
 }
-
 // Handler for reinstalling a service with enhanced error handling
 const handleReinstall = async () => {
   try {
@@ -398,45 +399,46 @@ const showMenuButton = computed(
         </AlertDialogContent>
       </AlertDialog>
 
-      <Form
+      <Dialog
         v-if="showSettings"
-        v-slot="{ handleSubmit }"
-        as=""
-        :initial-values="getInitialFormValues()"
-        keep-values
-        :validation-schema="formSchema"
+        @update:open="
+          (open: boolean) => {
+            if (!open) menuOpen = false
+          }
+        "
+        v-model:open="settingsDialogOpen"
       >
-        <Dialog
-          @update:open="
-            (open: boolean) => {
-              if (!open) menuOpen = false
-            }
-          "
-          v-model:open="settingsDialogOpen"
+        <DialogTrigger asChild
+          ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
+            i18nState.COM_SETTINGS
+          }}</DropdownMenuItem></DialogTrigger
         >
-          <DialogTrigger asChild
-            ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
-              i18nState.COM_SETTINGS
-            }}</DropdownMenuItem></DialogTrigger
-          >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{{
-                i18nState.BACKEND_SETTINGS_TITLE.replace(
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{{
+              i18nState.BACKEND_SETTINGS_TITLE.replace(
+                '{backend}',
+                mapServiceNameToDisplayName(backend),
+              )
+            }}</DialogTitle>
+            <DialogDescription>
+              {{
+                i18nState.BACKEND_SETTINGS_DESCRIPTION.replace(
                   '{backend}',
                   mapServiceNameToDisplayName(backend),
                 )
-              }}</DialogTitle>
-              <DialogDescription>
-                {{
-                  i18nState.BACKEND_SETTINGS_DESCRIPTION.replace(
-                    '{backend}',
-                    mapServiceNameToDisplayName(backend),
-                  )
-                }}
-              </DialogDescription>
-            </DialogHeader>
+              }}
+            </DialogDescription>
+          </DialogHeader>
 
+          <Form
+            v-if="settingsDialogOpen"
+            v-slot="{ handleSubmit }"
+            as=""
+            :initial-values="getInitialFormValues()"
+            keep-values
+            :validation-schema="formSchema"
+          >
             <form
               id="dialogForm"
               @submit="
@@ -457,7 +459,6 @@ const showMenuButton = computed(
                   // Save llamaCppParameters separately (not part of version override)
                   if (props.backend === 'llamacpp-backend' && 'llamaCppParameters' in values) {
                     const params = (values as { llamaCppParameters?: string }).llamaCppParameters
-                    // Store null if empty or matches default (meaning 'use default')
                     backendServices.llamaCppParameters =
                       !params || params === backendServices.llamaCppDefaultParameters
                         ? null
@@ -535,7 +536,6 @@ const showMenuButton = computed(
                 </FormItem>
               </FormField>
 
-              <!-- LlamaCPP startup parameters -->
               <FormField
                 v-if="backend === 'llamacpp-backend'"
                 v-slot="{ componentField }"
@@ -562,28 +562,28 @@ const showMenuButton = computed(
                 </FormItem>
               </FormField>
             </form>
+          </Form>
 
-            <DialogFooter class="gap-2">
-              <Button
-                v-if="hasUserOverride"
-                type="button"
-                variant="outline"
-                class="px-3 py-1.5 rounded text-sm"
-                @click="clearOverride"
-              >
-                Clear Override
-              </Button>
-              <Button
-                type="submit"
-                form="dialogForm"
-                class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded text-sm"
-              >
-                {{ i18nState.BACKEND_SAVE_CHANGES }}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </Form>
+          <DialogFooter class="gap-2">
+            <Button
+              v-if="hasUserOverride"
+              type="button"
+              variant="outline"
+              class="px-3 py-1.5 rounded text-sm"
+              @click="clearOverride"
+            >
+              Clear Override
+            </Button>
+            <Button
+              type="submit"
+              form="dialogForm"
+              class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded text-sm"
+            >
+              {{ i18nState.BACKEND_SAVE_CHANGES }}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>

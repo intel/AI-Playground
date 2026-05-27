@@ -1,3 +1,4 @@
+.DS_Store
 .idea
 .vscode/
 env/
@@ -30,3 +31,6 @@ OpenVINO/ovms.zip
 build-envs/
 portable-git/
 models/
+
+# Home Agent — runtime Telegram chat id (local dev); never commit
+home-agent/.chat_id

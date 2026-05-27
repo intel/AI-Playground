@@ -335,13 +335,3 @@ in `models.json`. To test inference:
 **Network requirement**: Model downloads redirect through `cas-bridge.xethub.hf.co`
 (HuggingFace Xet CDN). This domain must be in the egress allowlist. Allowlist changes
 only take effect on new VM sessions — a running VM will not pick up changes.
-
-### Known issues
-
-- **`npm install` requires `--legacy-peer-deps`** due to a `zod@4` vs `zod@3` peer
-  conflict from `@browserbasehq/stagehand` (transitive dep of `@langchain/community`).
-- **`electron/test/subprocesses/service.test.ts` fails** because the `electron` path alias
-  in `vitest.config.ts` shadows the `electron` package mock. This is a pre-existing issue
-  on the `dev` branch — 4 of 5 test files (24 tests) pass.
-- **Prettier reports 2 pre-existing formatting issues** in `electron/subprocesses/openVINOBackendService.ts`
-  and `src/components/BackendOptions.vue` on the `dev` branch.

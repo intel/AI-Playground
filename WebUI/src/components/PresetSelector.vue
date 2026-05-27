@@ -129,28 +129,44 @@ const activeVariantName = computed(() => {
   return presetsStore.activeVariantName[selectedPresetName.value] || null
 })
 
-const variantSelectorOptions = computed<VariantOption[]>(() => {
+function isVariantAvailable(variant: { requiresService?: string }): boolean {
+  if (!variant.requiresService) return true
+  const info = backendServices.info.find((s) => s.serviceName === variant.requiresService)
+  if (!info) return false
+  return info.status !== 'notInstalled'
+}
+
+// Variants are now grouped by `backend` (defaulting to 'comfyui'). The Backend dropdown
+// in SettingsWorkflow.vue picks which group is active; the quality radio here only shows
+// variants belonging to that group, then further filters by `requiresService` availability.
+const availableVariants = computed(() => {
   if (!selectedPreset.value?.variants) return []
+  const presetName = selectedPreset.value.name
+  const activeBackend = presetsStore.getActiveBackend(presetName) ?? 'comfyui'
+  return selectedPreset.value.variants
+    .filter((v) => (v.backend ?? 'comfyui') === activeBackend)
+    .filter(isVariantAvailable)
+})
 
-  const options: VariantOption[] = []
-
-  selectedPreset.value.variants.forEach((variant, index) => {
-    options.push({
-      id: `variant-${index}`,
-      name: variant.name,
-      value: variant.name,
-    })
-  })
-
-  return options
+const variantSelectorOptions = computed<VariantOption[]>(() => {
+  return availableVariants.value.map((variant, index) => ({
+    id: `variant-${index}`,
+    name: variant.displayName ?? variant.name,
+    value: variant.name,
+  }))
 })
 
 const selectedVariantValue = computed({
   get: () => {
     const variant = activeVariantName.value
-    // If no variant selected but preset has variants, return first variant name
-    if (!variant && selectedPreset.value?.variants && selectedPreset.value.variants.length > 0) {
-      return selectedPreset.value.variants[0].name
+    const available = availableVariants.value
+    // If currently selected variant is unavailable, fall back to first available one
+    if (variant && !available.some((v) => v.name === variant)) {
+      return available[0]?.name ?? ''
+    }
+    // If no variant selected but preset has available variants, return the first one
+    if (!variant && available.length > 0) {
+      return available[0].name
     }
     return variant || ''
   },
@@ -160,6 +176,21 @@ const selectedVariantValue = computed({
     emits('update:variant', selectedPresetName.value, value)
   },
 })
+
+// When the previously-active variant becomes unavailable (service uninstalled, or
+// persisted state from another machine), reconcile it to the first available variant.
+watch(
+  [selectedPresetName, availableVariants],
+  ([presetName, available]) => {
+    if (!presetName) return
+    const current = presetsStore.activeVariantName[presetName]
+    if (!current) return
+    if (available.some((v) => v.name === current)) return
+    if (available.length === 0) return
+    emits('update:variant', presetName, available[0].name)
+  },
+  { immediate: true },
+)
 
 const extendedDescription = computed(() => {
   const preset = selectedPreset.value
