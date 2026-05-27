@@ -76,6 +76,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { saveImageToMediaInput } from '@/lib/utils'
 import SettingsOutpaintCanvas from './SettingsOutpaintCanvas.vue'
 import SettingsInpaintMask from './SettingsInpaintMask.vue'
 
@@ -206,15 +207,42 @@ const maskedImageUrl = computed(() => {
   return (inpaintMaskInput.value?.current.value as string) || ''
 })
 
-function updateMaskImage(value: string) {
+// Convert data URI emits to durable `aipg-media://` URLs before assigning to
+// `input.current.value`. Two reasons:
+// 1. `comfyUiPresets.queueBatch` snapshots `current.value` into each queued
+//    `MediaItem.dynamicSettings[].current`. With full-res PNG data URIs there,
+//    pinia-plugin-persistedstate quickly blows the localStorage quota.
+// 2. The persist serializer strips `data:image/` values from
+//    `comfyInputsPerPreset`, so on reload/HMR the input would lose its value
+//    and `validateRequiredImageInputs` would report a missing required input.
+// Saving to `media/input/` yields a short, persistable URL that
+// `modifyDynamicSettingsInWorkflow` already knows how to upload via
+// `imageUrlToDataUri`.
+async function persistAsAipgMedia(value: string): Promise<string> {
+  if (!value.startsWith('data:image/')) return value
+  return await saveImageToMediaInput(value)
+}
+
+async function updateMaskImage(value: string) {
+  const initialInput = inpaintMaskInput.value
+  let persisted: string
+  try {
+    persisted = await persistAsAipgMedia(value)
+  } catch (e) {
+    console.error('Failed to persist inpaint mask as aipg-media URL', e)
+    return
+  }
+  // Race-safety: drop the write if the dialog/preset switched the input out
+  // from under us. The next emit will supersede in the new context.
+  if (inpaintMaskInput.value !== initialInput) return
   const input = inpaintMaskInput.value
   if (input && input.current) {
-    input.current.value = value
+    input.current.value = persisted
   } else {
     nextTick(() => {
       const retryInput = imageGeneration.comfyInputs.find((i) => i.type === 'inpaintMask')
       if (retryInput && retryInput.current) {
-        retryInput.current.value = value
+        retryInput.current.value = persisted
       }
     })
   }
@@ -229,14 +257,25 @@ function handlePreviewUpdate(previewUrl: string) {
   dialogStore.setMaskEditorPreview(previewUrl)
 }
 
-function handleOutpaintCompositeExport(dataUri: string) {
-  const input = imageGeneration.comfyInputs.find((i) => i.type === 'outpaintCanvas')
-  if (input?.current) {
-    input.current.value = dataUri
+async function handleOutpaintCompositeExport(dataUri: string) {
+  const initialInput = imageGeneration.comfyInputs.find((i) => i.type === 'outpaintCanvas')
+  let persisted: string
+  try {
+    persisted = await persistAsAipgMedia(dataUri)
+  } catch (e) {
+    console.error('Failed to persist outpaint composite as aipg-media URL', e)
+    return
+  }
+  const currentInput = imageGeneration.comfyInputs.find((i) => i.type === 'outpaintCanvas')
+  // Race-safety: skip if preset/input changed during the await; the next
+  // emit will overwrite in the new context.
+  if (currentInput !== initialInput) return
+  if (currentInput?.current) {
+    currentInput.current.value = persisted
   } else {
     nextTick(() => {
       const retry = imageGeneration.comfyInputs.find((i) => i.type === 'outpaintCanvas')
-      if (retry?.current) retry.current.value = dataUri
+      if (retry?.current) retry.current.value = persisted
     })
   }
 }

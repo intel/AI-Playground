@@ -156,7 +156,11 @@ export function markdownToTelegramHtml(md: string): string {
   // Collapse 3+ newlines and trim.
   html = html.replace(/\n{3,}/g, '\n\n').trim()
   if (html.length > TELEGRAM_MAX_CHARS) {
-    html = html.slice(0, TELEGRAM_MAX_CHARS - 1) + '…'
+    // Naively slicing rendered HTML can cut through a tag (e.g. `<b`) or an
+    // entity (e.g. `&am`), producing markup Telegram rejects. Fall back to
+    // plain-text truncation: strip all tags, then escape and slice.
+    const plainText = html.replace(/<[^>]*>/g, '')
+    html = escapeText(plainText.slice(0, TELEGRAM_MAX_CHARS - 1)) + '…'
   }
   return html
 }

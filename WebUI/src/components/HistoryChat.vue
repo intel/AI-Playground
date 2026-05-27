@@ -1,9 +1,6 @@
 <template>
   <div class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto">
-    <div
-      v-if="homeAgent.isFeatureEnabled"
-      class="flex items-center justify-center gap-2 px-1 pb-1"
-    >
+    <div v-if="homeAgent.isFeatureEnabled" class="flex items-center justify-center gap-2 px-1 pb-1">
       <span
         class="text-xs font-medium select-none"
         :class="filterKind === 'main' ? 'text-foreground' : 'text-muted-foreground'"

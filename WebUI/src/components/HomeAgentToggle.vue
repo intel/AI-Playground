@@ -71,9 +71,17 @@ const toggleTitle = computed(() => {
     : 'Home Agent is off — click to enable Telegram messaging.'
 })
 
-const ariaLabel = computed(() =>
-  isHomeAgentActive.value ? 'Home Agent on, click to turn off' : 'Home Agent off, click to turn on',
-)
+const ariaLabel = computed(() => {
+  // Mirror the disabled-state wording from `toggleTitle` instead of always
+  // saying "click to turn on/off" — otherwise a screen reader announces the
+  // wrong affordance when the switch is non-interactive.
+  if (!isAvailable.value || (!isReadyToActivate.value && !isHomeAgentActive.value)) {
+    return toggleTitle.value
+  }
+  return isHomeAgentActive.value
+    ? 'Home Agent on, click to turn off'
+    : 'Home Agent off, click to turn on'
+})
 
 function toggle() {
   homeAgent.toggle()

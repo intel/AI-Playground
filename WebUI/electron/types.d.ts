@@ -43,6 +43,13 @@ declare interface InferenceDevice {
   selected: boolean
 }
 
+declare type StorageTarget = {
+  id: string
+  name: string
+  path: string
+  selected: boolean
+}
+
 declare interface ErrorDetails {
   command?: string
   exitCode?: number
@@ -62,9 +69,16 @@ declare interface ApiServiceInformation {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  storageTargets?: StorageTarget[]
+  llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
   installedVersion?: { version: string; releaseTag?: string }
+  /** Populated by llamacpp-backend: GGUF tree under llama-cpp/ */
+  llamaCppStandardArtifactReady?: boolean
+  llamaCppPhisonArtifactReady?: boolean
+  llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
+  llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
 }
 
 // Declare ComfyUICustomNodeRepoId type

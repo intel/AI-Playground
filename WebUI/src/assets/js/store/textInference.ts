@@ -1377,7 +1377,11 @@ export const useTextInference = defineStore(
         }
         applyPresetToGlobals(meta.presetName, meta.variant ?? null)
       },
-      { flush: 'post' },
+      // `immediate: true` ensures the restored thread (set during conversations
+      // store setup) gets its preset applied on startup — otherwise the very
+      // first turn after launching the app uses whatever picker state was
+      // persisted regardless of which thread the user resumes.
+      { flush: 'post', immediate: true },
     )
 
     // Initialize with first chat preset if available and no preset is selected

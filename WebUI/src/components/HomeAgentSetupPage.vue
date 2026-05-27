@@ -206,12 +206,13 @@
     <div class="flex items-center justify-between pt-6">
       <button
         class="py-2 px-5 rounded text-sm font-medium border border-border hover:bg-muted transition-colors"
-        @click="emit('back')"
+        @click="isEditMode ? emit('done') : emit('back')"
       >
-        ← Back
+        {{ isEditMode ? 'Close' : '← Back' }}
       </button>
       <div class="flex gap-3">
         <button
+          v-if="!isEditMode"
           class="py-2 px-5 rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           @click="emit('done')"
         >
@@ -220,9 +221,13 @@
         <button
           :disabled="!canSave"
           class="bg-primary py-2 px-8 rounded text-primary-foreground text-sm font-medium disabled:opacity-50 transition-colors"
-          @click="saveAndContinue().then(() => emit('done'))"
+          @click="
+            saveAndContinue().then((ok) => {
+              if (ok) emit('done')
+            })
+          "
         >
-          Save &amp; Continue
+          {{ isEditMode ? 'Save' : 'Save &amp; Continue' }}
         </button>
       </div>
     </div>
@@ -230,14 +235,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import StepBadge from '@/components/StepBadge.vue'
 import { useHomeAgentSetup } from '@/assets/js/store/useHomeAgentSetup'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
 
 const emit = defineEmits<{
   back: []
   done: []
 }>()
+
+const wizard = useSetupWizard()
+const isEditMode = computed(() => wizard.homeAgentSetupOrigin === 'edit')
 
 function openExternalUrl(url: string) {
   window.electronAPI.openUrl(url)

@@ -75,3 +75,17 @@ export async function getComfyAuthToken(forceRefresh = false): Promise<string> {
 export function invalidateComfyAuthToken(): void {
   invalidate('comfyui-backend')
 }
+
+/**
+ * Returns the current Home Agent loopback token. Used by the AI SDK chat
+ * fetch when Home Agent is the active backend so requests to the bundled
+ * `home-agent` Flask proxy carry `X-AIPG-Auth`.
+ */
+export async function getHomeAgentAuthToken(forceRefresh = false): Promise<string> {
+  return loadToken('home-agent-backend', forceRefresh)
+}
+
+/** Invalidate the cached Home Agent token (e.g. on 401 retry). */
+export function invalidateHomeAgentAuthToken(): void {
+  invalidate('home-agent-backend')
+}

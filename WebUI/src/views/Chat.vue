@@ -21,10 +21,10 @@
     @scroll="handleScroll"
   >
     <div
-      class="absolute inset-0 flex justify-center items-center bg-background/30 z-10"
+      class="sticky top-0 z-10 flex justify-center items-center bg-background/80 backdrop-blur-sm rounded-md py-4 px-6 mx-auto w-full max-w-md shadow-md"
       v-if="textInference.isPreparingBackend"
     >
-      <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
+      <loading-bar :text="textInference.preparationMessage" class="w-full"></loading-bar>
     </div>
 
     <!-- eslint-disable vue/require-v-for-key -->
@@ -440,9 +440,13 @@ function copyText(text: string) {
 }
 
 function getMessageTextForCopy(message: { parts: { type: string; text?: string }[] }): string {
+  // Mirror the sanitization applied to the rendered MarkdownRenderer
+  // (`stripAipgMediaImages`) so copied text matches what the user actually
+  // sees — otherwise embedded `aipg-media://` image tokens leak into the
+  // clipboard even though they are stripped on screen.
   return message.parts
     .filter((part) => part.type === 'text')
-    .map((part) => part.text ?? '')
+    .map((part) => stripAipgMediaImages(part.text ?? ''))
     .filter((t) => t.length > 0)
     .join('\n\n')
 }

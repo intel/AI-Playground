@@ -57,6 +57,7 @@
           v-if="(originalImageUrl || imageUrl) && (originalImageUrl || imageUrl).trim() !== ''"
           ref="sourceImage"
           :src="originalImageUrl || imageUrl"
+          crossorigin="anonymous"
           class="absolute inset-0 w-full h-full object-contain"
           @load="onImageLoad"
           @error="onImageError"
@@ -262,8 +263,11 @@ async function restoreMaskFromAlphaChannel(maskedImageUrl: string) {
   if (!maskCanvas.value) return
 
   try {
-    // Load the masked image
+    // Load the masked image. `crossOrigin` MUST be set before `src` —
+    // otherwise the load races ahead in non-CORS mode and the eventual
+    // `tempCtx.getImageData()` taints + throws `SecurityError`.
     const img = new Image()
+    img.crossOrigin = 'anonymous'
     img.src = maskedImageUrl
 
     await new Promise<void>((resolve, reject) => {

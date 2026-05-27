@@ -65,15 +65,6 @@
     },
     {
       "type": "number",
-      "label": "Inference Steps",
-      "displayed": true,
-      "modifiable": true,
-      "defaultValue": 20,
-      "nodeTitle": "Steps",
-      "nodeInput": "value"
-    },
-    {
-      "type": "number",
       "label": "Width",
       "displayed": false,
       "modifiable": false,
@@ -339,7 +330,32 @@
     {
       "name": "Quality",
       "overrides": {
-        "description": "Quality Image to Video generation using Wan 2.2 14B with the standard 20-step two-stage diffusion (no Lightx2v LoRA).",
+        "description": "Quality Image to Video generation using Wan 2.2 14B with the standard two-stage diffusion (no Lightx2v LoRA). The Step Split controls where the high-noise sampler hands off to the low-noise sampler; set it to Inference Steps / 2 for a balanced split (e.g. 10 for 20 steps, 15 for 30 steps).",
+        "settings": [
+          {
+            "type": "number",
+            "label": "Inference Steps",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 20,
+            "min": 2,
+            "max": 100,
+            "step": 2,
+            "nodeTitle": "Steps",
+            "nodeInput": "value"
+          },
+          {
+            "type": "number",
+            "label": "Step Split",
+            "displayed": true,
+            "modifiable": true,
+            "defaultValue": 10,
+            "min": 1,
+            "max": 99,
+            "nodeTitle": "Split Step",
+            "nodeInput": "value"
+          }
+        ],
         "comfyUiApiWorkflow": {
           "84": {
             "inputs": {

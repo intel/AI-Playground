@@ -20,6 +20,8 @@ type ServiceSettings = {
   releaseTag?: string
   comfyUiParameters?: string
   llamaCppParameters?: string
+  llamaCppBuildVariant?: 'standard' | 'ssd-offload'
+  llamaCppOffloadDrive?: string | null
 }
 
 type SamplePrompt = {
@@ -62,6 +64,8 @@ type LocalSettings = {
   huggingfaceEndpoint: string
   mcpAutoDetectionDismissed: string[]
   openvinoImageGenDevices: string[]
+  /** Dev unpackaged: set via settings-dev.json / userData overlay. */
+  PhisonSSDdetected?: boolean
 }
 
 type GpuHardwareDevice = {
@@ -198,7 +202,9 @@ type electronAPI = {
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   saveImageToMediaInput(dataUri: string): Promise<string>
-  readAipgMediaAsBase64(url: string): Promise<string>
+  readAipgMediaAsBase64(
+    url: string,
+  ): Promise<{ success: true; data: string } | { success: false; error: string }>
   openImageWin(url: string, title: string, width: number, height: number): void
   wakeupApiService(): void
   screenChange(callback: (width: number, height: number) => void): void
@@ -235,6 +241,7 @@ type electronAPI = {
   wakeupComfyUIService(): void
   getComfyUiDefaultParameters(): Promise<string>
   getLlamaCppDefaultParameters(): Promise<string>
+  detectPhisonSsd(): Promise<{ detected: boolean }>
   getServices(): Promise<ApiServiceInformation[]>
   getBackendAuthToken(serviceName: string): Promise<string>
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
@@ -344,7 +351,7 @@ type electronAPI = {
     testTelegram(): Promise<{ success: boolean; error?: string }>
     detectChatId(token: string): Promise<{ chatId: string } | { error: string }>
     detectChatIdFromSaved(): Promise<{ chatId: string } | { error: string }>
-    injectToken(token: string, chatId?: string): Promise<{ status: string }>
+    injectToken(token: string, chatId?: string): Promise<{ status: string; error?: string }>
     pollTelegram(): Promise<
       Array<{
         text?: string
@@ -682,9 +689,22 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
+  storageTargets?: StorageTarget[]
+  llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
   installedVersion?: { version: string; releaseTag?: string }
+  llamaCppStandardArtifactReady?: boolean
+  llamaCppPhisonArtifactReady?: boolean
+  llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
+  llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
+}
+
+type StorageTarget = {
+  id: string
+  name: string
+  path: string
+  selected: boolean
 }
 
 type Model = {

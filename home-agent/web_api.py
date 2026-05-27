@@ -6,6 +6,7 @@ Telegram bot polls for incoming messages and queues them for Electron to pick up
 
 import argparse
 import asyncio
+import hmac
 import logging
 import os
 import re
@@ -18,6 +19,38 @@ from llm_proxy import proxy_chat_completions
 
 app = Flask(__name__)
 CORS(app)
+
+# ── Loopback auth ─────────────────────────────────────────────────────────────
+# The Flask server binds to 127.0.0.1, but on a shared host (multi-user box,
+# host-networked containers, low-IL processes) any local peer can still reach
+# our port. Require an `X-AIPG-Auth` header that matches the per-launch token
+# the Electron main process injected via env. Mirrors the pattern used by the
+# `ai-backend` Flask service.
+_LOOPBACK_AUTH_TOKEN = os.environ.get("AIPG_LOOPBACK_TOKEN", "")
+_LOOPBACK_REMOTE_ADDRS = frozenset({"127.0.0.1", "::1"})
+# `/healthy` must remain reachable so the service registry can probe readiness
+# before it has obtained the token.
+_AUTH_EXEMPT_PATHS = frozenset({"/healthy"})
+
+
+@app.before_request
+def _enforce_loopback_and_auth():
+    if request.remote_addr not in _LOOPBACK_REMOTE_ADDRS:
+        return jsonify({"error": "loopback only"}), 403
+    # CORS preflights do not carry custom headers by design — let flask-cors
+    # handle them in the after_request stage.
+    if request.method == "OPTIONS":
+        return None
+    if request.path in _AUTH_EXEMPT_PATHS:
+        return None
+    if not _LOOPBACK_AUTH_TOKEN:
+        # Service was not provisioned with a token — reject everything except
+        # the health probe to avoid serving unauthenticated traffic.
+        return jsonify({"error": "service not provisioned"}), 503
+    provided = request.headers.get("X-AIPG-Auth", "")
+    if not provided or not hmac.compare_digest(provided, _LOOPBACK_AUTH_TOKEN):
+        return jsonify({"error": "unauthorized"}), 401
+    return None
 
 # ── Log redaction ─────────────────────────────────────────────────────────────
 # Telegram bot tokens look like "<numeric_id>:<base64-ish>" and appear in httpx
@@ -94,6 +127,12 @@ _bot_loop: asyncio.AbstractEventLoop | None = None
 _bot_token: str = ""
 _bot_chat_id: str = ""
 _bot_start_lock = threading.Lock()
+# Set inside _start_telegram_bot.run(); awaited there to keep the bot alive.
+# Triggering it from another thread (via call_soon_threadsafe) requests a
+# graceful shutdown so a new token/chat_id can be applied without restarting
+# the Flask process.
+_bot_shutdown_event: asyncio.Event | None = None
+_bot_thread: threading.Thread | None = None
 
 # Persistent chat ID file — survives restarts
 _CHAT_ID_FILE = Path(__file__).parent / ".chat_id"
@@ -117,6 +156,25 @@ def _persist_chat_id(chat_id: str) -> None:
         logger.info("Persisted chat_id=%s to %s", chat_id, _CHAT_ID_FILE)
     except Exception as exc:
         logger.warning("Could not persist chat_id: %s", exc)
+
+
+def _record_authorized_chat_id(chat_id: str) -> None:
+    """Update `_last_seen_chat_id` + persist on disk only when the incoming
+    chat is authorized.
+
+    Authorized means either (a) detection mode is still active
+    (`_allowed_chat_id` is empty, so `/get-chat-id` can return the first chat
+    that messages the bot during setup) or (b) the chat matches the configured
+    allow id. Without this guard, an unrelated user who messages the bot could
+    overwrite `.chat_id` and confuse `/get-chat-id` / `_outbound_chat_id`.
+    """
+    global _last_seen_chat_id
+    allow = _allowed_chat_id
+    if allow and chat_id != allow:
+        return
+    if _last_seen_chat_id != chat_id:
+        _last_seen_chat_id = chat_id
+        _persist_chat_id(chat_id)
 
 
 # Load persisted chat ID at startup
@@ -148,28 +206,55 @@ def set_upstream():
 
 @app.post("/set-telegram-token")
 def set_telegram_token():
-    """Inject bot token at runtime to start the polling bot without restart."""
-    global _bot_application, _allowed_chat_id, _bot_chat_id
+    """Inject bot token at runtime to start the polling bot without restart.
+
+    If a bot is already running with a different token, gracefully stop it and
+    start a new one so reconfiguration takes effect without a Flask restart.
+    """
+    global _bot_application, _allowed_chat_id, _bot_chat_id, _bot_thread
     data = request.get_json(silent=True) or {}
     token = data.get("token", "").strip()
     raw_chat = data.get("chatId")
     cleaned_chat = str(raw_chat).strip() if raw_chat is not None and str(raw_chat).strip() else ""
     if not token:
         return jsonify({"error": "token required"}), 400
+
+    thread_to_join: threading.Thread | None = None
     with _bot_start_lock:
-        if _bot_application is not None and _bot_application != "starting":
-            # Bot already running (e.g. started in "detection" mode with empty chat).
-            # Apply chat id so incoming messages are queued — without this, users stay
-            # stuck in detection mode forever after Detect + verify.
-            if cleaned_chat:
-                _allowed_chat_id = cleaned_chat
-                _bot_chat_id = cleaned_chat
-                logger.info("Telegram bot already running — applied chat_id=%s", cleaned_chat)
-            return jsonify({"status": "already_running", "chatUpdated": bool(cleaned_chat)})
         if _bot_application == "starting":
             return jsonify({"status": "starting"}), 409
+        if _bot_application is not None:
+            if _bot_token == token:
+                # Same token — just apply chat id so incoming messages are queued.
+                # Without this, users stay stuck in detection mode forever after
+                # Detect + verify.
+                if cleaned_chat:
+                    _allowed_chat_id = cleaned_chat
+                    _bot_chat_id = cleaned_chat
+                    logger.info(
+                        "Telegram bot already running — applied chat_id=%s", cleaned_chat
+                    )
+                return jsonify({"status": "already_running", "chatUpdated": bool(cleaned_chat)})
+            # Token changed — request graceful shutdown and restart with the new token.
+            logger.info("Telegram bot token changed — restarting bot")
+            loop = _bot_loop
+            ev = _bot_shutdown_event
+            if loop is not None and ev is not None:
+                try:
+                    loop.call_soon_threadsafe(ev.set)
+                except Exception as exc:
+                    logger.warning("Could not signal bot shutdown: %s", exc)
+            thread_to_join = _bot_thread
         _bot_application = "starting"  # sentinel: blocks concurrent requests
+
+    # Wait for old bot thread to finish outside the lock (best-effort, bounded).
+    if thread_to_join is not None and thread_to_join.is_alive():
+        thread_to_join.join(timeout=10)
+        if thread_to_join.is_alive():
+            logger.warning("Previous Telegram bot thread did not exit within 10s")
+
     t = threading.Thread(target=_start_telegram_bot, args=(token, cleaned_chat), daemon=True)
+    _bot_thread = t
     t.start()
     logger.info("Started Telegram bot via /set-telegram-token")
     return jsonify({"status": "started"})
@@ -412,10 +497,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             logger.info("Detection mode: received message from chat_id=%s (not yet configured)", chat_id)
             return
@@ -438,10 +521,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             return
         if chat_id != allow:
@@ -457,10 +538,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             return
         if chat_id != allow:
@@ -479,10 +558,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             logger.info("Detection mode: received /imgGen from chat_id=%s (not yet configured)", chat_id)
             return
@@ -507,10 +584,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             return
         if chat_id != allow:
@@ -526,10 +601,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             return
         if chat_id != allow:
@@ -545,10 +618,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             return
         if chat_id != allow:
@@ -570,10 +641,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             return
         if chat_id != allow:
@@ -597,16 +666,14 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if cq is None or cq.message is None:
             return
         chat_id = str(cq.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if allow and chat_id != allow:
             logger.warning("Ignoring imgGen callback from unauthorized chat_id: %s", chat_id)
             try:
                 await cq.answer()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("imgGen unauthorized ack failed: %s", exc)
             return
         data = cq.data or ""
         try:
@@ -634,16 +701,14 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if cq is None or cq.message is None:
             return
         chat_id = str(cq.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if allow and chat_id != allow:
             logger.warning("Ignoring callback from unauthorized chat_id: %s", chat_id)
             try:
                 await cq.answer()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("loadConv unauthorized ack failed: %s", exc)
             return
         data = cq.data or ""
         try:
@@ -668,10 +733,8 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         if update.message is None or not update.message.photo:
             return
         chat_id = str(update.message.chat_id)
-        if _last_seen_chat_id != chat_id:
-            _last_seen_chat_id = chat_id
-            _persist_chat_id(chat_id)
         allow = _allowed_chat_id
+        _record_authorized_chat_id(chat_id)
         if not allow:
             logger.info("Detection mode: received photo from chat_id=%s (not yet configured)", chat_id)
             return
@@ -710,8 +773,9 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
             )
 
     async def run() -> None:
-        global _bot_application, _bot_loop, _last_seen_chat_id
+        global _bot_application, _bot_loop, _last_seen_chat_id, _bot_shutdown_event
         _bot_loop = asyncio.get_event_loop()
+        _bot_shutdown_event = asyncio.Event()
         application = Application.builder().token(token).build()
         _bot_application = application
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -781,7 +845,23 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
             logger.warning("Could not pre-populate chat_id: %s", exc)
 
         await application.updater.start_polling(drop_pending_updates=False)
-        await asyncio.Event().wait()
+        try:
+            await _bot_shutdown_event.wait()
+        finally:
+            # Graceful shutdown so a new token can take effect without
+            # restarting the Flask process.
+            try:
+                await application.updater.stop()
+            except Exception as exc:
+                logger.warning("application.updater.stop() failed: %s", exc)
+            try:
+                await application.stop()
+            except Exception as exc:
+                logger.warning("application.stop() failed: %s", exc)
+            try:
+                await application.shutdown()
+            except Exception as exc:
+                logger.warning("application.shutdown() failed: %s", exc)
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -790,7 +870,14 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
         loop.run_until_complete(run())
     except Exception as exc:
         logger.error("Telegram bot crashed: %s", exc)
+    finally:
         _bot_application = None  # allow retry
+        _bot_loop = None
+        _bot_shutdown_event = None
+        try:
+            loop.close()
+        except Exception:
+            pass
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -815,5 +902,9 @@ if __name__ == "__main__":
     else:
         print("No TELEGRAM_BOT_TOKEN — Telegram bot disabled.", flush=True)
 
-    app.run(host="0.0.0.0", port=args.port)  # nosec B104 — intentional: local service must bind all interfaces for Electron IPC
+    # Bind to loopback only — Electron talks to this backend via 127.0.0.1
+    # (see homeAgentBackendService.ts `baseUrl`). Restricting the listener
+    # prevents the Telegram bot/proxy endpoints from being reachable from
+    # other hosts on the network.
+    app.run(host="127.0.0.1", port=args.port)
 

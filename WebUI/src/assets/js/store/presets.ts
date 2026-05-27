@@ -226,6 +226,24 @@ export type ComfyUiPreset = z.infer<typeof ComfyUiPresetSchema>
 export type ChatPreset = z.infer<typeof ChatPresetSchema>
 
 // ============================================================================
+// Pure derivations
+// ============================================================================
+
+/**
+ * Whether a ComfyUI preset requires the user to enter a text prompt.
+ *
+ * The single source of truth is the structured prompt setting: a preset
+ * requires a user prompt iff its `settings` contain an entry with
+ * `settingName: 'prompt'` and `modifiable: true`. The `"no-prompt"` tag
+ * is human-readable documentation only and is intentionally not consulted.
+ */
+export function presetRequiresUserPrompt(preset: ComfyUiPreset): boolean {
+  return preset.settings.some(
+    (s) => 'settingName' in s && s.settingName === 'prompt' && s.modifiable,
+  )
+}
+
+// ============================================================================
 // Preset Store
 // ============================================================================
 

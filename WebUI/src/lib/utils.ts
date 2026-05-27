@@ -152,6 +152,11 @@ export function getTranslationLabel(prefix: string, label: string) {
 export async function checkIfNsfwBlocked(imageUrl: string): Promise<boolean> {
   return new Promise((resolve) => {
     const img = new Image()
+    // Generated `imageUrl`s are `aipg-media://…`, which is a cross-origin
+    // scheme. Without CORS opt-in, `drawImage` taints the canvas and the
+    // following `getImageData` throws `SecurityError`. `aipg-media` is
+    // registered as `corsEnabled` with `Access-Control-Allow-Origin: *`.
+    img.crossOrigin = 'anonymous'
 
     img.onload = () => {
       // Check if image is exactly 512x512
@@ -257,12 +262,17 @@ export async function imageUrlToDataUri(url: string): Promise<string> {
   // fetch() to non-standard schemes from http(s) origins (e.g. dev server),
   // so route the read through the main process instead.
   if (url.startsWith('aipg-media://')) {
-    const base64 = await window.electronAPI.readAipgMediaAsBase64(url)
-    const lower = url.toLowerCase()
+    const result = await window.electronAPI.readAipgMediaAsBase64(url)
+    if (!result.success) {
+      throw new Error(`readAipgMediaAsBase64 failed: ${result.error}`)
+    }
+    // Strip query/fragment before extension matching — otherwise URLs like
+    // `aipg-media://img.jpg?v=2` would fall through to the png default.
+    const lower = url.toLowerCase().split(/[?#]/)[0]
     let mime = 'image/png'
     if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) mime = 'image/jpeg'
     else if (lower.endsWith('.webp')) mime = 'image/webp'
-    return `data:${mime};base64,${base64}`
+    return `data:${mime};base64,${result.data}`
   }
 
   const response = await fetch(url)

@@ -62,6 +62,8 @@ export const useBackendServices = defineStore(
 
     // LlamaCPP startup parameters (persisted). null = use default from backend.
     const llamaCppParameters = ref<string | null>(null)
+    const llamaCppBuildVariant = ref<'standard' | 'ssd-offload'>('standard')
+    const llamaCppOffloadDrive = ref<string | null>(null)
 
     // Default parameters fetched from backend via IPC
     const llamaCppDefaultParameters = ref<string>('')
@@ -69,10 +71,44 @@ export const useBackendServices = defineStore(
       llamaCppDefaultParameters.value = v
     })
 
+    /** Windows: Phison aiDAPTIV-capable SSD (EVFZ firmware prefix). */
+    const phisonSsdDetected = ref(false)
+
+    async function refreshPhisonSsdDetection(): Promise<void> {
+      try {
+        const r = await window.electronAPI.detectPhisonSsd()
+        phisonSsdDetected.value = r.detected
+      } catch {
+        phisonSsdDetected.value = false
+      }
+      // Persisted Pinia state can still be ssd-offload from another machine/session.
+      if (!phisonSsdDetected.value && llamaCppBuildVariant.value === 'ssd-offload') {
+        llamaCppBuildVariant.value = 'standard'
+      }
+    }
+
+    void refreshPhisonSsdDetection()
+
     // Effective parameters: user override or default
-    const effectiveLlamaCppParameters = computed(
-      () => llamaCppParameters.value ?? llamaCppDefaultParameters.value,
-    )
+    const effectiveLlamaCppParameters = computed(() => {
+      if (llamaCppParameters.value !== null) {
+        return llamaCppParameters.value
+      }
+
+      if (llamaCppBuildVariant.value === 'ssd-offload') {
+        const configPath =
+          currentServiceInfo.value.find((service) => service.serviceName === 'llamacpp-backend')
+            ?.llamaCppSsdOffloadConfigPath ?? ''
+        const rel =
+          configPath ||
+          (typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)
+            ? '..\\aidaptiv_config.json'
+            : '../aidaptiv_config.json')
+        return `--config-file ${rel}`
+      }
+
+      return llamaCppDefaultParameters.value
+    })
 
     // Full version state (not persisted - computed from live data + overrides)
     const versionState = ref<BackendVersionState>({
@@ -82,6 +118,34 @@ export const useBackendServices = defineStore(
       'llamacpp-backend': {},
       'openvino-backend': {},
     })
+
+    function applyInstalledVersionFromService(service: ApiServiceInformation): void {
+      const serviceName = service.serviceName as BackendServiceName
+      if (serviceName === 'llamacpp-backend') {
+        const u = service as ApiServiceInformation & {
+          llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
+          llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
+        }
+        const hasDual =
+          'llamaCppStandardInstalledVersion' in u || 'llamaCppPhisonInstalledVersion' in u
+        if (hasDual) {
+          versionState.value[serviceName].installed =
+            llamaCppBuildVariant.value === 'ssd-offload'
+              ? u.llamaCppPhisonInstalledVersion
+              : u.llamaCppStandardInstalledVersion
+        } else if (service.installedVersion) {
+          versionState.value[serviceName].installed = service.installedVersion
+        } else if (!service.isSetUp) {
+          versionState.value[serviceName].installed = undefined
+        }
+        return
+      }
+      if (service.installedVersion) {
+        versionState.value[serviceName].installed = service.installedVersion
+      } else if (!service.isSetUp) {
+        versionState.value[serviceName].installed = undefined
+      }
+    }
 
     // Sync persisted overrides into versionState on init
     backends.forEach((serviceName) => {
@@ -124,39 +188,37 @@ export const useBackendServices = defineStore(
       })
       .then((services) => {
         currentServiceInfo.value = services
-        // Extract installed versions from service info
         for (const service of services) {
-          const serviceName = service.serviceName as BackendServiceName
-          if (service.installedVersion) {
-            versionState.value[serviceName].installed = service.installedVersion
-          }
+          applyInstalledVersionFromService(service)
         }
       })
     setTimeout(() => {
       window.electronAPI.getServices().then((services) => {
         console.log('getServices', services)
         currentServiceInfo.value = services
-        // Extract installed versions from service info
         for (const service of services) {
-          const serviceName = service.serviceName as BackendServiceName
-          if (service.installedVersion) {
-            versionState.value[serviceName].installed = service.installedVersion
-          }
+          applyInstalledVersionFromService(service)
         }
       })
     }, 5000)
     window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
-      currentServiceInfo.value = currentServiceInfo.value.map((oldInfo) =>
-        oldInfo.serviceName === updatedInfo.serviceName ? updatedInfo : oldInfo,
+      const idx = currentServiceInfo.value.findIndex(
+        (s) => s.serviceName === updatedInfo.serviceName,
       )
-      // Update installed version from service info
-      const serviceName = updatedInfo.serviceName as BackendServiceName
-      if (updatedInfo.installedVersion) {
-        versionState.value[serviceName].installed = updatedInfo.installedVersion
-      } else if (!updatedInfo.isSetUp) {
-        // Clear installed version if service is not set up
-        versionState.value[serviceName].installed = undefined
+      if (idx >= 0) {
+        const next = [...currentServiceInfo.value]
+        next[idx] = updatedInfo
+        currentServiceInfo.value = next
+      } else {
+        // Initial getServices can return [] if IPC ran before the registry existed — upsert so pushes still populate.
+        currentServiceInfo.value = [...currentServiceInfo.value, updatedInfo]
       }
+      applyInstalledVersionFromService(updatedInfo)
+    })
+
+    watch(llamaCppBuildVariant, () => {
+      const svc = currentServiceInfo.value.find((s) => s.serviceName === 'llamacpp-backend')
+      if (svc) applyInstalledVersionFromService(svc)
     })
 
     const latestSetupProgress = ref(new Map<BackendServiceName, SetupProgress>())
@@ -281,6 +343,10 @@ export const useBackendServices = defineStore(
         console.warn(`service ${serviceName} was not running`)
       }
 
+      if (serviceName === 'llamacpp-backend') {
+        await refreshPhisonSsdDetection()
+      }
+
       const versions = versionState.value[serviceName]
       const targetVersionSettings = versions.uiOverride ?? versions.installed ?? versions.target
       const serviceSettings: ServiceSettings = { serviceName, ...targetVersionSettings }
@@ -289,6 +355,8 @@ export const useBackendServices = defineStore(
       }
       if (serviceName === 'llamacpp-backend') {
         serviceSettings.llamaCppParameters = effectiveLlamaCppParameters.value
+        serviceSettings.llamaCppBuildVariant = llamaCppBuildVariant.value
+        serviceSettings.llamaCppOffloadDrive = llamaCppOffloadDrive.value
       }
       await updateServiceSettings(serviceSettings)
       window.electronAPI.setUpService(serviceName)
@@ -316,6 +384,24 @@ export const useBackendServices = defineStore(
       return window.electronAPI.updateServiceSettings(settings)
     }
 
+    /** Installation UI toggles Phison without calling startService — main must see build variant for isSetUp. */
+    watch(
+      [llamaCppBuildVariant, llamaCppOffloadDrive, llamaCppParameters],
+      async () => {
+        try {
+          await updateServiceSettings({
+            serviceName: 'llamacpp-backend',
+            llamaCppParameters: effectiveLlamaCppParameters.value,
+            llamaCppBuildVariant: llamaCppBuildVariant.value,
+            llamaCppOffloadDrive: llamaCppOffloadDrive.value,
+          })
+        } catch (e) {
+          console.warn('Failed to sync Llama.cpp settings to main process:', e)
+        }
+      },
+      { flush: 'post' },
+    )
+
     function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
       lastSelectedDeviceIdPerBackend.value[serviceName] = deviceId
       return window.electronAPI.selectDevice(serviceName, deviceId)
@@ -337,9 +423,12 @@ export const useBackendServices = defineStore(
         })
       }
       if (serviceName === 'llamacpp-backend') {
+        await refreshPhisonSsdDetection()
         await updateServiceSettings({
           serviceName: 'llamacpp-backend',
           llamaCppParameters: effectiveLlamaCppParameters.value,
+          llamaCppBuildVariant: llamaCppBuildVariant.value,
+          llamaCppOffloadDrive: llamaCppOffloadDrive.value,
         })
       }
       return window.electronAPI.startService(serviceName)
@@ -500,8 +589,12 @@ export const useBackendServices = defineStore(
       comfyUiDefaultParameters,
       effectiveComfyUiParameters,
       llamaCppParameters,
+      llamaCppBuildVariant,
+      llamaCppOffloadDrive,
       llamaCppDefaultParameters,
       effectiveLlamaCppParameters,
+      phisonSsdDetected,
+      refreshPhisonSsdDetection,
       updateLastUsedBackend,
       resetLastUsedInferenceBackend,
       startAllSetUpServices,
@@ -532,6 +625,8 @@ export const useBackendServices = defineStore(
         'lastSelectedDeviceIdPerBackend',
         'comfyUiParameters',
         'llamaCppParameters',
+        'llamaCppBuildVariant',
+        'llamaCppOffloadDrive',
       ],
     },
   },

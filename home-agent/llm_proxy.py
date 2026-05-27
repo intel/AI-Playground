@@ -6,10 +6,23 @@ endpoint, handling both streaming and non-streaming responses.
 """
 
 import json
+import logging
 from typing import Iterator
 
 import requests
 from flask import Request, Response, jsonify, stream_with_context
+
+logger = logging.getLogger(__name__)
+
+# 10 s connect timeout for all upstream requests.
+_CONNECT_TIMEOUT_S = 10
+# Non-streaming requests cap the read at 5 minutes so a stalled upstream
+# cannot block the proxy forever.
+_NON_STREAM_READ_TIMEOUT_S = 300
+# Streaming requests get a much larger but still finite read timeout. Long
+# generations need room to breathe, but `None` would let a stalled upstream
+# pin a Flask worker indefinitely.
+_STREAM_READ_TIMEOUT_S = 600
 
 
 def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Response:
@@ -28,14 +41,23 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
     except Exception:
         stream = False
 
+    timeout = (
+        (_CONNECT_TIMEOUT_S, _STREAM_READ_TIMEOUT_S)
+        if stream
+        else (_CONNECT_TIMEOUT_S, _NON_STREAM_READ_TIMEOUT_S)
+    )
     try:
         upstream_resp = requests.post(
-            target, data=body, headers=headers, stream=stream, timeout=(10, None)  # 10 s connect, no read timeout for streaming
+            target, data=body, headers=headers, stream=stream, timeout=timeout
         )
     except requests.exceptions.ConnectionError as exc:
         return jsonify({"error": f"Cannot reach upstream: {exc}"}), 502
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+    except Exception:
+        # Log the full exception server-side, but return a generic message —
+        # raw exception text can leak upstream hostnames or other internals
+        # to the client.
+        logger.exception("Upstream proxy request failed")
+        return jsonify({"error": "proxy request failed"}), 500
 
     if stream:
         def generate() -> Iterator[bytes]:

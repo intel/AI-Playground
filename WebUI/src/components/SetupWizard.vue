@@ -5,7 +5,7 @@
     <HomeAgentSetupPage
       v-if="wizard.wizardPage === 'homeAgentSetup' && homeAgent.isFeatureEnabled"
       @back="wizard.wizardPage = 'main'"
-      @done="wizard.dismiss()"
+      @done="wizard.finishHomeAgentSetup()"
     />
 
     <template v-else>
@@ -233,6 +233,89 @@
                   <BackendOptions :backend="row.serviceName" />
                 </div>
               </div>
+
+              <div
+                v-if="wizard.phisonAidaptivRow"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-muted/30 transition-colors border-emerald-600/25"
+              >
+                <TooltipProvider :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span
+                        class="w-2.5 h-2.5 rounded-full shrink-0"
+                        :style="{ backgroundColor: wizard.phisonAidaptivRow.statusColor }"
+                      ></span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" class="text-xs">
+                      {{ wizard.phisonAidaptivRow.statusText }}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span
+                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-emerald-600 dark:text-emerald-400"
+                      aria-hidden="true"
+                    >
+                      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M4 7a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        />
+                        <path
+                          d="M8 11h8M8 15h5"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                        />
+                      </svg>
+                    </span>
+                    <span class="text-sm font-medium leading-tight">{{
+                      wizard.phisonAidaptivRow.displayName
+                    }}</span>
+                  </div>
+                  <div
+                    v-if="wizard.phisonAidaptivRow.versionDisplay"
+                    class="text-xs text-muted-foreground leading-tight"
+                  >
+                    {{ wizard.phisonAidaptivRow.versionDisplay }}
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <template v-if="wizard.phisonAidaptivRow.isInstalling">
+                    <span
+                      v-if="wizard.phisonAidaptivRow.installProgressText"
+                      class="text-xs text-muted-foreground whitespace-nowrap"
+                    >
+                      {{ wizard.phisonAidaptivRow.installProgressText }}
+                    </span>
+                    <span class="svg-icon i-loading flex-none w-4 h-4"></span>
+                  </template>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <TooltipProvider :delay-duration="300">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span class="inline-flex">
+                          <Switch
+                            :model-value="wizard.phisonAidaptivRow.enabled"
+                            :disabled="wizard.phisonAidaptivRow.toggleDisabled"
+                            @update:model-value="(v: boolean) => wizard.togglePhisonAidaptiv(v)"
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" class="text-xs">
+                        {{ wizard.phisonAidaptivRow.toggleTooltip }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <PhisonAidaptivOptions />
+                </div>
+              </div>
             </div>
             <p class="text-xs text-muted-foreground pt-3">
               {{
@@ -298,6 +381,7 @@ import { useI18N } from '@/assets/js/store/i18n'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import BackendOptions from '@/components/BackendOptions.vue'
+import PhisonAidaptivOptions from '@/components/PhisonAidaptivOptions.vue'
 import ErrorDetailsModal from '@/components/ErrorDetailsModal.vue'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import HomeAgentSetupPage from '@/components/HomeAgentSetupPage.vue'

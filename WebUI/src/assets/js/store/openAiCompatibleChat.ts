@@ -24,6 +24,7 @@ import * as toast from '../toast'
 import { LanguageModelV2ToolResultOutput, JSONSchema7 } from '@ai-sdk/provider'
 import { dynamicTool, jsonSchema } from '@ai-sdk/provider-utils'
 import { imageUrlToDataUri } from '@/lib/utils'
+import { getHomeAgentAuthToken, invalidateHomeAgentAuthToken } from '@/lib/loopbackAuth'
 
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
@@ -90,7 +91,7 @@ export const useOpenAiCompatibleChat = defineStore(
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
-        fetch: (url, init) => {
+        fetch: async (url, init) => {
           const requestUrl = new URL(url as string)
           const currentBaseUrl = textInference.currentBackendUrl
           if (currentBaseUrl) {
@@ -98,12 +99,27 @@ export const useOpenAiCompatibleChat = defineStore(
             requestUrl.hostname = latestBase.hostname
             requestUrl.port = latestBase.port
           }
-          // When Home Agent is active, inject the upstream inference URL as a header
+          // When Home Agent is active, the LLM proxy lives behind the Home
+          // Agent Flask service. Attach the upstream inference URL header and
+          // the per-launch loopback auth token so the proxy accepts the call.
           const upstreamUrl = textInference.homeAgentUpstreamUrl
           if (upstreamUrl) {
-            const headers = new Headers(init?.headers)
-            headers.set('X-Upstream-Url', upstreamUrl)
-            return globalThis.fetch(requestUrl.toString(), { ...init, headers })
+            let token = await getHomeAgentAuthToken()
+            const build = (t: string): RequestInit => {
+              const headers = new Headers(init?.headers)
+              headers.set('X-Upstream-Url', upstreamUrl)
+              if (t) headers.set('X-AIPG-Auth', t)
+              return { ...init, headers }
+            }
+            let response = await globalThis.fetch(requestUrl.toString(), build(token))
+            if (response.status === 401) {
+              invalidateHomeAgentAuthToken()
+              token = await getHomeAgentAuthToken(true)
+              if (token) {
+                response = await globalThis.fetch(requestUrl.toString(), build(token))
+              }
+            }
+            return response
           }
           return globalThis.fetch(requestUrl.toString(), init)
         },
@@ -217,6 +233,11 @@ export const useOpenAiCompatibleChat = defineStore(
     const customFetch = async (_: any, options: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const m = JSON.parse(options.body) as any
+      // Read and strip per-request conversation key injected by DefaultChatTransport's
+      // body, so the upstream request stays a clean OpenAI-compatible payload.
+      const requestConversationKey: string | undefined =
+        typeof m._aipgConversationKey === 'string' ? m._aipgConversationKey : undefined
+      delete m._aipgConversationKey
       const reasoningTimings = new Map<string, { started: number; finished: number }>()
       const startOfRequestTime: number = Date.now()
       let firstTokenTime: number = 0
@@ -225,7 +246,10 @@ export const useOpenAiCompatibleChat = defineStore(
       let usage: LanguageModelUsage | undefined = undefined
       let usageFromRawChunk: LanguageModelUsage | undefined = undefined
       let lastStepUsage: LanguageModelUsage | undefined = undefined
-      const baseSystemPrompt = temporarySystemPrompt.value || textInference.systemPrompt
+      const perConversationPrompt = requestConversationKey
+        ? temporarySystemPrompts[requestConversationKey]
+        : null
+      const baseSystemPrompt = perConversationPrompt || textInference.systemPrompt
       const mcpInstructions = await resolveMcpInstructions()
       const systemPromptToUse = `${baseSystemPrompt}${mcpInstructions}`
       let messages = await convertToModelMessages(m.messages)
@@ -458,7 +482,10 @@ export const useOpenAiCompatibleChat = defineStore(
       const chat = new Chat<AipgUiMessage>({
         transport: new DefaultChatTransport({
           fetch: customFetch,
-          body: { timings_per_token: true },
+          // Tag every request with its conversation key so `customFetch` can look up
+          // the per-conversation `temporarySystemPrompts` entry. Stripped before
+          // forwarding upstream.
+          body: { timings_per_token: true, _aipgConversationKey: conversationKey },
         }),
         messages: conversations.conversationList[conversationKey],
       })
@@ -488,10 +515,19 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const messageInput = ref('')
     const fileInput = ref<FileUIPart[]>([])
-    const temporarySystemPrompt = ref<string | null>(null)
+    // Per-conversation temporary system prompts (e.g. RAG-augmented system prompt for the
+    // current turn). Keyed by conversationKey so concurrent generate() calls — desktop
+    // chat and Home Agent side-channel — cannot leak each other's prompt.
+    const temporarySystemPrompts: Record<string, string | null> = {}
 
     function getMessagesForKey(conversationKey: string): AipgUiMessage[] | undefined {
-      return chats[conversationKey]?.messages
+      // Prefer live chat instance state when present; otherwise fall back to the
+      // persisted bucket so threads that exist in `conversationList` but haven't
+      // been opened yet (e.g. Home Agent threads listed via `/history`) still
+      // return their messages.
+      const fromChat = chats[conversationKey]?.messages
+      if (fromChat) return fromChat
+      return conversations.conversationList[conversationKey]
     }
 
     /**
@@ -504,15 +540,20 @@ export const useOpenAiCompatibleChat = defineStore(
      * `textInference.ensureReadyForInference()`).
      */
     async function summarizeMessages(messagesText: string): Promise<string> {
-      const { text } = await generateText({
-        model: model.value,
-        prompt:
-          'Summarize this conversation in 5 words or less. ' +
-          'Output only the summary, no quotes, no punctuation.\n\n' +
-          messagesText,
-        maxOutputTokens: 24,
-      })
-      return text.trim().split(/\s+/).slice(0, 5).join(' ')
+      try {
+        const { text } = await generateText({
+          model: model.value,
+          prompt:
+            'Summarize this conversation in 5 words or less. ' +
+            'Output only the summary, no quotes, no punctuation.\n\n' +
+            messagesText,
+          maxOutputTokens: 24,
+        })
+        return text.trim().split(/\s+/).slice(0, 5).join(' ')
+      } catch (error) {
+        console.error('summarizeMessages failed:', error)
+        return ''
+      }
     }
 
     async function generate(question: string, options?: GenerateOptions) {
@@ -550,7 +591,7 @@ export const useOpenAiCompatibleChat = defineStore(
 
       // 3. Prepare RAG context (if RAG is enabled)
       const ragContext = await textInference.prepareRagContext(question)
-      temporarySystemPrompt.value = ragContext.systemPrompt
+      temporarySystemPrompts[targetKey] = ragContext.systemPrompt
 
       // 4. Get chat instance and send message
       const chat = getOrCreateChat(targetKey)
@@ -574,7 +615,7 @@ export const useOpenAiCompatibleChat = defineStore(
           },
         })
       } finally {
-        temporarySystemPrompt.value = null
+        temporarySystemPrompts[targetKey] = null
       }
 
       const outgoingMessages = chat.messages
@@ -630,12 +671,12 @@ export const useOpenAiCompatibleChat = defineStore(
           .join('\n\n') ?? ''
 
       const ragContext = await textInference.prepareRagContext(question)
-      temporarySystemPrompt.value = ragContext.systemPrompt
+      temporarySystemPrompts[targetKey] = ragContext.systemPrompt
 
       try {
         await chat.regenerate({ messageId })
       } finally {
-        temporarySystemPrompt.value = null
+        temporarySystemPrompts[targetKey] = null
       }
 
       if (ragContext.ragSourceText) {

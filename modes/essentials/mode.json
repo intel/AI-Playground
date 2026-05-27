@@ -17,6 +17,7 @@
     "SketchToPhoto-HD",
     "upscale"
   ],
+  "excludeVariantBackends": ["openvino"],
   "ui": {
     "i18n": {
       "titleOne": "PRODUCT_MODE_ESSENTIALS_TITLE_ONE",

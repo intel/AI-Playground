@@ -67,7 +67,7 @@ class Logger {
         console.error('Could not send debug log to renderer process')
       }
     } else {
-      this.startupMessageCache.push({ level: 'error', source, message: safeMessage })
+      this.startupMessageCache.push({ level: 'warn', source, message: safeMessage })
     }
   }
 

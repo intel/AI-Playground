@@ -222,7 +222,10 @@ function addNewConversationIfLatestIsNotEmpty(
   conversationKey?: string,
   meta?: Record<string, ConversationThreadMeta>,
 ): string {
-  console.log('Checking if new conversation is needed', { list, conversationKey })
+  console.log('Checking if new conversation is needed', {
+    threadCount: Object.keys(list).length,
+    conversationKey,
+  })
 
   const isHomeAgent = (key: string) => meta?.[key]?.kind === 'homeAgent'
 

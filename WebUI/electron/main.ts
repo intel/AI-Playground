@@ -40,6 +40,9 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import fs from 'fs'
 import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execAsync = promisify(exec)
 import { randomUUID } from 'node:crypto'
 import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
@@ -107,6 +110,7 @@ const ProductModeFileSchema = z.object({
   requiresNvidiaGpu: z.boolean().default(false),
   includePresets: z.array(z.string()).optional(),
   excludePresets: z.array(z.string()).optional(),
+  excludeVariantBackends: z.array(z.string()).optional(),
   ui: z.object({
     i18n: ProductModeUiI18nSchema,
   }),
@@ -185,7 +189,19 @@ fs.mkdirSync(mediaInputDir, { recursive: true })
 /** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
 function getLocalPathFromAipgMediaUrl(url: string): string | null {
   if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return null
-  const decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, ''))
+  // Strip protocol, then strip any trailing slash — Chromium occasionally
+  // appends one to custom-protocol URLs (e.g. `aipg-media://foo.png/`), and
+  // `net.fetch(file://.../foo.png/)` treats the trailing slash as "directory"
+  // and fails. Mirrors what the legacy inline handler did.
+  // `decodeURIComponent` throws `URIError` on malformed `%` sequences (e.g.
+  // `aipg-media://%E0`); treat that as an invalid URL rather than letting the
+  // exception escape into the protocol handler or IPC reply.
+  let decodedUrl: string
+  try {
+    decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, '').replace(/[/\\]+$/, ''))
+  } catch {
+    return null
+  }
   const fullPath = path.normalize(path.join(mediaDir, decodedUrl))
   const base = path.resolve(mediaDir)
   const relative = path.relative(base, fullPath)
@@ -230,6 +246,8 @@ const LocalSettingsSchema = z.object({
   // Intel NPU memory budgets on most shipping hardware. Override per-machine
   // by editing settings.json, e.g. ["AUTO", "CPU", "GPU", "NPU"] to re-enable.
   openvinoImageGenDevices: z.array(z.string()).default(['CPU', 'GPU']),
+  /** When true, skip hardware probe and treat Phison SSD as detected (optional overlay in userData settings). */
+  PhisonSSDdetected: z.boolean().optional().default(false),
 })
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
@@ -248,6 +266,7 @@ type PresetLoadConfig = {
   imageFallbackDirs: string[]
   includePresets?: string[]
   excludePresets?: string[]
+  excludeVariantBackends?: string[]
 }
 
 function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
@@ -271,6 +290,7 @@ function getPresetLoadConfig(s: LocalSettings): PresetLoadConfig {
     imageFallbackDirs: variant === 'demo' ? [basePresetsDir] : [],
     includePresets,
     excludePresets,
+    excludeVariantBackends: modeConfig?.excludeVariantBackends,
   }
 }
 
@@ -340,13 +360,30 @@ function applyPresetFilter(
       presets.delete(excluded)
     }
   }
+  if (config.excludeVariantBackends?.length) {
+    const excludedBackends = new Set(config.excludeVariantBackends)
+    for (const [key, file] of presets) {
+      try {
+        const parsed = JSON.parse(file.content)
+        if (parsed?.type !== 'comfy' || !Array.isArray(parsed.variants)) continue
+        const filtered = parsed.variants.filter(
+          (v: { backend?: string }) => !(v?.backend && excludedBackends.has(v.backend)),
+        )
+        if (filtered.length === parsed.variants.length) continue
+        parsed.variants = filtered
+        presets.set(key, { ...file, content: JSON.stringify(parsed) })
+      } catch (e) {
+        appLogger.warn(`Failed to filter variants for preset "${key}": ${e}`, 'electron-backend')
+      }
+    }
+  }
   return presets
 }
 
 let settings = LocalSettingsSchema.parse({})
 let demoProfile: DemoProfile | null = null
 
-/** Packaged app: single JSON next to resources. Dev: never write here (Vite watches the repo). */
+/** Packaged: `resources/settings.json` (same role as dev `external/settings-dev.json`). */
 function getPackagedSettingsPath(): string {
   return path.join(process.resourcesPath, 'settings.json')
 }
@@ -356,17 +393,23 @@ function getDevSettingsDefaultsPath(): string {
   return path.join(__dirname, '../../external/settings-dev.json')
 }
 
-/** Writable path: packaged = resources settings; dev = userData overlay (avoids Vite reload loops). */
+/** Dev: userData overlay so edits do not touch the repo (avoids Vite reload loops). */
+function getUserLocalSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+}
+
+/** Packaged: read/write `resources/settings.json`. Dev: read/write userData overlay only. */
 function getWritableSettingsPath(): string {
   if (app.isPackaged) {
     return getPackagedSettingsPath()
   }
-  return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
+  return getUserLocalSettingsPath()
 }
 
 function persistLocalSettingsToDisk(): void {
   const settingPath = getWritableSettingsPath()
-  const serialized = JSON.stringify(LocalSettingsSchema.parse(settings), null, 2)
+  const parsed = LocalSettingsSchema.parse(settings)
+  const serialized = JSON.stringify(parsed, null, 2)
   const tmpPath = `${settingPath}.${randomUUID()}.tmp`
   try {
     fs.mkdirSync(path.dirname(settingPath), { recursive: true })
@@ -391,6 +434,10 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       bypassCSP: true, // impotant
       stream: true,
+      // Required so canvases can read pixels from `aipg-media://` images
+      // (mask / outpaint editors call `getImageData()` / `toDataURL()`).
+      // The handler below must also emit `Access-Control-Allow-Origin`.
+      corsEnabled: true,
     },
   },
 ])
@@ -411,16 +458,17 @@ async function loadSettings() {
     }
   } else {
     const defaultsPath = getDevSettingsDefaultsPath()
+    let devDefaultsRaw: Record<string, unknown> | null = null
     appLogger.info(`loading dev defaults from ${defaultsPath}`, 'electron-backend')
     if (fs.existsSync(defaultsPath)) {
       try {
-        const raw = JSON.parse(fs.readFileSync(defaultsPath, { encoding: 'utf8' }))
-        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+        devDefaultsRaw = JSON.parse(fs.readFileSync(defaultsPath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...devDefaultsRaw })
       } catch (e) {
         appLogger.error(`failed to load dev defaults: ${e}`, 'electron-backend')
       }
     }
-    const userPath = getWritableSettingsPath()
+    const userPath = getUserLocalSettingsPath()
     appLogger.info(`loading dev user settings from ${userPath}`, 'electron-backend')
     if (fs.existsSync(userPath)) {
       try {
@@ -429,6 +477,16 @@ async function loadSettings() {
       } catch (e) {
         appLogger.error(`failed to load dev user settings: ${e}`, 'electron-backend')
       }
+    }
+    // PhisonSSDdetected: true if userData *or* repo settings-dev says so. Repo true still beats
+    // stale userData false; userData true still works when repo has false (dev Phison UI without hardware).
+    if (devDefaultsRaw) {
+      const repoWantsPhison =
+        'PhisonSSDdetected' in devDefaultsRaw && Boolean(devDefaultsRaw.PhisonSSDdetected)
+      settings = LocalSettingsSchema.parse({
+        ...settings,
+        PhisonSSDdetected: Boolean(settings.PhisonSSDdetected) || repoWantsPhison,
+      })
     }
   }
 
@@ -927,16 +985,26 @@ function initEventHandle() {
     return `input/${filename}`
   })
 
-  ipcMain.handle('readAipgMediaAsBase64', async (_event, url: string) => {
-    const filePath = getLocalPathFromAipgMediaUrl(url)
-    if (!filePath) {
-      throw new Error('readAipgMediaAsBase64: invalid or unsafe aipg-media URL')
-    }
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`readAipgMediaAsBase64: file not found (${path.basename(filePath)})`)
-    }
-    return fs.readFileSync(filePath).toString('base64')
-  })
+  ipcMain.handle(
+    'readAipgMediaAsBase64',
+    async (
+      _event,
+      url: string,
+    ): Promise<{ success: true; data: string } | { success: false; error: string }> => {
+      const filePath = getLocalPathFromAipgMediaUrl(url)
+      if (!filePath) {
+        return { success: false, error: 'invalid or unsafe aipg-media URL' }
+      }
+      if (!fs.existsSync(filePath)) {
+        return { success: false, error: `file not found (${path.basename(filePath)})` }
+      }
+      try {
+        return { success: true, data: fs.readFileSync(filePath).toString('base64') }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    },
+  )
 
   /** Get command line parameters when launched from IPOS to decide the default home page */
   ipcMain.handle('getInitialPage', () => {
@@ -1073,6 +1141,9 @@ function initEventHandle() {
     if (service instanceof ComfyUiBackendService) {
       return service.getLoopbackAuthToken()
     }
+    if (service instanceof HomeAgentBackendService) {
+      return service.getLoopbackAuthToken()
+    }
     return ''
   })
 
@@ -1139,6 +1210,41 @@ function initEventHandle() {
 
   ipcMain.handle('getComfyUiDefaultParameters', () => COMFYUI_DEFAULT_PARAMETERS)
   ipcMain.handle('getLlamaCppDefaultParameters', () => LLAMACPP_DEFAULT_PARAMETERS)
+
+  ipcMain.handle('detectPhisonSsd', async () => {
+    if (settings.PhisonSSDdetected) {
+      appLoggerInstance.info(
+        'detectPhisonSsd: returning true (PhisonSSDdetected in local settings)',
+        'electron-backend',
+      )
+      return { detected: true }
+    }
+    if (process.platform !== 'win32') {
+      return { detected: false }
+    }
+    try {
+      const { stdout } = await execAsync(
+        'powershell -NoProfile -Command "Get-PhysicalDisk | Select-Object DeviceId,FirmwareVersion | ConvertTo-Json -Compress"',
+        { timeout: 20000, windowsHide: true },
+      )
+      const trimmed = stdout.trim()
+      if (!trimmed) {
+        return { detected: false }
+      }
+      const parsed = JSON.parse(trimmed) as
+        | { FirmwareVersion?: string }
+        | Array<{ FirmwareVersion?: string }>
+      const disks = Array.isArray(parsed) ? parsed : [parsed]
+      const detected = disks.some((d) => {
+        const fw = d.FirmwareVersion
+        return typeof fw === 'string' && fw.toUpperCase().startsWith('EVFZ')
+      })
+      return { detected }
+    } catch (e) {
+      appLoggerInstance.warn(`detectPhisonSsd failed: ${e}`, 'electron-backend')
+      return { detected: false }
+    }
+  })
 
   ipcMain.handle('detectDevices', (_event: IpcMainInvokeEvent, serviceName: string) => {
     if (!serviceRegistry) {
@@ -1992,17 +2098,28 @@ app.whenReady().then(async () => {
 
     initEventHandle()
 
-    // Custom protocol docking is file protocol
+    // Custom protocol docking is file protocol.
+    // Use the shared `getLocalPathFromAipgMediaUrl` helper so the protocol
+    // handler enforces the same path-traversal containment as the IPC reader
+    // — without it, crafted `aipg-media://../...` URLs could escape `mediaDir`.
     protocol.handle('aipg-media', async (request) => {
-      const decodedUrl = decodeURIComponent(
-        request.url.replace(new RegExp(`^aipg-media://`, 'i'), '/'),
-      )
-
-      const fullPath = path.join(mediaDir, decodedUrl)
-
-      const normalizedPath = path.normalize(fullPath.replace(/(\/|\\)$/, ''))
-      const response = await net.fetch(pathToFileURL(normalizedPath).href)
-      return response
+      const safePath = getLocalPathFromAipgMediaUrl(request.url)
+      if (!safePath) {
+        return new Response('Not Found', { status: 404 })
+      }
+      const upstream = await net.fetch(pathToFileURL(safePath).href)
+      // `getImageData()` / `toDataURL()` on a canvas that drew an
+      // `aipg-media://` image only succeed when the response carries CORS
+      // headers AND the `<img>` opts in via `crossorigin="anonymous"`.
+      // `*` is safe because the scheme only ever serves files under
+      // `mediaDir`, already guarded by `getLocalPathFromAipgMediaUrl`.
+      const headers = new Headers(upstream.headers)
+      headers.set('Access-Control-Allow-Origin', '*')
+      return new Response(upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers,
+      })
     })
     const window = await createWindow()
     await initServiceRegistry(window, settings)

@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { useHomeAgent } from './homeAgent'
 import { useConversations } from './conversations'
+import * as toast from '@/assets/js/toast'
 
 const DETECT_POLL_INTERVAL_MS = 2000
 const DETECT_TIMEOUT_MS = 5000
@@ -72,16 +73,20 @@ export function useHomeAgentSetup() {
     detectError.value = ''
     try {
       let result: { chatId: string } | { error: string }
-      if (tokenInput.value) {
+      // Match `verify()` / `saveAndContinue()` — both trim. A pasted token with
+      // a trailing newline would otherwise fail inject/poll even though the
+      // later save path accepts it.
+      const trimmedToken = tokenInput.value.trim()
+      if (trimmedToken) {
         // Inject token into running backend so it can start polling (if not already)
         try {
-          await window.electronAPI.homeAgent.injectToken(tokenInput.value)
+          await window.electronAPI.homeAgent.injectToken(trimmedToken)
         } catch (e) {
           console.error('runDetectChatId: injectToken failed:', e)
           // Non-fatal — proceed to poll anyway; backend may already have it
         }
         // Poll /get-chat-id for up to DETECT_TIMEOUT_MS waiting for a message to arrive
-        result = await pollForChatId(tokenInput.value)
+        result = await pollForChatId(trimmedToken)
       } else {
         result = await window.electronAPI.homeAgent.detectChatIdFromSaved()
       }
@@ -157,15 +162,31 @@ export function useHomeAgentSetup() {
     }
   }
 
-  async function saveAndContinue() {
+  async function saveAndContinue(): Promise<boolean> {
     const token = tokenInput.value.trim()
     const chatId = detectedChatId.value || homeAgent.telegramChatId || ''
+    let success = true
     try {
       if (token && chatId) {
         // Preserve verified state across the save — if the user already verified
         // (either in this session or a previous one), keep it true.
         const wasVerified = homeAgent.telegramVerified
-        await homeAgent.saveConfig(token, chatId)
+        // `saveConfig` returns `{ success, error }` and can fail without throwing
+        // (e.g. safeStorage / disk errors). Both code paths need to be handled
+        // so the user isn't told "saved" when the config wasn't actually written.
+        let saveResult: { success: boolean; error?: string }
+        try {
+          saveResult = await homeAgent.saveConfig(token, chatId)
+        } catch (e) {
+          console.error('saveAndContinue: failed to save Home Agent config:', e)
+          toast.error('Failed to save Home Agent configuration')
+          return false
+        }
+        if (!saveResult.success) {
+          console.error('saveAndContinue: saveConfig returned failure:', saveResult.error)
+          toast.error(saveResult.error ?? 'Failed to save Home Agent configuration')
+          return false
+        }
         if (wasVerified) {
           homeAgent.setVerified()
         }
@@ -173,15 +194,16 @@ export function useHomeAgentSetup() {
           await window.electronAPI.homeAgent.injectToken(token, chatId)
         } catch (e) {
           console.error('saveAndContinue: injectToken failed:', e)
+          toast.error('Saved config, but failed to apply token to the running service')
+          success = false
         }
       }
-    } catch (e) {
-      console.error('saveAndContinue: failed to save Home Agent config:', e)
     } finally {
       // Clear the active conversation so the message sent during detection
       // isn't picked up as the first user prompt in Home Agent mode.
       conversations.addNewConversation()
     }
+    return success
   }
 
   /** Rehydrate local setup UI from Pinia + safeStorage (e.g. after revisiting the wizard). */

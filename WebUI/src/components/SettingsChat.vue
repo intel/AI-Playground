@@ -288,17 +288,19 @@ async function handlePresetChange(presetName: string) {
   const switchingToHomeAgent = presetName === HOME_AGENT_CHAT_PRESET_NAME
   const onHomeAgentThread = conversations.getThreadKind(conversations.activeKey) === 'homeAgent'
 
-  if (switchingToHomeAgent) {
-    conversations.activeKey = homeAgent.ensureActiveRemoteConversation()
-  } else if (onHomeAgentThread) {
-    conversations.addNewConversation()
-  }
-
   const result = await presetSwitching.switchPreset(presetName, {
     skipModeSwitch: true, // We're already in chat mode
   })
 
   if (result.success) {
+    // Only reroute the conversation after the preset switch actually succeeds —
+    // otherwise a failed switch would leave the UI on a different thread while
+    // the picker stayed on the previous preset.
+    if (switchingToHomeAgent) {
+      conversations.activeKey = homeAgent.ensureActiveRemoteConversation()
+    } else if (onHomeAgentThread) {
+      conversations.addNewConversation()
+    }
     toast.success(`Switched to ${presetName}`)
   } else if (result.error) {
     toast.error(`Failed to switch preset: ${result.error}`)

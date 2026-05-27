@@ -16,6 +16,11 @@ import { usePromptStore } from './promptArea'
 import { z } from 'zod'
 import { imageUrlToDataUri, isImageUrl } from '@/lib/utils'
 import { getComfyAuthToken, invalidateComfyAuthToken } from '@/lib/loopbackAuth'
+import {
+  findKeysByClassType,
+  findKeysByTitle,
+  modifySettingInWorkflow,
+} from './comfyUiWorkflowHelpers'
 
 /**
  * Wraps fetch() with the ComfyUI loopback bearer token. The bundled
@@ -42,18 +47,6 @@ async function comfyFetch(input: RequestInfo | URL, init?: RequestInit): Promise
 }
 
 const WEBSOCKET_OPEN = 1
-
-const settingToComfyInputsName = {
-  seed: ['seed', 'noise_seed'],
-  inferenceSteps: ['steps'],
-  height: ['height'],
-  width: ['width'],
-  prompt: ['text'],
-  negativePrompt: ['text'],
-  batchSize: ['batch_size'],
-} satisfies Partial<Record<string, string[]>>
-
-type ComfySetting = keyof typeof settingToComfyInputsName
 
 const ComfyMessageSchema = z.discriminatedUnion('type', [
   z.object({
@@ -142,44 +135,6 @@ const ComfyMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-const findKeysByTitle = (workflow: ComfyUIApiWorkflow, title: ComfySetting | 'loader' | string) =>
-  Object.entries(workflow)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
-    .map(([key, _value]) => key)
-
-const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
-  Object.entries(workflow)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter(([_key, value]) => (value as any)?.['class_type'] === classType)
-    .map(([key, _value]) => key)
-
-const findKeysByInputsName = (workflow: ComfyUIApiWorkflow, setting: ComfySetting) => {
-  for (const inputName of settingToComfyInputsName[setting]) {
-    if (inputName === 'text') continue
-    const keys = Object.entries(workflow)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter(([_key, value]) => (value as any)?.['inputs']?.[inputName ?? ''] !== undefined)
-      .map(([key, _value]) => key)
-    if (keys.length > 0) return keys
-  }
-  return []
-}
-
-const getInputNameBySettingAndKey = (
-  workflow: ComfyUIApiWorkflow,
-  key: string,
-  setting: ComfySetting,
-) => {
-  const inputs = workflow[key]?.inputs
-  if (!inputs || typeof inputs !== 'object') return ''
-  for (const inputName of settingToComfyInputsName[setting]) {
-    // Use `in`, not truthiness: empty prompt ("") and seed 0 are valid defaults to overwrite
-    if (inputName !== undefined && inputName in inputs) return inputName
-  }
-  return ''
-}
-
 const OVMS_IMAGE_CLASS_TYPES = ['OpenAICompatibleImageGeneration', 'OpenAICompatibleImageEdit']
 
 function workflowUsesOvmsImage(workflow: ComfyUIApiWorkflow): boolean {
@@ -201,32 +156,6 @@ function injectOvmsImageUrl(workflow: ComfyUIApiWorkflow, url: string): void {
         inputs['model'] = inputs['model'].split('/').join('---')
       }
     }
-  }
-}
-
-function modifySettingInWorkflow(
-  workflow: ComfyUIApiWorkflow,
-  setting: ComfySetting,
-  value: unknown,
-) {
-  const keys =
-    findKeysByTitle(workflow, setting).length > 0
-      ? findKeysByTitle(workflow, setting)
-      : findKeysByInputsName(workflow, setting)
-  if (keys.length === 0) {
-    console.warn(`No key found for setting ${setting}. Skipping this setting.`)
-    return
-  }
-  if (keys.length > 1) {
-    console.warn(`Multiple keys found for setting ${setting}. Using first one`)
-  }
-  const key = keys[0]
-  const inputName = getInputNameBySettingAndKey(workflow, key, setting)
-  const nodeInputs = workflow[key]?.inputs
-  if (inputName !== '' && nodeInputs && inputName in nodeInputs) {
-    nodeInputs[inputName] = value
-  } else if (nodeInputs && 'a' in nodeInputs) {
-    nodeInputs['a'] = value
   }
 }
 

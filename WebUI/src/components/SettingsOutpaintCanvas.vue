@@ -25,6 +25,7 @@
           v-if="imageUrl && imageUrl.trim() !== ''"
           ref="sourceImage"
           :src="imageUrl"
+          crossorigin="anonymous"
           class="hidden"
           @load="onImageLoad"
           @error="onImageError"
