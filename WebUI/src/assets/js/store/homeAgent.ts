@@ -1446,6 +1446,17 @@ export const useHomeAgent = defineStore(
           const cfg = await window.electronAPI.homeAgent.channel.loadConfig(kind)
           if (cfg) {
             channels[kind].config = { ...cfg, kind } as Partial<ChannelConfig>
+            // Hydrate the dedicated `.identity` field from the saved config's
+            // identity key (chatId / userId / …). The persisted Pinia state may
+            // already carry it, but a migrated legacy config or an older
+            // persisted blob without identity would otherwise leave `.identity`
+            // null — making the setup wizard think no chat/DM partner exists
+            // even though the backend has one.
+            const idKey = CHANNEL_FIELD_SPEC[kind].identityField
+            const savedIdentity = (cfg as Record<string, string>)[idKey]
+            if (savedIdentity && !channels[kind].identity) {
+              channels[kind].identity = savedIdentity
+            }
           } else if (!channels[kind].verified) {
             channels[kind].config = {}
             channels[kind].active = false
