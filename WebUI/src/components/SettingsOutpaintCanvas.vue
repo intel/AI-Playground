@@ -34,13 +34,13 @@
           v-if="imageUrl && imageUrl.trim() !== '' && !imageLoaded"
           class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
-          Loading image...
+          {{ i18nState.MASK_LOADING_IMAGE }}
         </div>
         <div
           v-else-if="!imageUrl || imageUrl.trim() === ''"
           class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
-          Load an image to position it
+          {{ i18nState.OUTPAINT_LOAD_IMAGE_TO_POSITION }}
         </div>
       </div>
     </div>
@@ -57,6 +57,9 @@
 
 <script setup lang="ts">
 import { computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const props = defineProps<{
   imageUrl: string

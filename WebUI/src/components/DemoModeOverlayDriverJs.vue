@@ -6,9 +6,11 @@
 import { driver, type DriveStep } from 'driver.js'
 import 'driver.js/dist/driver.css'
 import { useDemoMode, type DemoButtonId } from '@/assets/js/store/demoMode'
+import { useI18N } from '@/assets/js/store/i18n'
 import { computed } from 'vue'
 
 const demoMode = useDemoMode()
+const i18n = useI18N()
 
 onMounted(() => {
   demoMode.registerDriverJs({
@@ -41,104 +43,92 @@ function isStepEnabled(step: Step): boolean {
   return !mode || enabledModes.value.includes(mode)
 }
 
-const steps: StepList = [
+const steps = computed<StepList>(() => [
   {
     id: '#demo-buttons-group',
-    title: 'Welcome to Intel AI-Playground!',
-    descr:
-      'Intel AI-Playground is a generative AI app that provides local-powered chat, image, and video capabilities. You can get context-specific help with the "Need Help" button. Click "Next" or press "Right" to start the tour.',
+    title: i18n.state.TOUR_WELCOME_TITLE,
+    descr: i18n.state.TOUR_WELCOME_DESCR,
   },
   {
     id: '#mode-buttons',
-    title: 'Pick your Mode',
-    descr:
-      'Here are multiple mode buttons, that define the type of content you are generating. Select any one of these modes later to explore each. Little dots generally indicate additional help is available when clicking the first time.',
+    title: i18n.state.TOUR_MODE_PICK_TITLE,
+    descr: i18n.state.TOUR_MODE_PICK_DESCR,
   },
   {
     id: '#prompt-input',
-    title: 'Unified Prompt',
-    descr:
-      'This is your Prompt field. This is the core experience of AI Playground, across all features of the app. This is where you write a prompt, add images or documents to guide your content, and select modes for the type of content you want to generate.',
+    title: i18n.state.TOUR_UNIFIED_PROMPT_TITLE,
+    descr: i18n.state.TOUR_UNIFIED_PROMPT_DESCR,
   },
   {
     id: '#send-button',
-    title: 'Ready to start?',
-    descr:
-      'This is the magic button that will start a generation. Select a mode like Chat, enter a question and click this button to get your first response.',
+    title: i18n.state.TOUR_READY_TITLE,
+    descr: i18n.state.TOUR_READY_DESCR,
     align: 'end',
   },
-]
+])
 
-const stepsAlternative: StepList = [
+const stepsAlternative = computed<StepList>(() => [
   {
     id: '#plus-icon',
-    title: 'Add Images or Documents',
-    descr:
-      "The PLUS icon allows you to load content like documents or images to the prompt. Alternatively you can also drag and drop content here. When added this content is part of your generation. In Chat mode you can ask questions about a document or an image. For Image Edit you can add images you want to edit. Note: If you're not able to load a certain type of document, check Prompt Settings as you might need to select a preset like Vision to support images, or RAG to support text documents",
+    title: i18n.state.TOUR_PLUS_ICON_TITLE,
+    descr: i18n.state.TOUR_PLUS_ICON_DESCR,
   },
   {
     id: '#mode-button-chat',
-    title: 'Chat Mode',
-    descr:
-      'Chat works like a typical AI chat. You can type questions to get information on almost any topic you can imagine. In the settings you can select from a variety of chat options where you can do document search, work with Reasoning or Vision models, and more. Click the prompt input to see a sample prompt!',
+    title: i18n.state.TOUR_CHAT_TITLE,
+    descr: i18n.state.TOUR_CHAT_DESCR,
   },
   {
     id: '#mode-button-imageGen',
-    title: 'Image Mode',
-    descr:
-      "The Image Gen mode allows you to generate images from text you enter. Describe a scene or character and style (photographic, watercolor, etc), you wish to generate, and have watching your ideas come to life. When in this mode, you'll find ready to go presets in the Prompt Settings that allow you to create images using generative models to achieve different levels of realism and generation times. Click the prompt input to see a sample prompt!",
+    title: i18n.state.TOUR_IMAGE_GEN_TITLE,
+    descr: i18n.state.TOUR_IMAGE_GEN_DESCR,
   },
   {
     id: '#mode-button-imageEdit',
-    title: 'Image Edit Mode',
-    descr:
-      'The Image Edit mode allows you to edit existing images or photos, often by describing what to change. Simply drag in a photo, select an editing Preset in Prompt Settings where you can upscale images, edit images with precision, generate 3D models from images, and more. An input image is already pre-selected for you. Click the prompt input to see a sample prompt!',
+    title: i18n.state.TOUR_IMAGE_EDIT_TITLE,
+    descr: i18n.state.TOUR_IMAGE_EDIT_DESCR,
   },
   {
     id: '#mode-button-video',
-    title: 'Video Mode',
-    descr:
-      'Video generation allows you to create short video clips from your imagination either from prompt or guided by images and video.',
+    title: i18n.state.TOUR_VIDEO_TITLE,
+    descr: i18n.state.TOUR_VIDEO_DESCR,
   },
   {
     id: '#microphone-button',
-    title: 'Mic Button',
-    descr:
-      "The Mic button is only active after you've selected and turned on Speech Mode in app settings.When done you simply click this icon, start talking in a language you're comfortable speaking, then click again. You'll see your speech written out as text in the prompt field.",
+    title: i18n.state.TOUR_MIC_TITLE,
+    descr: i18n.state.TOUR_MIC_DESCR,
   },
   {
     id: '#camera-button',
-    title: 'Camera Button',
-    descr:
-      'Click this button to capture an image from your camera. The captured image will be added to your prompt for vision-capable models to analyze.',
+    title: i18n.state.TOUR_CAMERA_TITLE,
+    descr: i18n.state.TOUR_CAMERA_DESCR,
   },
   {
     id: '#advanced-settings-button',
-    title: 'Prompt Settings',
-    descr:
-      'Each mode has prompt settings specific to the mode of content you are generating. Here you will find ready to go preset to do targeted tasks. Each preset is already dialed in to go, but you choose to adjust options and own values from Max Tokens in Chat, to Aspect Ratio settings for Image Gen. Prompt settings is at the heart of getting AI Playground to do what you want it to do. Select a Mode and explore what our Prompt Settings have to offer.',
+    title: i18n.state.TOUR_PROMPT_SETTINGS_TITLE,
+    descr: i18n.state.TOUR_PROMPT_SETTINGS_DESCR,
     align: 'end',
   },
   {
     id: '#app-settings-button',
-    title: 'Application Settings',
-    descr:
-      "Select this gear icon to see a list of application-level settings, from to language options, installation manager, and speech mode. You'll find important application settings here. Click here and select the Theme menu to give AI Playground different looks.",
+    title: i18n.state.TOUR_APP_SETTINGS_TITLE,
+    descr: i18n.state.TOUR_APP_SETTINGS_DESCR,
   },
   {
     id: '#show-history-button',
-    title: 'History Panel',
-    descr:
-      "The History Panel keeps track of all that you've generated. History will show you the latest content from each mode you used. Use this to scroll back through and revisit previous discussion and content generated from AI Playground.",
+    title: i18n.state.TOUR_HISTORY_TITLE,
+    descr: i18n.state.TOUR_HISTORY_DESCR,
   },
-]
+])
 
 function startTour() {
-  const filteredSteps = steps.filter(isStepEnabled)
+  const filteredSteps = steps.value.filter(isStepEnabled)
   const driverObj = driver({
     showProgress: true,
     showButtons: ['next', 'previous', 'close'],
-    doneBtnText: 'Got it!',
+    nextBtnText: i18n.state.TOUR_NEXT,
+    prevBtnText: i18n.state.TOUR_PREV,
+    doneBtnText: i18n.state.TOUR_DONE_BUTTON,
     popoverOffset: 20,
     steps: filteredSteps.map((step) => ({
       element: step.id,
@@ -164,7 +154,9 @@ function startMiniTour(driverSteps: DriveStep[]) {
   const miniDriver = driver({
     showProgress: !isSingleStep,
     showButtons: isSingleStep ? ['next', 'close'] : ['next', 'previous', 'close'],
-    doneBtnText: 'Got it!',
+    nextBtnText: i18n.state.TOUR_NEXT,
+    prevBtnText: i18n.state.TOUR_PREV,
+    doneBtnText: i18n.state.TOUR_DONE_BUTTON,
     popoverOffset: 20,
     onHighlighted: (_element, _step, { driver: d }) => {
       requestAnimationFrame(() => {
@@ -229,7 +221,7 @@ const firstTimeHelpConfig: Record<DemoButtonId, { stepId: string; highlightEleme
 
 function resolveDriverStep(target: ContextHelpTarget): DriveStep | null {
   const config = contextHelpConfig[target]
-  const step = stepsAlternative.find((s) => s.id === config.stepId)
+  const step = stepsAlternative.value.find((s) => s.id === config.stepId)
   if (!step) {
     console.warn(`triggerContextHelp: No step definition found for "${target}"`)
     return null
@@ -272,7 +264,7 @@ function triggerFirstTimeHelp(buttonId: DemoButtonId) {
     return
   }
 
-  const step = stepsAlternative.find((s) => s.id === config.stepId)
+  const step = stepsAlternative.value.find((s) => s.id === config.stepId)
   if (!step) {
     console.warn(`triggerFirstTimeHelp: No step definition found for "${buttonId}"`)
     return
@@ -361,7 +353,7 @@ defineExpose({
   font-weight: bold;
   cursor: pointer;
   font-size: 18px;
-  float: right;
+  float: inline-end;
   text-shadow: none;
   font-family: unset;
 }
@@ -383,7 +375,7 @@ defineExpose({
   cursor: pointer;
   position: absolute;
   top: 12px;
-  right: 16px;
+  inset-inline-end: 16px;
 }
 
 .driver-popover-close-btn:hover,

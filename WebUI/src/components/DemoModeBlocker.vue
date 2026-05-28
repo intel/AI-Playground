@@ -8,7 +8,7 @@
       @mousedown.stop.prevent
       @pointerdown.stop.prevent
       tabindex="0"
-      aria-label="Demo mode block overlay"
+      :aria-label="i18nState.DEMO_BLOCK_ARIA"
     ></div>
   </div>
 </template>
@@ -16,12 +16,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDemoMode } from '@/assets/js/store/demoMode'
+import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 
 const demoMode = useDemoMode()
+const i18nState = useI18N().state
 const isBlocked = computed(() => demoMode.enabled)
 
 function showBlockedToast() {
-  toast.show('Clicking this feature is disabled during demo.')
+  toast.show(i18nState.DEMO_BLOCK_TOAST)
 }
 </script>

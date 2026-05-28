@@ -8,6 +8,7 @@ import { useDialogStore } from './dialogs'
 import * as toast from '@/assets/js/toast'
 import { useSetupWizard } from './setupWizard'
 import { useProductMode } from './productMode'
+import { useI18N } from './i18n'
 
 export const WHISPER_MODEL_NAME = 'OpenVINO/whisper-base-int8-ov'
 
@@ -21,6 +22,7 @@ export const useSpeechToText = defineStore(
     const dialogStore = useDialogStore()
     const setupWizard = useSetupWizard()
     const productMode = useProductMode()
+    const i18n = useI18N()
     /**
      * Ensures the transcription server is running when STT is enabled.
      * This method checks if the server is already running and starts it if needed.
@@ -73,7 +75,7 @@ export const useSpeechToText = defineStore(
 
         if (!openVinoService?.isSetUp) {
           enabled.value = false
-          toast.warning('Speech To Text disabled: OpenVINO backend is not installed')
+          toast.warning(i18n.state.STT_DISABLED_NO_OPENVINO)
           return
         }
 
@@ -81,7 +83,7 @@ export const useSpeechToText = defineStore(
         const modelExists = await models.checkTranscriptionModelExists(WHISPER_MODEL_NAME)
         if (!modelExists) {
           enabled.value = false
-          toast.warning('Speech To Text disabled: Whisper model not found')
+          toast.warning(i18n.state.STT_DISABLED_NO_WHISPER)
           return
         }
 
@@ -94,7 +96,7 @@ export const useSpeechToText = defineStore(
       } catch (error) {
         enabled.value = false
         const errorMessage = error instanceof Error ? error.message : String(error)
-        toast.error(`Speech To Text disabled: ${errorMessage}`)
+        toast.error(`${i18n.state.STT_DISABLED_PREFIX}: ${errorMessage}`)
       } finally {
         initializing.value = false
       }
@@ -119,12 +121,9 @@ export const useSpeechToText = defineStore(
         )
 
         if (!openVinoService || !openVinoService.isSetUp) {
-          dialogStore.showWarningDialog(
-            'OpenVINO backend is required for Speech To Text. Please install it first.',
-            () => {
-              setupWizard.openWizard()
-            },
-          )
+          dialogStore.showWarningDialog(i18n.state.STT_OPENVINO_REQUIRED, () => {
+            setupWizard.openWizard()
+          })
           return
         }
 
@@ -142,14 +141,14 @@ export const useSpeechToText = defineStore(
                 try {
                   await backendServices.startTranscriptionServer(WHISPER_MODEL_NAME)
                   enabled.value = true
-                  toast.success('Speech To Text enabled')
+                  toast.success(i18n.state.STT_ENABLED)
                 } catch (error) {
-                  toast.error(`Failed to start transcription server: ${error}`)
+                  toast.error(`${i18n.state.STT_START_FAILED}: ${error}`)
                 }
               },
               () => {
                 // Download failed or cancelled
-                toast.warning('Speech To Text requires the whisper model')
+                toast.warning(i18n.state.STT_REQUIRES_WHISPER)
               },
             )
             return
@@ -160,18 +159,18 @@ export const useSpeechToText = defineStore(
         try {
           await backendServices.startTranscriptionServer(WHISPER_MODEL_NAME)
           enabled.value = true
-          toast.success('Speech To Text enabled')
+          toast.success(i18n.state.STT_ENABLED)
         } catch (error) {
-          toast.error(`Failed to start transcription server: ${error}`)
+          toast.error(`${i18n.state.STT_START_FAILED}: ${error}`)
         }
       } else {
         // Disable Speech To Text
         try {
           await backendServices.stopTranscriptionServer()
           enabled.value = false
-          toast.success('Speech To Text disabled')
+          toast.success(i18n.state.STT_DISABLED)
         } catch (error) {
-          toast.error(`Failed to stop transcription server: ${error}`)
+          toast.error(`${i18n.state.STT_STOP_FAILED}: ${error}`)
         }
       }
     }

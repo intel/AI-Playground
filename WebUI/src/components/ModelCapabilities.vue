@@ -2,6 +2,9 @@
 import { computed } from 'vue'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { InformationCircleIcon } from '@heroicons/vue/24/outline'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 interface ModelCapabilities {
   supportsToolCalling?: boolean
@@ -26,10 +29,10 @@ const props = withDefaults(
 
 const formatCapabilities = () => {
   const caps: string[] = []
-  if (props.model.supportsVision) caps.push('Vision')
-  if (props.model.supportsToolCalling) caps.push('Tool Calling')
-  if (props.model.supportsReasoning) caps.push('Reasoning')
-  if (props.model.npuSupport) caps.push('NPU Support')
+  if (props.model.supportsVision) caps.push(i18nState.MODEL_CAPABILITY_VISION)
+  if (props.model.supportsToolCalling) caps.push(i18nState.MODEL_CAPABILITY_TOOL_CALLING)
+  if (props.model.supportsReasoning) caps.push(i18nState.MODEL_CAPABILITY_REASONING)
+  if (props.model.npuSupport) caps.push(i18nState.MODEL_CAPABILITY_NPU_SUPPORT)
   return caps
 }
 
@@ -53,13 +56,14 @@ const maxContextSizeFormatted = computed(() => formatMaxContextSize(props.model.
       <TooltipContent class="w-64 bg-card border border-border text-foreground p-3 z-[200]">
         <div class="space-y-2">
           <div class="space-y-1">
-            <h3 class="text-sm font-semibold">Model Info</h3>
+            <h3 class="text-sm font-semibold">{{ i18nState.MODEL_INFO }}</h3>
             <div v-if="model.maxContextSize" class="space-y-1">
               <p class="text-xs text-muted-foreground">
-                Max Context Size: {{ maxContextSizeFormatted }} tokens
+                {{ i18nState.MODEL_MAX_CONTEXT_SIZE }} {{ maxContextSizeFormatted }}
+                {{ i18nState.COM_TOKENS }}
               </p>
             </div>
-            <h4 class="text-xs">Capabilities</h4>
+            <h4 class="text-xs">{{ i18nState.MODEL_CAPABILITIES }}</h4>
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="cap in capabilities"
@@ -72,7 +76,7 @@ const maxContextSizeFormatted = computed(() => formatMaxContextSize(props.model.
                 v-if="capabilities.length === 0"
                 class="px-2 py-1 text-xs bg-muted text-muted-foreground rounded-md"
               >
-                Standard
+                {{ i18nState.COM_STANDARD }}
               </span>
             </div>
           </div>

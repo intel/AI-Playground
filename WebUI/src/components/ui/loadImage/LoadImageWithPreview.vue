@@ -29,7 +29,12 @@
           {{ languages.COM_LOAD_IMAGE }}
         </p>
       </div>
-      <img v-else :src="displayImageUrl" alt="Image" class="w-64 py-4 object-scale-down" />
+      <img
+        v-else
+        :src="displayImageUrl"
+        :alt="languages.COM_ALT_IMAGE"
+        class="w-64 py-4 object-scale-down"
+      />
     </div>
     <!-- Show Original hint with tooltip -->
     <div v-if="hasImage && dialogStore.maskEditorIsModified" class="flex justify-center">
@@ -39,7 +44,7 @@
             <span
               class="text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors"
             >
-              Hover to show original
+              {{ languages.LOAD_IMAGE_HOVER_ORIGINAL }}
             </span>
           </TooltipTrigger>
           <TooltipContent
@@ -50,7 +55,7 @@
             <img
               v-if="dialogStore.maskEditorOriginalImageUrl"
               :src="dialogStore.maskEditorOriginalImageUrl"
-              alt="Original image"
+              :alt="languages.COM_ALT_ORIGINAL_IMAGE"
               class="max-w-[256px] max-h-[256px] object-contain rounded"
             />
           </TooltipContent>
@@ -81,7 +86,7 @@
         type="button"
         @click="handleCameraClick"
         class="p-1 rounded hover:bg-muted"
-        title="Capture from camera"
+        :title="languages.COM_CAPTURE_FROM_CAMERA"
       >
         <CameraIcon class="w-5 h-5 text-muted-foreground" />
       </button>

@@ -27,12 +27,12 @@ const statusText = computed(() => {
   <div>
     <button @click="isExpanded = !isExpanded" class="flex items-center cursor-pointer">
       <span class="italic text-muted-foreground">{{ statusText }}</span>
-      <img v-if="isExpanded" src="../assets/svg/arrow-up.svg" class="w-4 h-4 ml-1" />
-      <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4 ml-1" />
+      <img v-if="isExpanded" src="../assets/svg/arrow-up.svg" class="w-4 h-4 ms-1" />
+      <img v-else src="../assets/svg/arrow-down.svg" class="w-4 h-4 ms-1" />
     </button>
     <MarkdownRenderer
       v-if="isExpanded"
-      class="border-l-2 border-border pl-4 text-muted-foreground"
+      class="border-s-2 border-border ps-4 text-muted-foreground"
       :content="text ?? ''"
       :on-copy="onCopy"
     />

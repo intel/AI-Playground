@@ -73,7 +73,7 @@ textarea {
         background: url('@/assets/svg/tab-active-first.svg') 0px 0px no-repeat;
 
         > * {
-          margin-left: -15px;
+          margin-inline-start: -15px;
         }
       }
     }
@@ -130,11 +130,11 @@ textarea {
     height: 100%;
     &::after {
       position: absolute;
-      right: -25px;
+      inset-inline-end: -25px;
       top: 0px;
       height: 100%;
       content: '';
-      border-right: 1px solid hsl(var(--border));
+      border-inline-end: 1px solid hsl(var(--border));
     }
   }
 }
@@ -205,7 +205,7 @@ textarea {
     position: absolute;
     user-select: none;
     top: 0px;
-    left: 0px;
+    inset-inline-start: 0px;
     border-radius: 4px;
     font-size: 12px;
     background-color: rgba(255, 255, 255, 0.72);
@@ -301,7 +301,7 @@ textarea {
   border: 1px solid hsl(var(--border));
   overflow: hidden;
   position: fixed;
-  left: 50%;
+  inset-inline-start: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 30;
@@ -309,7 +309,7 @@ textarea {
 
 .modify-mask {
   position: absolute;
-  left: 0px;
+  inset-inline-start: 0px;
   top: 0px;
   display: flex;
   justify-content: center;
@@ -356,7 +356,7 @@ textarea {
         content: ' ';
         position: absolute;
         width: 100%;
-        left: 0px;
+        inset-inline-start: 0px;
         bottom: -15px;
         border-bottom: 1px solid #fff;
       }

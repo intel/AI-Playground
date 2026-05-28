@@ -6,37 +6,37 @@
     <!-- Outpaint Canvas - button to open editor -->
     <div
       v-if="input.type === 'outpaintCanvas'"
-      class="grid grid-cols-[120px_1fr] items-center gap-4"
+      class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
     >
       <Label>
         {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
       </Label>
       <Button variant="outline" @click="dialogStore.showMaskEditorDialog('outpaint')">
-        Open Mask Editor
+        {{ languages.WORKFLOW_OPEN_MASK_EDITOR }}
       </Button>
     </div>
 
     <!-- Inpaint Mask - button to open editor -->
     <div
       v-else-if="input.type === 'inpaintMask'"
-      class="grid grid-cols-[120px_1fr] items-center gap-4"
+      class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
     >
       <Label>
         {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
       </Label>
       <Button variant="outline" @click="dialogStore.showMaskEditorDialog('inpaint')">
-        Open Mask Editor
+        {{ languages.WORKFLOW_OPEN_MASK_EDITOR }}
       </Button>
     </div>
 
     <!-- Regular inputs -->
-    <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
+    <div v-else class="grid grid-cols-[minmax(120px,max-content)_1fr] items-center gap-4">
+      <div class="flex items-center justify-between gap-2 min-w-[120px]">
         <Label
           :title="
             languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label
           "
-          class="truncate min-w-0"
+          class="whitespace-normal break-words leading-tight"
         >
           {{ languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label }}
         </Label>

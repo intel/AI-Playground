@@ -20,7 +20,7 @@
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{{ languages.COM_CANCEL }}</AlertDialogCancel>
             <AlertDialogAction @click="deleteAllImages">
               {{ languages.COM_DELETE }}
             </AlertDialogAction>

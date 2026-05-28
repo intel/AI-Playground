@@ -143,6 +143,48 @@ export function getTranslationLabel(prefix: string, label: string) {
   return prefix + label.replace(/ - /g, '_').replace(/-/g, '_').replace(/ /g, '_').toUpperCase()
 }
 
+function presetSlug(name: string): string {
+  return name
+    .replace(/[ \-./]+/g, '_')
+    .replace(/[()]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .toUpperCase()
+}
+
+export function translatePresetName(name: string): string {
+  const i18nState = useI18N().state
+  const key = `PRESET_${presetSlug(name)}`
+  return i18nState[key] || name
+}
+
+export function translatePresetDescription(name: string, description: string): string {
+  const i18nState = useI18N().state
+  const key = `PRESET_DESC_${presetSlug(name)}`
+  return i18nState[key] || description
+}
+
+export function translatePresetExtendedDescription(
+  name: string,
+  extendedDescription: string,
+): string {
+  const i18nState = useI18N().state
+  const key = `PRESET_EXT_DESC_${presetSlug(name)}`
+  return i18nState[key] || extendedDescription
+}
+
+export function translateVariantName(name: string): string {
+  const i18nState = useI18N().state
+  const key = `VARIANT_${presetSlug(name)}`
+  return i18nState[key] || name
+}
+
+export function translatePresetTag(tag: string): string {
+  const i18nState = useI18N().state
+  const key = `TAG_${presetSlug(tag)}`
+  return i18nState[key] || tag
+}
+
 /**
  * Checks if an image is the NSFW blocked placeholder (512x512 completely black image).
  * The safety checker outputs this image when NSFW content is detected.

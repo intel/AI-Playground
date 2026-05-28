@@ -572,7 +572,7 @@ const showMenuButton = computed(
               class="px-3 py-1.5 rounded text-sm"
               @click="clearOverride"
             >
-              Clear Override
+              {{ i18nState.BACKEND_CLEAR_OVERRIDE }}
             </Button>
             <Button
               type="submit"

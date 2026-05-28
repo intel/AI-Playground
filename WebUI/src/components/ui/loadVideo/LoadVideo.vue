@@ -32,7 +32,7 @@
       <video
         v-else
         :src="videoUrlRef.value as string"
-        alt="Video"
+        :alt="languages.COM_ALT_VIDEO"
         class="w-64 py-4 object-scale-down"
         controls
         controlsList="nodownload nofullscreen noremoteplayback"

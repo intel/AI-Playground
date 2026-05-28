@@ -2,7 +2,7 @@
   <Dialog v-model:open="isOpen">
     <DialogContent class="sm:max-w-[425px]">
       <DialogHeader>
-        <DialogTitle>MCP Server Configuration</DialogTitle>
+        <DialogTitle>{{ i18nState.MCP_DIALOG_TITLE }}</DialogTitle>
       </DialogHeader>
 
       <div class="flex flex-col gap-4 py-4">
@@ -11,7 +11,7 @@
         </p>
 
         <div class="flex flex-col gap-2">
-          <Label>Transport</Label>
+          <Label>{{ i18nState.MCP_TRANSPORT }}</Label>
           <RadioGroup v-model="transport" class="flex gap-4">
             <div class="flex items-center gap-2">
               <RadioGroupItem id="transport-stdio" value="stdio" />
@@ -25,28 +25,28 @@
         </div>
 
         <div class="flex flex-col gap-2">
-          <Label for="display-name">Display Name *</Label>
+          <Label for="display-name">{{ i18nState.MCP_DISPLAY_NAME_LABEL }}</Label>
           <Input id="display-name" v-model="displayName" placeholder="My MCP Server" />
         </div>
 
         <div v-if="transport === 'stdio'" class="flex flex-col gap-2">
-          <Label for="command">Command *</Label>
+          <Label for="command">{{ i18nState.MCP_COMMAND_LABEL }}</Label>
           <Input id="command" v-model="command" placeholder="uvx" />
           <span class="text-xs text-muted-foreground">
-            Executable to run (e.g., uvx, python, node). Paths are escaped automatically.
+            {{ i18nState.MCP_COMMAND_HINT }}
           </span>
         </div>
 
         <div v-if="transport === 'stdio'" class="flex flex-col gap-2">
-          <Label for="args">Args</Label>
+          <Label for="args">{{ i18nState.MCP_ARGS_LABEL }}</Label>
           <Input id="args" v-model="args" placeholder="mcp-server-time" />
           <span class="text-xs text-muted-foreground">
-            Space-separated arguments (e.g. "--port 8080 --verbose")
+            {{ i18nState.MCP_ARGS_HINT }}
           </span>
         </div>
 
         <div v-if="transport === 'http'" class="flex flex-col gap-2">
-          <Label for="url">URL *</Label>
+          <Label for="url">{{ i18nState.MCP_URL_LABEL }}</Label>
           <Input id="url" v-model="url" placeholder="https://example.com/mcp" />
         </div>
 
@@ -73,20 +73,20 @@
             :disabled="isSubmitting"
             @click="handleRemove"
           >
-            Remove
+            {{ i18nState.MCP_REMOVE_BUTTON }}
           </Button>
         </div>
         <div class="flex gap-2">
-          <Button variant="outline" @click="handleClose">Cancel</Button>
+          <Button variant="outline" @click="handleClose">{{ i18nState.COM_CANCEL }}</Button>
           <Button :disabled="isSubmitting" @click="handleSubmit">
             {{
               isSubmitting
                 ? isAddMode
-                  ? 'Adding...'
-                  : 'Updating...'
+                  ? i18nState.MCP_ADDING
+                  : i18nState.MCP_UPDATING
                 : isAddMode
-                  ? 'Add Server'
-                  : 'Update Server'
+                  ? i18nState.MCP_ADD_SERVER_BUTTON
+                  : i18nState.MCP_UPDATE_SERVER_BUTTON
             }}
           </Button>
         </div>
@@ -104,8 +104,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useMcp } from '@/assets/js/store/mcp'
+import { useI18N } from '@/assets/js/store/i18n'
 import * as toast from '@/assets/js/toast'
 import type { McpServerConfig } from '../../electron/subprocesses/mcpServers'
+
+const i18nState = useI18N().state
 
 const props = defineProps<{
   open: boolean
@@ -234,17 +237,17 @@ async function handleSubmit() {
   const httpUrl = url.value.trim()
 
   if (!name) {
-    errorMessage.value = 'Display Name is required'
+    errorMessage.value = i18nState.MCP_DISPLAY_NAME_REQUIRED
     return
   }
 
   if (transport.value === 'stdio' && !cmd) {
-    errorMessage.value = 'Command is required for stdio transport'
+    errorMessage.value = i18nState.MCP_COMMAND_REQUIRED
     return
   }
 
   if (transport.value === 'http' && !httpUrl) {
-    errorMessage.value = 'URL is required for http transport'
+    errorMessage.value = i18nState.MCP_URL_REQUIRED
     return
   }
 
@@ -264,7 +267,9 @@ async function handleSubmit() {
     errorMessage.value =
       error instanceof Error
         ? error.message
-        : `Failed to ${isAddMode.value ? 'add' : 'update'} server`
+        : isAddMode.value
+          ? i18nState.MCP_ADD_FAILED
+          : i18nState.MCP_UPDATE_FAILED
     toast.error(errorMessage.value)
   } finally {
     isSubmitting.value = false
@@ -274,7 +279,7 @@ async function handleSubmit() {
 async function handleAdd(id: string, config: McpServerConfig, name: string) {
   await window.electronAPI.mcp.addServer(id, config)
   await mcp.reloadConfig()
-  toast.success(`MCP server "${name}" added`)
+  toast.success(`${i18nState.MCP_SERVER_ADDED_PREFIX} "${name}"`)
   resetForm()
   emits('update:open', false)
   emits('added')
@@ -283,7 +288,7 @@ async function handleAdd(id: string, config: McpServerConfig, name: string) {
 async function handleUpdate(id: string, config: McpServerConfig, name: string) {
   await window.electronAPI.mcp.updateServer(id, config)
   await mcp.reloadConfig()
-  toast.success(`MCP server "${name}" updated`)
+  toast.success(`${i18nState.MCP_SERVER_UPDATED_PREFIX} "${name}"`)
   resetForm()
   emits('update:open', false)
   emits('added')
@@ -296,11 +301,11 @@ async function handleRemove() {
   try {
     await window.electronAPI.mcp.removeServer(editServer.id)
     await mcp.reloadConfig()
-    toast.success('MCP server removed')
+    toast.success(i18nState.MCP_SERVER_REMOVED)
     emits('update:open', false)
     resetForm()
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to remove server')
+    toast.error(error instanceof Error ? error.message : i18nState.MCP_REMOVE_FAILED)
   } finally {
     isSubmitting.value = false
   }

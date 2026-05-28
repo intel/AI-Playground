@@ -5,7 +5,9 @@
         <p class="text-red-500">{{ contextError }}</p>
       </div>
       <div class="grid grid-cols-3 items-center gap-3 h-10">
-        <p class="text-2xl col-start-2 font-bold">Let's Generate</p>
+        <p class="text-2xl col-start-2 font-bold">
+          {{ i18nState.PROMPT_LETS_GENERATE || "Let's Generate" }}
+        </p>
         <Context
           v-if="promptStore.getCurrentMode() === 'chat'"
           :used-tokens="contextUsedTokens"
@@ -18,13 +20,13 @@
         <!-- Zoom Controls (only in chat mode) -->
         <div
           v-if="promptStore.getCurrentMode() === 'chat'"
-          class="absolute -top-8 right-0 flex gap-1 z-[5]"
+          class="absolute -top-8 end-0 flex gap-1 z-[5]"
         >
           <button
             @click="textInference.decreaseFontSize()"
             :disabled="textInference.isMinSize"
             class="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Decrease font size"
+            :title="i18nState.DECREASE_FONT_SIZE || 'Decrease font size'"
           >
             <MagnifyingGlassMinusIcon class="size-5" />
           </button>
@@ -32,7 +34,7 @@
             @click="textInference.increaseFontSize()"
             :disabled="textInference.isMaxSize"
             class="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Increase font size"
+            :title="i18nState.INCREASE_FONT_SIZE || 'Increase font size'"
           >
             <MagnifyingGlassPlusIcon class="size-5" />
           </button>
@@ -44,7 +46,7 @@
             canAttachDocuments &&
             checkedRagDocuments.length > 0
           "
-          class="text-xs relative top-11 z-5 -left-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1"
+          class="text-xs relative top-11 z-5 -start-1 -mt-11 mx-2 mb-3 flex flex-wrap items-center gap-2 px-1 py-1"
         >
           <span class="text-muted-foreground flex items-center gap-1">
             <PaperClipIcon class="size-4" />
@@ -58,8 +60,8 @@
             <span class="truncate max-w-[200px]" :title="doc.filename">{{ doc.filename }}</span>
             <button
               @click="textInference.updateFileCheckStatus(doc.hash, false)"
-              class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-              title="Remove from context"
+              class="ms-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              :title="i18nState.COM_REMOVE_FROM_CONTEXT || 'Remove from context'"
             >
               <XMarkIcon class="size-4" />
             </button>
@@ -70,7 +72,7 @@
             <Popover :open="isTextareaFocused">
               <PopoverAnchor as-child>
                 <div
-                  class="pointer-events-none absolute left-3 -top-2 size-1 overflow-hidden opacity-0"
+                  class="pointer-events-none absolute start-3 -top-2 size-1 overflow-hidden opacity-0"
                   aria-hidden="true"
                 />
               </PopoverAnchor>
@@ -104,28 +106,28 @@
             :disabled="isTextAreaDisabled"
             @keydown="fastGenerate"
           ></textarea>
-          <div class="absolute bottom-14 left-3 flex gap-2">
+          <div class="absolute bottom-14 start-3 flex gap-2">
             <div
               v-for="preview in imagePreview"
               :key="preview.id"
-              class="relative max-h-12 max-w-12 mr-2 aspect-square group"
+              class="relative max-h-12 max-w-12 me-2 aspect-square group"
             >
               <img
                 :src="preview.url"
-                alt="Image Preview"
+                :alt="i18nState.COM_ALT_IMAGE_PREVIEW"
                 class="w-full h-full object-contain border border-dashed border-border rounded-md"
               />
               <button
                 @click="removeImage(preview.id)"
-                class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
-                title="Remove image"
+                class="absolute -top-1 -end-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                :title="i18nState.COM_REMOVE_IMAGE || 'Remove image'"
               >
                 <XMarkIcon class="size-4" />
               </button>
             </div>
             <div
               v-if="shouldShowImageUploadButton"
-              class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer origin-bottom-left"
+              class="self-center border border-dashed border-border rounded-md p-1 hover:cursor-pointer origin-bottom-start"
               :class="{ 'border-primary bg-primary/10': isOverDropZone }"
               id="plus-icon"
             >
@@ -142,7 +144,7 @@
               />
             </div>
           </div>
-          <div id="mode-buttons" class="absolute bottom-4 left-3 flex gap-2">
+          <div id="mode-buttons" class="absolute bottom-4 start-3 flex gap-2">
             <Button
               v-for="mode in modesWithPresets"
               :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
@@ -153,14 +155,14 @@
               {{ mapModeToLabel(mode) }}
             </Button>
           </div>
-          <div class="absolute bottom-4 right-3 flex gap-2">
+          <div class="absolute bottom-4 end-3 flex gap-2">
             <Button
               id="camera-button"
               class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
               variant="secondary"
               v-if="promptStore.getCurrentMode() === 'chat'"
               @click="handleCameraClick"
-              title="Capture image from camera"
+              :title="i18nState.COM_CAPTURE_IMAGE || 'Capture image from camera'"
             >
               <CameraIcon class="w-5 h-5" />
             </Button>
@@ -173,9 +175,7 @@
               "
               @click="handleRecordingClick"
               :disabled="(false && !speechToText.enabled) || audioRecorder.isTranscribing"
-              :title="
-                !speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''
-              "
+              :title="!speechToText.enabled ? i18nState.STT_ENABLE_HINT : ''"
             >
               <i
                 v-if="!audioRecorder.isTranscribing"
@@ -202,15 +202,23 @@
               class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-normal"
               @click="handleAdvancedSettingsClick"
             >
-              {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
+              {{
+                i18nState.COM_MODE_SETTINGS
+                  ? i18nState.COM_MODE_SETTINGS.replace(
+                      '{mode}',
+                      mapModeToLabel(promptStore.getCurrentMode()),
+                    )
+                  : mapModeToLabel(promptStore.getCurrentMode()) + ' Settings'
+              }}
             </Button>
             <Button
               v-if="readyForNewSubmit"
               @click="handleSubmitPromptClick"
               id="send-button"
-              class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
+              class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+              :title="i18nState.COM_SEND"
             >
-              →
+              <ArrowRightIcon class="size-4 rtl:rotate-180" />
             </Button>
             <Button
               v-else-if="!isStopping"
@@ -237,10 +245,14 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
       <div class="bg-background rounded-lg p-6 w-full max-w-lg mx-4 shadow-xl">
-        <h2 class="text-lg font-semibold mb-4">Capture Image</h2>
+        <h2 class="text-lg font-semibold mb-4">
+          {{ i18nState.COM_CAPTURE_IMAGE || 'Capture Image' }}
+        </h2>
         <CameraCapture @capture="dialogStore.handleCameraCapture" />
         <div class="mt-4 flex justify-end">
-          <Button variant="outline" @click="dialogStore.closeCameraDialog()">Close</Button>
+          <Button variant="outline" @click="dialogStore.closeCameraDialog()">{{
+            i18nState.COM_CLOSE || 'Close'
+          }}</Button>
         </div>
       </div>
     </div>
@@ -277,6 +289,7 @@ import {
   XMarkIcon,
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
+  ArrowRightIcon,
 } from '@heroicons/vue/24/outline'
 import { CameraIcon } from '@heroicons/vue/24/solid'
 import { Label } from '@/components/ui/label'
@@ -676,7 +689,7 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
     }
   } catch (error) {
     console.error('Error processing image:', error)
-    toast.error('Failed to load image')
+    toast.error(i18nState.TOAST_FAILED_TO_LOAD_IMAGE)
   } finally {
     URL.revokeObjectURL(imageUrl)
   }
@@ -722,7 +735,7 @@ function handlePlusIconClick(event: MouseEvent) {
   }
   if (demoMode.enabled) {
     event.preventDefault()
-    toast.show('Clicking this feature is disabled during demo.')
+    toast.show(i18nState.DEMO_BLOCK_TOAST)
     return
   }
   // Let the Label's default behavior open the file dialog
@@ -748,17 +761,13 @@ async function handleFileInput(event: Event) {
 
   // Validate image attachments
   if (imageFiles.length > 0 && !canAttachImages.value) {
-    toast.error(
-      'The current model does not support image attachments. Select a vision model to attach images.',
-    )
+    toast.error(i18nState.TOAST_NO_VISION_SUPPORT)
     imageFiles.length = 0
   }
 
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
-    toast.error(
-      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
-    )
+    toast.error(i18nState.TOAST_NO_RAG_SUPPORT)
     documentFiles.length = 0
   }
 
@@ -840,7 +849,7 @@ async function onDrop(files: File[] | null) {
   if (comfyUiModes.includes(promptStore.getCurrentMode()) && shouldShowImageUploadButton.value) {
     // Filter out non-image files
     if (documentFiles.length > 0) {
-      toast.error('Only images can be uploaded in this mode.')
+      toast.error(i18nState.TOAST_ONLY_IMAGES_THIS_MODE)
     }
     // Handle images through ComfyUI handler
     if (imageFiles.length > 0) {
@@ -851,17 +860,13 @@ async function onDrop(files: File[] | null) {
 
   // Validate image attachments
   if (imageFiles.length > 0 && !canAttachImages.value) {
-    toast.error(
-      'The current model does not support image attachments. Select a vision model to attach images.',
-    )
+    toast.error(i18nState.TOAST_NO_VISION_SUPPORT)
     imageFiles.length = 0
   }
 
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
-    toast.error(
-      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
-    )
+    toast.error(i18nState.TOAST_NO_RAG_SUPPORT)
     documentFiles.length = 0
   }
 

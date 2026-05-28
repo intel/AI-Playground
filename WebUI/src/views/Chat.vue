@@ -1,9 +1,9 @@
 <template>
   <button
     v-if="showScrollButton"
-    class="absolute bottom-65 left-1/2 transform -translate-x-1/2 bg-background text-foreground p-2 rounded-full shadow-lg z-50 hover:bg-muted transition-colors"
+    class="absolute bottom-65 start-1/2 transform -translate-x-1/2 bg-background text-foreground p-2 rounded-full shadow-lg z-50 hover:bg-muted transition-colors"
     @click="scrollToBottom()"
-    title="Scroll to bottom"
+    :title="languages.COM_SCROLL_TO_BOTTOM"
   >
     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -52,7 +52,7 @@
                     ) as { url?: string }
                 )?.url
               "
-              alt="Generated Image"
+              :alt="languages.ANSWER_GENERATED_IMAGE_ALT"
             />
             <MarkdownRenderer
               :class="textInference.fontSizeClass"
@@ -103,8 +103,8 @@
                   class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
                   :class="textInference.nameSizeClass"
                 >
-                  Source Docs
-                  <button class="ml-1">
+                  {{ languages.ANSWER_RAG_SOURCE_DOCS }}
+                  <button class="ms-1">
                     <img
                       v-if="showRagSourcePerMessageId[message.id]"
                       src="../assets/svg/arrow-up.svg"
@@ -122,7 +122,7 @@
                 showRagSourcePerMessageId[message.id] &&
                 (message.metadata?.ragSource || ragSourcePerMessageId[message.id])
               "
-              class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
+              class="my-2 text-muted-foreground border-s-2 border-primary ps-2 flex flex-row gap-1"
               :class="textInference.fontSizeClass"
             >
               <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
@@ -166,8 +166,10 @@
                   <template v-if="isAipgTool(part) && part.type === 'tool-comfyUI'">
                     <div>
                       <span
-                        >Generating using the preset
-                        <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
+                        >{{ languages.ANSWER_GENERATING_USING_PRESET }}
+                        <b>{{
+                          translatePresetName(part.input?.workflow ?? languages.COM_NO_SELECTED)
+                        }}</b></span
                       >
                       <br />
                       <br />
@@ -186,8 +188,10 @@
                   <template v-else-if="isAipgTool(part) && part.type === 'tool-comfyUiImageEdit'">
                     <div>
                       <span
-                        >Editing using the preset
-                        <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
+                        >{{ languages.ANSWER_EDITING_USING_PRESET }}
+                        <b>{{
+                          translatePresetName(part.input?.workflow ?? languages.COM_NO_SELECTED)
+                        }}</b></span
                       >
                       <br />
                       <br />
@@ -215,7 +219,7 @@
                       >
                         <img
                           :src="(part as any).output.annotatedImageUrl"
-                          alt="Annotated image with object detections"
+                          :alt="languages.ANSWER_ANNOTATED_IMAGE_ALT"
                           class="max-w-full rounded-md border-2 border-border"
                         />
                       </div>
@@ -224,7 +228,9 @@
                           part.state === 'input-streaming' || part.state === 'input-available'
                         "
                       >
-                        <span class="text-muted-foreground">Visualizing object detections...</span>
+                        <span class="text-muted-foreground">{{
+                          languages.ANSWER_VISUALIZING_OBJECT_DETECTIONS
+                        }}</span>
                       </div>
                     </div>
                   </template>
@@ -241,7 +247,7 @@
                 @click="copyText(getMessageTextForCopy(message))"
               >
                 <span class="svg-icon i-copy w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+                <span class="text-xs ms-1">{{ languages.COM_COPY }}</span>
               </button>
               <button
                 class="flex items-end"
@@ -252,7 +258,7 @@
                 :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
               >
                 <span class="svg-icon i-refresh w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
+                <span class="text-xs ms-1">{{ languages.COM_REGENERATE }}</span>
               </button>
               <button
                 class="flex items-end"
@@ -264,21 +270,25 @@
                 "
               >
                 <span class="svg-icon i-delete w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
+                <span class="text-xs ms-1">{{ languages.COM_DELETE }}</span>
               </button>
             </div>
             <div
               v-if="textInference.metricsEnabled && message.metadata?.timings"
               class="metrics-info text-xs text-muted-foreground"
             >
-              <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
-                >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }} Tokens/s</span
+              <span class="me-2"
+                >{{ message.metadata?.timings.predicted_n }} {{ languages.COM_TOKENS }}</span
               >
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
-                >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
+              <span class="me-2">⋅</span>
+              <span class="me-2"
+                >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }}
+                {{ languages.ANSWER_TOKENS_PER_SEC }}</span
+              >
+              <span class="me-2">⋅</span>
+              <span class="me-2"
+                >{{ languages.ANSWER_FIRST_TOKEN_TIME }}
+                {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
               >
             </div>
           </div>
@@ -308,6 +318,7 @@ import { useComfyUiPresets } from '@/assets/js/store/comfyUiPresets'
 import { DynamicToolUIPart, isToolOrDynamicToolUIPart, ToolUIPart } from 'ai'
 import { aipgTools, AipgTools } from '@/assets/js/tools/tools'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
+import { translatePresetName } from '@/lib/utils'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
@@ -655,8 +666,8 @@ watch(
 
 <style>
 .hljs {
-  padding-left: 0.5rem;
-  border-bottom-left-radius: calc(var(--radius) - 2px);
-  border-bottom-right-radius: calc(var(--radius) - 2px);
+  padding-inline-start: 0.5rem;
+  border-end-start-radius: calc(var(--radius) - 2px);
+  border-end-end-radius: calc(var(--radius) - 2px);
 }
 </style>

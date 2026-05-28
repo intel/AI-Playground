@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const ICON_RADIUS = 10
 const ICON_VIEWBOX = 24
@@ -25,7 +28,7 @@ const dashOffset = computed(() => {
 
 <template>
   <svg
-    aria-label="Model context usage"
+    :aria-label="i18nState.CONTEXT_ICON_ARIA"
     height="20"
     role="img"
     style="color: currentcolor"

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col space-y-2 pr-3 h-full overflow-y-auto">
+  <div class="flex flex-col space-y-2 pe-3 h-full overflow-y-auto">
     <div v-if="homeAgent.isFeatureEnabled" class="flex items-center justify-center gap-2 px-1 pb-1">
       <span
         class="text-xs font-medium select-none"
@@ -79,46 +79,48 @@
                     }
                   "
                 >
-                  Rename
+                  {{ i18nState.CONVERSATION_RENAME }}
                 </DropdownMenuItem>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Rename conversation</DialogTitle>
-                  <DialogDescription>Set a new title for this conversation.</DialogDescription>
+                  <DialogTitle>{{ i18nState.CONVERSATION_RENAME_TITLE }}</DialogTitle>
+                  <DialogDescription>{{ i18nState.CONVERSATION_RENAME_DESC }}</DialogDescription>
                 </DialogHeader>
                 <div class="mt-2">
                   <Input
                     autofocus
                     type="text"
-                    placeholder="Enter title"
+                    :placeholder="i18nState.COM_ENTER_TITLE"
                     v-model="renameTitle"
                     @keydown.enter.prevent="saveRename"
                   />
                 </div>
                 <DialogFooter>
-                  <Button variant="ghost" @click="cancelRename">Cancel</Button>
-                  <Button :disabled="!renameTitle.trim()" @click="saveRename">Save</Button>
+                  <Button variant="ghost" @click="cancelRename">{{ i18nState.COM_CANCEL }}</Button>
+                  <Button :disabled="!renameTitle.trim()" @click="saveRename">{{
+                    i18nState.COM_SAVE
+                  }}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
-                  Delete
+                  {{ i18nState.COM_DELETE }}
                 </DropdownMenuItem>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                  <AlertDialogTitle>{{ i18nState.CONVERSATION_DELETE_TITLE }}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently remove this conversation and its messages.
+                    {{ i18nState.CONVERSATION_DELETE_DESC }}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
                   <AlertDialogAction @click="() => conversations.deleteConversation(key)">
-                    Delete
+                    {{ i18nState.COM_DELETE }}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -166,9 +168,11 @@ import { Switch } from '@/components/ui/switch'
 import { useConversations, type ThreadKind } from '@/assets/js/store/conversations'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { AipgUiMessage } from '@/assets/js/store/openAiCompatibleChat'
+import { useI18N } from '@/assets/js/store/i18n'
 
 const conversations = useConversations()
 const homeAgent = useHomeAgent()
+const i18nState = useI18N().state
 const emits = defineEmits<{
   (e: 'conversationSelected'): void
 }>()

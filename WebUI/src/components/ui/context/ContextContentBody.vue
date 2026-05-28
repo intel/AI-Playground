@@ -2,6 +2,9 @@
 import { inject, computed } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 type ContextData = {
   usage?: {
@@ -47,19 +50,19 @@ const formattedReasoningTokens = computed(() => formatTokens(reasoningTokens.val
     <slot>
       <div class="space-y-2 text-xs">
         <div v-if="formattedInputTokens" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Input</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_INPUT }}</span>
           <span>{{ formattedInputTokens }}</span>
         </div>
         <div v-if="formattedOutputTokens" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Output</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_OUTPUT }}</span>
           <span>{{ formattedOutputTokens }}</span>
         </div>
         <div v-if="formattedReasoningTokens" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Reasoning</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_REASONING }}</span>
           <span>{{ formattedReasoningTokens }}</span>
         </div>
         <div v-if="formattedCachedTokens" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Cache</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_CACHE }}</span>
           <span>{{ formattedCachedTokens }}</span>
         </div>
       </div>
