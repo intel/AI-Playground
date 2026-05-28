@@ -11,6 +11,9 @@ import {
   useForwardPropsEmits,
 } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<DialogContentEmits>()
@@ -56,7 +59,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
           class="absolute top-4 right-4 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Cross2Icon class="w-4 h-4" />
-          <span class="sr-only">Close</span>
+          <span class="sr-only">{{ i18nState.COM_CLOSE }}</span>
         </DialogClose>
       </DialogContent>
     </DialogOverlay>

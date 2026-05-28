@@ -32,22 +32,33 @@
 
       <div class="flex flex-col gap-4">
         <!-- Backend selector - only shown when multiple backends are available -->
-        <div v-if="!isBackendLocked" class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">Backend</Label>
+        <div v-if="!isBackendLocked" class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.BACKEND
+          }}</Label>
           <drop-down-new
-            title="Select Backend"
+            class="flex-1 min-w-0"
+            :title="languages.SETTINGS_SELECT_BACKEND"
             @change="handleBackendChange"
             :value="textInference.backend"
             :items="availableBackendItems"
           ></drop-down-new>
         </div>
-        <div v-if="!lockDeviceToNpu" class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
-          <DeviceSelector :backend="backendToService[textInference.backend]" />
+        <div v-if="!lockDeviceToNpu" class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.DEVICE
+          }}</Label>
+          <div class="flex-1 min-w-0">
+            <DeviceSelector :backend="backendToService[textInference.backend]" />
+          </div>
         </div>
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">{{ languages.MODEL }}</Label>
-          <ModelSelector />
+        <div class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.MODEL
+          }}</Label>
+          <div class="flex-1 min-w-0">
+            <ModelSelector />
+          </div>
         </div>
         <Button
           variant="secondary"
@@ -68,39 +79,50 @@
         >
           <span>{{ documentButtonText }}</span>
         </Button>
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <label class="whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
+        <div class="flex items-center gap-4">
+          <label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.ANSWER_MAX_TOKENS
+          }}</label>
           <input
             type="number"
             v-model="textInference.maxTokens"
             min="0"
             max="4096"
             step="1"
-            class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border"
+            class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border shrink-0"
           />
         </div>
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap"
-            >Temperature: {{ textInference.temperature.toFixed(1) }}</Label
+        <div class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0"
+            >{{ languages.SETTINGS_TEMPERATURE }} ({{
+              textInference.temperature.toFixed(1)
+            }})</Label
           >
-          <Slider v-model="textInference.temperature" :min="0" :max="2" :step="0.1" />
+          <Slider
+            class="flex-1 min-w-0"
+            v-model="textInference.temperature"
+            :min="0"
+            :max="2"
+            :step="0.1"
+          />
         </div>
-        <div
-          v-if="textInference.contextSizeSettingSupported"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
-        >
-          <Label class="whitespace-nowrap">{{ languages.ANSWER_CONTEXT_SIZE }}</Label>
+        <div v-if="textInference.contextSizeSettingSupported" class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.ANSWER_CONTEXT_SIZE
+          }}</Label>
           <input
             type="number"
             v-model="textInference.contextSize"
             min="512"
             max="131072"
             step="512"
-            class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border"
+            class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border shrink-0"
           />
         </div>
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">{{ languages.ANSWER_METRICS }}</Label>
+        <div class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.ANSWER_METRICS
+          }}</Label>
           <Checkbox
             id="metrics"
             :model-value="textInference.metricsEnabled"
@@ -110,9 +132,11 @@
         <!-- Built-in Tools toggle - only shown when preset has showTools enabled -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
+          class="flex items-center gap-4"
         >
-          <Label class="whitespace-nowrap">Built-in tools:</Label>
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.SETTINGS_BUILTIN_TOOLS
+          }}</Label>
           <Checkbox
             id="tools"
             :model-value="textInference.aipgToolsEnabled"
@@ -123,9 +147,11 @@
         <!-- MCP Tools toggle -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
+          class="flex items-center gap-4"
         >
-          <Label class="whitespace-nowrap">MCP tools:</Label>
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.SETTINGS_MCP_TOOLS
+          }}</Label>
           <Checkbox
             id="mcp-tools"
             :model-value="textInference.mcpToolsEnabled"
@@ -135,16 +161,19 @@
 
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
-          class="pl-2 pt-2"
+          class="ps-2 pt-2"
           :class="{ 'opacity-50': !textInference.mcpToolsEnabled }"
         >
           <SettingsMcp />
         </div>
 
         <!-- Embeddings selector - only shown when RAG is enabled -->
-        <div v-if="enableRAG" class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">Embeddings</Label>
+        <div v-if="enableRAG" class="flex items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight min-w-[120px] shrink-0">{{
+            languages.SETTINGS_EMBEDDINGS
+          }}</Label>
           <drop-down-new
+            class="flex-1 min-w-0"
             :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
             @change="(item) => textInference.selectEmbeddingModel(textInference.backend, item)"
             :value="
@@ -165,25 +194,27 @@
         </div>
 
         <!-- System Prompt - only shown in advanced mode -->
-        <div v-if="advancedMode" class="grid grid-cols-[120px_1fr] items-start gap-4">
-          <Label class="whitespace-nowrap pt-2">System Prompt</Label>
+        <div v-if="advancedMode" class="flex items-start gap-4">
+          <Label class="whitespace-nowrap pt-2 min-w-[120px] shrink-0">{{
+            languages.SETTINGS_SYSTEM_PROMPT
+          }}</Label>
           <Textarea
             v-model="textInference.systemPrompt"
-            placeholder="You are a helpful AI assistant."
-            class="min-h-[100px] text-sm"
+            :placeholder="languages.SETTINGS_SYSTEM_PROMPT_PLACEHOLDER"
+            class="min-h-[100px] text-sm flex-1 min-w-0"
           />
         </div>
 
         <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
           <button class="mt-4" @click="textInference.resetActivePresetSettings">
-            <div class="svg-icon i-refresh">Reset</div>
-            {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
+            <div class="svg-icon i-refresh">{{ languages.COM_RESET }}</div>
+            {{ languages.COM_LOAD_PRESET_DEFAULTS }}
           </button>
         </div>
 
         <!-- todo: needs to actually do something-->
         <Button variant="secondary" class="max-w-md mx-auto px-3 py-1.5 rounded text-sm">
-          Create New Preset</Button
+          {{ languages.SETTINGS_CREATE_NEW_PRESET }}</Button
         >
       </div>
       <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
@@ -301,9 +332,9 @@ async function handlePresetChange(presetName: string) {
     } else if (onHomeAgentThread) {
       conversations.addNewConversation()
     }
-    toast.success(`Switched to ${presetName}`)
+    toast.success(`${i18nState.PRESETS_SWITCHED_TO} ${presetName}`)
   } else if (result.error) {
-    toast.error(`Failed to switch preset: ${result.error}`)
+    toast.error(`${i18nState.PRESETS_SWITCH_FAILED}: ${result.error}`)
   }
 }
 
@@ -315,7 +346,7 @@ async function handleVariantChange(presetName: string, variantName: string | nul
     })
 
     if (!result.success && result.error) {
-      toast.error(`Failed to switch variant: ${result.error}`)
+      toast.error(`${i18nState.PRESETS_VARIANT_SWITCH_FAILED}: ${result.error}`)
     }
   }
 }
@@ -323,7 +354,7 @@ async function handleVariantChange(presetName: string, variantName: string | nul
 const documentButtonText = computed(() => {
   const stats = documentStats.value
   if (stats.total === 0) {
-    return 'Add Documents'
+    return i18nState.RAG_ADD_DOCUMENTS
   } else {
     return `${i18nState.RAG_DOCUMENTS} (${stats.enabled})`
   }

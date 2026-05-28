@@ -20,7 +20,7 @@ const codeRenderer = {
         <div class="flex justify-between items-center sticky -top-4 text-white bg-gray-800 px-4 py-2 text-xs rounded-t-md">
           <span>${language.toUpperCase()}</span>
           <button class="hidden flex items-center justify-end copy-code" ${startMarker}${code}${endMarker}>
-            <span class="svg-icon i-copy w-4 h-4 mr-1 pointer-events-none"></span><span class="pointer-events-none">Copy</span>
+            <span class="svg-icon i-copy w-4 h-4 me-1 pointer-events-none"></span><span class="pointer-events-none">Copy</span>
           </button>
         </div>
         <pre class="hljs"><code class="hljs">${highlighted}</code></pre>

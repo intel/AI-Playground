@@ -41,8 +41,8 @@
 
           <div class="flex-1 min-w-0">
             <div class="flex items-start justify-between gap-4 flex-wrap">
-              <div class="flex items-baseline gap-2 flex-wrap min-w-0">
-                <span class="text-lg font-bold text-[#00c4fa] tracking-tight -mr-1">{{
+              <div class="flex items-baseline gap-2 flex-wrap min-w-0" dir="ltr">
+                <span class="text-lg font-bold text-[#00c4fa] tracking-tight -me-1">{{
                   option.titleOne
                 }}</span>
                 <span class="text-lg font-bold tracking-tight">{{ option.titleTwo }}</span>
@@ -78,7 +78,7 @@
 
             <ul
               v-if="(option.features?.length ?? 0) > 0"
-              class="text-sm pt-3 pl-5 list-disc space-y-1"
+              class="text-sm pt-3 ps-5 list-disc space-y-1"
             >
               <li v-for="(feature, idx) in option.features" :key="idx">
                 <span class="text-foreground font-medium">{{ feature.label }}</span>

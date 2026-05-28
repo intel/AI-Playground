@@ -103,7 +103,7 @@
           "
           class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
-          Loading image...
+          {{ i18nState.MASK_LOADING_IMAGE }}
         </div>
         <div
           v-else-if="
@@ -111,7 +111,7 @@
           "
           class="absolute inset-0 flex items-center justify-center text-foreground/60 pointer-events-none"
         >
-          Load an image to draw mask
+          {{ i18nState.MASK_LOAD_IMAGE_TO_DRAW }}
         </div>
       </div>
     </div>
@@ -119,7 +119,12 @@
     <!-- Info -->
     <div class="text-sm text-foreground/60 text-center">
       <span v-if="imageUrl && imageLoaded">
-        Image: {{ imageWidth }} × {{ imageHeight }}px | Draw on areas you want to inpaint
+        {{
+          i18nState.MASK_IMAGE_INFO.replace('{width}', String(imageWidth)).replace(
+            '{height}',
+            String(imageHeight),
+          )
+        }}
       </span>
     </div>
   </div>
@@ -129,6 +134,9 @@
 import { computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import Slider from './ui/slider/Slider.vue'
 import { NoSymbolIcon, PaintBrushIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const props = defineProps<{
   imageUrl: string

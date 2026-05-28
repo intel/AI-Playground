@@ -2,12 +2,12 @@
   <Dialog v-model:open="open">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Enter Demo Mode?</DialogTitle>
-        <DialogDescription> A passcode may be required to leave demo mode. </DialogDescription>
+        <DialogTitle>{{ i18nState.DEMO_ENTER_TITLE }}</DialogTitle>
+        <DialogDescription> {{ i18nState.DEMO_ENTER_DESC }} </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <Button variant="ghost" @click="open = false">Cancel</Button>
-        <Button @click="confirm">Enter Demo Mode</Button>
+        <Button variant="ghost" @click="open = false">{{ i18nState.COM_CANCEL }}</Button>
+        <Button @click="confirm">{{ i18nState.DEMO_ENTER_BUTTON }}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -23,6 +23,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const emit = defineEmits<{
   confirmed: []

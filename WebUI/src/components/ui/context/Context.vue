@@ -6,6 +6,9 @@ import { useForwardPropsEmits } from 'reka-ui'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '../hover-card'
 import { Button } from '../button'
 import ContextIcon from './ContextIcon.vue'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 export interface ContextProps extends HoverCardRootProps {
   usedTokens: number
@@ -78,27 +81,27 @@ const outputTokensFormatted = computed(() => formatNumber(props.usage?.outputTok
     <HoverCardContent class="min-w-60 divide-y overflow-hidden p-0">
       <div class="w-full p-3 space-y-2 text-xs">
         <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold">Context Usage</h2>
-          <h2 class="text-sm font-medium">Tokens</h2>
+          <h2 class="text-sm font-semibold">{{ i18nState.CONTEXT_USAGE_TITLE }}</h2>
+          <h2 class="text-sm font-medium">{{ i18nState.COM_TOKENS }}</h2>
         </div>
         <div v-if="maxContextSizeFormatted" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Max Context for Model</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_MAX_FOR_MODEL }}</span>
           <span>{{ maxContextSizeFormatted }}</span>
         </div>
         <div v-if="maxTokensFormatted" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Configured Context Size</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_CONFIGURED_SIZE }}</span>
           <span>{{ maxTokensFormatted }}</span>
         </div>
         <div v-if="usedTokensFormatted" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Used Context</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_USED }}</span>
           <span>{{ usedTokensFormatted }}</span>
         </div>
         <div v-if="inputTokensFormatted" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Input</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_INPUT }}</span>
           <span>{{ inputTokensFormatted }}</span>
         </div>
         <div v-if="outputTokensFormatted" class="flex items-center justify-between">
-          <span class="text-muted-foreground">Output</span>
+          <span class="text-muted-foreground">{{ i18nState.CONTEXT_OUTPUT }}</span>
           <span>{{ outputTokensFormatted }}</span>
         </div>
       </div>

@@ -17,7 +17,7 @@
           <span class="text-base font-bold px-4 items-stretch w-36 flex-none">{{
             languages[settingToTranslationKey[key]] ?? key
           }}</span>
-          <span class="px-4 flex-auto break-word">{{ value }}</span>
+          <span class="px-4 flex-auto break-word">{{ formatValue(key, value) }}</span>
         </li>
       </ul>
       <ul class="border border-border">
@@ -45,7 +45,7 @@ import {
   ComfyDynamicInputWithCurrent,
   GenerationSettings,
 } from '@/assets/js/store/imageGenerationPresets'
-import { getTranslationLabel } from '@/lib/utils'
+import { getTranslationLabel, translatePresetName, translateVariantName } from '@/lib/utils'
 import { useI18N } from '@/assets/js/store/i18n'
 
 const props = defineProps<{
@@ -75,4 +75,11 @@ const settingToTranslationKey: Record<keyof GenerationSettings, string> = {
 const emits = defineEmits<{
   (e: 'close'): void
 }>()
+
+function formatValue(key: keyof GenerationSettings, value: unknown): string {
+  if (value === undefined || value === null) return ''
+  if (key === 'preset' && typeof value === 'string') return translatePresetName(value)
+  if (key === 'variant' && typeof value === 'string') return translateVariantName(value)
+  return String(value)
+}
 </script>

@@ -173,7 +173,7 @@
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
     <div class="flex-1 flex flex-col relative justify-center min-h-0">
-      <div class="fixed top-18 left-4 z-5 flex flex-col gap-2">
+      <div class="fixed top-18 start-4 z-5 flex flex-col gap-2">
         <button
           id="show-history-button"
           v-show="!uiStore.showHistory"
@@ -184,7 +184,7 @@
         </button>
       </div>
       <div
-        class="fixed left-4 z-5 flex items-center gap-3"
+        class="fixed start-4 z-5 flex items-center gap-3"
         :class="{
           'bottom-4': !footerExpanded,
           'bottom-27': footerExpanded,
@@ -194,14 +194,14 @@
           <button
             @click="openAppSettings"
             class="svg-icon i-setup w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
-            title="App Settings"
+            :title="languages.COM_APP_SETTINGS"
           ></button>
         </div>
         <DemoModeBlocker>
           <button
             @click="openDevTools"
             class="svg-icon i-code w-6 h-6 text-foreground hover:text-foreground/80 transition-colors"
-            title="Developer Tools"
+            :title="languages.COM_DEVELOPER_TOOLS"
           ></button>
         </DemoModeBlocker>
       </div>
@@ -218,12 +218,12 @@
       />
       <WorkflowResult v-if="promptStore.getCurrentMode() === 'video'" ref="videoRef" mode="video" />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
-      <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
+      <div v-if="!footerExpanded" class="fixed bottom-4 end-4 z-5 flex items-center gap-3">
         <button
           @click="footerExpanded = !footerExpanded"
           class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
         >
-          SHOW FOOTER
+          {{ languages.COM_SHOW_FOOTER }}
         </button>
       </div>
     </div>
@@ -262,35 +262,39 @@
         @click="footerExpanded = !footerExpanded"
         class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
       >
-        HIDE FOOTER
+        {{ languages.COM_HIDE_FOOTER }}
       </button>
     </div>
     <div v-show="footerExpanded" class="w-full flex justify-between items-center pb-2">
       <div>
         <p>
-          Al Playground from Intel Corporation
+          AI Playground from Intel Corporation
           <a href="https://github.com/intel/ai-playground" target="_blank" class="text-primary"
             >https://github.com/intel/ai-playground</a
           >
         </p>
         <p>
-          AI Playground version: v{{ productVersion }}
-          <a :href="userGuideUrl" target="_blank" class="text-primary"> User Guide</a>
-
-          <a :href="noticesUrl" target="_blank" class="text-primary">
-            | Important Notices and Disclaimers</a
+          {{ languages.APP_VERSION_LABEL }} v{{ productVersion }}
+          <a :href="userGuideUrl" target="_blank" class="text-primary">
+            {{ languages.APP_USER_GUIDE }}</a
           >
 
-          <a :href="licenseUrl" target="_blank" class="text-primary"> | Licenses</a>
+          <a :href="noticesUrl" target="_blank" class="text-primary">
+            | {{ languages.APP_NOTICES }}</a
+          >
+
+          <a :href="licenseUrl" target="_blank" class="text-primary">
+            | {{ languages.APP_LICENSES }}</a
+          >
         </p>
       </div>
       <div v-if="theme.active === 'lnl'" class="flex gap-2 items-center">
-        <p class="text-muted-foreground text-lg mr-2">Powered by</p>
+        <p class="text-muted-foreground text-lg me-2">{{ languages.COM_POWERED_BY }}</p>
         <img class="size-20" src="@/assets/image/core_ultra_badge.png" />
         <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
       </div>
       <div v-if="theme.active === 'bmg'" class="flex gap-2 items-center">
-        <p class="text-muted-foreground text-lg mr-2">Powered by</p>
+        <p class="text-muted-foreground text-lg me-2">{{ languages.COM_POWERED_BY }}</p>
         <img class="size-20" src="@/assets/image/arc_graphics_badge.png" />
       </div>
       <img v-if="theme.active === 'light'" class="h-8" src="@/assets/svg/intel-dark.svg" />

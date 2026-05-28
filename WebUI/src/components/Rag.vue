@@ -24,7 +24,7 @@
         class="flex items-center mb-2 py-1 px-2 hover:bg-primary/20 rounded-lg transition-colors duration-200"
       >
         <!-- Checkbox (aligned left) -->
-        <div class="w-[10%] flex justify-start pl-2">
+        <div class="w-[10%] flex justify-start ps-2">
           <input
             type="checkbox"
             class="w-5 h-5 accent-primary"
@@ -43,7 +43,7 @@
         </div>
 
         <!-- Delete Button (aligned right) -->
-        <div class="w-[15%] flex justify-end pr-2">
+        <div class="w-[15%] flex justify-end pe-2">
           <button
             class="bg-muted rounded-xs w-6 h-6 flex items-center justify-center hover:bg-red-700/50 transition-colors duration-200"
             :title="languages.COM_DELETE_FILE"
@@ -57,7 +57,7 @@
       <!-- Bottom Controls -->
       <div class="flex items-center border-t border-border py-1 px-2 pt-3 mt-2">
         <!-- Three-state Checkbox (aligned left) -->
-        <div class="w-[10%] flex justify-start pl-2">
+        <div class="w-[10%] flex justify-start ps-2">
           <input
             type="checkbox"
             class="w-5 h-5 accent-primary"
@@ -74,19 +74,19 @@
             :title="languages.COM_ADD_FILE_TO_RAG"
             class="bg-primary rounded-sm px-4 h-8 flex items-center justify-center hover:bg-primary/80 transition-colors duration-200"
           >
-            <span class="svg-icon text-foreground i-add w-5 h-5 mr-2"></span>
+            <span class="svg-icon text-foreground i-add w-5 h-5 me-2"></span>
             <span>{{ languages.RAG_ADD_FILES }}</span>
           </button>
         </div>
 
         <!-- Clear All Button (aligned right) -->
-        <div class="w-[30%] flex justify-end pr-2">
+        <div class="w-[30%] flex justify-end pe-2">
           <button
             @click="deleteAllFiles"
             :title="languages.COM_DELETE_ALL_FILES"
             class="bg-muted/50 rounded-sm px-2 h-8 flex items-center justify-center hover:bg-destructive/50 transition-colors duration-200"
           >
-            <span class="svg-icon text-foreground i-delete w-4 h-4 mr-1"></span>
+            <span class="svg-icon text-foreground i-delete w-4 h-4 me-1"></span>
             <span class="text-xs">{{ languages.RAG_CLEAR_ALL }}</span>
           </button>
         </div>

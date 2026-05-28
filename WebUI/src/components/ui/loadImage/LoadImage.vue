@@ -32,7 +32,7 @@
       <img
         v-else
         :src="imageUrlRef.value as string"
-        alt="Image"
+        :alt="languages.COM_ALT_IMAGE"
         class="w-64 py-4 object-scale-down"
       />
     </div>
@@ -60,7 +60,7 @@
         type="button"
         @click="handleCameraClick"
         class="p-1 rounded hover:bg-muted"
-        title="Capture from camera"
+        :title="languages.COM_CAPTURE_FROM_CAMERA"
       >
         <CameraIcon class="w-5 h-5 text-muted-foreground" />
       </button>

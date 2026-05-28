@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-4">
-    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label class="whitespace-nowrap">{{ languages.MICROPHONE }}</Label>
+    <div class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4">
+      <Label class="whitespace-normal break-words leading-tight">{{ languages.MICROPHONE }}</Label>
       <drop-down-new
         :title="languages.MICROPHONE"
         @change="onSelect"
@@ -10,8 +10,10 @@
       ></drop-down-new>
     </div>
 
-    <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-      <Label class="whitespace-nowrap">{{ languages.SETTINGS_AUDIO_SILENCE_DETECTION }}</Label>
+    <div class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4">
+      <Label class="whitespace-normal break-words leading-tight">{{
+        languages.SETTINGS_AUDIO_SILENCE_DETECTION
+      }}</Label>
       <Checkbox
         id="silence-detection"
         :modelValue="audioRecorder.config.enableSilenceDetection"
@@ -21,9 +23,11 @@
 
     <div
       v-if="audioRecorder.config.enableSilenceDetection"
-      class="grid grid-cols-[120px_1fr] items-center gap-4"
+      class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
     >
-      <Label class="whitespace-nowrap">{{ languages.SETTINGS_AUDIO_SILENCE_DURATION }}</Label>
+      <Label class="whitespace-normal break-words leading-tight">{{
+        languages.SETTINGS_AUDIO_SILENCE_DURATION
+      }}</Label>
       <input
         type="number"
         :value="audioRecorder.config.silenceDuration"

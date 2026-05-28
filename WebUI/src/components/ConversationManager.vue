@@ -39,14 +39,14 @@
           <div class="relative flex justify-between items-center w-full">
             <template v-if="conversations.isNewConversation(conversationKey)">
               <div
-                class="flex items-center gap-2 px-2 py-1 rounded-md ml-1 transition-colors duration-150"
+                class="flex items-center gap-2 px-2 py-1 rounded-md ms-1 transition-colors duration-150"
               >
                 <PlusCircleIcon class="size-5" />
                 <span class="text-sm">{{ languages.ANSWER_NEW_CONVERSATION }}</span>
               </div>
             </template>
             <template v-else>
-              <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ml-1">
+              <span class="w-45 whitespace-nowrap overflow-x-auto text-ellipsis text-sm ms-1">
                 {{
                   conversation?.[0]?.parts
                     .find((part) => part.type === 'text')
@@ -64,7 +64,7 @@
                     variant="ghost"
                     size="icon"
                     :class="[
-                      'transition-opacity duration-100 ml-2 text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
+                      'transition-opacity duration-100 ms-2 text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent active:bg-transparent outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0',
                       menuOpenKey === conversationKey
                         ? 'opacity-70'
                         : 'opacity-0 group-hover:opacity-70',
@@ -102,50 +102,56 @@
                           }
                         "
                       >
-                        Rename
+                        {{ languages.COM_RENAME }}
                       </DropdownMenuItem>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Rename conversation</DialogTitle>
-                        <DialogDescription
-                          >Set a new title for this conversation.</DialogDescription
-                        >
+                        <DialogTitle>{{ languages.CONVERSATION_RENAME_TITLE }}</DialogTitle>
+                        <DialogDescription>{{
+                          languages.CONVERSATION_RENAME_DESC
+                        }}</DialogDescription>
                       </DialogHeader>
                       <div class="mt-2">
                         <Input
                           autofocus
                           type="text"
-                          placeholder="Enter title"
+                          :placeholder="languages.COM_ENTER_TITLE"
                           v-model="renameTitle"
                           @keydown.enter.prevent="saveRename"
                         />
                       </div>
                       <DialogFooter>
-                        <Button variant="ghost" @click="cancelRename">Cancel</Button>
-                        <Button :disabled="!renameTitle.trim()" @click="saveRename">Save</Button>
+                        <Button variant="ghost" @click="cancelRename">{{
+                          languages.COM_CANCEL
+                        }}</Button>
+                        <Button :disabled="!renameTitle.trim()" @click="saveRename">{{
+                          languages.COM_SAVE
+                        }}</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <DropdownMenuItem @select="(e: Event) => e.preventDefault()">
-                        Delete
+                        {{ languages.COM_DELETE }}
                       </DropdownMenuItem>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                        <AlertDialogTitle>{{
+                          languages.CONVERSATION_DELETE_TITLE
+                        }}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove this conversation and its messages.
+                          {{ languages.CONVERSATION_DELETE_DESC }}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{{ languages.COM_CANCEL }}</AlertDialogCancel>
                         <AlertDialogAction
                           @click="() => conversations.deleteConversation(conversationKey)"
                         >
-                          Delete
+                          {{ languages.COM_DELETE }}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

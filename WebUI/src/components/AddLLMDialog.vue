@@ -1,7 +1,7 @@
 <template>
   <div class="dialog-container z-10">
     <div
-      class="dialog-mask absolute left-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
+      class="dialog-mask absolute start-0 top-0 w-full h-full bg-background/55 flex justify-center items-center"
     >
       <div
         class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-card shadow-2xl rounded-3xl gap-6 text-foreground"
@@ -40,32 +40,34 @@
         <!-- Advanced Settings (Optional) -->
         <div class="w-full flex flex-col gap-3 pt-4 border-t border-border">
           <p class="text-sm font-medium text-muted-foreground">
-            Specify Model Capabilities (Optional)
+            {{ i18nState.MODEL_SPECIFY_CAPABILITIES_OPTIONAL }}
           </p>
 
           <!-- Capability Checkboxes -->
           <div class="grid grid-cols-2 gap-3">
             <div class="flex items-center gap-2">
               <Checkbox id="vision" v-model="supportsVision" />
-              <Label for="vision">Vision</Label>
+              <Label for="vision">{{ i18nState.MODEL_CAPABILITY_VISION }}</Label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox id="tool-calling" v-model="supportsToolCalling" />
-              <Label for="tool-calling">Tool Calling</Label>
+              <Label for="tool-calling">{{ i18nState.MODEL_CAPABILITY_TOOL_CALLING }}</Label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox id="reasoning" v-model="supportsReasoning" />
-              <Label for="reasoning">Reasoning</Label>
+              <Label for="reasoning">{{ i18nState.MODEL_CAPABILITY_REASONING }}</Label>
             </div>
             <div v-if="showNpuSupportCheckbox" class="flex items-center gap-2">
               <Checkbox id="npu-support" v-model="npuSupport" />
-              <Label for="npu-support">NPU Support</Label>
+              <Label for="npu-support">{{ i18nState.MODEL_CAPABILITY_NPU_SUPPORT }}</Label>
             </div>
           </div>
 
           <!-- Max Context Size -->
           <div class="flex flex-col gap-2">
-            <Label class="text-sm font-medium">Max Context Size (tokens)</Label>
+            <Label class="text-sm font-medium">{{
+              i18nState.MODEL_MAX_CONTEXT_SIZE_TOKENS_LABEL
+            }}</Label>
             <Input
               type="number"
               v-model="maxContextSize"
@@ -183,13 +185,13 @@ async function addModel() {
   const trimmedVisionModelRequest = visionModelRequest.value.trim()
 
   if (!isValidModelName(trimmedModelRequest)) {
-    cancelAndShowWarning('Please provide a valid model reference.')
+    cancelAndShowWarning(i18nState.MODEL_INVALID_REFERENCE)
     return
   }
 
   // Validate vision model if provided
   if (trimmedVisionModelRequest && !isValidModelName(trimmedVisionModelRequest)) {
-    cancelAndShowWarning('Please provide a valid vision model reference.')
+    cancelAndShowWarning(i18nState.MODEL_INVALID_VISION_REFERENCE)
     return
   }
 
@@ -210,7 +212,7 @@ async function addModel() {
   if (trimmedVisionModelRequest) {
     const visionUrlExists = await models.checkIfHuggingFaceUrlExists(trimmedVisionModelRequest)
     if (!visionUrlExists) {
-      cancelAndShowWarning('Vision model repository does not exist.')
+      cancelAndShowWarning(i18nState.MODEL_VISION_REPO_NOT_EXISTS)
       return
     }
   }
@@ -258,6 +260,6 @@ defineExpose({ onShow })
 <style>
 ul {
   list-style-type: disc;
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 </style>

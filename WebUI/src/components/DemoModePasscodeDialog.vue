@@ -2,24 +2,24 @@
   <Dialog v-model:open="open">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Enter Passcode</DialogTitle>
-        <DialogDescription> A passcode is required to leave demo mode. </DialogDescription>
+        <DialogTitle>{{ i18nState.DEMO_PASSCODE_TITLE }}</DialogTitle>
+        <DialogDescription> {{ i18nState.DEMO_PASSCODE_DESC }} </DialogDescription>
       </DialogHeader>
       <div class="flex flex-col gap-2 mt-2">
         <Input
           type="password"
           v-model="passcodeInput"
-          placeholder="Passcode"
+          :placeholder="i18nState.DEMO_PASSCODE_PLACEHOLDER"
           :class="{ 'border-destructive': passcodeError }"
           @keydown.enter="confirmPasscode"
         />
         <div v-if="passcodeError" class="text-xs text-destructive">
-          Incorrect passcode. Please try again.
+          {{ i18nState.DEMO_PASSCODE_ERROR }}
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" @click="open = false">Cancel</Button>
-        <Button @click="confirmPasscode">Confirm</Button>
+        <Button variant="ghost" @click="open = false">{{ i18nState.COM_CANCEL }}</Button>
+        <Button @click="confirmPasscode">{{ i18nState.COM_CONFIRM }}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -37,6 +37,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 const { verify } = defineProps<{
   verify: (input: string) => boolean

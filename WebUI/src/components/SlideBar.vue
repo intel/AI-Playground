@@ -1,5 +1,5 @@
 <template>
-  <div class="v-horizontal-slide" :class="{ disabled: disabled }">
+  <div class="v-horizontal-slide" :class="{ disabled: disabled }" dir="ltr">
     <div class="v-slide-container relative">
       <div class="v-slide-position" ref="position" @pointerdown="dragStart">
         <div class="v-slide-bg">

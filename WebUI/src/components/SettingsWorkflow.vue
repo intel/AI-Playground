@@ -11,8 +11,11 @@
       <div class="flex flex-col gap-4">
         <!-- Backend selector - only shown when the active preset declares variants for
              multiple backends. Mirrors SettingsChat.vue's dropdown pattern. -->
-        <div v-if="!isBackendLocked" class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">Backend</Label>
+        <div
+          v-if="!isBackendLocked"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-normal break-words leading-tight">Backend</Label>
           <drop-down-new
             title="Select Backend"
             :value="activeBackend"
@@ -21,8 +24,8 @@
           ></drop-down-new>
         </div>
 
-        <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <Label class="whitespace-nowrap">
+        <div class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4">
+          <Label class="whitespace-normal break-words leading-tight">
             {{ languages.DEVICE }}
           </Label>
           <drop-down-new
@@ -48,10 +51,10 @@
 
         <div
           v-if="modifiableOrDisplayed('inferenceSteps')"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
         >
-          <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-            <Label class="whitespace-nowrap truncate min-w-0">
+          <div class="flex items-center justify-between gap-2 min-w-[120px]">
+            <Label class="whitespace-normal break-words leading-tight">
               {{ languages.SETTINGS_MODEL_IMAGE_STEPS }}
             </Label>
             <Tooltip>
@@ -77,10 +80,10 @@
 
         <div
           v-if="modifiableOrDisplayed('batchSize')"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
         >
-          <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-            <Label class="whitespace-nowrap truncate min-w-0">
+          <div class="flex items-center justify-between gap-2 min-w-[120px]">
+            <Label class="whitespace-normal break-words leading-tight">
               {{ languages.SETTINGS_MODEL_BATCH_COUNT }}
             </Label>
             <Tooltip>
@@ -106,10 +109,10 @@
 
         <div
           v-if="modifiableOrDisplayed('negativePrompt')"
-          class="grid grid-cols-[120px_1fr] items-start gap-4"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-start gap-4"
         >
-          <div class="flex items-center justify-between gap-2 min-w-0 w-[120px] mt-2">
-            <Label class="whitespace-nowrap truncate min-w-0">
+          <div class="flex items-start justify-between gap-2 min-w-[120px] mt-2">
+            <Label class="whitespace-normal break-words leading-tight">
               {{ languages.SETTINGS_MODEL_NEGATIVE_PROMPT }}
             </Label>
             <Tooltip>
@@ -130,10 +133,10 @@
 
         <div
           v-if="modifiableOrDisplayed('seed')"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
         >
-          <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-            <Label class="whitespace-nowrap truncate min-w-0">
+          <div class="flex items-center justify-between gap-2 min-w-[120px]">
+            <Label class="whitespace-normal break-words leading-tight">
               {{ languages.SETTINGS_MODEL_SEED }}
             </Label>
             <Tooltip>
@@ -157,10 +160,10 @@
 
         <div
           v-if="modifiableOrDisplayed('showPreview')"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
+          class="grid grid-cols-[minmax(120px,auto)_1fr] items-center gap-4"
         >
-          <div class="flex items-center justify-between gap-2 min-w-0 w-[120px]">
-            <Label class="whitespace-nowrap truncate min-w-0">
+          <div class="flex items-center justify-between gap-2 min-w-[120px]">
+            <Label class="whitespace-normal break-words leading-tight">
               {{ languages.SETTINGS_MODEL_SHOW_PREVIEW || 'Show Preview' }}
             </Label>
             <Tooltip>
@@ -183,7 +186,7 @@
 
         <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
           <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
-            <div class="svg-icon i-refresh">Reset</div>
+            <div class="svg-icon i-refresh">{{ languages.COM_RESET }}</div>
             {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
           </button>
         </div>
@@ -193,7 +196,7 @@
           class="max-w-md mx-auto flex items-center gap-2"
         >
           <Button variant="outline" class="flex-1 w-full" @click="openComfyUiInBrowser">
-            Open ComfyUI
+            {{ languages.WORKFLOW_OPEN_COMFYUI }}
           </Button>
           <Tooltip>
             <TooltipTrigger as-child>
@@ -206,7 +209,9 @@
         </div>
 
         <!-- todo: needs to actually do something -->
-        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
+        <Button variant="outline" class="max-w-md mx-auto">
+          {{ languages.WORKFLOW_CREATE_NEW_PRESET }}</Button
+        >
       </div>
     </TooltipProvider>
   </div>

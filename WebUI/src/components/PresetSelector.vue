@@ -22,7 +22,7 @@
           />
           <div class="absolute bottom-0 w-full bg-background/60 text-center py-2">
             <span class="text-foreground text-sm font-semibold">
-              {{ preset.name }}
+              {{ translatePresetName(preset.name) }}
             </span>
           </div>
         </div>
@@ -32,7 +32,7 @@
     <div v-if="selectedPreset" class="flex flex-col gap-4">
       <div class="flex flex-col gap-3">
         <div class="flex items-center gap-2">
-          <h2 class="text-lg font-semibold">{{ selectedPreset.name }}</h2>
+          <h2 class="text-lg font-semibold">{{ translatePresetName(selectedPreset.name) }}</h2>
           <TooltipProvider v-if="extendedDescription" :delay-duration="200">
             <Tooltip>
               <TooltipTrigger as-child>
@@ -44,7 +44,7 @@
                 side="right"
                 class="max-w-[320px] text-sm text-justify whitespace-pre-line"
               >
-                {{ extendedDescription }}
+                {{ translatePresetExtendedDescription(selectedPreset.name, extendedDescription) }}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -57,7 +57,12 @@
         />
       </div>
       <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
-        {{ presetsStore.activePresetWithVariant?.description || selectedPreset.description }}
+        {{
+          translatePresetDescription(
+            selectedPreset.name,
+            presetsStore.activePresetWithVariant?.description || selectedPreset.description,
+          )
+        }}
       </p>
 
       <div
@@ -72,7 +77,7 @@
           :key="tag"
           class="px-3 py-1 text-xs bg-primary rounded-full"
         >
-          {{ tag }}
+          {{ translatePresetTag(tag) }}
         </span>
       </div>
     </div>
@@ -89,6 +94,16 @@ import VariantSelector, { type VariantOption } from '@/components/VariantSelecto
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import * as toast from '@/assets/js/toast'
+import { useI18N } from '@/assets/js/store/i18n'
+import {
+  translatePresetName,
+  translatePresetDescription,
+  translatePresetExtendedDescription,
+  translatePresetTag,
+  translateVariantName,
+} from '@/lib/utils'
+
+const i18nState = useI18N().state
 import { InformationCircleIcon } from '@heroicons/vue/24/outline'
 interface Props {
   categories?: string[]
@@ -151,7 +166,7 @@ const availableVariants = computed(() => {
 const variantSelectorOptions = computed<VariantOption[]>(() => {
   return availableVariants.value.map((variant, index) => ({
     id: `variant-${index}`,
-    name: variant.displayName ?? variant.name,
+    name: translateVariantName(variant.displayName ?? variant.name),
     value: variant.name,
   }))
 })
@@ -232,13 +247,13 @@ function showDisabledReason(preset: Preset) {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
     if (chatPreset.requiresNpuSupport) {
-      toast.show('NPU device not available. This preset requires an Intel NPU.', {
+      toast.show(i18nState.PRESETS_REQUIRES_NPU, {
         style: {
           content: { background: '#3b82f6', color: '#ffffff' },
         },
       })
     } else {
-      toast.show(`Required backend not available for ${preset.name}`, {
+      toast.show(`${i18nState.PRESETS_BACKEND_NOT_AVAILABLE} ${preset.name}`, {
         style: {
           content: { background: '#3b82f6', color: '#ffffff' },
         },
@@ -250,7 +265,7 @@ function showDisabledReason(preset: Preset) {
 function selectPreset(presetName: string) {
   // Don't allow selecting if preset switching is in progress
   if (presetSwitching.isSwitching) {
-    toast.warning('Please wait for current preset change to complete')
+    toast.warning(i18nState.PRESETS_SWITCH_IN_PROGRESS)
     return
   }
 

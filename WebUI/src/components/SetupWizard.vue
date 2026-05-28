@@ -55,8 +55,8 @@
                   </div>
                 </div>
                 <div class="min-w-0">
-                  <div class="flex items-baseline gap-1 flex-wrap">
-                    <span class="text-xs font-bold text-[#00c4fa] -mr-0.5">{{
+                  <div class="flex items-baseline gap-1 flex-wrap" dir="ltr">
+                    <span class="text-xs font-bold text-[#00c4fa] -me-0.5">{{
                       option.titleOne
                     }}</span>
                     <span class="text-xs font-bold">{{ option.titleTwo }}</span>
@@ -126,7 +126,7 @@
                       :href="getInfoURL(row.serviceName)"
                       target="_blank"
                       class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                      title="Component info &amp; license"
+                      :title="languages.WIZARD_COMPONENT_INFO"
                     >
                       <svg
                         class="w-3.5 h-3.5"
@@ -195,7 +195,7 @@
                     v-if="row.status === 'failed' || row.status === 'installationFailed'"
                     @click="wizard.showErrorModal(row.serviceName)"
                     class="text-destructive hover:text-destructive/80 transition-colors"
-                    title="View error log"
+                    :title="languages.WIZARD_VIEW_ERROR_LOG"
                   >
                     <svg
                       class="w-4 h-4"

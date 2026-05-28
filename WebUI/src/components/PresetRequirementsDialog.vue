@@ -21,7 +21,7 @@
           <!-- Models Section -->
           <div v-if="requirementsData.missingModels.length > 0" class="flex flex-col gap-2">
             <h3 class="font-semibold">{{ i18nState.PRESET_REQUIREMENTS_MODELS || 'Models:' }}</h3>
-            <ul class="list-disc list-inside ml-4 space-y-1">
+            <ul class="list-disc list-inside ms-4 space-y-1">
               <li v-for="model in requirementsData.missingModels" :key="model.name">
                 {{ model.name }}
                 <span v-if="model.type" class="text-muted-foreground text-sm"
@@ -36,7 +36,7 @@
             <h3 class="font-semibold">
               {{ i18nState.PRESET_REQUIREMENTS_CUSTOM_NODES || 'ComfyUI custom_nodes:' }}
             </h3>
-            <ul class="list-disc list-inside ml-4 space-y-1">
+            <ul class="list-disc list-inside ms-4 space-y-1">
               <li v-for="node in requirementsData.missingCustomNodes" :key="node">
                 {{ formatCustomNodeName(node) }}
               </li>
@@ -48,7 +48,7 @@
             <h3 class="font-semibold">
               {{ i18nState.PRESET_REQUIREMENTS_PYTHON_PACKAGES || 'Python Packages:' }}
             </h3>
-            <ul class="list-disc list-inside ml-4 space-y-1">
+            <ul class="list-disc list-inside ms-4 space-y-1">
               <li v-for="pkg in requirementsData.missingPythonPackages" :key="pkg">
                 {{ pkg }}
               </li>

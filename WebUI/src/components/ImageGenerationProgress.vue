@@ -7,7 +7,9 @@
         <Spinner class="w-12 h-12 text-primary" />
       </div>
       <div class="text-foreground font-semibold text-center progress-text">
-        <span class="text-2xl tabular-nums font-semibold">{{ stepText || 'Generating...' }}</span>
+        <span class="text-2xl tabular-nums font-semibold">{{
+          stepText || i18nState.IMG_GENERATING
+        }}</span>
       </div>
     </div>
   </div>
@@ -15,6 +17,9 @@
 
 <script setup lang="ts">
 import { Spinner } from '@/components/ui/spinner'
+import { useI18N } from '@/assets/js/store/i18n'
+
+const i18nState = useI18N().state
 
 defineProps<{
   stepText?: string
