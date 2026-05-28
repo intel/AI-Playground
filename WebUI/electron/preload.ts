@@ -239,5 +239,41 @@ contextBridge.exposeInMainWorld('electronAPI', {
       parseMode?: string
       buttons: Array<Array<{ text: string; callbackData: string }>>
     }) => ipcRenderer.invoke('homeAgent:sendTelegramKeyboard', opts),
+    slack: {
+      saveConfig: (botToken: string, appToken: string, userId: string) =>
+        ipcRenderer.invoke('homeAgent:saveSlackConfig', botToken, appToken, userId),
+      loadConfig: () => ipcRenderer.invoke('homeAgent:loadSlackConfig'),
+      clearConfig: () => ipcRenderer.invoke('homeAgent:clearSlackConfig'),
+      testSlack: () => ipcRenderer.invoke('homeAgent:testSlack'),
+      detectUserId: (botToken: string) =>
+        ipcRenderer.invoke('homeAgent:detectSlackUserId', botToken),
+      detectUserIdFromSaved: () => ipcRenderer.invoke('homeAgent:detectSlackUserIdFromSaved'),
+      injectTokens: (botToken: string, appToken: string, userId?: string) =>
+        ipcRenderer.invoke('homeAgent:injectSlackTokens', botToken, appToken, userId),
+      pollSlack: () => ipcRenderer.invoke('homeAgent:pollSlack'),
+      flushPending: () => ipcRenderer.invoke('homeAgent:flushSlackPending'),
+      sendReply: (opts: {
+        text: string
+        blocks?: unknown[]
+        channel?: string
+        threadTs?: string
+      }) => ipcRenderer.invoke('homeAgent:sendSlackReply', opts),
+      sendUpdate: (opts: { channel: string; ts: string; text: string; blocks?: unknown[] }) =>
+        ipcRenderer.invoke('homeAgent:sendSlackUpdate', opts),
+      sendPhoto: (opts: {
+        imageBase64: string
+        caption?: string
+        channel?: string
+        threadTs?: string
+      }) => ipcRenderer.invoke('homeAgent:sendSlackPhoto', opts),
+      sendTypingReaction: (opts: {
+        channel: string
+        ts: string
+        name?: string
+        action: 'add' | 'remove'
+      }) => ipcRenderer.invoke('homeAgent:sendSlackTypingReaction', opts),
+      sendKeyboard: (opts: { text: string; blocks: unknown[]; channel?: string }) =>
+        ipcRenderer.invoke('homeAgent:sendSlackKeyboard', opts),
+    },
   },
 })

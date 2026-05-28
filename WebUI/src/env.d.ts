@@ -378,6 +378,63 @@ type electronAPI = {
       parseMode?: string
       buttons: Array<Array<{ text: string; callbackData: string }>>
     }): Promise<{ success: boolean; error?: string }>
+    slack: {
+      saveConfig(
+        botToken: string,
+        appToken: string,
+        userId: string,
+      ): Promise<{ success: boolean; error?: string }>
+      loadConfig(): Promise<{ botToken: string; appToken: string; userId: string } | null>
+      clearConfig(): Promise<void>
+      testSlack(): Promise<{ success: boolean; error?: string }>
+      detectUserId(botToken: string): Promise<{ userId: string } | { error: string }>
+      detectUserIdFromSaved(): Promise<{ userId: string } | { error: string }>
+      injectTokens(
+        botToken: string,
+        appToken: string,
+        userId?: string,
+      ): Promise<{ status: string; error?: string }>
+      pollSlack(): Promise<
+        Array<{
+          text?: string
+          chat_id: string
+          channel?: string
+          ts?: string
+          images?: Array<{ mime: string; data_base64: string }>
+          callback?: string
+        }>
+      >
+      flushPending(): Promise<void>
+      sendReply(opts: {
+        text: string
+        blocks?: unknown[]
+        channel?: string
+        threadTs?: string
+      }): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
+      sendUpdate(opts: {
+        channel: string
+        ts: string
+        text: string
+        blocks?: unknown[]
+      }): Promise<{ success: boolean; error?: string }>
+      sendPhoto(opts: {
+        imageBase64: string
+        caption?: string
+        channel?: string
+        threadTs?: string
+      }): Promise<{ success: boolean; error?: string }>
+      sendTypingReaction(opts: {
+        channel: string
+        ts: string
+        name?: string
+        action: 'add' | 'remove'
+      }): Promise<{ success: boolean; error?: string }>
+      sendKeyboard(opts: {
+        text: string
+        blocks: unknown[]
+        channel?: string
+      }): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
+    }
   }
 }
 

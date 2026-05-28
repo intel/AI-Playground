@@ -675,7 +675,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       if (anyFailed) return
     }
 
-    if (homeAgent.isFeatureEnabled && !homeAgent.telegramVerified) {
+    if (homeAgent.isFeatureEnabled && !homeAgent.telegramVerified && !homeAgent.slackVerified) {
       const homeAgentJustInstalled = toInstall.some((r) => r.serviceName === 'home-agent-backend')
       if (homeAgentJustInstalled || isHomeAgentInstalledAndActive()) {
         // Sync presets *before* swapping the wizard page so the Home Agent setup
@@ -709,9 +709,13 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       toast.error('Service failed to stop')
       return
     }
-    // Clear Home Agent Telegram config on reinstall so user must re-verify
+    // Clear Home Agent channel configs on reinstall so the user must re-verify
+    // each channel before turning it back on. Both Telegram and Slack credentials
+    // are wiped — the backend's safeStorage files and the bot/Slack-app tokens
+    // injected into the running service must not survive a reinstall.
     if (name === 'home-agent-backend') {
       await homeAgent.clearConfig()
+      await homeAgent.clearSlackConfig()
     }
     await installBackend(name)
   }

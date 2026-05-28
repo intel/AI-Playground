@@ -58,23 +58,30 @@ def _enforce_loopback_and_auth():
 # from every LogRecord at creation, so all child loggers (httpx, telegram.ext,
 # werkzeug, …) emit redacted records regardless of where their handlers live.
 
-# Token shape: `<numeric_id>:<base64-ish>`. Intentionally no word boundary on the
-# digit side — tokens embed inside URLs like `…/bot<id>:<token>/…`, where the
-# preceding char is a letter (no \b match between letter and digit).
-_TOKEN_RE = re.compile(r"\d{6,}:[A-Za-z0-9_-]{20,}")
+# Token shapes we redact from logs:
+# - Telegram: `<numeric_id>:<base64-ish>` (no word boundary on the digit side —
+#   tokens embed inside URLs like `…/bot<id>:<token>/…`).
+# - Slack bot token: `xoxb-...`.
+# - Slack app-level token: `xapp-...`.
+_TELEGRAM_TOKEN_RE = re.compile(r"\d{6,}:[A-Za-z0-9_-]{20,}")
+_SLACK_TOKEN_RE = re.compile(r"xox[abporsb]-[A-Za-z0-9-]{10,}|xapp-\d+-[A-Za-z0-9-]{20,}")
 _REDACTION = "<TOKEN_REDACTED>"
+
+
+def _redact_one(value: str) -> str:
+    return _SLACK_TOKEN_RE.sub(_REDACTION, _TELEGRAM_TOKEN_RE.sub(_REDACTION, value))
 
 
 def _redact_token(value: object) -> object:
     if isinstance(value, str):
-        return _TOKEN_RE.sub(_REDACTION, value)
+        return _redact_one(value)
     return value
 
 
-class _PollTelegramAccessFilter(logging.Filter):
+class _PollAccessFilter(logging.Filter):
     """Suppress werkzeug access-log lines for the high-frequency poll endpoints."""
 
-    _NOISY_PATHS = ("/poll-telegram",)
+    _NOISY_PATHS = ("/poll-telegram", "/poll-slack")
 
     def filter(self, record: logging.LogRecord) -> bool:
         try:
@@ -93,7 +100,7 @@ def _install_log_redaction() -> None:
     def _redacting_factory(*args, **kwargs):  # type: ignore[no-untyped-def]
         record = base_factory(*args, **kwargs)
         if isinstance(record.msg, str):
-            record.msg = _TOKEN_RE.sub(_REDACTION, record.msg)
+            record.msg = _redact_one(record.msg)
         if record.args:
             if isinstance(record.args, tuple):
                 record.args = tuple(_redact_token(a) for a in record.args)
@@ -102,15 +109,18 @@ def _install_log_redaction() -> None:
         return record
 
     logging.setLogRecordFactory(_redacting_factory)
-    # httpx logs the full request URL at INFO; demote to WARNING so token-bearing
-    # URLs stay out of the default volume. The factory still scrubs anything that
-    # leaks at higher levels.
+    # httpx / aiohttp / slack_sdk all log full URLs and request lines at INFO;
+    # demote to WARNING so token-bearing strings stay out of the default volume.
+    # The factory still scrubs anything that leaks at higher levels.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    # Electron polls /poll-telegram on a tight interval, which otherwise fills
-    # the console with werkzeug access lines. Drop those specific records while
-    # leaving every other request log intact.
-    logging.getLogger("werkzeug").addFilter(_PollTelegramAccessFilter())
+    logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
+    logging.getLogger("aiohttp.client").setLevel(logging.WARNING)
+    logging.getLogger("slack_sdk.web.async_base_client").setLevel(logging.WARNING)
+    # Electron polls /poll-telegram and /poll-slack on a tight interval, which
+    # otherwise fills the console with werkzeug access lines. Drop those
+    # specific records while leaving every other request log intact.
+    logging.getLogger("werkzeug").addFilter(_PollAccessFilter())
     logging._aipg_redaction_installed = True  # type: ignore[attr-defined]
 
 # Upstream LLM URL
@@ -139,6 +149,34 @@ _CHAT_ID_FILE = Path(__file__).parent / ".chat_id"
 _last_seen_chat_id: str | None = None
 # Allowed chat for queueing + outbound sends (mutable after /set-telegram-token)
 _allowed_chat_id: str = ""
+
+# ── Slack state ───────────────────────────────────────────────────────────────
+# Slack runs in its own asyncio thread paralleling the Telegram bot. The two
+# never share state; both feed the renderer through their own
+# poll/flush/send-* endpoints. Socket Mode only — desktop apps cannot host the
+# inbound HTTPS endpoint required by HTTP Request URL mode.
+_slack_pending_messages: list[dict] = []
+_slack_pending_lock = threading.Lock()
+
+# `_slack_app_instance` mirrors `_bot_application`: None | "starting" | AsyncApp
+_slack_app_instance = None  # None | sentinel str "starting" | AsyncApp
+_slack_loop: asyncio.AbstractEventLoop | None = None
+_slack_bot_token: str = ""
+_slack_app_token: str = ""
+# DM partner whose messages we route through the renderer. Mutable after
+# /set-slack-tokens. Empty string while in "detection mode" (first DM populates
+# `_last_seen_slack_user_id`).
+_allowed_slack_user_id: str = ""
+# Cached IM channel id for outbound `chat.postMessage`. Resolved on first
+# inbound DM and reused; if missing, sends fall back to user_id (Slack accepts
+# both forms for `chat.postMessage`).
+_slack_im_channel: str = ""
+_slack_start_lock = threading.Lock()
+_slack_shutdown_event: asyncio.Event | None = None
+_slack_thread: threading.Thread | None = None
+
+_SLACK_USER_ID_FILE = Path(__file__).parent / ".slack_user_id"
+_last_seen_slack_user_id: str | None = None
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +217,25 @@ def _record_authorized_chat_id(chat_id: str) -> None:
 
 # Load persisted chat ID at startup
 _last_seen_chat_id = _load_persisted_chat_id()
+
+
+def _load_persisted_slack_user_id() -> str | None:
+    try:
+        return _SLACK_USER_ID_FILE.read_text().strip() or None
+    except FileNotFoundError:
+        return None
+
+
+def _persist_slack_user_id(user_id: str) -> None:
+    try:
+        _SLACK_USER_ID_FILE.write_text(user_id)
+        logger.info("Persisted slack user_id=%s to %s", user_id, _SLACK_USER_ID_FILE)
+    except Exception as exc:
+        logger.warning("Could not persist slack user_id: %s", exc)
+
+
+# Load persisted Slack user ID at startup so detection survives restarts.
+_last_seen_slack_user_id = _load_persisted_slack_user_id()
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -464,6 +521,272 @@ def send_telegram_keyboard():
         )
         future.result(timeout=10)
         return jsonify({"status": "ok"})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── Slack control ─────────────────────────────────────────────────────────────
+
+@app.post("/set-slack-tokens")
+def set_slack_tokens():
+    """Inject Slack bot + app-level tokens at runtime to start the Socket Mode bot.
+
+    If a bot is already running with the same tokens, just apply any updated
+    `userId`. If tokens changed, gracefully stop the existing bot and start a
+    new one — mirrors the Telegram `/set-telegram-token` lifecycle so credential
+    changes never require a Flask restart.
+    """
+    global _slack_app_instance, _allowed_slack_user_id, _slack_thread
+    data = request.get_json(silent=True) or {}
+    bot_token = (data.get("botToken") or "").strip()
+    app_token = (data.get("appToken") or "").strip()
+    raw_user = data.get("userId")
+    cleaned_user = str(raw_user).strip() if raw_user is not None and str(raw_user).strip() else ""
+    if not bot_token or not app_token:
+        return jsonify({"error": "botToken and appToken are required"}), 400
+
+    thread_to_join: threading.Thread | None = None
+    with _slack_start_lock:
+        if _slack_app_instance == "starting":
+            return jsonify({"status": "starting"}), 409
+        if _slack_app_instance is not None:
+            same_tokens = _slack_bot_token == bot_token and _slack_app_token == app_token
+            if same_tokens:
+                if cleaned_user:
+                    _allowed_slack_user_id = cleaned_user
+                    logger.info(
+                        "Slack bot already running — applied user_id=%s", cleaned_user
+                    )
+                return jsonify({"status": "already_running", "userUpdated": bool(cleaned_user)})
+            logger.info("Slack tokens changed — restarting bot")
+            loop = _slack_loop
+            ev = _slack_shutdown_event
+            if loop is not None and ev is not None:
+                try:
+                    loop.call_soon_threadsafe(ev.set)
+                except Exception as exc:
+                    logger.warning("Could not signal slack bot shutdown: %s", exc)
+            thread_to_join = _slack_thread
+        _slack_app_instance = "starting"
+
+    if thread_to_join is not None and thread_to_join.is_alive():
+        thread_to_join.join(timeout=10)
+        if thread_to_join.is_alive():
+            logger.warning("Previous Slack bot thread did not exit within 10s")
+
+    t = threading.Thread(
+        target=_start_slack_bot, args=(bot_token, app_token, cleaned_user), daemon=True
+    )
+    _slack_thread = t
+    t.start()
+    logger.info("Started Slack bot via /set-slack-tokens")
+    return jsonify({"status": "started"})
+
+
+@app.get("/get-slack-user-id")
+def get_slack_user_id():
+    """Return the first DM partner the Slack bot has seen (memory or persisted)."""
+    user_id = _last_seen_slack_user_id or _load_persisted_slack_user_id()
+    if user_id:
+        return jsonify({"userId": user_id})
+    return (
+        jsonify(
+            {
+                "error": "No DM received yet. DM your Slack bot, then click Detect.",
+            }
+        ),
+        404,
+    )
+
+
+@app.get("/poll-slack")
+def poll_slack():
+    """Return and clear all pending Slack messages."""
+    with _slack_pending_lock:
+        msgs = list(_slack_pending_messages)
+        _slack_pending_messages.clear()
+    return jsonify(msgs)
+
+
+@app.post("/flush-slack-pending")
+def flush_slack_pending():
+    """Discard all pending Slack messages without processing them."""
+    with _slack_pending_lock:
+        count = len(_slack_pending_messages)
+        _slack_pending_messages.clear()
+    logger.info("flush-slack-pending: discarded %d messages", count)
+    return jsonify({"flushed": count})
+
+
+def _slack_outbound_target(channel_hint: str | None = None) -> str | None:
+    """Resolve where to send outbound Slack messages.
+
+    Order of preference: explicit `channel_hint` (if provided), the IM channel
+    captured on first inbound DM, then the allowed user id (Slack accepts both
+    forms for `chat.postMessage`).
+    """
+    for cand in (channel_hint, _slack_im_channel, _allowed_slack_user_id, _last_seen_slack_user_id):
+        if cand and str(cand).strip():
+            return str(cand).strip()
+    return None
+
+
+def _slack_running() -> bool:
+    return (
+        _slack_app_instance is not None
+        and _slack_app_instance != "starting"
+        and _slack_loop is not None
+    )
+
+
+def _slack_run_coro(coro):
+    """Schedule an async coroutine on the Slack bot's event loop and wait."""
+    if _slack_loop is None:
+        raise RuntimeError("Slack bot event loop is not running")
+    future = asyncio.run_coroutine_threadsafe(coro, _slack_loop)
+    return future.result(timeout=30)
+
+
+@app.post("/send-slack-reply")
+def send_slack_reply():
+    """Send a chat.postMessage. Body: { text, blocks?, channel?, thread_ts? }.
+
+    Returns the posted `{ts, channel}` so the streaming layer can later edit
+    the same message in place via /send-slack-update.
+    """
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
+    blocks = data.get("blocks")
+    thread_ts = data.get("thread_ts")
+    target = _slack_outbound_target(data.get("channel"))
+    if not _slack_running() or not target:
+        return jsonify({"error": "Slack not configured"}), 400
+    try:
+        kwargs: dict = {"channel": target, "text": text}
+        if blocks:
+            kwargs["blocks"] = blocks
+        if thread_ts:
+            kwargs["thread_ts"] = thread_ts
+        resp = _slack_run_coro(_slack_app_instance.client.chat_postMessage(**kwargs))
+        return jsonify(
+            {"status": "ok", "ts": resp.get("ts"), "channel": resp.get("channel") or target}
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/send-slack-update")
+def send_slack_update():
+    """Edit an existing Slack message via chat.update.
+
+    Body: { channel, ts, text, blocks? }. Used by the renderer's draft-stream
+    helper to animate streaming output without spamming new bubbles.
+    """
+    data = request.get_json(silent=True) or {}
+    channel = (data.get("channel") or "").strip()
+    ts = (data.get("ts") or "").strip()
+    text = data.get("text", "")
+    blocks = data.get("blocks")
+    if not channel or not ts:
+        return jsonify({"error": "channel and ts are required"}), 400
+    if not _slack_running():
+        return jsonify({"error": "Slack not configured"}), 400
+    try:
+        kwargs: dict = {"channel": channel, "ts": ts, "text": text}
+        if blocks:
+            kwargs["blocks"] = blocks
+        _slack_run_coro(_slack_app_instance.client.chat_update(**kwargs))
+        return jsonify({"status": "ok"})
+    except Exception as exc:
+        # Drafts/updates are best-effort; surface the failure to the caller so
+        # the throttle can skip retrying with the same content.
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/send-slack-photo")
+def send_slack_photo():
+    """Upload an image via files.upload_v2. Body: { photo: base64, caption?, channel?, thread_ts? }."""
+    import base64
+    import time
+    data = request.get_json(silent=True) or {}
+    photo_b64 = data.get("photo", "")
+    caption = data.get("caption", "") or ""
+    thread_ts = data.get("thread_ts")
+    target = _slack_outbound_target(data.get("channel"))
+    if not _slack_running() or not target:
+        return jsonify({"error": "Slack not configured"}), 400
+    try:
+        photo_bytes = base64.b64decode(photo_b64)
+        kwargs: dict = {
+            "channel": target,
+            "file": photo_bytes,
+            "filename": f"aipg-{int(time.time() * 1000)}.png",
+        }
+        if caption:
+            kwargs["initial_comment"] = caption
+        if thread_ts:
+            kwargs["thread_ts"] = thread_ts
+        _slack_run_coro(_slack_app_instance.client.files_upload_v2(**kwargs))
+        return jsonify({"status": "ok"})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/send-slack-typing-reaction")
+def send_slack_typing_reaction():
+    """Add or remove a reaction emoji on an inbound message.
+
+    Slack has no DM "typing…" indicator equivalent to Telegram's chat actions,
+    so we follow OpenClaw's pattern and use `reactions.add`/`reactions.remove`
+    to signal that the bot is processing (`:eyes:` by default).
+
+    Body: { channel, ts, name?, action: "add"|"remove" }
+    """
+    data = request.get_json(silent=True) or {}
+    channel = (data.get("channel") or "").strip()
+    ts = (data.get("ts") or "").strip()
+    name = (data.get("name") or "eyes").strip()
+    action = (data.get("action") or "add").strip()
+    if not channel or not ts:
+        return jsonify({"error": "channel and ts are required"}), 400
+    if not _slack_running():
+        return jsonify({"error": "Slack not configured"}), 400
+    try:
+        if action == "remove":
+            _slack_run_coro(
+                _slack_app_instance.client.reactions_remove(channel=channel, timestamp=ts, name=name)
+            )
+        else:
+            _slack_run_coro(
+                _slack_app_instance.client.reactions_add(channel=channel, timestamp=ts, name=name)
+            )
+        return jsonify({"status": "ok"})
+    except Exception as exc:
+        # Reactions can fail with `already_reacted` / `no_reaction` benignly.
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/send-slack-keyboard")
+def send_slack_keyboard():
+    """Send a text reply with Slack Block Kit `actions` blocks attached.
+
+    Body: { text, blocks }. `blocks` is the raw Block Kit array — the renderer
+    builds it (button labels, action_id values) so this endpoint stays a thin
+    pass-through. Returns posted `{ts, channel}`.
+    """
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
+    blocks = data.get("blocks") or []
+    target = _slack_outbound_target(data.get("channel"))
+    if not _slack_running() or not target:
+        return jsonify({"error": "Slack not configured"}), 400
+    try:
+        resp = _slack_run_coro(
+            _slack_app_instance.client.chat_postMessage(channel=target, text=text, blocks=blocks)
+        )
+        return jsonify(
+            {"status": "ok", "ts": resp.get("ts"), "channel": resp.get("channel") or target}
+        )
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
@@ -880,6 +1203,276 @@ def _start_telegram_bot(token: str, initial_chat_id: str) -> None:
             pass
 
 
+# ── Slack bot ─────────────────────────────────────────────────────────────────
+
+def _start_slack_bot(bot_token: str, app_token: str, initial_user_id: str) -> None:
+    """Runs the Slack Bolt Socket Mode bot in its own asyncio event loop.
+
+    Mirrors `_start_telegram_bot`:
+      - daemon thread + dedicated event loop
+      - graceful shutdown via `_slack_shutdown_event` so credential changes
+        from /set-slack-tokens never need a Flask restart
+      - DMs only (`channel_type == "im"`); detection mode populates
+        `_last_seen_slack_user_id` until the renderer issues a verified
+        userId via /set-slack-tokens.
+    """
+    global _slack_app_instance, _slack_loop, _slack_bot_token, _slack_app_token
+    global _allowed_slack_user_id, _last_seen_slack_user_id, _slack_shutdown_event
+    global _slack_im_channel
+
+    # slack-bolt imports are deferred so the rest of the Flask app boots even
+    # when the package is missing (e.g. legacy installs that have not yet run
+    # `uv sync`). Slack endpoints just refuse with `Slack not configured`.
+    try:
+        from slack_bolt.async_app import AsyncApp
+        from slack_bolt.adapter.socket_mode.aiohttp import AsyncSocketModeHandler
+    except ImportError as exc:
+        logger.error("slack-bolt is not installed: %s", exc)
+        _slack_app_instance = None
+        return
+
+    _slack_bot_token = bot_token
+    _slack_app_token = app_token
+    _allowed_slack_user_id = (initial_user_id or "").strip()
+
+    async def _enqueue_command(command_text: str, user_id: str, channel: str) -> None:
+        if not _allowed_slack_user_id:
+            logger.info(
+                "Detection mode: slack command from user_id=%s (not yet configured)", user_id
+            )
+            return
+        if user_id != _allowed_slack_user_id:
+            logger.warning("Ignoring slack command from unauthorized user_id: %s", user_id)
+            return
+        with _slack_pending_lock:
+            _slack_pending_messages.append(
+                {"text": command_text, "chat_id": user_id, "channel": channel}
+            )
+
+    async def _maybe_remember_user(user_id: str, channel: str | None) -> None:
+        """Track the last-seen DM partner so detection survives /set-slack-tokens."""
+        global _last_seen_slack_user_id, _slack_im_channel
+        if user_id and user_id != _last_seen_slack_user_id:
+            _last_seen_slack_user_id = user_id
+            _persist_slack_user_id(user_id)
+        # Cache the IM channel id (D...) for outbound sends. Falling back to the
+        # user id works for chat.postMessage but not for reactions/files in some
+        # workspaces.
+        if channel and channel.startswith("D"):
+            _slack_im_channel = channel
+
+    async def _download_slack_files(
+        files: list[dict], client_token: str
+    ) -> list[dict]:
+        """Best-effort: download bot-accessible Slack files into base64 image payloads.
+
+        Mirrors the Telegram photo flow so the renderer receives the same
+        `images: [{mime, data_base64}]` shape regardless of channel.
+        """
+        import base64
+        out: list[dict] = []
+        # Reuse aiohttp from slack-bolt's bundled dependency tree.
+        import aiohttp
+        async with aiohttp.ClientSession(
+            headers={"Authorization": f"Bearer {client_token}"}
+        ) as session:
+            for f in files[:8]:  # cap parity with OpenClaw's 8-files-per-msg note
+                mime = f.get("mimetype") or ""
+                if not mime.startswith("image/"):
+                    continue
+                url = f.get("url_private_download") or f.get("url_private")
+                if not url:
+                    continue
+                try:
+                    async with session.get(url) as resp:
+                        if resp.status != 200:
+                            logger.warning(
+                                "slack file download failed: status=%d", resp.status
+                            )
+                            continue
+                        raw = await resp.read()
+                except Exception as exc:
+                    logger.error("slack file download error: %s", exc)
+                    continue
+                out.append(
+                    {"mime": mime, "data_base64": base64.b64encode(raw).decode("ascii")}
+                )
+        return out
+
+    async def run() -> None:
+        global _slack_app_instance, _slack_loop, _slack_shutdown_event
+        _slack_loop = asyncio.get_event_loop()
+        _slack_shutdown_event = asyncio.Event()
+
+        bolt_app = AsyncApp(token=bot_token)
+        _slack_app_instance = bolt_app
+
+        @bolt_app.event("message")
+        async def on_message(event, say, body):  # type: ignore[no-untyped-def]
+            # DMs only — gate hard on channel_type so future group/channel
+            # support is a deliberate opt-in instead of an accident.
+            if event.get("channel_type") != "im":
+                return
+            # Ignore bot's own messages and message-edited / message-deleted
+            # subtypes — those would loop or surface stale text.
+            if event.get("subtype") in (
+                "message_changed",
+                "message_deleted",
+                "bot_message",
+            ):
+                return
+            if event.get("bot_id"):
+                return
+            user_id = event.get("user") or ""
+            channel = event.get("channel") or ""
+            await _maybe_remember_user(user_id, channel)
+
+            allow = _allowed_slack_user_id
+            if not allow:
+                logger.info(
+                    "Detection mode: slack DM from user_id=%s (not yet configured)", user_id
+                )
+                return
+            if user_id != allow:
+                logger.warning("Ignoring slack DM from unauthorized user_id: %s", user_id)
+                return
+
+            text = event.get("text") or ""
+            ts = event.get("ts") or ""
+            files = event.get("files") or []
+            images = await _download_slack_files(files, bot_token) if files else []
+            text_payload = text if text else ("[image]" if images else "")
+            logger.info(
+                "Slack DM received: user_id=%s channel=%s ts=%s len=%d images=%d",
+                user_id,
+                channel,
+                ts,
+                len(text),
+                len(images),
+            )
+            with _slack_pending_lock:
+                _slack_pending_messages.append(
+                    {
+                        "text": text_payload,
+                        "chat_id": user_id,
+                        "channel": channel,
+                        "ts": ts,
+                        **({"images": images} if images else {}),
+                    }
+                )
+
+        async def _handle_slash(ack, command, full_text: str) -> None:
+            await ack()
+            await _maybe_remember_user(command.get("user_id") or "", command.get("channel_id"))
+            await _enqueue_command(
+                full_text,
+                command.get("user_id") or "",
+                command.get("channel_id") or "",
+            )
+
+        @bolt_app.command("/help")
+        async def cmd_help(ack, command):  # type: ignore[no-untyped-def]
+            await _handle_slash(ack, command, "/help")
+
+        @bolt_app.command("/chat")
+        async def cmd_chat(ack, command):  # type: ignore[no-untyped-def]
+            text = (command.get("text") or "").strip()
+            await _handle_slash(ack, command, f"/chat {text}".strip())
+
+        @bolt_app.command("/imggen")
+        async def cmd_imggen(ack, command):  # type: ignore[no-untyped-def]
+            text = (command.get("text") or "").strip()
+            await _handle_slash(ack, command, f"/imgGen {text}".strip())
+
+        @bolt_app.command("/new")
+        async def cmd_new(ack, command):  # type: ignore[no-untyped-def]
+            await _handle_slash(ack, command, "/new")
+
+        @bolt_app.command("/history")
+        async def cmd_history(ack, command):  # type: ignore[no-untyped-def]
+            await _handle_slash(ack, command, "/history")
+
+        @bolt_app.command("/load")
+        async def cmd_load(ack, command):  # type: ignore[no-untyped-def]
+            text = (command.get("text") or "").strip()
+            await _handle_slash(ack, command, f"/load {text}".strip())
+
+        @bolt_app.command("/cancel")
+        async def cmd_cancel(ack, command):  # type: ignore[no-untyped-def]
+            await _handle_slash(ack, command, "/cancel")
+
+        @bolt_app.action(re.compile(r"^imgGen:"))
+        async def on_imggen_action(ack, body, action):  # type: ignore[no-untyped-def]
+            await ack()
+            user = (body.get("user") or {}).get("id") or ""
+            channel = (body.get("channel") or {}).get("id") or ""
+            await _maybe_remember_user(user, channel)
+            if _allowed_slack_user_id and user != _allowed_slack_user_id:
+                logger.warning("Ignoring imgGen action from unauthorized user_id: %s", user)
+                return
+            value = action.get("value") or action.get("action_id") or ""
+            logger.info("Slack imgGen action: user=%s value=%s", user, value)
+            with _slack_pending_lock:
+                _slack_pending_messages.append(
+                    {"chat_id": user, "channel": channel, "callback": value}
+                )
+
+        @bolt_app.action(re.compile(r"^loadConv:"))
+        async def on_loadconv_action(ack, body, action):  # type: ignore[no-untyped-def]
+            await ack()
+            user = (body.get("user") or {}).get("id") or ""
+            channel = (body.get("channel") or {}).get("id") or ""
+            await _maybe_remember_user(user, channel)
+            if _allowed_slack_user_id and user != _allowed_slack_user_id:
+                logger.warning("Ignoring loadConv action from unauthorized user_id: %s", user)
+                return
+            value = action.get("value") or action.get("action_id") or ""
+            # Mirror the Telegram callback shape: synthesize a `/load <key>` so
+            # the renderer's drain queue handles it uniformly with slash commands.
+            key = value[len("loadConv:"):] if value.startswith("loadConv:") else value
+            logger.info("Slack loadConv action: user=%s key=%s", user, key)
+            with _slack_pending_lock:
+                _slack_pending_messages.append(
+                    {"text": f"/load {key}".strip(), "chat_id": user, "channel": channel}
+                )
+
+        handler = AsyncSocketModeHandler(bolt_app, app_token)
+        try:
+            await handler.connect_async()
+            logger.info("Slack Socket Mode bot connected")
+        except Exception as exc:
+            logger.error("Slack Socket Mode connect failed: %s", exc)
+            raise
+
+        try:
+            await _slack_shutdown_event.wait()
+        finally:
+            try:
+                await handler.close_async()
+            except Exception as exc:
+                logger.warning("Slack handler.close_async() failed: %s", exc)
+            try:
+                await bolt_app.async_stop()
+            except Exception as exc:
+                logger.warning("Slack bolt_app.async_stop() failed: %s", exc)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _slack_loop = loop
+    try:
+        loop.run_until_complete(run())
+    except Exception as exc:
+        logger.error("Slack bot crashed: %s", exc)
+    finally:
+        _slack_app_instance = None
+        _slack_loop = None
+        _slack_shutdown_event = None
+        try:
+            loop.close()
+        except Exception:
+            pass
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -901,6 +1494,26 @@ if __name__ == "__main__":
         threading.Thread(target=_start_telegram_bot, args=(tg_token, tg_chat_id), daemon=True).start()
     else:
         print("No TELEGRAM_BOT_TOKEN — Telegram bot disabled.", flush=True)
+
+    # Slack bot — same env-fallback pattern. Electron uses /set-slack-tokens.
+    sl_bot = os.environ.get("SLACK_BOT_TOKEN")
+    sl_app = os.environ.get("SLACK_APP_TOKEN")
+    sl_user = os.environ.get("SLACK_USER_ID", "")
+    print(
+        f"Slack config: botToken={'SET' if sl_bot else 'NOT SET'} "
+        f"appToken={'SET' if sl_app else 'NOT SET'} "
+        f"user_id={'SET' if sl_user else 'NOT SET'}",
+        flush=True,
+    )
+    if sl_bot and sl_app:
+        print(
+            f"Starting Slack bot (allowed user: {sl_user or 'any — detecting'})", flush=True
+        )
+        threading.Thread(
+            target=_start_slack_bot, args=(sl_bot, sl_app, sl_user), daemon=True
+        ).start()
+    else:
+        print("No SLACK_BOT_TOKEN/SLACK_APP_TOKEN — Slack bot disabled.", flush=True)
 
     # Bind to loopback only — Electron talks to this backend via 127.0.0.1
     # (see homeAgentBackendService.ts `baseUrl`). Restricting the listener

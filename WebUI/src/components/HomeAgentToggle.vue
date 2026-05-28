@@ -1,5 +1,5 @@
 <template>
-  <div class="inline-flex items-center gap-2" :title="toggleTitle">
+  <div class="inline-flex items-center gap-3" :title="anyTitle">
     <span
       class="text-xs font-medium select-none text-foreground"
       style="line-height: 1; vertical-align: middle"
@@ -7,28 +7,26 @@
       Home Agent
     </span>
 
-    <button
-      role="switch"
-      :aria-checked="isHomeAgentActive"
-      :aria-label="ariaLabel"
-      :disabled="!isAvailable || (!isReadyToActivate && !isHomeAgentActive)"
-      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-      :class="isHomeAgentActive ? 'bg-primary' : 'bg-muted-foreground/40'"
-      @click="toggle"
-    >
-      <span
-        class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
-        :class="isHomeAgentActive ? 'translate-x-4' : 'translate-x-0'"
-      />
-    </button>
-
-    <span
-      class="text-xs font-medium select-none tabular-nums min-w-6"
-      style="line-height: 1; vertical-align: middle"
-      :class="isHomeAgentActive ? 'text-foreground' : 'text-muted-foreground'"
-    >
-      {{ isHomeAgentActive ? 'On' : 'Off' }}
-    </span>
+    <ChannelChip
+      kind="telegram"
+      label="Telegram"
+      :icon-color="'#26a5e4'"
+      :is-active="isTelegramActive"
+      :is-available="isAvailable"
+      :is-ready="isTelegramReady"
+      :title="telegramTitle"
+      @toggle="homeAgent.toggle('telegram')"
+    />
+    <ChannelChip
+      kind="slack"
+      label="Slack"
+      :icon-color="'#36C5F0'"
+      :is-active="isSlackActive"
+      :is-available="isAvailable"
+      :is-ready="isSlackReady"
+      :title="slackTitle"
+      @toggle="homeAgent.toggle('slack')"
+    />
 
     <button
       type="button"
@@ -44,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, h } from 'vue'
 import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
@@ -54,40 +52,93 @@ const homeAgent = useHomeAgent()
 const setupWizard = useSetupWizard()
 const backendServices = useBackendServices()
 
-const isHomeAgentActive = computed(() => homeAgent.isHomeAgentActive)
 const isAvailable = computed(() => homeAgent.isAvailable)
-const isReadyToActivate = computed(() => homeAgent.isReadyToActivate)
+const isTelegramActive = computed(() => homeAgent.isTelegramActive)
+const isSlackActive = computed(() => homeAgent.isSlackActive)
+const isTelegramReady = computed(() => homeAgent.isReadyToActivate)
+const isSlackReady = computed(() => homeAgent.isSlackReadyToActivate)
 const isInstalled = computed(
   () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.isSetUp === true,
 )
 
-const toggleTitle = computed(() => {
+const telegramTitle = computed(() => {
   if (!isAvailable.value)
     return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
-  if (!isReadyToActivate.value)
-    return 'Verify the Telegram connection in Setup Wizard before turning Home Agent on.'
-  return isHomeAgentActive.value
-    ? 'Home Agent is on — answering Telegram; click to turn off.'
-    : 'Home Agent is off — click to enable Telegram messaging.'
+  if (!isTelegramReady.value)
+    return 'Verify the Telegram connection in Setup Wizard before turning it on.'
+  return isTelegramActive.value
+    ? 'Telegram channel on — click to turn off.'
+    : 'Telegram channel off — click to enable.'
 })
-
-const ariaLabel = computed(() => {
-  // Mirror the disabled-state wording from `toggleTitle` instead of always
-  // saying "click to turn on/off" — otherwise a screen reader announces the
-  // wrong affordance when the switch is non-interactive.
-  if (!isAvailable.value || (!isReadyToActivate.value && !isHomeAgentActive.value)) {
-    return toggleTitle.value
-  }
-  return isHomeAgentActive.value
-    ? 'Home Agent on, click to turn off'
-    : 'Home Agent off, click to turn on'
+const slackTitle = computed(() => {
+  if (!isAvailable.value)
+    return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
+  if (!isSlackReady.value)
+    return 'Verify the Slack connection in Setup Wizard before turning it on.'
+  return isSlackActive.value
+    ? 'Slack channel on — click to turn off.'
+    : 'Slack channel off — click to enable.'
 })
-
-function toggle() {
-  homeAgent.toggle()
-}
+const anyTitle = computed(() => {
+  if (!isInstalled.value)
+    return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
+  return 'Toggle a channel on/off; configure each in Setup Wizard.'
+})
 
 function openSetup() {
   void setupWizard.openHomeAgentSetup()
+}
+
+// Inline chip component — kept local because it's only used here and the
+// styling is tightly bound to the toggle row's layout.
+const ChannelChip = {
+  props: {
+    kind: { type: String, required: true },
+    label: { type: String, required: true },
+    iconColor: { type: String, required: true },
+    isActive: { type: Boolean, required: true },
+    isAvailable: { type: Boolean, required: true },
+    isReady: { type: Boolean, required: true },
+    title: { type: String, required: true },
+  },
+  emits: ['toggle'],
+  setup(
+    props: {
+      kind: string
+      label: string
+      iconColor: string
+      isActive: boolean
+      isAvailable: boolean
+      isReady: boolean
+      title: string
+    },
+    { emit }: { emit: (e: 'toggle') => void },
+  ) {
+    return () =>
+      h(
+        'button',
+        {
+          role: 'switch',
+          'aria-checked': props.isActive,
+          'aria-label': `${props.label}: ${props.isActive ? 'on' : 'off'}`,
+          title: props.title,
+          disabled: !props.isAvailable || (!props.isReady && !props.isActive),
+          class:
+            'inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ' +
+            (props.isActive
+              ? 'bg-primary/15 border-primary text-foreground'
+              : 'bg-muted/40 border-border text-muted-foreground hover:bg-muted'),
+          onClick: () => emit('toggle'),
+        },
+        [
+          h('span', {
+            class: 'w-1.5 h-1.5 rounded-full',
+            style: { backgroundColor: props.isActive ? props.iconColor : 'currentColor' },
+          }),
+          props.label,
+          h('span', { class: 'tabular-nums' }, props.isActive ? 'On' : 'Off'),
+        ],
+      )
+  },
 }
 </script>

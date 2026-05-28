@@ -9,6 +9,11 @@ import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.
 
 type EncryptedTokenData = { type: string; data: number[] }
 type HomeAgentConfigFile = { encryptedToken: EncryptedTokenData; chatId: string }
+type HomeAgentSlackConfigFile = {
+  encryptedBotToken: EncryptedTokenData
+  encryptedAppToken: EncryptedTokenData
+  userId: string
+}
 
 export class HomeAgentBackendService extends LongLivedPythonApiService {
   readonly serviceFolder = 'home-agent'
@@ -219,6 +224,58 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
   clearConfig(): void {
     try {
       fs.unlinkSync(this.configPath())
+    } catch {
+      // ignore if not found
+    }
+  }
+
+  // ── Slack config persistence ─────────────────────────────────────────────
+  // Kept in a separate JSON file so Telegram and Slack can be configured /
+  // cleared independently. Both tokens are encrypted via `safeStorage`; the
+  // detected `userId` is plaintext (non-sensitive, surfaced in the UI).
+
+  private slackConfigPath(): string {
+    return path.join(app.getPath('userData'), 'home-agent-slack-config.json')
+  }
+
+  saveSlackConfig(
+    botToken: string,
+    appToken: string,
+    userId: string,
+  ): { success: boolean; error?: string } {
+    try {
+      const cleanBot = botToken.trim().replace(/\s+/g, '')
+      const cleanApp = appToken.trim().replace(/\s+/g, '')
+      const cleanUser = userId.trim()
+      const encryptedBot = safeStorage.encryptString(cleanBot)
+      const encryptedApp = safeStorage.encryptString(cleanApp)
+      const data: HomeAgentSlackConfigFile = {
+        encryptedBotToken: encryptedBot.toJSON(),
+        encryptedAppToken: encryptedApp.toJSON(),
+        userId: cleanUser,
+      }
+      fs.writeFileSync(this.slackConfigPath(), JSON.stringify(data), 'utf-8')
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: String(e) }
+    }
+  }
+
+  loadSlackConfig(): { botToken: string; appToken: string; userId: string } | null {
+    try {
+      const raw = fs.readFileSync(this.slackConfigPath(), 'utf-8')
+      const data = JSON.parse(raw) as HomeAgentSlackConfigFile
+      const botToken = safeStorage.decryptString(Buffer.from(data.encryptedBotToken.data))
+      const appToken = safeStorage.decryptString(Buffer.from(data.encryptedAppToken.data))
+      return { botToken, appToken, userId: data.userId ?? '' }
+    } catch {
+      return null
+    }
+  }
+
+  clearSlackConfig(): void {
+    try {
+      fs.unlinkSync(this.slackConfigPath())
     } catch {
       // ignore if not found
     }
@@ -446,6 +503,336 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     }
   }
 
+  // ── Slack runtime helpers ────────────────────────────────────────────────
+
+  /**
+   * Validate the Slack bot token via `auth.test`, then send a confirmation DM
+   * via `chat.postMessage` to the verified user. Mirrors `testTelegram()`.
+   */
+  async testSlack(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const config = this.loadSlackConfig()
+      if (!config) return { success: false, error: 'No Slack config saved' }
+      const { botToken, userId } = config
+      if (!userId) {
+        return {
+          success: false,
+          error: 'No DM partner detected yet — DM the bot, then click Detect.',
+        }
+      }
+      const auth = await net.fetch('https://slack.com/api/auth.test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Bearer ${botToken}`,
+        },
+      })
+      const authBody = (await auth.json()) as { ok?: boolean; error?: string }
+      if (!authBody.ok) {
+        return {
+          success: false,
+          error: `auth.test failed: ${authBody.error ?? 'unknown'}`,
+        }
+      }
+      const post = await net.fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          Authorization: `Bearer ${botToken}`,
+        },
+        body: JSON.stringify({
+          channel: userId,
+          text:
+            ':white_check_mark: *Home Agent is connected to Slack!*\n\n' +
+            'Send me any message — the AI will decide whether to reply with text or generate an image.\n' +
+            'Use `/help` to see all explicit command overrides.',
+        }),
+      })
+      const postBody = (await post.json()) as { ok?: boolean; error?: string }
+      if (!postBody.ok) {
+        return {
+          success: false,
+          error: `chat.postMessage failed: ${postBody.error ?? 'unknown'}`,
+        }
+      }
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: String(e) }
+    }
+  }
+
+  async injectSlackTokens(
+    botToken: string,
+    appToken: string,
+    userId?: string,
+  ): Promise<{ status: string }> {
+    if (this.currentStatus !== 'running') return { status: 'not_running' }
+    try {
+      const cleanBot = botToken.trim().replace(/\s+/g, '')
+      const cleanApp = appToken.trim().replace(/\s+/g, '')
+      const cleanUser = userId !== undefined ? String(userId).trim() : ''
+      const res = await net.fetch(`${this.baseUrl}/set-slack-tokens`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          botToken: cleanBot,
+          appToken: cleanApp,
+          ...(cleanUser ? { userId: cleanUser } : {}),
+        }),
+      })
+      const body = (await res.json()) as { status?: string }
+      return { status: body.status ?? 'ok' }
+    } catch (e) {
+      return { status: `error: ${e}` }
+    }
+  }
+
+  /**
+   * Pull the first DM partner seen by the Slack bot. Requires the user to
+   * have DMed the bot at least once. Falls back to `auth.test` when the bot
+   * is not running so the wizard can still validate the bot token early.
+   */
+  async detectSlackUserId(botToken: string): Promise<{ userId: string } | { error: string }> {
+    if (this.currentStatus === 'running') {
+      try {
+        const res = await net.fetch(`${this.baseUrl}/get-slack-user-id`, {
+          headers: this.authHeaders(),
+        })
+        const data = (await res.json()) as { userId?: string; error?: string }
+        if (data.userId) return { userId: data.userId }
+      } catch {
+        /* fall through to bot-token validation */
+      }
+    }
+    // Validate the bot token at minimum so the user gets a useful error
+    // ("invalid_auth", missing scopes, …) instead of "no user yet".
+    try {
+      const cleanToken = botToken.trim().replace(/\s+/g, '')
+      const auth = await net.fetch('https://slack.com/api/auth.test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Bearer ${cleanToken}`,
+        },
+      })
+      const body = (await auth.json()) as { ok?: boolean; error?: string }
+      if (!body.ok) {
+        return { error: `Slack auth.test failed: ${body.error ?? 'unknown'}` }
+      }
+      return {
+        error: 'No DM received yet. DM your Slack bot, then click Detect.',
+      }
+    } catch (e) {
+      return { error: String(e) }
+    }
+  }
+
+  async detectSlackUserIdFromSaved(): Promise<{ userId: string } | { error: string }> {
+    if (this.currentStatus === 'running') {
+      try {
+        const res = await net.fetch(`${this.baseUrl}/get-slack-user-id`, {
+          headers: this.authHeaders(),
+        })
+        const data = (await res.json()) as { userId?: string; error?: string }
+        if (data.userId) return { userId: data.userId }
+      } catch {
+        /* fall through */
+      }
+    }
+    const config = this.loadSlackConfig()
+    if (!config) return { error: 'Could not read saved Slack config' }
+    return this.detectSlackUserId(config.botToken)
+  }
+
+  async flushSlackPending(): Promise<void> {
+    if (this.currentStatus !== 'running') return
+    try {
+      await net.fetch(`${this.baseUrl}/flush-slack-pending`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: '{}',
+      })
+    } catch {
+      // ignore
+    }
+  }
+
+  async pollSlack(): Promise<
+    Array<{
+      text?: string
+      chat_id: string
+      channel?: string
+      ts?: string
+      images?: Array<{ mime: string; data_base64: string }>
+      callback?: string
+    }>
+  > {
+    if (this.currentStatus !== 'running') return []
+    try {
+      const res = await net.fetch(`${this.baseUrl}/poll-slack`, {
+        headers: this.authHeaders(),
+      })
+      return (await res.json()) as Array<{
+        text?: string
+        chat_id: string
+        channel?: string
+        ts?: string
+        images?: Array<{ mime: string; data_base64: string }>
+        callback?: string
+      }>
+    } catch {
+      return []
+    }
+  }
+
+  async sendSlackReply(opts: {
+    text: string
+    blocks?: unknown[]
+    channel?: string
+    threadTs?: string
+  }): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }> {
+    if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
+    try {
+      const body = {
+        text: opts.text,
+        ...(opts.blocks ? { blocks: opts.blocks } : {}),
+        ...(opts.channel ? { channel: opts.channel } : {}),
+        ...(opts.threadTs ? { thread_ts: opts.threadTs } : {}),
+      }
+      const res = await net.fetch(`${this.baseUrl}/send-slack-reply`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+      const parsed = (await res.json()) as {
+        status?: string
+        ts?: string
+        channel?: string
+        error?: string
+      }
+      if (!res.ok || parsed.error)
+        return { success: false, error: parsed.error ?? `status ${res.status}` }
+      return { success: true, ts: parsed.ts, channel: parsed.channel }
+    } catch (e) {
+      this.appLogger.error(`sendSlackReply error: ${e}`, this.name)
+      return { success: false, error: String(e) }
+    }
+  }
+
+  async sendSlackUpdate(opts: {
+    channel: string
+    ts: string
+    text: string
+    blocks?: unknown[]
+  }): Promise<{ success: boolean; error?: string }> {
+    if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
+    try {
+      const body = {
+        channel: opts.channel,
+        ts: opts.ts,
+        text: opts.text,
+        ...(opts.blocks ? { blocks: opts.blocks } : {}),
+      }
+      const res = await net.fetch(`${this.baseUrl}/send-slack-update`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+      if (res.ok) return { success: true }
+      return { success: false, error: await res.text() }
+    } catch (e) {
+      // chat.update is best-effort (rate limits, edit-after-delete, …). Don't
+      // spam the log so streaming turns stay quiet during transient failures.
+      return { success: false, error: String(e) }
+    }
+  }
+
+  async sendSlackPhoto(opts: {
+    imageBase64: string
+    caption?: string
+    channel?: string
+    threadTs?: string
+  }): Promise<{ success: boolean; error?: string }> {
+    if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
+    try {
+      const body = {
+        photo: opts.imageBase64,
+        caption: opts.caption ?? '',
+        ...(opts.channel ? { channel: opts.channel } : {}),
+        ...(opts.threadTs ? { thread_ts: opts.threadTs } : {}),
+      }
+      const res = await net.fetch(`${this.baseUrl}/send-slack-photo`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+      if (res.ok) return { success: true }
+      return { success: false, error: await res.text() }
+    } catch (e) {
+      this.appLogger.error(`sendSlackPhoto error: ${e}`, this.name)
+      return { success: false, error: String(e) }
+    }
+  }
+
+  async sendSlackTypingReaction(opts: {
+    channel: string
+    ts: string
+    name?: string
+    action: 'add' | 'remove'
+  }): Promise<{ success: boolean; error?: string }> {
+    if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
+    try {
+      const body = {
+        channel: opts.channel,
+        ts: opts.ts,
+        name: opts.name ?? 'eyes',
+        action: opts.action,
+      }
+      const res = await net.fetch(`${this.baseUrl}/send-slack-typing-reaction`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+      if (res.ok) return { success: true }
+      return { success: false, error: await res.text() }
+    } catch (e) {
+      // Reactions are heartbeats — silent failures are acceptable.
+      return { success: false, error: String(e) }
+    }
+  }
+
+  async sendSlackKeyboard(opts: {
+    text: string
+    blocks: unknown[]
+    channel?: string
+  }): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }> {
+    if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
+    try {
+      const body = {
+        text: opts.text,
+        blocks: opts.blocks,
+        ...(opts.channel ? { channel: opts.channel } : {}),
+      }
+      const res = await net.fetch(`${this.baseUrl}/send-slack-keyboard`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+      const parsed = (await res.json()) as {
+        status?: string
+        ts?: string
+        channel?: string
+        error?: string
+      }
+      if (!res.ok || parsed.error)
+        return { success: false, error: parsed.error ?? `status ${res.status}` }
+      return { success: true, ts: parsed.ts, channel: parsed.channel }
+    } catch (e) {
+      this.appLogger.error(`sendSlackKeyboard error: ${e}`, this.name)
+      return { success: false, error: String(e) }
+    }
+  }
+
   // ── Chat ID detection ────────────────────────────────────────────────────
 
   private async detectChatIdWithToken(
@@ -587,6 +974,54 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
           buttons: Array<Array<{ text: string; callbackData: string }>>
         },
       ) => this.sendTelegramKeyboard(opts),
+    )
+
+    // ── Slack IPC ──────────────────────────────────────────────────────────
+    ipcMain.handle(
+      'homeAgent:saveSlackConfig',
+      (_event, botToken: string, appToken: string, userId: string) =>
+        this.saveSlackConfig(botToken, appToken, userId),
+    )
+    ipcMain.handle('homeAgent:loadSlackConfig', () => this.loadSlackConfig())
+    ipcMain.handle('homeAgent:clearSlackConfig', () => this.clearSlackConfig())
+    ipcMain.handle('homeAgent:testSlack', () => this.testSlack())
+    ipcMain.handle(
+      'homeAgent:injectSlackTokens',
+      (_event, botToken: string, appToken: string, userId?: string) =>
+        this.injectSlackTokens(botToken, appToken, userId),
+    )
+    ipcMain.handle('homeAgent:detectSlackUserId', (_event, botToken: string) =>
+      this.detectSlackUserId(botToken),
+    )
+    ipcMain.handle('homeAgent:detectSlackUserIdFromSaved', () => this.detectSlackUserIdFromSaved())
+    ipcMain.handle('homeAgent:pollSlack', () => this.pollSlack())
+    ipcMain.handle('homeAgent:flushSlackPending', () => this.flushSlackPending())
+    ipcMain.handle(
+      'homeAgent:sendSlackReply',
+      (_event, opts: { text: string; blocks?: unknown[]; channel?: string; threadTs?: string }) =>
+        this.sendSlackReply(opts),
+    )
+    ipcMain.handle(
+      'homeAgent:sendSlackUpdate',
+      (_event, opts: { channel: string; ts: string; text: string; blocks?: unknown[] }) =>
+        this.sendSlackUpdate(opts),
+    )
+    ipcMain.handle(
+      'homeAgent:sendSlackPhoto',
+      (
+        _event,
+        opts: { imageBase64: string; caption?: string; channel?: string; threadTs?: string },
+      ) => this.sendSlackPhoto(opts),
+    )
+    ipcMain.handle(
+      'homeAgent:sendSlackTypingReaction',
+      (_event, opts: { channel: string; ts: string; name?: string; action: 'add' | 'remove' }) =>
+        this.sendSlackTypingReaction(opts),
+    )
+    ipcMain.handle(
+      'homeAgent:sendSlackKeyboard',
+      (_event, opts: { text: string; blocks: unknown[]; channel?: string }) =>
+        this.sendSlackKeyboard(opts),
     )
   }
 }

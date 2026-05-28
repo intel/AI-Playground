@@ -19,10 +19,91 @@ import {
 } from './conversations'
 import { saveImageToMediaInput } from '@/lib/utils'
 import { markdownToTelegramHtml } from '../telegramMarkdown'
+import { markdownToSlackMrkdwn } from '../slackMrkdwn'
 import * as toast from '../toast'
 
-type TelegramImage = { mime: string; data_base64: string }
-type TelegramQueueItem = { text?: string; images?: TelegramImage[]; callback?: string }
+type RemoteImage = { mime: string; data_base64: string }
+/** Adapter-opaque inbound metadata threaded through the drain pipeline.
+ *  Telegram does not need it (chat-id is implicit); Slack uses it to target
+ *  reactions and threaded sends at the inbound message. */
+type InboundMeta = { channel?: string; ts?: string; chatId?: string }
+type RemoteQueueItem = {
+  text?: string
+  images?: RemoteImage[]
+  callback?: string
+  meta?: InboundMeta
+}
+// Back-compat alias — local declarations still reference the older name.
+// Removing it is purely cosmetic, so it stays.
+type TelegramQueueItem = RemoteQueueItem
+
+export type ChannelKind = 'telegram' | 'slack'
+
+/** Per-channel handle returned by `sendReply` so the streaming layer can
+ *  edit the message in place. Telegram identifies drafts by `draftId`;
+ *  Slack identifies posted messages by `{channel, ts}`. */
+type ChannelMessageRef = {
+  draftId?: number
+  ts?: string
+  channel?: string
+}
+
+type DraftStream = {
+  update: (text: string) => void
+  /** Persist the final text and dispose the stream. */
+  finalize: (finalText: string) => Promise<void>
+  cancel: () => void
+}
+
+/** Channel-agnostic surface used by every slash-command / chat / image-gen
+ *  handler. Each adapter wraps the per-channel IPC primitives and quirks. */
+type ChannelAdapter = {
+  kind: ChannelKind
+  /** Convert assistant markdown to the channel's native rich-text format. */
+  formatMarkdown: (md: string) => string
+  /** Convert one of our HTML-ish hardcoded UI strings to channel-native. */
+  formatRichSnippet: (htmlSnippet: string) => string
+  sendReply: (
+    text: string,
+    opts?: { meta?: InboundMeta },
+  ) => Promise<{ success: boolean; ref?: ChannelMessageRef; error?: string }>
+  sendPhoto: (
+    imageBase64: string,
+    caption: string,
+    opts?: { meta?: InboundMeta },
+  ) => Promise<{ success: boolean; error?: string }>
+  sendKeyboard: (opts: {
+    text: string
+    buttons: Array<Array<{ text: string; callbackData: string }>>
+    meta?: InboundMeta
+  }) => Promise<{ success: boolean; error?: string }>
+  /** "Bot is working" indicator — Telegram uses chat-action heartbeats,
+   *  Slack uses reaction add/remove on the inbound message. */
+  startTypingHeartbeat: (action: string, meta?: InboundMeta) => () => void
+  /** In-place streaming preview. Telegram uses sendMessageDraft, Slack uses
+   *  chat.update after an initial chat.postMessage. */
+  createDraftStream: (opts?: { meta?: InboundMeta }) => DraftStream
+}
+
+/** Lightweight HTML → Slack mrkdwn conversion for the hand-authored UI
+ *  strings (HELP_MESSAGE, status banners, …). Limited to the set of tags
+ *  those snippets actually use. */
+function htmlSnippetToSlackMrkdwn(html: string): string {
+  return html
+    .replace(/<b>([\s\S]*?)<\/b>/gi, '*$1*')
+    .replace(/<strong>([\s\S]*?)<\/strong>/gi, '*$1*')
+    .replace(/<i>([\s\S]*?)<\/i>/gi, '_$1_')
+    .replace(/<em>([\s\S]*?)<\/em>/gi, '_$1_')
+    .replace(/<code>([\s\S]*?)<\/code>/gi, '`$1`')
+    .replace(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, '<$1|$2>')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
 
 /**
  * Pending state for the interactive `/imgGen` preset picker.
@@ -40,6 +121,7 @@ const IMGGEN_PENDING_TIMEOUT_MS = 5 * 60_000
 
 /** Module-level so Vite HMR does not orphan intervals across Pinia setup closures. */
 let telegramPollIntervalId: ReturnType<typeof setInterval> | null = null
+let slackPollIntervalId: ReturnType<typeof setInterval> | null = null
 
 function disposeTelegramPollHandlers() {
   if (telegramPollIntervalId !== null) {
@@ -48,8 +130,16 @@ function disposeTelegramPollHandlers() {
   }
 }
 
+function disposeSlackPollHandlers() {
+  if (slackPollIntervalId !== null) {
+    clearInterval(slackPollIntervalId)
+    slackPollIntervalId = null
+  }
+}
+
 /** Module-level so HMR release doesn't strand drainQueue mid-patch. */
 let telegramDrainBusy = false
+let slackDrainBusy = false
 
 function extractAssistantReply(messages: AipgUiMessage[] | undefined): string | null {
   if (!messages || messages.length === 0) return null
@@ -80,10 +170,21 @@ export const useHomeAgent = defineStore(
      * register the backend / IPC handlers / preset.
      */
     const isFeatureEnabled = ref(false)
-    const isHomeAgentActive = ref(false)
+    // Per-channel "running" flags. `isHomeAgentActive` is now a computed of
+    // either channel being on, so existing callsites that gate by "are we
+    // currently fielding remote traffic?" keep working without changes.
+    const isTelegramActive = ref(false)
+    const isSlackActive = ref(false)
     const telegramToken = ref<string | null>(null)
     const telegramChatId = ref<string | null>(null)
     const telegramVerified = ref(false)
+    // Slack credentials: tokens live only in safeStorage (not persisted to
+    // pinia disk). `slackUserId` and `slackVerified` ARE persisted so the
+    // "ready to activate" flag survives restarts.
+    const slackBotToken = ref<string | null>(null)
+    const slackAppToken = ref<string | null>(null)
+    const slackUserId = ref<string | null>(null)
+    const slackVerified = ref(false)
 
     /**
      * Conversation key Telegram traffic currently routes into. `null` means
@@ -126,13 +227,26 @@ export const useHomeAgent = defineStore(
     const summaryCache = ref<Record<string, { messageCount: number; summary: string }>>({})
 
     const _messageQueue: TelegramQueueItem[] = []
-    let _userDisabled = false
+    const _slackQueue: RemoteQueueItem[] = []
+    // Per-channel "user explicitly turned this off" so re-enabling one channel
+    // doesn't trample the other.
+    let _telegramUserDisabled = false
+    let _slackUserDisabled = false
 
     const isTelegramConfigured = computed(() => !!telegramToken.value && !!telegramChatId.value)
+    const isSlackConfigured = computed(
+      () => !!slackBotToken.value && !!slackAppToken.value && !!slackUserId.value,
+    )
 
-    // "Ready to activate" = previously verified. telegramVerified is persisted,
-    // so this is true immediately on startup if the user verified in a previous run.
+    // "Ready to activate" = previously verified. *Verified flags are persisted,
+    // so these are true immediately on startup when the user verified earlier.
     const isReadyToActivate = computed(() => telegramVerified.value)
+    const isSlackReadyToActivate = computed(() => slackVerified.value)
+
+    // Umbrella flag — true if either channel is currently fielding traffic.
+    // Many existing call sites (textInference, HomeAgentToggle) treat this as
+    // "are we serving a remote chat right now?" — keep that semantic.
+    const isHomeAgentActive = computed(() => isTelegramActive.value || isSlackActive.value)
 
     const isAvailable = computed(
       () =>
@@ -145,13 +259,15 @@ export const useHomeAgent = defineStore(
       () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.baseUrl,
     )
 
-    // When the backend becomes available and Telegram has been verified, auto-activate.
+    // When the backend becomes available and a channel has been verified,
+    // auto-activate that channel (unless the user explicitly turned it off).
     watch(isAvailable, (val) => {
-      if (val && isReadyToActivate.value && !_userDisabled) {
-        isHomeAgentActive.value = true
-      }
-      if (!val) {
-        isHomeAgentActive.value = false
+      if (val) {
+        if (isReadyToActivate.value && !_telegramUserDisabled) isTelegramActive.value = true
+        if (isSlackReadyToActivate.value && !_slackUserDisabled) isSlackActive.value = true
+      } else {
+        isTelegramActive.value = false
+        isSlackActive.value = false
       }
     })
 
@@ -170,21 +286,51 @@ export const useHomeAgent = defineStore(
       { flush: 'post', immediate: true },
     )
 
+    // Slack mirror — when backend + both Slack tokens are ready, inject so the
+    // Socket Mode bot starts (or restarts if tokens changed).
+    watch(
+      [isAvailable, slackBotToken, slackAppToken, slackUserId],
+      ([avail, bot, appTok, user]) => {
+        const botStr = bot?.trim()
+        const appStr = appTok?.trim()
+        const userStr = user?.trim() || undefined
+        if (!avail || !botStr || !appStr) return
+        void window.electronAPI.homeAgent.slack
+          .injectTokens(botStr, appStr, userStr)
+          .catch((e: unknown) => console.error('homeAgent: slack injectTokens failed:', e))
+      },
+      { flush: 'post', immediate: true },
+    )
+
     // When verification state changes, sync active state.
     watch(isReadyToActivate, (val) => {
       if (!val) {
-        isHomeAgentActive.value = false
-      } else if (isAvailable.value && !_userDisabled) {
-        isHomeAgentActive.value = true
+        isTelegramActive.value = false
+      } else if (isAvailable.value && !_telegramUserDisabled) {
+        isTelegramActive.value = true
+      }
+    })
+    watch(isSlackReadyToActivate, (val) => {
+      if (!val) {
+        isSlackActive.value = false
+      } else if (isAvailable.value && !_slackUserDisabled) {
+        isSlackActive.value = true
       }
     })
 
-    // Start/stop Telegram polling when active state changes
-    watch(isHomeAgentActive, (val) => {
+    // Start/stop per-channel polling when its active state changes.
+    watch(isTelegramActive, (val) => {
       if (val) {
-        startPolling()
+        startTelegramPolling()
       } else {
-        stopPolling()
+        stopTelegramPolling()
+      }
+    })
+    watch(isSlackActive, (val) => {
+      if (val) {
+        startSlackPolling()
+      } else {
+        stopSlackPolling()
       }
     })
 
@@ -390,16 +536,72 @@ export const useHomeAgent = defineStore(
       }
     }
 
+    // ── Channel-dispatch helpers ─────────────────────────────────────────────
+    // All handler bodies funnel outbound traffic through these small wrappers
+    // so the same logic services both Telegram and Slack without duplicating
+    // the slash-command + image-gen pipelines. Each helper takes the current
+    // adapter and (where relevant) the inbound message metadata so Slack can
+    // target reactions / threaded sends.
+
+    async function reply(
+      adapter: ChannelAdapter,
+      htmlSnippet: string,
+      meta?: InboundMeta,
+    ): Promise<{ success: boolean; ref?: ChannelMessageRef; error?: string }> {
+      return adapter.sendReply(adapter.formatRichSnippet(htmlSnippet), { meta })
+    }
+
+    async function replyMarkdown(
+      adapter: ChannelAdapter,
+      md: string,
+      meta?: InboundMeta,
+    ): Promise<{ success: boolean; ref?: ChannelMessageRef; error?: string }> {
+      return adapter.sendReply(adapter.formatMarkdown(md), { meta })
+    }
+
+    async function keyboard(
+      adapter: ChannelAdapter,
+      htmlIntro: string,
+      buttons: Array<Array<{ text: string; callbackData: string }>>,
+      meta?: InboundMeta,
+    ): Promise<{ success: boolean; error?: string }> {
+      return adapter.sendKeyboard({
+        text: adapter.formatRichSnippet(htmlIntro),
+        buttons,
+        meta,
+      })
+    }
+
+    async function photo(
+      adapter: ChannelAdapter,
+      base64: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<{ success: boolean; error?: string }> {
+      return adapter.sendPhoto(base64, caption, { meta })
+    }
+
+    function typing(adapter: ChannelAdapter, action: string, meta?: InboundMeta): () => void {
+      return adapter.startTypingHeartbeat(action, meta)
+    }
+
+    function draftStream(adapter: ChannelAdapter, meta?: InboundMeta): DraftStream {
+      return adapter.createDraftStream({ meta })
+    }
+
     /**
      * Pin the live preset/backend to Home Agent and prep inference so the
      * summarizer uses the bundled Home Agent model. Returns `false` and replies
-     * to Telegram with an error if readiness fails. Used by both `/load` (bare)
-     * and `/history` before they fan out summary calls.
+     * to the active channel with an error if readiness fails. Used by both
+     * `/load` (bare) and `/history` before they fan out summary calls.
      *
      * Lazy-instantiates `useTextInference` to avoid the documented setup-time
      * cycle with this store.
      */
-    async function ensureSummarizerReady(): Promise<boolean> {
+    async function ensureSummarizerReady(
+      adapter: ChannelAdapter,
+      meta?: InboundMeta,
+    ): Promise<boolean> {
       const textInference = useTextInference()
       // Snapshot the user's currently selected desktop preset/variant so we can
       // restore them after we transiently switch to the Home Agent preset for
@@ -415,8 +617,10 @@ export const useHomeAgent = defineStore(
         return true
       } catch (e) {
         console.error('homeAgent: ensureReadyForInference for summary failed:', e)
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ Could not prepare the model to summarize chats. Try again later.',
+          meta,
         )
         return false
       } finally {
@@ -451,24 +655,22 @@ export const useHomeAgent = defineStore(
      * 5-word-or-less summary of that thread; tapping a button is equivalent to
      * `/load <key>` (handled via the Python CallbackQueryHandler on `loadConv:`).
      */
-    async function handleLoadMenu(): Promise<void> {
+    async function handleLoadMenu(adapter: ChannelAdapter, meta?: InboundMeta): Promise<void> {
       focusRemoteChatDiscussion()
 
       const candidates = listRemoteConversations().slice(0, 3)
       if (candidates.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
-          '📭 No saved chats yet. Send a message to start one.',
-        )
+        await reply(adapter, '📭 No saved chats yet. Send a message to start one.', meta)
         return
       }
 
       // Quick acknowledgement so the user knows the bot is working — summary
       // generation can take a few seconds (3 sequential LLM calls worst case).
-      await window.electronAPI.homeAgent.sendTelegramReply('🤔 Preparing recent chats…')
+      await reply(adapter, '🤔 Preparing recent chats…', meta)
 
-      const stopTyping = startTypingHeartbeat('typing')
+      const stopTyping = typing(adapter, 'typing', meta)
       try {
-        if (!(await ensureSummarizerReady())) return
+        if (!(await ensureSummarizerReady(adapter, meta))) return
 
         const items: Array<{ key: string; label: string }> = []
         for (const c of candidates) {
@@ -479,11 +681,7 @@ export const useHomeAgent = defineStore(
 
         const buttons = items.map((it) => [{ text: it.label, callbackData: `loadConv:${it.key}` }])
 
-        await window.electronAPI.homeAgent.sendTelegramKeyboard({
-          text: '📂 Pick a chat to resume:',
-          parseMode: 'HTML',
-          buttons,
-        })
+        await keyboard(adapter, '📂 Pick a chat to resume:', buttons, meta)
       } finally {
         stopTyping()
       }
@@ -502,13 +700,18 @@ export const useHomeAgent = defineStore(
      * their timestamp-based title and a "…" placeholder so the user is not
      * blocked on summarising an old archive.
      */
-    async function handleHistoryCommand(): Promise<void> {
+    async function handleHistoryCommand(
+      adapter: ChannelAdapter,
+      meta?: InboundMeta,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
 
       const items = listRemoteConversations()
       if (items.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '📭 No saved Home Agent chat threads yet. Send a message to start one.',
+          meta,
         )
         return
       }
@@ -525,11 +728,11 @@ export const useHomeAgent = defineStore(
 
       // Heartbeat is only meaningful while we're actually generating; cache-hit
       // path is essentially instant.
-      const stopTyping = anyNeedsGen ? startTypingHeartbeat('typing') : () => {}
+      const stopTyping = anyNeedsGen ? typing(adapter, 'typing', meta) : () => {}
       try {
         if (anyNeedsGen) {
-          await window.electronAPI.homeAgent.sendTelegramReply('🤔 Preparing chat history…')
-          if (!(await ensureSummarizerReady())) return
+          await reply(adapter, '🤔 Preparing chat history…', meta)
+          if (!(await ensureSummarizerReady(adapter, meta))) return
         }
 
         const summaries: Record<string, string> = {}
@@ -550,12 +753,13 @@ export const useHomeAgent = defineStore(
             ? `\n\n…and <b>${trimmedCount}</b> older chat${trimmedCount === 1 ? '' : 's'} (no summary).`
             : ''
 
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '📜 <b>Your Home Agent chats</b>\n\n' +
             lines.join('\n') +
             footer +
             '\n\nResume one with <code>/load &lt;id&gt;</code> or just <code>/load</code> for a tap menu.',
-          'HTML',
+          meta,
         )
       } finally {
         stopTyping()
@@ -563,12 +767,13 @@ export const useHomeAgent = defineStore(
     }
 
     /**
-     * Convert Telegram image payloads into persisted `aipg-media://` URLs and
+     * Convert remote image payloads into persisted `aipg-media://` URLs and
      * return them as AI SDK `FileUIPart`s. Returns `undefined` for empty input
      * so callers can pass the value straight through to `chat.sendMessage`.
      */
-    async function prepareTelegramFiles(
-      images: TelegramImage[] | undefined,
+    async function prepareRemoteFiles(
+      images: RemoteImage[] | undefined,
+      sourceLabel: string,
     ): Promise<FileUIPart[] | undefined> {
       if (!images || images.length === 0) return undefined
       const parts: FileUIPart[] = []
@@ -582,39 +787,50 @@ export const useHomeAgent = defineStore(
             type: 'file',
             mediaType: img.mime,
             url: aipgUrl,
-            filename: `telegram-${Date.now()}-${i}.${ext}`,
+            filename: `${sourceLabel}-${Date.now()}-${i}.${ext}`,
           })
         } catch (e) {
-          console.error('homeAgent: failed to persist Telegram image:', e)
+          console.error(`homeAgent: failed to persist ${sourceLabel} image:`, e)
         }
       }
       return parts.length > 0 ? parts : undefined
     }
 
     /**
-     * If the active chat model does not support vision, reply to Telegram and
-     * return `false` so the caller skips inference. Returns `true` when it's
-     * safe to proceed (no images, or model supports vision).
+     * If the active chat model does not support vision, reply to the channel
+     * and return `false` so the caller skips inference. Returns `true` when
+     * it's safe to proceed (no images, or model supports vision).
      */
-    async function ensureVisionCapableForImages(hasImages: boolean): Promise<boolean> {
+    async function ensureVisionCapableForImages(
+      adapter: ChannelAdapter,
+      hasImages: boolean,
+      meta?: InboundMeta,
+    ): Promise<boolean> {
       if (!hasImages) return true
       // Lazy instantiation: textInference imports useHomeAgent at top of its setup;
       // calling useTextInference() here (not in this store's setup body) avoids
       // a circular setup-time dependency. Same pattern as presetSwitching.
       const textInference = useTextInference()
       if (textInference.modelSupportsVision) return true
-      await window.electronAPI.homeAgent.sendTelegramReply(
+      await reply(
+        adapter,
         '⚠️ The active chat model does not support images. Select a vision-capable model in Chat settings, then resend the image.',
+        meta,
       )
       return false
     }
 
-    async function handleChatMessage(text: string, images?: TelegramImage[]): Promise<void> {
+    async function handleChatMessage(
+      adapter: ChannelAdapter,
+      text: string,
+      images?: RemoteImage[],
+      meta?: InboundMeta,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
       const targetKey = ensureActiveRemoteConversation()
-      if (!(await ensureVisionCapableForImages(!!images?.length))) return
-      const files = await prepareTelegramFiles(images)
-      const stopTyping = startTypingHeartbeat('typing')
+      if (!(await ensureVisionCapableForImages(adapter, !!images?.length, meta))) return
+      const files = await prepareRemoteFiles(images, adapter.kind)
+      const stopTyping = typing(adapter, 'typing', meta)
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -623,12 +839,9 @@ export const useHomeAgent = defineStore(
         })
         maybeSetHomeAgentConversationTitle(targetKey)
         if (!isHomeAgentActive.value) return
-        const reply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
-        if (reply) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
-            markdownToTelegramHtml(reply),
-            'HTML',
-          )
+        const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
+        if (assistantReply) {
+          await replyMarkdown(adapter, assistantReply, meta)
         }
       } finally {
         stopTyping()
@@ -643,7 +856,7 @@ export const useHomeAgent = defineStore(
      *
      * Returns a stop function — idempotent, safe to call from a `finally`.
      */
-    function startTypingHeartbeat(action: string = 'typing'): () => void {
+    function startTelegramTypingHeartbeat(action: string = 'typing'): () => void {
       let stopped = false
       void window.electronAPI.homeAgent.sendTelegramChatAction(action)
       const intervalId = setInterval(() => {
@@ -654,6 +867,36 @@ export const useHomeAgent = defineStore(
         if (stopped) return
         stopped = true
         clearInterval(intervalId)
+      }
+    }
+
+    /**
+     * Slack has no native bot "typing…" indicator in DMs, so we use the
+     * OpenClaw pattern: add an :eyes: reaction to the inbound message when
+     * processing starts and remove it on completion. The reaction is purely
+     * visual feedback — Slack ignores duplicate `reactions.add` so we don't
+     * refresh on a timer the way Telegram requires.
+     *
+     * Without an inbound message ref (no meta.ts / no meta.channel — e.g.
+     * a slash command sent via Slack's command bar carries the channel id
+     * but not a message ts) this becomes a no-op stop function; the user
+     * still sees the reply itself which signals progress.
+     */
+    function startSlackTypingHeartbeat(_action: string, meta?: InboundMeta): () => void {
+      const channel = meta?.channel
+      const ts = meta?.ts
+      const name = 'eyes'
+      if (!channel || !ts) return () => {}
+      void window.electronAPI.homeAgent.slack
+        .sendTypingReaction({ channel, ts, name, action: 'add' })
+        .catch(() => {})
+      let stopped = false
+      return () => {
+        if (stopped) return
+        stopped = true
+        void window.electronAPI.homeAgent.slack
+          .sendTypingReaction({ channel, ts, name, action: 'remove' })
+          .catch(() => {})
       }
     }
 
@@ -728,13 +971,7 @@ export const useHomeAgent = defineStore(
       return id === 0 ? 1 : id
     }
 
-    type DraftStream = {
-      update: (text: string) => void
-      finalize: (finalText: string, finalParseMode?: string) => Promise<void>
-      cancel: () => void
-    }
-
-    function createDraftStream(
+    function createTelegramDraftStream(
       draftId: number,
       parseMode: 'HTML' | 'Markdown' = 'HTML',
     ): DraftStream {
@@ -816,14 +1053,11 @@ export const useHomeAgent = defineStore(
         }
       }
 
-      async function finalize(finalText: string, finalParseMode?: string): Promise<void> {
+      async function finalize(finalText: string): Promise<void> {
         cancel()
         if (!finalText) return
         try {
-          const result = await window.electronAPI.homeAgent.sendTelegramReply(
-            finalText,
-            finalParseMode ?? parseMode,
-          )
+          const result = await window.electronAPI.homeAgent.sendTelegramReply(finalText, parseMode)
           if (!result?.success) {
             console.error(
               'homeAgent: draft finalize sendTelegramReply returned error:',
@@ -832,6 +1066,117 @@ export const useHomeAgent = defineStore(
           }
         } catch (e) {
           console.error('homeAgent: draft finalize sendTelegramReply failed:', e)
+        }
+      }
+
+      return { update, finalize, cancel }
+    }
+
+    /**
+     * Slack draft stream: post a placeholder via chat.postMessage to capture a
+     * `{channel, ts}` handle, then chat.update the same ts on every throttled
+     * update. Same 800 ms throttle + spinner pattern as Telegram, minus the
+     * keep-alive timer (Slack messages don't auto-expire). Best-effort: any
+     * single update failure is swallowed; the final chat.update is the
+     * canonical reply.
+     */
+    function createSlackDraftStream(meta: InboundMeta | undefined): DraftStream {
+      const targetChannel = meta?.channel
+      let baseText = ''
+      let lastSentVariant = ''
+      let messageRef: { channel: string; ts: string } | null = null
+      let throttleTimerId: ReturnType<typeof setTimeout> | null = null
+      let stopped = false
+      // Reuse Telegram's spinner suffix logic so transient updates appear
+      // animated for the user even when the source content has not advanced.
+      let spinnerFrame = 0
+
+      async function ensurePosted(initialText: string): Promise<void> {
+        if (messageRef || stopped) return
+        try {
+          const res = await window.electronAPI.homeAgent.slack.sendReply({
+            text: initialText,
+            channel: targetChannel,
+          })
+          if (res.success && res.ts && res.channel) {
+            messageRef = { channel: res.channel, ts: res.ts }
+            lastSentVariant = initialText
+          }
+        } catch {
+          // best-effort
+        }
+      }
+
+      async function send(variant: string): Promise<void> {
+        if (stopped) return
+        if (!messageRef) {
+          await ensurePosted(variant)
+          return
+        }
+        try {
+          const res = await window.electronAPI.homeAgent.slack.sendUpdate({
+            channel: messageRef.channel,
+            ts: messageRef.ts,
+            text: variant,
+          })
+          if (res.success) lastSentVariant = variant
+        } catch {
+          // swallow — draft updates are best-effort
+        }
+      }
+
+      function scheduleSend(): void {
+        if (stopped || throttleTimerId !== null) return
+        throttleTimerId = setTimeout(() => {
+          throttleTimerId = null
+          if (stopped || !baseText) return
+          if (baseText !== lastSentVariant) void send(baseText)
+        }, DRAFT_THROTTLE_MS)
+      }
+
+      function update(text: string): void {
+        if (stopped) return
+        if (text === baseText) return
+        baseText = text
+        if (lastSentVariant === '' && text !== '') {
+          void send(text)
+          return
+        }
+        // Animate trailing spinner so long quiet phases visibly tick. Slack
+        // doesn't *need* this for preview liveness (no 30 s expiry) but the
+        // UX matches Telegram's behavior.
+        const frame = DRAFT_SPINNER_FRAMES[spinnerFrame % DRAFT_SPINNER_FRAMES.length]
+        spinnerFrame++
+        baseText = `${text} ${frame}`
+        scheduleSend()
+      }
+
+      function cancel(): void {
+        stopped = true
+        if (throttleTimerId !== null) {
+          clearTimeout(throttleTimerId)
+          throttleTimerId = null
+        }
+      }
+
+      async function finalize(finalText: string): Promise<void> {
+        cancel()
+        if (!finalText) return
+        try {
+          if (messageRef) {
+            await window.electronAPI.homeAgent.slack.sendUpdate({
+              channel: messageRef.channel,
+              ts: messageRef.ts,
+              text: finalText,
+            })
+          } else {
+            await window.electronAPI.homeAgent.slack.sendReply({
+              text: finalText,
+              channel: targetChannel,
+            })
+          }
+        } catch (e) {
+          console.error('homeAgent: slack draft finalize failed:', e)
         }
       }
 
@@ -867,11 +1212,15 @@ export const useHomeAgent = defineStore(
      * mid-generation, a watcher on a captured `messages` ref would miss the
      * swap.
      */
-    function watchAndStreamToTelegram(targetKey: string): () => Promise<void> {
+    function watchAndStreamToChannel(
+      adapter: ChannelAdapter,
+      targetKey: string,
+      meta?: InboundMeta,
+    ): () => Promise<void> {
       const sentImagesForPart = new WeakSet<object>()
       let sendChain: Promise<void> = Promise.resolve()
       let stopped = false
-      const draft = createDraftStream(newDraftId(), 'HTML')
+      const draft = draftStream(adapter, meta)
 
       // Snapshot the assistant message that already exists on this thread so we
       // don't stream/ship parts that belong to a previous turn. `chat.sendMessage`
@@ -897,11 +1246,19 @@ export const useHomeAgent = defineStore(
       // Render a single tool-comfyUI / tool-comfyUiImageEdit part. `verb`
       // controls the lead phrase so the live draft reads "Generating using …"
       // (active) and the persisted final reads "Generated using …" (past tense,
-      // since by flush time the tool call has resolved).
+      // since by flush time the tool call has resolved). Output is channel-
+      // native (Telegram HTML vs Slack mrkdwn) so it can be concatenated
+      // straight into the draft text without further conversion.
       function renderImageToolPart(part: RawPart, verb: 'Generating' | 'Generated'): string | null {
         const { workflow, prompt } = part.input ?? {}
         if (!workflow && !prompt) return null
         const phase = part.state === 'output-available' ? '✅' : '🎨'
+        if (adapter.kind === 'slack') {
+          const titleBase = workflow ? `${verb} using preset _${workflow}_` : `${verb} image`
+          const noticeLines = [`${phase} ${titleBase}`]
+          if (prompt) noticeLines.push(`_${prompt}_`)
+          return noticeLines.join('\n')
+        }
         const titleBase = workflow
           ? `${verb} using preset <i>${escapeHtml(workflow)}</i>`
           : `${verb} image`
@@ -915,10 +1272,20 @@ export const useHomeAgent = defineStore(
         for (const part of parts) {
           if (part.type === 'reasoning') {
             const txt = (part.text ?? '').trim()
-            if (txt) lines.push(`<blockquote>💭 ${escapeHtml(txt)}</blockquote>`)
+            if (!txt) continue
+            if (adapter.kind === 'slack') {
+              lines.push(
+                txt
+                  .split('\n')
+                  .map((l) => (l ? `> 💭 ${l}` : '>'))
+                  .join('\n'),
+              )
+            } else {
+              lines.push(`<blockquote>💭 ${escapeHtml(txt)}</blockquote>`)
+            }
           } else if (part.type === 'text') {
             const cleaned = stripAipgMediaReferences(part.text ?? '').trim()
-            if (cleaned) lines.push(markdownToTelegramHtml(cleaned))
+            if (cleaned) lines.push(adapter.formatMarkdown(cleaned))
           } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
             const marker = renderImageToolPart(part, 'Generating')
             if (marker) lines.push(marker)
@@ -944,7 +1311,7 @@ export const useHomeAgent = defineStore(
           if (part.type !== 'reasoning') continue
           const txt = (part.text ?? '').trim()
           if (!txt) continue
-          reasoningChunks.push(escapeHtml(txt))
+          reasoningChunks.push(txt)
           const timing = part.providerMetadata?.aipg
           if (timing?.reasoningStarted && timing?.reasoningFinished) {
             reasoningElapsedMs += Math.max(0, timing.reasoningFinished - timing.reasoningStarted)
@@ -952,11 +1319,22 @@ export const useHomeAgent = defineStore(
         }
         if (reasoningChunks.length > 0) {
           const seconds = (reasoningElapsedMs / 1000).toFixed(1)
-          const header = `💭 <i>Thought for ${seconds} seconds</i>`
-          const body = reasoningChunks.join('\n\n')
-          // Single <blockquote expandable> so Telegram collapses both the
-          // header and the transcript together by default.
-          lines.push(`<blockquote expandable>${header}\n\n${body}</blockquote>`)
+          if (adapter.kind === 'slack') {
+            // Slack has no expandable blockquote; emit a single quoted block
+            // with the timing header at the top.
+            const body = reasoningChunks.join('\n\n')
+            const quoted = `💭 _Thought for ${seconds} seconds_\n\n${body}`
+              .split('\n')
+              .map((l) => (l ? `> ${l}` : '>'))
+              .join('\n')
+            lines.push(quoted)
+          } else {
+            const header = `💭 <i>Thought for ${seconds} seconds</i>`
+            const body = reasoningChunks.map((t) => escapeHtml(t)).join('\n\n')
+            // Single <blockquote expandable> so Telegram collapses both the
+            // header and the transcript together by default.
+            lines.push(`<blockquote expandable>${header}\n\n${body}</blockquote>`)
+          }
         }
         for (const part of parts) {
           if (part.type === 'reasoning') {
@@ -964,7 +1342,7 @@ export const useHomeAgent = defineStore(
             continue
           } else if (part.type === 'text') {
             const cleaned = stripAipgMediaReferences(part.text ?? '').trim()
-            if (cleaned) lines.push(markdownToTelegramHtml(cleaned))
+            if (cleaned) lines.push(adapter.formatMarkdown(cleaned))
           } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
             // Persist the tool marker too — the live draft showed
             // "Generating using preset X"; the persisted message reads
@@ -991,7 +1369,7 @@ export const useHomeAgent = defineStore(
           if (images.length === 0) continue
           enqueueImage(async () => {
             for (const img of images) {
-              await sendImageToTelegram(img.imageUrl, '')
+              await sendImageToChannel(adapter, img.imageUrl, '', meta)
             }
           })
         }
@@ -1026,20 +1404,25 @@ export const useHomeAgent = defineStore(
         const parts = isStaleAssistant ? [] : (lastAssistant!.parts as RawPart[])
         shipPendingImages(parts)
         const finalText = buildFinalText(parts)
-        await draft.finalize(finalText, 'HTML')
+        await draft.finalize(finalText)
         await sendChain
       }
     }
 
-    async function handleAgenticMessage(text: string, images?: TelegramImage[]): Promise<void> {
+    async function handleAgenticMessage(
+      adapter: ChannelAdapter,
+      text: string,
+      images?: RemoteImage[],
+      meta?: InboundMeta,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
       const targetKey = ensureActiveRemoteConversation()
-      if (!(await ensureVisionCapableForImages(!!images?.length))) return
-      const files = await prepareTelegramFiles(images)
+      if (!(await ensureVisionCapableForImages(adapter, !!images?.length, meta))) return
+      const files = await prepareRemoteFiles(images, adapter.kind)
       // Show "typing…" the moment we accept the turn — covers the silent
       // window before the watcher has any reasoning/text/tool part to send.
-      const stopTyping = startTypingHeartbeat('typing')
-      const flush = watchAndStreamToTelegram(targetKey)
+      const stopTyping = typing(adapter, 'typing', meta)
+      const flush = watchAndStreamToChannel(adapter, targetKey, meta)
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -1059,16 +1442,23 @@ export const useHomeAgent = defineStore(
       }
     }
 
-    async function sendImageToTelegram(imageUrl: string, caption: string): Promise<void> {
+    async function sendImageToChannel(
+      adapter: ChannelAdapter,
+      imageUrl: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       try {
         const base64 = await imageToBase64(imageUrl)
-        const result = await window.electronAPI.homeAgent.sendTelegramPhoto(base64, caption)
+        const result = await photo(adapter, base64, caption, meta)
         if (!result.success) {
-          throw new Error(result.error ?? 'sendTelegramPhoto returned failure')
+          throw new Error(result.error ?? 'photo returned failure')
         }
       } catch (e) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           `⚠️ Image was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
         )
       }
     }
@@ -1103,7 +1493,12 @@ export const useHomeAgent = defineStore(
      * (done or stopped/error) sending each one to Telegram as soon as it's ready.
      * Returns when all images have been handled or the timeout expires.
      */
-    async function waitAndSendAllImages(newImageIds: Set<string>, prompt: string): Promise<void> {
+    async function waitAndSendAllImages(
+      adapter: ChannelAdapter,
+      newImageIds: Set<string>,
+      prompt: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       const deadline = Date.now() + IMG_GEN_TIMEOUT_MS
       const sentIds = new Set<string>()
 
@@ -1117,7 +1512,7 @@ export const useHomeAgent = defineStore(
 
           if (img.state === 'done' && isImage(img) && img.imageUrl) {
             sentIds.add(id)
-            await sendImageToTelegram(img.imageUrl, prompt)
+            await sendImageToChannel(adapter, img.imageUrl, prompt, meta)
           } else if (img.state === 'stopped') {
             sentIds.add(id) // count as handled, don't send
           }
@@ -1127,8 +1522,10 @@ export const useHomeAgent = defineStore(
         if (imageGenStore.currentState === 'error') {
           const remaining = [...newImageIds].filter((id) => !sentIds.has(id))
           if (remaining.length > 0) {
-            await window.electronAPI.homeAgent.sendTelegramReply(
+            await reply(
+              adapter,
               '⚠️ Image generation failed. Please check AI Playground for details.',
+              meta,
             )
           }
           return
@@ -1141,9 +1538,7 @@ export const useHomeAgent = defineStore(
       // Timeout — report images that never completed
       const unsent = [...newImageIds].filter((id) => !sentIds.has(id))
       if (unsent.length > 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
-          `⚠️ ${unsent.length} image(s) timed out and were not sent.`,
-        )
+        await reply(adapter, `⚠️ ${unsent.length} image(s) timed out and were not sent.`, meta)
       }
     }
 
@@ -1162,13 +1557,19 @@ export const useHomeAgent = defineStore(
      * (e.g. `/imgGen a sunset over snowy mountains`) so we can generate
      * immediately once they tap a preset — no second message required.
      */
-    async function showImgGenPresetPicker(cachedPrompt: string): Promise<void> {
+    async function showImgGenPresetPicker(
+      adapter: ChannelAdapter,
+      cachedPrompt: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
 
       const comfyService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
       if (!comfyService || comfyService.status !== 'running') {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ Image generation is not available — the ComfyUI backend is not running.',
+          meta,
         )
         return
       }
@@ -1181,14 +1582,18 @@ export const useHomeAgent = defineStore(
         .getPresetsByCategories(['create-images'], 'comfy')
         .filter((p) => !p.excludeFromHomeAgentPicker)
       if (presetsList.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ No image generation presets are available. Configure one in AI Playground.',
+          meta,
         )
         return
       }
 
-      // Telegram caps callback_data at 64 bytes. Preset names in this repo are
-      // short (≤30 chars typical), but guard defensively.
+      // Telegram caps callback_data at 64 bytes; Slack caps action_id at 255
+      // bytes but truncates button labels at 75 chars. Both limits matter —
+      // gate on the tighter Telegram cap so the same picker works for either
+      // channel.
       const encoder = new TextEncoder()
       const buttons: Array<Array<{ text: string; callbackData: string }>> = []
       for (const p of presetsList) {
@@ -1198,8 +1603,10 @@ export const useHomeAgent = defineStore(
         buttons.push([{ text: label, callbackData: cb }])
       }
       if (buttons.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ No image generation presets with safe-length names. Configure one in AI Playground.',
+          meta,
         )
         return
       }
@@ -1214,11 +1621,7 @@ export const useHomeAgent = defineStore(
       const intro = cachedPrompt
         ? '🎨 Pick a preset to generate your image:'
         : '🎨 Pick a preset, then send your prompt as the next message:'
-      await window.electronAPI.homeAgent.sendTelegramKeyboard({
-        text: intro,
-        parseMode: 'HTML',
-        buttons,
-      })
+      await keyboard(adapter, intro, buttons, meta)
     }
 
     /**
@@ -1227,9 +1630,10 @@ export const useHomeAgent = defineStore(
      * `runImgGenWithPreset` so the user sees animated transitions through
      * `install_workflow_components` → `load_*` → `generating N/M` → photo.
      */
-    function imgGenPhaseText(presetName: string): string {
+    function imgGenPhaseText(adapter: ChannelAdapter, presetName: string): string {
       const state = imageGenStore.currentState
       const step = imageGenStore.stepText
+      const slack = adapter.kind === 'slack'
       switch (state) {
         case 'install_workflow_components':
           return '🛠 Installing workflow components…'
@@ -1239,13 +1643,16 @@ export const useHomeAgent = defineStore(
         case 'load_model_components':
           return '🎨 Loading model…'
         case 'generating':
-          return step ? `✨ ${escapeHtml(step)}` : '✨ Generating…'
+          if (!step) return '✨ Generating…'
+          return slack ? `✨ ${step}` : `✨ ${escapeHtml(step)}`
         case 'image_out':
           return '🖼 Finalizing image…'
         case 'error':
         case 'no_start':
         default:
-          return `🎬 Preparing <i>${escapeHtml(presetName)}</i>…`
+          return slack
+            ? `🎬 Preparing _${presetName}_…`
+            : `🎬 Preparing <i>${escapeHtml(presetName)}</i>…`
       }
     }
 
@@ -1254,11 +1661,18 @@ export const useHomeAgent = defineStore(
      * both the cached-prompt fast-path (preset tap with prompt already supplied)
      * and the awaitingPrompt → free-text path (preset tap, then prompt arrives).
      */
-    async function runImgGenWithPreset(presetName: string, prompt: string): Promise<void> {
+    async function runImgGenWithPreset(
+      adapter: ChannelAdapter,
+      presetName: string,
+      prompt: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       const comfyService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
       if (!comfyService || comfyService.status !== 'running') {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ Image generation is not available — the ComfyUI backend is not running.',
+          meta,
         )
         return
       }
@@ -1266,16 +1680,18 @@ export const useHomeAgent = defineStore(
       const previousMode = promptStore.getCurrentMode()
       // `upload_photo` so Telegram shows "sending a photo…" rather than
       // "typing…" during the ComfyUI render — matches the eventual delivery.
-      const stopTyping = startTypingHeartbeat('upload_photo')
+      // Slack ignores the action name and just toggles the :eyes: reaction.
+      const stopTyping = typing(adapter, 'upload_photo', meta)
 
-      // Phase-aware draft. Drafts auto-expire 30 s after the last update, so
-      // the keep-alive timer inside `createDraftStream` covers the gap between
-      // ComfyUI state transitions during long model loads.
-      const draft = createDraftStream(newDraftId(), 'HTML')
+      // Phase-aware draft. Drafts auto-expire 30 s after the last update on
+      // Telegram (Slack has no expiry), so the keep-alive timer inside
+      // `createTelegramDraftStream` covers the gap between ComfyUI state
+      // transitions during long model loads.
+      const draft = draftStream(adapter, meta)
       let phaseStopped = false
       const updateDraftPhase = () => {
         if (phaseStopped) return
-        draft.update(imgGenPhaseText(presetName))
+        draft.update(imgGenPhaseText(adapter, presetName))
       }
       updateDraftPhase()
       const phaseIntervalId = setInterval(updateDraftPhase, 500)
@@ -1293,26 +1709,31 @@ export const useHomeAgent = defineStore(
           skipModeSwitch: true,
         })
         if (!switchResult.success) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
-            `⚠️ Could not select preset <i>${escapeHtml(presetName)}</i>: ${escapeHtml(
-              switchResult.error ?? 'unknown error',
-            )}`,
-            'HTML',
-          )
+          const presetLabel =
+            adapter.kind === 'slack' ? `_${presetName}_` : `<i>${escapeHtml(presetName)}</i>`
+          const errLabel =
+            adapter.kind === 'slack'
+              ? (switchResult.error ?? 'unknown error')
+              : escapeHtml(switchResult.error ?? 'unknown error')
+          await reply(adapter, `⚠️ Could not select preset ${presetLabel}: ${errLabel}`, meta)
           return
         }
 
         if (!imageGenStore.activePreset) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             '⚠️ No image generation preset is selected. Please configure one in AI Playground.',
+            meta,
           )
           return
         }
 
         const validation = await imageGenStore.validatePresetRequirements()
         if (!validation.backendRunning) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             '⚠️ Image generation is not available — the ComfyUI backend is not running.',
+            meta,
           )
           return
         }
@@ -1330,8 +1751,10 @@ export const useHomeAgent = defineStore(
             parts.push(`missing custom nodes: ${validation.missingCustomNodes.join(', ')}`)
           if (validation.missingPythonPackages.length > 0)
             parts.push(`missing packages: ${validation.missingPythonPackages.join(', ')}`)
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             `⚠️ Image generation requirements are not met: ${parts.join('; ')}. Please configure AI Playground first.`,
+            meta,
           )
           return
         }
@@ -1341,8 +1764,10 @@ export const useHomeAgent = defineStore(
         try {
           await imageGenStore.generate('imageGen')
         } catch (e) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             `⚠️ Image generation failed to start: ${e instanceof Error ? e.message : String(e)}`,
+            meta,
           )
           return
         }
@@ -1354,13 +1779,11 @@ export const useHomeAgent = defineStore(
         )
 
         if (newImageIds.size === 0) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
-            '⚠️ Image generation did not produce any images.',
-          )
+          await reply(adapter, '⚠️ Image generation did not produce any images.', meta)
           return
         }
 
-        await waitAndSendAllImages(newImageIds, prompt)
+        await waitAndSendAllImages(adapter, newImageIds, prompt, meta)
       } finally {
         stopDraft()
         stopTyping()
@@ -1375,13 +1798,17 @@ export const useHomeAgent = defineStore(
      * we generate immediately. Otherwise we transition to `awaitingPrompt` and
      * wait for the next plain-text message.
      */
-    async function handleImgGenPresetCallback(presetName: string): Promise<void> {
+    async function handleImgGenPresetCallback(
+      adapter: ChannelAdapter,
+      presetName: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       const pending = pendingImgGen.value
       const cachedPrompt = pending?.phase === 'awaitingPresetTap' ? pending.cachedPrompt.trim() : ''
 
       if (cachedPrompt) {
         pendingImgGen.value = null
-        await runImgGenWithPreset(presetName, cachedPrompt)
+        await runImgGenWithPreset(adapter, presetName, cachedPrompt, meta)
         return
       }
 
@@ -1390,27 +1817,43 @@ export const useHomeAgent = defineStore(
         presetName,
         deadline: Date.now() + IMGGEN_PENDING_TIMEOUT_MS,
       }
-      await window.electronAPI.homeAgent.sendTelegramReply(
+      await reply(
+        adapter,
         `✅ Selected <i>${escapeHtml(presetName)}</i>.\nNow send your prompt as the next message, or /cancel to abort.`,
-        'HTML',
+        meta,
       )
     }
 
     /** Cancel button on the picker OR the /cancel slash command. */
-    async function handleImgGenCancel(): Promise<void> {
+    async function handleImgGenCancel(adapter: ChannelAdapter, meta?: InboundMeta): Promise<void> {
       const wasPending = pendingImgGen.value !== null
       pendingImgGen.value = null
-      await window.electronAPI.homeAgent.sendTelegramReply(
+      await reply(
+        adapter,
         wasPending ? '✖ Image generation cancelled.' : 'Nothing to cancel.',
+        meta,
       )
     }
 
-    async function drainQueue() {
-      if (telegramDrainBusy) return
-      telegramDrainBusy = true
+    /**
+     * Channel-agnostic queue drain. Pulls items off the per-channel queue and
+     * dispatches them through `adapter`. The busy flag (`isBusy`) is captured
+     * via getter/setter so the module-level `telegramDrainBusy` / `slackDrainBusy`
+     * variables can be flipped without needing an object wrapper.
+     */
+    async function drainCommonQueue(
+      queue: RemoteQueueItem[],
+      adapter: ChannelAdapter,
+      isActiveRef: typeof isTelegramActive,
+      isBusyGetter: () => boolean,
+      isBusySetter: (v: boolean) => void,
+    ) {
+      if (isBusyGetter()) return
+      isBusySetter(true)
       try {
-        while (_messageQueue.length > 0 && isHomeAgentActive.value) {
-          const item = _messageQueue.shift()!
+        while (queue.length > 0 && isActiveRef.value) {
+          const item = queue.shift()!
+          const meta = item.meta
           expireImgGenPendingIfStale()
 
           // Inline-keyboard taps from the /imgGen preset picker arrive with a
@@ -1419,13 +1862,13 @@ export const useHomeAgent = defineStore(
           if (item.callback) {
             try {
               if (item.callback === 'imgGen:cancel') {
-                await handleImgGenCancel()
+                await handleImgGenCancel(adapter, meta)
               } else if (item.callback.startsWith('imgGen:preset:')) {
                 const name = item.callback.slice('imgGen:preset:'.length)
-                await handleImgGenPresetCallback(name)
+                await handleImgGenPresetCallback(adapter, name, meta)
               }
             } catch (e) {
-              console.error('Error processing Telegram callback:', e)
+              console.error(`Error processing ${adapter.kind} callback:`, e)
             }
             continue
           }
@@ -1435,64 +1878,67 @@ export const useHomeAgent = defineStore(
           try {
             if (HELP_REGEX.test(text)) {
               focusRemoteChatDiscussion()
-              await window.electronAPI.homeAgent.sendTelegramReply(HELP_MESSAGE, 'HTML')
+              await reply(adapter, HELP_MESSAGE, meta)
             } else if (CANCEL_REGEX.test(text)) {
-              await handleImgGenCancel()
+              await handleImgGenCancel(adapter, meta)
             } else if (NEW_REGEX.test(text)) {
               const newKey = createNewRemoteConversation()
               focusRemoteChatDiscussion()
-              await window.electronAPI.homeAgent.sendTelegramReply(
+              await reply(
+                adapter,
                 `🆕 Started a new chat thread: <i>${homeAgentTitleFor(newKey).replace(/[<>&]/g, '')}</i>.\nNext message will land in this thread.`,
-                'HTML',
+                meta,
               )
             } else if (HISTORY_REGEX.test(text)) {
-              await handleHistoryCommand()
+              await handleHistoryCommand(adapter, meta)
             } else if (LOAD_BARE_REGEX.test(text)) {
-              await handleLoadMenu()
+              await handleLoadMenu(adapter, meta)
             } else if (LOAD_REGEX.test(text)) {
               const match = text.match(LOAD_REGEX)
               const arg = match?.[1] ?? ''
               const key = resolveLoadTarget(arg)
               if (!key) {
-                // `arg` is user-supplied from `/load <id>` and goes into HTML
-                // parse mode — unescaped `<`/`&` would either be dropped by
-                // Telegram or cause the whole message to be rejected.
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                // `arg` is user-supplied from `/load <id>` — keep the original
+                // HTML markers for Telegram; the adapter's formatRichSnippet
+                // strips them for Slack and the inner text remains intact.
+                await reply(
+                  adapter,
                   `⚠️ Couldn't find a chat with id <code>${escapeHtml(arg)}</code>. Try <code>/history</code> first.`,
-                  'HTML',
+                  meta,
                 )
               } else if (switchRemoteConversation(key)) {
                 focusRemoteChatDiscussion()
                 const items = listRemoteConversations()
-                const item = items.find((i) => i.key === key)
-                await window.electronAPI.homeAgent.sendTelegramReply(
-                  `📂 Loaded <i>${escapeHtml(item?.title ?? key)}</i>.\nReplies and new messages now use this thread.`,
-                  'HTML',
+                const found = items.find((i) => i.key === key)
+                await reply(
+                  adapter,
+                  `📂 Loaded <i>${escapeHtml(found?.title ?? key)}</i>.\nReplies and new messages now use this thread.`,
+                  meta,
                 )
               } else {
-                await window.electronAPI.homeAgent.sendTelegramReply(
-                  '⚠️ Could not load that chat thread.',
-                )
+                await reply(adapter, '⚠️ Could not load that chat thread.', meta)
               }
             } else if (IMG_GEN_REGEX.test(text)) {
               const prompt = text.replace(IMG_GEN_REGEX, '').trim()
               if (images?.length) {
-                // /imgGen is text-to-image — the Telegram photo is not used as a reference.
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                // /imgGen is text-to-image — the photo is not used as reference.
+                await reply(
+                  adapter,
                   'ℹ️ <code>/imgGen</code> is text-only — the attached photo is ignored.',
-                  'HTML',
+                  meta,
                 )
               }
-              await showImgGenPresetPicker(prompt)
+              await showImgGenPresetPicker(adapter, prompt, meta)
             } else if (CHAT_REGEX.test(text)) {
               const msg = text.replace(CHAT_REGEX, '').trim()
               if (msg || images?.length) {
-                await handleChatMessage(msg, images)
+                await handleChatMessage(adapter, msg, images, meta)
               } else {
                 focusRemoteChatDiscussion()
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                await reply(
+                  adapter,
                   '⚠️ Please add a message after the command.\nExample: <code>/chat Hello, world!</code>',
-                  'HTML',
+                  meta,
                 )
               }
             } else if (pendingImgGen.value?.phase === 'awaitingPrompt') {
@@ -1502,34 +1948,114 @@ export const useHomeAgent = defineStore(
               const presetName = pendingImgGen.value.presetName
               const promptText = images?.length && text === '[image]' ? '' : text.trim()
               if (!promptText) {
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                await reply(
+                  adapter,
                   '⚠️ Please send your prompt as text. Photos are ignored for /imgGen. /cancel to abort.',
-                  'HTML',
+                  meta,
                 )
               } else {
                 pendingImgGen.value = null
-                await runImgGenWithPreset(presetName, promptText)
+                await runImgGenWithPreset(adapter, presetName, promptText, meta)
               }
             } else if (pendingImgGen.value?.phase === 'awaitingPresetTap' && text.trim()) {
               // The picker keyboard is still up; remind the user to tap a button.
-              await window.electronAPI.homeAgent.sendTelegramReply(
-                '🖼️ Tap a preset above, or /cancel to dismiss the picker.',
-                'HTML',
-              )
+              await reply(adapter, '🖼️ Tap a preset above, or /cancel to dismiss the picker.', meta)
             } else {
               // Agentic mode — AI decides whether to chat or generate an image.
               // For photo-only messages the Python side queues "[image]" as a
               // placeholder; clear it so the model isn't biased by a literal token.
               const agenticText = images?.length && text === '[image]' ? '' : text
-              await handleAgenticMessage(agenticText, images)
+              await handleAgenticMessage(adapter, agenticText, images, meta)
             }
           } catch (e) {
-            console.error('Error processing Telegram message:', e)
+            console.error(`Error processing ${adapter.kind} message:`, e)
           }
         }
       } finally {
-        telegramDrainBusy = false
+        isBusySetter(false)
       }
+    }
+
+    // ── Channel adapters ──────────────────────────────────────────────────
+    // Defined after all the helpers they wrap so they can close over them.
+    // Method-shorthand keeps lookups lazy — the adapter object is constructed
+    // at setup time but each method body only runs at invocation, by which
+    // point every referenced helper exists.
+    const telegramAdapter: ChannelAdapter = {
+      kind: 'telegram',
+      formatMarkdown: markdownToTelegramHtml,
+      formatRichSnippet: (s) => s, // Telegram already speaks HTML
+      sendReply: async (text, _opts) => {
+        const r = await window.electronAPI.homeAgent.sendTelegramReply(text, 'HTML')
+        return { success: r.success, error: r.error, ref: r.success ? { draftId: 0 } : undefined }
+      },
+      sendPhoto: async (base64, caption) => {
+        return window.electronAPI.homeAgent.sendTelegramPhoto(base64, caption)
+      },
+      sendKeyboard: async ({ text, buttons }) => {
+        return window.electronAPI.homeAgent.sendTelegramKeyboard({
+          text,
+          parseMode: 'HTML',
+          buttons,
+        })
+      },
+      startTypingHeartbeat: (action) => startTelegramTypingHeartbeat(action),
+      createDraftStream: () => createTelegramDraftStream(newDraftId(), 'HTML'),
+    }
+
+    const slackAdapter: ChannelAdapter = {
+      kind: 'slack',
+      formatMarkdown: markdownToSlackMrkdwn,
+      formatRichSnippet: htmlSnippetToSlackMrkdwn,
+      sendReply: async (text, opts) => {
+        const r = await window.electronAPI.homeAgent.slack.sendReply({
+          text,
+          channel: opts?.meta?.channel,
+        })
+        return {
+          success: r.success,
+          error: r.error,
+          ref: r.success && r.ts && r.channel ? { ts: r.ts, channel: r.channel } : undefined,
+        }
+      },
+      sendPhoto: async (base64, caption, opts) => {
+        return window.electronAPI.homeAgent.slack.sendPhoto({
+          imageBase64: base64,
+          caption,
+          channel: opts?.meta?.channel,
+        })
+      },
+      sendKeyboard: async ({ text, buttons, meta }) => {
+        // Translate the channel-agnostic button matrix into Block Kit actions.
+        // Slack limits 5 buttons per actions block and 25 elements per message,
+        // so we break wide rows across multiple actions blocks. Action labels
+        // truncate at 75 chars per Slack's spec.
+        const blocks: Array<Record<string, unknown>> = [
+          { type: 'section', text: { type: 'mrkdwn', text } },
+        ]
+        for (const row of buttons) {
+          for (let i = 0; i < row.length; i += 5) {
+            const slice = row.slice(i, i + 5)
+            blocks.push({
+              type: 'actions',
+              elements: slice.map((b) => ({
+                type: 'button',
+                text: { type: 'plain_text', text: b.text.slice(0, 75) },
+                action_id: b.callbackData.slice(0, 255),
+                value: b.callbackData.slice(0, 2000),
+              })),
+            })
+          }
+        }
+        const r = await window.electronAPI.homeAgent.slack.sendKeyboard({
+          text,
+          blocks,
+          channel: meta?.channel,
+        })
+        return { success: r.success, error: r.error }
+      },
+      startTypingHeartbeat: (action, meta) => startSlackTypingHeartbeat(action, meta),
+      createDraftStream: (opts) => createSlackDraftStream(opts?.meta),
     }
 
     async function processTelegramMessages() {
@@ -1543,22 +2069,74 @@ export const useHomeAgent = defineStore(
           }
           _messageQueue.push({ text: msg.text, images: msg.images, callback: msg.callback })
         }
-        void drainQueue()
+        void drainCommonQueue(
+          _messageQueue,
+          telegramAdapter,
+          isTelegramActive,
+          () => telegramDrainBusy,
+          (v) => {
+            telegramDrainBusy = v
+          },
+        )
       } catch (e) {
         console.error('Error polling Telegram:', e)
       }
     }
 
-    function startPolling() {
+    async function processSlackMessages() {
+      try {
+        const msgs = await window.electronAPI.homeAgent.slack.pollSlack()
+        if (!msgs || msgs.length === 0) return
+        for (const msg of msgs) {
+          if (_slackQueue.length >= MAX_QUEUE_SIZE) {
+            toast.warning('Home Agent: Slack queue full, dropping oldest message.')
+            _slackQueue.shift()
+          }
+          _slackQueue.push({
+            text: msg.text,
+            images: msg.images,
+            callback: msg.callback,
+            // Thread the inbound metadata so the Slack adapter can target
+            // reactions / threaded sends at the originating message.
+            meta: { channel: msg.channel, ts: msg.ts, chatId: msg.chat_id },
+          })
+        }
+        void drainCommonQueue(
+          _slackQueue,
+          slackAdapter,
+          isSlackActive,
+          () => slackDrainBusy,
+          (v) => {
+            slackDrainBusy = v
+          },
+        )
+      } catch (e) {
+        console.error('Error polling Slack:', e)
+      }
+    }
+
+    function startTelegramPolling() {
       disposeTelegramPollHandlers()
       telegramPollIntervalId = setInterval(() => {
         void processTelegramMessages()
       }, POLL_INTERVAL_MS)
     }
 
-    function stopPolling() {
+    function stopTelegramPolling() {
       disposeTelegramPollHandlers()
       _messageQueue.length = 0
+    }
+
+    function startSlackPolling() {
+      disposeSlackPollHandlers()
+      slackPollIntervalId = setInterval(() => {
+        void processSlackMessages()
+      }, POLL_INTERVAL_MS)
+    }
+
+    function stopSlackPolling() {
+      disposeSlackPollHandlers()
+      _slackQueue.length = 0
     }
 
     async function saveConfig(
@@ -1574,8 +2152,8 @@ export const useHomeAgent = defineStore(
           // Reset verified only when credentials actually change — must re-verify
           if (configChanged) {
             telegramVerified.value = false
-            isHomeAgentActive.value = false
-            _userDisabled = false
+            isTelegramActive.value = false
+            _telegramUserDisabled = false
           }
         }
         return result
@@ -1594,12 +2172,63 @@ export const useHomeAgent = defineStore(
       telegramToken.value = null
       telegramChatId.value = null
       telegramVerified.value = false
-      isHomeAgentActive.value = false
-      _userDisabled = false
+      isTelegramActive.value = false
+      _telegramUserDisabled = false
     }
 
     function setVerified() {
       telegramVerified.value = true
+    }
+
+    // ── Slack config + activation ────────────────────────────────────────
+    async function saveSlackConfig(
+      botToken: string,
+      appToken: string,
+      userId: string,
+    ): Promise<{ success: boolean; error?: string }> {
+      try {
+        const result = await window.electronAPI.homeAgent.slack.saveConfig(
+          botToken,
+          appToken,
+          userId,
+        )
+        if (result.success) {
+          const changed =
+            botToken !== slackBotToken.value ||
+            appToken !== slackAppToken.value ||
+            userId !== slackUserId.value
+          slackBotToken.value = botToken
+          slackAppToken.value = appToken
+          slackUserId.value = userId
+          if (changed) {
+            slackVerified.value = false
+            isSlackActive.value = false
+            _slackUserDisabled = false
+          }
+        }
+        return result
+      } catch (e) {
+        console.error('homeAgent.saveSlackConfig failed:', e)
+        return { success: false, error: String(e) }
+      }
+    }
+
+    async function clearSlackConfig(): Promise<void> {
+      try {
+        await window.electronAPI.homeAgent.slack.clearConfig()
+      } catch (e) {
+        console.error('homeAgent.clearSlackConfig failed:', e)
+      }
+      slackBotToken.value = null
+      slackAppToken.value = null
+      slackUserId.value = null
+      slackVerified.value = false
+      isSlackActive.value = false
+      _slackUserDisabled = false
+    }
+
+    function setSlackVerified() {
+      slackVerified.value = true
     }
 
     function activate() {
@@ -1613,23 +2242,69 @@ export const useHomeAgent = defineStore(
         toast.error('Complete Telegram setup and verify the connection in Setup Wizard.')
         return
       }
-      _userDisabled = false
-      isHomeAgentActive.value = true
+      _telegramUserDisabled = false
+      isTelegramActive.value = true
       focusRemoteChatDiscussion()
     }
 
-    function toggle() {
+    function activateSlack() {
+      if (!isAvailable.value) {
+        toast.error(
+          'Home Agent is not installed. Please install it from App Settings → Installation Management.',
+        )
+        return
+      }
+      if (!isSlackReadyToActivate.value) {
+        toast.error('Complete Slack setup and verify the connection in Setup Wizard.')
+        return
+      }
+      _slackUserDisabled = false
+      isSlackActive.value = true
+      focusRemoteChatDiscussion()
+    }
+
+    /** Toggle a specific channel, or both at once when `kind` is omitted (the
+     *  no-arg form preserves back-compat for callers like `HomeAgentToggle`). */
+    function toggle(kind?: ChannelKind) {
+      if (kind === 'slack') {
+        if (isSlackActive.value) {
+          _slackUserDisabled = true
+          isSlackActive.value = false
+        } else {
+          activateSlack()
+        }
+        return
+      }
+      if (kind === 'telegram') {
+        if (isTelegramActive.value) {
+          _telegramUserDisabled = true
+          isTelegramActive.value = false
+        } else {
+          activate()
+        }
+        return
+      }
+      // No kind specified — toggle the umbrella state. If anything is on, turn
+      // every configured-and-active channel off; otherwise turn each ready
+      // channel on. Matches the back-compat semantics of the original toggle().
       if (isHomeAgentActive.value) {
-        _userDisabled = true
-        isHomeAgentActive.value = false
+        if (isTelegramActive.value) {
+          _telegramUserDisabled = true
+          isTelegramActive.value = false
+        }
+        if (isSlackActive.value) {
+          _slackUserDisabled = true
+          isSlackActive.value = false
+        }
       } else {
-        activate()
+        if (isReadyToActivate.value) activate()
+        if (isSlackReadyToActivate.value) activateSlack()
       }
     }
 
     // Load token from safeStorage (not persisted to disk for security).
-    // telegramChatId and telegramVerified ARE persisted, so they are already
-    // populated synchronously before this resolves.
+    // *Verified and *ChatId/*UserId ARE persisted via Pinia, so they are
+    // already populated synchronously before this resolves.
     async function initConfig() {
       try {
         // Resolve the feature flag first; when it's off there is no Home Agent
@@ -1645,7 +2320,12 @@ export const useHomeAgent = defineStore(
           telegramToken.value = null
           telegramChatId.value = null
           telegramVerified.value = false
-          isHomeAgentActive.value = false
+          isTelegramActive.value = false
+          slackBotToken.value = null
+          slackAppToken.value = null
+          slackUserId.value = null
+          slackVerified.value = false
+          isSlackActive.value = false
           return
         }
         const cfg = await window.electronAPI.homeAgent.loadConfig()
@@ -1653,10 +2333,21 @@ export const useHomeAgent = defineStore(
           telegramToken.value = cfg.token
           telegramChatId.value = cfg.chatId
         } else if (!telegramVerified.value) {
-          // No config in safeStorage — clear everything only if nothing was persisted
+          // No Telegram config in safeStorage — clear only if nothing was persisted.
           telegramToken.value = null
           telegramChatId.value = null
-          isHomeAgentActive.value = false
+          isTelegramActive.value = false
+        }
+        const slackCfg = await window.electronAPI.homeAgent.slack.loadConfig()
+        if (slackCfg) {
+          slackBotToken.value = slackCfg.botToken
+          slackAppToken.value = slackCfg.appToken
+          slackUserId.value = slackCfg.userId || null
+        } else if (!slackVerified.value) {
+          slackBotToken.value = null
+          slackAppToken.value = null
+          slackUserId.value = null
+          isSlackActive.value = false
         }
       } catch (e) {
         console.error('homeAgent.initConfig failed:', e)
@@ -1668,11 +2359,19 @@ export const useHomeAgent = defineStore(
     return {
       isFeatureEnabled,
       isHomeAgentActive,
+      isTelegramActive,
+      isSlackActive,
       isTelegramConfigured,
+      isSlackConfigured,
       isReadyToActivate,
+      isSlackReadyToActivate,
       telegramVerified,
       telegramChatId,
       telegramToken,
+      slackVerified,
+      slackUserId,
+      slackBotToken,
+      slackAppToken,
       isAvailable,
       homeAgentBaseUrl,
       // Remote conversation registry
@@ -1690,24 +2389,36 @@ export const useHomeAgent = defineStore(
       summaryCache,
       summarizeConversation,
       activate,
+      activateSlack,
       toggle,
       saveConfig,
       clearConfig,
       setVerified,
+      saveSlackConfig,
+      clearSlackConfig,
+      setSlackVerified,
     }
   },
   {
     persist: {
       storage: demoAwareStorage,
       // telegramChatId persisted (non-sensitive) for display purposes.
-      // telegramVerified persisted — this is the key flag for "ready to activate".
-      // telegramToken NOT persisted — lives only in safeStorage.
-      // isHomeAgentActive NOT persisted — re-derived on startup by watchers
-      //   (isAvailable is false until the backend service reports ready).
+      // *Verified flags persisted — the key signals for "ready to activate".
+      // Tokens NOT persisted — they live only in safeStorage on the Electron side.
+      // isHomeAgentActive / per-channel actives NOT persisted — re-derived on
+      //   startup by watchers (isAvailable is false until the backend service
+      //   reports ready).
       // activeRemoteConversationKey persisted so /load <id> survives restart and
-      //   the same Telegram thread keeps draining into its conversation bucket.
+      //   the same Telegram or Slack thread keeps draining into its bucket.
       // summaryCache persisted so /load menu summaries survive restarts.
-      pick: ['telegramVerified', 'telegramChatId', 'activeRemoteConversationKey', 'summaryCache'],
+      pick: [
+        'telegramVerified',
+        'telegramChatId',
+        'slackVerified',
+        'slackUserId',
+        'activeRemoteConversationKey',
+        'summaryCache',
+      ],
     },
   },
 )
@@ -1715,7 +2426,9 @@ export const useHomeAgent = defineStore(
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     disposeTelegramPollHandlers()
+    disposeSlackPollHandlers()
     telegramDrainBusy = false
+    slackDrainBusy = false
   })
   import.meta.hot.accept(acceptHMRUpdate(useHomeAgent, import.meta.hot))
 }
