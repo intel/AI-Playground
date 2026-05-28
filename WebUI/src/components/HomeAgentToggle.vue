@@ -8,24 +8,16 @@
     </span>
 
     <ChannelChip
-      kind="telegram"
-      label="Telegram"
-      :icon-color="'#26a5e4'"
-      :is-active="isTelegramActive"
+      v-for="descriptor in CHANNELS"
+      :key="descriptor.kind"
+      :kind="descriptor.kind"
+      :label="descriptor.displayName"
+      :icon-color="descriptor.brandColor"
+      :is-active="homeAgent.channels[descriptor.kind].active"
       :is-available="isAvailable"
-      :is-ready="isTelegramReady"
-      :title="telegramTitle"
-      @toggle="homeAgent.toggle('telegram')"
-    />
-    <ChannelChip
-      kind="slack"
-      label="Slack"
-      :icon-color="'#36C5F0'"
-      :is-active="isSlackActive"
-      :is-available="isAvailable"
-      :is-ready="isSlackReady"
-      :title="slackTitle"
-      @toggle="homeAgent.toggle('slack')"
+      :is-ready="isAvailable && homeAgent.channels[descriptor.kind].verified"
+      :title="titleFor(descriptor.kind)"
+      @toggle="homeAgent.toggle(descriptor.kind)"
     />
 
     <button
@@ -47,38 +39,30 @@ import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { CHANNELS } from '@/assets/js/store/channels/channelRegistry'
+import type { ChannelKind } from '@/assets/js/store/channels/types'
 
 const homeAgent = useHomeAgent()
 const setupWizard = useSetupWizard()
 const backendServices = useBackendServices()
 
 const isAvailable = computed(() => homeAgent.isAvailable)
-const isTelegramActive = computed(() => homeAgent.isTelegramActive)
-const isSlackActive = computed(() => homeAgent.isSlackActive)
-const isTelegramReady = computed(() => homeAgent.isReadyToActivate)
-const isSlackReady = computed(() => homeAgent.isSlackReadyToActivate)
 const isInstalled = computed(
   () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.isSetUp === true,
 )
 
-const telegramTitle = computed(() => {
+function titleFor(kind: ChannelKind): string {
+  const descriptor = CHANNELS.find((c) => c.kind === kind)
+  const name = descriptor?.displayName ?? kind
   if (!isAvailable.value)
     return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
-  if (!isTelegramReady.value)
-    return 'Verify the Telegram connection in Setup Wizard before turning it on.'
-  return isTelegramActive.value
-    ? 'Telegram channel on — click to turn off.'
-    : 'Telegram channel off — click to enable.'
-})
-const slackTitle = computed(() => {
-  if (!isAvailable.value)
-    return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
-  if (!isSlackReady.value)
-    return 'Verify the Slack connection in Setup Wizard before turning it on.'
-  return isSlackActive.value
-    ? 'Slack channel on — click to turn off.'
-    : 'Slack channel off — click to enable.'
-})
+  const state = homeAgent.channels[kind]
+  if (!state.verified) return `Verify the ${name} connection in Setup Wizard before turning it on.`
+  return state.active
+    ? `${name} channel on — click to turn off.`
+    : `${name} channel off — click to enable.`
+}
+
 const anyTitle = computed(() => {
   if (!isInstalled.value)
     return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
@@ -89,8 +73,6 @@ function openSetup() {
   void setupWizard.openHomeAgentSetup()
 }
 
-// Inline chip component — kept local because it's only used here and the
-// styling is tightly bound to the toggle row's layout.
 const ChannelChip = {
   props: {
     kind: { type: String, required: true },

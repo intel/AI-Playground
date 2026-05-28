@@ -10,7 +10,7 @@ const BOT_TOKEN_RE = /^xox[bp]-\d+-\d+-[A-Za-z0-9-]+$/
 const APP_TOKEN_RE = /^xapp-\d+-[A-Z0-9]+-[A-Za-z0-9]+$/
 
 /**
- * Slack-side mirror of `useHomeAgentSetup`. Provides the same shape so the
+ * Slack-side mirror of `useTelegramSetup`. Provides the same shape so the
  * setup-wizard UI can be a thin shell over the same wizard-step pattern
  * (paste tokens → detect user → verify → save).
  */
@@ -27,7 +27,17 @@ export function useSlackSetup() {
   const verifyStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
   const verifyError = ref('')
 
-  const isAlreadyConfigured = computed(() => homeAgent.isSlackConfigured)
+  const isAlreadyConfigured = computed(() => {
+    const cfg = homeAgent.channels.slack.config as { botToken?: string; appToken?: string }
+    return !!(cfg.botToken && cfg.appToken)
+  })
+
+  function currentSavedBot(): string {
+    return (homeAgent.channels.slack.config as { botToken?: string }).botToken?.trim() ?? ''
+  }
+  function currentSavedApp(): string {
+    return (homeAgent.channels.slack.config as { appToken?: string }).appToken?.trim() ?? ''
+  }
 
   // Soft format validation — we don't enforce on the inputs themselves so a
   // newly-rotated token shape can still be pasted; we just dim the next-step
@@ -58,15 +68,15 @@ export function useSlackSetup() {
   )
 
   async function injectIfPossible() {
-    const bot = (botTokenInput.value || homeAgent.slackBotToken || '').trim()
-    const appT = (appTokenInput.value || homeAgent.slackAppToken || '').trim()
+    const bot = (botTokenInput.value || currentSavedBot()).trim()
+    const appT = (appTokenInput.value || currentSavedApp()).trim()
     if (!bot || !appT) return
     try {
-      await window.electronAPI.homeAgent.slack.injectTokens(
-        bot,
-        appT,
-        detectedUserId.value || undefined,
-      )
+      await window.electronAPI.homeAgent.channel.inject('slack', {
+        botToken: bot,
+        appToken: appT,
+        userId: detectedUserId.value || undefined,
+      })
     } catch (e) {
       console.error('useSlackSetup.injectIfPossible failed:', e)
     }
@@ -74,12 +84,13 @@ export function useSlackSetup() {
 
   async function pollForUserId(): Promise<{ userId: string } | { error: string }> {
     const bot = botTokenInput.value.trim()
-    // First try immediately (user_id may already be in backend memory/file).
     try {
-      const quick = await window.electronAPI.homeAgent.slack.detectUserId(bot)
-      if ('userId' in quick) return quick
+      const quick = await window.electronAPI.homeAgent.channel.detectIdentity('slack', {
+        botToken: bot,
+      })
+      if ('identity' in quick) return { userId: quick.identity }
     } catch (e) {
-      console.error('pollForUserId initial detectUserId failed:', e)
+      console.error('pollForUserId initial detectIdentity failed:', e)
       detectError.value = 'Failed to contact Home Agent backend. Is it running?'
       return { error: detectError.value }
     }
@@ -89,13 +100,15 @@ export function useSlackSetup() {
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, DETECT_POLL_INTERVAL_MS))
       try {
-        const r = await window.electronAPI.homeAgent.slack.detectUserId(bot)
-        if ('userId' in r) {
+        const r = await window.electronAPI.homeAgent.channel.detectIdentity('slack', {
+          botToken: bot,
+        })
+        if ('identity' in r) {
           detectError.value = ''
-          return r
+          return { userId: r.identity }
         }
       } catch (e) {
-        console.error('pollForUserId detectUserId failed:', e)
+        console.error('pollForUserId detectIdentity failed:', e)
         detectError.value = 'Failed to contact Home Agent backend. Is it running?'
         return { error: detectError.value }
       }
@@ -114,34 +127,39 @@ export function useSlackSetup() {
       const bot = botTokenInput.value.trim()
       const appT = appTokenInput.value.trim()
       if (bot && appT) {
-        // Inject tokens into the running backend so the Socket Mode bot starts
-        // listening for DMs; otherwise the detection poll has nothing to find.
         try {
-          await window.electronAPI.homeAgent.slack.injectTokens(bot, appT)
+          await window.electronAPI.homeAgent.channel.inject('slack', {
+            botToken: bot,
+            appToken: appT,
+          })
         } catch (e) {
-          console.error('runDetectUserId: injectTokens failed:', e)
-          // Non-fatal — proceed to detect; backend may already be running.
+          console.error('runDetectUserId: inject(slack) failed:', e)
         }
         result = await pollForUserId()
       } else {
-        result = await window.electronAPI.homeAgent.slack.detectUserIdFromSaved()
+        const r = await window.electronAPI.homeAgent.channel.detectIdentityFromSaved('slack')
+        result = 'identity' in r ? { userId: r.identity } : { error: r.error }
       }
       if ('userId' in result) {
         detectedUserId.value = result.userId
         detectStatus.value = 'idle'
-        const bot2 = botTokenInput.value.trim() || homeAgent.slackBotToken?.trim() || ''
-        const appT2 = appTokenInput.value.trim() || homeAgent.slackAppToken?.trim() || ''
+        const bot2 = botTokenInput.value.trim() || currentSavedBot()
+        const appT2 = appTokenInput.value.trim() || currentSavedApp()
         if (bot2 && appT2) {
           try {
-            await window.electronAPI.homeAgent.slack.injectTokens(bot2, appT2, result.userId)
+            await window.electronAPI.homeAgent.channel.inject('slack', {
+              botToken: bot2,
+              appToken: appT2,
+              userId: result.userId,
+            })
           } catch (e) {
-            console.error('runDetectUserId: injectTokens with userId failed:', e)
+            console.error('runDetectUserId: inject(slack) with userId failed:', e)
           }
         }
         try {
-          await window.electronAPI.homeAgent.slack.flushPending()
+          await window.electronAPI.homeAgent.channel.flushPending('slack')
         } catch (e) {
-          console.error('runDetectUserId: flushPending failed:', e)
+          console.error('runDetectUserId: flushPending(slack) failed:', e)
         }
       } else {
         detectStatus.value = 'error'
@@ -162,7 +180,12 @@ export function useSlackSetup() {
     verifyError.value = ''
     try {
       if (bot && appT && userId) {
-        const saveResult = await homeAgent.saveSlackConfig(bot, appT, userId)
+        const saveResult = await homeAgent.saveChannelConfig('slack', {
+          kind: 'slack',
+          botToken: bot,
+          appToken: appT,
+          userId,
+        })
         if (!saveResult.success) {
           verifyStatus.value = 'error'
           verifyError.value = saveResult.error ?? 'Failed to save Slack config'
@@ -174,9 +197,9 @@ export function useSlackSetup() {
         verifyError.value = 'No DM partner detected — complete Step 3 (Detect) first.'
         return
       }
-      const result = await window.electronAPI.homeAgent.slack.testSlack()
+      const result = await window.electronAPI.homeAgent.channel.test('slack')
       if (result.success) {
-        homeAgent.setSlackVerified()
+        homeAgent.setVerified('slack')
         verifyStatus.value = 'success'
         await injectIfPossible()
       } else {
@@ -197,30 +220,37 @@ export function useSlackSetup() {
     let success = true
     try {
       if (bot && appT && userId) {
-        // Preserve verified state across the save — if the user already verified
-        // in this or a previous session, keep it true.
         const wasVerified = homeAgent.slackVerified
         let saveResult: { success: boolean; error?: string }
         try {
-          saveResult = await homeAgent.saveSlackConfig(bot, appT, userId)
+          saveResult = await homeAgent.saveChannelConfig('slack', {
+            kind: 'slack',
+            botToken: bot,
+            appToken: appT,
+            userId,
+          })
         } catch (e) {
-          console.error('saveAndContinue (slack): saveSlackConfig threw:', e)
+          console.error('saveAndContinue (slack): saveChannelConfig threw:', e)
           toast.error('Failed to save Slack configuration')
           return false
         }
         if (!saveResult.success) {
           console.error(
-            'saveAndContinue (slack): saveSlackConfig returned failure:',
+            'saveAndContinue (slack): saveChannelConfig returned failure:',
             saveResult.error,
           )
           toast.error(saveResult.error ?? 'Failed to save Slack configuration')
           return false
         }
-        if (wasVerified) homeAgent.setSlackVerified()
+        if (wasVerified) homeAgent.setVerified('slack')
         try {
-          await window.electronAPI.homeAgent.slack.injectTokens(bot, appT, userId)
+          await window.electronAPI.homeAgent.channel.inject('slack', {
+            botToken: bot,
+            appToken: appT,
+            userId,
+          })
         } catch (e) {
-          console.error('saveAndContinue (slack): injectTokens failed:', e)
+          console.error('saveAndContinue (slack): inject(slack) failed:', e)
           toast.error('Saved config, but failed to apply tokens to the running service')
           success = false
         }
@@ -237,7 +267,7 @@ export function useSlackSetup() {
 
   async function clearConfig() {
     try {
-      await homeAgent.clearSlackConfig()
+      await homeAgent.clearChannelConfig('slack')
     } catch (e) {
       console.error('clearConfig (slack) failed:', e)
     } finally {

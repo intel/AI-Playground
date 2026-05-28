@@ -8,6 +8,7 @@ import { usePresetSwitching } from './presetSwitching'
 import { useSpeechToText } from './speechToText'
 import { useDemoMode } from './demoMode'
 import { useHomeAgent } from './homeAgent'
+import { CHANNELS } from './channels/channelRegistry'
 import { mapStatusToColor, mapToDisplayStatus } from '@/lib/utils'
 import * as toast from '@/assets/js/toast'
 import type { ErrorDetails } from '../../../../electron/subprocesses/service'
@@ -675,7 +676,8 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       if (anyFailed) return
     }
 
-    if (homeAgent.isFeatureEnabled && !homeAgent.telegramVerified && !homeAgent.slackVerified) {
+    const noChannelVerified = CHANNELS.every((c) => !homeAgent.channels[c.kind].verified)
+    if (homeAgent.isFeatureEnabled && noChannelVerified) {
       const homeAgentJustInstalled = toInstall.some((r) => r.serviceName === 'home-agent-backend')
       if (homeAgentJustInstalled || isHomeAgentInstalledAndActive()) {
         // Sync presets *before* swapping the wizard page so the Home Agent setup
@@ -714,8 +716,9 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     // are wiped — the backend's safeStorage files and the bot/Slack-app tokens
     // injected into the running service must not survive a reinstall.
     if (name === 'home-agent-backend') {
-      await homeAgent.clearConfig()
-      await homeAgent.clearSlackConfig()
+      for (const c of CHANNELS) {
+        await homeAgent.clearChannelConfig(c.kind)
+      }
     }
     await installBackend(name)
   }

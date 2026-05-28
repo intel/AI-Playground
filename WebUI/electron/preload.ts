@@ -215,65 +215,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
   },
   homeAgent: {
-    saveConfig: (token: string, chatId: string) =>
-      ipcRenderer.invoke('homeAgent:saveConfig', token, chatId),
-    loadConfig: () => ipcRenderer.invoke('homeAgent:loadConfig'),
-    clearConfig: () => ipcRenderer.invoke('homeAgent:clearConfig'),
-    testTelegram: () => ipcRenderer.invoke('homeAgent:testTelegram'),
-    detectChatId: (token: string) => ipcRenderer.invoke('homeAgent:detectChatId', token),
-    detectChatIdFromSaved: () => ipcRenderer.invoke('homeAgent:detectChatIdFromSaved'),
-    injectToken: (token: string, chatId?: string) =>
-      ipcRenderer.invoke('homeAgent:injectToken', token, chatId),
-    pollTelegram: () => ipcRenderer.invoke('homeAgent:pollTelegram'),
-    flushPending: () => ipcRenderer.invoke('homeAgent:flushPending'),
-    sendTelegramReply: (text: string, parseMode?: string) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramReply', text, parseMode),
-    sendTelegramPhoto: (imageBase64: string, caption?: string) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramPhoto', imageBase64, caption),
-    sendTelegramChatAction: (action?: string) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramChatAction', action),
-    sendTelegramDraft: (opts: { draftId: number; text?: string; parseMode?: string }) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramDraft', opts),
-    sendTelegramKeyboard: (opts: {
-      text: string
-      parseMode?: string
-      buttons: Array<Array<{ text: string; callbackData: string }>>
-    }) => ipcRenderer.invoke('homeAgent:sendTelegramKeyboard', opts),
-    slack: {
-      saveConfig: (botToken: string, appToken: string, userId: string) =>
-        ipcRenderer.invoke('homeAgent:saveSlackConfig', botToken, appToken, userId),
-      loadConfig: () => ipcRenderer.invoke('homeAgent:loadSlackConfig'),
-      clearConfig: () => ipcRenderer.invoke('homeAgent:clearSlackConfig'),
-      testSlack: () => ipcRenderer.invoke('homeAgent:testSlack'),
-      detectUserId: (botToken: string) =>
-        ipcRenderer.invoke('homeAgent:detectSlackUserId', botToken),
-      detectUserIdFromSaved: () => ipcRenderer.invoke('homeAgent:detectSlackUserIdFromSaved'),
-      injectTokens: (botToken: string, appToken: string, userId?: string) =>
-        ipcRenderer.invoke('homeAgent:injectSlackTokens', botToken, appToken, userId),
-      pollSlack: () => ipcRenderer.invoke('homeAgent:pollSlack'),
-      flushPending: () => ipcRenderer.invoke('homeAgent:flushSlackPending'),
-      sendReply: (opts: {
-        text: string
-        blocks?: unknown[]
-        channel?: string
-        threadTs?: string
-      }) => ipcRenderer.invoke('homeAgent:sendSlackReply', opts),
-      sendUpdate: (opts: { channel: string; ts: string; text: string; blocks?: unknown[] }) =>
-        ipcRenderer.invoke('homeAgent:sendSlackUpdate', opts),
-      sendPhoto: (opts: {
-        imageBase64: string
-        caption?: string
-        channel?: string
-        threadTs?: string
-      }) => ipcRenderer.invoke('homeAgent:sendSlackPhoto', opts),
-      sendTypingReaction: (opts: {
-        channel: string
-        ts: string
-        name?: string
-        action: 'add' | 'remove'
-      }) => ipcRenderer.invoke('homeAgent:sendSlackTypingReaction', opts),
-      sendKeyboard: (opts: { text: string; blocks: unknown[]; channel?: string }) =>
-        ipcRenderer.invoke('homeAgent:sendSlackKeyboard', opts),
+    // Channel-agnostic dispatcher. Every method is keyed by ChannelKind
+    // (`'telegram'` | `'slack'` | `'discord'`) so adding a new platform
+    // requires zero edits here — only a new entry in the renderer-side
+    // channel registry and a Python channel module.
+    channel: {
+      saveConfig: (kind: string, config: Record<string, string>) =>
+        ipcRenderer.invoke('channel:saveConfig', kind, config),
+      loadConfig: (kind: string) => ipcRenderer.invoke('channel:loadConfig', kind),
+      clearConfig: (kind: string) => ipcRenderer.invoke('channel:clearConfig', kind),
+      test: (kind: string) => ipcRenderer.invoke('channel:test', kind),
+      inject: (kind: string, config: Record<string, string | undefined>) =>
+        ipcRenderer.invoke('channel:inject', kind, config),
+      detectIdentity: (kind: string, config: Record<string, string | undefined>) =>
+        ipcRenderer.invoke('channel:detectIdentity', kind, config),
+      detectIdentityFromSaved: (kind: string) =>
+        ipcRenderer.invoke('channel:detectIdentityFromSaved', kind),
+      poll: (kind: string) => ipcRenderer.invoke('channel:poll', kind),
+      flushPending: (kind: string) => ipcRenderer.invoke('channel:flushPending', kind),
+      send: (
+        kind: string,
+        action: 'reply' | 'update' | 'photo' | 'typing' | 'keyboard',
+        payload: Record<string, unknown>,
+      ) => ipcRenderer.invoke('channel:send', kind, action, payload),
     },
   },
 })

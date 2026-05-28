@@ -6,7 +6,7 @@ import * as toast from '@/assets/js/toast'
 const DETECT_POLL_INTERVAL_MS = 2000
 const DETECT_TIMEOUT_MS = 5000
 
-export function useHomeAgentSetup() {
+export function useTelegramSetup() {
   const homeAgent = useHomeAgent()
   const conversations = useConversations()
 
@@ -18,9 +18,11 @@ export function useHomeAgentSetup() {
   const verifyStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
   const verifyError = ref('')
 
-  const isAlreadyConfigured = computed(() => homeAgent.isTelegramConfigured)
+  const isAlreadyConfigured = computed(
+    () => !!(homeAgent.channels.telegram.config as { token?: string }).token,
+  )
 
-  // A valid token is <digits>:<35 alphanumeric chars>, total ≥ 40 chars with a colon
+  // A valid token is <digits>:<35 alphanumeric chars>, total ≥ 40 chars with a colon.
   const tokenFormatOk = computed(() => {
     const t = tokenInput.value.trim()
     return t.includes(':') && t.split(':')[0].length > 0 && t.length >= 40
@@ -34,30 +36,32 @@ export function useHomeAgentSetup() {
     () => hasAnyChatId.value && (isAlreadyConfigured.value || tokenFormatOk.value),
   )
 
+  function currentSavedToken(): string {
+    return (homeAgent.channels.telegram.config as { token?: string }).token?.trim() ?? ''
+  }
+
   async function pollForChatId(token: string): Promise<{ chatId: string } | { error: string }> {
-    // First try immediately (chat ID may already be in backend memory/file)
     try {
-      const quick = await window.electronAPI.homeAgent.detectChatId(token)
-      if ('chatId' in quick) return quick
+      const quick = await window.electronAPI.homeAgent.channel.detectIdentity('telegram', { token })
+      if ('identity' in quick) return { chatId: quick.identity }
     } catch (e) {
-      console.error('pollForChatId initial detectChatId failed:', e)
+      console.error('pollForChatId initial detectIdentity failed:', e)
       detectError.value = 'Failed to contact Home Agent backend. Is it running?'
       return { error: detectError.value }
     }
 
-    // Not found yet — tell user to send a message and poll for up to DETECT_TIMEOUT_MS
     detectError.value = 'Waiting for a message… Open your bot in Telegram and send any message.'
     const deadline = Date.now() + DETECT_TIMEOUT_MS
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, DETECT_POLL_INTERVAL_MS))
       try {
-        const r = await window.electronAPI.homeAgent.detectChatId(token)
-        if ('chatId' in r) {
+        const r = await window.electronAPI.homeAgent.channel.detectIdentity('telegram', { token })
+        if ('identity' in r) {
           detectError.value = ''
-          return r
+          return { chatId: r.identity }
         }
       } catch (e) {
-        console.error('pollForChatId poll detectChatId failed:', e)
+        console.error('pollForChatId poll detectIdentity failed:', e)
         detectError.value = 'Failed to contact Home Agent backend. Is it running?'
         return { error: detectError.value }
       }
@@ -73,39 +77,36 @@ export function useHomeAgentSetup() {
     detectError.value = ''
     try {
       let result: { chatId: string } | { error: string }
-      // Match `verify()` / `saveAndContinue()` — both trim. A pasted token with
-      // a trailing newline would otherwise fail inject/poll even though the
-      // later save path accepts it.
       const trimmedToken = tokenInput.value.trim()
       if (trimmedToken) {
-        // Inject token into running backend so it can start polling (if not already)
         try {
-          await window.electronAPI.homeAgent.injectToken(trimmedToken)
+          await window.electronAPI.homeAgent.channel.inject('telegram', { token: trimmedToken })
         } catch (e) {
-          console.error('runDetectChatId: injectToken failed:', e)
-          // Non-fatal — proceed to poll anyway; backend may already have it
+          console.error('runDetectChatId: inject(telegram) failed:', e)
         }
-        // Poll /get-chat-id for up to DETECT_TIMEOUT_MS waiting for a message to arrive
         result = await pollForChatId(trimmedToken)
       } else {
-        result = await window.electronAPI.homeAgent.detectChatIdFromSaved()
+        const r = await window.electronAPI.homeAgent.channel.detectIdentityFromSaved('telegram')
+        result = 'identity' in r ? { chatId: r.identity } : { error: r.error }
       }
       if ('chatId' in result) {
         detectedChatId.value = result.chatId
         detectStatus.value = 'idle'
-        const tok = tokenInput.value.trim() || homeAgent.telegramToken?.trim() || ''
+        const tok = tokenInput.value.trim() || currentSavedToken()
         if (tok) {
           try {
-            await window.electronAPI.homeAgent.injectToken(tok, result.chatId)
+            await window.electronAPI.homeAgent.channel.inject('telegram', {
+              token: tok,
+              chatId: result.chatId,
+            })
           } catch (e) {
-            console.error('runDetectChatId: injectToken with chatId failed:', e)
+            console.error('runDetectChatId: inject(telegram) with chatId failed:', e)
           }
         }
-        // Discard the message(s) used for detection so they aren't replayed as prompts
         try {
-          await window.electronAPI.homeAgent.flushPending()
+          await window.electronAPI.homeAgent.channel.flushPending('telegram')
         } catch (e) {
-          console.error('runDetectChatId: flushPending failed:', e)
+          console.error('runDetectChatId: flushPending(telegram) failed:', e)
         }
       } else {
         detectStatus.value = 'error'
@@ -124,9 +125,12 @@ export function useHomeAgentSetup() {
     verifyStatus.value = 'loading'
     verifyError.value = ''
     try {
-      // Save config first so testTelegram() can read it from the config file
       if (token && chatId) {
-        const saveResult = await homeAgent.saveConfig(token, chatId)
+        const saveResult = await homeAgent.saveChannelConfig('telegram', {
+          kind: 'telegram',
+          token,
+          chatId,
+        })
         if (!saveResult.success) {
           verifyStatus.value = 'error'
           verifyError.value = saveResult.error ?? 'Failed to save config'
@@ -138,17 +142,19 @@ export function useHomeAgentSetup() {
         verifyError.value = 'No chat ID — complete Step 2 (Detect) first.'
         return
       }
-      const result = await window.electronAPI.homeAgent.testTelegram()
+      const result = await window.electronAPI.homeAgent.channel.test('telegram')
       if (result.success) {
-        homeAgent.setVerified()
+        homeAgent.setVerified('telegram')
         verifyStatus.value = 'success'
-        const tokForInject = token || homeAgent.telegramToken?.trim()
-        const cidForInject = chatId
-        if (tokForInject && cidForInject) {
+        const tokForInject = token || currentSavedToken()
+        if (tokForInject && chatId) {
           try {
-            await window.electronAPI.homeAgent.injectToken(tokForInject, cidForInject)
+            await window.electronAPI.homeAgent.channel.inject('telegram', {
+              token: tokForInject,
+              chatId,
+            })
           } catch (e) {
-            console.error('verify: injectToken failed:', e)
+            console.error('verify: inject(telegram) failed:', e)
           }
         }
       } else {
@@ -156,7 +162,7 @@ export function useHomeAgentSetup() {
         verifyError.value = result.error ?? 'Unknown error'
       }
     } catch (e) {
-      console.error('verify: testTelegram failed:', e)
+      console.error('verify: test(telegram) failed:', e)
       verifyStatus.value = 'error'
       verifyError.value = e instanceof Error ? e.message : 'Verification failed'
     }
@@ -168,45 +174,41 @@ export function useHomeAgentSetup() {
     let success = true
     try {
       if (token && chatId) {
-        // Preserve verified state across the save — if the user already verified
-        // (either in this session or a previous one), keep it true.
         const wasVerified = homeAgent.telegramVerified
-        // `saveConfig` returns `{ success, error }` and can fail without throwing
-        // (e.g. safeStorage / disk errors). Both code paths need to be handled
-        // so the user isn't told "saved" when the config wasn't actually written.
         let saveResult: { success: boolean; error?: string }
         try {
-          saveResult = await homeAgent.saveConfig(token, chatId)
+          saveResult = await homeAgent.saveChannelConfig('telegram', {
+            kind: 'telegram',
+            token,
+            chatId,
+          })
         } catch (e) {
           console.error('saveAndContinue: failed to save Home Agent config:', e)
           toast.error('Failed to save Home Agent configuration')
           return false
         }
         if (!saveResult.success) {
-          console.error('saveAndContinue: saveConfig returned failure:', saveResult.error)
+          console.error('saveAndContinue: saveChannelConfig returned failure:', saveResult.error)
           toast.error(saveResult.error ?? 'Failed to save Home Agent configuration')
           return false
         }
         if (wasVerified) {
-          homeAgent.setVerified()
+          homeAgent.setVerified('telegram')
         }
         try {
-          await window.electronAPI.homeAgent.injectToken(token, chatId)
+          await window.electronAPI.homeAgent.channel.inject('telegram', { token, chatId })
         } catch (e) {
-          console.error('saveAndContinue: injectToken failed:', e)
+          console.error('saveAndContinue: inject(telegram) failed:', e)
           toast.error('Saved config, but failed to apply token to the running service')
           success = false
         }
       }
     } finally {
-      // Clear the active conversation so the message sent during detection
-      // isn't picked up as the first user prompt in Home Agent mode.
       conversations.addNewConversation()
     }
     return success
   }
 
-  /** Rehydrate local setup UI from Pinia + safeStorage (e.g. after revisiting the wizard). */
   function syncSetupFieldsFromStore() {
     if (homeAgent.telegramChatId) {
       detectedChatId.value = homeAgent.telegramChatId
@@ -215,7 +217,7 @@ export function useHomeAgentSetup() {
 
   async function clearConfig() {
     try {
-      await homeAgent.clearConfig()
+      await homeAgent.clearChannelConfig('telegram')
     } catch (e) {
       console.error('clearConfig: failed to clear Home Agent config:', e)
     } finally {

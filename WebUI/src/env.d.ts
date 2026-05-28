@@ -343,58 +343,24 @@ type electronAPI = {
     removeServer(serverId: string): Promise<void>
   }
   homeAgent: {
-    saveConfig(token: string, chatId: string): Promise<{ success: boolean; error?: string }>
-    loadConfig(): Promise<{ token: string; chatId: string } | null>
-    clearConfig(): Promise<void>
-    testTelegram(): Promise<{ success: boolean; error?: string }>
-    detectChatId(token: string): Promise<{ chatId: string } | { error: string }>
-    detectChatIdFromSaved(): Promise<{ chatId: string } | { error: string }>
-    injectToken(token: string, chatId?: string): Promise<{ status: string; error?: string }>
-    pollTelegram(): Promise<
-      Array<{
-        text?: string
-        chat_id: string
-        images?: Array<{ mime: string; data_base64: string }>
-        callback?: string
-      }>
-    >
-    flushPending(): Promise<void>
-    sendTelegramReply(
-      text: string,
-      parseMode?: string,
-    ): Promise<{ success: boolean; error?: string }>
-    sendTelegramPhoto(
-      imageBase64: string,
-      caption?: string,
-    ): Promise<{ success: boolean; error?: string }>
-    sendTelegramChatAction(action?: string): Promise<{ success: boolean; error?: string }>
-    sendTelegramDraft(opts: {
-      draftId: number
-      text?: string
-      parseMode?: string
-    }): Promise<{ success: boolean; error?: string }>
-    sendTelegramKeyboard(opts: {
-      text: string
-      parseMode?: string
-      buttons: Array<Array<{ text: string; callbackData: string }>>
-    }): Promise<{ success: boolean; error?: string }>
-    slack: {
+    channel: {
       saveConfig(
-        botToken: string,
-        appToken: string,
-        userId: string,
+        kind: string,
+        config: Record<string, string>,
       ): Promise<{ success: boolean; error?: string }>
-      loadConfig(): Promise<{ botToken: string; appToken: string; userId: string } | null>
-      clearConfig(): Promise<void>
-      testSlack(): Promise<{ success: boolean; error?: string }>
-      detectUserId(botToken: string): Promise<{ userId: string } | { error: string }>
-      detectUserIdFromSaved(): Promise<{ userId: string } | { error: string }>
-      injectTokens(
-        botToken: string,
-        appToken: string,
-        userId?: string,
+      loadConfig(kind: string): Promise<Record<string, string> | null>
+      clearConfig(kind: string): Promise<void>
+      test(kind: string): Promise<{ success: boolean; error?: string }>
+      inject(
+        kind: string,
+        config: Record<string, string | undefined>,
       ): Promise<{ status: string; error?: string }>
-      pollSlack(): Promise<
+      detectIdentity(
+        kind: string,
+        config: Record<string, string | undefined>,
+      ): Promise<{ identity: string } | { error: string }>
+      detectIdentityFromSaved(kind: string): Promise<{ identity: string } | { error: string }>
+      poll(kind: string): Promise<
         Array<{
           text?: string
           chat_id: string
@@ -404,36 +370,12 @@ type electronAPI = {
           callback?: string
         }>
       >
-      flushPending(): Promise<void>
-      sendReply(opts: {
-        text: string
-        blocks?: unknown[]
-        channel?: string
-        threadTs?: string
-      }): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
-      sendUpdate(opts: {
-        channel: string
-        ts: string
-        text: string
-        blocks?: unknown[]
-      }): Promise<{ success: boolean; error?: string }>
-      sendPhoto(opts: {
-        imageBase64: string
-        caption?: string
-        channel?: string
-        threadTs?: string
-      }): Promise<{ success: boolean; error?: string }>
-      sendTypingReaction(opts: {
-        channel: string
-        ts: string
-        name?: string
-        action: 'add' | 'remove'
-      }): Promise<{ success: boolean; error?: string }>
-      sendKeyboard(opts: {
-        text: string
-        blocks: unknown[]
-        channel?: string
-      }): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
+      flushPending(kind: string): Promise<void>
+      send(
+        kind: string,
+        action: 'reply' | 'update' | 'photo' | 'typing' | 'keyboard',
+        payload: Record<string, unknown>,
+      ): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
     }
   }
 }

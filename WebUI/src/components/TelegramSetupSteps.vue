@@ -154,9 +154,9 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import StepBadge from '@/components/StepBadge.vue'
-import { useHomeAgentSetup } from '@/assets/js/store/useHomeAgentSetup'
+import { useTelegramSetup } from '@/assets/js/store/useTelegramSetup'
 
-const setup = useHomeAgentSetup()
+const setup = useTelegramSetup()
 const {
   homeAgent,
   tokenInput,
