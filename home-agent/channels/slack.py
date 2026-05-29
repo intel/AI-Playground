@@ -310,16 +310,26 @@ class SlackChannel(ChannelBase):
                 {"text": command_text, "chat_id": user_id, "channel": channel}
             )
 
-        async def _download_slack_files(files: list[dict], client_token: str) -> list[dict]:
+        async def _download_slack_files(
+            files: list[dict], client_token: str
+        ) -> tuple[list[dict], list[dict]]:
+            """Download supported Slack file uploads.
+
+            Returns a ``(images, audio)`` tuple. Only ``image/*`` and ``audio/*``
+            files are collected; everything else is ignored.
+            """
             import aiohttp
 
-            out: list[dict] = []
+            images: list[dict] = []
+            audio: list[dict] = []
             async with aiohttp.ClientSession(
                 headers={"Authorization": f"Bearer {client_token}"}
             ) as session:
                 for f in files[:8]:
                     mime = f.get("mimetype") or ""
-                    if not mime.startswith("image/"):
+                    is_image = mime.startswith("image/")
+                    is_audio = mime.startswith("audio/")
+                    if not is_image and not is_audio:
                         continue
                     url = f.get("url_private_download") or f.get("url_private")
                     if not url:
@@ -335,10 +345,12 @@ class SlackChannel(ChannelBase):
                     except Exception as exc:
                         logger.error("slack file download error: %s", exc)
                         continue
-                    out.append(
-                        {"mime": mime, "data_base64": base64.b64encode(raw).decode("ascii")}
-                    )
-            return out
+                    entry = {"mime": mime, "data_base64": base64.b64encode(raw).decode("ascii")}
+                    if is_image:
+                        images.append(entry)
+                    else:
+                        audio.append(entry)
+            return images, audio
 
         async def run() -> None:
             self._loop = asyncio.get_event_loop()
@@ -376,15 +388,23 @@ class SlackChannel(ChannelBase):
                 text = event.get("text") or ""
                 ts = event.get("ts") or ""
                 files = event.get("files") or []
-                images = await _download_slack_files(files, bot_token) if files else []
-                text_payload = text if text else ("[image]" if images else "")
+                images, audio = (
+                    await _download_slack_files(files, bot_token) if files else ([], [])
+                )
+                if text:
+                    text_payload = text
+                elif images:
+                    text_payload = "[image]"
+                else:
+                    text_payload = ""
                 logger.info(
-                    "Slack DM received: user_id=%s channel=%s ts=%s len=%d images=%d",
+                    "Slack DM received: user_id=%s channel=%s ts=%s len=%d images=%d audio=%d",
                     user_id,
                     channel,
                     ts,
                     len(text),
                     len(images),
+                    len(audio),
                 )
                 self.queue_append(
                     {
@@ -393,6 +413,7 @@ class SlackChannel(ChannelBase):
                         "channel": channel,
                         "ts": ts,
                         **({"images": images} if images else {}),
+                        **({"audio": audio} if audio else {}),
                     }
                 )
 

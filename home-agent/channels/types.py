@@ -35,9 +35,15 @@ class RemoteImage(TypedDict):
     data_base64: str
 
 
+class RemoteAudio(TypedDict):
+    mime: str
+    data_base64: str
+
+
 class QueueItem(TypedDict, total=False):
     text: str
     images: list[RemoteImage]
+    audio: list[RemoteAudio]
     callback: str
     chat_id: str
     channel: str

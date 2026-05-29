@@ -11,6 +11,8 @@ import { usePresets } from './presets'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
+import { useSpeechToText } from './speechToText'
+import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
 import {
   useConversations,
   HOME_AGENT_CONVERSATION_KEY,
@@ -28,6 +30,7 @@ import {
   type ChannelRuntimeState,
   type InboundMeta,
   type RemoteImage,
+  type RemoteAudio,
   type KeyboardButton,
   type ChannelQueueItem,
 } from './channels/types'
@@ -329,7 +332,10 @@ export const useHomeAgent = defineStore(
       'Any other message is handled by the AI in <b>agentic mode</b>: it decides whether to reply with text or generate an image based on your request.\n\n' +
       '📷 <b>Photos</b>\n' +
       'Send a photo (with or without a caption) and the AI will answer based on what it sees. ' +
-      'Requires a <b>vision-capable model</b> selected in Chat settings.'
+      'Requires a <b>vision-capable model</b> selected in Chat settings.\n\n' +
+      '🎙️ <b>Voice messages</b>\n' +
+      'Send a voice note or audio file and it will be transcribed and handled like a typed message. ' +
+      'Requires Speech To Text (OVMS) enabled, or a fallback transcription endpoint configured in Settings.'
 
     function resolveLoadTarget(idArg: string): string | null {
       const items = listRemoteConversations()
@@ -705,6 +711,51 @@ export const useHomeAgent = defineStore(
         meta,
       )
       return false
+    }
+
+    /**
+     * Transcribe inbound voice/audio payloads into text using the shared STT
+     * resolver (OVMS Whisper first, configured fallback endpoint otherwise).
+     * Shows a typing indicator while transcribing. Returns the combined
+     * transcript (possibly empty) or `null` when no STT endpoint is available
+     * or transcription failed — in which case the user has already been
+     * notified via `reply()`.
+     */
+    async function transcribeRemoteAudio(
+      adapter: ChannelAdapter,
+      audio: RemoteAudio[],
+      meta?: InboundMeta,
+    ): Promise<string | null> {
+      const speechToText = useSpeechToText()
+      const endpoint = await speechToText.resolveTranscription()
+      if (!endpoint) {
+        await reply(
+          adapter,
+          '⚠️ No speech-to-text is available. Enable Speech To Text (OVMS) or configure a fallback transcription endpoint in Settings.',
+          meta,
+        )
+        return null
+      }
+      const stopTyping = typing(adapter, 'typing', meta)
+      try {
+        const parts: string[] = []
+        for (const a of audio) {
+          const blob = base64ToBlob(a.data_base64, a.mime)
+          const text = await transcribeAudioBlob(blob, endpoint)
+          if (text) parts.push(text.trim())
+        }
+        return parts.filter(Boolean).join(' ').trim()
+      } catch (e) {
+        console.error('homeAgent: audio transcription failed:', e)
+        await reply(
+          adapter,
+          `⚠️ Could not transcribe the audio: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
+        )
+        return null
+      } finally {
+        stopTyping()
+      }
     }
 
     async function handleChatMessage(
@@ -1317,8 +1368,24 @@ export const useHomeAgent = defineStore(
             continue
           }
 
-          const text = item.text ?? ''
+          let text = item.text ?? ''
           const images = item.images
+          // Voice/audio messages: transcribe first, then treat the transcript
+          // as the message text so slash-commands spoken aloud and plain
+          // prompts both flow through the normal handling below.
+          if (item.audio?.length) {
+            const transcript = await transcribeRemoteAudio(adapter, item.audio, meta)
+            if (transcript === null) continue // STT unavailable / failed — already replied
+            text = [text, transcript].filter(Boolean).join(' ').trim()
+            if (!text) {
+              await reply(
+                adapter,
+                "🎙️ I couldn't make out any speech in that audio. Please try again.",
+                meta,
+              )
+              continue
+            }
+          }
           try {
             if (HELP_REGEX.test(text)) {
               focusRemoteChatDiscussion()
@@ -1425,6 +1492,7 @@ export const useHomeAgent = defineStore(
           queue.push({
             text: msg.text,
             images: msg.images,
+            audio: msg.audio,
             callback: msg.callback,
             // Thread inbound metadata so adapters can target reactions /
             // threaded sends at the originating message (only Slack uses this

@@ -407,6 +407,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       channel?: string
       ts?: string
       images?: Array<{ mime: string; data_base64: string }>
+      audio?: Array<{ mime: string; data_base64: string }>
       callback?: string
     }>
   > {
@@ -421,6 +422,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
         channel?: string
         ts?: string
         images?: Array<{ mime: string; data_base64: string }>
+        audio?: Array<{ mime: string; data_base64: string }>
         callback?: string
       }>
     } catch {

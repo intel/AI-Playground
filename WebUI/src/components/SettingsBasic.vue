@@ -111,6 +111,47 @@
             :items="sttDeviceItems"
           />
         </div>
+
+        <div class="mt-4 border-t border-white/10 pt-4">
+          <div class="flex justify-between pr-4 items-center gap-4">
+            <div class="flex items-center gap-2">
+              <Label class="whitespace-nowrap">Fallback transcription endpoint</Label>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[320px]">
+                    Used when the OVMS Whisper server isn't available (e.g. on macOS). Point it at
+                    any OpenAI-compatible transcription server — for example a local whisper.cpp
+                    <code>whisper-server</code> started with
+                    <code>--inference-path "/v1/audio/transcriptions"</code> (base URL like
+                    <code>http://127.0.0.1:2022/v1</code>).
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Checkbox id="stt-fallback-enabled" v-model="speechToText.fallback.enabled" />
+          </div>
+          <div v-if="speechToText.fallback.enabled" class="flex flex-col gap-3 mt-3 pr-4">
+            <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+              <Label class="whitespace-nowrap">Base URL</Label>
+              <Input v-model="speechToText.fallback.baseUrl" placeholder="http://127.0.0.1:2022/v1" />
+            </div>
+            <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+              <Label class="whitespace-nowrap">Model</Label>
+              <Input v-model="speechToText.fallback.model" placeholder="whisper-1" />
+            </div>
+            <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+              <Label class="whitespace-nowrap">API key</Label>
+              <Input
+                v-model="speechToText.fallback.apiKey"
+                type="password"
+                placeholder="(optional)"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
