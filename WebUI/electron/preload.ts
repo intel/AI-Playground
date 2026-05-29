@@ -235,7 +235,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       flushPending: (kind: string) => ipcRenderer.invoke('channel:flushPending', kind),
       send: (
         kind: string,
-        action: 'reply' | 'update' | 'photo' | 'typing' | 'keyboard',
+        action: 'reply' | 'update' | 'photo' | 'video' | 'document' | 'typing' | 'keyboard',
         payload: Record<string, unknown>,
       ) => ipcRenderer.invoke('channel:send', kind, action, payload),
     },

@@ -11,7 +11,7 @@ import { useDeveloperSettings } from '../store/developerSettings'
 import { chatBackends, restartChatBackend } from './chatBackends'
 import { imageUrlToDataUri } from '@/lib/utils'
 
-const ImageEditOutputSchema = z.object({
+const ImageEditImageOutputSchema = z.object({
   id: z.string(),
   type: z.literal('image'),
   imageUrl: z.string(),
@@ -19,9 +19,35 @@ const ImageEditOutputSchema = z.object({
   settings: z.record(z.string(), z.unknown()),
 })
 
+const ImageEditVideoOutputSchema = z.object({
+  id: z.string(),
+  type: z.literal('video'),
+  videoUrl: z.string(),
+  mode: z.literal('imageEdit'),
+  settings: z.record(z.string(), z.unknown()),
+})
+
+const ImageEditModel3DOutputSchema = z.object({
+  id: z.string(),
+  type: z.literal('model3d'),
+  model3dUrl: z.string(),
+  mode: z.literal('imageEdit'),
+  settings: z.record(z.string(), z.unknown()),
+})
+
+// Edit-category workflows can yield images (e.g. "Edit By Prompt") or other
+// media (e.g. "Image To 3D Model" → model3d). Mirror the multi-media output
+// of the create-images `comfyUI` tool so 3D / video edit workflows can
+// actually complete their tool call.
+const ImageEditMediaOutputSchema = z.discriminatedUnion('type', [
+  ImageEditImageOutputSchema,
+  ImageEditVideoOutputSchema,
+  ImageEditModel3DOutputSchema,
+])
+
 export const ImageEditToolOutputSchema = z
   .object({
-    images: z.array(ImageEditOutputSchema),
+    images: z.array(ImageEditMediaOutputSchema),
     success: z.boolean().optional(),
     message: z.string().optional(),
   })
@@ -355,23 +381,32 @@ export async function executeImageEdit(
           (item): item is MediaItem =>
             item.id === imageId &&
             item.state === 'done' &&
-            item.type === 'image' &&
-            'imageUrl' in item &&
-            !!item.imageUrl,
+            ((item.type === 'image' && 'imageUrl' in item && !!item.imageUrl) ||
+              (item.type === 'video' && 'videoUrl' in item && !!item.videoUrl) ||
+              (item.type === 'model3d' && 'model3dUrl' in item && !!item.model3dUrl)),
         )
         if (completed) {
           clearTimeout(timeout)
-          resolve({
-            images: [
-              {
-                id: completed.id,
-                type: 'image' as const,
-                imageUrl: (completed as { imageUrl: string }).imageUrl,
-                mode: 'imageEdit' as const,
-                settings: completed.settings || {},
-              },
-            ],
-          })
+          const settings = completed.settings || {}
+          if (completed.type === 'video') {
+            resolve({
+              images: [
+                { id: completed.id, type: 'video', videoUrl: completed.videoUrl, mode: 'imageEdit', settings },
+              ],
+            })
+          } else if (completed.type === 'model3d') {
+            resolve({
+              images: [
+                { id: completed.id, type: 'model3d', model3dUrl: completed.model3dUrl, mode: 'imageEdit', settings },
+              ],
+            })
+          } else {
+            resolve({
+              images: [
+                { id: completed.id, type: 'image', imageUrl: completed.imageUrl, mode: 'imageEdit', settings },
+              ],
+            })
+          }
         }
       }
 

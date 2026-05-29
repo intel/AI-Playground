@@ -167,7 +167,7 @@
           <button
             :disabled="!canVerify || verifyStatus === 'loading'"
             class="text-xs py-1.5 px-4 rounded bg-primary text-primary-foreground disabled:opacity-40 transition-colors"
-            @click="verify"
+            @click="onVerify"
           >
             <span v-if="verifyStatus === 'loading'">Sending…</span>
             <span v-else>Send Test Message</span>
@@ -202,6 +202,10 @@ import { onMounted, ref } from 'vue'
 import StepBadge from '@/components/StepBadge.vue'
 import { useSlackSetup } from '@/assets/js/store/useSlackSetup'
 
+const emit = defineEmits<{
+  verified: []
+}>()
+
 const setup = useSlackSetup()
 const {
   homeAgent,
@@ -225,10 +229,10 @@ const {
   syncSetupFieldsFromStore,
 } = setup
 
-defineExpose({
-  saveAndContinue: setup.saveAndContinue,
-  canSave: setup.canSave,
-})
+async function onVerify() {
+  await verify()
+  if (verifyStatus.value === 'success') emit('verified')
+}
 
 function openExternalUrl(url: string) {
   window.electronAPI.openUrl(url)

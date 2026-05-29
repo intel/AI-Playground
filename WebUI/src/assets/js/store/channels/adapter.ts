@@ -30,7 +30,9 @@ export type RawPart = {
   text?: string
   state?: string
   input?: { workflow?: string; prompt?: string }
-  output?: { images?: { type: string; imageUrl?: string; videoUrl?: string }[] }
+  output?: {
+    images?: { type: string; imageUrl?: string; videoUrl?: string; model3dUrl?: string }[]
+  }
   providerMetadata?: { aipg?: { reasoningStarted?: number; reasoningFinished?: number } }
 }
 
@@ -55,6 +57,24 @@ export type ChannelAdapter = {
   // ── Outbound primitives ────────────────────────────────────────────────
   reply: (text: string, meta?: InboundMeta) => Promise<ChannelSendResult>
   photo: (imageBase64: string, caption: string, meta?: InboundMeta) => Promise<ChannelSendResult>
+  /** Deliver a generated video. `filename` carries the extension so clients
+   *  pick the right player. */
+  video: (
+    videoBase64: string,
+    caption: string,
+    filename: string,
+    meta?: InboundMeta,
+  ) => Promise<ChannelSendResult>
+  /** Deliver an arbitrary file as a document (e.g. a `.glb` 3D model). Chat
+   *  clients have no inline glTF preview, so 3D models ship as a document with
+   *  a separately-sent thumbnail photo. `filename` is required so the client
+   *  shows a real name. */
+  document: (
+    documentBase64: string,
+    filename: string,
+    caption: string,
+    meta?: InboundMeta,
+  ) => Promise<ChannelSendResult>
   keyboard: (
     text: string,
     buttons: KeyboardButton[][],

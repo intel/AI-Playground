@@ -260,6 +260,22 @@ export function createSlackAdapter(): ChannelAdapter {
         channel: meta?.channel,
       })
     },
+    video: async (videoBase64, caption, filename, meta) => {
+      return window.electronAPI.homeAgent.channel.send('slack', 'video', {
+        video: videoBase64,
+        caption,
+        filename,
+        channel: meta?.channel,
+      })
+    },
+    document: async (documentBase64, filename, caption, meta) => {
+      return window.electronAPI.homeAgent.channel.send('slack', 'document', {
+        document: documentBase64,
+        filename,
+        caption,
+        channel: meta?.channel,
+      })
+    },
     keyboard: async (text, buttons, meta) => {
       // Translate the channel-agnostic button matrix into Block Kit actions.
       // Slack limits 5 buttons per actions block and 25 elements per message,

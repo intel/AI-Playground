@@ -676,7 +676,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       if (anyFailed) return
     }
 
-    const noChannelVerified = CHANNELS.every((c) => !homeAgent.channels[c.kind].verified)
+    const noChannelVerified = CHANNELS.every((c) => !homeAgent.channelPrefs[c.kind].verified)
     if (homeAgent.isFeatureEnabled && noChannelVerified) {
       const homeAgentJustInstalled = toInstall.some((r) => r.serviceName === 'home-agent-backend')
       if (homeAgentJustInstalled || isHomeAgentInstalledAndActive()) {
@@ -781,6 +781,11 @@ export const useSetupWizard = defineStore('setupWizard', () => {
    */
   async function finishHomeAgentSetup() {
     await dismiss()
+    // Reset the wizard page after the wizard is hidden (dismiss set loadingState
+    // to 'running') so HomeAgentSetupPage unmounts and its local UI state
+    // (active tab, Reconfigure expansion) starts fresh on the next open. The
+    // outer wizard uses v-show, so without this the page would stay mounted.
+    wizardPage.value = 'main'
     await syncPresetsForCurrentProductMode()
   }
 

@@ -1,14 +1,11 @@
 import { ref, computed } from 'vue'
 import { useHomeAgent } from './homeAgent'
-import { useConversations } from './conversations'
-import * as toast from '@/assets/js/toast'
 
 const DETECT_POLL_INTERVAL_MS = 2000
 const DETECT_TIMEOUT_MS = 5000
 
 export function useTelegramSetup() {
   const homeAgent = useHomeAgent()
-  const conversations = useConversations()
 
   const tokenInput = ref('')
   const showToken = ref(false)
@@ -32,9 +29,6 @@ export function useTelegramSetup() {
   const hasAnyChatId = computed(() => !!detectedChatId.value || isAlreadyConfigured.value)
 
   const canVerify = computed(() => hasAnyToken.value && hasAnyChatId.value)
-  const canSave = computed(
-    () => hasAnyChatId.value && (isAlreadyConfigured.value || tokenFormatOk.value),
-  )
 
   function currentSavedToken(): string {
     return (homeAgent.channels.telegram.config as { token?: string }).token?.trim() ?? ''
@@ -168,47 +162,6 @@ export function useTelegramSetup() {
     }
   }
 
-  async function saveAndContinue(): Promise<boolean> {
-    const token = tokenInput.value.trim()
-    const chatId = detectedChatId.value || homeAgent.telegramChatId || ''
-    let success = true
-    try {
-      if (token && chatId) {
-        const wasVerified = homeAgent.telegramVerified
-        let saveResult: { success: boolean; error?: string }
-        try {
-          saveResult = await homeAgent.saveChannelConfig('telegram', {
-            kind: 'telegram',
-            token,
-            chatId,
-          })
-        } catch (e) {
-          console.error('saveAndContinue: failed to save Home Agent config:', e)
-          toast.error('Failed to save Home Agent configuration')
-          return false
-        }
-        if (!saveResult.success) {
-          console.error('saveAndContinue: saveChannelConfig returned failure:', saveResult.error)
-          toast.error(saveResult.error ?? 'Failed to save Home Agent configuration')
-          return false
-        }
-        if (wasVerified) {
-          homeAgent.setVerified('telegram')
-        }
-        try {
-          await window.electronAPI.homeAgent.channel.inject('telegram', { token, chatId })
-        } catch (e) {
-          console.error('saveAndContinue: inject(telegram) failed:', e)
-          toast.error('Saved config, but failed to apply token to the running service')
-          success = false
-        }
-      }
-    } finally {
-      conversations.addNewConversation()
-    }
-    return success
-  }
-
   function syncSetupFieldsFromStore() {
     if (homeAgent.telegramChatId) {
       detectedChatId.value = homeAgent.telegramChatId
@@ -242,10 +195,8 @@ export function useTelegramSetup() {
     isAlreadyConfigured,
     tokenFormatOk,
     canVerify,
-    canSave,
     runDetectChatId,
     verify,
-    saveAndContinue,
     clearConfig,
     syncSetupFieldsFromStore,
   }

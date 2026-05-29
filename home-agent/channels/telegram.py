@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import logging
 import re
 import threading
@@ -178,6 +179,53 @@ class TelegramChannel(ChannelBase):
                     caption=caption or None,
                 ),
                 timeout=120,
+            )
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
+    def send_video(self, payload: dict) -> SendResult:
+        video_b64 = payload.get("video", "") or payload.get("videoBase64", "")
+        caption = payload.get("caption", "")
+        target = self._outbound_chat_id(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Telegram not configured", "_http_status": 400}
+        try:
+            video_bytes = base64.b64decode(video_b64)
+            self._run_coro(
+                self._app_instance.bot.send_video(  # type: ignore[union-attr]
+                    chat_id=target,
+                    video=video_bytes,
+                    caption=caption or None,
+                    supports_streaming=True,
+                ),
+                timeout=180,
+            )
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
+    def send_document(self, payload: dict) -> SendResult:
+        doc_b64 = payload.get("document", "") or payload.get("documentBase64", "")
+        filename = payload.get("filename") or "file.bin"
+        caption = payload.get("caption", "")
+        target = self._outbound_chat_id(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Telegram not configured", "_http_status": 400}
+        try:
+            from telegram import InputFile
+
+            doc_bytes = base64.b64decode(doc_b64)
+            # Wrap in InputFile so Telegram clients show the real filename
+            # (e.g. model.glb) instead of a random hash.
+            input_file = InputFile(io.BytesIO(doc_bytes), filename=filename)
+            self._run_coro(
+                self._app_instance.bot.send_document(  # type: ignore[union-attr]
+                    chat_id=target,
+                    document=input_file,
+                    caption=caption or None,
+                ),
+                timeout=180,
             )
             return {"status": "ok"}
         except Exception as exc:

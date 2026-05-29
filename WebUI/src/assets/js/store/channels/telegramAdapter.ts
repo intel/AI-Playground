@@ -246,6 +246,20 @@ export function createTelegramAdapter(): ChannelAdapter {
         caption,
       })
     },
+    video: async (videoBase64, caption, filename) => {
+      return window.electronAPI.homeAgent.channel.send('telegram', 'video', {
+        video: videoBase64,
+        caption,
+        filename,
+      })
+    },
+    document: async (documentBase64, filename, caption) => {
+      return window.electronAPI.homeAgent.channel.send('telegram', 'document', {
+        document: documentBase64,
+        filename,
+        caption,
+      })
+    },
     keyboard: async (text, buttons) => {
       return window.electronAPI.homeAgent.channel.send('telegram', 'keyboard', {
         text,

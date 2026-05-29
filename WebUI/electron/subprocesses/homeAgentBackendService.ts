@@ -447,7 +447,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
    *  are free to shape it however the platform requires. */
   async channelSend(
     kind: ChannelKind,
-    action: 'reply' | 'update' | 'photo' | 'typing' | 'keyboard',
+    action: 'reply' | 'update' | 'photo' | 'video' | 'document' | 'typing' | 'keyboard',
     payload: ChannelSendPayload,
   ): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }> {
     if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
@@ -719,7 +719,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       (
         _event,
         kind: ChannelKind,
-        action: 'reply' | 'update' | 'photo' | 'typing' | 'keyboard',
+        action: 'reply' | 'update' | 'photo' | 'video' | 'document' | 'typing' | 'keyboard',
         payload: ChannelSendPayload,
       ) => this.channelSend(kind, action, payload),
     )

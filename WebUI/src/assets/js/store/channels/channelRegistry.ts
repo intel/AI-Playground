@@ -85,6 +85,13 @@ export type ChannelDescriptor = {
    *  surface common UI state (`isAlreadyConfigured`, `canSave`, …) when the
    *  setup component is lazy-loaded. */
   composable: () => ChannelSetupComposable
+  /** Human-readable name for the channel's identity value (the chatId / userId
+   *  stored in `channelPrefs[kind].identity`). Lets the UI render an opaque
+   *  code like `U0B6U5ZA1HA` as "Slack member ID" instead. */
+  identityLabel: string
+  /** One-line explanation of what the identity is and why it matters, shown as
+   *  helper text beside the value in the verified summary. */
+  identityHelp: string
   capabilities: ChannelCapabilities
 }
 
@@ -103,6 +110,9 @@ export const CHANNELS: ChannelDescriptor[] = [
     icon: TelegramIcon,
     setupComponent: TelegramSetupSteps,
     composable: () => useTelegramSetup(),
+    identityLabel: 'Telegram chat ID',
+    identityHelp:
+      'The Telegram chat the Home Agent talks to. It only answers messages from this chat.',
     capabilities: {
       socketModeOnly: false,
       supportsDraftStream: true,
@@ -117,6 +127,9 @@ export const CHANNELS: ChannelDescriptor[] = [
     icon: SlackIcon,
     setupComponent: SlackSetupSteps,
     composable: () => useSlackSetup(),
+    identityLabel: 'Slack member ID',
+    identityHelp:
+      'Your Slack member ID. The Home Agent only replies to direct messages from this account.',
     capabilities: {
       socketModeOnly: true,
       supportsDraftStream: true,

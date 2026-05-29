@@ -73,11 +73,11 @@
             controlsList="nodownload nofullscreen noremoteplayback"
             controls
           />
-          <Model3DViewer
-            v-else-if="currentImage && is3D(currentImage)"
-            :src="currentImage?.model3dUrl as string"
-            class=""
-          />
+          <!-- model-viewer sizes to 100% of its parent, so give it an explicit
+               box here (the chat container only defines min dimensions). -->
+          <div v-else-if="currentImage && is3D(currentImage)" class="w-[400px] h-[400px]">
+            <Model3DViewer :src="currentImage?.model3dUrl as string" />
+          </div>
         </div>
 
         <!-- Progress overlay (absolutely positioned over the content) -->

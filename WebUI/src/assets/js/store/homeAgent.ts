@@ -4,7 +4,7 @@ import type { FileUIPart } from 'ai'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 import { useOpenAiCompatibleChat, type AipgUiMessage } from './openAiCompatibleChat'
-import { useImageGenerationPresets, isImage } from './imageGenerationPresets'
+import { useImageGenerationPresets, isImage, isVideo, is3D } from './imageGenerationPresets'
 import { usePromptStore } from './promptArea'
 import { usePresetSwitching } from './presetSwitching'
 import { usePresets } from './presets'
@@ -18,11 +18,13 @@ import {
   HOME_AGENT_CHAT_PRESET_NAME,
 } from './conversations'
 import { saveImageToMediaInput } from '@/lib/utils'
+import { render3dThumbnail } from '@/lib/render3dThumbnail'
 import * as toast from '../toast'
 import {
   CHANNEL_FIELD_SPEC,
   type ChannelConfig,
   type ChannelKind,
+  type ChannelPrefs,
   type ChannelRuntimeState,
   type InboundMeta,
   type RemoteImage,
@@ -75,11 +77,12 @@ function emptyRuntimeState(kind: ChannelKind): ChannelRuntimeState {
   return {
     kind,
     config: {},
-    identity: null,
-    verified: false,
     active: false,
-    userDisabled: false,
   }
+}
+
+function emptyPrefs(): ChannelPrefs {
+  return { verified: false, identity: null, enabled: false }
 }
 
 function extractAssistantReply(messages: AipgUiMessage[] | undefined): string | null {
@@ -112,8 +115,28 @@ export const useHomeAgent = defineStore(
      */
     const isFeatureEnabled = ref(false)
 
-    // Single source of truth for per-channel state. Every consumer reads
-    // `channels[kind].verified` / `.active` / `.identity` — no flat fields.
+    /**
+     * Master Home Agent on/off — the single title-bar toggle. Persisted so the
+     * agent resumes (or stays off) across restarts. A channel only runs when
+     * the master is on AND the channel itself is enabled + verified.
+     */
+    const masterEnabled = ref(true)
+
+    /**
+     * Persisted, non-secret per-channel preferences (verified / identity /
+     * enabled). Kept separate from `channels` so Pinia can persist it wholesale
+     * without ever serializing the in-memory secret `config`. This is the
+     * source of truth for "is this channel set up and wanted"; `channels[kind]`
+     * holds only runtime state (secrets + derived `active`).
+     */
+    const channelPrefs = reactive<Record<ChannelKind, ChannelPrefs>>({
+      telegram: emptyPrefs(),
+      slack: emptyPrefs(),
+      discord: emptyPrefs(),
+    })
+
+    // Runtime-only per-channel state (secret config + derived `active`). Never
+    // persisted; rebuilt on launch from safeStorage + channelPrefs.
     const channels = reactive<Record<ChannelKind, ChannelRuntimeState>>({
       telegram: emptyRuntimeState('telegram'),
       slack: emptyRuntimeState('slack'),
@@ -195,24 +218,40 @@ export const useHomeAgent = defineStore(
       () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.baseUrl,
     )
 
-    // When the backend becomes available and a channel has been verified,
-    // auto-activate that channel (unless the user explicitly turned it off).
-    watch(isAvailable, (val) => {
+    /**
+     * Single source of activation truth. A channel is active iff the backend
+     * is available, the master switch is on, and the channel is both enabled
+     * (user pref) and verified. Runs immediately (and deeply) so that on
+     * launch — once Pinia has restored `masterEnabled` / `channelPrefs` and the
+     * backend reports running — previously-on channels resume polling without
+     * any user action.
+     */
+    function recomputeActive() {
       for (const kind of KINDS) {
-        if (val) {
-          if (channels[kind].verified && !channels[kind].userDisabled) channels[kind].active = true
-        } else {
-          channels[kind].active = false
-        }
+        channels[kind].active =
+          isAvailable.value &&
+          masterEnabled.value &&
+          channelPrefs[kind].enabled &&
+          channelPrefs[kind].verified
       }
-    })
+    }
+    watch(
+      [
+        isAvailable,
+        masterEnabled,
+        () => KINDS.map((k) => channelPrefs[k].enabled),
+        () => KINDS.map((k) => channelPrefs[k].verified),
+      ],
+      recomputeActive,
+      { immediate: true, deep: true },
+    )
 
     // When the backend + channel credentials are ready, inject so the bot
     // starts (or restarts if creds changed). One watcher per kind so each
     // can decide its own "credentials ready" predicate without coupling.
     for (const kind of KINDS) {
       watch(
-        [isAvailable, () => channels[kind].config, () => channels[kind].identity],
+        [isAvailable, () => channels[kind].config, () => channelPrefs[kind].identity],
         ([avail, config, identity]) => {
           if (!avail) return
           // Readiness + identity threading are fully data-driven via
@@ -232,18 +271,6 @@ export const useHomeAgent = defineStore(
             .catch((e: unknown) => console.error(`homeAgent: inject(${kind}) failed:`, e))
         },
         { flush: 'post', immediate: true, deep: true },
-      )
-
-      // Verified flips → mirror into active (subject to userDisabled).
-      watch(
-        () => channels[kind].verified,
-        (val) => {
-          if (!val) {
-            channels[kind].active = false
-          } else if (isAvailable.value && !channels[kind].userDisabled) {
-            channels[kind].active = true
-          }
-        },
       )
 
       // Per-channel polling lifecycle.
@@ -720,7 +747,7 @@ export const useHomeAgent = defineStore(
       targetKey: string,
       meta?: InboundMeta,
     ): () => Promise<void> {
-      const sentImagesForPart = new WeakSet<object>()
+      const sentMediaForPart = new WeakSet<object>()
       let sendChain: Promise<void> = Promise.resolve()
       let stopped = false
       const draft = draftStream(adapter, meta)
@@ -743,17 +770,19 @@ export const useHomeAgent = defineStore(
         for (const part of parts) {
           if (part.type !== 'tool-comfyUI' && part.type !== 'tool-comfyUiImageEdit') continue
           if (part.state !== 'output-available') continue
-          if (sentImagesForPart.has(part as object)) continue
-          sentImagesForPart.add(part as object)
-          const images =
-            part.output?.images?.filter(
-              (i): i is { type: string; imageUrl: string } =>
-                i.type === 'image' && typeof i.imageUrl === 'string',
-            ) ?? []
-          if (images.length === 0) continue
+          if (sentMediaForPart.has(part as object)) continue
+          sentMediaForPart.add(part as object)
+          const media = part.output?.images ?? []
+          if (media.length === 0) continue
           enqueueImage(async () => {
-            for (const img of images) {
-              await sendImageToChannel(adapter, img.imageUrl, '', meta)
+            for (const item of media) {
+              if (item.type === 'image' && item.imageUrl) {
+                await sendImageToChannel(adapter, item.imageUrl, '', meta)
+              } else if (item.type === 'video' && item.videoUrl) {
+                await sendVideoToChannel(adapter, item.videoUrl, '', meta)
+              } else if (item.type === 'model3d' && item.model3dUrl) {
+                await send3DModelToChannel(adapter, item.model3dUrl, '', meta)
+              }
             }
           })
         }
@@ -829,7 +858,7 @@ export const useHomeAgent = defineStore(
       meta?: InboundMeta,
     ): Promise<void> {
       try {
-        const base64 = await imageToBase64(imageUrl)
+        const base64 = await mediaToBase64(imageUrl)
         const result = await photo(adapter, base64, caption, meta)
         if (!result.success) {
           throw new Error(result.error ?? 'photo returned failure')
@@ -843,20 +872,96 @@ export const useHomeAgent = defineStore(
       }
     }
 
-    async function imageToBase64(imageUrl: string): Promise<string> {
-      if (imageUrl.startsWith('aipg-media://')) {
-        const result = await window.electronAPI.readAipgMediaAsBase64(imageUrl)
+    async function sendVideoToChannel(
+      adapter: ChannelAdapter,
+      videoUrl: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
+      try {
+        const base64 = await mediaToBase64(videoUrl)
+        const result = await adapter.video(
+          base64,
+          caption,
+          basenameForUrl(videoUrl, 'video.mp4'),
+          meta,
+        )
+        if (!result.success) {
+          throw new Error(result.error ?? 'video returned failure')
+        }
+      } catch (e) {
+        await reply(
+          adapter,
+          `⚠️ Video was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
+        )
+      }
+    }
+
+    /**
+     * Ship a generated 3D model. Chat clients have no inline glTF preview, so
+     * we render a thumbnail on-device and send it as a photo first, then ship
+     * the `.glb` as a document. If thumbnail rendering fails we still send the
+     * document so the user gets the file.
+     */
+    async function send3DModelToChannel(
+      adapter: ChannelAdapter,
+      model3dUrl: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
+      try {
+        try {
+          const thumb = await render3dThumbnail(model3dUrl)
+          await photo(adapter, thumb.base64, caption, meta)
+        } catch (e) {
+          console.error('homeAgent: 3D thumbnail render failed, sending document only:', e)
+        }
+        const base64 = await mediaToBase64(model3dUrl)
+        const result = await adapter.document(
+          base64,
+          basenameForUrl(model3dUrl, 'model.glb'),
+          caption,
+          meta,
+        )
+        if (!result.success) {
+          throw new Error(result.error ?? 'document returned failure')
+        }
+      } catch (e) {
+        await reply(
+          adapter,
+          `⚠️ 3D model was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
+        )
+      }
+    }
+
+    /** Extract a filename from an `aipg-media://`/http(s) URL, falling back to
+     *  `fallback` for data URIs or empty basenames. */
+    function basenameForUrl(url: string, fallback: string): string {
+      try {
+        const withoutScheme = url.replace(/^aipg-media:\/\//, '').split(/[?#]/)[0]
+        const base = withoutScheme.split('/').pop()
+        return base && base.length > 0 ? base : fallback
+      } catch {
+        return fallback
+      }
+    }
+
+    async function mediaToBase64(mediaUrl: string): Promise<string> {
+      if (mediaUrl.startsWith('aipg-media://')) {
+        const result = await window.electronAPI.readAipgMediaAsBase64(mediaUrl)
         if (!result.success) {
           throw new Error(`readAipgMediaAsBase64 failed: ${result.error}`)
         }
         return result.data
       }
-      if (imageUrl.startsWith('data:image/')) {
-        const comma = imageUrl.indexOf('base64,')
-        if (comma === -1) throw new Error('Malformed image data URI')
-        return imageUrl.slice(comma + 'base64,'.length)
+      if (mediaUrl.startsWith('data:')) {
+        const comma = mediaUrl.indexOf('base64,')
+        if (comma === -1) throw new Error('Malformed media data URI')
+        return mediaUrl.slice(comma + 'base64,'.length)
       }
-      const resp = await fetch(imageUrl)
+      const resp = await fetch(mediaUrl)
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`)
       const arrayBuf = await resp.arrayBuffer()
       const bytes = new Uint8Array(arrayBuf)
@@ -889,9 +994,15 @@ export const useHomeAgent = defineStore(
           const img = imageGenStore.generatedImages.find((i) => i.id === id)
           if (!img) continue
 
-          if (img.state === 'done' && isImage(img) && img.imageUrl) {
+          if (img.state === 'done') {
             sentIds.add(id)
-            await sendImageToChannel(adapter, img.imageUrl, prompt, meta)
+            if (isImage(img) && img.imageUrl) {
+              await sendImageToChannel(adapter, img.imageUrl, prompt, meta)
+            } else if (isVideo(img) && img.videoUrl) {
+              await sendVideoToChannel(adapter, img.videoUrl, prompt, meta)
+            } else if (is3D(img) && img.model3dUrl) {
+              await send3DModelToChannel(adapter, img.model3dUrl, prompt, meta)
+            }
           } else if (img.state === 'stopped') {
             sentIds.add(id) // count as handled, don't send
           }
@@ -1010,10 +1121,19 @@ export const useHomeAgent = defineStore(
       }
 
       const previousMode = promptStore.getCurrentMode()
-      // `upload_photo` so Telegram shows "sending a photo…" rather than
-      // "typing…" during the ComfyUI render — matches the eventual delivery.
-      // Slack ignores the action name and just toggles the :eyes: reaction.
-      const stopTyping = typing(adapter, 'upload_photo', meta)
+      // Match the typing indicator to the eventual delivery so Telegram shows
+      // "sending a photo/video/document…" during the ComfyUI render. Read the
+      // media type from the target preset by name (the active preset hasn't
+      // been switched yet at this point). Slack ignores the action name and
+      // just toggles the :eyes: reaction.
+      const targetMediaType = presetsStore.presets.find((p) => p.name === presetName)?.mediaType
+      const uploadAction =
+        targetMediaType === 'video'
+          ? 'upload_video'
+          : targetMediaType === 'model3d'
+            ? 'upload_document'
+            : 'upload_photo'
+      const stopTyping = typing(adapter, uploadAction, meta)
 
       // Phase-aware draft. Drafts auto-expire 30 s after the last update on
       // Telegram (Slack has no expiry); the keep-alive timer inside the
@@ -1351,15 +1471,14 @@ export const useHomeAgent = defineStore(
           const next = config as Record<string, string>
           const fieldChanged = Object.keys(next).some((k) => prev[k] !== next[k])
           channels[kind].config = { ...config }
-          // Track identity in the dedicated `.identity` field so consumers
+          // Track identity in the dedicated prefs `.identity` field so consumers
           // don't need to know which sub-key carries it for each kind.
           const idKey = CHANNEL_FIELD_SPEC[kind].identityField
-          if (idKey && next[idKey] !== undefined) channels[kind].identity = next[idKey]
-          // Credentials changed — force re-verification.
+          if (idKey && next[idKey] !== undefined) channelPrefs[kind].identity = next[idKey]
+          // Credentials changed — force re-verification (but keep the user's
+          // enabled preference; the channel just won't run until re-verified).
           if (fieldChanged) {
-            channels[kind].verified = false
-            channels[kind].active = false
-            channels[kind].userDisabled = false
+            channelPrefs[kind].verified = false
           }
         }
         return result
@@ -1376,59 +1495,43 @@ export const useHomeAgent = defineStore(
         console.error(`homeAgent.clearChannelConfig(${kind}) failed:`, e)
       }
       channels[kind] = emptyRuntimeState(kind)
+      channelPrefs[kind] = emptyPrefs()
     }
 
+    /** Mark a channel verified after a successful test. A freshly verified
+     *  channel defaults to enabled so it starts running immediately (subject
+     *  to the master switch) — matching the prior "verify ⇒ on" behavior. */
     function setVerified(kind: ChannelKind) {
-      channels[kind].verified = true
+      channelPrefs[kind].verified = true
+      channelPrefs[kind].enabled = true
     }
 
-    function activate(kind: ChannelKind) {
-      if (!isAvailable.value) {
-        toast.error(
-          'Home Agent is not installed. Please install it from App Settings → Installation Management.',
-        )
+    /** Per-channel enable/disable — invoked from the setup screen. Enabling a
+     *  channel requires it to be verified first. */
+    function setChannelEnabled(kind: ChannelKind, on: boolean) {
+      if (on && !channelPrefs[kind].verified) {
+        toast.error(`Verify the ${kind} connection before enabling it.`)
         return
       }
-      if (!channels[kind].verified) {
-        toast.error(`Complete ${kind} setup and verify the connection in Setup Wizard.`)
-        return
-      }
-      channels[kind].userDisabled = false
-      channels[kind].active = true
-      focusRemoteChatDiscussion()
+      channelPrefs[kind].enabled = on
+      if (on && masterEnabled.value && isAvailable.value) focusRemoteChatDiscussion()
     }
 
-    /** Toggle a specific channel, or every configured channel at once when
-     *  `kind` is omitted (back-compat for callers that treat Home Agent as a
-     *  single switch). */
-    function toggle(kind?: ChannelKind) {
-      if (kind) {
-        if (channels[kind].active) {
-          channels[kind].userDisabled = true
-          channels[kind].active = false
-        } else {
-          activate(kind)
-        }
-        return
-      }
-      // No kind — toggle the umbrella state.
-      if (isHomeAgentActive.value) {
-        for (const k of KINDS) {
-          if (channels[k].active) {
-            channels[k].userDisabled = true
-            channels[k].active = false
-          }
-        }
-      } else {
-        for (const k of KINDS) {
-          if (channels[k].verified) activate(k)
-        }
+    /** Master Home Agent on/off — the single title-bar toggle. */
+    function setMasterEnabled(on: boolean) {
+      masterEnabled.value = on
+      if (on && isAvailable.value && KINDS.some((k) => channelPrefs[k].enabled)) {
+        focusRemoteChatDiscussion()
       }
     }
 
-    /** Load tokens from safeStorage. Persisted Pinia state has `verified` and
-     *  `identity` already; this hydrates secrets into the in-memory config.
-     */
+    function toggleMaster() {
+      setMasterEnabled(!masterEnabled.value)
+    }
+
+    /** Load tokens from safeStorage. Persisted Pinia state already carries
+     *  `channelPrefs` (verified / identity / enabled); this rehydrates the
+     *  in-memory secret config and back-fills identity when it is missing. */
     async function initConfig() {
       try {
         try {
@@ -1446,20 +1549,19 @@ export const useHomeAgent = defineStore(
           const cfg = await window.electronAPI.homeAgent.channel.loadConfig(kind)
           if (cfg) {
             channels[kind].config = { ...cfg, kind } as Partial<ChannelConfig>
-            // Hydrate the dedicated `.identity` field from the saved config's
-            // identity key (chatId / userId / …). The persisted Pinia state may
-            // already carry it, but a migrated legacy config or an older
-            // persisted blob without identity would otherwise leave `.identity`
-            // null — making the setup wizard think no chat/DM partner exists
-            // even though the backend has one.
+            // Back-fill the prefs `.identity` from the saved config's identity
+            // key (chatId / userId / …). The persisted Pinia state may already
+            // carry it, but a migrated legacy config or an older persisted blob
+            // without identity would otherwise leave it null — making the setup
+            // wizard think no chat/DM partner exists even though the backend
+            // has one.
             const idKey = CHANNEL_FIELD_SPEC[kind].identityField
             const savedIdentity = (cfg as Record<string, string>)[idKey]
-            if (savedIdentity && !channels[kind].identity) {
-              channels[kind].identity = savedIdentity
+            if (savedIdentity && !channelPrefs[kind].identity) {
+              channelPrefs[kind].identity = savedIdentity
             }
-          } else if (!channels[kind].verified) {
+          } else if (!channelPrefs[kind].verified) {
             channels[kind].config = {}
-            channels[kind].active = false
           }
         }
       } catch (e) {
@@ -1469,43 +1571,23 @@ export const useHomeAgent = defineStore(
 
     void initConfig()
 
-    // ── Persistence-friendly computed shims ─────────────────────────────────
-    // Pinia's persist plugin can only pick top-level refs/computed. Expose
-    // the bits that are persisted (identity + verified per kind) as separate
-    // refs that mirror the reactive map; the `persist.pick` list references
-    // them by name.
-    const telegramVerified = computed({
-      get: () => channels.telegram.verified,
-      set: (v) => {
-        channels.telegram.verified = v
-      },
-    })
-    const telegramChatId = computed({
-      get: () => channels.telegram.identity ?? '',
-      set: (v) => {
-        channels.telegram.identity = v || null
-      },
-    })
-    const slackVerified = computed({
-      get: () => channels.slack.verified,
-      set: (v) => {
-        channels.slack.verified = v
-      },
-    })
-    const slackUserId = computed({
-      get: () => channels.slack.identity ?? '',
-      set: (v) => {
-        channels.slack.identity = v || null
-      },
-    })
+    // ── Read-only convenience getters ───────────────────────────────────────
+    // External consumers (setup composables, setup-step components) read these.
+    // They are NOT used for persistence — `channelPrefs` is persisted directly.
+    const telegramVerified = computed(() => channelPrefs.telegram.verified)
+    const telegramChatId = computed(() => channelPrefs.telegram.identity ?? '')
+    const slackVerified = computed(() => channelPrefs.slack.verified)
+    const slackUserId = computed(() => channelPrefs.slack.identity ?? '')
 
     return {
       isFeatureEnabled,
       isHomeAgentActive,
-      // Channel state map — the single source of truth.
+      // Master title-bar switch + persisted per-channel prefs.
+      masterEnabled,
+      channelPrefs,
+      // Runtime channel state map (secrets + derived `active`); in-memory only.
       channels,
-      // Persistence-friendly per-kind aliases (these are what Pinia.persist
-      // picks up; the underlying `channels` map is in-memory only).
+      // Read-only per-kind convenience getters over channelPrefs.
       telegramVerified,
       telegramChatId,
       slackVerified,
@@ -1527,8 +1609,9 @@ export const useHomeAgent = defineStore(
       summaryCache,
       summarizeConversation,
       // Channel-agnostic control surface
-      activate,
-      toggle,
+      setChannelEnabled,
+      setMasterEnabled,
+      toggleMaster,
       saveChannelConfig,
       clearChannelConfig,
       setVerified,
@@ -1537,19 +1620,13 @@ export const useHomeAgent = defineStore(
   {
     persist: {
       storage: demoAwareStorage,
-      // Only the persistence-friendly aliases are picked — the underlying
-      // `channels` map is restored in memory by initConfig() on startup
-      // (secrets via safeStorage, verified/identity via these alias setters).
+      // Persist only non-secret state. `channelPrefs` (verified / identity /
+      // enabled per kind) and `masterEnabled` drive activation on the next
+      // launch; the secret `config` in `channels` is rehydrated from
+      // safeStorage by initConfig() and never serialized here.
       // activeRemoteConversationKey persisted so /load <id> survives restart.
       // summaryCache persisted so /load menu summaries survive restarts.
-      pick: [
-        'telegramVerified',
-        'telegramChatId',
-        'slackVerified',
-        'slackUserId',
-        'activeRemoteConversationKey',
-        'summaryCache',
-      ],
+      pick: ['masterEnabled', 'channelPrefs', 'activeRemoteConversationKey', 'summaryCache'],
     },
   },
 )

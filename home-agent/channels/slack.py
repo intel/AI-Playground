@@ -174,6 +174,46 @@ class SlackChannel(ChannelBase):
         except Exception as exc:
             return {"error": str(exc), "_http_status": 500}
 
+    def send_video(self, payload: dict) -> SendResult:
+        video_b64 = payload.get("video", "") or payload.get("videoBase64", "")
+        caption = payload.get("caption", "") or ""
+        filename = payload.get("filename") or f"aipg-{int(time.time() * 1000)}.mp4"
+        thread_ts = payload.get("thread_ts") or payload.get("threadTs")
+        target = self._outbound_target(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Slack not configured", "_http_status": 400}
+        try:
+            video_bytes = base64.b64decode(video_b64)
+            kwargs: dict = {"channel": target, "file": video_bytes, "filename": filename}
+            if caption:
+                kwargs["initial_comment"] = caption
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            self._run_coro(self._app_instance.client.files_upload_v2(**kwargs))  # type: ignore[union-attr]
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
+    def send_document(self, payload: dict) -> SendResult:
+        doc_b64 = payload.get("document", "") or payload.get("documentBase64", "")
+        caption = payload.get("caption", "") or ""
+        filename = payload.get("filename") or f"aipg-{int(time.time() * 1000)}.bin"
+        thread_ts = payload.get("thread_ts") or payload.get("threadTs")
+        target = self._outbound_target(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Slack not configured", "_http_status": 400}
+        try:
+            doc_bytes = base64.b64decode(doc_b64)
+            kwargs: dict = {"channel": target, "file": doc_bytes, "filename": filename}
+            if caption:
+                kwargs["initial_comment"] = caption
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            self._run_coro(self._app_instance.client.files_upload_v2(**kwargs))  # type: ignore[union-attr]
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
     def send_typing(self, payload: dict) -> SendResult:
         """Slack has no DM "typing…" indicator equivalent to Telegram's chat
         actions, so we follow OpenClaw's pattern and use reactions.add /

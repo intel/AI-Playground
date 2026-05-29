@@ -42,22 +42,29 @@ export const CHANNEL_FIELD_SPEC: Record<ChannelKind, ChannelFieldSpec> = {
   discord: { requiredSecrets: ['botToken'], identityField: 'userId' },
 }
 
-/** All renderer-side reactive state for a single channel. Lives inside
- *  `homeAgent.channels[kind]` and is the only thing the polling / drain
- *  pipeline reads from. */
+/** Runtime-only per-channel state. Lives inside `homeAgent.channels[kind]`,
+ *  is NEVER persisted (it holds the in-memory secret `config` blob), and is
+ *  rebuilt on every launch: `config` is rehydrated from safeStorage and
+ *  `active` is re-derived from `channelPrefs` + availability. */
 export type ChannelRuntimeState = {
   kind: ChannelKind
+  /** Secrets (token / botToken / …) held in memory only. Never persisted. */
   config: Partial<ChannelConfig>
-  /** Last-known identity (chatId / userId / equivalent) — surfaced in the UI so
-   *  users can confirm the right account is connected. Persisted via Pinia. */
-  identity: string | null
-  verified: boolean
-  /** Currently fielding remote traffic. Re-derived on startup by watchers. */
+  /** Currently fielding remote traffic. Re-derived on startup. */
   active: boolean
-  /** "User explicitly turned this channel off" — preserved across watch ticks
-   *  so a credential change to the *other* channel doesn't accidentally
-   *  re-enable this one. */
-  userDisabled: boolean
+}
+
+/** Persisted, non-secret per-channel preferences. Separated from
+ *  `ChannelRuntimeState` because Pinia's persist plugin serializes `$state`;
+ *  keeping secrets out of this object guarantees tokens never reach
+ *  localStorage. Pinia persists this whole map.
+ *  - `verified`: credentials saved and tested successfully.
+ *  - `identity`: last-known chat/user id (chatId / userId / …) for display.
+ *  - `enabled`: user wants this channel running (toggled in the setup screen). */
+export type ChannelPrefs = {
+  verified: boolean
+  identity: string | null
+  enabled: boolean
 }
 
 /** Identifier the channel uses to address an existing message (for edit /

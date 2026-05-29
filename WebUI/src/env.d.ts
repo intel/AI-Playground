@@ -373,7 +373,7 @@ type electronAPI = {
       flushPending(kind: string): Promise<void>
       send(
         kind: string,
-        action: 'reply' | 'update' | 'photo' | 'typing' | 'keyboard',
+        action: 'reply' | 'update' | 'photo' | 'video' | 'document' | 'typing' | 'keyboard',
         payload: Record<string, unknown>,
       ): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
     }

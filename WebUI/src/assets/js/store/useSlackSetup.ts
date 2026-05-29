@@ -1,7 +1,5 @@
 import { ref, computed } from 'vue'
 import { useHomeAgent } from './homeAgent'
-import { useConversations } from './conversations'
-import * as toast from '@/assets/js/toast'
 
 const DETECT_POLL_INTERVAL_MS = 2000
 const DETECT_TIMEOUT_MS = 8000
@@ -16,7 +14,6 @@ const APP_TOKEN_RE = /^xapp-\d+-[A-Z0-9]+-[A-Za-z0-9]+$/
  */
 export function useSlackSetup() {
   const homeAgent = useHomeAgent()
-  const conversations = useConversations()
 
   const botTokenInput = ref('')
   const appTokenInput = ref('')
@@ -59,12 +56,6 @@ export function useSlackSetup() {
   const canDetect = computed(() => hasAnyBotToken.value && hasAnyAppToken.value)
   const canVerify = computed(
     () => hasAnyBotToken.value && hasAnyAppToken.value && hasAnyUserId.value,
-  )
-  const canSave = computed(
-    () =>
-      hasAnyUserId.value &&
-      (isAlreadyConfigured.value ||
-        (botTokenInput.value && appTokenInput.value && tokensFormatOk.value)),
   )
 
   async function injectIfPossible() {
@@ -213,54 +204,6 @@ export function useSlackSetup() {
     }
   }
 
-  async function saveAndContinue(): Promise<boolean> {
-    const bot = botTokenInput.value.trim()
-    const appT = appTokenInput.value.trim()
-    const userId = detectedUserId.value || homeAgent.slackUserId || ''
-    let success = true
-    try {
-      if (bot && appT && userId) {
-        const wasVerified = homeAgent.slackVerified
-        let saveResult: { success: boolean; error?: string }
-        try {
-          saveResult = await homeAgent.saveChannelConfig('slack', {
-            kind: 'slack',
-            botToken: bot,
-            appToken: appT,
-            userId,
-          })
-        } catch (e) {
-          console.error('saveAndContinue (slack): saveChannelConfig threw:', e)
-          toast.error('Failed to save Slack configuration')
-          return false
-        }
-        if (!saveResult.success) {
-          console.error(
-            'saveAndContinue (slack): saveChannelConfig returned failure:',
-            saveResult.error,
-          )
-          toast.error(saveResult.error ?? 'Failed to save Slack configuration')
-          return false
-        }
-        if (wasVerified) homeAgent.setVerified('slack')
-        try {
-          await window.electronAPI.homeAgent.channel.inject('slack', {
-            botToken: bot,
-            appToken: appT,
-            userId,
-          })
-        } catch (e) {
-          console.error('saveAndContinue (slack): inject(slack) failed:', e)
-          toast.error('Saved config, but failed to apply tokens to the running service')
-          success = false
-        }
-      }
-    } finally {
-      conversations.addNewConversation()
-    }
-    return success
-  }
-
   function syncSetupFieldsFromStore() {
     if (homeAgent.slackUserId) detectedUserId.value = homeAgent.slackUserId
   }
@@ -297,10 +240,8 @@ export function useSlackSetup() {
     tokensFormatOk,
     canDetect,
     canVerify,
-    canSave,
     runDetectUserId,
     verify,
-    saveAndContinue,
     clearConfig,
     syncSetupFieldsFromStore,
   }
