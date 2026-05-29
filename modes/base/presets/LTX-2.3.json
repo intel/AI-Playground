@@ -10,6 +10,9 @@
   "tags": ["LTX Video", "LTX 2.3", "high-vram"],
   "backend": "comfyui",
   "category": "create-videos",
+  "toolCategory": "create-videos",
+  "mediaType": "video",
+  "toolInstructions": "Use this workflow to generate a short video clip with audio from a text prompt (text-to-video). Write a detailed prompt describing the subject, its action, any spoken words or music, the camera movement, and the background. Resource-intensive (high VRAM); only use when the user explicitly asks for a video. This tool does NOT take an input image - to animate an existing image into a video, use an image-to-video workflow (e.g. Wan2.2-14B-i2v) instead.",
   "resolutionConfig": {
     "megapixels": [
       { "label": "0.1", "totalPixels": 102400 },

@@ -76,8 +76,9 @@ export function getAvailableWorkflows(): Array<{
       if (preset.type !== 'comfy' || preset.backend !== 'comfyui') {
         return false
       }
-      // Only presets with toolCategory 'create-images'
-      return preset.toolCategory === 'create-images'
+      // Presets the create tool can drive from a prompt alone: images and
+      // text-to-video. Image-to-video presets live behind the edit tool.
+      return preset.toolCategory === 'create-images' || preset.toolCategory === 'create-videos'
     })
     .map((preset: Preset) => {
       const comfyPreset = preset as ComfyUiPreset
@@ -375,8 +376,13 @@ export async function executeComfyGeneration(args: {
     }
   }
 
-  // Set up temporary image tracking, using preset default for batchSize if not provided
-  const batchSize = args.batchSize ?? (getPresetDefault('batchSize') as number | null) ?? 1
+  // Set up temporary image tracking, using preset default for batchSize if not provided.
+  // Batching only makes sense for images (cheap alternates); video and 3D are
+  // expensive and a single result is expected, so force batchSize 1 for them
+  // regardless of what the model requested.
+  const presetMediaType = (preset?.mediaType as 'image' | 'video' | 'model3d') || 'image'
+  const requestedBatchSize = args.batchSize ?? (getPresetDefault('batchSize') as number | null) ?? 1
+  const batchSize = presetMediaType === 'image' ? requestedBatchSize : 1
   const imageIds: string[] = Array.from({ length: batchSize }, () => crypto.randomUUID())
 
   // Save original values
@@ -453,8 +459,8 @@ export async function executeComfyGeneration(args: {
       args.seed ?? (getPresetDefault('seed') as number | null) ?? globalDefaultSettings.seed
     imageGeneration.batchSize = batchSize
 
-    // Determine media type from preset, default to 'image'
-    const mediaType = (preset?.mediaType as 'image' | 'video' | 'model3d') || 'image'
+    // Media type from preset (computed above for batch clamping)
+    const mediaType = presetMediaType
 
     // Create media items in queued state
     imageIds.forEach((imageId) => {

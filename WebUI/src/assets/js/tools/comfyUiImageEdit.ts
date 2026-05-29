@@ -143,6 +143,7 @@ function findSourceImage(messages: ModelMessage[]): string | null {
 
 export function getAvailableEditWorkflows(): Array<{
   name: string
+  mediaType?: 'image' | 'video' | 'model3d'
   description?: string
   toolInstructions?: string
 }> {
@@ -155,6 +156,7 @@ export function getAvailableEditWorkflows(): Array<{
     })
     .map((p: Preset) => ({
       name: p.name,
+      mediaType: p.mediaType,
       description: p.description,
       toolInstructions: p.toolInstructions,
     }))
@@ -442,14 +444,26 @@ function getToolDefinition() {
   const workflows = getAvailableEditWorkflows()
   const defaultWorkflow = 'Edit By Prompt'
   const workflowOptions = workflows
-    .map((w) => w.name + (w.name === defaultWorkflow ? ' (default)' : ''))
+    .map((w) => {
+      const mediaTypeStr = w.mediaType && w.mediaType !== 'image' ? ` (${w.mediaType})` : ''
+      return w.name + mediaTypeStr + (w.name === defaultWorkflow ? ' (default)' : '')
+    })
     .join(', ')
 
+  const videoWorkflows = workflows.filter((w) => w.mediaType === 'video')
+
   let description =
-    'Use this tool to edit or modify an existing image from the conversation based on a text prompt. ' +
-    'This tool takes the most recent image from the conversation (uploaded or generated) and applies edits.\n\n' +
+    'Use this tool to transform an existing image from the conversation based on a text prompt. ' +
+    'This tool takes the most recent image from the conversation (uploaded or generated) and applies the selected workflow - editing it, converting it to a 3D model, or animating it into a video.\n\n' +
     'IMPORTANT: This tool requires an image to already exist in the conversation.\n\n' +
     'VARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive.\n\n'
+
+  if (videoWorkflows.length > 0) {
+    description +=
+      `IMAGE-TO-VIDEO: Workflows (${videoWorkflows
+        .map((w) => w.name)
+        .join(', ')}) animate the existing image into a short video. Only use them when the user explicitly asks to animate an image or create a video from it. Video generation is resource-intensive.\n\n`
+  }
 
   // Add preset-specific tool instructions with clear preset -> instruction mapping
   const presetsWithInstructions = workflows.filter((w) => w.toolInstructions)
