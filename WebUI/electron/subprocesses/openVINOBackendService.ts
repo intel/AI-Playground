@@ -16,7 +16,7 @@ interface OvmsServerProcess {
   process: ChildProcess
   port: number
   modelRepoId: string
-  type: 'llm' | 'embedding' | 'transcription' | 'image_generation'
+  type: 'llm' | 'embedding' | 'transcription' | 'speech' | 'image_generation'
   contextSize?: number
   isReady: boolean
   healthEndpointUrl: string
@@ -54,11 +54,13 @@ export class OpenVINOBackendService implements ApiService {
   private ovmsLlmProcess: OvmsServerProcess | null = null
   private ovmsEmbeddingProcess: OvmsServerProcess | null = null
   private ovmsTranscriptionProcess: OvmsServerProcess | null = null
+  private ovmsSpeechProcess: OvmsServerProcess | null = null
   private ovmsImageProcess: OvmsServerProcess | null = null
   private currentModel: string | null = null
   private currentContextSize: number | null = null
   private currentEmbeddingModel: string | null = null
   private currentTranscriptionModel: string | null = null
+  private currentSpeechModel: string | null = null
   private currentImageModel: string | null = null
   private currentImageResolution: string | null = null
 
@@ -747,6 +749,7 @@ export class OpenVINOBackendService implements ApiService {
     await this.stopOvmsLlmServer()
     await this.stopOvmsEmbeddingServer()
     await this.stopOvmsTranscriptionServer()
+    await this.stopOvmsSpeechServer()
     await this.stopOvmsImageServer()
 
     this.setStatus('stopped')
@@ -822,6 +825,62 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.info('Transcription server stopped successfully', this.name)
     } catch (error) {
       this.appLogger.error(`Failed to stop transcription server: ${error}`, this.name)
+      throw error
+    }
+  }
+
+  /**
+   * Get the text-to-speech server URL if a speech server is running
+   * @returns The speech server base URL, or null if no speech server is running
+   */
+  getSpeechServerUrl(): string | null {
+    if (this.ovmsSpeechProcess?.isReady) {
+      return `http://127.0.0.1:${this.ovmsSpeechProcess.port}/v3`
+    }
+    return null
+  }
+
+  /**
+   * Start text-to-speech server independently
+   * @param modelName - The TTS model name (e.g., 'microsoft/speecht5_tts')
+   */
+  async startSpeechServer(modelName: string): Promise<void> {
+    try {
+      this.appLogger.info(`Starting speech server for model: ${modelName}`, this.name)
+
+      // Check if already running with the same model
+      if (this.ovmsSpeechProcess?.isReady && this.currentSpeechModel === modelName) {
+        this.appLogger.info(`Speech server already running with model: ${modelName}`, this.name)
+        return
+      }
+
+      // Stop existing server if running different model
+      if (this.ovmsSpeechProcess) {
+        await this.stopOvmsSpeechServer()
+      }
+
+      // Start new server
+      await this.startOvmsSpeechServer(modelName)
+      this.appLogger.info(`Speech server started successfully for model: ${modelName}`, this.name)
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start speech server for model ${modelName}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Stop text-to-speech server independently
+   */
+  async stopSpeechServer(): Promise<void> {
+    try {
+      this.appLogger.info('Stopping speech server', this.name)
+      await this.stopOvmsSpeechServer()
+      this.appLogger.info('Speech server stopped successfully', this.name)
+    } catch (error) {
+      this.appLogger.error(`Failed to stop speech server: ${error}`, this.name)
       throw error
     }
   }
@@ -1327,6 +1386,141 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
+  private async startOvmsSpeechServer(modelRepoId: string): Promise<OvmsServerProcess> {
+    try {
+      const selectedDevice = this.sttDevices.find((d) => d.selected)?.id || 'AUTO'
+      const port = await getPort({ port: portNumbers(29400, 29499) })
+      // Validate model path exists
+      this.resolveSpeechModelPath(modelRepoId)
+      const modelName = modelRepoId.split('/').join('---')
+
+      this.appLogger.info(
+        `Starting OVMS speech server for model: ${modelRepoId} on port ${port} with device ${selectedDevice}`,
+        this.name,
+      )
+
+      const args = [
+        '--rest_bind_address',
+        '127.0.0.1',
+        '--rest_port',
+        port.toString(),
+        '--rest_workers',
+        '2',
+        '--source_model',
+        modelName,
+        '--model_repository_path',
+        path.resolve(path.join(this.baseDir, 'models', 'TTS')),
+        '--model_name',
+        modelName,
+        '--target_device',
+        selectedDevice,
+        '--task',
+        'text2speech',
+        '--cache_dir',
+        'cache',
+      ]
+
+      this.appLogger.info(`OVMS speech launch args: ${args.join(' ')}`, this.name)
+
+      // Set up environment variables as per setupvars.ps1
+      const pythonDir = path.join(this.ovmsDir, 'python')
+      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
+
+      const childProcess = spawn(this.ovmsExePath, args, {
+        cwd: this.ovmsDir,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          OVMS_DIR: this.ovmsDir,
+          PYTHONHOME: pythonDir,
+          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
+        },
+      })
+
+      const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
+      const ovmsProcess: OvmsServerProcess = {
+        process: childProcess,
+        port,
+        modelRepoId,
+        type: 'speech',
+        isReady: false,
+        healthEndpointUrl: healthUrl,
+      }
+
+      // Set up process event handlers
+      childProcess.stdout!.on('data', (message) => {
+        this.appLogger.info(`[OVMS Speech] ${message}`, this.name)
+      })
+
+      childProcess.stderr!.on('data', (message) => {
+        this.appLogger.error(`[OVMS Speech] ${message}`, this.name)
+      })
+
+      childProcess.on('error', (error: Error) => {
+        this.appLogger.error(`OVMS speech server process error: ${error}`, this.name)
+      })
+
+      childProcess.on('exit', (code: number | null) => {
+        this.appLogger.info(`OVMS speech server process exited with code: ${code}`, this.name)
+        if (this.ovmsSpeechProcess === ovmsProcess) {
+          this.ovmsSpeechProcess = null
+          this.currentSpeechModel = null
+        }
+      })
+
+      // Wait for server to be ready
+      await this.waitForServerReady(healthUrl, childProcess, 600)
+      ovmsProcess.isReady = true
+
+      this.ovmsSpeechProcess = ovmsProcess
+      this.currentSpeechModel = modelRepoId
+
+      this.appLogger.info(`OVMS speech server ready for model: ${modelRepoId}`, this.name)
+      return ovmsProcess
+    } catch (error) {
+      this.appLogger.error(
+        `Failed to start OVMS speech server for model ${modelRepoId}: ${error}`,
+        this.name,
+      )
+      throw error
+    }
+  }
+
+  private async stopOvmsSpeechServer(): Promise<void> {
+    if (this.ovmsSpeechProcess) {
+      this.appLogger.info(
+        `Stopping OVMS speech server for model: ${this.currentSpeechModel}`,
+        this.name,
+      )
+      this.ovmsSpeechProcess.process.kill('SIGTERM')
+
+      // Wait a bit for graceful shutdown, then force kill if needed
+      await new Promise<void>((resolve) => {
+        const currentProcess = this.ovmsSpeechProcess
+        const timeout = setTimeout(() => {
+          if (currentProcess) {
+            this.appLogger.warn(`Force killing OVMS speech server process`, this.name)
+            currentProcess.process.kill('SIGKILL')
+          }
+          resolve()
+        }, 5000)
+
+        if (currentProcess) {
+          currentProcess.process.on('exit', () => {
+            clearTimeout(timeout)
+            resolve()
+          })
+        } else {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+
+      this.ovmsSpeechProcess = null
+      this.currentSpeechModel = null
+    }
+  }
+
   private async startOvmsImageServer(
     modelRepoId: string,
     resolution?: string,
@@ -1494,6 +1688,21 @@ export class OpenVINOBackendService implements ApiService {
 
     if (!filesystem.existsSync(modelDir)) {
       throw new Error(`Transcription model directory not found: ${modelDir}`)
+    }
+
+    return modelDir
+  }
+
+  private resolveSpeechModelPath(modelRepoId: string): string {
+    // Mirror transcription resolution - speech models live under models/TTS
+    const modelBasePath = 'models/TTS'
+    const [namespace, repo, ...model] = modelRepoId.split('/')
+    const modelDir = path.resolve(
+      path.join(this.baseDir, modelBasePath, `${namespace}---${repo}`, model.join('/')),
+    )
+
+    if (!filesystem.existsSync(modelDir)) {
+      throw new Error(`Speech model directory not found: ${modelDir}`)
     }
 
     return modelDir

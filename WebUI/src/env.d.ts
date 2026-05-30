@@ -268,6 +268,19 @@ type electronAPI = {
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  startSpeechServer(modelName: string): Promise<{ success: boolean; error?: string }>
+  stopSpeechServer(): Promise<{ success: boolean; error?: string }>
+  getSpeechServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  synthesizeSpeech(options: {
+    baseURL: string
+    model: string
+    input: string
+    voice?: string
+    apiKey?: string
+    format?: string
+  }): Promise<
+    { success: true; dataBase64: string; mediaType: string } | { success: false; error: string }
+  >
   ensureOvmsImageReady(
     serviceName: string,
     modelName: string,
@@ -374,7 +387,15 @@ type electronAPI = {
       flushPending(kind: string): Promise<void>
       send(
         kind: string,
-        action: 'reply' | 'update' | 'photo' | 'video' | 'document' | 'typing' | 'keyboard',
+        action:
+          | 'reply'
+          | 'update'
+          | 'photo'
+          | 'video'
+          | 'voice'
+          | 'document'
+          | 'typing'
+          | 'keyboard',
         payload: Record<string, unknown>,
       ): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
     }

@@ -194,6 +194,37 @@ class SlackChannel(ChannelBase):
         except Exception as exc:
             return {"error": str(exc), "_http_status": 500}
 
+    def send_voice(self, payload: dict) -> SendResult:
+        audio_b64 = payload.get("audio", "") or payload.get("audioBase64", "")
+        mime = (payload.get("mime") or "").lower()
+        caption = payload.get("caption", "") or ""
+        thread_ts = payload.get("thread_ts") or payload.get("threadTs")
+        target = self._outbound_target(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Slack not configured", "_http_status": 400}
+        try:
+            audio_bytes = base64.b64decode(audio_b64)
+            # Slack has no voice-note primitive — upload the audio inline as a
+            # file the client can play. Pick the extension from the mime type.
+            if "ogg" in mime or "opus" in mime:
+                ext = "ogg"
+            elif "mpeg" in mime or "mp3" in mime:
+                ext = "mp3"
+            elif "wav" in mime:
+                ext = "wav"
+            else:
+                ext = "ogg"
+            filename = f"aipg-{int(time.time() * 1000)}.{ext}"
+            kwargs: dict = {"channel": target, "file": audio_bytes, "filename": filename}
+            if caption:
+                kwargs["initial_comment"] = caption
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            self._run_coro(self._app_instance.client.files_upload_v2(**kwargs))  # type: ignore[union-attr]
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
     def send_document(self, payload: dict) -> SendResult:
         doc_b64 = payload.get("document", "") or payload.get("documentBase64", "")
         caption = payload.get("caption", "") or ""

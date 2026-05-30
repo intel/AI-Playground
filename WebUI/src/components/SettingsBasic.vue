@@ -136,7 +136,10 @@
           <div v-if="speechToText.fallback.enabled" class="flex flex-col gap-3 mt-3 pr-4">
             <div class="grid grid-cols-[120px_1fr] items-center gap-4">
               <Label class="whitespace-nowrap">Base URL</Label>
-              <Input v-model="speechToText.fallback.baseUrl" placeholder="http://127.0.0.1:2022/v1" />
+              <Input
+                v-model="speechToText.fallback.baseUrl"
+                placeholder="http://127.0.0.1:2022/v1"
+              />
             </div>
             <div class="grid grid-cols-[120px_1fr] items-center gap-4">
               <Label class="whitespace-nowrap">Model</Label>
@@ -149,6 +152,87 @@
                 type="password"
                 placeholder="(optional)"
               />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 border-t border-white/10 pt-4">
+          <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+            <Label class="whitespace-nowrap">Text To Speech</Label>
+            <Checkbox
+              v-if="!backendStarting"
+              id="text-to-speech"
+              :modelValue="textToSpeech.enabled"
+              @update:modelValue="handleTextToSpeechToggle"
+            />
+            <Spinner v-else class="justify-self-start" />
+          </div>
+          <div
+            v-if="textToSpeech.enabled"
+            class="flex justify-between pr-4 items-center gap-4 mb-4"
+          >
+            <div class="flex items-center gap-2">
+              <Label class="whitespace-nowrap">Speak replies to voice input</Label>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[320px]">
+                    When enabled, the assistant auto-plays its reply in the app when your input came
+                    from the microphone, and the Home Agent sends a voice message back when you send
+                    a voice message.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Checkbox id="tts-auto-speak" v-model="textToSpeech.autoSpeakOnVoiceInput" />
+          </div>
+
+          <div class="mt-2 border-t border-white/10 pt-4">
+            <div class="flex justify-between pr-4 items-center gap-4">
+              <div class="flex items-center gap-2">
+                <Label class="whitespace-nowrap">Fallback speech endpoint</Label>
+                <TooltipProvider :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" class="max-w-[320px]">
+                      Used when the OVMS text-to-speech server isn't available (e.g. on macOS).
+                      Point it at any OpenAI-compatible
+                      <code>/v1/audio/speech</code> server (base URL like
+                      <code>http://127.0.0.1:8080/v1</code>).
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Checkbox id="tts-fallback-enabled" v-model="textToSpeech.fallback.enabled" />
+            </div>
+            <div v-if="textToSpeech.fallback.enabled" class="flex flex-col gap-3 mt-3 pr-4">
+              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+                <Label class="whitespace-nowrap">Base URL</Label>
+                <Input
+                  v-model="textToSpeech.fallback.baseUrl"
+                  placeholder="http://127.0.0.1:8080/v1"
+                />
+              </div>
+              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+                <Label class="whitespace-nowrap">Model</Label>
+                <Input v-model="textToSpeech.fallback.model" placeholder="tts-1" />
+              </div>
+              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+                <Label class="whitespace-nowrap">Voice</Label>
+                <Input v-model="textToSpeech.fallback.voice" placeholder="(optional)" />
+              </div>
+              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
+                <Label class="whitespace-nowrap">API key</Label>
+                <Input
+                  v-model="textToSpeech.fallback.apiKey"
+                  type="password"
+                  placeholder="(optional)"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -233,6 +317,7 @@ import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } fro
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { usePresets } from '@/assets/js/store/presets'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import { useDeveloperSettings } from '@/assets/js/store/developerSettings'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import { useDemoMode } from '@/assets/js/store/demoMode'
@@ -263,6 +348,7 @@ const presetsStore = usePresets()
 const i18nState = useI18N().state
 const languages = i18nState
 const speechToText = useSpeechToText()
+const textToSpeech = useTextToSpeech()
 const developerSettings = useDeveloperSettings()
 const dialogStore = useDialogStore()
 const backendStarting = ref(false)
@@ -433,6 +519,16 @@ watch(
   { immediate: false },
 )
 
+watch(
+  () => textToSpeech.enabled,
+  async (enabled) => {
+    if (enabled) {
+      await textToSpeech.ensureSpeechServerRunning()
+    }
+  },
+  { immediate: false },
+)
+
 // Handle toggle using store method
 async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {
   backendStarting.value = true
@@ -440,6 +536,17 @@ async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {
     await speechToText.toggle(enabled === true)
   } catch (_error) {
     toast.error(`Failed to ${enabled ? 'enable' : 'disable'} Speech To Text`)
+  } finally {
+    backendStarting.value = false
+  }
+}
+
+async function handleTextToSpeechToggle(enabled: boolean | 'indeterminate') {
+  backendStarting.value = true
+  try {
+    await textToSpeech.toggle(enabled === true)
+  } catch (_error) {
+    toast.error(`Failed to ${enabled ? 'enable' : 'disable'} Text To Speech`)
   } finally {
     backendStarting.value = false
   }

@@ -258,6 +258,7 @@ import {
 } from '@/lib/utils.ts'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import {
   useImageGenerationPresets,
@@ -294,6 +295,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
 const speechToText = useSpeechToText()
+const textToSpeech = useTextToSpeech()
 const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
 const prompt = ref('')
@@ -309,7 +311,11 @@ const dialogStore = useDialogStore()
 const demoMode = useDemoMode()
 const productModeStore = useProductMode()
 
-audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
+audioRecorder.registerTranscriptionCallback((text) => {
+  prompt.value = text
+  // Mark this as a voice-originated turn so the reply can be auto-spoken.
+  textToSpeech.pendingVoiceTurn = true
+})
 
 // Get active chat preset
 const activeChatPreset = computed(() => {

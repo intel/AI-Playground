@@ -131,6 +131,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('startTranscriptionServer', modelName),
   stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),
   getTranscriptionServerUrl: () => ipcRenderer.invoke('getTranscriptionServerUrl'),
+  startSpeechServer: (modelName: string) => ipcRenderer.invoke('startSpeechServer', modelName),
+  stopSpeechServer: () => ipcRenderer.invoke('stopSpeechServer'),
+  getSpeechServerUrl: () => ipcRenderer.invoke('getSpeechServerUrl'),
+  synthesizeSpeech: (options: {
+    baseURL: string
+    model: string
+    input: string
+    voice?: string
+    apiKey?: string
+    format?: string
+  }) => ipcRenderer.invoke('synthesizeSpeech', options),
   ensureOvmsImageReady: (
     serviceName: string,
     modelName: string,
@@ -235,7 +246,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       flushPending: (kind: string) => ipcRenderer.invoke('channel:flushPending', kind),
       send: (
         kind: string,
-        action: 'reply' | 'update' | 'photo' | 'video' | 'document' | 'typing' | 'keyboard',
+        action:
+          | 'reply'
+          | 'update'
+          | 'photo'
+          | 'video'
+          | 'voice'
+          | 'document'
+          | 'typing'
+          | 'keyboard',
         payload: Record<string, unknown>,
       ) => ipcRenderer.invoke('channel:send', kind, action, payload),
     },

@@ -6,6 +6,7 @@ import { useGlobalSetup } from './globalSetup'
 import { usePresets } from './presets'
 import { usePresetSwitching } from './presetSwitching'
 import { useSpeechToText } from './speechToText'
+import { useTextToSpeech } from './textToSpeech'
 import { useDemoMode } from './demoMode'
 import { useHomeAgent } from './homeAgent'
 import { CHANNELS } from './channels/channelRegistry'
@@ -100,6 +101,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   const presetSwitching = usePresetSwitching()
   const demoMode = useDemoMode()
   const speechToText = useSpeechToText()
+  const textToSpeech = useTextToSpeech()
   const homeAgent = useHomeAgent()
 
   const pendingProductMode = ref<ProductMode | null>(null)
@@ -772,6 +774,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     }
 
     speechToText.initialize()
+    textToSpeech.initialize()
   }
 
   /**

@@ -1554,6 +1554,126 @@ function initEventHandle() {
     return { success: false, error: 'Transcription server not supported' }
   })
 
+  ipcMain.handle('startSpeechServer', async (_event: IpcMainInvokeEvent, modelName: string) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('startSpeechServer' in service && typeof service.startSpeechServer === 'function') {
+      try {
+        await service.startSpeechServer(modelName)
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to start speech server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Speech server not supported' }
+  })
+
+  ipcMain.handle('stopSpeechServer', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('stopSpeechServer' in service && typeof service.stopSpeechServer === 'function') {
+      try {
+        await service.stopSpeechServer()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop speech server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Speech server not supported' }
+  })
+
+  ipcMain.handle('getSpeechServerUrl', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('getSpeechServerUrl' in service && typeof service.getSpeechServerUrl === 'function') {
+      const speechUrl = service.getSpeechServerUrl()
+      if (speechUrl) {
+        return { success: true, url: speechUrl }
+      }
+      return { success: false, error: 'Speech server not running' }
+    }
+
+    return { success: false, error: 'Speech server not supported' }
+  })
+
+  // Synthesize speech in the main process so it is not subject to the
+  // renderer's CORS policy. Many OpenAI-compatible `/audio/speech` servers
+  // (e.g. local TTS fallbacks) do not answer the CORS preflight that an
+  // `application/json` POST triggers, which blocks a direct renderer fetch.
+  ipcMain.handle(
+    'synthesizeSpeech',
+    async (
+      _event: IpcMainInvokeEvent,
+      options: {
+        baseURL: string
+        model: string
+        input: string
+        voice?: string
+        apiKey?: string
+        format?: string
+      },
+    ): Promise<
+      { success: true; dataBase64: string; mediaType: string } | { success: false; error: string }
+    > => {
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (options.apiKey) {
+          headers['Authorization'] = `Bearer ${options.apiKey}`
+        }
+        const body: Record<string, unknown> = {
+          model: options.model,
+          input: options.input,
+          response_format: options.format || 'wav',
+        }
+        if (options.voice) {
+          body.voice = options.voice
+        }
+        const url = `${options.baseURL.replace(/\/$/, '')}/audio/speech`
+        const res = await net.fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '')
+          return { success: false, error: `Speech synthesis failed (${res.status}): ${detail}` }
+        }
+        const arrayBuffer = await res.arrayBuffer()
+        const mediaType = res.headers.get('content-type')?.split(';')[0]?.trim() || 'audio/wav'
+        const dataBase64 = Buffer.from(arrayBuffer).toString('base64')
+        return { success: true, dataBase64, mediaType }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to synthesize speech: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    },
+  )
+
   ipcMain.handle(
     'ensureOvmsImageReady',
     async (

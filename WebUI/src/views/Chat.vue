@@ -244,6 +244,22 @@
                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
               </button>
               <button
+                v-if="textToSpeech.enabled"
+                class="flex items-end"
+                title="Speak"
+                :disabled="openAiCompatibleChat.processing"
+                :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
+                @click="toggleSpeak(message)"
+              >
+                <span
+                  class="svg-icon w-4 h-4"
+                  :class="textToSpeech.speakingMessageId === message.id ? 'i-stop' : 'i-speaker'"
+                ></span>
+                <span class="text-xs ml-1">{{
+                  textToSpeech.speakingMessageId === message.id ? 'Stop' : 'Speak'
+                }}</span>
+              </button>
+              <button
                 class="flex items-end"
                 :title="languages.COM_REGENERATE"
                 @click="() => openAiCompatibleChat.regenerate(message.id)"
@@ -296,6 +312,7 @@ import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
@@ -310,6 +327,7 @@ import { aipgTools, AipgTools } from '@/assets/js/tools/tools'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
+const textToSpeech = useTextToSpeech()
 const textInference = useTextInference()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
@@ -450,6 +468,35 @@ function getMessageTextForCopy(message: { parts: { type: string; text?: string }
     .filter((t) => t.length > 0)
     .join('\n\n')
 }
+
+function toggleSpeak(message: { id: string; parts: { type: string; text?: string }[] }): void {
+  if (textToSpeech.speakingMessageId === message.id) {
+    textToSpeech.stopSpeaking()
+    return
+  }
+  textToSpeech.speak(getMessageTextForCopy(message), message.id)
+}
+
+// Auto-play the assistant reply when the user's input came from speech.
+watch(
+  () => openAiCompatibleChat.processing,
+  (processing, wasProcessing) => {
+    if (!(wasProcessing && !processing)) return
+    if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
+    if (!textToSpeech.pendingVoiceTurn) return
+
+    textToSpeech.pendingVoiceTurn = false
+
+    const messages = openAiCompatibleChat.messages
+    const last = messages?.[messages.length - 1]
+    if (!last || last.role !== 'assistant') return
+
+    const text = getMessageTextForCopy(last)
+    if (text.trim().length > 0) {
+      textToSpeech.speak(text, last.id)
+    }
+  },
+)
 
 // Helper functions for AIPG tool rendering
 function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {

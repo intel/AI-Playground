@@ -268,6 +268,13 @@ export function createSlackAdapter(): ChannelAdapter {
         channel: meta?.channel,
       })
     },
+    voice: async (audioBase64, mime, meta) => {
+      return window.electronAPI.homeAgent.channel.send('slack', 'voice', {
+        audio: audioBase64,
+        mime,
+        channel: meta?.channel,
+      })
+    },
     document: async (documentBase64, filename, caption, meta) => {
       return window.electronAPI.homeAgent.channel.send('slack', 'document', {
         document: documentBase64,

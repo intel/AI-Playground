@@ -14,6 +14,7 @@ openvino_model_paths = {
     "openvinoLLM": "../models/LLM/openvino",
     "embedding": "../models/LLM/embedding/openVINO",
     "STT": "../models/STT",
+    "TTS": "../models/TTS",
 }
 
 # ComfyUI related paths

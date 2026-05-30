@@ -65,6 +65,10 @@ export type ChannelAdapter = {
     filename: string,
     meta?: InboundMeta,
   ) => Promise<ChannelSendResult>
+  /** Deliver a synthesized voice reply. `mime` carries the audio container
+   *  (e.g. `audio/ogg` for opus voice notes) so the platform can render a real
+   *  voice bubble where supported and fall back to an audio file otherwise. */
+  voice: (audioBase64: string, mime: string, meta?: InboundMeta) => Promise<ChannelSendResult>
   /** Deliver an arbitrary file as a document (e.g. a `.glb` 3D model). Chat
    *  clients have no inline glTF preview, so 3D models ship as a document with
    *  a separately-sent thumbnail photo. `filename` is required so the client

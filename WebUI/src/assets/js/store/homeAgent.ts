@@ -12,7 +12,9 @@ import { usePresets } from './presets'
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
 import { useSpeechToText } from './speechToText'
+import { useTextToSpeech } from './textToSpeech'
 import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
+import { synthesizeSpeech, bytesToBase64 } from '@/lib/synthesizeSpeech'
 import {
   useConversations,
   HOME_AGENT_CONVERSATION_KEY,
@@ -335,7 +337,8 @@ export const useHomeAgent = defineStore(
       'Requires a <b>vision-capable model</b> selected in Chat settings.\n\n' +
       '🎙️ <b>Voice messages</b>\n' +
       'Send a voice note or audio file and it will be transcribed and handled like a typed message. ' +
-      'Requires Speech To Text (OVMS) enabled, or a fallback transcription endpoint configured in Settings.'
+      'Requires Speech To Text (OVMS) enabled, or a fallback transcription endpoint configured in Settings.\n' +
+      'When Text To Speech is enabled, the reply to a voice message is also sent back as a voice message.'
 
     function resolveLoadTarget(idArg: string): string | null {
       const items = listRemoteConversations()
@@ -494,6 +497,37 @@ export const useHomeAgent = defineStore(
 
     async function replyMarkdown(adapter: ChannelAdapter, md: string, meta?: InboundMeta) {
       return adapter.reply(adapter.formatMarkdown(md), meta)
+    }
+
+    /**
+     * Send a synthesized voice reply when the inbound message was itself a
+     * voice message and Text To Speech is enabled. Best-effort: failures are
+     * logged and never break the (already-delivered) text reply.
+     */
+    async function maybeSendVoiceReply(
+      adapter: ChannelAdapter,
+      text: string,
+      fromVoice: boolean,
+      meta?: InboundMeta,
+    ): Promise<void> {
+      if (!fromVoice) return
+      const trimmed = (text ?? '').trim()
+      if (!trimmed) return
+      const textToSpeech = useTextToSpeech()
+      if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
+
+      try {
+        const endpoint = await textToSpeech.resolveSpeech()
+        if (!endpoint) return
+        // Request opus so Telegram renders a real voice bubble; servers that
+        // don't support it fall back to wav inside synthesizeSpeech. Pass the
+        // actual returned media type so the channel labels the file correctly.
+        const { bytes, mediaType } = await synthesizeSpeech(trimmed, endpoint, { format: 'opus' })
+        const base64 = bytesToBase64(bytes)
+        await adapter.voice(base64, mediaType || 'audio/ogg', meta)
+      } catch (e) {
+        console.error('homeAgent: voice reply failed:', e)
+      }
     }
 
     async function keyboard(
@@ -763,6 +797,7 @@ export const useHomeAgent = defineStore(
       text: string,
       images?: RemoteImage[],
       meta?: InboundMeta,
+      fromVoice = false,
     ): Promise<void> {
       focusRemoteChatDiscussion()
       const targetKey = ensureActiveRemoteConversation()
@@ -780,6 +815,7 @@ export const useHomeAgent = defineStore(
         const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
         if (assistantReply) {
           await replyMarkdown(adapter, assistantReply, meta)
+          await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
         }
       } finally {
         stopTyping()
@@ -874,6 +910,7 @@ export const useHomeAgent = defineStore(
       text: string,
       images?: RemoteImage[],
       meta?: InboundMeta,
+      fromVoice = false,
     ): Promise<void> {
       focusRemoteChatDiscussion()
       const targetKey = ensureActiveRemoteConversation()
@@ -894,6 +931,12 @@ export const useHomeAgent = defineStore(
         stopTyping()
         if (isHomeAgentActive.value) {
           await flush()
+          // After the streamed text reply is delivered, send a voice version
+          // if the inbound turn was itself a voice message.
+          const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
+          if (assistantReply) {
+            await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
+          }
         } else {
           // Home Agent was disabled mid-generation: still drain so already
           // enqueued sends complete, but do not block the caller.
@@ -1370,6 +1413,9 @@ export const useHomeAgent = defineStore(
 
           let text = item.text ?? ''
           const images = item.images
+          // Whether the inbound turn came from a voice message — used to decide
+          // whether to also reply with a synthesized voice message.
+          const fromVoice = !!item.audio?.length
           // Voice/audio messages: transcribe first, then treat the transcript
           // as the message text so slash-commands spoken aloud and plain
           // prompts both flow through the normal handling below.
@@ -1439,7 +1485,7 @@ export const useHomeAgent = defineStore(
             } else if (CHAT_REGEX.test(text)) {
               const msg = text.replace(CHAT_REGEX, '').trim()
               if (msg || images?.length) {
-                await handleChatMessage(adapter, msg, images, meta)
+                await handleChatMessage(adapter, msg, images, meta, fromVoice)
               } else {
                 focusRemoteChatDiscussion()
                 await reply(
@@ -1468,7 +1514,7 @@ export const useHomeAgent = defineStore(
               // "[image]" as a placeholder; clear it so the model isn't biased
               // by a literal token.
               const agenticText = images?.length && text === '[image]' ? '' : text
-              await handleAgenticMessage(adapter, agenticText, images, meta)
+              await handleAgenticMessage(adapter, agenticText, images, meta, fromVoice)
             }
           } catch (e) {
             console.error(`Error processing ${kind} message:`, e)

@@ -205,6 +205,37 @@ class TelegramChannel(ChannelBase):
         except Exception as exc:
             return {"error": str(exc), "_http_status": 500}
 
+    def send_voice(self, payload: dict) -> SendResult:
+        audio_b64 = payload.get("audio", "") or payload.get("audioBase64", "")
+        mime = (payload.get("mime") or "").lower()
+        target = self._outbound_chat_id(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Telegram not configured", "_http_status": 400}
+        try:
+            audio_bytes = base64.b64decode(audio_b64)
+            # Telegram voice notes require OGG/Opus; for those we get a real
+            # voice bubble. Anything else falls back to a regular audio file.
+            is_opus = "ogg" in mime or "opus" in mime
+            if is_opus:
+                self._run_coro(
+                    self._app_instance.bot.send_voice(  # type: ignore[union-attr]
+                        chat_id=target,
+                        voice=audio_bytes,
+                    ),
+                    timeout=180,
+                )
+            else:
+                self._run_coro(
+                    self._app_instance.bot.send_audio(  # type: ignore[union-attr]
+                        chat_id=target,
+                        audio=audio_bytes,
+                    ),
+                    timeout=180,
+                )
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
     def send_document(self, payload: dict) -> SendResult:
         doc_b64 = payload.get("document", "") or payload.get("documentBase64", "")
         filename = payload.get("filename") or "file.bin"

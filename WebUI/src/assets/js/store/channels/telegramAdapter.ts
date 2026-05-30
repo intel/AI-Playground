@@ -253,6 +253,12 @@ export function createTelegramAdapter(): ChannelAdapter {
         filename,
       })
     },
+    voice: async (audioBase64, mime) => {
+      return window.electronAPI.homeAgent.channel.send('telegram', 'voice', {
+        audio: audioBase64,
+        mime,
+      })
+    },
     document: async (documentBase64, filename, caption) => {
       return window.electronAPI.homeAgent.channel.send('telegram', 'document', {
         document: documentBase64,
