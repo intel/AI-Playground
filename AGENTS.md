@@ -126,10 +126,26 @@ No strict enforcement, but follow the prevailing convention:
 
 ### Error Handling
 
+The renderer has a **single error sink**: the `errors` store (`useErrors`). All errors flow
+through it — never surface errors ad hoc.
+
 - Wrap async operations in `try/catch`.
-- Log errors with `console.error()`.
-- Show user-facing errors via toast: `import * as toast from '@/assets/js/toast'` then `toast.error(msg)`.
-- IPC handlers return `{ success: boolean, error?: string }` pattern for error propagation.
+- **Report through the sink, not directly**: `import { useErrors } from '@/assets/js/store/errors'`
+  then `errors.report(err, { ... })`. Do **not** call `toast.error(...)` for error paths and do
+  **not** rely on bare `console.error()` — the sink logs, de-duplicates, and decides how to surface.
+- For new, well-defined failures, build a typed `AppError` with
+  `createAppError({ category, code, userMessage, surface, ... })`
+  (`@/assets/js/errors/appError.ts`) and pass it to `errors.report(...)`. Unknown values
+  (caught `unknown`, rejected promises) can be passed straight to `errors.report(value, overrides)`
+  and are normalized automatically.
+- `surface` controls UX: `'toast'` (default for user-facing), `'inline'`, `'modal'`, or `'silent'`
+  (log/track only — use for background work like Home Agent threads, or when another layer already
+  shows the message). `severity` is `'info' | 'warn' | 'error' | 'fatal'`.
+- Global capture is wired in `main.ts` (Vue `errorHandler`, `unhandledrejection`, `window.error`),
+  so uncaught failures already reach the sink. De-duplication keys off the `AppError` instance, so
+  re-`report`ing the same caught error (e.g. rethrown then caught again) won't double-toast.
+- IPC handlers (main → renderer) still return `{ success: boolean, error?: string }`; the renderer
+  turns a failed result into an `AppError` via the sink.
 - Python backends: return `{"code": 0, "data": ...}` on success, `{"code": -1, "message": ...}` on error.
 
 ## ESLint Rules of Note
@@ -148,6 +164,8 @@ WebUI/                      # Electron + Vue.js frontend (all npm commands here)
     subprocesses/           # Backend service classes + langchain utility process
   src/                      # Vue.js app (components, views, stores, utils)
     assets/js/store/        # Pinia stores (domain + implementation)
+    assets/js/errors/       # Unified error model (AppError type + createAppError/normalize helpers)
+    assets/js/activities/   # Unified activity/progress model (Activity type + createActivity helper)
     components/             # Reusable Vue components
     views/                  # Page-level Vue components (Chat, PromptArea, WorkflowResult)
   external/                 # Presets, workflows, external resources
@@ -209,6 +227,59 @@ Managed by `electron/subprocesses/apiServiceRegistry.ts`. Each service spawns a 
 
 User sends message → `textInference.ensureReadyForInference()` → IPC `ensureBackendReadiness` (loads model on-demand) → `openAiCompatibleChat` uses Vercel AI SDK `streamText()` → direct HTTP to backend's `/v1/chat/completions` → streamed response.
 
+### Error & generation state architecture
+
+Errors and long-running operations converge on a few shared primitives instead of being handled
+ad hoc per call site. **Full reference: [`docs/error-state-activity-architecture.md`](docs/error-state-activity-architecture.md)**
+(error model + sink, app boot FSM, generation FSM, and the activity/progress sink, with a chat-turn
+diagram and conventions for adding new state). The summary below is the quick version.
+
+**Error model + sink:**
+- `assets/js/errors/types.ts` — `AppError` type (`code`, `category`, `severity`, `surface`,
+  `userMessage`, `technicalMessage`, `context`, `recoverable`, `action`, `cause`, `timestamp`).
+  Branded with a plain `__isAppError: true` literal so it survives serialization.
+- `assets/js/errors/appError.ts` — `createAppError()`, `isAppError()`, `normalizeError()` (coerces
+  any caught value into an `AppError`), plus serialize/deserialize helpers.
+- `store/errors.ts` (`useErrors`) — the only place errors are surfaced. `report()` normalizes, logs,
+  de-duplicates (by `AppError` instance, via a `WeakSet`), and surfaces per `surface`.
+- `main.ts` wires global capture (Vue `errorHandler`, `unhandledrejection`, `window.error`) into the
+  sink, so nothing falls through silently. Chat (`openAiCompatibleChat`), preset switching, and boot
+  all route through it.
+
+**App boot state machine:** `globalSetup.loadingState` (`verifyBackend → manageInstallations →
+loading → running | failed`). `setupWizard.initialize()` wraps init in try/catch; on failure it sets
+`loadingState = 'failed'` + `globalSetup.errorMessage` (the previously-dead `failed` screen is now
+reached) and reports to the sink with `surface: 'silent'` (the screen already shows the message).
+
+**Generation lifecycle (`imageGenerationPresets` + `comfyUiPresets`):** image/video/3D generation is
+modeled as an explicit FSM rather than loose flags.
+- `GenerateState` (`store/imageGenerationPresets.ts`) drives the UI overlay: `start_backend` →
+  `install_workflow_components` → `load_workflow_components` → `generating` → `image_out`, plus
+  `no_start`/`error`. The `start_backend` state shows a "Starting image backend" bar so the
+  backend-boot / queued-retry window is never silent.
+- `MediaItem.state` has terminal states: `done`, `failed`, `stopped` (no more permanent spinners).
+  `failGeneration(msg)` / `cancelGeneration()` settle all in-flight items and set `lastError`;
+  `WorkflowResult.vue` / `ChatWorkflowResult.vue` render a `failed` panel from `lastError`.
+- **Watchdog**: `comfyUiPresets` arms a timer on `execution_start` and clears it on
+  success/error/interrupt; a stall reports `generation/timeout` and fails in-flight items.
+- **Crash detection**: a watch on the ComfyUI service status fails in-flight items if the backend
+  leaves `running` unexpectedly (guarded by `backendRestarting` so intentional restarts for custom-node
+  installs don't false-positive). The main-process `service.ts` also reports unexpected child exits.
+- **Tool watchers** (`tools/comfyUi.ts`, `tools/comfyUiImageEdit.ts`) resolve on terminal item states
+  (`failed`/`stopped`) and on watchdog timeout, returning an error result to the LLM instead of hanging.
+
+**Activity / progress sink (`store/activities.ts`):** the analog of the error sink for "what is the
+app busy with right now". Long-running steps report a typed `Activity`
+(`assets/js/activities/types.ts`: `category`, `label`, `progress?`, `scope`, `parentId?`, `state`).
+Producers: backend/model prep + RAG (`textInference`), MCP/tool resolution + image conversion +
+"Thinking…" TTFT/inter-step (`openAiCompatibleChat`), MCP/ComfyUI tool execution (`tools/*`), and the
+generation FSM bridge (`comfyUiPresets`, with determinate progress from the WS). Consumers:
+`ChatActivityIndicator.vue` (anchored to the in-progress chat turn; replaced the old
+`isPreparingBackend` bar) and `PromptArea.vue` busy state. `begin/update/end/track` manage lifecycle;
+`track()` guarantees cleanup; `chatActivity(key, exclude?)` returns the innermost active (or nested,
+via `parentId`) activity for a conversation; `endScope()` is the anti-stuck reconciliation. The store
+has no store deps (avoids cycles); reconciliation lives in the producing stores.
+
 ### Key IPC Channels by Category
 
 **Service lifecycle**: `getServices`, `startService`, `stopService`, `setUpService`, `serviceSetUpProgress` (M→R), `serviceInfoUpdate` (M→R), `uninstall`, `updateServiceSettings`, `detectDevices`, `selectDevice`, `ensureBackendReadiness`
@@ -247,6 +318,8 @@ User sends message → `textInference.ensureReadyForInference()` → IPC `ensure
 - `promptArea` — Current UI mode (`chat`/`imageGen`/`imageEdit`/`video`), prompt submit/cancel callbacks. Deps: `presetSwitching`
 
 **Infrastructure stores** (UI state, no business logic):
+- `errors` — **Central error sink.** `report(err, overrides?)` normalizes any value into an `AppError`, logs it, de-duplicates (by instance), and surfaces it per its `surface` policy (toast/inline/modal/silent). Keeps `recentErrors`. No deps. See "Error & generation state architecture" below.
+- `activities` — **Central activity/progress sink.** `begin/update/end/track` long-running steps; `chatActivity(key, exclude?)` / `imageGenActivity` expose the most-specific active work; `endScope()` reconciles stragglers. Single source of truth for "what is the app busy with" (backend prep, RAG, tools, thinking, generation). No deps. See "Error & generation state architecture" below.
 - `dialogs` — Dialog visibility state (download, warning, requirements, installation progress, mask editor). No deps.
 - `ui` — History panel visibility. No deps.
 - `theme` — Theme selection. IPC: `getThemeSettings`. No deps.

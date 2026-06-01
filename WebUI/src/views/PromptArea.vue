@@ -265,6 +265,8 @@ import {
   type ImageMediaItem,
 } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { useConversations } from '@/assets/js/store/conversations'
+import { useActivities } from '@/assets/js/store/activities'
 import {
   useTextInference,
   type ValidFileExtension,
@@ -304,6 +306,8 @@ const imageGeneration = useImageGenerationPresets()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
+const conversations = useConversations()
+const activities = useActivities()
 const textareaRef = ref<HTMLTextAreaElement>()
 const isTextareaFocused = ref(false)
 const presetsStore = usePresets()
@@ -406,7 +410,16 @@ function removeImage(index: number) {
   openAiCompatibleChat.fileInput = openAiCompatibleChat.fileInput.filter((_, i) => i !== index)
 }
 
-const isProcessing = computed(() => openAiCompatibleChat.processing || imageGeneration.processing)
+// Busy state is unified through the activity sink: in addition to the streaming /
+// generation flags, any active chat activity for the current conversation (backend
+// prep, RAG search, tool resolution, thinking) keeps the prompt area in its busy
+// state so the send/stop control matches the in-turn activity indicator.
+const isProcessing = computed(
+  () =>
+    openAiCompatibleChat.processing ||
+    imageGeneration.processing ||
+    activities.chatActivity(conversations.activeKey) !== null,
+)
 
 const isStopping = computed(() => imageGeneration.stopping)
 

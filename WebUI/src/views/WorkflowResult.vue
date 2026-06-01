@@ -32,6 +32,22 @@
               <Spinner class="w-16 h-16 text-primary/40" />
             </div>
           </div>
+          <!-- Terminal failure state: replaces the (previously infinite) spinner -->
+          <div
+            v-else-if="currentImage && currentImage.state === 'failed'"
+            class="w-full h-full flex items-center justify-center p-6 bg-gradient-to-br from-accent/30 to-muted/20"
+          >
+            <div class="flex flex-col items-center justify-center gap-3 text-center max-w-md">
+              <span class="text-red-500 text-4xl leading-none">&#9888;</span>
+              <p class="text-red-500 font-medium">{{ i18nState.COM_GENERATE_FAILED }}</p>
+              <p
+                v-if="imageGeneration.lastError"
+                class="text-sm text-muted-foreground wrap-break-word max-h-40 overflow-y-auto"
+              >
+                {{ imageGeneration.lastError }}
+              </p>
+            </div>
+          </div>
           <img
             v-else-if="
               currentImage && currentImage.type === 'image' && hasValidImageUrl(currentImage)
@@ -68,6 +84,7 @@
           <loading-bar
             v-if="
               [
+                'start_backend',
                 'load_model',
                 'load_model_components',
                 'install_workflow_components',
@@ -167,11 +184,13 @@ import {
   MediaItem,
   isVideo,
   is3D,
+  hasDisplayableMedia,
   useImageGenerationPresets,
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
+import { useErrors } from '@/assets/js/store/errors'
 import { checkIfNsfwBlocked } from '@/lib/utils'
 
 interface Props {
@@ -181,6 +200,7 @@ interface Props {
 const props = defineProps<Props>()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
+const errors = useErrors()
 const i18nState = useI18N().state
 const showInfoParams = ref(false)
 const isCurrentImageNsfwBlocked = ref(false)
@@ -261,11 +281,18 @@ onUnmounted(() => {
 watch(
   () => imageGeneration.generatedImages.filter((i) => i.state !== 'queued').length,
   () => {
-    const nonQueuedImages = imageGeneration.generatedImages.filter(
-      (i) => i.state !== 'queued' && i.mode === props.mode,
+    // Skip empty placeholder items left behind by a cancelled batch (terminal
+    // 'stopped' with no media) so selection falls back to the last real image.
+    // 'failed' items are kept selectable so the failure panel can surface the
+    // error; 'generating' items are kept so progress shows.
+    const selectableImages = imageGeneration.generatedImages.filter(
+      (i) =>
+        i.state !== 'queued' &&
+        i.mode === props.mode &&
+        (i.state === 'failed' || i.state === 'generating' || hasDisplayableMedia(i)),
     )
-    if (nonQueuedImages.length > 0) {
-      imageGeneration[selectedImageIdKey.value] = nonQueuedImages[nonQueuedImages.length - 1].id
+    if (selectableImages.length > 0) {
+      imageGeneration[selectedImageIdKey.value] = selectableImages[selectableImages.length - 1].id
     } else {
       imageGeneration[selectedImageIdKey.value] = null
     }
@@ -279,10 +306,15 @@ async function generateImage(prompt: string) {
     await imageGeneration.ensureModelsAreAvailable()
     await imageGeneration.generate(props.mode)
   } catch (error) {
-    // Reset state on any error (including download cancellation)
+    // Reset state on any error (including download cancellation). Surface via the
+    // sink (dedupes if already reported deeper in the generation pipeline).
     promptStore.promptSubmitted = false
     imageGeneration.processing = false
-    console.error('Error during image generation:', error)
+    errors.report(error, {
+      category: 'generation',
+      code: 'generation/submit-failed',
+      userMessage: 'Image generation could not be started.',
+    })
   }
 }
 
@@ -319,6 +351,8 @@ function deleteImage(image: MediaItem) {
 
 function loadingStateToText(state: string) {
   switch (state) {
+    case 'start_backend':
+      return i18nState.COM_STARTING_BACKEND
     case 'load_model':
       return i18nState.COM_LOADING_MODEL
     case 'load_model_components':

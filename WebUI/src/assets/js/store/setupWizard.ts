@@ -12,6 +12,8 @@ import { useHomeAgent } from './homeAgent'
 import { CHANNELS } from './channels/channelRegistry'
 import { mapStatusToColor, mapToDisplayStatus } from '@/lib/utils'
 import * as toast from '@/assets/js/toast'
+import { useErrors } from './errors'
+import { extractMessage } from '../errors/appError'
 import type { ErrorDetails } from '../../../../electron/subprocesses/service'
 
 const ALL_BACKENDS: BackendServiceName[] = [
@@ -103,6 +105,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   const speechToText = useSpeechToText()
   const textToSpeech = useTextToSpeech()
   const homeAgent = useHomeAgent()
+  const errors = useErrors()
 
   const pendingProductMode = ref<ProductMode | null>(null)
   const installSelection = ref(new Set<BackendServiceName>())
@@ -592,39 +595,55 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       initialLoadingPollHandle = null
     }
 
-    await globalSetup.initSetup()
-    const modeStatus = await productModeStore.ensureReady()
+    // A failure here previously bubbled out as an unhandled rejection, leaving the
+    // app stuck on the "verifying backends" loading bar forever. Route it to the
+    // (now reachable) global failed screen and the error sink instead.
+    try {
+      await globalSetup.initSetup()
+      const modeStatus = await productModeStore.ensureReady()
 
-    if (modeStatus === 'ready') {
-      const allRequiredSetUp = backendServices.info
-        .filter((s) => s.isRequired)
-        .every((s) => s.isSetUp)
+      if (modeStatus === 'ready') {
+        const allRequiredSetUp = backendServices.info
+          .filter((s) => s.isRequired)
+          .every((s) => s.isSetUp)
 
-      const anyFailed = backendServices.info.some(
-        (s) => s.status === 'failed' || s.status === 'installationFailed',
-      )
+        const anyFailed = backendServices.info.some(
+          (s) => s.status === 'failed' || s.status === 'installationFailed',
+        )
 
-      if (allRequiredSetUp && !anyFailed) {
-        pendingProductMode.value = productModeStore.productMode
-        await backendServices.refreshPhisonSsdDetection()
-        seedInstallSelection()
-        await dismiss()
-        return
+        if (allRequiredSetUp && !anyFailed) {
+          pendingProductMode.value = productModeStore.productMode
+          await backendServices.refreshPhisonSsdDetection()
+          seedInstallSelection()
+          await dismiss()
+          return
+        }
       }
-    }
 
-    if (!productModeStore.hardwareRecommendation) {
-      await productModeStore.detectRecommendation()
-    }
+      if (!productModeStore.hardwareRecommendation) {
+        await productModeStore.detectRecommendation()
+      }
 
-    pendingProductMode.value =
-      productModeStore.productMode ??
-      productModeStore.hardwareRecommendation?.recommendedMode ??
-      null
-    await backendServices.refreshPhisonSsdDetection()
-    seedInstallSelection()
-    wizardDirty.value = false
-    globalSetup.loadingState = 'setupWizard'
+      pendingProductMode.value =
+        productModeStore.productMode ??
+        productModeStore.hardwareRecommendation?.recommendedMode ??
+        null
+      await backendServices.refreshPhisonSsdDetection()
+      seedInstallSelection()
+      wizardDirty.value = false
+      globalSetup.loadingState = 'setupWizard'
+    } catch (error) {
+      globalSetup.errorMessage = extractMessage(error)
+      globalSetup.loadingState = 'failed'
+      errors.report(error, {
+        category: 'setup',
+        code: 'setup/initialize-failed',
+        userMessage: 'AI Playground failed to start. See the details on screen.',
+        // The failed screen already shows the message; avoid a redundant toast.
+        surface: 'silent',
+        severity: 'fatal',
+      })
+    }
   }
 
   async function syncPresetsForCurrentProductMode() {

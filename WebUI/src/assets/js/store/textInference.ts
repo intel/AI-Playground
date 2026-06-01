@@ -10,6 +10,8 @@ import { usePresets, type ChatPreset } from './presets'
 import { useDeveloperSettings } from './developerSettings'
 import { useHomeAgent } from './homeAgent'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
+import { useActivities } from './activities'
+import { useI18N } from './i18n'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -102,6 +104,11 @@ export const useTextInference = defineStore(
     const developerSettings = useDeveloperSettings()
     const homeAgent = useHomeAgent()
     const conversations = useConversations()
+    const activities = useActivities()
+    const i18nState = useI18N().state
+    // Tracks the in-flight backend-preparation activity (begin/end are paired with
+    // start/completeBackendPreparation).
+    let backendPrepActivityId: string | null = null
     const backend = ref<LlmBackend>('llamaCPP')
     const ragList = ref<IndexedDocument[]>([])
     const defaultSystemPrompt = `You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
@@ -545,6 +552,11 @@ export const useTextInference = defineStore(
         }
       }
 
+      const ragActivityId = activities.begin({
+        category: 'rag',
+        label: i18nState.COM_ACTIVITY_SEARCHING_DOCS,
+        scope: { kind: 'chat', conversationKey: conversations.activeKey },
+      })
       try {
         ragRetrievalState.inProgress = true
 
@@ -554,6 +566,7 @@ export const useTextInference = defineStore(
           if (!activeEmbeddingModel.value) {
             console.warn('No embedding model selected for RAG, skipping RAG retrieval')
             ragRetrievalState.inProgress = false
+            activities.end(ragActivityId)
             return {
               systemPrompt: systemPrompt.value,
               ragResults: null,
@@ -569,6 +582,7 @@ export const useTextInference = defineStore(
               embeddingUrlResult.error || 'Unknown error',
             )
             ragRetrievalState.inProgress = false
+            activities.end(ragActivityId)
             return {
               systemPrompt: systemPrompt.value,
               ragResults: null,
@@ -583,6 +597,7 @@ export const useTextInference = defineStore(
         ragRetrievalState.lastResults = ragResults
 
         ragRetrievalState.inProgress = false
+        activities.end(ragActivityId)
 
         if (ragResults && ragResults.length > 0) {
           // Build RAG context from retrieved documents
@@ -609,6 +624,7 @@ export const useTextInference = defineStore(
       } catch (error) {
         console.error('Error retrieving RAG documents:', error)
         ragRetrievalState.inProgress = false
+        activities.end(ragActivityId, 'failed')
         // Return base system prompt on error - generation can continue without RAG
         return {
           systemPrompt: systemPrompt.value,
@@ -812,10 +828,23 @@ export const useTextInference = defineStore(
     // Backend preparation methods
     function startBackendPreparation() {
       backendReadinessState.isPreparingBackend = true
+      // Surface backend/model start as an activity on the active chat turn so the
+      // user sees "Loading <model>…" / "Preparing <backend> backend…" instead of
+      // a silent wait. (preparationMessage reflects the current reason.)
+      if (backendPrepActivityId) activities.end(backendPrepActivityId)
+      backendPrepActivityId = activities.begin({
+        category: 'backend',
+        label: preparationMessage.value,
+        scope: { kind: 'chat', conversationKey: conversations.activeKey },
+      })
     }
 
     function completeBackendPreparation() {
       backendReadinessState.isPreparingBackend = false
+      if (backendPrepActivityId) {
+        activities.end(backendPrepActivityId)
+        backendPrepActivityId = null
+      }
       updateLastUsedConfig()
     }
 

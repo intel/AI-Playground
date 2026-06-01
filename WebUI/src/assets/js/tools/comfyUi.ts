@@ -3,6 +3,9 @@ import { watch } from 'vue'
 import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
+import { useActivities } from '../store/activities'
+import { useConversations } from '../store/conversations'
+import { useI18N } from '../store/i18n'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
@@ -193,21 +196,43 @@ export async function executeComfyGeneration(args: {
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
   await delay(100)
 
-  if (!useDeveloperSettings().keepModelsLoaded) {
-    await stopChatBackend()
-  }
-
+  const activities = useActivities()
+  const conversations = useConversations()
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
   const presets = usePresets()
 
-  // Helper to create error result instead of throwing
-  const createErrorResult = (message: string): ComfyUiToolOutput => ({
-    success: false,
-    message,
-    images: [],
+  // Surface the whole tool call as a chat activity ("Generating image…") and nest
+  // the image-gen FSM phases under it (via generationParentActivityId) so the chat
+  // status line shows live progress instead of a silent wait.
+  const toolActivityId = activities.begin({
+    category: 'tools',
+    label: useI18N().state.COM_ACTIVITY_GENERATING_IMAGE,
+    scope: { kind: 'chat', conversationKey: conversations.activeKey },
   })
+  imageGeneration.generationParentActivityId = toolActivityId
+  let toolActivityEnded = false
+  const finishToolActivity = (state: 'done' | 'failed' = 'done') => {
+    if (toolActivityEnded) return
+    toolActivityEnded = true
+    imageGeneration.generationParentActivityId = null
+    activities.end(toolActivityId, state)
+  }
+
+  // Helper to create error result instead of throwing
+  const createErrorResult = (message: string): ComfyUiToolOutput => {
+    finishToolActivity('failed')
+    return {
+      success: false,
+      message,
+      images: [],
+    }
+  }
+
+  if (!useDeveloperSettings().keepModelsLoaded) {
+    await stopChatBackend()
+  }
 
   // Ensure ComfyUI backend is running - this is unrecoverable
   const comfyUiService = backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
@@ -502,16 +527,46 @@ export async function executeComfyGeneration(args: {
 
     console.log('[ComfyUI Tool] Generation started, waiting for completion')
 
-    // Wait for all images to complete
-    const result = await new Promise<ComfyUiToolOutput>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Image generation timed out after 5 minutes'))
-      }, 300000) // 5 minute timeout
+    // Wait for all images to reach a terminal state. Resolves with a structured
+    // error result (rather than hanging) when the generation fails, the backend
+    // stops, items are cancelled, or the watchdog/timeout fires.
+    const result = await new Promise<ComfyUiToolOutput>((resolve) => {
+      let timeout: ReturnType<typeof setTimeout> | null = null
+      let stopWatcher: (() => void) | null = null
 
-      const checkCompletion = () => {
-        const completedMedia = imageGeneration.generatedImages.filter(
+      const cleanup = () => {
+        if (timeout) {
+          clearTimeout(timeout)
+          timeout = null
+        }
+        if (stopWatcher) {
+          stopWatcher()
+          stopWatcher = null
+        }
+      }
+
+      const trackedItems = () =>
+        imageGeneration.generatedImages.filter((item) => imageIds.includes(item.id))
+
+      const check = () => {
+        // Failure / cancellation: the generation errored or an item moved to a
+        // terminal non-success state. Don't keep waiting for a 'done' that will
+        // never arrive (this was the source of multi-minute tool-call stalls).
+        const failed =
+          imageGeneration.currentState === 'error' ||
+          trackedItems().some((item) => item.state === 'failed' || item.state === 'stopped')
+        if (failed) {
+          cleanup()
+          resolve(
+            createErrorResult(
+              `ComfyUI generation failed: ${imageGeneration.lastError ?? 'unknown error'}`,
+            ),
+          )
+          return
+        }
+
+        const completedMedia = trackedItems().filter(
           (item): item is MediaItem =>
-            imageIds.includes(item.id) &&
             item.state === 'done' &&
             ((item.type === 'image' && 'imageUrl' in item && !!item.imageUrl) ||
               (item.type === 'video' && 'videoUrl' in item && !!item.videoUrl) ||
@@ -519,7 +574,7 @@ export async function executeComfyGeneration(args: {
         )
 
         if (completedMedia.length >= batchSize) {
-          clearTimeout(timeout)
+          cleanup()
           const results = completedMedia.map((item) => {
             if (item.type === 'image') {
               return {
@@ -551,25 +606,24 @@ export async function executeComfyGeneration(args: {
         }
       }
 
-      // Check immediately in case images are already done
-      checkCompletion()
+      timeout = setTimeout(() => {
+        cleanup()
+        resolve(createErrorResult('ComfyUI generation timed out after 5 minutes'))
+      }, 300000) // 5 minute timeout
 
-      // Watch for changes
-      const stopWatcher = watch(
-        () => imageGeneration.generatedImages,
-        () => {
-          checkCompletion()
-        },
+      // Watch both the media items and the workflow state so failures surface
+      // immediately, and clean the watcher up as soon as we settle.
+      stopWatcher = watch(
+        () => [imageGeneration.generatedImages, imageGeneration.currentState],
+        () => check(),
         { deep: true },
       )
 
-      // Clean up watcher on timeout
-      setTimeout(() => {
-        stopWatcher()
-      }, 300000)
+      // Check immediately in case the generation already settled.
+      check()
     })
 
-    console.log('[ComfyUI Tool] Generation completed successfully')
+    console.log('[ComfyUI Tool] Generation completed:', result.success === false ? 'error' : 'ok')
     return result
   } catch (error) {
     console.error('[ComfyUI Tool] Generation error:', error)
@@ -592,6 +646,7 @@ export async function executeComfyGeneration(args: {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return createErrorResult(`ComfyUI generation failed: ${errorMessage}`)
   } finally {
+    finishToolActivity()
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
       await comfyUi.free()

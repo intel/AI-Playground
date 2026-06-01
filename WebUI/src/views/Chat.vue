@@ -13,20 +13,13 @@
     v-if="
       (activeConversation && activeConversation.length > 0) ||
       openAiCompatibleChat.processing ||
-      textInference.isPreparingBackend
+      hasActiveChatActivity
     "
     id="chatPanel"
     ref="chatPanel"
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 relative"
     @scroll="handleScroll"
   >
-    <div
-      class="sticky top-0 z-10 flex justify-center items-center bg-background/80 backdrop-blur-sm rounded-md py-4 px-6 mx-auto w-full max-w-md shadow-md"
-      v-if="textInference.isPreparingBackend"
-    >
-      <loading-bar :text="textInference.preparationMessage" class="w-full"></loading-bar>
-    </div>
-
     <!-- eslint-disable vue/require-v-for-key -->
     <div class="w-full max-w-4xl mx-auto flex flex-col gap-6">
       <template v-for="(message, i) in activeConversation">
@@ -300,6 +293,11 @@
           </div>
         </div>
       </template>
+
+      <!-- In-turn status: anchored to the bottom of the conversation, shows the
+           current activity (backend prep, thinking, searching docs, running a
+           tool, image generation progress) for the active conversation. -->
+      <ChatActivityIndicator :conversation-key="conversations.activeKey" />
     </div>
   </div>
 </template>
@@ -309,13 +307,17 @@ import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { useErrors } from '@/assets/js/store/errors'
+import { createAppError } from '@/assets/js/errors/appError'
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
+import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
+import { useConversations } from '@/assets/js/store/conversations'
+import { useActivities } from '@/assets/js/store/activities'
 import {
   useImageGenerationPresets,
   type MediaItem,
@@ -332,6 +334,16 @@ const textInference = useTextInference()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const comfyUi = useComfyUiPresets()
+const conversations = useConversations()
+const activities = useActivities()
+const errors = useErrors()
+
+// True while any activity (backend prep, thinking, tools, generation) is running
+// for the active conversation, so the chat panel stays visible to host the
+// in-turn activity indicator even before the first token streams.
+const hasActiveChatActivity = computed(
+  () => activities.chatActivity(conversations.activeKey, ['generation']) !== null,
+)
 
 const i18nState = useI18N().state
 const languages = i18nState
@@ -405,7 +417,14 @@ watch(
 async function handlePromptSubmit(prompt: string) {
   const question = prompt.trim()
   if (question == '') {
-    toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
+    errors.report(
+      createAppError({
+        category: 'validation',
+        code: 'inference/empty-prompt',
+        userMessage: i18nState.ANSWER_ERROR_NOT_PROMPT,
+        surface: 'toast',
+      }),
+    )
     promptStore.promptSubmitted = false
     return
   }
@@ -413,9 +432,10 @@ async function handlePromptSubmit(prompt: string) {
     nextTick(scrollToBottom)
     await openAiCompatibleChat.generate(question)
   } catch (error) {
-    // Reset state on any error (including download cancellation)
+    // generate() already reported via the sink; this catch just unblocks the UI
+    // (and the sink dedupes if we report an already-handled AppError).
     promptStore.promptSubmitted = false
-    console.error('Error during text inference:', error)
+    errors.report(error, { category: 'inference', code: 'inference/generate-failed' })
   }
 }
 

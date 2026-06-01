@@ -628,6 +628,23 @@ export abstract class LongLivedPythonApiService implements ApiService {
         this.lastStartupErrorDetails = null
         // Stop capturing startup logs on success
         this.isCapturingStartupLogs = false
+        // Runtime crash detection: once running, a process exit we did not ask
+        // for means the backend died. Flip status to 'failed' and notify the
+        // renderer (serviceInfoUpdate) so in-flight work can be failed instead of
+        // hanging against a dead process. Intentional stop()s set
+        // desiredStatus = 'stopped' first, so those are ignored here.
+        const runningProcess = this.encapsulatedProcess
+        runningProcess?.once('exit', (code, signal) => {
+          if (this.encapsulatedProcess !== runningProcess) return
+          if (this.desiredStatus === 'stopped' || this.currentStatus !== 'running') return
+          this.appLogger.error(
+            `backend ${this.name} exited unexpectedly (code=${code}, signal=${signal})`,
+            this.name,
+          )
+          this.encapsulatedProcess = null
+          this.desiredStatus = 'failed'
+          this.setStatus('failed')
+        })
       } else {
         this.currentStatus = 'failed'
         this.desiredStatus = 'failed'

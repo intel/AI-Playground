@@ -1,9 +1,12 @@
 import { z } from 'zod'
 import { watch } from 'vue'
 import { FilePart, ModelMessage, tool } from 'ai'
-import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
+import { useImageGenerationPresets } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
+import { useActivities } from '../store/activities'
+import { useConversations } from '../store/conversations'
+import { useI18N } from '../store/i18n'
 import { usePresets, type Preset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
@@ -253,17 +256,36 @@ export async function executeImageEdit(
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
   await delay(100)
 
-  if (!useDeveloperSettings().keepModelsLoaded) {
-    await stopChatBackend()
-  }
-
+  const activities = useActivities()
+  const conversations = useConversations()
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
   const presets = usePresets()
 
+  // Surface the tool call as a chat activity ("Editing image…") and nest the
+  // image-gen FSM phases under it so the chat status line shows live progress.
+  const toolActivityId = activities.begin({
+    category: 'tools',
+    label: useI18N().state.COM_ACTIVITY_EDITING_IMAGE,
+    scope: { kind: 'chat', conversationKey: conversations.activeKey },
+  })
+  imageGeneration.generationParentActivityId = toolActivityId
+  let toolActivityEnded = false
+  const finishToolActivity = (state: 'done' | 'failed' = 'done') => {
+    if (toolActivityEnded) return
+    toolActivityEnded = true
+    imageGeneration.generationParentActivityId = null
+    activities.end(toolActivityId, state)
+  }
+
+  if (!useDeveloperSettings().keepModelsLoaded) {
+    await stopChatBackend()
+  }
+
   const sourceImageUrl = findSourceImage(messages)
   if (!sourceImageUrl) {
+    finishToolActivity('failed')
     return createErrorResult(
       'No image found in conversation. Please upload an image or generate one first.',
     )
@@ -272,6 +294,7 @@ export async function executeImageEdit(
 
   const comfyUiService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
   if (!comfyUiService || comfyUiService.status !== 'running') {
+    finishToolActivity('failed')
     return createErrorResult('ComfyUI backend is not running. Please start it first.')
   }
 
@@ -281,6 +304,7 @@ export async function executeImageEdit(
     null
 
   if (!preset || preset.type !== 'comfy') {
+    finishToolActivity('failed')
     return createErrorResult('No image edit presets available')
   }
 
@@ -300,6 +324,7 @@ export async function executeImageEdit(
   if (selectedVariant) presets.setActiveVariant(preset.name, selectedVariant)
   const presetWithVariant = presets.getPresetWithVariant(preset.name)
   if (!presetWithVariant) {
+    finishToolActivity('failed')
     return createErrorResult(`Failed to apply preset "${preset.name}"`)
   }
   preset = presetWithVariant
@@ -372,51 +397,97 @@ export async function executeImageEdit(
 
     await comfyUi.generate([imageId], 'imageEdit', sourceImageUrl)
 
-    const result = await new Promise<ImageEditToolOutput>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('Image edit timed out after 5 minutes')),
-        300000,
-      )
+    const result = await new Promise<ImageEditToolOutput>((resolve) => {
+      let timeout: ReturnType<typeof setTimeout> | null = null
+      let stopWatcher: (() => void) | null = null
 
-      const checkCompletion = () => {
-        const completed = imageGeneration.generatedImages.find(
-          (item): item is MediaItem =>
-            item.id === imageId &&
-            item.state === 'done' &&
-            ((item.type === 'image' && 'imageUrl' in item && !!item.imageUrl) ||
-              (item.type === 'video' && 'videoUrl' in item && !!item.videoUrl) ||
-              (item.type === 'model3d' && 'model3dUrl' in item && !!item.model3dUrl)),
-        )
-        if (completed) {
+      const cleanup = () => {
+        if (timeout) {
           clearTimeout(timeout)
+          timeout = null
+        }
+        if (stopWatcher) {
+          stopWatcher()
+          stopWatcher = null
+        }
+      }
+
+      const check = () => {
+        const tracked = imageGeneration.generatedImages.find((item) => item.id === imageId)
+        // Failure / cancellation — resolve with an error instead of hanging.
+        if (
+          imageGeneration.currentState === 'error' ||
+          tracked?.state === 'failed' ||
+          tracked?.state === 'stopped'
+        ) {
+          cleanup()
+          resolve(
+            createErrorResult(`Image edit failed: ${imageGeneration.lastError ?? 'unknown error'}`),
+          )
+          return
+        }
+
+        const completed =
+          tracked &&
+          tracked.state === 'done' &&
+          ((tracked.type === 'image' && 'imageUrl' in tracked && !!tracked.imageUrl) ||
+            (tracked.type === 'video' && 'videoUrl' in tracked && !!tracked.videoUrl) ||
+            (tracked.type === 'model3d' && 'model3dUrl' in tracked && !!tracked.model3dUrl))
+            ? tracked
+            : undefined
+        if (completed) {
+          cleanup()
           const settings = completed.settings || {}
           if (completed.type === 'video') {
             resolve({
               images: [
-                { id: completed.id, type: 'video', videoUrl: completed.videoUrl, mode: 'imageEdit', settings },
+                {
+                  id: completed.id,
+                  type: 'video',
+                  videoUrl: completed.videoUrl,
+                  mode: 'imageEdit',
+                  settings,
+                },
               ],
             })
           } else if (completed.type === 'model3d') {
             resolve({
               images: [
-                { id: completed.id, type: 'model3d', model3dUrl: completed.model3dUrl, mode: 'imageEdit', settings },
+                {
+                  id: completed.id,
+                  type: 'model3d',
+                  model3dUrl: completed.model3dUrl,
+                  mode: 'imageEdit',
+                  settings,
+                },
               ],
             })
           } else {
             resolve({
               images: [
-                { id: completed.id, type: 'image', imageUrl: completed.imageUrl, mode: 'imageEdit', settings },
+                {
+                  id: completed.id,
+                  type: 'image',
+                  imageUrl: completed.imageUrl,
+                  mode: 'imageEdit',
+                  settings,
+                },
               ],
             })
           }
         }
       }
 
-      checkCompletion()
-      const stopWatcher = watch(() => imageGeneration.generatedImages, checkCompletion, {
-        deep: true,
-      })
-      setTimeout(() => stopWatcher(), 300000)
+      timeout = setTimeout(() => {
+        cleanup()
+        resolve(createErrorResult('Image edit timed out after 5 minutes'))
+      }, 300000)
+      stopWatcher = watch(
+        () => [imageGeneration.generatedImages, imageGeneration.currentState],
+        () => check(),
+        { deep: true },
+      )
+      check()
     })
 
     return result
@@ -432,6 +503,7 @@ export async function executeImageEdit(
       `Image edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     )
   } finally {
+    finishToolActivity()
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
       await comfyUi.free()
@@ -459,10 +531,11 @@ function getToolDefinition() {
     'VARIANT SUPPORT: Presets may have variants (e.g., "Fast", "Standard", "Quality"). By default, always prefer "Fast" variants when available as they are least resource intensive.\n\n'
 
   if (videoWorkflows.length > 0) {
-    description +=
-      `IMAGE-TO-VIDEO: Workflows (${videoWorkflows
-        .map((w) => w.name)
-        .join(', ')}) animate the existing image into a short video. Only use them when the user explicitly asks to animate an image or create a video from it. Video generation is resource-intensive.\n\n`
+    description += `IMAGE-TO-VIDEO: Workflows (${videoWorkflows
+      .map((w) => w.name)
+      .join(
+        ', ',
+      )}) animate the existing image into a short video. Only use them when the user explicitly asks to animate an image or create a video from it. Video generation is resource-intensive.\n\n`
   }
 
   // Add preset-specific tool instructions with clear preset -> instruction mapping

@@ -89,6 +89,7 @@
             v-if="
               currentState &&
               [
+                'start_backend',
                 'load_model',
                 'load_model_components',
                 'install_workflow_components',
@@ -277,6 +278,8 @@ function openImageInFolder(image: MediaItem) {
 
 function loadingStateToText(state: string) {
   switch (state) {
+    case 'start_backend':
+      return i18nState.COM_STARTING_BACKEND
     case 'load_model':
       return i18nState.COM_LOADING_MODEL
     case 'load_model_components':
