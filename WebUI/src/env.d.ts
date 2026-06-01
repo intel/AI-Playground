@@ -152,8 +152,6 @@ type McpToolCallResult = {
   structuredContent?: unknown
 }
 
-// AipgPage type kept for backward compatibility with getInitialPage IPC handler
-type AipgPage = 'create' | 'enhance' | 'answer' | 'learn-more'
 type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
 type ModeType = 'chat' | WorkflowModeType
@@ -198,7 +196,7 @@ type electronAPI = {
   setIgnoreMouseEvents(ignore: boolean): void
   miniWindow(): void
   exitApp(): void
-  getInitialPage(): Promise<AipgPage>
+  getInitialPage(): Promise<ModeType | null>
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   saveImageToMediaInput(dataUri: string): Promise<string>

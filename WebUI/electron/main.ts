@@ -212,7 +212,7 @@ let langchainChild: UtilityProcess | null = null
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-if (!app.isPackaged && process.env.AIPG_DEBUGGING_PORT) {
+if (process.env.AIPG_DEBUGGING_PORT) {
   app.commandLine.appendSwitch('remote-debugging-port', process.env.AIPG_DEBUGGING_PORT)
 }
 // const APP_TOOL_HEIGHT = 209;
@@ -1006,10 +1006,16 @@ function initEventHandle() {
     },
   )
 
-  /** Get command line parameters when launched from IPOS to decide the default home page */
-  ipcMain.handle('getInitialPage', () => {
+  /** Get command line parameters when launched from IPOS to decide the default home page.
+   * Returns null when --start-page was not provided so the renderer can leave
+   * the persisted mode untouched; returns the validated ModeType (or 'chat' as
+   * a safe fallback for an invalid value) when it was. */
+  ipcMain.handle('getInitialPage', (): ModeType | null => {
+    const validModes: ModeType[] = ['chat', 'imageGen', 'imageEdit', 'video']
     const startPageArg = process.argv.find((arg) => arg.startsWith('--start-page='))
-    return startPageArg ? startPageArg.split('=')[1] : 'create'
+    if (!startPageArg) return null
+    const parsed = startPageArg.split('=')[1]
+    return validModes.includes(parsed as ModeType) ? (parsed as ModeType) : 'chat'
   })
 
   /** To check whether demo mode is enabled or not for AIPG */
