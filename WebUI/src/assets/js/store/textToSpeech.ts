@@ -9,6 +9,7 @@ import * as toast from '@/assets/js/toast'
 import { useSetupWizard } from './setupWizard'
 import { useProductMode } from './productMode'
 import { synthesizeSpeech, bytesToBlobUrl } from '@/lib/synthesizeSpeech'
+import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 
 export const SPEECHT5_MODEL_NAME = 'microsoft/speecht5_tts'
 
@@ -280,7 +281,7 @@ export const useTextToSpeech = defineStore(
      * playback to a specific chat message so the UI can show a stop affordance.
      */
     async function speak(text: string, id?: string): Promise<void> {
-      const trimmed = (text ?? '').trim()
+      const trimmed = markdownToSpeechText(text ?? '').trim()
       if (!trimmed) return
 
       stopSpeaking()

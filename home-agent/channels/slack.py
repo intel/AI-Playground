@@ -203,17 +203,22 @@ class SlackChannel(ChannelBase):
         if not self.is_running() or not target:
             return {"error": "Slack not configured", "_http_status": 400}
         try:
+            from .audio import is_ogg_opus, to_ogg_opus
+
             audio_bytes = base64.b64decode(audio_b64)
             # Slack has no voice-note primitive — upload the audio inline as a
-            # file the client can play. Pick the extension from the mime type.
-            if "ogg" in mime or "opus" in mime:
-                ext = "ogg"
-            elif "mpeg" in mime or "mp3" in mime:
-                ext = "mp3"
-            elif "wav" in mime:
-                ext = "wav"
-            else:
-                ext = "ogg"
+            # file the client can play. Transcode WAV to compact Ogg/Opus where
+            # possible; fall back to the original bytes/extension otherwise.
+            ext = "ogg"
+            if not is_ogg_opus(mime):
+                try:
+                    audio_bytes = to_ogg_opus(audio_bytes)
+                except Exception as exc:  # noqa: BLE001 - best-effort transcode
+                    logger.warning("Opus transcode failed, sending original audio: %s", exc)
+                    if "mpeg" in mime or "mp3" in mime:
+                        ext = "mp3"
+                    elif "wav" in mime:
+                        ext = "wav"
             filename = f"aipg-{int(time.time() * 1000)}.{ext}"
             kwargs: dict = {"channel": target, "file": audio_bytes, "filename": filename}
             if caption:

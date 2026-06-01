@@ -15,6 +15,7 @@ import { useSpeechToText } from './speechToText'
 import { useTextToSpeech } from './textToSpeech'
 import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
 import { synthesizeSpeech, bytesToBase64 } from '@/lib/synthesizeSpeech'
+import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 import {
   useConversations,
   HOME_AGENT_CONVERSATION_KEY,
@@ -511,7 +512,7 @@ export const useHomeAgent = defineStore(
       meta?: InboundMeta,
     ): Promise<void> {
       if (!fromVoice) return
-      const trimmed = (text ?? '').trim()
+      const trimmed = markdownToSpeechText(text ?? '').trim()
       if (!trimmed) return
       const textToSpeech = useTextToSpeech()
       if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
@@ -519,12 +520,13 @@ export const useHomeAgent = defineStore(
       try {
         const endpoint = await textToSpeech.resolveSpeech()
         if (!endpoint) return
-        // Request opus so Telegram renders a real voice bubble; servers that
-        // don't support it fall back to wav inside synthesizeSpeech. Pass the
-        // actual returned media type so the channel labels the file correctly.
-        const { bytes, mediaType } = await synthesizeSpeech(trimmed, endpoint, { format: 'opus' })
+        // Request WAV — it's universally supported by TTS servers (OVMS and
+        // OpenAI-compatible fallbacks). The home-agent channel layer transcodes
+        // to Ogg/Opus so Telegram still renders a real voice bubble, decoupling
+        // us from the server's `response_format` support.
+        const { bytes, mediaType } = await synthesizeSpeech(trimmed, endpoint, { format: 'wav' })
         const base64 = bytesToBase64(bytes)
-        await adapter.voice(base64, mediaType || 'audio/ogg', meta)
+        await adapter.voice(base64, mediaType || 'audio/wav', meta)
       } catch (e) {
         console.error('homeAgent: voice reply failed:', e)
       }

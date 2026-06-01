@@ -212,15 +212,23 @@ class TelegramChannel(ChannelBase):
         if not self.is_running() or not target:
             return {"error": "Telegram not configured", "_http_status": 400}
         try:
+            from .audio import is_ogg_opus, to_ogg_opus
+
             audio_bytes = base64.b64decode(audio_b64)
-            # Telegram voice notes require OGG/Opus; for those we get a real
-            # voice bubble. Anything else falls back to a regular audio file.
-            is_opus = "ogg" in mime or "opus" in mime
-            if is_opus:
+            # Telegram only renders a real voice bubble for OGG/Opus. TTS servers
+            # return WAV, so transcode here (PyAV bundles FFmpeg + libopus). If
+            # transcoding is unavailable/fails, fall back to a playable audio file.
+            voice_bytes: bytes | None = audio_bytes if is_ogg_opus(mime) else None
+            if voice_bytes is None:
+                try:
+                    voice_bytes = to_ogg_opus(audio_bytes)
+                except Exception as exc:  # noqa: BLE001 - best-effort transcode
+                    logger.warning("Opus transcode failed, sending as audio file: %s", exc)
+            if voice_bytes is not None:
                 self._run_coro(
                     self._app_instance.bot.send_voice(  # type: ignore[union-attr]
                         chat_id=target,
-                        voice=audio_bytes,
+                        voice=voice_bytes,
                     ),
                     timeout=180,
                 )
