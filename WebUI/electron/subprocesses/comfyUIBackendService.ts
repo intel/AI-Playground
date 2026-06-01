@@ -954,14 +954,21 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   private getCommonEnvVars(): Record<string, string> {
     return {
-      PATH: `${path.join(this.pythonEnvDir, 'Library', 'bin')};${path.join(this.git.dir, 'cmd')};${process.env.PATH}`,
+      PATH: [
+        // Windows: Conda Library/bin + bundled Git cmd directory.
+        // Linux/macOS: the venv's bin directory.
+        ...(process.platform === 'win32'
+          ? [path.join(this.pythonEnvDir, 'Library', 'bin'), path.join(this.git.dir, 'cmd')]
+          : [path.join(this.pythonEnvDir, 'bin')]),
+        process.env.PATH,
+      ].join(path.delimiter),
       PYTHONNOUSERSITE: 'true',
       SYCL_ENABLE_DEFAULT_CONTEXTS: '1',
       SYCL_CACHE_PERSISTENT: '1',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
       AIPG_OPENVINO_IMAGE_MODELS: path.join(this.baseDir, 'models', 'openvino-image'),
-      PIP_CONFIG_FILE: 'nul',
+      PIP_CONFIG_FILE: process.platform === 'win32' ? 'nul' : '/dev/null',
       UV_NO_CONFIG: '1',
       UV_TORCH_BACKEND: this.torchBackendValue,
       // Consumed by the bundled aipg-auth ComfyUI custom_node middleware.
@@ -1082,7 +1089,7 @@ import sys
 try:
     # Try to get the number of XPU devices
     device_count = torch.xpu.device_count()
-    
+
     # For each device, get its name and print it
     for i in range(device_count):
         try:
@@ -1196,9 +1203,35 @@ except Exception as e:
     // addresses (defense against malicious settings injection / accidental
     // misconfiguration).
     const rendererOrigin = getRendererOrigin()
-    const userParameters = sanitizeUserComfyUiParameters(this.comfyUiParametersString, (msg) =>
+    let userParameters = sanitizeUserComfyUiParameters(this.comfyUiParametersString, (msg) =>
       this.appLogger.warn(msg, this.name, true),
     )
+
+    // The CPU variant must run with --cpu, but ComfyUI's argparse puts --cpu in a
+    // mutually-exclusive group with the VRAM-mode flags (--lowvram/--gpu-only/…).
+    // The default parameters include "--lowvram --reserve-vram 6.0", so strip the
+    // GPU-only VRAM flags (and their values) before appending --cpu.
+    if (this.comfyUiVariant === 'cpu') {
+      const vramModeFlags = new Set([
+        '--gpu-only',
+        '--highvram',
+        '--normalvram',
+        '--lowvram',
+        '--novram',
+      ])
+      const filtered: string[] = []
+      for (let i = 0; i < userParameters.length; i++) {
+        const arg = userParameters[i]
+        if (vramModeFlags.has(arg)) continue
+        if (arg === '--reserve-vram') {
+          i++ // also skip its value
+          continue
+        }
+        filtered.push(arg)
+      }
+      userParameters = filtered
+    }
+
     const parameters = [
       'main.py',
       '--port',
@@ -1208,6 +1241,11 @@ except Exception as e:
       '--output-directory',
       mediaDir,
       ...userParameters,
+      // For the CPU variant (e.g. Linux studio/essentials without a usable Intel
+      // GPU runtime), force ComfyUI onto CPU. Without this, ComfyUI's device
+      // autodetect "assumes Nvidia" and calls torch.cuda, crashing with
+      // "Torch not compiled with CUDA enabled" on a CPU-only torch build.
+      ...(this.comfyUiVariant === 'cpu' ? ['--cpu'] : []),
       // Force-append after user params so we always win, even if the user
       // tried to inject their own --enable-cors-header.
       '--enable-cors-header',

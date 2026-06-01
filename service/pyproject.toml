@@ -24,11 +24,14 @@ required-environments = [
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
-         { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+         { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+         { index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchaudio = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
-              { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+              { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+              { index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-xpu", marker = "sys_platform == 'win32'" },
-               { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" }]
+               { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
+               { index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 pytorch-triton-xpu = [
   { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
 ]

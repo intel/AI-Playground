@@ -175,6 +175,15 @@ const modesDir = path.resolve(
     ? path.join(process.resourcesPath, 'modes')
     : path.join(__dirname, '../../../modes/'),
 )
+// On Linux (incl. headless Xvfb/VNC), Chromium's GPU process is often "not
+// usable" and Electron aborts on startup. Disable hardware acceleration so the
+// software rasterizer is used. This does NOT affect AI/compute workloads, which
+// use Level Zero/SYCL/Vulkan directly. --no-sandbox avoids SUID-sandbox issues.
+if (process.platform === 'linux') {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('no-sandbox')
+}
 const singleInstanceLock = app.requestSingleInstanceLock()
 
 const appLogger = appLoggerInstance
@@ -2039,8 +2048,15 @@ function needAdminPermission() {
     fs.writeFile(filename, '', (err) => {
       if (err) {
         if (err && err.code == 'EPERM') {
-          if (path.parse(externalRes).root == path.parse(process.env.windir!).root) {
+          // windir is only defined on Windows; on Linux/macOS this check is skipped.
+          if (
+            process.platform === 'win32' &&
+            process.env.windir &&
+            path.parse(externalRes).root == path.parse(process.env.windir).root
+          ) {
             resolve(!isAdmin())
+          } else {
+            resolve(false)
           }
         } else {
           resolve(false)

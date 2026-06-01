@@ -292,7 +292,7 @@ abstract class ExecutableService extends GenericServiceImpl {
         exePath,
         args,
         (data) => this.log(data),
-        { ...extraEnv, PIP_CONFIG_FILE: 'nul' },
+        { ...extraEnv, PIP_CONFIG_FILE: process.platform === 'win32' ? 'nul' : '/dev/null' },
         workDir,
       )
     } catch (error) {

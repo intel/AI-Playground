@@ -11,6 +11,8 @@ export const aipgBaseDir = app.isPackaged
 export const buildResources = app.isPackaged
   ? aipgBaseDir
   : path.join(aipgBaseDir, 'build', 'resources')
+// The fetch-external-resources script stores the uv binary as `uv.exe` on ALL
+// platforms (including Linux/macOS) for naming consistency — do not use binary().
 export const uvPath = path.join(buildResources, 'uv.exe')
 const uvEnv = (extraEnv: Record<string, string> = {}) => ({
   ...process.env,
