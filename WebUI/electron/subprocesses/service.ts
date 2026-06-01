@@ -605,7 +605,15 @@ export abstract class LongLivedPythonApiService implements ApiService {
       return 'running'
     }
     if (this.desiredStatus === 'running') {
-      throw new Error('Server startup already requested')
+      // A startup is already in flight (e.g. the main-process auto-start at boot
+      // racing a renderer-initiated start). This is idempotent, not an error:
+      // report the current in-flight status instead of throwing so it doesn't
+      // surface as a spurious "Server startup already requested" toast.
+      this.appLogger.info(
+        `start() called for ${this.name} while a startup is already in progress (status: ${this.currentStatus})`,
+        this.name,
+      )
+      return this.currentStatus
     }
 
     this.desiredStatus = 'running'

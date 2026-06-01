@@ -272,7 +272,7 @@ modeled as an explicit FSM rather than loose flags.
 app busy with right now". Long-running steps report a typed `Activity`
 (`assets/js/activities/types.ts`: `category`, `label`, `progress?`, `scope`, `parentId?`, `state`).
 Producers: backend/model prep + RAG (`textInference`), MCP/tool resolution + image conversion +
-"Thinking…" TTFT/inter-step (`openAiCompatibleChat`), MCP/ComfyUI tool execution (`tools/*`), and the
+"Processing prompt…"/"Processing results…" inference waits (`openAiCompatibleChat`), MCP/ComfyUI tool execution (`tools/*`), and the
 generation FSM bridge (`comfyUiPresets`, with determinate progress from the WS). Consumers:
 `ChatActivityIndicator.vue` (anchored to the in-progress chat turn; replaced the old
 `isPreparingBackend` bar) and `PromptArea.vue` busy state. `begin/update/end/track` manage lifecycle;

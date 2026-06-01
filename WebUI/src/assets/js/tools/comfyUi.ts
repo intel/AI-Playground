@@ -198,6 +198,7 @@ export async function executeComfyGeneration(args: {
 
   const activities = useActivities()
   const conversations = useConversations()
+  const i18nState = useI18N().state
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
@@ -208,7 +209,7 @@ export async function executeComfyGeneration(args: {
   // status line shows live progress instead of a silent wait.
   const toolActivityId = activities.begin({
     category: 'tools',
-    label: useI18N().state.COM_ACTIVITY_GENERATING_IMAGE,
+    label: i18nState.COM_ACTIVITY_GENERATING_IMAGE,
     scope: { kind: 'chat', conversationKey: conversations.activeKey },
   })
   imageGeneration.generationParentActivityId = toolActivityId
@@ -646,12 +647,16 @@ export async function executeComfyGeneration(args: {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return createErrorResult(`ComfyUI generation failed: ${errorMessage}`)
   } finally {
-    finishToolActivity()
+    // Keep the activity alive through cleanup so the post-generation window (which
+    // frees the GPU and restarts the chat backend — several seconds) isn't silent.
+    // Relabel it to reflect what's actually happening before the LLM responds.
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
+      activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
       await comfyUi.free()
       await restartChatBackend()
     }
+    finishToolActivity()
   }
 }
 

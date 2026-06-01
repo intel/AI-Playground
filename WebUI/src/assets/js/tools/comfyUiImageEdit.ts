@@ -258,6 +258,7 @@ export async function executeImageEdit(
 
   const activities = useActivities()
   const conversations = useConversations()
+  const i18nState = useI18N().state
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
@@ -267,7 +268,7 @@ export async function executeImageEdit(
   // image-gen FSM phases under it so the chat status line shows live progress.
   const toolActivityId = activities.begin({
     category: 'tools',
-    label: useI18N().state.COM_ACTIVITY_EDITING_IMAGE,
+    label: i18nState.COM_ACTIVITY_EDITING_IMAGE,
     scope: { kind: 'chat', conversationKey: conversations.activeKey },
   })
   imageGeneration.generationParentActivityId = toolActivityId
@@ -503,12 +504,15 @@ export async function executeImageEdit(
       `Image edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     )
   } finally {
-    finishToolActivity()
+    // Keep the activity alive through cleanup (GPU free + chat backend restart) so
+    // the window before the LLM's final response isn't silent.
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
+      activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
       await comfyUi.free()
       await restartChatBackend()
     }
+    finishToolActivity()
   }
 }
 

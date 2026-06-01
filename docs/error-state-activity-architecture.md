@@ -153,13 +153,14 @@ the error sink in shape.
 | `textInference.prepareRagContext` | "Searching documents…" | `rag` | chat |
 | `openAiCompatibleChat.customFetch` (MCP instructions / tool resolution) | "Preparing tools…" | `tools` | chat |
 | `openAiCompatibleChat.customFetch` (image→base64) | "Reading images…" | `tools` | chat |
-| `openAiCompatibleChat` stream `onChunk`/`onFinish` | "Thinking…" (TTFT + inter-step) | `inference` | chat |
+| `openAiCompatibleChat` stream `onChunk`/`onFinish` | "Processing prompt…" (TTFT) / "Processing results…" (post-tool inter-step) | `inference` | chat |
 | MCP `dynamicTool.execute` | "Running &lt;tool&gt;…" | `tools` | chat |
 | `tools/comfyUi.ts` / `comfyUiImageEdit.ts` | "Generating/Editing image…" | `tools` | chat (parent) |
 | `comfyUiPresets` FSM bridge | generation phase (+ determinate progress from WS) | `generation` | imageGen, nested under the tool activity via `generationParentActivityId` |
 
-The "Thinking…" activity is begun before `streamText`, cleared on first content / tool call, and
-re-armed after a tool result (so inter-step agentic pauses are visible). The chat store also runs a
+The inference activity ("Processing prompt…", or "Processing results…" once a tool has run) is begun
+before `streamText`, cleared on first content / tool call, and re-armed after a tool result (so
+inter-step agentic pauses are visible). The chat store also runs a
 safety-net watch on `processing`: when a turn ends it calls `endScope(...)` to clear any lingering
 chat `inference`/`tools` activities (covers stop / stream errors where `onFinish` never fires).
 
@@ -190,13 +191,13 @@ flowchart TD
   fetch -->|"track"| tools["activity: Preparing tools (tools)"]
   fetch -->|"track (if images)"| imgs["activity: Reading images (tools)"]
   fetch --> stream["streamText()"]
-  stream -->|"begin"| think["activity: Thinking (inference)"]
+  stream -->|"begin"| think["activity: Processing prompt (inference)"]
   think -->|"first token / tool-call clears"| respond["model streams response"]
   respond -->|"tool-call"| toolexec["tool execute()"]
   toolexec -->|"begin/end"| toolAct["activity: Running tool / Generating image (tools)"]
   toolAct -->|"parentId"| genAct["activity: generation phases (generation, imageGen)"]
-  toolexec -->|"tool-result re-arms"| think
-  respond --> done["onFinish clears Thinking; endScope safety net"]
+  toolexec -->|"tool-result re-arms as 'Processing results'"| think
+  respond --> done["onFinish clears inference activity; endScope safety net"]
 ```
 
 The `ChatActivityIndicator` shows whichever of these is innermost at any moment, giving a continuous

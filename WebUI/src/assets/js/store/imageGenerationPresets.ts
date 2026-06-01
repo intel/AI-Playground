@@ -556,7 +556,7 @@ export const useImageGenerationPresets = defineStore(
       if (!activePreset.value) return
 
       const settingsKey = getSettingsKey()
-      console.log('### loadSettingsForActivePreset', settingsKey, settingsPerPreset.value)
+      console.log('### loadSettingsForActivePreset', settingsKey, JSON.stringify(settingsPerPreset.value[settingsKey], null, 2))
       const getSavedOrDefault = (settingName: string) => {
         if (!settingsKey) return
         const saved = settingsPerPreset.value[settingsKey]?.[settingName]
@@ -564,7 +564,6 @@ export const useImageGenerationPresets = defineStore(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const globalDefaultValue: any =
           globalDefaultSettings[settingName as keyof typeof globalDefaultSettings]
-        console.log('### getSavedOrDefault', settingName, saved, presetValue, globalDefaultValue)
         return saved ?? presetValue ?? globalDefaultValue
       }
 
@@ -583,11 +582,6 @@ export const useImageGenerationPresets = defineStore(
 
       // Load currently selected edit image into first dynamic image input
       let image: MediaItem | undefined
-      console.log(
-        '### loadSettingsForActivePreset',
-        activePreset.value?.category,
-        selectedEditedImageId.value,
-      )
       if (activePreset.value?.category === 'edit-images' && selectedEditedImageId.value) {
         image = generatedImages.value.find((img) => img.id === selectedEditedImageId.value)
       } else if (activePreset.value?.category === 'create-videos') {
@@ -596,7 +590,6 @@ export const useImageGenerationPresets = defineStore(
         )
       }
 
-      console.log('### image', image)
       if (image && image.type === 'image') {
         const currentImageInput = comfyInputs.value.find((input) => input.type === 'image')
         if (currentImageInput) {

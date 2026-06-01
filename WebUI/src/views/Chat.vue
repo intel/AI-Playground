@@ -226,8 +226,23 @@
                   </template>
                 </template>
               </template>
+
+              <!-- In-turn status inside the assistant bubble: thinking / tool /
+                   post-image-gen "reloading chat model" etc. Hidden while image
+                   generation is processing (ChatWorkflowResult shows that inline). -->
+              <ChatActivityIndicator
+                v-if="
+                  i === activeConversation.length - 1 &&
+                  hasActiveChatActivity &&
+                  !imageGeneration.processing
+                "
+                :conversation-key="conversations.activeKey"
+              />
             </div>
-            <div class="answer-tools flex gap-3 items-center text-muted-foreground">
+            <div
+              v-if="messageHasVisibleContent(message)"
+              class="answer-tools flex gap-3 items-center text-muted-foreground"
+            >
               <button
                 class="flex items-end"
                 :title="languages.COM_COPY"
@@ -294,10 +309,14 @@
         </div>
       </template>
 
-      <!-- In-turn status: anchored to the bottom of the conversation, shows the
-           current activity (backend prep, thinking, searching docs, running a
-           tool, image generation progress) for the active conversation. -->
-      <ChatActivityIndicator :conversation-key="conversations.activeKey" />
+      <!-- Standalone status for the pre-bubble phase (backend/model prep before the
+           assistant message exists). Once the assistant bubble appears, the
+           indicator lives inside it (above) instead, to avoid a duplicate avatar. -->
+      <ChatActivityIndicator
+        v-if="hasActiveChatActivity && !lastMessageIsAssistant"
+        :conversation-key="conversations.activeKey"
+        with-avatar
+      />
     </div>
   </div>
 </template>
@@ -343,6 +362,26 @@ const errors = useErrors()
 // in-turn activity indicator even before the first token streams.
 const hasActiveChatActivity = computed(
   () => activities.chatActivity(conversations.activeKey, ['generation']) !== null,
+)
+
+// Whether a message already shows something (streamed text, reasoning, or a tool
+// part). Used to suppress action buttons / show the activity indicator inside an
+// otherwise-empty in-progress assistant bubble.
+function messageHasVisibleContent(message: { parts?: { type: string; text?: string }[] }): boolean {
+  return (
+    message.parts?.some((part) => {
+      if (part.type === 'text') return stripAipgMediaImages(part.text ?? '').length > 0
+      if (part.type === 'reasoning') return true
+      return isToolOrDynamicToolUIPart(part as Parameters<typeof isToolOrDynamicToolUIPart>[0])
+    }) ?? false
+  )
+}
+
+// True when the last message is an assistant turn (its bubble already hosts the
+// activity indicator), so the standalone bottom indicator is only used earlier
+// (backend prep, before the assistant bubble exists).
+const lastMessageIsAssistant = computed(
+  () => activeConversation.value?.[activeConversation.value.length - 1]?.role === 'assistant',
 )
 
 const i18nState = useI18N().state

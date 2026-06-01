@@ -85,6 +85,13 @@ export const useOpenAiCompatibleChat = defineStore(
     const i18nState = useI18N().state
     const manuallyStopped = ref(false)
 
+    // Per-conversation AI SDK chat instances. Declared up here (before the
+    // `processing` computed and its safety-net watch below) because Vue evaluates
+    // a watch's source getter once eagerly at setup time; reading `chats` from a
+    // later `const` would otherwise hit the temporal dead zone ("Cannot access
+    // 'chats' before initialization"). Populated lazily via getOrCreateChat().
+    const chats: Record<string, Chat<AipgUiMessage>> = {}
+
     const processing = computed(() => {
       // If manually stopped, immediately return false to unblock UI
       if (manuallyStopped.value) return false
@@ -390,26 +397,32 @@ export const useOpenAiCompatibleChat = defineStore(
       )
       const hasTools = Object.keys(availableTools).length > 0
 
-      // "Thinking…" represents waiting for the model: TTFT before the first token,
-      // and the inter-step pauses after a tool result while the model decides what
-      // to do next. Cleared on first content / tool call, re-armed after tool results.
-      let thinkingId: string | null = null
-      const ensureThinking = () => {
-        if (!thinkingId) {
-          thinkingId = activities.begin({
+      // Surface the silent inference waits as an activity: before the first token the
+      // backend is prefilling the prompt/context ("Processing prompt…"); after a tool
+      // runs the model incorporates its output before continuing ("Processing
+      // results…"). Cleared on first content / tool call, re-armed after tool results.
+      // (Genuine chain-of-thought surfaces inline via reasoning-delta, which clears
+      // this — we are not relabelling real reasoning.)
+      let inferenceActivityId: string | null = null
+      let sawToolResult = false
+      const ensureInferenceActivity = () => {
+        if (!inferenceActivityId) {
+          inferenceActivityId = activities.begin({
             category: 'inference',
-            label: i18nState.COM_ACTIVITY_THINKING,
+            label: sawToolResult
+              ? i18nState.COM_ACTIVITY_PROCESSING_RESULTS
+              : i18nState.COM_ACTIVITY_PROCESSING_PROMPT,
             scope: activityScope,
           })
         }
       }
-      const clearThinking = () => {
-        if (thinkingId) {
-          activities.end(thinkingId)
-          thinkingId = null
+      const clearInferenceActivity = () => {
+        if (inferenceActivityId) {
+          activities.end(inferenceActivityId)
+          inferenceActivityId = null
         }
       }
-      ensureThinking()
+      ensureInferenceActivity()
 
       const result = await streamText({
         model: model.value,
@@ -426,8 +439,8 @@ export const useOpenAiCompatibleChat = defineStore(
             }
           : {}),
         onChunk: (chunk) => {
-          // Drive the "Thinking…" activity: content/tool-call means the model is no
-          // longer waiting; a tool result means it will resume thinking next.
+          // Drive the inference activity: content/tool-call means the model is no
+          // longer waiting; a tool result means it will process that output next.
           const chunkType = chunk.chunk.type
           if (
             chunkType === 'text-delta' ||
@@ -435,9 +448,10 @@ export const useOpenAiCompatibleChat = defineStore(
             chunkType === 'tool-call' ||
             chunkType === 'tool-input-start'
           ) {
-            clearThinking()
+            clearInferenceActivity()
           } else if (chunkType === 'tool-result') {
-            ensureThinking()
+            sawToolResult = true
+            ensureInferenceActivity()
           }
           if (chunk.chunk.type === 'raw') {
             const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
@@ -514,9 +528,20 @@ export const useOpenAiCompatibleChat = defineStore(
             }
           }
         },
+        onStepFinish: (step) => {
+          // After a step that ran tool(s), the model processes their output before the
+          // next step's first token. Re-arm so that inter-step gap (e.g. the chat
+          // backend reloading after an image tool) isn't silent. Cleared on the next
+          // text/reasoning delta; the final step has no tool calls so it won't re-arm,
+          // and onFinish clears any straggler.
+          if (step.toolCalls.length > 0 || step.toolResults.length > 0) {
+            sawToolResult = true
+            ensureInferenceActivity()
+          }
+        },
         onFinish: (result) => {
           finishTime = Date.now()
-          clearThinking()
+          clearInferenceActivity()
           if (result.usage) {
             usage = result.usage
           } else if (usageFromRawChunk) {
@@ -571,8 +596,6 @@ export const useOpenAiCompatibleChat = defineStore(
         },
       })
     }
-
-    const chats: Record<string, Chat<AipgUiMessage>> = {}
 
     function getOrCreateChat(conversationKey: string): Chat<AipgUiMessage> {
       const existing = chats[conversationKey]
