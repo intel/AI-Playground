@@ -1,10 +1,15 @@
 """Audio transcoding helpers for outbound channel voice messages.
 
-TTS servers (OVMS SpeechT5 and most OpenAI-compatible fallbacks) return WAV.
-Telegram only renders a real voice bubble for OGG/Opus, so we transcode here —
-at the channel boundary — rather than relying on the TTS server's
-`response_format`, which is not reliably supported. PyAV bundles a full FFmpeg
-(with libopus) as cross-platform wheels, so no system FFmpeg is required.
+TTS servers (OVMS SpeechT5 and most OpenAI-compatible fallbacks) return WAV, but
+each chat platform wants something different for a nice inline player:
+
+- Telegram renders a real voice bubble only for OGG/Opus.
+- Slack does not give Opus-in-Ogg a playable inline player (it mis-detects it as
+  "Ogg Vorbis"); it reliably plays MP3.
+
+So we transcode here, at the channel boundary, rather than relying on the TTS
+server's `response_format`. PyAV bundles a full FFmpeg (with libopus and
+libmp3lame) as cross-platform wheels, so no system FFmpeg is required.
 """
 
 from __future__ import annotations
@@ -14,12 +19,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Telegram voice notes: mono, 48 kHz Opus in an Ogg container.
+# Opus uses a fixed 20 ms frame (960 samples @ 48 kHz); MP3 uses 1152 samples.
+# PyAV reports the real value via `stream.frame_size` once the encoder is open,
+# but it can be 0 before the first encode call, so we seed a codec-correct
+# default for the initial FIFO read.
 _OPUS_RATE = 48000
-_OPUS_LAYOUT = "mono"
-# libopus uses a fixed frame size (20 ms @ 48 kHz = 960 samples). PyAV reports
-# this via `stream.frame_size` once the encoder is open; fall back to 960.
-_DEFAULT_FRAME_SIZE = 960
+_MP3_RATE = 48000
+_LAYOUT = "mono"
 
 
 def is_ogg_opus(mime: str) -> bool:
@@ -28,10 +34,24 @@ def is_ogg_opus(mime: str) -> bool:
 
 
 def to_ogg_opus(data: bytes) -> bytes:
-    """Transcode arbitrary audio bytes (typically WAV) to Ogg/Opus.
+    """Transcode arbitrary audio bytes (typically WAV) to Ogg/Opus (Telegram).
 
     Raises on failure so callers can fall back to sending the original audio.
     """
+    return _encode(data, container="ogg", codec="libopus", rate=_OPUS_RATE, default_frame_size=960)
+
+
+def to_mp3(data: bytes) -> bytes:
+    """Transcode arbitrary audio bytes (typically WAV) to MP3 (Slack).
+
+    Raises on failure so callers can fall back to sending the original audio.
+    """
+    return _encode(
+        data, container="mp3", codec="libmp3lame", rate=_MP3_RATE, default_frame_size=1152
+    )
+
+
+def _encode(data: bytes, *, container: str, codec: str, rate: int, default_frame_size: int) -> bytes:
     import av
     from av.audio.fifo import AudioFifo
     from av.audio.resampler import AudioResampler
@@ -40,16 +60,17 @@ def to_ogg_opus(data: bytes) -> bytes:
     out_buffer = io.BytesIO()
 
     in_container = av.open(in_buffer, mode="r")
-    out_container = av.open(out_buffer, mode="w", format="ogg")
+    out_container = av.open(out_buffer, mode="w", format=container)
     try:
-        out_stream = out_container.add_stream("libopus", rate=_OPUS_RATE, layout=_OPUS_LAYOUT)
-        resampler = AudioResampler(format="s16", layout=_OPUS_LAYOUT, rate=_OPUS_RATE)
+        out_stream = out_container.add_stream(codec, rate=rate, layout=_LAYOUT)
+        resampler = AudioResampler(format="s16", layout=_LAYOUT, rate=rate)
         fifo = AudioFifo()
 
         def drain(flush: bool) -> None:
-            frame_size = out_stream.frame_size or _DEFAULT_FRAME_SIZE
+            # Fixed-frame encoders (opus, mp3) require exact frame sizes; pull
+            # full frames from the FIFO and only emit a short final frame on flush.
+            frame_size = out_stream.frame_size or default_frame_size
             while True:
-                # On flush, accept a final short frame; otherwise only full frames.
                 frame = fifo.read(frame_size) if not flush else fifo.read(frame_size, partial=True)
                 if frame is None:
                     break
