@@ -9,6 +9,7 @@ import { exec } from 'child_process'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { installBackend } from './uvBasedBackends/uv.ts'
+import { binary, extract } from './tools.ts'
 
 const execAsync = promisify(exec)
 
@@ -85,8 +86,11 @@ export class OpenVINOBackendService implements ApiService {
     // Set up paths
     this.serviceDir = path.resolve(path.join(this.baseDir, 'OpenVINO'))
     this.ovmsDir = path.resolve(path.join(this.serviceDir, 'ovms'))
-    this.ovmsExePath = path.resolve(path.join(this.ovmsDir, 'ovms.exe'))
-    this.zipPath = path.resolve(path.join(this.serviceDir, 'ovms.zip'))
+    // On Windows the binary sits at the OVMS root; on Linux/macOS it lives under bin/
+    const ovmsExe = process.platform === 'win32' ? 'ovms.exe' : path.join('bin', binary('ovms'))
+    this.ovmsExePath = path.resolve(path.join(this.ovmsDir, ovmsExe))
+    const archiveName = process.platform === 'win32' ? 'ovms.zip' : 'ovms.tar.gz'
+    this.zipPath = path.resolve(path.join(this.serviceDir, archiveName))
     this.pythonEnvDir = path.resolve(path.join(this.serviceDir, '.venv'))
     this.detectDevicesScript = path.resolve(path.join(this.serviceDir, 'detect_devices.py'))
 
@@ -105,6 +109,144 @@ export class OpenVINOBackendService implements ApiService {
   serviceIsSetUp(): boolean {
     console.log('checking', this.ovmsExePath)
     return filesystem.existsSync(this.ovmsExePath)
+  }
+
+  /**
+   * Return process.env with inherited Python/virtualenv variables removed.
+   * When AI Playground is launched from a shell with another venv active
+   * (e.g. ComfyUI's .venv), variables like VIRTUAL_ENV / PYTHONHOME /
+   * PYTHONPATH / __PYVENV_LAUNCHER__ leak into any Python we spawn and break it
+   * with "failed to get the Python codec of the filesystem encoding".
+   */
+  private stripInheritedPythonEnv(): {
+    cleanEnv: NodeJS.ProcessEnv
+    inheritedVirtualEnv?: string
+  } {
+    const {
+      VIRTUAL_ENV: inheritedVirtualEnv,
+      PYTHONPATH: _pythonPath,
+      PYTHONHOME: _pythonHome,
+      PYTHONSTARTUP: _pythonStartup,
+      PYTHONEXECUTABLE: _pythonExecutable,
+      __PYVENV_LAUNCHER__: _pyvenvLauncher,
+      ...cleanEnv
+    } = process.env
+    return { cleanEnv, inheritedVirtualEnv }
+  }
+
+  /**
+   * Drop any foreign virtualenv bin/Scripts directories from a PATH string so a
+   * spawned interpreter can't resolve `python`/`python3` to the wrong venv.
+   */
+  private sanitizeForeignVenvFromPath(pathStr: string | undefined, activeVenv?: string): string {
+    const venvBinDirs = new Set<string>()
+    if (activeVenv) {
+      venvBinDirs.add(path.normalize(path.join(activeVenv, 'bin')))
+      venvBinDirs.add(path.normalize(path.join(activeVenv, 'Scripts')))
+    }
+    const looksLikeVenvBin = (p: string) => /[\\/](?:\.venv|venv)[\\/](?:bin|Scripts)$/.test(p)
+    return (pathStr ?? '')
+      .split(path.delimiter)
+      .filter((p) => {
+        if (!p) return false
+        const normalized = path.normalize(p)
+        return !venvBinDirs.has(normalized) && !looksLikeVenvBin(normalized)
+      })
+      .join(path.delimiter)
+  }
+
+  /**
+   * Build the environment used to spawn the OVMS executable.
+   * Cross-platform: Windows resolves DLLs from PATH, Linux resolves shared
+   * objects (libopenvino, libtbb, Level Zero GPU libs, ...) from LD_LIBRARY_PATH.
+   */
+  private buildOvmsEnv(): NodeJS.ProcessEnv {
+    // Set up environment variables as per setupvars.ps1 / setupvars.sh
+    const pythonDir = path.join(this.ovmsDir, 'python')
+    const scriptsDir = path.join(pythonDir, process.platform === 'win32' ? 'Scripts' : 'bin')
+
+    const { cleanEnv, inheritedVirtualEnv } = this.stripInheritedPythonEnv()
+    const sanitizedInheritedPath = this.sanitizeForeignVenvFromPath(
+      cleanEnv.PATH,
+      inheritedVirtualEnv,
+    )
+
+    if (process.platform === 'win32') {
+      // Windows ships a fully self-contained CPython under ovms/python, so we
+      // point PYTHONHOME at it and expose its Scripts dir on PATH.
+      return {
+        ...cleanEnv,
+        OVMS_DIR: this.ovmsDir,
+        PYTHONHOME: pythonDir,
+        PATH: [this.ovmsDir, pythonDir, scriptsDir, sanitizedInheritedPath]
+          .filter(Boolean)
+          .join(path.delimiter),
+      }
+    }
+
+    // Linux/macOS: the OVMS package does NOT bundle a complete CPython stdlib
+    // (that's why the .deb depends on `python3`). Forcing PYTHONHOME=ovms/python
+    // makes the embedded interpreter look for `encodings` in that incomplete
+    // tree and abort with "failed to get the Python codec of the filesystem
+    // encoding". Instead, leave PYTHONHOME unset so the matching system Python
+    // (ubuntu24 → py3.12) provides the stdlib, and expose OVMS's own python
+    // modules via PYTHONPATH.
+    const ovmsPythonModuleDirs = [
+      path.join(this.ovmsDir, 'lib', 'python'),
+      path.join(pythonDir, 'lib', 'python'),
+    ].filter((p) => filesystem.existsSync(p))
+
+    return {
+      ...cleanEnv,
+      OVMS_DIR: this.ovmsDir,
+      // Keep the inherited PATH (so /usr/bin/python3 is discoverable) and put
+      // the OVMS bin dir first for the ovms binary's own helper executables.
+      PATH: [path.join(this.ovmsDir, 'bin'), this.ovmsDir, sanitizedInheritedPath]
+        .filter(Boolean)
+        .join(path.delimiter),
+      ...(ovmsPythonModuleDirs.length > 0 && {
+        PYTHONPATH: ovmsPythonModuleDirs.join(path.delimiter),
+      }),
+      // Ensure a UTF-8 locale so the interpreter can load the filesystem-encoding
+      // codec on minimal setups where LANG/LC_ALL may be unset.
+      LANG: process.env.LANG ?? 'C.UTF-8',
+      LC_ALL: process.env.LC_ALL ?? process.env.LANG ?? 'C.UTF-8',
+      LD_LIBRARY_PATH: [path.join(this.ovmsDir, 'lib'), process.env.LD_LIBRARY_PATH ?? '']
+        .filter(Boolean)
+        .join(':'),
+    }
+  }
+
+  /**
+   * Build the environment used to spawn the OpenVINO Python device-detection venv.
+   * This venv (ovms-independent) has its own CPython, so we activate it via
+   * VIRTUAL_ENV and must likewise strip any inherited foreign-venv pollution,
+   * otherwise device detection crashes and silently hides the Intel GPU/NPU.
+   */
+  private buildPythonDetectionEnv(): NodeJS.ProcessEnv {
+    const { cleanEnv, inheritedVirtualEnv } = this.stripInheritedPythonEnv()
+    const venvBinDir = path.join(this.pythonEnvDir, process.platform === 'win32' ? 'Scripts' : 'bin')
+    const sanitizedInheritedPath = this.sanitizeForeignVenvFromPath(
+      cleanEnv.PATH,
+      inheritedVirtualEnv,
+    )
+
+    return {
+      ...cleanEnv,
+      // Activate our own detection venv (its bin dir is prepended so its python
+      // is the one that runs; PYTHONHOME stays unset so the venv resolves it).
+      VIRTUAL_ENV: this.pythonEnvDir,
+      PATH: [venvBinDir, sanitizedInheritedPath].filter(Boolean).join(path.delimiter),
+      // On Linux, the OpenVINO runtime needs the Level Zero loader & Intel GPU
+      // driver from the system lib dir to enumerate Intel GPUs/NPUs.
+      ...(process.platform !== 'win32' && {
+        LANG: process.env.LANG ?? 'C.UTF-8',
+        LC_ALL: process.env.LC_ALL ?? process.env.LANG ?? 'C.UTF-8',
+        LD_LIBRARY_PATH: ['/usr/lib/x86_64-linux-gnu', process.env.LD_LIBRARY_PATH ?? '']
+          .filter(Boolean)
+          .join(':'),
+      }),
+    }
   }
 
   async ensureBackendReadiness(
@@ -237,11 +379,7 @@ export class OpenVINOBackendService implements ApiService {
       const childProcess = spawn(pythonExe, [this.detectDevicesScript], {
         cwd: this.serviceDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          VIRTUAL_ENV: this.pythonEnvDir,
-          PATH: `${path.join(this.pythonEnvDir, 'Scripts')};${path.join(this.pythonEnvDir, 'bin')};${process.env.PATH}`,
-        },
+        env: this.buildPythonDetectionEnv(),
       })
 
       let stdout = ''
@@ -313,19 +451,10 @@ export class OpenVINOBackendService implements ApiService {
         this.name,
       )
 
-      // Set up environment variables as per setupvars.ps1
-      const pythonDir = path.join(this.ovmsDir, 'python')
-      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          OVMS_DIR: this.ovmsDir,
-          PYTHONHOME: pythonDir,
-          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-        },
+        env: this.buildOvmsEnv(),
       })
 
       let resolved = false
@@ -498,6 +627,15 @@ export class OpenVINOBackendService implements ApiService {
     try {
       const result = await execAsync(`"${this.ovmsExePath}" --version`, {
         timeout: 5000,
+        env: {
+          ...process.env,
+          // On Linux, OVMS shared libs (libtbb, libopenvino, ...) live in ovmsDir/lib
+          ...(process.platform !== 'win32' && {
+            LD_LIBRARY_PATH: [path.join(this.ovmsDir, 'lib'), process.env.LD_LIBRARY_PATH ?? '']
+              .filter(Boolean)
+              .join(':'),
+          }),
+        },
       })
       // Parse output like "OpenVINO backend 2025.4.0.0rc3"
       const versionMatch = result.stdout.match(/OpenVINO backend\s+([\d.]+(?:rc\d+)?)/)
@@ -640,22 +778,69 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   private async downloadOvms(): Promise<void> {
-    const baseUrl =
+    // Build an ordered list of candidate URLs to try, most-specific first.
+    //
+    // Windows – uses the OpenVINO toolkit storage (zip, no version in filename).
+    // Linux   – GitHub Releases are canonical; toolkit storage is a fallback.
+    //   GitHub/storage asset names embed the full version, e.g.:
+    //     ovms_ubuntu24_2026.1.0_python_on.tar.gz
+    const candidates: string[] = []
+    const storageBaseUrl =
       'https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages'
-    const versionPath = this.releaseTag ? `weekly/${this.version}.${this.releaseTag}` : this.version
-    const downloadUrl = `${baseUrl}/${versionPath}/ovms_windows_python_on.zip`
+
+    if (process.platform === 'win32') {
+      const versionPath = this.releaseTag
+        ? `weekly/${this.version}.${this.releaseTag}`
+        : this.version
+      candidates.push(`${storageBaseUrl}/${versionPath}/ovms_windows_python_on.zip`)
+    } else {
+      // Prefer Ubuntu 24 (ships with Python). Fall back to Ubuntu 22.
+      for (const distro of ['ubuntu24', 'ubuntu22']) {
+        const pkg = `ovms_${distro}_${this.version}_python_on.tar.gz`
+
+        // 1. GitHub Releases (most reliable for versioned packages)
+        candidates.push(
+          `https://github.com/openvinotoolkit/model_server/releases/download/v${this.version}/${pkg}`,
+        )
+        // 2. OpenVINO toolkit storage – weekly build
+        if (this.releaseTag) {
+          candidates.push(`${storageBaseUrl}/weekly/${this.version}.${this.releaseTag}/${pkg}`)
+        }
+        // 3. OpenVINO toolkit storage – stable
+        candidates.push(`${storageBaseUrl}/${this.version}/${pkg}`)
+      }
+    }
+
+    let response: Awaited<ReturnType<typeof net.fetch>> | undefined
+    let downloadUrl = ''
+    for (const url of candidates) {
+      this.appLogger.info(`Trying OVMS download URL: ${url}`, this.name)
+      const res = await net.fetch(url)
+      const contentType = res.headers.get('content-type') ?? ''
+      // Reject HTML responses (they indicate a 404/index page, not a real archive)
+      if (res.ok && res.status === 200 && res.body && !contentType.includes('text/html')) {
+        response = res
+        downloadUrl = url
+        break
+      }
+      this.appLogger.info(
+        `URL ${url} returned ${res.status} / content-type: ${contentType} — skipping`,
+        this.name,
+      )
+    }
+
+    if (!response || !response.body) {
+      throw new Error(
+        `Failed to download OVMS: no valid download URL found. Tried: ${candidates.join(', ')}`,
+      )
+    }
+
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
     // Delete existing zip if it exists
     if (filesystem.existsSync(this.zipPath)) {
       this.appLogger.info(`Removing existing OVMS zip file`, this.name)
       filesystem.removeSync(this.zipPath)
-    }
-
-    // Using electron net for better proxy support
-    const response = await net.fetch(downloadUrl)
-    if (!response.ok || response.status !== 200 || !response.body) {
-      throw new Error(`Failed to download OVMS: ${response.statusText}`)
     }
 
     const buffer = await response.arrayBuffer()
@@ -676,10 +861,10 @@ export class OpenVINOBackendService implements ApiService {
     // Create ovms directory
     filesystem.mkdirSync(this.ovmsDir, { recursive: true })
 
-    // Extract zip file using PowerShell's Expand-Archive
+    // Extract archive using the cross-platform extract helper
+    // (PowerShell Expand-Archive on Windows, `tar -xf` on Linux/macOS).
     try {
-      const command = `powershell -Command "Expand-Archive -Path '${this.zipPath}' -DestinationPath '${this.ovmsDir}' -Force"`
-      await execAsync(command)
+      await extract(this.zipPath, this.ovmsDir)
 
       this.appLogger.info(`OVMS extracted successfully`, this.name)
 
@@ -707,6 +892,13 @@ export class OpenVINOBackendService implements ApiService {
 
           this.appLogger.info(`Moved contents of '${items[0]}' up to ovms directory`, this.name)
         }
+      }
+
+      // On Linux the tar.gz may not preserve the executable bit on the binary.
+      // Done after the folder-flattening above so ovmsExePath resolves correctly.
+      if (process.platform !== 'win32' && filesystem.existsSync(this.ovmsExePath)) {
+        await filesystem.chmod(this.ovmsExePath, 0o755)
+        this.appLogger.info(`Made ovms binary executable`, this.name)
       }
     } catch (error) {
       this.appLogger.error(`Failed to extract OVMS: ${error}`, this.name)
@@ -953,19 +1145,10 @@ export class OpenVINOBackendService implements ApiService {
 
       this.appLogger.info(`OVMS launch args: ${args.join(' ')}`, this.name)
 
-      // Set up environment variables as per setupvars.ps1
-      const pythonDir = path.join(this.ovmsDir, 'python')
-      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          OVMS_DIR: this.ovmsDir,
-          PYTHONHOME: pythonDir,
-          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-        },
+        env: this.buildOvmsEnv(),
       })
 
       const healthUrl = `http://127.0.0.1:${this.port}/v2/health/ready`
@@ -1088,19 +1271,10 @@ export class OpenVINOBackendService implements ApiService {
 
       this.appLogger.info(`OVMS embedding launch args: ${args.join(' ')}`, this.name)
 
-      // Set up environment variables as per setupvars.ps1
-      const pythonDir = path.join(this.ovmsDir, 'python')
-      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          OVMS_DIR: this.ovmsDir,
-          PYTHONHOME: pythonDir,
-          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-        },
+        env: this.buildOvmsEnv(),
       })
 
       const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
@@ -1225,19 +1399,10 @@ export class OpenVINOBackendService implements ApiService {
 
       this.appLogger.info(`OVMS transcription launch args: ${args.join(' ')}`, this.name)
 
-      // Set up environment variables as per setupvars.ps1
-      const pythonDir = path.join(this.ovmsDir, 'python')
-      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          OVMS_DIR: this.ovmsDir,
-          PYTHONHOME: pythonDir,
-          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-        },
+        env: this.buildOvmsEnv(),
       })
 
       const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
@@ -1370,18 +1535,10 @@ export class OpenVINOBackendService implements ApiService {
 
       this.appLogger.info(`OVMS image launch args: ${args.join(' ')}`, this.name)
 
-      const pythonDir = path.join(this.ovmsDir, 'python')
-      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
         windowsHide: true,
-        env: {
-          ...process.env,
-          OVMS_DIR: this.ovmsDir,
-          PYTHONHOME: pythonDir,
-          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-        },
+        env: this.buildOvmsEnv(),
       })
 
       const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`

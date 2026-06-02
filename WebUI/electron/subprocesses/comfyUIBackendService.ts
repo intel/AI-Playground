@@ -28,7 +28,7 @@ import {
 } from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
-import { cudaVisibleDevicesEnv, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import { cudaVisibleDevicesEnv, levelZeroDeviceSelectorEnv, linuxHasLevelZeroRuntime } from './deviceDetection.ts'
 import { BrowserWindow, app } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode, configureComfyUiManagerSecurityLevel } from './comfyuiTools.ts'
@@ -40,6 +40,31 @@ export type ComfyUiVariant = 'xpu' | 'cuda' | 'cpu'
 export const COMFYUI_DEFAULT_PARAMETERS = '--lowvram --reserve-vram 6.0'
 
 const UPSTREAM_PYPROJECT_BACKUP = 'pyproject.toml.aipg-upstream'
+
+// ---------------------------------------------------------------------------
+// Linux Intel-GPU runtime detection (XPU variant)
+// ---------------------------------------------------------------------------
+// Delegates to the shared, distro-robust + logged Level Zero detector so the
+// XPU vs CPU decision is consistent across backends and visible in the logs.
+function linuxHasIntelGpuRuntime(): boolean {
+  return linuxHasLevelZeroRuntime()
+}
+
+// Library-path entries prepended to LD_LIBRARY_PATH when the XPU variant is
+// active on Linux. Only existing directories are returned.
+function getLinuxOneApiLibPaths(): string[] {
+  const candidates = [
+    // Note: compiler/latest/lib is intentionally excluded — its libintelocl.so
+    // overrides the system ze_loader and breaks XPU device detection.
+    // libsycl is already bundled inside the ComfyUI venv.
+    '/opt/intel/oneapi/mkl/latest/lib',
+    '/opt/intel/oneapi/mkl/latest/lib/intel64',
+    '/opt/intel/oneapi/tbb/latest/lib',
+    '/opt/intel/oneapi/tbb/latest/lib/intel64/gcc4.8',
+    '/usr/lib/x86_64-linux-gnu',
+  ]
+  return candidates.filter((p) => fs.existsSync(p))
+}
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
@@ -184,6 +209,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private getDesiredVariant(): ComfyUiVariant {
     if (this.settings.productMode === 'nvidia') return 'cuda'
     if (process.platform === 'win32') return 'xpu'
+    if (process.platform === 'linux' && linuxHasIntelGpuRuntime()) return 'xpu'
     return 'cpu'
   }
 
@@ -664,11 +690,20 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       try {
         if (this.comfyUiVariant === 'xpu') {
           this.appLogger.info('patching hijacks into comfyUI model_management (xpu)', this.name)
-          patchFile(
-            path.join(this.serviceDir, 'comfy/model_management.py'),
-            'from comfy.model_management import get_model',
-            ['from ipex_to_cuda import ipex_init', 'ipex_init()'],
-          )
+          try {
+            await patchFile(
+              path.join(this.serviceDir, 'comfy/model_management.py'),
+              'from comfy.model_management import get_model',
+              ['from ipex_to_cuda import ipex_init', 'ipex_init()'],
+            )
+          } catch (patchErr) {
+            // Newer ComfyUI / torch+xpu versions don't need the ipex_to_cuda
+            // bridge (and may not contain the anchor line). Don't fail setup.
+            this.appLogger.info(
+              `ipex_to_cuda patch skipped (not applicable to this ComfyUI version): ${patchErr}`,
+              this.name,
+            )
+          }
         } else {
           // If a previous install injected ipex_to_cuda, remove it for non-XPU variants.
           const mmPath = path.join(this.serviceDir, 'comfy/model_management.py')
@@ -941,7 +976,9 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private get torchBackendValue(): string {
     if (this.comfyUiVariant === 'cuda') return 'cu128'
     if (this.comfyUiVariant === 'cpu') return 'cpu'
-    return process.platform === 'win32' ? 'xpu' : 'cpu'
+    if (process.platform === 'win32') return 'xpu'
+    if (process.platform === 'linux' && linuxHasIntelGpuRuntime()) return 'xpu'
+    return 'cpu'
   }
 
   get comfyUiVariantName(): ComfyUiVariant {
@@ -953,7 +990,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }
 
   private getCommonEnvVars(): Record<string, string> {
-    return {
+    const envVars: Record<string, string> = {
       PATH: [
         // Windows: Conda Library/bin + bundled Git cmd directory.
         // Linux/macOS: the venv's bin directory.
@@ -974,6 +1011,22 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
       // Consumed by the bundled aipg-auth ComfyUI custom_node middleware.
       AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
     }
+
+    // On Linux with the XPU variant, expose the Intel oneAPI runtime libraries so
+    // IPEX can resolve libsycl.so / libmkl_sycl.so / libze_loader.so at runtime,
+    // and use the composite device hierarchy so Level Zero can make large
+    // contiguous USM allocations (fixes XPU OOM on shared-memory Intel iGPUs).
+    if (process.platform === 'linux' && this.comfyUiVariant === 'xpu') {
+      const oneApiLibPaths = getLinuxOneApiLibPaths()
+      if (oneApiLibPaths.length > 0) {
+        envVars.LD_LIBRARY_PATH = [...oneApiLibPaths, process.env.LD_LIBRARY_PATH ?? '']
+          .filter(Boolean)
+          .join(path.delimiter)
+      }
+      envVars.ZE_FLAT_DEVICE_HIERARCHY = 'COMPOSITE'
+    }
+
+    return envVars
   }
 
   private getDeviceSelectorEnv(): Record<string, string> {
@@ -1232,6 +1285,24 @@ except Exception as e:
       userParameters = filtered
     }
 
+    // On Linux XPU (shared-memory Intel iGPUs that borrow up to tens of GB from
+    // system RAM), --lowvram's piecemeal model loading fragments the SYCL USM
+    // pool and triggers OOM on large single allocations (e.g. Flux attention).
+    // Run in normal VRAM mode with a small reserve instead.
+    if (process.platform === 'linux' && this.comfyUiVariant === 'xpu') {
+      const filtered: string[] = []
+      for (let i = 0; i < userParameters.length; i++) {
+        const arg = userParameters[i]
+        if (arg === '--lowvram') continue
+        if (arg === '--reserve-vram') {
+          i++ // also skip its value
+          continue
+        }
+        filtered.push(arg)
+      }
+      userParameters = [...filtered, '--reserve-vram', '2.0']
+    }
+
     const parameters = [
       'main.py',
       '--port',
@@ -1260,7 +1331,10 @@ except Exception as e:
     const apiProcess = spawn(pythonBinary, parameters, {
       cwd: this.serviceDir,
       windowsHide: true,
-      env: Object.assign(process.env, additionalEnvVariables),
+      // Build a fresh env object instead of mutating process.env — otherwise the
+      // injected LD_LIBRARY_PATH / device-selector vars would leak into every
+      // later child process spawned from the main Electron process.
+      env: { ...process.env, ...additionalEnvVariables },
     })
 
     //must be at the same tick as the spawn function call
