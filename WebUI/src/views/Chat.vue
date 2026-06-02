@@ -21,7 +21,10 @@
     @scroll="handleScroll"
   >
     <!-- eslint-disable vue/require-v-for-key -->
-    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6">
+    <div
+      class="w-full max-w-4xl mx-auto flex flex-col gap-6"
+      :class="{ 'pt-20': !contentOverflows }"
+    >
       <template v-for="(message, i) in activeConversation">
         <!-- eslint-enable -->
         <div v-if="message.role === 'user'" class="flex items-start gap-3">
@@ -390,6 +393,18 @@ const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
 
+// Whether the chat panel scrolls (content taller than the viewport). The
+// "Show History" button floats over the top-left of the panel, so we only
+// reserve top padding when the chat is short enough to sit under it; once the
+// chat overflows, scroll-to-bottom keeps the latest message clear of the button.
+const contentOverflows = ref(false)
+let resizeObserver: ResizeObserver | null = null
+
+function updateOverflow() {
+  const el = chatPanel.value
+  contentOverflows.value = !!el && el.scrollHeight > el.clientHeight + 1
+}
+
 const activeConversation = computed(() => openAiCompatibleChat.messages)
 const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 
@@ -424,11 +439,27 @@ defineExpose({
 onMounted(() => {
   promptStore.registerSubmitCallback('chat', handlePromptSubmit)
   promptStore.registerCancelCallback('chat', handleCancel)
+  nextTick(updateOverflow)
 })
 
 onUnmounted(() => {
   promptStore.unregisterSubmitCallback('chat')
   promptStore.unregisterCancelCallback('chat')
+  resizeObserver?.disconnect()
+  resizeObserver = null
+})
+
+// The chat panel sits behind a v-if, so (re)attach the ResizeObserver whenever
+// the element appears to keep the overflow flag in sync with panel resizes
+// (window resize, footer expand/collapse).
+watch(chatPanel, (el) => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  if (el) {
+    resizeObserver = new ResizeObserver(() => updateOverflow())
+    resizeObserver.observe(el)
+    nextTick(updateOverflow)
+  }
 })
 
 watch(
@@ -446,6 +477,7 @@ watch(
       })
     }
 
+    nextTick(updateOverflow)
     if (autoScrollEnabled.value) {
       nextTick(() => scrollToBottom())
     }
@@ -496,6 +528,7 @@ function handleScroll(e: Event) {
 
   autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
+  updateOverflow()
 }
 
 function scrollToBottom(smooth = true) {

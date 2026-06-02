@@ -178,7 +178,7 @@
           id="show-history-button"
           v-show="!uiStore.showHistory"
           @click="openHistory"
-          class="text-foreground px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
+          class="text-foreground px-3 py-1.5 bg-card border border-border shadow-sm hover:bg-muted rounded-lg text-sm"
         >
           {{ languages.COM_SHOW_HISTORY }}
         </button>
