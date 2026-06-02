@@ -198,16 +198,32 @@ fs.mkdirSync(mediaInputDir, { recursive: true })
 /** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
 function getLocalPathFromAipgMediaUrl(url: string): string | null {
   if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return null
-  // Strip protocol, then strip any trailing slash — Chromium occasionally
-  // appends one to custom-protocol URLs (e.g. `aipg-media://foo.png/`), and
-  // `net.fetch(file://.../foo.png/)` treats the trailing slash as "directory"
-  // and fails. Mirrors what the legacy inline handler did.
+  // `aipg-media` is registered as a *standard* scheme, so Chromium parses the
+  // segment after `://` as the URL authority and lowercases it. The current
+  // URL format therefore keeps the media-relative path in the URL *path* under
+  // a constant `media` authority (see `mediaUrl()` in `src/lib/utils.ts`) so
+  // case-sensitive filenames survive on case-sensitive filesystems (Linux).
+  //
+  // Legacy URLs (`aipg-media://<relative-path>`) put the path directly in the
+  // authority; keep resolving those for already-persisted media references.
+  // (Their case was lost to the authority lowercasing, so they only ever
+  // resolved on case-insensitive filesystems — unchanged by this branch.)
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  const relativeRaw = parsed.host === 'media' ? parsed.pathname : parsed.host + parsed.pathname
+  // Strip any trailing slash — Chromium occasionally appends one to
+  // custom-protocol URLs (e.g. `…/foo.png/`), and `net.fetch(file://.../foo.png/)`
+  // treats the trailing slash as "directory" and fails.
   // `decodeURIComponent` throws `URIError` on malformed `%` sequences (e.g.
-  // `aipg-media://%E0`); treat that as an invalid URL rather than letting the
-  // exception escape into the protocol handler or IPC reply.
+  // `%E0`); treat that as an invalid URL rather than letting the exception
+  // escape into the protocol handler or IPC reply.
   let decodedUrl: string
   try {
-    decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, '').replace(/[/\\]+$/, ''))
+    decodedUrl = decodeURIComponent(relativeRaw.replace(/[/\\]+$/, ''))
   } catch {
     return null
   }

@@ -14,7 +14,7 @@ import * as toast from '../toast'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import { usePromptStore } from './promptArea'
 import { z } from 'zod'
-import { imageUrlToDataUri, isImageUrl } from '@/lib/utils'
+import { imageUrlToDataUri, isImageUrl, mediaUrl } from '@/lib/utils'
 import { getComfyAuthToken, invalidateComfyAuthToken } from '@/lib/loopbackAuth'
 import {
   findKeysByClassType,
@@ -697,7 +697,9 @@ export const useComfyUiPresets = defineStore(
                   if (image) {
                     let newItem: MediaItem
                     if (output?.animated?.[imageIndex]) {
-                      const videoUrl = `aipg-media://${image.subfolder ? `${image.subfolder}/${image.filename}` : image.filename}`
+                      const videoUrl = mediaUrl(
+                        image.subfolder ? `${image.subfolder}/${image.filename}` : image.filename,
+                      )
                       newItem = {
                         ...queuedImages[generateIdx],
                         state: 'done',
@@ -710,7 +712,9 @@ export const useComfyUiPresets = defineStore(
                         ...queuedImages[generateIdx],
                         state: 'done',
                         type: 'image',
-                        imageUrl: `aipg-media://${image.subfolder ? `${image.subfolder}/${image.filename}` : image.filename}`,
+                        imageUrl: mediaUrl(
+                          image.subfolder ? `${image.subfolder}/${image.filename}` : image.filename,
+                        ),
                         createdAt,
                       }
                     }
@@ -725,8 +729,12 @@ export const useComfyUiPresets = defineStore(
                 if ('gifs' in output) {
                   const video = output.gifs.find((i) => i.type === 'output')
                   if (video) {
-                    const videoUrl = `aipg-media://${video.subfolder ? `${video.subfolder}/${video.filename}` : video.filename}`
-                    const thumbnailUrl = `aipg-media://${video.subfolder ? `${video.subfolder}/${video.workflow}` : video.workflow}`
+                    const videoUrl = mediaUrl(
+                      video.subfolder ? `${video.subfolder}/${video.filename}` : video.filename,
+                    )
+                    const thumbnailUrl = mediaUrl(
+                      video.subfolder ? `${video.subfolder}/${video.workflow}` : video.workflow,
+                    )
                     const newImage: MediaItem = {
                       ...queuedImages[generateIdx],
                       state: 'done',
@@ -746,7 +754,11 @@ export const useComfyUiPresets = defineStore(
                 if ('3d' in output) {
                   const model3d = output['3d'].find((i) => i.type === 'output')
                   if (model3d) {
-                    const model3dUrl = `aipg-media://${model3d.subfolder ? `${model3d.subfolder}/${model3d.filename}` : model3d.filename}`
+                    const model3dUrl = mediaUrl(
+                      model3d.subfolder
+                        ? `${model3d.subfolder}/${model3d.filename}`
+                        : model3d.filename,
+                    )
                     const newImage: MediaItem = {
                       ...queuedImages[generateIdx],
                       state: 'done',
