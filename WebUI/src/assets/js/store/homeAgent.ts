@@ -43,6 +43,7 @@ import {
 } from './channels/types'
 import type { ChannelAdapter, RawPart } from './channels/adapter'
 import { escapeHtml } from './channels/adapterHelpers'
+import { isAppError, extractMessage } from '../errors/appError'
 import { createTelegramAdapter } from './channels/telegramAdapter'
 import { createSlackAdapter } from './channels/slackAdapter'
 
@@ -543,6 +544,14 @@ export const useHomeAgent = defineStore(
       return adapter.reply(adapter.formatMarkdown(md), meta)
     }
 
+    // Surface a failed turn to the remote user. Stream failures are reported
+    // silently for side-channels (and never thrown), so without this the channel
+    // would just go quiet on errors like a context-size overflow.
+    async function relayTurnError(adapter: ChannelAdapter, error: unknown, meta?: InboundMeta) {
+      const message = isAppError(error) ? error.userMessage : extractMessage(error)
+      await reply(adapter, `⚠️ ${escapeHtml(message)}`, meta)
+    }
+
     /**
      * Ask the user to confirm a settings change over the active channel.
      * Posts the summary, then resolves with the next yes/no reply (intercepted
@@ -1021,11 +1030,21 @@ export const useHomeAgent = defineStore(
         })
         maybeSetHomeAgentConversationTitle(targetKey)
         if (!isHomeAgentActive.value) return
+        // A stream failure (e.g. context overflow) is swallowed by the chat's
+        // onError and generate() returns normally — surface it to the channel.
+        const turnError = chatStore.consumeTurnError(targetKey)
+        if (turnError) {
+          await relayTurnError(adapter, turnError, meta)
+          return
+        }
         const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
         if (assistantReply) {
           await replyMarkdown(adapter, assistantReply, meta)
           await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
         }
+      } catch (e) {
+        // A pre-stream failure (backend/model prep, RAG) is thrown instead.
+        if (isHomeAgentActive.value) await relayTurnError(adapter, e, meta)
       } finally {
         activeRemoteTurn = null
         stopTyping()
@@ -1143,6 +1162,9 @@ export const useHomeAgent = defineStore(
       const stopTyping = typing(adapter, 'typing', meta)
       const flush = watchAndStreamToChannel(adapter, targetKey, meta)
       activeRemoteTurn = { adapter, meta }
+      // Captured from a thrown pre-stream failure or a swallowed stream failure,
+      // and relayed to the channel after the streamed content is flushed.
+      let turnError: unknown = null
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -1150,16 +1172,25 @@ export const useHomeAgent = defineStore(
           files,
         })
         maybeSetHomeAgentConversationTitle(targetKey)
+        turnError = chatStore.consumeTurnError(targetKey)
+      } catch (e) {
+        turnError = e
       } finally {
         activeRemoteTurn = null
         stopTyping()
         if (isHomeAgentActive.value) {
+          // Flush first so any partial streamed content (e.g. the browse trace)
+          // lands before the error notice.
           await flush()
-          // After the streamed text reply is delivered, send a voice version
-          // if the inbound turn was itself a voice message.
-          const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
-          if (assistantReply) {
-            await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
+          if (turnError) {
+            await relayTurnError(adapter, turnError, meta)
+          } else {
+            // After the streamed text reply is delivered, send a voice version
+            // if the inbound turn was itself a voice message.
+            const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
+            if (assistantReply) {
+              await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
+            }
           }
         } else {
           // Home Agent was disabled mid-generation: still drain so already

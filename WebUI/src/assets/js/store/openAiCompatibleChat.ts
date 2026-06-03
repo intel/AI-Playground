@@ -22,6 +22,7 @@ import { useActivities } from './activities'
 import { useConfirmations } from './confirmations'
 import { useI18N } from './i18n'
 import { createAppError, extractMessage } from '../errors/appError'
+import type { AppError } from '../errors/types'
 import { aipgTools, homeAgentTools } from '../tools/tools'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
@@ -86,6 +87,13 @@ export const useOpenAiCompatibleChat = defineStore(
     const confirmations = useConfirmations()
     const i18nState = useI18N().state
     const manuallyStopped = ref(false)
+
+    // Last failure per conversation, captured in the chat `onError` hook. Lets
+    // callers (e.g. the Home Agent channel handlers) surface a turn's error even
+    // though stream failures are swallowed by `onError` and `generate()` returns
+    // normally. Cleared at the start of each turn and consumed via
+    // `consumeTurnError`.
+    const turnErrors = new Map<string, AppError>()
 
     // Per-conversation AI SDK chat instances. Declared up here (before the
     // `processing` computed and its safety-net watch below) because Vue evaluates
@@ -704,13 +712,16 @@ export const useOpenAiCompatibleChat = defineStore(
         onError: (error) => {
           if (manuallyStopped.value) return
           const isActiveDesktop = conversationKey === conversations.activeKey
-          errors.report(error, {
-            category: 'inference',
-            code: 'inference/stream-failed',
-            userMessage: `Generation failed: ${extractMessage(error)}`,
-            surface: isActiveDesktop ? 'toast' : 'silent',
-            context: { conversationKey },
-          })
+          turnErrors.set(
+            conversationKey,
+            errors.report(error, {
+              category: 'inference',
+              code: 'inference/stream-failed',
+              userMessage: `Generation failed: ${extractMessage(error)}`,
+              surface: isActiveDesktop ? 'toast' : 'silent',
+              context: { conversationKey },
+            }),
+          )
         },
       })
       chats[conversationKey] = chat
@@ -796,6 +807,8 @@ export const useOpenAiCompatibleChat = defineStore(
 
       // Reset manual stop flag
       manuallyStopped.value = false
+      // Clear any prior failure so consumeTurnError only ever reflects this turn.
+      turnErrors.delete(targetKey)
 
       // 2. Block if images attached to non-vision model (UI path only). Validate
       //    before touching the backend so we don't load a model just to reject.
@@ -947,6 +960,15 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const error = computed(() => chats[conversations.activeKey]?.error?.message)
 
+    // Read-and-clear the last failure for a conversation. Used by background
+    // callers (Home Agent channels) to relay a turn's error to the remote user,
+    // since stream failures are reported silently and never thrown.
+    function consumeTurnError(conversationKey: string): AppError | undefined {
+      const e = turnErrors.get(conversationKey)
+      turnErrors.delete(conversationKey)
+      return e
+    }
+
     return {
       chat: chats[conversations.activeKey],
       messages,
@@ -962,6 +984,7 @@ export const useOpenAiCompatibleChat = defineStore(
       removeMessage,
       regenerate,
       error,
+      consumeTurnError,
     }
   },
   {
