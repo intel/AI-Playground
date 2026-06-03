@@ -63,9 +63,15 @@ export const browseWeb = tool({
         detail: args.url,
         scope: chatScope(conversationKey),
       },
-      async () => formatSnapshot(await webBrowser.navigate(args.url)),
+      async () => await webBrowser.navigate(args.url),
     )
   },
+  // The UI reads the structured snapshot (title/url) for the browse-trace
+  // element; the model only needs the readable text + numbered links.
+  toModelOutput: ({ output }) => ({
+    type: 'text',
+    value: formatSnapshot(output as WebPageSnapshot),
+  }),
 })
 
 export const interactWithWebPage = tool({
@@ -109,7 +115,11 @@ export const interactWithWebPage = tool({
         detail: webBrowser.currentUrl,
         scope: chatScope(conversationKey),
       },
-      async () => formatSnapshot(await webBrowser.interact(interaction)),
+      async () => await webBrowser.interact(interaction),
     )
   },
+  toModelOutput: ({ output }) => ({
+    type: 'text',
+    value: formatSnapshot(output as WebPageSnapshot),
+  }),
 })

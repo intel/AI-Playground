@@ -249,6 +249,12 @@
                       </div>
                     </div>
                   </template>
+                  <template v-else-if="isWebBrowsePart(part)">
+                    <ChatWebBrowseDisplay
+                      v-if="isFirstWebBrowsePart(message, partIndex)"
+                      :entries="webBrowseEntriesFor(message)"
+                    />
+                  </template>
                   <template v-else-if="isMcpTool(part)">
                     <ChatMcpToolDisplay :part="part" :state="part.state" />
                   </template>
@@ -374,6 +380,7 @@ import { createAppError } from '@/assets/js/errors/appError'
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
+import ChatWebBrowseDisplay, { type WebBrowseEntry } from '@/components/ChatWebBrowseDisplay.vue'
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
 import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
 import ChatConfirmation from '@/components/ChatConfirmation.vue'
@@ -673,6 +680,48 @@ function isAipgTool(
 // Type guard to check if a part is an MCP tool (dynamic tool with mcp__ prefix)
 function isMcpTool(part: ToolUIPart<AipgTools> | DynamicToolUIPart): part is DynamicToolUIPart {
   return part.type === 'dynamic-tool' && part.toolName.startsWith('mcp__')
+}
+
+// Web-browsing tool parts (browseWeb + interactWithWebPage) are aggregated into a
+// single "Browsed N pages" trace element per assistant message.
+const webBrowsePartTypes = new Set(['tool-browseWeb', 'tool-interactWithWebPage'])
+
+function isWebBrowsePart(part: ToolUIPart<AipgTools> | DynamicToolUIPart): boolean {
+  return isAipgTool(part) && webBrowsePartTypes.has(part.type)
+}
+
+type ChatMessage = NonNullable<typeof activeConversation.value>[number]
+
+function webBrowsePartsOf(message: ChatMessage) {
+  return (message.parts ?? []).filter((part) =>
+    isWebBrowsePart(part as ToolUIPart<AipgTools> | DynamicToolUIPart),
+  ) as ToolUIPart<AipgTools>[]
+}
+
+// Renders the aggregated component only at the position of the first browse part
+// so it appears once (in order) rather than per tool call.
+function isFirstWebBrowsePart(message: ChatMessage, partIndex: number): boolean {
+  const parts = message.parts ?? []
+  const firstIndex = parts.findIndex((part) =>
+    isWebBrowsePart(part as ToolUIPart<AipgTools> | DynamicToolUIPart),
+  )
+  return firstIndex === partIndex
+}
+
+function webBrowseEntriesFor(message: ChatMessage): WebBrowseEntry[] {
+  return webBrowsePartsOf(message).map((part) => {
+    const output = part.state === 'output-available' ? (part.output as WebPageSnapshot) : undefined
+    const input = part.input as { url?: string; action?: string } | undefined
+    return {
+      toolCallId: part.toolCallId,
+      state: part.state,
+      title: output?.title,
+      url: output?.url,
+      requestedUrl: part.type === 'tool-browseWeb' ? input?.url : undefined,
+      action: part.type === 'tool-interactWithWebPage' ? input?.action : undefined,
+      errorText: part.state === 'output-error' ? part.errorText : undefined,
+    }
+  })
 }
 
 // Watch for new tool calls starting to initialize their image tracking
