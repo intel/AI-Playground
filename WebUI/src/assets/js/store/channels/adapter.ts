@@ -32,6 +32,9 @@ export type RawPart = {
   input?: { workflow?: string; prompt?: string }
   output?: {
     images?: { type: string; imageUrl?: string; videoUrl?: string; model3dUrl?: string }[]
+    // captureScreenshot tool result: the captured window as a `data:image/...` URI.
+    ok?: boolean
+    dataUri?: string
   }
   providerMetadata?: { aipg?: { reasoningStarted?: number; reasoningFinished?: number } }
 }

@@ -225,6 +225,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ) => ipcRenderer.invoke('mcp:updateServer', serverId, config),
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
   },
+  webBrowser: {
+    navigate: (url: string) => ipcRenderer.invoke('webBrowser:navigate', url),
+    readPage: () => ipcRenderer.invoke('webBrowser:readPage'),
+    interact: (interaction: WebBrowserInteraction) =>
+      ipcRenderer.invoke('webBrowser:interact', interaction),
+    screenshot: () => ipcRenderer.invoke('webBrowser:screenshot'),
+    show: () => ipcRenderer.invoke('webBrowser:show'),
+    hide: () => ipcRenderer.invoke('webBrowser:hide'),
+    close: () => ipcRenderer.invoke('webBrowser:close'),
+    getState: () => ipcRenderer.invoke('webBrowser:getState'),
+    onStateChanged: (callback: (state: WebBrowserState) => void) =>
+      ipcRenderer.on('webBrowser:stateChanged', (_event, state: WebBrowserState) =>
+        callback(state),
+      ),
+  },
+  screenshot: {
+    listWindows: () => ipcRenderer.invoke('screenshot:listWindows'),
+    captureWindow: (target: { id: string; name: string }) =>
+      ipcRenderer.invoke('screenshot:captureWindow', target),
+    getPermissionStatus: () => ipcRenderer.invoke('screenshot:getPermissionStatus'),
+    openPermissionSettings: () => ipcRenderer.send('screenshot:openPermissionSettings'),
+  },
   homeAgent: {
     // Persist an inbound document (base64) to disk for RAG ingestion.
     saveDocument: (filename: string, base64: string) =>

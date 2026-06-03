@@ -2,12 +2,17 @@ import { InferUITools, ToolSet } from 'ai'
 import { visualizeObjectDetections } from './visualizeObjectDetections'
 import { comfyUI } from './comfyUi'
 import { comfyUiImageEdit } from './comfyUiImageEdit'
+import { captureScreenshot } from './captureScreenshot'
+import { browseWeb, interactWithWebPage } from './browseWeb'
 import { configureHomeAgent, getHomeAgentSettings, listHomeAgentModels } from './configureHomeAgent'
 
 export const aipgTools = {
   comfyUI,
   comfyUiImageEdit,
   visualizeObjectDetections,
+  captureScreenshot,
+  browseWeb,
+  interactWithWebPage,
 } satisfies ToolSet
 
 export type AipgTools = InferUITools<typeof aipgTools>

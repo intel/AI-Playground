@@ -32,6 +32,17 @@ type SamplePrompt = {
   presetName?: string
 }
 
+// A desktop window the screenshot tool can be bound to. Stored as id + name so
+// capture can fall back to title matching when the (unstable) id is gone.
+type ScreenshotWindow = {
+  id: string
+  name: string
+}
+
+type ScreenshotWindowSource = ScreenshotWindow & {
+  thumbnailDataUrl: string | null
+}
+
 type DemoProfile = {
   defaults: {
     chatPreset: string
@@ -151,6 +162,31 @@ type McpToolCallResult = {
   content?: unknown
   structuredContent?: unknown
 }
+
+type WebPageLink = {
+  index: number
+  text: string
+  href: string
+}
+
+type WebPageSnapshot = {
+  title: string
+  url: string
+  text: string
+  links: WebPageLink[]
+}
+
+type WebBrowserState = {
+  isOpen: boolean
+  isVisible: boolean
+  currentUrl: string
+  title: string
+}
+
+type WebBrowserInteraction =
+  | { action: 'click'; linkIndex?: number; selector?: string }
+  | { action: 'scroll'; selector?: string }
+  | { action: 'back' }
 
 type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
@@ -354,6 +390,26 @@ type electronAPI = {
           },
     ): Promise<void>
     removeServer(serverId: string): Promise<void>
+  }
+  webBrowser: {
+    navigate(url: string): Promise<WebPageSnapshot>
+    readPage(): Promise<WebPageSnapshot>
+    interact(interaction: WebBrowserInteraction): Promise<WebPageSnapshot>
+    screenshot(): Promise<string>
+    show(): Promise<WebBrowserState>
+    hide(): Promise<WebBrowserState>
+    close(): Promise<WebBrowserState>
+    getState(): Promise<WebBrowserState>
+    onStateChanged(callback: (state: WebBrowserState) => void): void
+  }
+  screenshot: {
+    listWindows(): Promise<ScreenshotWindowSource[]>
+    captureWindow(target: ScreenshotWindow): Promise<string>
+    getPermissionStatus(): Promise<{
+      platform: string
+      status: 'granted' | 'denied' | 'restricted' | 'not-determined' | 'unknown'
+    }>
+    openPermissionSettings(): void
   }
   homeAgent: {
     saveDocument(

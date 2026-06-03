@@ -23,6 +23,14 @@
           :style="{ width: `${Math.round((activity.progress ?? 0) * 100)}%` }"
         ></div>
       </div>
+      <button
+        v-if="activity.category === 'browsing'"
+        type="button"
+        class="self-start rounded border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        @click="toggleBrowserWindow"
+      >
+        {{ webBrowser.isVisible ? 'Hide window' : 'Show window' }}
+      </button>
     </div>
   </div>
 </template>
@@ -30,6 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useActivities } from '@/assets/js/store/activities'
+import { useWebBrowser } from '@/assets/js/store/webBrowser'
 
 const props = withDefaults(
   defineProps<{
@@ -42,6 +51,15 @@ const props = withDefaults(
 )
 
 const activities = useActivities()
+const webBrowser = useWebBrowser()
+
+function toggleBrowserWindow() {
+  if (webBrowser.isVisible) {
+    void webBrowser.hide()
+  } else {
+    void webBrowser.show()
+  }
+}
 
 // The single most-specific active activity for this conversation (innermost child
 // when tools are nested). Reactive via the store's `items` ref. 'generation' is

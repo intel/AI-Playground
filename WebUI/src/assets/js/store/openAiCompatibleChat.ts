@@ -180,7 +180,23 @@ export const useOpenAiCompatibleChat = defineStore(
 
     function resolveBuiltinTools(): ToolSet {
       if (!textInference.aipgToolsEnabled) return {}
-      const tools: ToolSet = { ...aipgTools }
+      const tools: ToolSet = {}
+      for (const [name, builtinTool] of Object.entries(aipgTools)) {
+        // interactWithWebPage is a companion to browseWeb (it only acts on a page
+        // browseWeb opened), so it shares the single "Browse the web" toggle.
+        const enablementKey = name === 'interactWithWebPage' ? 'browseWeb' : name
+        // Per-tool enablement (off by default for opt-in tools like captureScreenshot).
+        if (!textInference.isBuiltinToolEnabled(enablementKey)) continue
+        // The screenshot tool needs a user-bound window and a vision-capable model
+        // (the model receives the capture as an image and can't use it otherwise).
+        if (
+          name === 'captureScreenshot' &&
+          (!textInference.screenshotWindow || !textInference.modelSupportsVision)
+        ) {
+          continue
+        }
+        tools[name] = builtinTool
+      }
       // The Home Agent self-inspection/configuration tools are only meaningful
       // for the Home Agent preset; never expose them to ordinary chat presets.
       if (textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME) {
@@ -377,6 +393,59 @@ export const useOpenAiCompatibleChat = defineStore(
             return part
           }),
         }
+      })
+
+      // Screenshot tool results carry the capture as a data URI. The OpenAI-compatible
+      // provider JSON.stringifies a tool result's value into the tool message text, so
+      // the raw base64 would be sent as text (the model can't "see" it and the context
+      // explodes). Instead, replace the tool result with a short text and inject the
+      // capture as a real vision image in a following user message — the same path that
+      // user-uploaded images take (and which the backend actually supports).
+      type ChatModelMessage = (typeof messages)[number]
+      messages = messages.flatMap((m): ChatModelMessage[] => {
+        if (m.role !== 'tool') return [m]
+        const injectedImages: Array<{ mediaType: string; data: string; windowName: string }> = []
+        const content = m.content.map((part) => {
+          if (
+            part.type === 'tool-result' &&
+            part.toolName === 'captureScreenshot' &&
+            part.output.type === 'json'
+          ) {
+            const value = part.output.value as {
+              ok?: boolean
+              windowName?: string
+              dataUri?: string
+            } | null
+            if (value?.ok && typeof value.dataUri === 'string') {
+              const mediaType =
+                value.dataUri.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)?.[1] ?? 'image/png'
+              const windowName = value.windowName ?? 'window'
+              injectedImages.push({ mediaType, data: value.dataUri, windowName })
+              return {
+                ...part,
+                output: {
+                  type: 'text',
+                  value: `Screenshot of "${windowName}" captured. The image is attached in the following message.`,
+                } as LanguageModelV2ToolResultOutput,
+              }
+            }
+          }
+          return part
+        })
+        const rewritten = { ...m, content } as ChatModelMessage
+        if (injectedImages.length === 0) return [rewritten]
+        const imageMessage = {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Here is the captured screenshot to inspect:' },
+            ...injectedImages.map((img) => ({
+              type: 'file' as const,
+              mediaType: img.mediaType,
+              data: img.data,
+            })),
+          ],
+        } as ChatModelMessage
+        return [rewritten, imageMessage]
       })
 
       // Filter out image parts from messages if model doesn't support vision

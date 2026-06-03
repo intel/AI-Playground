@@ -9,6 +9,7 @@ export type ActivityCategory =
   | 'inference' // LLM thinking / TTFT / inter-step agentic pauses
   | 'rag' // document embedding + similarity search
   | 'tools' // tool/MCP resolution and tool execution
+  | 'browsing' // headless web-browser navigation/reading
   | 'generation' // ComfyUI image/video/3D generation phases
   | 'setup' // boot / preset switching
   | 'unknown'

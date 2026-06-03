@@ -1065,6 +1065,18 @@ export const useHomeAgent = defineStore(
 
       function shipPendingImages(parts: RawPart[]) {
         for (const part of parts) {
+          // Screenshot tool: ship the captured window image to the channel so the
+          // remote user sees it (the data URI is only injected into the model's
+          // request, not the visible reply).
+          if (part.type === 'tool-captureScreenshot') {
+            if (part.state !== 'output-available') continue
+            if (sentMediaForPart.has(part as object)) continue
+            sentMediaForPart.add(part as object)
+            const dataUri = part.output?.dataUri
+            if (!part.output?.ok || !dataUri) continue
+            enqueueImage(() => sendImageToChannel(adapter, dataUri, '', meta))
+            continue
+          }
           if (part.type !== 'tool-comfyUI' && part.type !== 'tool-comfyUiImageEdit') continue
           if (part.state !== 'output-available') continue
           if (sentMediaForPart.has(part as object)) continue

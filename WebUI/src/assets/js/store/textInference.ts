@@ -318,6 +318,24 @@ export const useTextInference = defineStore(
     const metricsEnabled = ref(true)
     const aipgToolsEnabled = ref(true)
     const mcpToolsEnabled = ref(true)
+
+    // Per-built-in-tool enablement overrides (by tool name). Most built-in tools
+    // default on; opt-in/privacy-sensitive tools (captureScreenshot) default off.
+    const builtinToolEnablement = ref<Record<string, boolean>>({})
+    // The single desktop window captureScreenshot is bound to. The screenshot
+    // tool can only ever capture this user-selected window.
+    const screenshotWindow = ref<ScreenshotWindow | null>(null)
+
+    function isBuiltinToolEnabled(toolName: string): boolean {
+      const override = builtinToolEnablement.value[toolName]
+      if (override !== undefined) return override
+      return toolName === 'captureScreenshot' ? false : true
+    }
+
+    function setBuiltinToolEnabled(toolName: string, enabled: boolean): void {
+      builtinToolEnablement.value = { ...builtinToolEnablement.value, [toolName]: enabled }
+    }
+
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)
@@ -1461,6 +1479,10 @@ export const useTextInference = defineStore(
       metricsEnabled,
       aipgToolsEnabled,
       mcpToolsEnabled,
+      builtinToolEnablement,
+      isBuiltinToolEnabled,
+      setBuiltinToolEnabled,
+      screenshotWindow,
       maxTokens,
       contextSize,
       maxContextSizeFromModel,
@@ -1543,6 +1565,8 @@ export const useTextInference = defineStore(
         'temperature',
         'ragList',
         'settingsPerPreset',
+        'builtinToolEnablement',
+        'screenshotWindow',
       ],
     },
   },

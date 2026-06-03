@@ -21,6 +21,7 @@ if (isAdmin()) {
 import {
   app,
   BrowserWindow,
+  desktopCapturer,
   dialog,
   ipcMain,
   IpcMainEvent,
@@ -33,6 +34,7 @@ import {
   protocol,
   screen,
   shell,
+  systemPreferences,
   utilityProcess,
   UtilityProcess,
 } from 'electron'
@@ -70,6 +72,19 @@ import {
   stopAllMcpServers,
   stopMcpServer,
 } from './subprocesses/mcpManager'
+import {
+  close as closeWebBrowser,
+  destroyWebBrowser,
+  getState as getWebBrowserState,
+  hide as hideWebBrowser,
+  interact as interactWebBrowser,
+  navigate as navigateWebBrowser,
+  readPage as readWebBrowserPage,
+  screenshot as screenshotWebBrowser,
+  setWebBrowserMainWindow,
+  show as showWebBrowser,
+  type WebBrowserInteraction,
+} from './subprocesses/webBrowserManager'
 import {
   addMcpServer,
   detectAndRegisterAutoMcpServers,
@@ -520,6 +535,12 @@ async function createWindow() {
       contextIsolation: true,
     },
   })
+  setWebBrowserMainWindow(win)
+  win.on('close', () => {
+    // Tear down the headless web-browser window so the app can quit cleanly.
+    destroyWebBrowser()
+  })
+
   win.webContents.on('did-finish-load', () => {
     setTimeout(() => {
       appLogger.onWebcontentReady(win!.webContents)
@@ -717,6 +738,10 @@ function handleUtilityFunction<T, R>(
     child.postMessage({ type: eventType, args: args })
   })
 }
+
+app.on('before-quit', () => {
+  destroyWebBrowser()
+})
 
 app.on('quit', async () => {
   await stopAllMcpServers()
@@ -2019,6 +2044,106 @@ function initEventHandle() {
     appLogger.warn(`MCP auto-detect failed: ${e}`, 'mcp')
   }
 
+  // Screenshot capture IPC handlers. `listWindows` is only ever called from the
+  // settings UI so the user can bind the screenshot tool to a single window;
+  // it is never exposed to the LLM. `captureWindow` only ever receives the
+  // user-bound window from the renderer (the tool has no window argument).
+
+  // macOS gates window/screen capture behind Screen Recording permission. When it
+  // is missing, `desktopCapturer.getSources` throws an opaque "Failed to get
+  // sources." — and crucially, once granted, the *running* app keeps failing until
+  // it is restarted. Convert both cases into an actionable message.
+  const SCREEN_PERMISSION_MESSAGE =
+    'Screen Recording permission is required to capture windows. On macOS, open System ' +
+    'Settings → Privacy & Security → Screen Recording, enable AI Playground (or Electron in ' +
+    'development), then fully quit and restart the app — newly granted permission does not ' +
+    'apply to the already-running process.'
+
+  function getScreenCaptureStatus():
+    | 'granted'
+    | 'denied'
+    | 'restricted'
+    | 'not-determined'
+    | 'unknown' {
+    if (process.platform !== 'darwin') return 'granted'
+    return systemPreferences.getMediaAccessStatus('screen')
+  }
+
+  async function getWindowSources(thumbnailSize: { width: number; height: number }) {
+    if (getScreenCaptureStatus() !== 'granted') {
+      throw new Error(SCREEN_PERMISSION_MESSAGE)
+    }
+    try {
+      return await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize,
+        fetchWindowIcons: false,
+      })
+    } catch (error) {
+      // On macOS this is almost always the "granted but not yet restarted" case.
+      if (process.platform === 'darwin') {
+        throw new Error(SCREEN_PERMISSION_MESSAGE)
+      }
+      throw error
+    }
+  }
+
+  ipcMain.handle('screenshot:getPermissionStatus', () => ({
+    platform: process.platform,
+    status: getScreenCaptureStatus(),
+  }))
+
+  ipcMain.on('screenshot:openPermissionSettings', () => {
+    if (process.platform === 'darwin') {
+      void shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+      )
+    }
+  })
+
+  ipcMain.handle('screenshot:listWindows', async () => {
+    const sources = await getWindowSources({ width: 320, height: 200 })
+    return sources
+      .filter((source) => source.name.trim().length > 0)
+      .map((source) => ({
+        id: source.id,
+        name: source.name,
+        thumbnailDataUrl: source.thumbnail.isEmpty() ? null : source.thumbnail.toDataURL(),
+      }))
+  })
+
+  ipcMain.handle(
+    'screenshot:captureWindow',
+    async (_event, target: { id: string; name: string }) => {
+      if (!target || typeof target.id !== 'string') {
+        throw new Error('screenshot:captureWindow: invalid target window')
+      }
+      // Capture at the primary display's pixel resolution (capped) so the
+      // screenshot is legible to a vision model rather than a tiny thumbnail.
+      const display = screen.getPrimaryDisplay()
+      const thumbnailSize = {
+        width: Math.min(Math.round(display.size.width * display.scaleFactor), 2560),
+        height: Math.min(Math.round(display.size.height * display.scaleFactor), 1600),
+      }
+      const sources = await getWindowSources(thumbnailSize)
+      // Source ids are not stable across app restarts, so fall back to matching
+      // by window title when the exact id is gone.
+      const source =
+        sources.find((s) => s.id === target.id) ?? sources.find((s) => s.name === target.name)
+      if (!source) {
+        throw new Error(
+          `Window "${target.name}" is no longer available. Ask the user to re-select the window to capture.`,
+        )
+      }
+      if (source.thumbnail.isEmpty()) {
+        throw new Error(
+          `Window "${target.name}" could not be captured (it may be minimized or hidden).`,
+        )
+      }
+      return source.thumbnail.toDataURL()
+    },
+  )
+
   // MCP server IPC handlers
   ipcMain.handle('mcp:startServer', async (_event, serverId: string) => {
     return await startMcpServer(serverId)
@@ -2046,6 +2171,40 @@ function initEventHandle() {
       return await invokeMcpServerTool(serverId, toolName, args)
     },
   )
+
+  // Web browser IPC handlers — drives the headless BrowserWindow that the chat
+  // LLM uses to browse the web (see subprocesses/webBrowserManager.ts).
+  ipcMain.handle('webBrowser:navigate', async (_event, url: string) => {
+    return await navigateWebBrowser(url)
+  })
+
+  ipcMain.handle('webBrowser:readPage', async () => {
+    return await readWebBrowserPage()
+  })
+
+  ipcMain.handle('webBrowser:interact', async (_event, interaction: WebBrowserInteraction) => {
+    return await interactWebBrowser(interaction)
+  })
+
+  ipcMain.handle('webBrowser:screenshot', async () => {
+    return await screenshotWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:show', () => {
+    return showWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:hide', () => {
+    return hideWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:close', () => {
+    return closeWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:getState', () => {
+    return getWebBrowserState()
+  })
 
   // MCP config file handlers
   // TODO: Consider consolidating with openImageWithSystem/openImageInFolder

@@ -225,6 +225,30 @@
                       </div>
                     </div>
                   </template>
+                  <template v-else-if="isAipgTool(part) && part.type === 'tool-captureScreenshot'">
+                    <div>
+                      <div
+                        v-if="part.state === 'output-available' && (part as any).output?.dataUri"
+                      >
+                        <span class="text-muted-foreground">
+                          Captured screenshot of
+                          <b>{{ (part as any).output?.windowName ?? 'window' }}</b>
+                        </span>
+                        <img
+                          :src="(part as any).output.dataUri"
+                          :alt="`Screenshot of ${(part as any).output?.windowName ?? 'window'}`"
+                          class="mt-2 max-w-full rounded-md border-2 border-border"
+                        />
+                      </div>
+                      <div
+                        v-else-if="
+                          part.state === 'input-streaming' || part.state === 'input-available'
+                        "
+                      >
+                        <span class="text-muted-foreground">Capturing screenshot...</span>
+                      </div>
+                    </div>
+                  </template>
                   <template v-else-if="isMcpTool(part)">
                     <ChatMcpToolDisplay :part="part" :state="part.state" />
                   </template>
