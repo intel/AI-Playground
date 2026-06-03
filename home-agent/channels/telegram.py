@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 # because tokens embed inside URLs (`…/bot<id>:<token>/…`).
 _TELEGRAM_TOKEN_RE = re.compile(r"\d{6,}:[A-Za-z0-9_-]{20,}")
 
+# Document extensions the RAG ingestion pipeline (langchain loaders) accepts.
+# Mirrors the desktop uploader (WebUI/src/components/Rag.vue).
+_SUPPORTED_DOC_EXTENSIONS = ("txt", "md", "doc", "docx", "pdf")
+# Cap inbound document payload size to avoid bloating the poll/IPC channel.
+_MAX_DOC_BYTES = 25 * 1024 * 1024
+
 
 class TelegramChannel(ChannelBase):
     """Single Telegram bot lifecycle + outbound primitives."""
@@ -539,6 +545,70 @@ class TelegramChannel(ChannelBase):
                 }
             )
 
+        async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if update.message is None or update.message.document is None:
+                return
+            doc = update.message.document
+            chat_id = str(update.message.chat_id)
+            allow = self._allowed_chat_id
+            self._record_authorized_chat_id(chat_id)
+            if not allow:
+                logger.info(
+                    "Detection mode: received document from chat_id=%s (not yet configured)",
+                    chat_id,
+                )
+                return
+            if chat_id != allow:
+                logger.warning("Ignoring document from unauthorized chat_id: %s", chat_id)
+                return
+
+            filename = doc.file_name or "document"
+            ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+            if ext not in _SUPPORTED_DOC_EXTENSIONS:
+                try:
+                    await update.message.reply_text(
+                        "Unsupported document type. Send a "
+                        f"{', '.join(_SUPPORTED_DOC_EXTENSIONS)} file to add it to the "
+                        "knowledge base."
+                    )
+                except Exception:
+                    pass
+                return
+            if doc.file_size and doc.file_size > _MAX_DOC_BYTES:
+                try:
+                    await update.message.reply_text(
+                        "That document is too large to add to the knowledge base."
+                    )
+                except Exception:
+                    pass
+                return
+            try:
+                tg_file = await context.bot.get_file(doc.file_id)
+                raw = await tg_file.download_as_bytearray()
+            except Exception as exc:
+                logger.error("Failed to download Telegram document: %s", exc)
+                return
+
+            data_b64 = base64.b64encode(bytes(raw)).decode("ascii")
+            mime = doc.mime_type or "application/octet-stream"
+            caption = update.message.caption or ""
+            logger.info(
+                "Telegram document received: chat_id=%s message_id=%s name=%s size_bytes=%d",
+                chat_id,
+                update.message.message_id,
+                filename,
+                len(raw),
+            )
+            self.queue_append(
+                {
+                    "text": caption,
+                    "chat_id": chat_id,
+                    "documents": [
+                        {"filename": filename, "mime": mime, "data_base64": data_b64}
+                    ],
+                }
+            )
+
         async def run() -> None:
             from telegram import BotCommand
             from telegram.ext import CallbackQueryHandler, CommandHandler
@@ -550,6 +620,7 @@ class TelegramChannel(ChannelBase):
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
             application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
+            application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
             # CommandHandler matches case-sensitively and Telegram's setMyCommands
             # menu entries must be lowercase, so we register both spellings for
             # /imgGen to keep the historical text trigger working and surface a

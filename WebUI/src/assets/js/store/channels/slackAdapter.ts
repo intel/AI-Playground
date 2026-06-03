@@ -148,21 +148,31 @@ function createSlackDraftStream(meta: InboundMeta | undefined): DraftStream {
   let throttleTimerId: ReturnType<typeof setTimeout> | null = null
   let stopped = false
   let spinnerFrame = 0
+  // Single-flight guard for the lazy initial post. `update()` calls `send()`
+  // on every tick while `lastSentVariant === ''`, and the initial Slack reply
+  // round-trip can outlast the 250ms watcher tick — without this, concurrent
+  // ticks would each post a fresh message, leaving an orphaned partial draft
+  // alongside the one that actually gets streamed/edited.
+  let postPromise: Promise<void> | null = null
 
-  async function ensurePosted(initialText: string): Promise<void> {
-    if (messageRef || stopped) return
-    try {
-      const res = await window.electronAPI.homeAgent.channel.send('slack', 'reply', {
-        text: initialText,
-        channel: targetChannel,
-      })
-      if (res.success && res.ts && res.channel) {
-        messageRef = { channel: res.channel, ts: res.ts }
-        lastSentVariant = initialText
+  function ensurePosted(initialText: string): Promise<void> {
+    if (messageRef || stopped) return Promise.resolve()
+    if (postPromise) return postPromise
+    postPromise = (async () => {
+      try {
+        const res = await window.electronAPI.homeAgent.channel.send('slack', 'reply', {
+          text: initialText,
+          channel: targetChannel,
+        })
+        if (res.success && res.ts && res.channel) {
+          messageRef = { channel: res.channel, ts: res.ts }
+          lastSentVariant = initialText
+        }
+      } catch {
+        // best-effort
       }
-    } catch {
-      // best-effort
-    }
+    })()
+    return postPromise
   }
 
   async function send(variant: string): Promise<void> {

@@ -16,14 +16,26 @@ type ChannelKind = 'telegram' | 'slack' | 'discord'
 
 type EncryptedField = { type: string; data: number[] }
 
+/** Non-secret setup state for a channel. Persisted on disk (next to the
+ *  credentials) rather than only in the renderer's localStorage so it never
+ *  diverges from the saved token: a previously-verified channel stays
+ *  "Verified" across restarts even when the Pinia blob is gone (legacy
+ *  migration, demo-mode sessionStorage, cleared localStorage). */
+export type ChannelPrefsFile = {
+  verified: boolean
+  enabled: boolean
+}
+
 /** Per-channel safeStorage blob. `encryptedFields` stores any number of
  *  secret strings (token, botToken, appToken, …) so adding a new channel does
  *  not require new code in this file — only new key names. `publicFields`
- *  carries non-sensitive bits (chatId, userId, …) in plaintext for display. */
+ *  carries non-sensitive bits (chatId, userId, …) in plaintext for display.
+ *  `prefs` carries the durable verified/enabled setup flags. */
 export type ChannelConfigFile = {
   kind: ChannelKind
   encryptedFields: Record<string, EncryptedField>
   publicFields: Record<string, string>
+  prefs?: ChannelPrefsFile
 }
 
 /** Legacy on-disk shapes that pre-date the channel-registry refactor. */
@@ -38,15 +50,21 @@ export type LegacySlackConfig = {
  *  can exercise the transformation without mocking `fs` / `safeStorage`. */
 export function migrateLegacyTelegramConfig(data: LegacyTelegramConfig): ChannelConfigFile | null {
   if (!data.encryptedToken) return null
+  // A legacy install that had a usable token + chatId was, by definition, a
+  // working (verified, enabled) channel — carry that forward so the upgrade
+  // doesn't drop the user back to "Not set up".
+  const complete = !!data.chatId
   return {
     kind: 'telegram',
     encryptedFields: { token: data.encryptedToken },
     publicFields: { chatId: data.chatId ?? '' },
+    prefs: { verified: complete, enabled: complete },
   }
 }
 
 export function migrateLegacySlackConfig(data: LegacySlackConfig): ChannelConfigFile | null {
   if (!data.encryptedBotToken || !data.encryptedAppToken) return null
+  const complete = !!data.userId
   return {
     kind: 'slack',
     encryptedFields: {
@@ -54,6 +72,7 @@ export function migrateLegacySlackConfig(data: LegacySlackConfig): ChannelConfig
       appToken: data.encryptedAppToken,
     },
     publicFields: { userId: data.userId ?? '' },
+    prefs: { verified: complete, enabled: complete },
   }
 }
 
@@ -312,12 +331,59 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       for (const k of publicKeys) {
         publicFields[k] = (config[k] ?? '').trim()
       }
+      // Preserve any previously-persisted setup flags so a credential re-save
+      // doesn't silently wipe them. Verification state on credential change is
+      // driven explicitly by the renderer via `saveChannelPrefs`.
+      const existing = this.readChannelConfigFile(kind)
       const data: ChannelConfigFile = { kind, encryptedFields, publicFields }
+      if (existing?.prefs) data.prefs = existing.prefs
       fs.writeFileSync(this.channelConfigPath(kind), JSON.stringify(data), 'utf-8')
       return { success: true }
     } catch (e) {
       return { success: false, error: String(e) }
     }
+  }
+
+  /** Read the raw on-disk channel config file (decryption-free). Returns null
+   *  when the file is missing or unparseable. */
+  private readChannelConfigFile(kind: ChannelKind): ChannelConfigFile | null {
+    try {
+      const raw = fs.readFileSync(this.channelConfigPath(kind), 'utf-8')
+      return JSON.parse(raw) as ChannelConfigFile
+    } catch {
+      return null
+    }
+  }
+
+  /** Persist the non-secret setup flags (verified / enabled) without touching
+   *  the stored credentials. Read-modify-write so the secret/public fields are
+   *  preserved. Creates a minimal file if none exists yet. */
+  saveChannelPrefs(
+    kind: ChannelKind,
+    prefs: Partial<ChannelPrefsFile>,
+  ): { success: boolean; error?: string } {
+    try {
+      const existing = this.readChannelConfigFile(kind)
+      const data: ChannelConfigFile = existing ?? {
+        kind,
+        encryptedFields: {},
+        publicFields: {},
+      }
+      data.kind = kind
+      data.prefs = {
+        verified: prefs.verified ?? data.prefs?.verified ?? false,
+        enabled: prefs.enabled ?? data.prefs?.enabled ?? false,
+      }
+      fs.writeFileSync(this.channelConfigPath(kind), JSON.stringify(data), 'utf-8')
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: String(e) }
+    }
+  }
+
+  /** Load the persisted setup flags for a channel, or null when none saved. */
+  loadChannelPrefs(kind: ChannelKind): ChannelPrefsFile | null {
+    return this.readChannelConfigFile(kind)?.prefs ?? null
   }
 
   loadChannelConfig(kind: ChannelKind): Record<string, string> | null {
@@ -695,6 +761,14 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     )
     ipcMain.handle('channel:clearConfig', (_event, kind: ChannelKind) =>
       this.clearChannelConfig(kind),
+    )
+    ipcMain.handle(
+      'channel:savePrefs',
+      (_event, kind: ChannelKind, prefs: Partial<ChannelPrefsFile>) =>
+        this.saveChannelPrefs(kind, prefs),
+    )
+    ipcMain.handle('channel:loadPrefs', (_event, kind: ChannelKind) =>
+      this.loadChannelPrefs(kind),
     )
 
     // Backend dispatch — channel-keyed by first arg.

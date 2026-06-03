@@ -985,6 +985,38 @@ function initEventHandle() {
     return `input/${filename}`
   })
 
+  // Persist an inbound Home Agent document (base64) to disk so the langchain
+  // RAG loaders (which require a real filepath) can index it, and so the
+  // persisted ragList entry keeps a stable path. Returns the absolute path.
+  ipcMain.handle(
+    'saveHomeAgentDocument',
+    async (
+      _event,
+      filename: string,
+      base64: string,
+    ): Promise<{ success: boolean; filepath?: string; error?: string }> => {
+      const supportedExtensions = ['txt', 'md', 'doc', 'docx', 'pdf']
+      try {
+        if (typeof filename !== 'string' || typeof base64 !== 'string') {
+          return { success: false, error: 'invalid arguments' }
+        }
+        const safeName = path.basename(filename).replace(/[^\w.\-]+/g, '_')
+        const ext = safeName.includes('.') ? safeName.split('.').pop()!.toLowerCase() : ''
+        if (!supportedExtensions.includes(ext)) {
+          return { success: false, error: `unsupported document type (.${ext})` }
+        }
+        const ragDocumentsDir = path.join(mediaDir, 'rag-documents')
+        await fs.promises.mkdir(ragDocumentsDir, { recursive: true })
+        const uniqueName = `${randomUUID()}-${safeName}`
+        const filePath = path.join(ragDocumentsDir, uniqueName)
+        await fs.promises.writeFile(filePath, Buffer.from(base64, 'base64'))
+        return { success: true, filepath: filePath }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    },
+  )
+
   ipcMain.handle(
     'readAipgMediaAsBase64',
     async (

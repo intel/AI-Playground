@@ -16,12 +16,12 @@ import {
 } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
-import { useConversations } from './conversations'
+import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import { useErrors } from './errors'
 import { useActivities } from './activities'
 import { useI18N } from './i18n'
 import { createAppError, extractMessage } from '../errors/appError'
-import { aipgTools } from '../tools/tools'
+import { aipgTools, homeAgentTools } from '../tools/tools'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
 import { LanguageModelV2ToolResultOutput, JSONSchema7 } from '@ai-sdk/provider'
@@ -174,7 +174,13 @@ export const useOpenAiCompatibleChat = defineStore(
 
     function resolveBuiltinTools(): ToolSet {
       if (!textInference.aipgToolsEnabled) return {}
-      return { ...aipgTools }
+      const tools: ToolSet = { ...aipgTools }
+      // The Home Agent self-inspection/configuration tools are only meaningful
+      // for the Home Agent preset; never expose them to ordinary chat presets.
+      if (textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME) {
+        Object.assign(tools, homeAgentTools)
+      }
+      return tools
     }
 
     async function resolveMcpInstructions(): Promise<string> {
@@ -432,6 +438,11 @@ export const useOpenAiCompatibleChat = defineStore(
         maxOutputTokens: textInference.maxTokens,
         temperature: textInference.temperature,
         includeRawChunks: true,
+        // Surfaced to tool execute() so tools (e.g. configureHomeAgent) know
+        // which conversation/channel they are running in.
+        experimental_context: {
+          conversationKey: requestConversationKey ?? conversations.activeKey,
+        },
         ...(hasTools
           ? {
               tools: availableTools,

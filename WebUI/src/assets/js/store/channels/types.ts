@@ -90,6 +90,10 @@ export type RemoteImage = { mime: string; data_base64: string }
 /** Single inbound audio payload (voice note / uploaded audio) from a channel. */
 export type RemoteAudio = { mime: string; data_base64: string }
 
+/** Single inbound document payload (uploaded file) from a channel. Ingested
+ *  into the RAG knowledge base rather than passed to the model directly. */
+export type RemoteDocument = { filename: string; mime: string; data_base64: string }
+
 /** Single keyboard button rendered by the adapter (Block Kit action, Telegram
  *  inline keyboard button, Discord component button, …). */
 export type KeyboardButton = { text: string; callbackData: string }
@@ -99,6 +103,7 @@ export type ChannelQueueItem = {
   text?: string
   images?: RemoteImage[]
   audio?: RemoteAudio[]
+  documents?: RemoteDocument[]
   callback?: string
   meta?: InboundMeta
 }

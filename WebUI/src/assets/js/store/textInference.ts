@@ -479,9 +479,15 @@ export const useTextInference = defineStore(
     async function addDocumentToRagList(document: IndexedDocument) {
       const langchainDocument: IndexedDocument =
         await window.electronAPI.addDocumentToRAGList(document)
-      console.log(langchainDocument)
-      if (ragList.value.some((item) => item.hash === langchainDocument.hash)) {
-        console.log('Document already in list')
+      const existing = ragList.value.find((item) => item.hash === langchainDocument.hash)
+      if (existing) {
+        // Same content (by hash) is already indexed. Don't duplicate, but honor
+        // an explicit request to enable it (e.g. a Home Agent document upload
+        // stub arrives with isChecked: true) so re-sending a file the user
+        // already has makes it usable instead of silently no-op'ing.
+        if (langchainDocument.isChecked) {
+          existing.isChecked = true
+        }
         return
       }
       ragList.value.push(langchainDocument)

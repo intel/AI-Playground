@@ -8,9 +8,12 @@ import { useImageGenerationPresets, isImage, isVideo, is3D } from './imageGenera
 import { usePromptStore } from './promptArea'
 import { usePresetSwitching } from './presetSwitching'
 import { usePresets } from './presets'
+import { useDialogStore } from './dialogs'
+import { parseConfirmationReply } from './confirmationReply'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
+import type { IndexedDocument, ValidFileExtension } from './textInference'
 import { useSpeechToText } from './speechToText'
 import { useTextToSpeech } from './textToSpeech'
 import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
@@ -34,6 +37,7 @@ import {
   type InboundMeta,
   type RemoteImage,
   type RemoteAudio,
+  type RemoteDocument,
   type KeyboardButton,
   type ChannelQueueItem,
 } from './channels/types'
@@ -61,6 +65,8 @@ const POLL_INTERVAL_MS = 2000
 const MAX_QUEUE_SIZE = 20
 const IMGGEN_PENDING_TIMEOUT_MS = 5 * 60_000
 const IMG_GEN_TIMEOUT_MS = 120_000
+/** How long to wait for an in-channel yes/no before auto-cancelling a settings change. */
+const CONFIRM_TIMEOUT_MS = 2 * 60_000
 
 /** Module-level so Vite HMR does not orphan intervals across Pinia setup
  *  closures. Indexed by ChannelKind so adding a kind = one map entry. */
@@ -112,6 +118,7 @@ export const useHomeAgent = defineStore(
     const presetSwitching = usePresetSwitching()
     const conversations = useConversations()
     const presetsStore = usePresets()
+    const dialogStore = useDialogStore()
 
     /**
      * Mirrors `isHomeAgentEnabled` from settings.json. Hydrated once on store
@@ -188,6 +195,34 @@ export const useHomeAgent = defineStore(
      * preset choice across restarts would surprise the user.
      */
     const pendingImgGen = ref<ImgGenPending | null>(null)
+
+    /**
+     * The channel turn currently being handled (set while a remote agentic /
+     * chat message is generating). Lets tools running inside `generate()` —
+     * notably `configureHomeAgent` — route a confirmation prompt back to the
+     * originating channel instead of popping a desktop modal nobody sees.
+     */
+    let activeRemoteTurn: { adapter: ChannelAdapter; meta?: InboundMeta } | null = null
+
+    /**
+     * In-flight in-channel confirmations keyed by channel kind. Resolved by the
+     * next inbound yes/no reply (intercepted in `processChannelMessages` so it
+     * never blocks on the busy drain loop) or by timeout.
+     */
+    const pendingConfirmations: Partial<
+      Record<
+        ChannelKind,
+        { resolve: (_v: boolean) => void; timeoutId: ReturnType<typeof setTimeout> }
+      >
+    > = {}
+
+    function settleConfirmation(kind: ChannelKind, answer: boolean): void {
+      const pending = pendingConfirmations[kind]
+      if (!pending) return
+      clearTimeout(pending.timeoutId)
+      delete pendingConfirmations[kind]
+      pending.resolve(answer)
+    }
 
     /** Visibility flag for the dedicated Home Agent inference settings panel. */
     const showSettings = ref(false)
@@ -312,6 +347,7 @@ export const useHomeAgent = defineStore(
     const HISTORY_REGEX = /^\/history\s*$/i
     const LOAD_REGEX = /^\/load\s+(\S+)\s*$/i
     const LOAD_BARE_REGEX = /^\/load\s*$/i
+    const RESET_REGEX = /^\/reset(?:Config)?\s*$/i
 
     const HELP_MESSAGE =
       '🤖 <b>Available commands</b>\n\n' +
@@ -330,6 +366,8 @@ export const useHomeAgent = defineStore(
       'Pick a recent chat from a tappable menu (the bot summarizes each one).\n\n' +
       '<code>/load </code><i>&lt;id&gt;</i>\n' +
       'Resume a specific chat. Use the id from <code>/history</code>.\n\n' +
+      '/reset\n' +
+      'Restore the Home Agent settings (model, system prompt, etc.) to their defaults. Use this if a settings change broke something.\n\n' +
       '/help\n' +
       'Show this help message.\n\n' +
       'Any other message is handled by the AI in <b>agentic mode</b>: it decides whether to reply with text or generate an image based on your request.\n\n' +
@@ -339,7 +377,10 @@ export const useHomeAgent = defineStore(
       '🎙️ <b>Voice messages</b>\n' +
       'Send a voice note or audio file and it will be transcribed and handled like a typed message. ' +
       'Requires Speech To Text (OVMS) enabled, or a fallback transcription endpoint configured in Settings.\n' +
-      'When Text To Speech is enabled, the reply to a voice message is also sent back as a voice message.'
+      'When Text To Speech is enabled, the reply to a voice message is also sent back as a voice message.\n\n' +
+      '📄 <b>Documents</b>\n' +
+      'Send a <code>txt</code>, <code>md</code>, <code>doc</code>, <code>docx</code> or <code>pdf</code> file and it is added to the knowledge base. ' +
+      'Future questions are answered using the content of the documents you upload.'
 
     function resolveLoadTarget(idArg: string): string | null {
       const items = listRemoteConversations()
@@ -498,6 +539,59 @@ export const useHomeAgent = defineStore(
 
     async function replyMarkdown(adapter: ChannelAdapter, md: string, meta?: InboundMeta) {
       return adapter.reply(adapter.formatMarkdown(md), meta)
+    }
+
+    /**
+     * Ask the user to confirm a settings change over the active channel.
+     * Posts the summary, then resolves with the next yes/no reply (intercepted
+     * in `processChannelMessages`) or `false` on timeout.
+     */
+    function requestRemoteConfirmation(
+      adapter: ChannelAdapter,
+      summaryMarkdown: string,
+      meta?: InboundMeta,
+    ): Promise<boolean> {
+      const kind = adapter.kind
+      // Cancel any earlier pending confirmation on this channel.
+      settleConfirmation(kind, false)
+      return new Promise<boolean>((resolve) => {
+        const timeoutId = setTimeout(() => {
+          delete pendingConfirmations[kind]
+          void reply(adapter, '⌛ No response — the settings change was cancelled.', meta)
+          resolve(false)
+        }, CONFIRM_TIMEOUT_MS)
+        pendingConfirmations[kind] = { resolve, timeoutId }
+        void replyMarkdown(
+          adapter,
+          `${summaryMarkdown}\n\nReply **yes** to apply or **no** to cancel.`,
+          meta,
+        )
+      })
+    }
+
+    /**
+     * Human-in-the-loop confirmation for the Home Agent self-configuration
+     * tool. Routes to an in-channel yes/no when a remote turn is in flight,
+     * otherwise to a desktop confirmation modal. Returns whether the user
+     * approved the change.
+     */
+    async function requestSettingsConfirmation(summaryMarkdown: string): Promise<boolean> {
+      const turn = activeRemoteTurn
+      if (turn && isHomeAgentActive.value) {
+        return requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
+      }
+      return dialogStore.requestConfirmation(summaryMarkdown)
+    }
+
+    /**
+     * Restore the Home Agent preset to its bundled defaults — the deterministic
+     * recovery path when a tool-driven settings change breaks inference. Does
+     * not depend on the LLM (so it works even if the model/backend is broken).
+     */
+    function resetHomeAgentConfig(): void {
+      const textInference = useTextInference()
+      textInference.applyPresetToGlobals(HOME_AGENT_CHAT_PRESET_NAME, null)
+      textInference.resetActivePresetSettings()
     }
 
     /**
@@ -794,6 +888,79 @@ export const useHomeAgent = defineStore(
       }
     }
 
+    const SUPPORTED_DOC_EXTENSIONS: ValidFileExtension[] = ['txt', 'doc', 'docx', 'md', 'pdf']
+
+    /**
+     * Ingest inbound document attachments into the shared RAG knowledge base.
+     * Each document is persisted to disk (langchain loaders require a real
+     * filepath) and added to `textInference.ragList` auto-checked, so the next
+     * Home Agent turn retrieves it (the `home-agent-chat` preset has
+     * `enableRAG: true`). Best-effort: failures are logged and reported back to
+     * the channel without breaking the rest of the message handling.
+     */
+    async function ingestRemoteDocuments(
+      adapter: ChannelAdapter,
+      documents: RemoteDocument[],
+      meta?: InboundMeta,
+    ): Promise<void> {
+      const textInference = useTextInference()
+      const stopTyping = typing(adapter, 'typing', meta)
+      const added: string[] = []
+      const failed: string[] = []
+      try {
+        for (const doc of documents) {
+          const filename = doc.filename || 'document'
+          const ext = filename.includes('.')
+            ? (filename.split('.').pop()!.toLowerCase() as ValidFileExtension)
+            : ('' as ValidFileExtension)
+          if (!SUPPORTED_DOC_EXTENSIONS.includes(ext)) {
+            failed.push(filename)
+            continue
+          }
+          try {
+            const result = await window.electronAPI.homeAgent.saveDocument(
+              filename,
+              doc.data_base64,
+            )
+            if (!result.success || !result.filepath) {
+              throw new Error(result.error || 'failed to persist document')
+            }
+            const stub: IndexedDocument = {
+              filename,
+              filepath: result.filepath,
+              type: ext,
+              splitDB: [],
+              hash: '',
+              isChecked: true,
+            }
+            await textInference.addDocumentToRagList(stub)
+            added.push(filename)
+          } catch (e) {
+            console.error(`homeAgent: failed to ingest document ${filename}:`, e)
+            failed.push(filename)
+          }
+        }
+      } finally {
+        stopTyping()
+      }
+
+      if (added.length > 0) {
+        const list = added.map((n) => `• ${escapeHtml(n)}`).join('\n')
+        await reply(
+          adapter,
+          `📄 Added ${added.length} document${added.length === 1 ? '' : 's'} to the knowledge base:\n${list}\nAsk me a question and I'll use them as context.`,
+          meta,
+        )
+      }
+      if (failed.length > 0) {
+        await reply(
+          adapter,
+          `⚠️ Couldn't add ${failed.length} file${failed.length === 1 ? '' : 's'}. Supported types: ${SUPPORTED_DOC_EXTENSIONS.join(', ')}.`,
+          meta,
+        )
+      }
+    }
+
     async function handleChatMessage(
       adapter: ChannelAdapter,
       text: string,
@@ -806,6 +973,7 @@ export const useHomeAgent = defineStore(
       if (!(await ensureVisionCapableForImages(adapter, !!images?.length, meta))) return
       const files = await prepareRemoteFiles(images, adapter.kind)
       const stopTyping = typing(adapter, 'typing', meta)
+      activeRemoteTurn = { adapter, meta }
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -820,6 +988,7 @@ export const useHomeAgent = defineStore(
           await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
         }
       } finally {
+        activeRemoteTurn = null
         stopTyping()
       }
     }
@@ -922,6 +1091,7 @@ export const useHomeAgent = defineStore(
       // window before the watcher has any reasoning/text/tool part to send.
       const stopTyping = typing(adapter, 'typing', meta)
       const flush = watchAndStreamToChannel(adapter, targetKey, meta)
+      activeRemoteTurn = { adapter, meta }
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -930,6 +1100,7 @@ export const useHomeAgent = defineStore(
         })
         maybeSetHomeAgentConversationTitle(targetKey)
       } finally {
+        activeRemoteTurn = null
         stopTyping()
         if (isHomeAgentActive.value) {
           await flush()
@@ -1434,10 +1605,20 @@ export const useHomeAgent = defineStore(
               continue
             }
           }
+          // Document attachments: ingest into the RAG knowledge base. If the
+          // message carried only documents (no caption/text or images), there is
+          // nothing left to chat about, so stop after confirming the upload.
+          if (item.documents?.length) {
+            await ingestRemoteDocuments(adapter, item.documents, meta)
+            if (!text.trim() && !images?.length) continue
+          }
           try {
             if (HELP_REGEX.test(text)) {
               focusRemoteChatDiscussion()
               await reply(adapter, HELP_MESSAGE, meta)
+            } else if (RESET_REGEX.test(text)) {
+              resetHomeAgentConfig()
+              await reply(adapter, '♻️ Home Agent settings restored to defaults.', meta)
             } else if (CANCEL_REGEX.test(text)) {
               await handleImgGenCancel(adapter, meta)
             } else if (NEW_REGEX.test(text)) {
@@ -1533,6 +1714,18 @@ export const useHomeAgent = defineStore(
         if (!msgs || msgs.length === 0) return
         const queue = messageQueues[kind]
         for (const msg of msgs) {
+          // Intercept yes/no replies to a pending settings-change confirmation
+          // here (independent of the busy drain loop, which is blocked awaiting
+          // this very answer). A recognized answer is consumed; anything else
+          // cancels the change and falls through as a normal message.
+          if (pendingConfirmations[kind] && !msg.callback) {
+            const answer = parseConfirmationReply(msg.text ?? '')
+            if (answer !== null) {
+              settleConfirmation(kind, answer)
+              continue
+            }
+            settleConfirmation(kind, false)
+          }
           if (queue.length >= MAX_QUEUE_SIZE) {
             toast.warning(`Home Agent: ${kind} queue full, dropping oldest message.`)
             queue.shift()
@@ -1541,6 +1734,7 @@ export const useHomeAgent = defineStore(
             text: msg.text,
             images: msg.images,
             audio: msg.audio,
+            documents: msg.documents,
             callback: msg.callback,
             // Thread inbound metadata so adapters can target reactions /
             // threaded sends at the originating message (only Slack uses this
@@ -1595,6 +1789,9 @@ export const useHomeAgent = defineStore(
           // enabled preference; the channel just won't run until re-verified).
           if (fieldChanged) {
             channelPrefs[kind].verified = false
+            // Mirror the invalidation to disk so a restart can't resurrect the
+            // stale verified flag from the durable config.
+            persistChannelPrefs(kind)
           }
         }
         return result
@@ -1614,12 +1811,31 @@ export const useHomeAgent = defineStore(
       channelPrefs[kind] = emptyPrefs()
     }
 
+    /**
+     * Persist the durable setup flags (verified / enabled) to the on-disk
+     * channel config so they survive even when the Pinia/localStorage blob is
+     * gone (legacy migration, demo-mode sessionStorage, cleared localStorage).
+     * Fire-and-forget: the in-memory `channelPrefs` is the live source; disk is
+     * the durable backup re-read by `initConfig()` on the next launch.
+     */
+    function persistChannelPrefs(kind: ChannelKind): void {
+      void window.electronAPI.homeAgent.channel
+        .savePrefs(kind, {
+          verified: channelPrefs[kind].verified,
+          enabled: channelPrefs[kind].enabled,
+        })
+        .catch((e: unknown) =>
+          console.error(`homeAgent.persistChannelPrefs(${kind}) failed:`, e),
+        )
+    }
+
     /** Mark a channel verified after a successful test. A freshly verified
      *  channel defaults to enabled so it starts running immediately (subject
      *  to the master switch) — matching the prior "verify ⇒ on" behavior. */
     function setVerified(kind: ChannelKind) {
       channelPrefs[kind].verified = true
       channelPrefs[kind].enabled = true
+      persistChannelPrefs(kind)
     }
 
     /** Per-channel enable/disable — invoked from the setup screen. Enabling a
@@ -1630,6 +1846,7 @@ export const useHomeAgent = defineStore(
         return
       }
       channelPrefs[kind].enabled = on
+      persistChannelPrefs(kind)
       if (on && masterEnabled.value && isAvailable.value) focusRemoteChatDiscussion()
     }
 
@@ -1678,6 +1895,22 @@ export const useHomeAgent = defineStore(
             }
           } else if (!channelPrefs[kind].verified) {
             channels[kind].config = {}
+          }
+          // Back-fill the durable setup flags from disk. This is what makes a
+          // previously-verified channel survive a lost Pinia blob: the token +
+          // identity already rehydrate from disk above, and verified/enabled
+          // now come from the same durable file rather than only localStorage.
+          // Disk wins when it has flags set, so a credential-change invalidation
+          // (verified=false written to disk) can't be undone by a stale Pinia
+          // value either.
+          try {
+            const prefs = await window.electronAPI.homeAgent.channel.loadPrefs(kind)
+            if (prefs) {
+              channelPrefs[kind].verified = prefs.verified
+              channelPrefs[kind].enabled = prefs.enabled
+            }
+          } catch (e) {
+            console.error(`homeAgent.initConfig: loadPrefs(${kind}) failed:`, e)
           }
         }
       } catch (e) {
@@ -1731,6 +1964,9 @@ export const useHomeAgent = defineStore(
       saveChannelConfig,
       clearChannelConfig,
       setVerified,
+      // Settings self-configuration (used by the configureHomeAgent tool)
+      requestSettingsConfirmation,
+      resetHomeAgentConfig,
     }
   },
   {

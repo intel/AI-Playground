@@ -226,6 +226,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
   },
   homeAgent: {
+    // Persist an inbound document (base64) to disk for RAG ingestion.
+    saveDocument: (filename: string, base64: string) =>
+      ipcRenderer.invoke('saveHomeAgentDocument', filename, base64),
     // Channel-agnostic dispatcher. Every method is keyed by ChannelKind
     // (`'telegram'` | `'slack'` | `'discord'`) so adding a new platform
     // requires zero edits here — only a new entry in the renderer-side
@@ -235,6 +238,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.invoke('channel:saveConfig', kind, config),
       loadConfig: (kind: string) => ipcRenderer.invoke('channel:loadConfig', kind),
       clearConfig: (kind: string) => ipcRenderer.invoke('channel:clearConfig', kind),
+      savePrefs: (kind: string, prefs: { verified?: boolean; enabled?: boolean }) =>
+        ipcRenderer.invoke('channel:savePrefs', kind, prefs),
+      loadPrefs: (kind: string) => ipcRenderer.invoke('channel:loadPrefs', kind),
       test: (kind: string) => ipcRenderer.invoke('channel:test', kind),
       inject: (kind: string, config: Record<string, string | undefined>) =>
         ipcRenderer.invoke('channel:inject', kind, config),

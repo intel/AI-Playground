@@ -40,10 +40,17 @@ class RemoteAudio(TypedDict):
     data_base64: str
 
 
+class RemoteDocument(TypedDict):
+    filename: str
+    mime: str
+    data_base64: str
+
+
 class QueueItem(TypedDict, total=False):
     text: str
     images: list[RemoteImage]
     audio: list[RemoteAudio]
+    documents: list[RemoteDocument]
     callback: str
     chat_id: str
     channel: str

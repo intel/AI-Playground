@@ -69,6 +69,7 @@ function confirmAdd() {
 }
 
 function cancelConfirm() {
+  dialogStore.warningCancelFunction()
   dialogStore.closeWarningDialog()
 }
 </script>

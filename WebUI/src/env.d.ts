@@ -356,6 +356,10 @@ type electronAPI = {
     removeServer(serverId: string): Promise<void>
   }
   homeAgent: {
+    saveDocument(
+      filename: string,
+      base64: string,
+    ): Promise<{ success: boolean; filepath?: string; error?: string }>
     channel: {
       saveConfig(
         kind: string,
@@ -363,6 +367,11 @@ type electronAPI = {
       ): Promise<{ success: boolean; error?: string }>
       loadConfig(kind: string): Promise<Record<string, string> | null>
       clearConfig(kind: string): Promise<void>
+      savePrefs(
+        kind: string,
+        prefs: { verified?: boolean; enabled?: boolean },
+      ): Promise<{ success: boolean; error?: string }>
+      loadPrefs(kind: string): Promise<{ verified: boolean; enabled: boolean } | null>
       test(kind: string): Promise<{ success: boolean; error?: string }>
       inject(
         kind: string,
@@ -381,6 +390,7 @@ type electronAPI = {
           ts?: string
           images?: Array<{ mime: string; data_base64: string }>
           audio?: Array<{ mime: string; data_base64: string }>
+          documents?: Array<{ filename: string; mime: string; data_base64: string }>
           callback?: string
         }>
       >

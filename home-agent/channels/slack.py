@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 
 _SLACK_TOKEN_RE = re.compile(r"xox[abporsb]-[A-Za-z0-9-]{10,}|xapp-\d+-[A-Za-z0-9-]{20,}")
 
+# Document extensions the RAG ingestion pipeline (langchain loaders) accepts.
+# Mirrors the desktop uploader (WebUI/src/components/Rag.vue).
+_SUPPORTED_DOC_EXTENSIONS = ("txt", "md", "doc", "docx", "pdf")
+# Cap inbound document payload size to avoid bloating the poll/IPC channel.
+_MAX_DOC_BYTES = 25 * 1024 * 1024
+
 
 class SlackChannel(ChannelBase):
     """Socket Mode bot lifecycle + outbound primitives for Slack."""
@@ -349,16 +355,19 @@ class SlackChannel(ChannelBase):
 
         async def _download_slack_files(
             files: list[dict], client_token: str
-        ) -> tuple[list[dict], list[dict]]:
+        ) -> tuple[list[dict], list[dict], list[dict]]:
             """Download supported Slack file uploads.
 
-            Returns a ``(images, audio)`` tuple. Only ``image/*`` and ``audio/*``
-            files are collected; everything else is ignored.
+            Returns an ``(images, audio, documents)`` tuple. ``image/*`` and
+            ``audio/*`` files are collected by mime; document uploads are matched
+            by file extension (txt/md/doc/docx/pdf) for RAG ingestion. Everything
+            else is ignored.
             """
             import aiohttp
 
             images: list[dict] = []
             audio: list[dict] = []
+            documents: list[dict] = []
             async with aiohttp.ClientSession(
                 headers={"Authorization": f"Bearer {client_token}"}
             ) as session:
@@ -366,7 +375,21 @@ class SlackChannel(ChannelBase):
                     mime = f.get("mimetype") or ""
                     is_image = mime.startswith("image/")
                     is_audio = mime.startswith("audio/")
-                    if not is_image and not is_audio:
+                    filename = f.get("name") or "document"
+                    # Prefer the real extension from the filename. Slack's
+                    # `filetype` is a display code (e.g. "text" for .txt,
+                    # "markdown" for .md) that does not match a file extension,
+                    # so it must not gate document detection on its own.
+                    if "." in filename:
+                        ext = filename.rsplit(".", 1)[-1].lower()
+                    else:
+                        ext = (f.get("filetype") or "").lower()
+                    is_document = ext in _SUPPORTED_DOC_EXTENSIONS
+                    if not is_image and not is_audio and not is_document:
+                        continue
+                    size = f.get("size") or 0
+                    if is_document and size and size > _MAX_DOC_BYTES:
+                        logger.warning("slack document too large, skipping: %s", filename)
                         continue
                     url = f.get("url_private_download") or f.get("url_private")
                     if not url:
@@ -382,12 +405,20 @@ class SlackChannel(ChannelBase):
                     except Exception as exc:
                         logger.error("slack file download error: %s", exc)
                         continue
-                    entry = {"mime": mime, "data_base64": base64.b64encode(raw).decode("ascii")}
+                    data_b64 = base64.b64encode(raw).decode("ascii")
                     if is_image:
-                        images.append(entry)
+                        images.append({"mime": mime, "data_base64": data_b64})
+                    elif is_audio:
+                        audio.append({"mime": mime, "data_base64": data_b64})
                     else:
-                        audio.append(entry)
-            return images, audio
+                        documents.append(
+                            {
+                                "filename": filename,
+                                "mime": mime or "application/octet-stream",
+                                "data_base64": data_b64,
+                            }
+                        )
+            return images, audio, documents
 
         async def run() -> None:
             self._loop = asyncio.get_event_loop()
@@ -425,8 +456,8 @@ class SlackChannel(ChannelBase):
                 text = event.get("text") or ""
                 ts = event.get("ts") or ""
                 files = event.get("files") or []
-                images, audio = (
-                    await _download_slack_files(files, bot_token) if files else ([], [])
+                images, audio, documents = (
+                    await _download_slack_files(files, bot_token) if files else ([], [], [])
                 )
                 if text:
                     text_payload = text
@@ -435,13 +466,14 @@ class SlackChannel(ChannelBase):
                 else:
                     text_payload = ""
                 logger.info(
-                    "Slack DM received: user_id=%s channel=%s ts=%s len=%d images=%d audio=%d",
+                    "Slack DM received: user_id=%s channel=%s ts=%s len=%d images=%d audio=%d docs=%d",
                     user_id,
                     channel,
                     ts,
                     len(text),
                     len(images),
                     len(audio),
+                    len(documents),
                 )
                 self.queue_append(
                     {
@@ -451,6 +483,7 @@ class SlackChannel(ChannelBase):
                         "ts": ts,
                         **({"images": images} if images else {}),
                         **({"audio": audio} if audio else {}),
+                        **({"documents": documents} if documents else {}),
                     }
                 )
 

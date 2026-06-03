@@ -36,6 +36,7 @@ export const useDialogStore = defineStore('dialog', () => {
   const warningDialogVisible = ref(false)
   const warningMessage = ref('')
   const warningConfirmFunction = ref<(_dontShowAgain?: boolean) => void>(() => {})
+  const warningCancelFunction = ref<() => void>(() => {})
   const warningDontShowAgainKey = ref<string | null>(null)
 
   // Download dialog state
@@ -75,8 +76,25 @@ export const useDialogStore = defineStore('dialog', () => {
   ) {
     warningMessage.value = parse(message) as string
     warningConfirmFunction.value = func
+    warningCancelFunction.value = () => {}
     warningDontShowAgainKey.value = options?.dontShowAgainKey ?? null
     warningDialogVisible.value = true
+  }
+
+  /**
+   * Promise-based confirmation built on the warning dialog UI. Resolves `true`
+   * when the user confirms and `false` when they cancel (or the dialog is
+   * dismissed). Used for human-in-the-loop approvals (e.g. the Home Agent
+   * self-configuration tool on the desktop).
+   */
+  function requestConfirmation(message: string): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      warningMessage.value = parse(message) as string
+      warningDontShowAgainKey.value = null
+      warningConfirmFunction.value = () => resolve(true)
+      warningCancelFunction.value = () => resolve(false)
+      warningDialogVisible.value = true
+    })
   }
 
   function closeWarningDialog() {
@@ -284,8 +302,10 @@ export const useDialogStore = defineStore('dialog', () => {
     warningDialogVisible,
     warningMessage,
     warningConfirmFunction,
+    warningCancelFunction,
     warningDontShowAgainKey,
     showWarningDialog,
+    requestConfirmation,
     closeWarningDialog,
 
     // Download dialog
