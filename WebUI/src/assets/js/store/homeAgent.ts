@@ -8,7 +8,7 @@ import { useImageGenerationPresets, isImage, isVideo, is3D } from './imageGenera
 import { usePromptStore } from './promptArea'
 import { usePresetSwitching } from './presetSwitching'
 import { usePresets } from './presets'
-import { useDialogStore } from './dialogs'
+import { useConfirmations } from './confirmations'
 import { parseConfirmationReply } from './confirmationReply'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
@@ -67,6 +67,8 @@ const IMGGEN_PENDING_TIMEOUT_MS = 5 * 60_000
 const IMG_GEN_TIMEOUT_MS = 120_000
 /** How long to wait for an in-channel yes/no before auto-cancelling a settings change. */
 const CONFIRM_TIMEOUT_MS = 2 * 60_000
+/** Title shown on the inline desktop confirmation card for settings changes. */
+const SETTINGS_CONFIRM_TITLE = 'Apply Home Agent settings?'
 
 /** Module-level so Vite HMR does not orphan intervals across Pinia setup
  *  closures. Indexed by ChannelKind so adding a kind = one map entry. */
@@ -118,7 +120,7 @@ export const useHomeAgent = defineStore(
     const presetSwitching = usePresetSwitching()
     const conversations = useConversations()
     const presetsStore = usePresets()
-    const dialogStore = useDialogStore()
+    const confirmations = useConfirmations()
 
     /**
      * Mirrors `isHomeAgentEnabled` from settings.json. Hydrated once on store
@@ -571,16 +573,53 @@ export const useHomeAgent = defineStore(
 
     /**
      * Human-in-the-loop confirmation for the Home Agent self-configuration
-     * tool. Routes to an in-channel yes/no when a remote turn is in flight,
-     * otherwise to a desktop confirmation modal. Returns whether the user
-     * approved the change.
+     * tool. Always renders an inline confirmation card in the desktop chat
+     * (via the confirmations sink). When a remote turn is in flight it ALSO
+     * posts an in-channel yes/no and mirrors it into the desktop window:
+     * whichever side answers first wins, and the loser is settled. Returns
+     * whether the user approved the change.
      */
-    async function requestSettingsConfirmation(summaryMarkdown: string): Promise<boolean> {
+    async function requestSettingsConfirmation(args: {
+      conversationKey: string
+      toolCallId?: string
+      summaryMarkdown: string
+    }): Promise<boolean> {
+      const { conversationKey, toolCallId, summaryMarkdown } = args
       const turn = activeRemoteTurn
       if (turn && isHomeAgentActive.value) {
-        return requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
+        const kind = turn.adapter.kind
+        const mirror = confirmations.request({
+          conversationKey,
+          toolCallId,
+          title: SETTINGS_CONFIRM_TITLE,
+          summaryMarkdown,
+          origin: 'remote',
+          channelLabel: kind,
+        })
+        const channel = requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
+        const answer = await Promise.race([mirror, channel])
+        // If the desktop card answered first the channel is still waiting:
+        // tell the user there and settle it. (The channel-answered and timeout
+        // paths already delete their own pending entry + post a message.)
+        if (pendingConfirmations[kind]) {
+          void reply(
+            turn.adapter,
+            answer ? '✅ Confirmed from the desktop app.' : '❌ Cancelled from the desktop app.',
+            turn.meta,
+          )
+          settleConfirmation(kind, answer)
+        }
+        // Remove the mirror card if it is still showing (channel/timeout win).
+        confirmations.cancelForConversation(conversationKey, answer)
+        return answer
       }
-      return dialogStore.requestConfirmation(summaryMarkdown)
+      return confirmations.request({
+        conversationKey,
+        toolCallId,
+        title: SETTINGS_CONFIRM_TITLE,
+        summaryMarkdown,
+        origin: 'desktop',
+      })
     }
 
     /**
@@ -1824,9 +1863,7 @@ export const useHomeAgent = defineStore(
           verified: channelPrefs[kind].verified,
           enabled: channelPrefs[kind].enabled,
         })
-        .catch((e: unknown) =>
-          console.error(`homeAgent.persistChannelPrefs(${kind}) failed:`, e),
-        )
+        .catch((e: unknown) => console.error(`homeAgent.persistChannelPrefs(${kind}) failed:`, e))
     }
 
     /** Mark a channel verified after a successful test. A freshly verified

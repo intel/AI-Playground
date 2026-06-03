@@ -96,7 +96,10 @@ function mediaTypeForFormat(format: SpeechFormat): string {
 
 /** Wrap raw audio bytes in an object-URL Blob for `HTMLAudioElement` playback. */
 export function bytesToBlobUrl(bytes: Uint8Array, mediaType: string): string {
-  const blob = new Blob([bytes], { type: mediaType })
+  // Copy into a fresh Uint8Array<ArrayBuffer> so the BlobPart type is satisfied:
+  // a bare Uint8Array is generic over ArrayBufferLike (which includes
+  // SharedArrayBuffer) and is not assignable to BlobPart under newer TS lib defs.
+  const blob = new Blob([new Uint8Array(bytes)], { type: mediaType })
   return URL.createObjectURL(blob)
 }
 

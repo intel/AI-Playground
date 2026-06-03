@@ -19,6 +19,7 @@ import { useTextInference } from './textInference'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import { useErrors } from './errors'
 import { useActivities } from './activities'
+import { useConfirmations } from './confirmations'
 import { useI18N } from './i18n'
 import { createAppError, extractMessage } from '../errors/appError'
 import { aipgTools, homeAgentTools } from '../tools/tools'
@@ -82,6 +83,7 @@ export const useOpenAiCompatibleChat = defineStore(
     const conversations = useConversations()
     const errors = useErrors()
     const activities = useActivities()
+    const confirmations = useConfirmations()
     const i18nState = useI18N().state
     const manuallyStopped = ref(false)
 
@@ -113,6 +115,10 @@ export const useOpenAiCompatibleChat = defineStore(
               a.scope.conversationKey === key &&
               (a.category === 'inference' || a.category === 'tools'),
           )
+          // Settle any confirmation still awaiting input for this turn as
+          // declined, so a tool's execute() can never hang on a card the user
+          // will never see again (stopped/errored/navigated-away turn).
+          confirmations.cancelForConversation(key, false)
         }
       },
     )

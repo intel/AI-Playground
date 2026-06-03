@@ -13,7 +13,8 @@
     v-if="
       (activeConversation && activeConversation.length > 0) ||
       openAiCompatibleChat.processing ||
-      hasActiveChatActivity
+      hasActiveChatActivity ||
+      hasPendingConfirmation
     "
     id="chatPanel"
     ref="chatPanel"
@@ -21,10 +22,10 @@
     @scroll="handleScroll"
   >
     <!-- eslint-disable vue/require-v-for-key -->
-    <div
-      class="w-full max-w-4xl mx-auto flex flex-col gap-6"
-      :class="{ 'pt-20': !contentOverflows }"
-    >
+    <!-- pt-20 reserves space for the fixed "Show History" button (App.vue) so short
+         chats don't sit under it. For long chats this padding just scrolls out of
+         view, so no JS overflow detection is needed. -->
+    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6 pt-20">
       <template v-for="(message, i) in activeConversation">
         <!-- eslint-enable -->
         <div v-if="message.role === 'user'" class="flex items-start gap-3">
@@ -241,6 +242,14 @@
                 "
                 :conversation-key="conversations.activeKey"
               />
+
+              <!-- Inline human-in-the-loop confirmation (e.g. Home Agent self-config).
+                   Mirrors remote-channel confirmations into the desktop window so
+                   the app never looks stuck while a tool awaits approval. -->
+              <ChatConfirmation
+                v-if="i === activeConversation.length - 1 && hasPendingConfirmation"
+                :conversation-key="conversations.activeKey"
+              />
             </div>
             <div
               v-if="messageHasVisibleContent(message)"
@@ -320,6 +329,11 @@
         :conversation-key="conversations.activeKey"
         with-avatar
       />
+      <ChatConfirmation
+        v-if="hasPendingConfirmation && !lastMessageIsAssistant"
+        :conversation-key="conversations.activeKey"
+        with-avatar
+      />
     </div>
   </div>
 </template>
@@ -338,8 +352,10 @@ import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
 import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
+import ChatConfirmation from '@/components/ChatConfirmation.vue'
 import { useConversations } from '@/assets/js/store/conversations'
 import { useActivities } from '@/assets/js/store/activities'
+import { useConfirmations } from '@/assets/js/store/confirmations'
 import {
   useImageGenerationPresets,
   type MediaItem,
@@ -358,6 +374,7 @@ const imageGeneration = useImageGenerationPresets()
 const comfyUi = useComfyUiPresets()
 const conversations = useConversations()
 const activities = useActivities()
+const confirmations = useConfirmations()
 const errors = useErrors()
 
 // True while any activity (backend prep, thinking, tools, generation) is running
@@ -365,6 +382,13 @@ const errors = useErrors()
 // in-turn activity indicator even before the first token streams.
 const hasActiveChatActivity = computed(
   () => activities.chatActivity(conversations.activeKey, ['generation']) !== null,
+)
+
+// A tool (e.g. Home Agent self-config) is awaiting an inline yes/no for the
+// active conversation. Drives the ChatConfirmation card; also mirrors a pending
+// remote-channel confirmation into the desktop window.
+const hasPendingConfirmation = computed(
+  () => confirmations.forConversation(conversations.activeKey) !== null,
 )
 
 // Whether a message already shows something (streamed text, reasoning, or a tool
@@ -392,31 +416,6 @@ const languages = i18nState
 const autoScrollEnabled = ref(true)
 const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
-
-// Whether the chat panel scrolls (content taller than the viewport). The
-// "Show History" button floats over the top-left of the panel, so we only
-// reserve top padding when the chat is short enough to sit under it; once the
-// chat overflows, scroll-to-bottom keeps the latest message clear of the button.
-const contentOverflows = ref(false)
-let resizeObserver: ResizeObserver | null = null
-let overflowRaf = 0
-
-function updateOverflow() {
-  const el = chatPanel.value
-  contentOverflows.value = !!el && el.scrollHeight > el.clientHeight + 1
-}
-
-// ResizeObserver fires synchronously during layout; updating `contentOverflows`
-// here toggles `pt-20`, which resizes the panel again and triggers the benign
-// "ResizeObserver loop completed with undelivered notifications" error. Deferring
-// to the next frame breaks that synchronous loop.
-function scheduleOverflowUpdate() {
-  if (overflowRaf) cancelAnimationFrame(overflowRaf)
-  overflowRaf = requestAnimationFrame(() => {
-    overflowRaf = 0
-    updateOverflow()
-  })
-}
 
 const activeConversation = computed(() => openAiCompatibleChat.messages)
 const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
@@ -452,31 +451,11 @@ defineExpose({
 onMounted(() => {
   promptStore.registerSubmitCallback('chat', handlePromptSubmit)
   promptStore.registerCancelCallback('chat', handleCancel)
-  nextTick(updateOverflow)
 })
 
 onUnmounted(() => {
   promptStore.unregisterSubmitCallback('chat')
   promptStore.unregisterCancelCallback('chat')
-  resizeObserver?.disconnect()
-  resizeObserver = null
-  if (overflowRaf) {
-    cancelAnimationFrame(overflowRaf)
-    overflowRaf = 0
-  }
-})
-
-// The chat panel sits behind a v-if, so (re)attach the ResizeObserver whenever
-// the element appears to keep the overflow flag in sync with panel resizes
-// (window resize, footer expand/collapse).
-watch(chatPanel, (el) => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-  if (el) {
-    resizeObserver = new ResizeObserver(() => scheduleOverflowUpdate())
-    resizeObserver.observe(el)
-    nextTick(updateOverflow)
-  }
 })
 
 watch(
@@ -494,7 +473,6 @@ watch(
       })
     }
 
-    nextTick(updateOverflow)
     if (autoScrollEnabled.value) {
       nextTick(() => scrollToBottom())
     }
@@ -545,7 +523,6 @@ function handleScroll(e: Event) {
 
   autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
-  updateOverflow()
 }
 
 function scrollToBottom(smooth = true) {
