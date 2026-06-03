@@ -40,14 +40,6 @@
       "to": "uv.exe"
     },
     {
-      "from": "../build/resources/xpu-smi.exe",
-      "to": "device-service/xpu-smi.exe"
-    },
-    {
-      "from": "../build/resources/xpum.dll",
-      "to": "device-service/xpum.dll"
-    },
-    {
       "from": "external/backend-versions.json",
       "to": "backend-versions.json"
     },
@@ -109,6 +101,16 @@
         "arch": ["x64"]
       }
     ],
+    "extraResources": [
+      {
+        "from": "../build/resources/xpu-smi.exe",
+        "to": "device-service/xpu-smi.exe"
+      },
+      {
+        "from": "../build/resources/xpum.dll",
+        "to": "device-service/xpum.dll"
+      }
+    ],
     "verifyUpdateCodeSignature": false,
     "requestedExecutionLevel": "asInvoker",
     "icon": "app.ico",
@@ -122,5 +124,25 @@
     "allowToChangeInstallationDirectory": true,
     "deleteAppDataOnUninstall": true,
     "allowElevation": true
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build/icons/icon.png",
+    "artifactName": "${productName}-${version}.${ext}",
+    "category": "Utility",
+    "synopsis": "AI inference desktop app for Intel GPUs",
+    "executableArgs": ["--no-sandbox"],
+    "desktop": {
+      "entry": {
+        "Name": "AI Playground",
+        "Comment": "AI inference desktop app for Intel GPUs",
+        "Categories": "Utility;Graphics;Development;"
+      }
+    }
   }
 }

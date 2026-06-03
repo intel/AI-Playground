@@ -4,6 +4,7 @@ import { promisify } from 'node:util'
 import * as filesystem from 'fs-extra'
 import { app, net, type BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
+import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { createEnhancedErrorDetails, type ApiService, type ErrorDetails } from './service.ts'
 import { vulkanDeviceSelectorEnv, linuxHasVulkanLoader } from './deviceDetection.ts'
 import type { LocalSettings } from '../main.ts'
@@ -99,7 +100,7 @@ export class LlamaCppBackendService implements ApiService {
   readonly settings: LocalSettings
 
   // Service directories
-  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
   readonly serviceDir: string
   readonly llamaCppSsdOffloadConfigPath: string
   devices: InferenceDevice[] = [{ id: '0', name: 'Auto select device', selected: true }]

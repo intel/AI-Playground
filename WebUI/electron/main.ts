@@ -81,6 +81,7 @@ import {
   type McpServerConfig,
 } from './subprocesses/mcpServers'
 import { externalResourcesDir, getMediaDir } from './util.ts'
+import { packagedResourcesRoot } from './aipgRoot.ts'
 import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
@@ -167,12 +168,12 @@ process.env.DIST = path.join(__dirname, '../')
 process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? '../..' : '../../../public')
 
 const externalRes = path.resolve(
-  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
+  app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'),
 )
 
 const modesDir = path.resolve(
   app.isPackaged
-    ? path.join(process.resourcesPath, 'modes')
+    ? path.join(packagedResourcesRoot(), 'modes')
     : path.join(__dirname, '../../../modes/'),
 )
 // On Linux (incl. headless Xvfb/VNC), Chromium's GPU process is often "not
@@ -410,7 +411,7 @@ let demoProfile: DemoProfile | null = null
 
 /** Packaged: `resources/settings.json` (same role as dev `external/settings-dev.json`). */
 function getPackagedSettingsPath(): string {
-  return path.join(process.resourcesPath, 'settings.json')
+  return path.join(packagedResourcesRoot(), 'settings.json')
 }
 
 /** Dev-only defaults shipped in the repo (read-only for the app). */

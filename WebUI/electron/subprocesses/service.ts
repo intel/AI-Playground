@@ -4,6 +4,7 @@ import * as filesystem from 'fs-extra'
 import fsPromises from 'fs/promises'
 import path from 'node:path'
 import { appLoggerInstance } from '../logging/logger.ts'
+import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { existingFileOrError, spawnProcessAsync, ProcessError } from './osProcessHelper'
 import { assert } from 'node:console'
 import { createHash } from 'crypto'
@@ -139,7 +140,7 @@ export async function createEnhancedErrorDetails(
 }
 
 export const aipgBaseDir = () =>
-  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
 
 export const aipgResourcesDir = () =>
   app.isPackaged ? aipgBaseDir() : path.join(aipgBaseDir(), 'build', 'resources')
@@ -440,7 +441,7 @@ export class GitService extends ExecutableService {
 export const aiBackendServiceDir = () =>
   path.resolve(
     app.isPackaged
-      ? path.join(process.resourcesPath, 'service')
+      ? path.join(packagedResourcesRoot(), 'service')
       : path.join(__dirname, '../../../service'),
   )
 
@@ -479,7 +480,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
   encapsulatedProcess: ChildProcess | null = null
 
-  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
   readonly wheelDir = path.join(
     app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
   )

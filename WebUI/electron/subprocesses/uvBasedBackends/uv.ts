@@ -1,12 +1,13 @@
 import { app } from 'electron'
 import { appLoggerInstance } from '../../logging/logger.ts'
+import { packagedResourcesRoot } from '../../aipgRoot.ts'
 import path from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import z from 'zod'
 
 export const aipgBaseDir = app.isPackaged
-  ? process.resourcesPath
+  ? packagedResourcesRoot()
   : path.join(__dirname, '../../../')
 export const buildResources = app.isPackaged
   ? aipgBaseDir
@@ -149,6 +150,19 @@ const uvWithJsonOutput = (
  */
 const isHashMismatchError = (errorMessage: string): boolean => {
   return /hash mismatch/i.test(errorMessage)
+}
+
+/**
+ * Install an uv-managed CPython of a specific version into the app's
+ * `python-interpreter/` directory (UV_PYTHON_INSTALL_DIR). python-build-standalone
+ * distributions ship `lib/libpythonX.Y.so.1.0`, which lets us provide the exact
+ * libpython the bundled OVMS binary links against on Linux — without requiring the
+ * user to install a system package (mirrors the self-contained Windows behaviour).
+ */
+export const ensureManagedPython = async (version: string) => {
+  const logger = loggerFor(`uv.python-install.${version}`)
+  await assertUv(logger)
+  await uv(['python', 'install', version], logger)
 }
 
 export const ensureBackendVenv = async (backend: string, extraEnv?: Record<string, string>) => {

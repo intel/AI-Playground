@@ -5,6 +5,7 @@ needs, and how to install/verify them. This mirrors the Windows behavior but on
 Linux the GPU runtime is **not bundled** — it must be present on the host.
 
 > TL;DR
+>
 > - **llama.cpp** → needs the **Vulkan** loader + Intel ANV driver.
 > - **ComfyUI (XPU / torch-xpu)** and **OpenVINO (GPU)** → need the Intel
 >   **Level Zero** runtime (`libze_loader` + `libze-intel-gpu`).
@@ -27,11 +28,11 @@ Linux Level Zero runtime detected — Intel GPU (XPU) enabled
 Linux Vulkan loader detected — llama.cpp will use the GPU (ubuntu-vulkan-x64) build
 ```
 
-| Backend | Variant/build chosen | Gating function | Required runtime |
-|---|---|---|---|
-| **llama.cpp** | `ubuntu-vulkan-x64` (GPU) vs `ubuntu-x64` (CPU) | `linuxHasVulkanLoader()` | Vulkan loader + Intel ANV |
-| **ComfyUI** | `xpu` (torch+xpu) vs `cpu` | `linuxHasLevelZeroRuntime()` | Level Zero loader + Intel L0 GPU |
-| **OpenVINO** | `GPU` device exposed via OVMS | OpenVINO `ov.Core().available_devices` (Python detection venv) | Level Zero and/or OpenCL |
+| Backend       | Variant/build chosen                            | Gating function                                                | Required runtime                 |
+| ------------- | ----------------------------------------------- | -------------------------------------------------------------- | -------------------------------- |
+| **llama.cpp** | `ubuntu-vulkan-x64` (GPU) vs `ubuntu-x64` (CPU) | `linuxHasVulkanLoader()`                                       | Vulkan loader + Intel ANV        |
+| **ComfyUI**   | `xpu` (torch+xpu) vs `cpu`                      | `linuxHasLevelZeroRuntime()`                                   | Level Zero loader + Intel L0 GPU |
+| **OpenVINO**  | `GPU` device exposed via OVMS                   | OpenVINO `ov.Core().available_devices` (Python detection venv) | Level Zero and/or OpenCL         |
 
 The build/variant is chosen **at install time**, so after installing the GPU
 drivers you must **reinstall** (or re-pick) the affected backends — see §5.
@@ -42,7 +43,7 @@ Intel's `torch-xpu` / IPEX (used by ComfyUI XPU) only supports **Arc (DG2)**,
 Data Center GPU Max, and **Core-Ultra Xe iGPUs (Meteor/Lunar/Panther Lake)**.
 Older **Gen9 iGPUs (e.g. HD Graphics 630)** are **not** supported by XPU — on
 those, ComfyUI correctly stays on CPU. llama.cpp (Vulkan) and OpenVINO (GPU)
-*can* still use Gen9.
+_can_ still use Gen9.
 
 ---
 
@@ -87,6 +88,37 @@ sudo apt-get install -y \
   `linuxHasLevelZeroRuntime()` and OpenVINO look for.
 - `libze-intel-gpu1` → Level Zero **GPU backend** for the Intel GPU.
 - `intel-opencl-icd` → OpenCL (an alternate path OpenVINO GPU can use).
+
+### 2b1. OpenVINO Model Server (OVMS) baseline system libraries
+
+The bundled `ovms` binary is dynamically linked against a few baseline system
+libraries (much like the VC++ redistributable on Windows). On a full Ubuntu 24.04
+desktop these are already present, but a minimal/server install may be missing
+them, in which case OVMS fails to start with:
+
+```
+ovms: error while loading shared libraries: libxml2.so.2: cannot open shared object file
+```
+
+The app surfaces the exact missing library and the package that provides it. To
+install the common set up front (Ubuntu 24.04 "Noble" — note the `t64` suffix
+from the 64-bit `time_t` transition):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libxml2t64 libtbb12 libgomp1 libssl3 libicu74
+```
+
+On older releases the names are un-suffixed (e.g. `libxml2`, `libtbb2`). If a
+name has "no installation candidate", run `sudo apt update` first and search for
+the right one:
+
+```bash
+apt-cache search --names-only 'libxml2'
+```
+
+The app already provides `libpython3.12` itself (a uv-managed CPython 3.12 is
+installed on first OpenVINO use), so you do **not** need a system `libpython`.
 
 ### 2c. Install Vulkan (llama.cpp GPU build)
 
@@ -144,7 +176,6 @@ the GPU is usable. torch.xpu / OpenVINO also need the Level Zero **GPU backend**
 `libze-intel-gpu1` (`libze_intel_gpu.so`) and an accessible render node. Confirm
 the GPU is actually live (`clinfo` lists the device, `/dev/dri` accessible)
 **before** reinstalling ComfyUI for XPU, or `torch.xpu.device_count()` will be 0.
-
 
 ---
 
@@ -204,4 +235,3 @@ uv lock
   Python on Linux), Python device-detection venv.
 - `WebUI/electron/subprocesses/hardwareDiscovery.ts` — `lspci`-based Intel GPU
   detection (mode recommendation).
-

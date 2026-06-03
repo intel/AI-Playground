@@ -1,8 +1,9 @@
 import { app } from 'electron'
 import path from 'node:path'
+import { packagedResourcesRoot } from './aipgRoot.ts'
 
 export const externalResourcesDir = () =>
-  path.resolve(app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'))
+  path.resolve(app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'))
 
 export const getMediaDir = () => {
   let mediaDir: string
