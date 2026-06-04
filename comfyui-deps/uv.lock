@@ -21,17 +21,6 @@ conflicts = [[
     { package = "aipg-comfyui", extra = "xpu" },
 ]]
 
-[options]
-exclude-newer = "2026-05-13T10:55:38.852868Z"
-exclude-newer-span = "P2D"
-
-[options.exclude-newer-package]
-torchvision = false
-torch = false
-triton-xpu = false
-torchaudio = false
-triton = false
-
 [[package]]
 name = "absl-py"
 version = "2.4.0"
@@ -70,7 +59,7 @@ wheels = [
 
 [[package]]
 name = "aiohttp"
-version = "3.13.5"
+version = "3.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohappyeyeballs", marker = "sys_platform == 'darwin' or sys_platform == 'win32' or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-cuda') or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-xpu') or (extra == 'extra-12-aipg-comfyui-cuda' and extra == 'extra-12-aipg-comfyui-xpu')" },
@@ -79,15 +68,17 @@ dependencies = [
     { name = "frozenlist", marker = "sys_platform == 'darwin' or sys_platform == 'win32' or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-cuda') or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-xpu') or (extra == 'extra-12-aipg-comfyui-cuda' and extra == 'extra-12-aipg-comfyui-xpu')" },
     { name = "multidict", marker = "sys_platform == 'darwin' or sys_platform == 'win32' or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-cuda') or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-xpu') or (extra == 'extra-12-aipg-comfyui-cuda' and extra == 'extra-12-aipg-comfyui-xpu')" },
     { name = "propcache", marker = "sys_platform == 'darwin' or sys_platform == 'win32' or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-cuda') or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-xpu') or (extra == 'extra-12-aipg-comfyui-cuda' and extra == 'extra-12-aipg-comfyui-xpu')" },
+    { name = "typing-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'win32' or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-cuda') or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-xpu') or (extra == 'extra-12-aipg-comfyui-cuda' and extra == 'extra-12-aipg-comfyui-xpu')" },
     { name = "yarl", marker = "sys_platform == 'darwin' or sys_platform == 'win32' or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-cuda') or (extra == 'extra-12-aipg-comfyui-cpu' and extra == 'extra-12-aipg-comfyui-xpu') or (extra == 'extra-12-aipg-comfyui-cuda' and extra == 'extra-12-aipg-comfyui-xpu')" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/9a/152096d4808df8e4268befa55fba462f440f14beab85e8ad9bf990516918/aiohttp-3.13.5.tar.gz", hash = "sha256:9d98cc980ecc96be6eb4c1994ce35d28d8b1f5e5208a23b421187d1209dbb7d1", size = 7858271, upload-time = "2026-03-31T22:01:03.343Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/ab/93ce242f899b68c51b0578c027aafa791ab3614cb9345fa5d37b5f5c8e3e/aiohttp-3.14.0.tar.gz", hash = "sha256:2882de819734c715fd1b9c11c97e09fa020d14438203d1d354d8ed1702791c9b", size = 7940674, upload-time = "2026-06-01T19:41:02.763Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/6f/353954c29e7dcce7cf00280a02c75f30e133c00793c7a2ed3776d7b2f426/aiohttp-3.13.5-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:023ecba036ddd840b0b19bf195bfae970083fd7024ce1ac22e9bba90464620e9", size = 748876, upload-time = "2026-03-31T21:57:36.319Z" },
-    { url = "https://files.pythonhosted.org/packages/f5/1b/428a7c64687b3b2e9cd293186695affc0e1e54a445d0361743b231f11066/aiohttp-3.13.5-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:15c933ad7920b7d9a20de151efcd05a6e38302cbf0e10c9b2acb9a42210a2416", size = 499557, upload-time = "2026-03-31T21:57:38.236Z" },
-    { url = "https://files.pythonhosted.org/packages/29/47/7be41556bfbb6917069d6a6634bb7dd5e163ba445b783a90d40f5ac7e3a7/aiohttp-3.13.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:ab2899f9fa2f9f741896ebb6fa07c4c883bfa5c7f2ddd8cf2aafa86fa981b2d2", size = 500258, upload-time = "2026-03-31T21:57:39.923Z" },
-    { url = "https://files.pythonhosted.org/packages/98/de/cf2f44ff98d307e72fb97d5f5bbae3bfcb442f0ea9790c0bf5c5c2331404/aiohttp-3.13.5-cp312-cp312-win32.whl", hash = "sha256:8bd3ec6376e68a41f9f95f5ed170e2fcf22d4eb27a1f8cb361d0508f6e0557f3", size = 433534, upload-time = "2026-03-31T21:58:08.712Z" },
-    { url = "https://files.pythonhosted.org/packages/aa/ca/eadf6f9c8fa5e31d40993e3db153fb5ed0b11008ad5d9de98a95045bed84/aiohttp-3.13.5-cp312-cp312-win_amd64.whl", hash = "sha256:110e448e02c729bcebb18c60b9214a87ba33bac4a9fa5e9a5f139938b56c6cb1", size = 460446, upload-time = "2026-03-31T21:58:10.945Z" },
+    { url = "https://files.pythonhosted.org/packages/89/97/2b6889bfb6b6847520d50d95eb8c4307a45e28aaca39faf4a9454b3d1b2f/aiohttp-3.14.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:b29518c9c2ec7e373e68259206a137c7f4f5439c58baaec4b5ab3ab799850a4e", size = 750194, upload-time = "2026-06-01T19:37:48.164Z" },
+    { url = "https://files.pythonhosted.org/packages/21/e2/62634b7fff918ed98c3c6b2f0e70d520f7f28846cb412d451b04354c6459/aiohttp-3.14.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:dbec68ce61b64cb73cab4d33df9433427b1713c8bcccb181dce695c1b6f8e87c", size = 506966, upload-time = "2026-06-01T19:37:50.014Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/fb/5ce075150828c797a5106f1c2fb26034e709d4289b9d2bf8b07f1e59fac6/aiohttp-3.14.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:3cdf534aa455593e589302990c5097aa5c92c06c4262a20da22934f9186a5fff", size = 507527, upload-time = "2026-06-01T19:37:51.96Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/4b/02992fc4fb9e1b6673ee3f888a8e587a6447afda1f6f4aca776c148c2876/aiohttp-3.14.0-cp312-cp312-win32.whl", hash = "sha256:101df7779c80c0636014a6b2c6642acd3efb5b355d48347c9d7dfb720aee9430", size = 448650, upload-time = "2026-06-01T19:38:19.545Z" },
+    { url = "https://files.pythonhosted.org/packages/39/e9/246532214c3abda518477cbaaf16d420295ad8effa5233844cbb38f299ab/aiohttp-3.14.0-cp312-cp312-win_amd64.whl", hash = "sha256:b0a5747586d4467efd1f932710b269131c9717a872dce082cd92a00c1c13123a", size = 476145, upload-time = "2026-06-01T19:38:21.505Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/c3/63f8c20090048915711598b0adf475b149216d736157961de06480a45b15/aiohttp-3.14.0-cp312-cp312-win_arm64.whl", hash = "sha256:5f1c5be60add78fabb4aacd13c5a348ae79d2fcbfc7fa78da8f1eb192273b370", size = 444250, upload-time = "2026-06-01T19:38:24.027Z" },
 ]
 
 [[package]]
@@ -230,7 +221,7 @@ xpu = [
 [package.metadata]
 requires-dist = [
     { name = "addict" },
-    { name = "aiohttp", specifier = ">=3.13.5" },
+    { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "albumentations", specifier = ">=1.4.16" },
     { name = "alembic" },
     { name = "av", specifier = ">=14.2.0" },
