@@ -89,36 +89,6 @@ sudo apt-get install -y \
 - `libze-intel-gpu1` → Level Zero **GPU backend** for the Intel GPU.
 - `intel-opencl-icd` → OpenCL (an alternate path OpenVINO GPU can use).
 
-### 2b1. OpenVINO Model Server (OVMS) baseline system libraries
-
-The bundled `ovms` binary is dynamically linked against a few baseline system
-libraries (much like the VC++ redistributable on Windows). On a full Ubuntu 24.04
-desktop these are already present, but a minimal/server install may be missing
-them, in which case OVMS fails to start with:
-
-```
-ovms: error while loading shared libraries: libxml2.so.2: cannot open shared object file
-```
-
-The app surfaces the exact missing library and the package that provides it. To
-install the common set up front (Ubuntu 24.04 "Noble" — note the `t64` suffix
-from the 64-bit `time_t` transition):
-
-```bash
-sudo apt-get update
-sudo apt-get install -y libxml2t64 libtbb12 libgomp1 libssl3 libicu74
-```
-
-On older releases the names are un-suffixed (e.g. `libxml2`, `libtbb2`). If a
-name has "no installation candidate", run `sudo apt update` first and search for
-the right one:
-
-```bash
-apt-cache search --names-only 'libxml2'
-```
-
-The app already provides `libpython3.12` itself (a uv-managed CPython 3.12 is
-installed on first OpenVINO use), so you do **not** need a system `libpython`.
 
 ### 2c. Install Vulkan (llama.cpp GPU build)
 

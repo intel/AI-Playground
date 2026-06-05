@@ -3,37 +3,15 @@ import path from 'node:path'
 import * as filesystem from 'fs-extra'
 import { app, BrowserWindow, net } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
-import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
-import { installBackend, ensureManagedPython } from './uvBasedBackends/uv.ts'
+import { installBackend } from './uvBasedBackends/uv.ts'
 import { binary, extract } from './tools.ts'
 
 const execAsync = promisify(exec)
-
-/**
- * Map a missing shared-library soname (from the dynamic loader's
- * "error while loading shared libraries: X" message) to the Debian/Ubuntu
- * package that provides it. These are baseline system libraries the bundled
- * OVMS binary links against — analogous to the VC++ redistributable on Windows.
- */
-const OVMS_SONAME_TO_APT_PACKAGE: Record<string, string> = {
-  // Ubuntu 24.04 "Noble" renamed many runtime libs with a `t64` suffix (the
-  // 64-bit time_t transition), so prefer those names; on older releases use the
-  // un-suffixed name (e.g. `libxml2`, `libtbb2`).
-  'libxml2.so.2': 'libxml2t64',
-  'libpython3.12.so.1.0': 'libpython3.12t64',
-  'libtbb.so.12': 'libtbb12',
-  'libtbbmalloc.so.2': 'libtbbmalloc2',
-  'libgomp.so.1': 'libgomp1',
-  'libcrypto.so.3': 'libssl3',
-  'libssl.so.3': 'libssl3',
-  'libicuuc.so.74': 'libicu74',
-  'libstdc++.so.6': 'libstdc++6',
-}
 
 interface OvmsServerProcess {
   process: ChildProcess
@@ -54,7 +32,7 @@ export class OpenVINOBackendService implements ApiService {
   readonly settings: LocalSettings
 
   // Service directories
-  readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
+  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
   readonly serviceDir: string
   readonly ovmsDir: string
   readonly ovmsExePath: string
@@ -72,9 +50,6 @@ export class OpenVINOBackendService implements ApiService {
   currentStatus: BackendStatus = 'notInstalled'
   isSetUp: boolean = false
   desiredStatus: BackendStatus = 'uninitializedStatus'
-
-  // Whether a libpython for the OVMS binary has been ensured this session.
-  private libPythonEnsured: boolean = false
 
   // Model server processes
   private ovmsLlmProcess: OvmsServerProcess | null = null
@@ -181,79 +156,6 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   /**
-   * Locate directories that contain a `libpython3.X.so*` shared library so the
-   * OVMS binary (dynamically linked against e.g. `libpython3.12.so.1.0`) can
-   * resolve it. Checks, in order: the OVMS bundle, the uv-managed CPython
-   * interpreters under `<base>/python-interpreter/`, and the standard system
-   * library directories. Linux/macOS only.
-   */
-  private findLibPythonDirs(): string[] {
-    if (process.platform === 'win32') return []
-    const found = new Set<string>()
-    const addIfHasLibPython = (dir: string) => {
-      try {
-        const entries = filesystem.readdirSync(dir)
-        if (entries.some((f) => /^libpython3\.\d+\.(so|dylib)/.test(f))) {
-          found.add(dir)
-        }
-      } catch {
-        // directory missing/unreadable — ignore
-      }
-    }
-
-    // Directly known candidate directories.
-    ;[
-      path.join(this.ovmsDir, 'lib'),
-      path.join(this.ovmsDir, 'python', 'lib'),
-      '/usr/lib/x86_64-linux-gnu',
-      '/usr/lib',
-      '/usr/local/lib',
-    ].forEach(addIfHasLibPython)
-
-    // uv-managed interpreters: <base>/python-interpreter/<cpython-…>/lib
-    const pyInterpRoot = path.join(this.baseDir, 'python-interpreter')
-    try {
-      for (const entry of filesystem.readdirSync(pyInterpRoot)) {
-        addIfHasLibPython(path.join(pyInterpRoot, entry, 'lib'))
-      }
-    } catch {
-      // no uv interpreters installed — ignore
-    }
-
-    return [...found]
-  }
-
-  /**
-   * Ensure a `libpython3.12.so*` the OVMS binary links against is available,
-   * provisioning a uv-managed CPython 3.12 if none is found. Idempotent and
-   * Linux/macOS-only; covers installs created before this provisioning step
-   * existed (so users do not have to reinstall the backend).
-   */
-  private async ensureOvmsRuntimeLibs(): Promise<void> {
-    if (process.platform === 'win32') return
-    if (this.libPythonEnsured) return
-    if (this.findLibPythonDirs().length > 0) {
-      this.libPythonEnsured = true
-      return
-    }
-    try {
-      this.appLogger.info(
-        'No libpython found for OVMS; installing uv-managed CPython 3.12',
-        this.name,
-      )
-      await ensureManagedPython('3.12')
-    } catch (e) {
-      this.appLogger.warn(
-        `Failed to provision libpython for OVMS: ${e}. ` +
-          `If OVMS fails to start, install the system package (e.g. ` +
-          `'sudo apt install libpython3.12t64' on Ubuntu 24.04).`,
-        this.name,
-      )
-    }
-    this.libPythonEnsured = true
-  }
-
-  /**
    * Build the environment used to spawn the OVMS executable.
    * Cross-platform: Windows resolves DLLs from PATH, Linux resolves shared
    * objects (libopenvino, libtbb, Level Zero GPU libs, ...) from LD_LIBRARY_PATH.
@@ -309,16 +211,7 @@ export class OpenVINOBackendService implements ApiService {
       // codec on minimal setups where LANG/LC_ALL may be unset.
       LANG: process.env.LANG ?? 'C.UTF-8',
       LC_ALL: process.env.LC_ALL ?? process.env.LANG ?? 'C.UTF-8',
-      // OVMS is dynamically linked against libpython3.X.so.1.0. Add every
-      // directory that provides one (OVMS bundle, uv-managed CPython, system
-      // multiarch dirs) so the loader can resolve it. If none is present the
-      // user must install the system package (e.g. `libpython3.12t64` on
-      // Ubuntu 24.04) — see docs/linux-intel-gpu-setup.md.
-      LD_LIBRARY_PATH: [
-        path.join(this.ovmsDir, 'lib'),
-        ...this.findLibPythonDirs(),
-        process.env.LD_LIBRARY_PATH ?? '',
-      ]
+      LD_LIBRARY_PATH: [path.join(this.ovmsDir, 'lib'), process.env.LD_LIBRARY_PATH ?? '']
         .filter(Boolean)
         .join(':'),
     }
@@ -332,10 +225,7 @@ export class OpenVINOBackendService implements ApiService {
    */
   private buildPythonDetectionEnv(): NodeJS.ProcessEnv {
     const { cleanEnv, inheritedVirtualEnv } = this.stripInheritedPythonEnv()
-    const venvBinDir = path.join(
-      this.pythonEnvDir,
-      process.platform === 'win32' ? 'Scripts' : 'bin',
-    )
+    const venvBinDir = path.join(this.pythonEnvDir, process.platform === 'win32' ? 'Scripts' : 'bin')
     const sanitizedInheritedPath = this.sanitizeForeignVenvFromPath(
       cleanEnv.PATH,
       inheritedVirtualEnv,
@@ -370,10 +260,6 @@ export class OpenVINOBackendService implements ApiService {
     )
 
     try {
-      // Make sure a libpython the OVMS binary can link against is present
-      // (self-contained — no system apt package required). No-op on Windows.
-      await this.ensureOvmsRuntimeLibs()
-
       // Handle LLM model
       const needsLlmRestart =
         this.currentModel !== llmModelName ||
@@ -857,25 +743,6 @@ export class OpenVINOBackendService implements ApiService {
         )
       }
 
-      // On Linux the bundled `ovms` binary is dynamically linked against
-      // `libpython3.12.so.1.0`. Install a uv-managed CPython 3.12 (which ships
-      // that shared library) so OVMS is self-contained and does not require the
-      // user to `apt install libpython3.12*` — matching the Windows behaviour
-      // where OVMS bundles its own Python. `findLibPythonDirs()` then exposes it
-      // on LD_LIBRARY_PATH at launch.
-      if (process.platform !== 'win32') {
-        try {
-          await ensureManagedPython('3.12')
-          this.appLogger.info('Ensured uv-managed CPython 3.12 for OVMS libpython', this.name)
-        } catch (pyErr) {
-          this.appLogger.warn(
-            `Failed to install uv-managed CPython 3.12 for OVMS: ${pyErr}. ` +
-              `OVMS may require a system libpython3.12 (e.g. 'sudo apt install libpython3.12t64').`,
-            this.name,
-          )
-        }
-      }
-
       yield {
         serviceName: this.name,
         step: currentStep,
@@ -1108,8 +975,6 @@ export class OpenVINOBackendService implements ApiService {
     try {
       this.appLogger.info(`Starting transcription server for model: ${modelName}`, this.name)
 
-      await this.ensureOvmsRuntimeLibs()
-
       // Check if already running with the same model
       if (this.ovmsTranscriptionProcess?.isReady && this.currentTranscriptionModel === modelName) {
         this.appLogger.info(
@@ -1177,8 +1042,6 @@ export class OpenVINOBackendService implements ApiService {
     resolution?: string,
   ): Promise<void> {
     try {
-      await this.ensureOvmsRuntimeLibs()
-
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const isNpu = selectedDevice.startsWith('NPU')
       // Resolution only matters for NPU; ignore it on other devices so the model server
@@ -1800,80 +1663,47 @@ export class OpenVINOBackendService implements ApiService {
   ): Promise<void> {
     const delayMs = 1000
 
-    // Capture stderr so that, if OVMS exits early (e.g. a missing shared
-    // library), we can fail fast with an actionable message instead of waiting
-    // out the full timeout.
-    let stderrTail = ''
-    const onStderr = (d: Buffer) => {
-      stderrTail = (stderrTail + d.toString()).slice(-8000)
-    }
-    process.stderr?.on('data', onStderr)
-
-    // `process.killed` is only true when WE send a signal; a binary that exits
-    // on its own (e.g. loader error, exit code 127) leaves `killed === false`
-    // but sets `exitCode`/`signalCode`. Treat any of these as "no longer running".
-    const hasExited = () =>
-      !process || process.killed || process.exitCode !== null || process.signalCode !== null
-
-    const exitDiagnostic = (): string => {
-      const libMatch = stderrTail.match(/error while loading shared libraries:\s*([^\s:]+)/)
-      if (libMatch) {
-        const soname = libMatch[1]
-        const pkg = OVMS_SONAME_TO_APT_PACKAGE[soname]
-        const install = pkg
-          ? ` Install the system library with: sudo apt install -y ${pkg}`
-          : ' Install the system library that provides it via your package manager.'
-        return `OVMS could not start: missing system shared library '${soname}'.${install}`
-      }
-      const code = process?.exitCode
-      return `OVMS process exited${code != null ? ` with code ${code}` : ''} before becoming ready.`
-    }
-
-    try {
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        // Check if process has exited before attempting health check
-        if (hasExited()) {
-          const diagnostic = exitDiagnostic()
-          this.appLogger.error(diagnostic, this.name)
-          throw new Error(diagnostic)
-        }
-
-        try {
-          const response = await fetch(healthUrl, {
-            method: 'GET',
-            signal: AbortSignal.timeout(1000),
-          })
-
-          if (response.ok) {
-            // Double-check process is still alive before accepting success
-            if (hasExited()) {
-              const diagnostic = exitDiagnostic()
-              this.appLogger.warn(
-                `Process for ${this.name} exited after health check succeeded: ${diagnostic}`,
-                this.name,
-              )
-              throw new Error(diagnostic)
-            }
-            this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
-            return
-          }
-        } catch (_error) {
-          // Server not ready yet, continue waiting — but bail out immediately if
-          // the process has died (rather than polling for the full timeout).
-          if (hasExited()) {
-            const diagnostic = exitDiagnostic()
-            this.appLogger.warn(`Process for ${this.name} exited: ${diagnostic}`, this.name)
-            throw new Error(diagnostic)
-          }
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, delayMs))
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Check if process has exited before attempting health check
+      if (!process || process.killed) {
+        this.appLogger.warn(
+          `Process for ${this.name} is not alive, aborting health check`,
+          this.name,
+        )
+        throw new Error(`Process exited before server became ready`)
       }
 
-      throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
-    } finally {
-      process.stderr?.off('data', onStderr)
+      try {
+        const response = await fetch(healthUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(1000),
+        })
+
+        if (response.ok) {
+          // Double-check process is still alive before accepting success
+          if (!process || process.killed) {
+            this.appLogger.warn(
+              `Process for ${this.name} exited after health check succeeded, marking as failed`,
+              this.name,
+            )
+            throw new Error(`Process exited after health check succeeded`)
+          }
+          this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
+          return
+        }
+      } catch (_error) {
+        // Server not ready yet, continue waiting
+        // But check if process is still alive
+        if (!process || process.killed) {
+          this.appLogger.warn(`Process for ${this.name} exited during health check wait`, this.name)
+          throw new Error(`Process exited during server startup`)
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
+
+    throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
   }
 
   // Error management methods for startup failures

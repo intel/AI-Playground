@@ -2,12 +2,6 @@
   "name": "ai-playground",
   "private": true,
   "version": "3.1.1-beta",
-  "description": "AI inference desktop app for Intel GPUs",
-  "homepage": "https://github.com/intel/AI-Playground",
-  "author": {
-    "name": "Intel Corporation",
-    "email": "aiplayground@intel.com"
-  },
   "scripts": {
     "ensure-electron": "node ./build/scripts/ensure-electron.mjs",
     "predev": "node ./build/scripts/ensure-electron.mjs",

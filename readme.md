@@ -110,7 +110,7 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
 1. Build it from the `WebUI` directory:
 
    ```bash
-   TARGET_PLATFORM=linux npm run fetch-external-resources   # one-time: downloads uv/7zip
+   npm run fetch-external-resources   # one-time: downloads uv/7zip
    npm run build:linux
    ```
 
@@ -119,30 +119,20 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
 2. Install FUSE once (required to run any AppImage):
 
    ```bash
-   sudo apt install -y libfuse2        # Ubuntu 22.04 / Debian
-   # On Ubuntu 24.04 the package is named libfuse2t64:
-   # sudo apt install -y libfuse2t64
+   sudo apt install -y libfuse2t64
    ```
 
-3. Make it executable and start the app:
+3. Make it executable and start the app from a terminal:
 
    ```bash
    cd build/electron
    chmod +x "AI Playground-"*.AppImage
-   ./"AI Playground-"*.AppImage
-   ```
-
-   The AppImage is built with `--no-sandbox` baked into its launcher, so launching
-   it from your desktop/file manager (double-click) or app menu works without any
-   flags. If you instead run it **directly from a terminal**, Electron's Chromium
-   sandbox helper (`chrome-sandbox`) cannot be `setuid root` inside the AppImage
-   mount, so pass the flag explicitly:
-
-   ```bash
    ./"AI Playground-"*.AppImage --no-sandbox
    ```
 
-   Do **not** start it with `sudo` — Electron refuses to run as root.
+   The `--no-sandbox` flag is required. Launching the AppImage by double-clicking
+   it in your file manager does **not** work. Do **not** start it with `sudo` —
+   Electron refuses to run as root.
 
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
