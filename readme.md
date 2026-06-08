@@ -102,7 +102,8 @@ The installer executable will be located in the `build/electron` folder.
 ### Build and run on Linux (AppImage)
 
 > Linux support is experimental. The frontend, AI Backend, LlamaCPP and ComfyUI
-> backends run on Ubuntu x64. See [`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md)
+> backends run on Ubuntu x64. The packaged installer/AppImage supports Ubuntu 24
+> or newer only. See [`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md)
 > for GPU driver requirements.
 
 The Linux build produces a single, portable **AppImage** (no installation, no root).
@@ -133,6 +134,18 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
    The `--no-sandbox` flag is required. Launching the AppImage by double-clicking
    it in your file manager does **not** work. Do **not** start it with `sudo` —
    Electron refuses to run as root.
+
+4. OpenVINO Ubuntu dependencies are checked during OpenVINO backend setup.
+
+   If required packages are missing, AI Playground can open a terminal installer.
+   The terminal asks for your sudo password and runs the package install command.
+
+   On Ubuntu, the install command is:
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y python3 python3-venv libtbb12 libhwloc15 libgomp1 libnuma1 ocl-icd-libopencl1 libfuse2t64
+   ```
 
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 

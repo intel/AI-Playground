@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { appLoggerInstance as appLogger } from '../logging/logger.ts'
 
 export function levelZeroDeviceSelectorEnv(id?: string): { ONEAPI_DEVICE_SELECTOR: string } {
@@ -45,23 +45,76 @@ function hasSharedLib(libFragment: string, candidatePaths: string[]): boolean {
   return ldconfigOutput().includes(libFragment)
 }
 
-let _levelZeroCache: boolean | undefined
+// Intel PCI vendor ID used in /sys/bus/pci/devices/*/vendor
+const INTEL_VENDOR_ID = '0x8086'
+
 /**
- * True when the Intel Level Zero loader is available — the minimum required to
- * run torch+xpu (ComfyUI) and OpenVINO GPU inference on Intel Arc / iGPUs.
+ * True when at least one Intel GPU PCI device is present.
+ * Checks /sys/bus/pci/devices for vendor=0x8086 with a display/3D class (0x03xxxx).
+ * This guards against false positives where libze_loader.so is installed as a
+ * dependency on systems that have no Intel GPU hardware at all.
+ */
+export function linuxHasIntelGpuPciDevice(): boolean {
+  try {
+    const devices = readdirSync('/sys/bus/pci/devices')
+    for (const dev of devices) {
+      try {
+        const vendor = readFileSync(`/sys/bus/pci/devices/${dev}/vendor`, 'utf-8').trim()
+        if (vendor !== INTEL_VENDOR_ID) continue
+        const devClass = readFileSync(`/sys/bus/pci/devices/${dev}/class`, 'utf-8').trim()
+        // PCI display class: 0x0300xx (VGA), 0x0302xx (3D), 0x0380xx (Other display)
+        if (devClass.startsWith('0x03')) return true
+      } catch {
+        /* unreadable sysfs entry — skip */
+      }
+    }
+  } catch {
+    /* /sys/bus/pci not accessible — fall through */
+  }
+  return false
+}
+
+let _levelZeroCache: boolean | undefined
+
+/** Clear the cached Level Zero runtime result (call after installing GPU driver packages). */
+export function clearLevelZeroRuntimeCache(): void {
+  _levelZeroCache = undefined
+}
+
+/**
+ * True when:
+ *   - the Level Zero ICD loader (`libze_loader.so`) is installed,
+ *   - the Intel GPU Level Zero driver (`libze_intel_gpu.so`) is installed, AND
+ *   - an Intel GPU PCI device is present.
+ *
+ * All three are required: the loader alone is insufficient (it can be installed as
+ * a transitive dependency with no GPU), and the GPU driver alone doesn't help if
+ * the loader isn't there. Checking the hardware avoids false positives where the
+ * libraries are present on a non-Intel-GPU machine.
  */
 export function linuxHasLevelZeroRuntime(): boolean {
   if (_levelZeroCache !== undefined) return _levelZeroCache
   if (process.platform !== 'linux') return (_levelZeroCache = false)
-  const found = hasSharedLib('libze_loader.so', [
+  const hasLoader = hasSharedLib('libze_loader.so', [
     '/usr/lib/x86_64-linux-gnu/libze_loader.so.1',
     '/usr/lib/x86_64-linux-gnu/libze_loader.so',
     '/usr/lib/libze_loader.so.1',
     '/usr/lib64/libze_loader.so.1',
     '/usr/local/lib/libze_loader.so.1',
   ])
+  // The GPU driver (libze_intel_gpu.so) is separate from the loader and can be
+  // missing even when the loader is installed (e.g. after a partial package removal).
+  // Without it, torch.xpu.device_count() returns 0 and ComfyUI crashes.
+  const hasGpuDriver = hasSharedLib('libze_intel_gpu.so', [
+    '/usr/lib/x86_64-linux-gnu/libze_intel_gpu.so.1',
+    '/usr/lib/x86_64-linux-gnu/libze_intel_gpu.so',
+    '/usr/lib/libze_intel_gpu.so.1',
+    '/usr/lib64/libze_intel_gpu.so.1',
+  ])
+  const hasDevice = linuxHasIntelGpuPciDevice()
+  const found = hasLoader && hasGpuDriver && hasDevice
   appLogger.info(
-    `Linux Level Zero runtime ${found ? 'detected' : 'NOT found'} — Intel GPU (XPU) ${found ? 'enabled' : 'disabled'}`,
+    `Linux Level Zero runtime: loader=${hasLoader} gpuDriver=${hasGpuDriver} pciDevice=${hasDevice} → Intel GPU (XPU) ${found ? 'enabled' : 'disabled'}`,
     'electron-backend',
   )
   return (_levelZeroCache = found)

@@ -310,7 +310,8 @@ A virtual framebuffer (`Xvfb`) is already running on `:1`.
 ### Backend services on Linux
 
 The `ai-backend`, `llamacpp-backend`, `comfyui-backend`, and `openvino-backend`
-services run on Linux (Ubuntu x64):
+services run on Linux (Ubuntu x64). The packaged installer/AppImage supports
+Ubuntu 24 or newer only:
 
 - Run `npm run fetch-external-resources` once to download `uv` and `7zip` binaries for
   the current platform (placed in `build/resources/`).

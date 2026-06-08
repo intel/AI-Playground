@@ -28,11 +28,27 @@ import {
 } from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
-import { cudaVisibleDevicesEnv, levelZeroDeviceSelectorEnv, linuxHasLevelZeroRuntime } from './deviceDetection.ts'
-import { BrowserWindow, app } from 'electron'
+import {
+  clearLevelZeroRuntimeCache,
+  cudaVisibleDevicesEnv,
+  levelZeroDeviceSelectorEnv,
+  linuxHasIntelGpuPciDevice,
+  linuxHasLevelZeroRuntime,
+} from './deviceDetection.ts'
+import {
+  getMissingPackages,
+  hasAptGet,
+  hasPkexec,
+  parseAptMissingPackages,
+  resolvePackageList,
+  runPkexecInstall,
+  waitForTerminalInstall,
+} from './linuxPackageInstaller.ts'
+import { BrowserWindow, app, dialog } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode, configureComfyUiManagerSecurityLevel } from './comfyuiTools.ts'
 import { getBundledComfyUiGitRefSync } from '../remoteUpdates.ts'
+import { appLoggerInstance as comfyDbgLogger } from '../logging/logger.ts'
 type Device = Omit<InferenceDevice, 'selected'>
 
 export type ComfyUiVariant = 'xpu' | 'cuda' | 'cpu'
@@ -47,7 +63,12 @@ const UPSTREAM_PYPROJECT_BACKUP = 'pyproject.toml.aipg-upstream'
 // Delegates to the shared, distro-robust + logged Level Zero detector so the
 // XPU vs CPU decision is consistent across backends and visible in the logs.
 function linuxHasIntelGpuRuntime(): boolean {
-  return linuxHasLevelZeroRuntime()
+  const found = linuxHasLevelZeroRuntime()
+  comfyDbgLogger.info(
+    `[comfyui-variant] linuxHasIntelGpuRuntime=${found} (Level Zero loader ${found ? 'present' : 'absent'})`,
+    'comfyui-backend',
+  )
+  return found
 }
 
 // Library-path entries prepended to LD_LIBRARY_PATH when the XPU variant is
@@ -65,6 +86,38 @@ function getLinuxOneApiLibPaths(): string[] {
   ]
   return candidates.filter((p) => fs.existsSync(p))
 }
+
+// ---------------------------------------------------------------------------
+// Linux Intel GPU system dependency installation (Level Zero / XPU)
+// ---------------------------------------------------------------------------
+// These packages are not in the standard Ubuntu archive; they come from
+// Intel's GPU repository (https://repositories.intel.com/gpu/ubuntu).
+// Package names differ between Ubuntu 22.04 (Jammy) and 24.04 (Noble).
+const LINUX_INTEL_GPU_ALT_PACKAGES: string[][] = [
+  // Level Zero ICD loader
+  ['libze1', 'level-zero'],
+  // Level Zero Intel GPU driver — the part that lets Level Zero enumerate the GPU.
+  // This is distinct from the loader: without it, libze_loader.so is present but
+  // torch.xpu.device_count() returns 0.
+  ['libze-intel-gpu1', 'intel-level-zero-gpu'],
+]
+// Always try to install alongside the Level Zero packages.
+const LINUX_INTEL_GPU_UNCONDITIONAL_PACKAGES: string[] = ['intel-opencl-icd']
+
+// Bash script run (as root via pkexec) before the apt-get install step.
+// Adds Intel's GPU repository if neither the Noble nor Jammy package names
+// are already available in apt. Safe to re-run (idempotent).
+const INTEL_GPU_APT_REPO_SCRIPT = `
+# Add Intel GPU repository if Level Zero packages are not yet in apt
+if ! apt-cache show libze1 >/dev/null 2>&1 && ! apt-cache show level-zero >/dev/null 2>&1; then
+  apt-get install -y --no-install-recommends ca-certificates gpg wget
+  wget -qO /tmp/intel-graphics.key https://repositories.intel.com/gpu/intel-graphics.key
+  gpg --dearmor -o /usr/share/keyrings/intel-graphics.gpg /tmp/intel-graphics.key
+  rm -f /tmp/intel-graphics.key
+  . /etc/os-release
+  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu \${VERSION_CODENAME} unified" > /etc/apt/sources.list.d/intel-gpu.list
+  apt-get update
+fi`.trim()
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
@@ -207,17 +260,171 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }
 
   private getDesiredVariant(): ComfyUiVariant {
-    if (this.settings.productMode === 'nvidia') return 'cuda'
-    if (process.platform === 'win32') return 'xpu'
-    if (process.platform === 'linux' && linuxHasIntelGpuRuntime()) return 'xpu'
+    const productMode = this.settings.productMode
+    const platform = process.platform
+    this.appLogger.info(
+      `[comfyui-variant] getDesiredVariant: productMode=${productMode} platform=${platform}`,
+      this.name,
+    )
+    if (productMode === 'nvidia') {
+      this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'cuda' (nvidia productMode)`, this.name)
+      return 'cuda'
+    }
+    if (platform === 'win32') {
+      this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'xpu' (win32)`, this.name)
+      return 'xpu'
+    }
+    if (platform === 'linux' && linuxHasIntelGpuRuntime()) {
+      this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'xpu' (linux + Intel GPU runtime)`, this.name)
+      return 'xpu'
+    }
+    this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'cpu' (fallback)`, this.name)
     return 'cpu'
   }
 
   private getEffectiveVariant(): ComfyUiVariant {
-    if (this.settings.productMode) return this.getDesiredVariant()
+    const productMode = this.settings.productMode
+    this.appLogger.info(
+      `[comfyui-variant] getEffectiveVariant: productMode=${productMode}`,
+      this.name,
+    )
+    if (productMode) {
+      const v = this.getDesiredVariant()
+      this.appLogger.info(
+        `[comfyui-variant] getEffectiveVariant → '${v}' (productMode branch)`,
+        this.name,
+      )
+      return v
+    }
     const restored = this.readInstalledVariant()
-    if (restored) return restored
-    return this.getDesiredVariant()
+    this.appLogger.info(
+      `[comfyui-variant] getEffectiveVariant: installedVariant=${restored}`,
+      this.name,
+    )
+    if (restored) {
+      this.appLogger.info(
+        `[comfyui-variant] getEffectiveVariant → '${restored}' (from aipg-variant.json)`,
+        this.name,
+      )
+      return restored
+    }
+    const v = this.getDesiredVariant()
+    this.appLogger.info(
+      `[comfyui-variant] getEffectiveVariant → '${v}' (no marker, using desired)`,
+      this.name,
+    )
+    return v
+  }
+
+  /**
+   * On Linux: if an Intel GPU PCI device is present, ensure the Level Zero
+   * loader and GPU driver packages are installed. Without the GPU driver
+   * (libze-intel-gpu1 / intel-level-zero-gpu), torch.xpu.device_count()
+   * returns 0 even when the PCI device is visible, causing ComfyUI to crash.
+   *
+   * Uses the same pkexec / terminal-emulator pattern as OpenVINO's dependency
+   * installer. Clears the cached Level Zero detection result after a successful
+   * install so the next call to linuxHasLevelZeroRuntime() picks up the new state.
+   */
+  private async ensureLinuxIntelGpuDependencies(
+    onProgress?: (message: string) => Promise<void> | void,
+  ): Promise<void> {
+    if (process.platform !== 'linux') return
+    if (!linuxHasIntelGpuPciDevice()) return
+
+    const hasApt = await hasAptGet()
+    if (!hasApt) {
+      this.appLogger.warn(
+        'apt-get not found; skipping automatic Intel GPU (Level Zero) dependency install',
+        this.name,
+      )
+      return
+    }
+
+    const packageList = await resolvePackageList(
+      LINUX_INTEL_GPU_ALT_PACKAGES,
+      LINUX_INTEL_GPU_UNCONDITIONAL_PACKAGES,
+    )
+    const missingPackages = await getMissingPackages(packageList)
+
+    if (missingPackages.length === 0) {
+      this.appLogger.info('Intel GPU (Level Zero) Linux packages are already installed', this.name)
+      return
+    }
+
+    this.appLogger.info(
+      `Intel GPU packages missing: ${missingPackages.join(', ')}`,
+      this.name,
+      true,
+    )
+
+    const packageListText = missingPackages.map((p) => `- ${p}`).join('\n')
+    const { response } = await dialog.showMessageBox(this.win, {
+      type: 'warning',
+      buttons: ['Install now', 'Cancel setup'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Install Intel GPU drivers',
+      message: 'ComfyUI requires Intel GPU (Level Zero) packages before it can use the XPU.',
+      detail:
+        `Missing packages:\n${packageListText}\n\n` +
+        'AI Playground will request administrator permission and install these packages automatically. ' +
+        'The Intel GPU repository will be added if it is not already configured.',
+    })
+
+    if (response === 1) {
+      this.appLogger.info(
+        'User cancelled Intel GPU dependency install; ComfyUI will run on CPU',
+        this.name,
+        true,
+      )
+      return
+    }
+
+    await onProgress?.('Installing Intel GPU (Level Zero) packages')
+
+    const pkexecAvailable = await hasPkexec()
+    let installSuccess = false
+
+    if (pkexecAvailable) {
+      const result = await runPkexecInstall(missingPackages, INTEL_GPU_APT_REPO_SCRIPT)
+      installSuccess = result.success
+      if (!result.success) {
+        const aptMissing = parseAptMissingPackages(result.output)
+        if (aptMissing.length > 0) {
+          this.appLogger.error(
+            `Intel GPU install failed. Packages not found in apt: ${aptMissing.join(', ')}. ` +
+              'Check that the Intel GPU repository is reachable.',
+            this.name,
+            true,
+          )
+        } else {
+          this.appLogger.error(
+            `Intel GPU install failed: ${result.output}`,
+            this.name,
+            true,
+          )
+        }
+      }
+    } else {
+      await onProgress?.('pkexec unavailable, falling back to terminal installer')
+      installSuccess = await waitForTerminalInstall(missingPackages, INTEL_GPU_APT_REPO_SCRIPT)
+      if (installSuccess) {
+        // Give apt a moment to register the newly installed packages
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+      }
+    }
+
+    if (installSuccess) {
+      // Invalidate the cached Level Zero detection so getDesiredVariant() picks
+      // up the newly installed GPU driver on the next call.
+      clearLevelZeroRuntimeCache()
+      this.appLogger.info(
+        'Intel GPU packages installed successfully; Level Zero cache cleared',
+        this.name,
+        true,
+      )
+    }
   }
 
   async serviceIsSetUp(): Promise<boolean> {
@@ -564,6 +771,18 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   async *set_up(): AsyncIterable<SetupProgress> {
     this.appLogger.info('setting up service', this.name)
     this.setStatus('installing')
+
+    // Install Level Zero packages before variant detection so that
+    // getEffectiveVariant() → linuxHasLevelZeroRuntime() sees them.
+    if (process.platform === 'linux') {
+      yield {
+        serviceName: this.name,
+        step: 'linux dependencies',
+        status: 'executing',
+        debugMessage: 'checking and installing Intel GPU (Level Zero) packages',
+      }
+      await this.ensureLinuxIntelGpuDependencies((msg) => this.appLogger.info(msg, this.name))
+    }
 
     this.comfyUiVariant = this.getEffectiveVariant()
 
@@ -1057,6 +1276,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   async detectDevices() {
     this.comfyUiVariant = this.getEffectiveVariant()
+    this.appLogger.info(
+      `[comfyui-variant] detectDevices: resolved comfyUiVariant='${this.comfyUiVariant}'`,
+      this.name,
+    )
 
     if (this.comfyUiVariant === 'cpu') {
       this.devices = [{ id: '*', name: 'Auto select device', selected: true }]
@@ -1199,8 +1422,24 @@ except Exception as e:
       console.error('Error detecting level_zero devices:', error)
     }
     this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
-    this.devices =
-      allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
+    if (allDevices.length === 0) {
+      // torch.xpu.device_count() returned 0 — Level Zero loader is present but the
+      // Intel GPU driver can't enumerate any devices (missing intel-level-zero-gpu,
+      // wrong permissions on /dev/dri/renderD128, or driver mismatch). Running as
+      // XPU variant with 0 devices would crash ComfyUI; fall back to CPU instead.
+      this.appLogger.warn(
+        '[comfyui-variant] torch.xpu found 0 XPU devices — Intel GPU not accessible via Level Zero. ' +
+          'Falling back to CPU. Check: (1) intel-level-zero-gpu package installed, ' +
+          '(2) user is in the "render" group, (3) /dev/dri/renderD128 permissions.',
+        this.name,
+        true,
+      )
+      this.comfyUiVariant = 'cpu'
+      this.devices = [{ id: '*', name: 'Auto select device', selected: true }]
+      this.updateStatus()
+      return
+    }
+    this.devices = allDevices.map((d) => ({ ...d, selected: false }))
     this.updateStatus()
   }
 
@@ -1245,6 +1484,11 @@ except Exception as e:
 
     const additionalEnvVariables = this.getEnvVars()
     const mediaDir = getMediaDir()
+    this.appLogger.info(
+      `[comfyui-variant] spawnAPIProcess: comfyUiVariant='${this.comfyUiVariant}' platform=${process.platform}`,
+      this.name,
+      true,
+    )
     // --enable-cors-header is required so ComfyUI's origin_only_middleware
     // doesn't 403 our cross-origin requests from the renderer (Vite dev origin
     // / file:// in prod both trigger Sec-Fetch-Site: cross-site against
@@ -1322,6 +1566,11 @@ except Exception as e:
       '--enable-cors-header',
       rendererOrigin,
     ]
+    this.appLogger.info(
+      `[comfyui-variant] spawnAPIProcess: --cpu flag will be ${this.comfyUiVariant === 'cpu' ? 'ADDED' : 'NOT ADDED'} (variant='${this.comfyUiVariant}')`,
+      this.name,
+      true,
+    )
     this.appLogger.info(
       `starting comfyui with ${JSON.stringify({ parameters, additionalEnvVariables })}`,
       this.name,
