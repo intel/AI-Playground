@@ -14,6 +14,7 @@ export const ModelSchema = z.object({
   supportsVision: z.boolean().optional(),
   maxContextSize: z.number().optional(),
   npuSupport: z.boolean().optional(),
+  largeMoe: z.boolean().optional(), // Large Mixture-of-Experts model; Phison aiDAPTIV+ SSD offload enables loading models larger than VRAM
 })
 
 //type Model = z.infer<typeof ModelSchema>

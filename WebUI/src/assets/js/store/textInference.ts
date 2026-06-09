@@ -31,6 +31,7 @@ export type LlmModel = {
   supportsReasoning?: boolean
   maxContextSize?: number
   npuSupport?: boolean
+  largeMoe?: boolean
   isPredefined?: boolean
 }
 
@@ -162,6 +163,7 @@ export const useTextInference = defineStore(
           supportsReasoning: m.supportsReasoning,
           maxContextSize: m.maxContextSize,
           npuSupport: m.npuSupport,
+          largeMoe: m.largeMoe,
           isPredefined: m.isPredefined,
         }
       })

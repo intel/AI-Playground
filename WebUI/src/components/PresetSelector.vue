@@ -218,6 +218,16 @@ function isPresetDisabled(preset: Preset): boolean {
       }
     }
 
+    // Check if the Phison aiDAPTIV+ build is required but not installed
+    if (chatPreset.requiresPhison) {
+      const phisonReady =
+        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+          ?.llamaCppPhisonArtifactReady ?? false
+      if (!phisonReady) {
+        return true // Disable until the Phison build is installed
+      }
+    }
+
     // Check if any backend is available
     const hasAvailableBackend = chatPreset.backends.some((backend) => {
       const serviceName = backendToService[backend]
@@ -233,6 +243,12 @@ function showDisabledReason(preset: Preset) {
     const chatPreset = preset as ChatPreset
     if (chatPreset.requiresNpuSupport) {
       toast.show('NPU device not available. This preset requires an Intel NPU.', {
+        style: {
+          content: { background: '#3b82f6', color: '#ffffff' },
+        },
+      })
+    } else if (chatPreset.requiresPhison) {
+      toast.show('This preset requires the Phison aiDAPTIV+ SSD build of Llama.cpp.', {
         style: {
           content: { background: '#3b82f6', color: '#ffffff' },
         },

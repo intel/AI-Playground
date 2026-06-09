@@ -1,0 +1,19 @@
+{
+  "type": "chat",
+  "category": "chat",
+  "name": "Phison",
+  "description": "Run very large Mixture-of-Experts models with Phison aiDAPTIV+ SSD offload, which streams expert weights from a fast SSD so models that exceed available VRAM can still run.",
+  "displayPriority": 90,
+  "tags": ["Phison", "aiDAPTIV+", "MoE", "Large"],
+  "backends": ["llamaCPP"],
+  "requiresPhison": true,
+  "preferredModels": {
+    "llamaCPP": "unsloth/gpt-oss-120b-GGUF/Q5_K_M/gpt-oss-120b-Q5_K_M-00001-of-00002.gguf"
+  },
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "filterLargeMoeOnly": true,
+  "showTools": true,
+  "requiredModels": []
+}

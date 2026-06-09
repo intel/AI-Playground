@@ -1,4 +1,5 @@
 import { exec, execFile, spawn, type ChildProcess } from 'node:child_process'
+import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as filesystem from 'fs-extra'
@@ -829,12 +830,13 @@ export class LlamaCppBackendService implements ApiService {
       return
     }
 
+    const activeDir = this.getActiveLlamaCppDir()
     const deleteScriptPath = path.join(
-      this.getActiveLlamaCppDir(),
+      activeDir,
       llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
     )
     const createScriptPath = path.join(
-      this.getActiveLlamaCppDir(),
+      activeDir,
       llamaCppPhison.LLAMACPP_SSD_OFFLOAD_CREATE_SERVICE_SCRIPT,
     )
 
@@ -844,8 +846,12 @@ export class LlamaCppBackendService implements ApiService {
       }
     }
 
-    await this.runElevatedBatchFile(deleteScriptPath)
-    await this.runElevatedBatchFile(createScriptPath)
+    // Run the delete + create service scripts inside a single elevated session so the user
+    // only sees one UAC prompt for the whole configure step instead of one prompt per script.
+    await this.runElevatedBatch(
+      [`call "${deleteScriptPath}"`, `call "${createScriptPath}"`],
+      activeDir,
+    )
   }
 
   private async stopSsdOffloadArtifactsForCleanup(): Promise<void> {
@@ -853,84 +859,67 @@ export class LlamaCppBackendService implements ApiService {
       return
     }
 
+    const activeDir = this.getActiveLlamaCppDir()
     const deleteScriptPath = path.join(
-      this.getActiveLlamaCppDir(),
+      activeDir,
       llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
     )
 
+    // Batch the service teardown and the ada.exe kill into a single elevated session so the
+    // user sees one UAC prompt rather than one for the delete script plus one for taskkill.
+    const commands: string[] = []
     if (filesystem.existsSync(deleteScriptPath)) {
-      try {
-        this.appLogger.info(`Stopping SSD offload Windows service before cleanup`, this.name)
-        await this.runElevatedBatchFile(deleteScriptPath)
-      } catch (error) {
-        this.appLogger.warn(
-          `Failed to stop SSD offload service with delete script before cleanup: ${error}`,
-          this.name,
-        )
-      }
+      commands.push(`call "${deleteScriptPath}"`)
     }
-
-    await this.killSsdOffloadProcess()
-  }
-
-  private async killSsdOffloadProcess(): Promise<void> {
-    if (process.platform !== 'win32') {
-      return
-    }
-
-    this.appLogger.info(
-      `Killing ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before SSD offload cleanup`,
-      this.name,
-    )
+    // taskkill returns a non-zero exit code when the process is not running; the batch script
+    // intentionally runs every line (no early exit) so best-effort teardown always completes.
+    commands.push(`taskkill /F /IM "${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME}" /T`)
 
     try {
-      await this.runElevatedCommand(
-        'taskkill.exe',
-        ['/F', '/IM', llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME, '/T'],
-        this.getActiveLlamaCppDir(),
+      this.appLogger.info(
+        `Stopping SSD offload Windows service and ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before cleanup`,
+        this.name,
       )
+      await this.runElevatedBatch(commands, activeDir)
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      const lowerMessage = message.toLowerCase()
-
-      if (
-        lowerMessage.includes('not found') ||
-        lowerMessage.includes('no running instance') ||
-        lowerMessage.includes('not recognized') ||
-        lowerMessage.includes('no instance')
-      ) {
-        return
-      }
-
       this.appLogger.warn(
-        `Failed to kill ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before cleanup: ${message}`,
+        `Failed to stop SSD offload artifacts before cleanup: ${error}`,
         this.name,
       )
     }
   }
 
-  private async runElevatedBatchFile(scriptPath: string): Promise<void> {
-    await this.runElevatedCommand(scriptPath, [], this.getActiveLlamaCppDir())
-  }
+  /**
+   * Runs one or more shell commands inside a single elevated (UAC) session.
+   *
+   * All steps are written to a temporary `.cmd` script launched once via
+   * `Start-Process -Verb RunAs -Wait`, so a multi-step elevated operation triggers a single
+   * UAC prompt instead of one prompt per step. Individual command failures do not abort the
+   * batch — the script runs every line so best-effort teardown steps (e.g. `taskkill` when
+   * nothing is running) cannot block the remaining work.
+   */
+  private async runElevatedBatch(commands: string[], workingDirectory: string): Promise<void> {
+    const steps = commands.filter((command) => command.trim().length > 0)
+    if (steps.length === 0) {
+      return
+    }
 
-  private async runElevatedCommand(
-    filePath: string,
-    args: string[],
-    workingDirectory: string,
-  ): Promise<void> {
-    this.appLogger.info(`Running elevated command ${filePath}`, this.name)
-    const escapedFilePath = filePath.replaceAll("'", "''")
+    this.appLogger.info(
+      `Running ${steps.length} elevated command(s) in a single UAC prompt`,
+      this.name,
+    )
+
+    const scriptPath = path.join(os.tmpdir(), `aipg-phison-elevated-${Date.now()}.cmd`)
+    const scriptBody = ['@echo off', ...steps].join('\r\n')
+    await filesystem.writeFile(scriptPath, scriptBody, 'utf8')
+
+    const escapedScriptPath = scriptPath.replaceAll("'", "''")
     const escapedWorkingDirectory = workingDirectory.replaceAll("'", "''")
-    const argumentList =
-      args.length > 0
-        ? ` -ArgumentList ${args.map((arg) => `'${arg.replaceAll("'", "''")}'`).join(', ')}`
-        : ''
-
     const powershellArgs = [
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      `Start-Process -FilePath '${escapedFilePath}'${argumentList} -WorkingDirectory '${escapedWorkingDirectory}' -Verb RunAs -Wait`,
+      `Start-Process -FilePath '${escapedScriptPath}' -WorkingDirectory '${escapedWorkingDirectory}' -Verb RunAs -Wait`,
     ]
 
     try {
@@ -946,7 +935,16 @@ export class LlamaCppBackendService implements ApiService {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Failed to run elevated command ${filePath}: ${message}`)
+      throw new Error(`Failed to run elevated batch: ${message}`)
+    } finally {
+      try {
+        await filesystem.remove(scriptPath)
+      } catch (cleanupError) {
+        this.appLogger.warn(
+          `Failed to remove temporary elevated script ${scriptPath}: ${cleanupError}`,
+          this.name,
+        )
+      }
     }
   }
 

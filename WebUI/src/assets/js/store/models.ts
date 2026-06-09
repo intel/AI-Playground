@@ -27,6 +27,7 @@ export type Model = {
   supportsReasoning?: boolean
   maxContextSize?: number
   npuSupport?: boolean
+  largeMoe?: boolean // Large Mixture-of-Experts model; Phison aiDAPTIV+ SSD offload enables loading models larger than VRAM
   isPredefined?: boolean // true if model is defined in models.json
 }
 
@@ -139,6 +140,7 @@ export const useModels = defineStore(
             supportsReasoning: combinedModel.supportsReasoning,
             maxContextSize: combinedModel.maxContextSize,
             npuSupport: combinedModel.npuSupport,
+            largeMoe: combinedModel.largeMoe,
             isPredefined: !!predefinedModel, // true if model is defined in models.json
           }
           return model

@@ -69,7 +69,10 @@ export class PathsManager {
       .readdirSync(dir, { encoding: 'utf-8', recursive: true })
       .filter((pathName) => pathName.endsWith('.gguf'))
       .map((path) => path.replace('---', '/'))
-      .map((path) => path.replace('\\', '/'))
+      // Replace ALL backslashes (Windows): split GGUF models live in a subfolder
+      // (e.g. `repo/Q5_K_M/model-00001-of-00002.gguf`) so a single replace would
+      // leave nested separators and break downloaded-model detection.
+      .map((path) => path.replace(/\\/g, '/'))
       .reduce((acc, pathname) => acc.add(pathname), new Set<string>())
 
     return [...modelsSet]
