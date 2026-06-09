@@ -235,12 +235,13 @@ class HFPlaygroundDownloader:
         True when shards were added, False otherwise (caller falls back to single-file
         handling).
         """
-        shard_match = re.search(r"-\d{5}-of-\d{5}\.gguf$", repo_id)
+        basename = path.basename(repo_id)
+        shard_match = re.search(r"-\d{5}-of-\d{5}\.gguf$", basename)
         if not shard_match:
             return False
 
         folder = repo_id.rsplit("/", 1)[0]
-        prefix = path.basename(repo_id)[: shard_match.start()]
+        prefix = basename[: shard_match.start()]
         try:
             entries = self.fs.ls(folder, detail=True)
         except Exception as e:

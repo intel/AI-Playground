@@ -403,6 +403,8 @@ function getInfoUrl(repoId: string, type: string) {
 function getFunctionTip(type: string): string {
   switch (type) {
     case 'llm':
+    case 'ggufLLM':
+    case 'openvinoLLM':
       return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE
     case 'embedding':
       return i18nState.DOWNLOADER_FOR_RAG_QUERY
