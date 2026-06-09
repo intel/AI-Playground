@@ -13,6 +13,7 @@ import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
 import { chatBackends, restartChatBackend } from './chatBackends'
 import { imageUrlToDataUri } from '@/lib/utils'
+import { isCancellation } from '../errors/appError'
 
 const ImageEditImageOutputSchema = z.object({
   id: z.string(),
@@ -499,6 +500,15 @@ export async function executeImageEdit(
       imageGeneration.generatedImages = imageGeneration.generatedImages.filter(
         (i) => i.id !== imageId,
       )
+    }
+    // A user cancelling a required model download is not a tool failure — report
+    // it back to the model as a benign cancellation (the finally still cleans up).
+    if (isCancellation(error)) {
+      return {
+        success: false,
+        message: 'Image edit was cancelled by the user.',
+        images: [],
+      }
     }
     return createErrorResult(
       `Image edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`,

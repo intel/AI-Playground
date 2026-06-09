@@ -191,6 +191,7 @@ import Model3DViewer from '@/components/Model3DViewer.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useErrors } from '@/assets/js/store/errors'
+import { isCancellation } from '@/assets/js/errors/appError'
 import { checkIfNsfwBlocked } from '@/lib/utils'
 
 interface Props {
@@ -306,10 +307,12 @@ async function generateImage(prompt: string) {
     await imageGeneration.ensureModelsAreAvailable()
     await imageGeneration.generate(props.mode)
   } catch (error) {
-    // Reset state on any error (including download cancellation). Surface via the
-    // sink (dedupes if already reported deeper in the generation pipeline).
+    // Reset state on any error (including download cancellation). A user cancel
+    // is benign, so only surface genuine failures via the sink (which dedupes if
+    // already reported deeper in the generation pipeline).
     promptStore.promptSubmitted = false
     imageGeneration.processing = false
+    if (isCancellation(error)) return
     errors.report(error, {
       category: 'generation',
       code: 'generation/submit-failed',

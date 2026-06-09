@@ -712,7 +712,10 @@ type NumberRange = {
 }
 
 type DownloadFailedParams = {
-  type: 'error' | 'cancelConfrim' | 'cancelDownload' | 'conflict'
+  // User cancellation is no longer modeled here; it is rejected as a benign
+  // silent AppError (see createCancellation / CANCELLED_CODE). Only genuine
+  // failures and conflicts flow through this shape.
+  type: 'error' | 'conflict'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error?: any
 }

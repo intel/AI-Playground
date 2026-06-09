@@ -61,6 +61,11 @@ through silently:
 - Background work (e.g. Home Agent side-channel turns) reports with `surface: 'silent'` so it is
   recorded/logged without a user toast.
 - Never call `toast.error()` directly from feature code; go through `errors.report()`.
+- User cancellation is not a failure. A deliberate cancel (e.g. closing the model-download dialog)
+  is rejected as a benign, silent `AppError` built with `createCancellation()` (code
+  `user/cancelled` = `CANCELLED_CODE`, `severity: 'info'`, `surface: 'silent'`). The sink logs it at
+  `console.debug` (not `console.error`) and never toasts it. Consumers that care can detect it with
+  `isCancellation(err)` to abort quietly; any uncaught cancel still lands in the global net silently.
 
 ---
 

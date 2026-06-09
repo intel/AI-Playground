@@ -125,10 +125,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
+import { useErrors } from '@/assets/js/store/errors'
+import { isCancellation } from '@/assets/js/errors/appError'
 
 const i18nState = useI18N().state
 const textInference = useTextInference()
 const models = useModels()
+const errors = useErrors()
 const modelRequest = ref('')
 const visionModelRequest = ref('')
 const addModelErrorMessage = ref('')
@@ -232,7 +235,16 @@ async function addModel() {
       isPredefined: false,
     })
     textInference.selectModel(textInference.backend, trimmedModelRequest)
-    textInference.checkModelAvailability()
+    // Fire-and-forget: guard so a user cancellation (or any failure) of the
+    // download can't escape as an unhandled rejection into the global sink.
+    textInference.checkModelAvailability().catch((e) => {
+      if (isCancellation(e)) return
+      errors.report(e, {
+        category: 'setup',
+        code: 'model/check-failed',
+        userMessage: 'Could not check model availability.',
+      })
+    })
     closeAdd()
   }
 

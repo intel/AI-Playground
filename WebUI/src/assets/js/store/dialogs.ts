@@ -43,7 +43,7 @@ export const useDialogStore = defineStore('dialog', () => {
   const downloadDialogVisible = ref(false)
   const downloadList = ref<DownloadModelParam[]>([])
   const downloadSuccessFunction = ref<(() => void) | undefined>(undefined)
-  const downloadFailFunction = ref<((args: DownloadFailedParams) => void) | undefined>(undefined)
+  const downloadFailFunction = ref<((reason?: unknown) => void) | undefined>(undefined)
 
   // Preset requirements dialog state
   const presetRequirementsDialogVisible = ref(false)
@@ -105,7 +105,7 @@ export const useDialogStore = defineStore('dialog', () => {
   function showDownloadDialog(
     downList: DownloadModelParam[],
     success?: () => void,
-    fail?: (args: DownloadFailedParams) => void,
+    fail?: (reason?: unknown) => void,
   ) {
     downloadList.value = downList
     downloadSuccessFunction.value = success

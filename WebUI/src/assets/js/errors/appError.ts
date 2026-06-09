@@ -35,6 +35,27 @@ export function isAppError(value: unknown): value is AppError {
   )
 }
 
+// Stable code for a deliberate user cancellation (e.g. closing the download
+// dialog). A cancellation is not a failure: it is modeled as a benign,
+// silent AppError so the sink never toasts it and logs it at debug level.
+export const CANCELLED_CODE = 'user/cancelled'
+
+export function createCancellation(input?: Partial<CreateAppErrorInput>): AppError {
+  return createAppError({
+    code: CANCELLED_CODE,
+    category: 'validation',
+    severity: 'info',
+    surface: 'silent',
+    userMessage: 'Cancelled',
+    recoverable: true,
+    ...input,
+  })
+}
+
+export function isCancellation(value: unknown): boolean {
+  return isAppError(value) && value.code === CANCELLED_CODE
+}
+
 export function createAppError(input: CreateAppErrorInput): AppError {
   const severity = input.severity ?? 'error'
   return {

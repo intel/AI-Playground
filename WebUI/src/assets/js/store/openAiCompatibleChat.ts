@@ -21,7 +21,7 @@ import { useErrors } from './errors'
 import { useActivities } from './activities'
 import { useConfirmations } from './confirmations'
 import { useI18N } from './i18n'
-import { createAppError, extractMessage } from '../errors/appError'
+import { createAppError, extractMessage, isCancellation } from '../errors/appError'
 import type { AppError } from '../errors/types'
 import { aipgTools, homeAgentTools } from '../tools/tools'
 import z from 'zod'
@@ -836,6 +836,9 @@ export const useOpenAiCompatibleChat = defineStore(
         await textInference.ensureReadyForInference()
         ragContext = await textInference.prepareRagContext(question)
       } catch (error) {
+        // The user cancelling a required model download is not a failure — abort
+        // the turn quietly, keeping their prompt/attachments for a retry.
+        if (isCancellation(error)) return
         throw errors.report(error, {
           category: 'inference',
           code: 'inference/preparation-failed',
@@ -908,7 +911,18 @@ export const useOpenAiCompatibleChat = defineStore(
       textInference.ensureGlobalsMatchConversation(targetKey)
       textInference.stampMetaForConversation(targetKey)
 
-      await textInference.ensureReadyForInference()
+      try {
+        await textInference.ensureReadyForInference()
+      } catch (error) {
+        // Cancelling a required model download aborts the regenerate quietly.
+        if (isCancellation(error)) return
+        throw errors.report(error, {
+          category: 'inference',
+          code: 'inference/preparation-failed',
+          userMessage: `Could not start generation: ${extractMessage(error)}`,
+          context: { conversationKey: targetKey },
+        })
+      }
       manuallyStopped.value = false
 
       const chat = chats[targetKey]

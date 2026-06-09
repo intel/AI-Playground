@@ -1,7 +1,7 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as toast from '../toast'
-import { toAppError, type CreateAppErrorInput } from '../errors/appError'
+import { CANCELLED_CODE, toAppError, type CreateAppErrorInput } from '../errors/appError'
 import type { AppError, ErrorSeverity } from '../errors/types'
 
 const RECENT_ERROR_LIMIT = 50
@@ -42,8 +42,11 @@ export const useErrors = defineStore('errors', () => {
     lastError.value = error
     recentErrors.value = [error, ...recentErrors.value].slice(0, RECENT_ERROR_LIMIT)
 
-    // Technical detail always goes to the console (mirrors prior console.error behavior).
-    console.error(`[${error.category}] ${error.code}: ${error.technicalMessage}`, error.cause ?? '')
+    // Technical detail always goes to the console (mirrors prior console.error
+    // behavior), except a deliberate user cancellation is benign: log it at debug
+    // level so it doesn't read as a failure (and it never toasts, see surface).
+    const log = error.code === CANCELLED_CODE ? console.debug : console.error
+    log(`[${error.category}] ${error.code}: ${error.technicalMessage}`, error.cause ?? '')
 
     switch (error.surface) {
       case 'toast':

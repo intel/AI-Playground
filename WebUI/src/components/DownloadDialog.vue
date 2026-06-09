@@ -207,6 +207,7 @@ import { useModels } from '@/assets/js/store/models'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { EtaEstimator } from '@/lib/etaEstimator'
 import { aipgFetch } from '@/lib/loopbackAuth'
+import { createCancellation } from '@/assets/js/errors/appError'
 
 const i18nState = useI18N().state
 const languages = i18nState
@@ -441,7 +442,9 @@ function download() {
 }
 
 function cancelConfirm() {
-  downloadFailFunction.value?.({ type: 'cancelConfrim' })
+  downloadFailFunction.value?.(
+    createCancellation({ technicalMessage: 'Download cancelled by user' }),
+  )
   dialogStore.closeDownloadDialog()
 }
 
@@ -463,7 +466,9 @@ function retryDownload() {
 function cancelDownload() {
   abortController?.abort()
   aipgFetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-  downloadFailFunction.value?.({ type: 'cancelDownload' })
+  downloadFailFunction.value?.(
+    createCancellation({ technicalMessage: 'Download cancelled by user' }),
+  )
   downloding = false
   dialogStore.closeDownloadDialog()
 }

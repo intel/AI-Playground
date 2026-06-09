@@ -18,6 +18,7 @@ import {
   findClosestResolutionInConfig,
 } from '../store/imageGenerationUtils'
 import type { ResolutionConfig, MegapixelOption } from '../store/presets'
+import { isCancellation } from '../errors/appError'
 import { tool } from 'ai'
 
 // Global defaults as fallback (matching imageGenerationPresets.ts)
@@ -642,6 +643,16 @@ export async function executeComfyGeneration(args: {
         )
       }
     })
+
+    // A user cancelling a required model download is not a tool failure — report
+    // it back to the model as a benign cancellation (the finally still cleans up).
+    if (isCancellation(error)) {
+      return {
+        success: false,
+        message: 'Image generation was cancelled by the user.',
+        images: [],
+      }
+    }
 
     // Return error result instead of throwing
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
