@@ -11,9 +11,11 @@
     "llamaCPP": "unsloth/gpt-oss-120b-GGUF/Q5_K_M/gpt-oss-120b-Q5_K_M-00001-of-00002.gguf"
   },
   "systemPrompt": "You are a helpful AI assistant.",
-  "contextSize": 8192,
+  "contextSize": 64000,
   "maxNewTokens": 2048,
   "filterLargeMoeOnly": true,
+  "enableRAG": true,
   "showTools": true,
+  "toolsEnabledByDefault": true,
   "requiredModels": []
 }
