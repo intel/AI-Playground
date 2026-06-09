@@ -31,6 +31,10 @@ import { dynamicTool, jsonSchema } from '@ai-sdk/provider-utils'
 import { imageUrlToDataUri } from '@/lib/utils'
 import { getHomeAgentAuthToken, invalidateHomeAgentAuthToken } from '@/lib/loopbackAuth'
 
+// Web tools that share browseWeb's single "Browse the web" enablement toggle:
+// they all act on the same background browser browseWeb drives.
+const WEB_COMPANION_TOOLS = new Set(['searchWeb', 'interactWithWebPage', 'screenshotWebPage'])
+
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
   prompt_n: z.number(),
@@ -190,9 +194,10 @@ export const useOpenAiCompatibleChat = defineStore(
       if (!textInference.aipgToolsEnabled) return {}
       const tools: ToolSet = {}
       for (const [name, builtinTool] of Object.entries(aipgTools)) {
-        // interactWithWebPage is a companion to browseWeb (it only acts on a page
-        // browseWeb opened), so it shares the single "Browse the web" toggle.
-        const enablementKey = name === 'interactWithWebPage' ? 'browseWeb' : name
+        // searchWeb/interactWithWebPage/screenshotWebPage are companions to
+        // browseWeb (they search for, act on, or capture a page in the same
+        // background browser), so they all share the single "Browse the web" toggle.
+        const enablementKey = WEB_COMPANION_TOOLS.has(name) ? 'browseWeb' : name
         // Per-tool enablement (off by default for opt-in tools like captureScreenshot).
         if (!textInference.isBuiltinToolEnabled(enablementKey)) continue
         // The screenshot tool needs a user-bound window and a vision-capable model
@@ -201,6 +206,11 @@ export const useOpenAiCompatibleChat = defineStore(
           name === 'captureScreenshot' &&
           (!textInference.screenshotWindow || !textInference.modelSupportsVision)
         ) {
+          continue
+        }
+        // screenshotWebPage also delivers the page as an image, so it only makes
+        // sense for vision-capable models.
+        if (name === 'screenshotWebPage' && !textInference.modelSupportsVision) {
           continue
         }
         tools[name] = builtinTool
@@ -416,7 +426,7 @@ export const useOpenAiCompatibleChat = defineStore(
         const content = m.content.map((part) => {
           if (
             part.type === 'tool-result' &&
-            part.toolName === 'captureScreenshot' &&
+            (part.toolName === 'captureScreenshot' || part.toolName === 'screenshotWebPage') &&
             part.output.type === 'json'
           ) {
             const value = part.output.value as {
@@ -427,7 +437,8 @@ export const useOpenAiCompatibleChat = defineStore(
             if (value?.ok && typeof value.dataUri === 'string') {
               const mediaType =
                 value.dataUri.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)?.[1] ?? 'image/png'
-              const windowName = value.windowName ?? 'window'
+              const windowName =
+                value.windowName ?? (part.toolName === 'screenshotWebPage' ? 'web page' : 'window')
               injectedImages.push({ mediaType, data: value.dataUri, windowName })
               return {
                 ...part,

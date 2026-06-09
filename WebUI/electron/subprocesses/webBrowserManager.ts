@@ -33,6 +33,17 @@ export type WebBrowserInteraction =
   | { action: 'scroll'; selector?: string }
   | { action: 'back' }
 
+export type WebSearchResult = {
+  title: string
+  url: string
+  snippet: string
+}
+
+export type WebSearchResults = {
+  query: string
+  results: WebSearchResult[]
+}
+
 const PARTITION = 'persist:webbrowser'
 // A plain Chrome UA so sites don't serve degraded markup to "Electron".
 const USER_AGENT =
@@ -41,6 +52,9 @@ const NAV_TIMEOUT_MS = 30_000
 const CLICK_NAV_TIMEOUT_MS = 6_000
 const MAX_TEXT_LENGTH = 8_000
 const MAX_LINKS = 50
+const DEFAULT_MAX_SEARCH_RESULTS = 8
+const MAX_SEARCH_RESULT_TITLE = 300
+const MAX_SEARCH_RESULT_SNIPPET = 500
 
 // Collects the page's visible text and salient links. Kept in sync with the
 // click handler so a `linkIndex` returned by `readPage` resolves to the same
@@ -248,6 +262,60 @@ export async function navigate(url: string): Promise<WebPageSnapshot> {
   currentTitle = win.webContents.getTitle()
   emitState()
   return await readPage()
+}
+
+// Parses DuckDuckGo's HTML results page into clean {title, url, snippet}. The
+// result links are redirect URLs (`//duckduckgo.com/l/?uddg=<real url>`), so we
+// decode the `uddg` param back to the real target. Ad rows are skipped.
+function buildSearchScript(maxResults: number): string {
+  return `(() => {
+    const out = []
+    const nodes = document.querySelectorAll('.result, .web-result, .results_links')
+    for (const node of nodes) {
+      if (node.classList && node.classList.contains('result--ad')) continue
+      const a = node.querySelector('a.result__a') || node.querySelector('h2 a') || node.querySelector('a.result__url')
+      if (!a) continue
+      let href = a.href
+      try {
+        const u = new URL(href, location.href)
+        const uddg = u.searchParams.get('uddg')
+        if (uddg) href = uddg
+      } catch (e) {}
+      if (!/^https?:/i.test(href)) continue
+      const title = (a.innerText || a.textContent || '').trim().replace(/\\s+/g, ' ')
+      if (!title) continue
+      const snippetEl = node.querySelector('.result__snippet, .result-snippet')
+      const snippet = snippetEl ? (snippetEl.innerText || snippetEl.textContent || '').trim().replace(/\\s+/g, ' ') : ''
+      out.push({
+        title: title.slice(0, ${MAX_SEARCH_RESULT_TITLE}),
+        url: href,
+        snippet: snippet.slice(0, ${MAX_SEARCH_RESULT_SNIPPET}),
+      })
+      if (out.length >= ${maxResults}) break
+    }
+    return out
+  })()`
+}
+
+export async function search(
+  query: string,
+  maxResults: number = DEFAULT_MAX_SEARCH_RESULTS,
+): Promise<WebSearchResults> {
+  const trimmed = (query ?? '').trim()
+  if (!trimmed) throw new Error('No search query provided')
+  const limit = Math.max(1, Math.min(maxResults || DEFAULT_MAX_SEARCH_RESULTS, MAX_LINKS))
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(trimmed)}`
+  const win = ensureWindow()
+  appLogger.info(`Searching web for: ${trimmed}`, 'web-browser')
+  await loadUrl(win, url)
+  currentUrl = win.webContents.getURL()
+  currentTitle = win.webContents.getTitle()
+  const results = (await win.webContents.executeJavaScript(
+    buildSearchScript(limit),
+    true,
+  )) as WebSearchResult[]
+  emitState()
+  return { query: trimmed, results: results ?? [] }
 }
 
 export async function interact(interaction: WebBrowserInteraction): Promise<WebPageSnapshot> {

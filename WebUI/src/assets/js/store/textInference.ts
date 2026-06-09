@@ -505,10 +505,14 @@ export const useTextInference = defineStore(
         // already has makes it usable instead of silently no-op'ing.
         if (langchainDocument.isChecked) {
           existing.isChecked = true
+          persistActiveRagSelection()
         }
         return
       }
       ragList.value.push(langchainDocument)
+      if (langchainDocument.isChecked) {
+        persistActiveRagSelection()
+      }
     }
 
     async function embedInputUsingRag(prompt: string) {
@@ -658,11 +662,33 @@ export const useTextInference = defineStore(
       }
     }
 
+    /**
+     * Mirror the active conversation's RAG selection into the shared library's
+     * live `isChecked` flags. Called whenever the active conversation changes so
+     * the UI + inference path (which all read `isChecked`) reflect the thread's
+     * own selection. A conversation with no stored selection (e.g. a brand-new
+     * one) ends up with everything unchecked.
+     */
+    function syncRagSelectionForActiveKey() {
+      const enabled = new Set(conversations.getThreadRagHashes(conversations.activeKey))
+      ragList.value.forEach((item) => (item.isChecked = enabled.has(item.hash)))
+    }
+
+    /** Persist the current live selection back onto the active conversation. */
+    function persistActiveRagSelection() {
+      if (!conversations.activeKey) return
+      conversations.setThreadRagHashes(
+        conversations.activeKey,
+        ragList.value.filter((item) => item.isChecked).map((item) => item.hash),
+      )
+    }
+
     function updateFileCheckStatus(hash: string, isChecked: boolean) {
       const index = ragList.value.findIndex((item) => item.hash === hash)
       if (index !== -1) {
         ragList.value[index].isChecked = isChecked
       }
+      persistActiveRagSelection()
     }
 
     function deleteFile(hash: string) {
@@ -670,18 +696,22 @@ export const useTextInference = defineStore(
       if (index !== -1) {
         ragList.value.splice(index, 1)
       }
+      persistActiveRagSelection()
     }
 
     function checkAllFiles() {
       ragList.value.forEach((item) => (item.isChecked = true))
+      persistActiveRagSelection()
     }
 
     function uncheckAllFiles() {
       ragList.value.forEach((item) => (item.isChecked = false))
+      persistActiveRagSelection()
     }
 
     function deleteAllFiles() {
       ragList.value.length = 0
+      persistActiveRagSelection()
     }
 
     // Define a type for document location information
@@ -939,7 +969,14 @@ export const useTextInference = defineStore(
         )
 
         if (uniqueDownloads.length > 0) {
-          dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
+          // On a remote Home Agent turn there is nobody at the desktop to act on
+          // the download modal; route the approval + progress to the channel
+          // (mirrored into the desktop window) instead of getting stuck.
+          if (homeAgent.isRemoteTurnActive()) {
+            homeAgent.handleRemoteModelDownload(uniqueDownloads).then(resolve).catch(reject)
+          } else {
+            dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
+          }
         } else {
           resolve()
         }
@@ -1436,6 +1473,18 @@ export const useTextInference = defineStore(
       // persisted regardless of which thread the user resumes.
       { flush: 'post', immediate: true },
     )
+
+    // Mirror the active conversation's RAG selection into the shared library's
+    // live `isChecked` flags whenever the active conversation changes. A new /
+    // empty conversation has no stored selection, so it starts with no enabled
+    // RAG documents; switching back to a thread restores its selection. Home
+    // Agent turns set `activeKey` to the remote thread before generating, so
+    // this works uniformly for remote threads too. `immediate: true` restores
+    // the resumed thread's selection on startup.
+    watch(() => conversations.activeKey, syncRagSelectionForActiveKey, {
+      flush: 'post',
+      immediate: true,
+    })
 
     // Initialize with first chat preset if available and no preset is selected
     // Note: We call loadSettingsForActivePreset() directly here instead of using

@@ -84,7 +84,8 @@ const builtinTools: Array<{ name: string; label: string; description: string }> 
     name: 'browseWeb',
     label: 'Browse the web',
     description:
-      'Let the assistant open web pages in a background browser and read their content.',
+      'Let the assistant search the web, open pages in a background browser to read their ' +
+      'content, and (on vision models) capture a screenshot of a page.',
   },
 ]
 

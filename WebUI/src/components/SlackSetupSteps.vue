@@ -284,6 +284,11 @@ const MANIFEST_JSON = JSON.stringify(
           should_escape: false,
         },
         { command: '/cancel', description: 'Cancel a pending /imggen flow', should_escape: false },
+        {
+          command: '/reset',
+          description: 'Restore Home Agent settings to defaults',
+          should_escape: false,
+        },
       ],
     },
     oauth_config: {

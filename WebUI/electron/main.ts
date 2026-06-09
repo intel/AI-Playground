@@ -81,6 +81,7 @@ import {
   navigate as navigateWebBrowser,
   readPage as readWebBrowserPage,
   screenshot as screenshotWebBrowser,
+  search as searchWebBrowser,
   setWebBrowserMainWindow,
   show as showWebBrowser,
   type WebBrowserInteraction,
@@ -2180,6 +2181,10 @@ function initEventHandle() {
 
   ipcMain.handle('webBrowser:readPage', async () => {
     return await readWebBrowserPage()
+  })
+
+  ipcMain.handle('webBrowser:search', async (_event, query: string, maxResults?: number) => {
+    return await searchWebBrowser(query, maxResults)
   })
 
   ipcMain.handle('webBrowser:interact', async (_event, interaction: WebBrowserInteraction) => {

@@ -10,6 +10,7 @@ import {
   escapeHtml,
   newDraftId,
   reasoningElapsedMsFromParts,
+  renderGenericToolMarker,
   stripAipgMediaReferences,
 } from './adapterHelpers'
 
@@ -68,6 +69,9 @@ function formatDraft(parts: RawPart[]): string {
     } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
       const marker = renderImageToolPart(part, 'Generating')
       if (marker) lines.push(marker)
+    } else {
+      const marker = renderGenericToolMarker(part, 'using')
+      if (marker) lines.push(escapeHtml(marker))
     }
   }
   return lines.join('\n\n')
@@ -98,6 +102,9 @@ function formatFinal(parts: RawPart[]): string {
     } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
       const marker = renderImageToolPart(part, 'Generated')
       if (marker) lines.push(marker)
+    } else {
+      const marker = renderGenericToolMarker(part, 'used')
+      if (marker) lines.push(escapeHtml(marker))
     }
   }
   return lines.join('\n\n')
@@ -267,7 +274,7 @@ export function createTelegramAdapter(): ChannelAdapter {
       })
     },
     keyboard: async (text, buttons) => {
-      return window.electronAPI.homeAgent.channel.send('telegram', 'keyboard', {
+      const r = await window.electronAPI.homeAgent.channel.send('telegram', 'keyboard', {
         text,
         parse_mode: PARSE_MODE,
         // Translate the channel-agnostic button matrix to snake_case Telegram-style
@@ -277,6 +284,20 @@ export function createTelegramAdapter(): ChannelAdapter {
           row.map((btn) => ({ text: btn.text, callback_data: btn.callbackData })),
         ),
       })
+      return {
+        success: r.success,
+        error: r.error,
+        ref: r.success && typeof r.messageId === 'number' ? { messageId: r.messageId } : undefined,
+      }
+    },
+    editKeyboardMessage: async (ref, text) => {
+      if (typeof ref.messageId !== 'number') return { success: false, error: 'no message id' }
+      const r = await window.electronAPI.homeAgent.channel.send('telegram', 'editMessage', {
+        message_id: ref.messageId,
+        text,
+        parse_mode: PARSE_MODE,
+      })
+      return { success: r.success, error: r.error }
     },
     startTypingHeartbeat,
     createDraftStream,

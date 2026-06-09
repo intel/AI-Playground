@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .base import ChannelBase
+from .commands import HOME_AGENT_COMMANDS
 from .types import SendResult
 
 
@@ -498,36 +499,20 @@ class SlackChannel(ChannelBase):
                     command.get("channel_id") or "",
                 )
 
-            @bolt_app.command("/help")
-            async def cmd_help(ack, command):  # type: ignore[no-untyped-def]
-                await _handle_slash(ack, command, "/help")
+            # Slash commands are derived from the shared HOME_AGENT_COMMANDS
+            # source of truth (see channels/commands.py) so they stay in lockstep
+            # with the Telegram transport. The matching Slack app manifest
+            # (WebUI/src/components/SlackSetupSteps.vue) must declare the same set.
+            def _make_slash_handler(cmd):  # type: ignore[no-untyped-def]
+                async def handler(ack, command):  # type: ignore[no-untyped-def]
+                    text = (command.get("text") or "").strip() if cmd.takes_args else ""
+                    full_text = f"{cmd.queued_text} {text}".strip() if text else cmd.queued_text
+                    await _handle_slash(ack, command, full_text)
 
-            @bolt_app.command("/chat")
-            async def cmd_chat(ack, command):  # type: ignore[no-untyped-def]
-                text = (command.get("text") or "").strip()
-                await _handle_slash(ack, command, f"/chat {text}".strip())
+                return handler
 
-            @bolt_app.command("/imggen")
-            async def cmd_imggen(ack, command):  # type: ignore[no-untyped-def]
-                text = (command.get("text") or "").strip()
-                await _handle_slash(ack, command, f"/imgGen {text}".strip())
-
-            @bolt_app.command("/new")
-            async def cmd_new(ack, command):  # type: ignore[no-untyped-def]
-                await _handle_slash(ack, command, "/new")
-
-            @bolt_app.command("/history")
-            async def cmd_history(ack, command):  # type: ignore[no-untyped-def]
-                await _handle_slash(ack, command, "/history")
-
-            @bolt_app.command("/load")
-            async def cmd_load(ack, command):  # type: ignore[no-untyped-def]
-                text = (command.get("text") or "").strip()
-                await _handle_slash(ack, command, f"/load {text}".strip())
-
-            @bolt_app.command("/cancel")
-            async def cmd_cancel(ack, command):  # type: ignore[no-untyped-def]
-                await _handle_slash(ack, command, "/cancel")
+            for cmd in HOME_AGENT_COMMANDS:
+                bolt_app.command(cmd.slash)(_make_slash_handler(cmd))
 
             @bolt_app.action(re.compile(r"^imgGen:"))
             async def on_imggen_action(ack, body, action):  # type: ignore[no-untyped-def]
@@ -542,6 +527,23 @@ class SlackChannel(ChannelBase):
                     return
                 value = action.get("value") or action.get("action_id") or ""
                 logger.info("Slack imgGen action: user=%s value=%s", user, value)
+                self.queue_append(
+                    {"chat_id": user, "channel": channel, "callback": value}
+                )
+
+            @bolt_app.action(re.compile(r"^confirm:"))
+            async def on_confirm_action(ack, body, action):  # type: ignore[no-untyped-def]
+                await ack()
+                user = (body.get("user") or {}).get("id") or ""
+                channel = (body.get("channel") or {}).get("id") or ""
+                await _maybe_remember_user(user, channel)
+                if self._allowed_user_id and user != self._allowed_user_id:
+                    logger.warning(
+                        "Ignoring confirm action from unauthorized user_id: %s", user
+                    )
+                    return
+                value = action.get("value") or action.get("action_id") or ""
+                logger.info("Slack confirm action: user=%s value=%s", user, value)
                 self.queue_append(
                     {"chat_id": user, "channel": channel, "callback": value}
                 )

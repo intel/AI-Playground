@@ -3,7 +3,7 @@ import { visualizeObjectDetections } from './visualizeObjectDetections'
 import { comfyUI } from './comfyUi'
 import { comfyUiImageEdit } from './comfyUiImageEdit'
 import { captureScreenshot } from './captureScreenshot'
-import { browseWeb, interactWithWebPage } from './browseWeb'
+import { browseWeb, interactWithWebPage, screenshotWebPage, searchWeb } from './browseWeb'
 import { configureHomeAgent, getHomeAgentSettings, listHomeAgentModels } from './configureHomeAgent'
 
 export const aipgTools = {
@@ -11,8 +11,10 @@ export const aipgTools = {
   comfyUiImageEdit,
   visualizeObjectDetections,
   captureScreenshot,
+  searchWeb,
   browseWeb,
   interactWithWebPage,
+  screenshotWebPage,
 } satisfies ToolSet
 
 export type AipgTools = InferUITools<typeof aipgTools>

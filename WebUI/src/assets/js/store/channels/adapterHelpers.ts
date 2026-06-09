@@ -1,5 +1,31 @@
 // Channel-agnostic helpers shared by every ChannelAdapter implementation.
 
+import { toolDisplayLabel } from '@/assets/js/tools/toolLabels'
+
+// Tool parts that adapters render richly elsewhere (image/video previews), so
+// the generic "used a tool" marker must skip them to avoid duplicate notices.
+const TOOL_TYPES_RENDERED_ELSEWHERE = new Set(['tool-comfyUI', 'tool-comfyUiImageEdit'])
+
+/** Render a concise "the model is using / used a tool" marker for any tool part
+ *  the adapter doesn't already render specially. Returns null for non-tool parts
+ *  and for image tools (handled by renderImageToolPart). `tense` selects the
+ *  streaming (draft) vs persisted (final) wording. */
+export function renderGenericToolMarker(
+  part: { type: string; toolName?: string; state?: string },
+  tense: 'using' | 'used',
+): string | null {
+  const isToolPart = part.type.startsWith('tool-') || part.type === 'dynamic-tool'
+  if (!isToolPart) return null
+  if (TOOL_TYPES_RENDERED_ELSEWHERE.has(part.type)) return null
+
+  const rawName = part.type === 'dynamic-tool' ? (part.toolName ?? 'tool') : part.type
+  const label = toolDisplayLabel(rawName)
+
+  if (part.state === 'output-error') return `⚠️ ${label} failed`
+  if (tense === 'using') return `🔧 Using ${label}…`
+  return `🔧 Used ${label}`
+}
+
 /** Strip every `aipg-media://…` reference from a text part before forwarding
  *  it through a channel adapter. ComfyUI tool results already ship the image
  *  via `output.images` (a separate sendPhoto call); the model has the URL in

@@ -61,4 +61,5 @@ class SendResult(TypedDict, total=False):
     status: str
     ts: str
     channel: str
+    message_id: int
     error: str

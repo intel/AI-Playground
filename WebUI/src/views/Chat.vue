@@ -249,6 +249,27 @@
                       </div>
                     </div>
                   </template>
+                  <template v-else-if="isAipgTool(part) && part.type === 'tool-screenshotWebPage'">
+                    <div>
+                      <div
+                        v-if="part.state === 'output-available' && (part as any).output?.dataUri"
+                      >
+                        <span class="text-muted-foreground">Captured web page</span>
+                        <img
+                          :src="(part as any).output.dataUri"
+                          alt="Screenshot of the web page"
+                          class="mt-2 max-w-full rounded-md border-2 border-border"
+                        />
+                      </div>
+                      <div
+                        v-else-if="
+                          part.state === 'input-streaming' || part.state === 'input-available'
+                        "
+                      >
+                        <span class="text-muted-foreground">Capturing web page...</span>
+                      </div>
+                    </div>
+                  </template>
                   <template v-else-if="isWebBrowsePart(part)">
                     <ChatWebBrowseDisplay
                       v-if="isFirstWebBrowsePart(message, partIndex)"
@@ -257,6 +278,9 @@
                   </template>
                   <template v-else-if="isMcpTool(part)">
                     <ChatMcpToolDisplay :part="part" :state="part.state" />
+                  </template>
+                  <template v-else>
+                    <ChatToolDisplay :part="part" :state="part.state" />
                   </template>
                 </template>
               </template>
@@ -380,6 +404,7 @@ import { createAppError } from '@/assets/js/errors/appError'
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
+import ChatToolDisplay from '@/components/ChatToolDisplay.vue'
 import ChatWebBrowseDisplay, { type WebBrowseEntry } from '@/components/ChatWebBrowseDisplay.vue'
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
 import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
@@ -684,7 +709,11 @@ function isMcpTool(part: ToolUIPart<AipgTools> | DynamicToolUIPart): part is Dyn
 
 // Web-browsing tool parts (browseWeb + interactWithWebPage) are aggregated into a
 // single "Browsed N pages" trace element per assistant message.
-const webBrowsePartTypes = new Set(['tool-browseWeb', 'tool-interactWithWebPage'])
+const webBrowsePartTypes = new Set([
+  'tool-searchWeb',
+  'tool-browseWeb',
+  'tool-interactWithWebPage',
+])
 
 function isWebBrowsePart(part: ToolUIPart<AipgTools> | DynamicToolUIPart): boolean {
   return isAipgTool(part) && webBrowsePartTypes.has(part.type)
@@ -710,8 +739,17 @@ function isFirstWebBrowsePart(message: ChatMessage, partIndex: number): boolean 
 
 function webBrowseEntriesFor(message: ChatMessage): WebBrowseEntry[] {
   return webBrowsePartsOf(message).map((part) => {
+    const input = part.input as { url?: string; action?: string; query?: string } | undefined
+    if (part.type === 'tool-searchWeb') {
+      return {
+        toolCallId: part.toolCallId,
+        state: part.state,
+        title: input?.query ? `Search: "${input.query}"` : 'Web search',
+        action: 'search',
+        errorText: part.state === 'output-error' ? part.errorText : undefined,
+      }
+    }
     const output = part.state === 'output-available' ? (part.output as WebPageSnapshot) : undefined
-    const input = part.input as { url?: string; action?: string } | undefined
     return {
       toolCallId: part.toolCallId,
       state: part.state,

@@ -9,7 +9,11 @@ import { usePromptStore } from './promptArea'
 import { usePresetSwitching } from './presetSwitching'
 import { usePresets } from './presets'
 import { useConfirmations } from './confirmations'
+import { useActivities } from './activities'
+import { useGlobalSetup } from './globalSetup'
+import { useModels } from './models'
 import { parseConfirmationReply } from './confirmationReply'
+import { fetchModelMeta, runModelDownload } from '@/lib/modelDownloader'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
@@ -40,17 +44,35 @@ import {
   type RemoteDocument,
   type KeyboardButton,
   type ChannelQueueItem,
+  type ChannelMessageRef,
 } from './channels/types'
 import type { ChannelAdapter, RawPart } from './channels/adapter'
 import { escapeHtml } from './channels/adapterHelpers'
-import { isAppError, extractMessage } from '../errors/appError'
+import {
+  isAppError,
+  extractMessage,
+  createAppError,
+  createCancellation,
+} from '../errors/appError'
 import { createTelegramAdapter } from './channels/telegramAdapter'
 import { createSlackAdapter } from './channels/slackAdapter'
+import {
+  createMockAdapter,
+  mockChannelBus,
+  type MockInboundMessage,
+} from './channels/mockAdapter'
 
 // ── Channel registry ────────────────────────────────────────────────────────
 // Kinds we manage in this store. Adding a third one means appending to this
 // list and dropping in a new adapter — no other edits to this file.
-const KINDS = ['telegram', 'slack'] as const satisfies readonly ChannelKind[]
+//
+// The dev-only `mock` channel bypasses IPC and the Python backend entirely so
+// e2e tests can drive the full Home Agent message pipeline. It is only managed
+// when debug tools are enabled (i.e. `npm run dev`).
+const MOCK_ENABLED = !!window.envVars?.debugToolsEnabled
+const KINDS = (
+  MOCK_ENABLED ? ['telegram', 'slack', 'mock'] : ['telegram', 'slack']
+) as readonly ChannelKind[]
 
 /**
  * Pending state for the interactive `/imgGen` preset picker.
@@ -70,6 +92,10 @@ const IMG_GEN_TIMEOUT_MS = 120_000
 const CONFIRM_TIMEOUT_MS = 2 * 60_000
 /** Title shown on the inline desktop confirmation card for settings changes. */
 const SETTINGS_CONFIRM_TITLE = 'Apply Home Agent settings?'
+/** Title shown on the inline desktop confirmation card for remote downloads. */
+const DOWNLOAD_CONFIRM_TITLE = 'Download model?'
+/** Min gap between in-channel download progress draft updates. */
+const DOWNLOAD_DRAFT_THROTTLE_MS = 3000
 
 /** Module-level so Vite HMR does not orphan intervals across Pinia setup
  *  closures. Indexed by ChannelKind so adding a kind = one map entry. */
@@ -149,6 +175,7 @@ export const useHomeAgent = defineStore(
       telegram: emptyPrefs(),
       slack: emptyPrefs(),
       discord: emptyPrefs(),
+      mock: emptyPrefs(),
     })
 
     // Runtime-only per-channel state (secret config + derived `active`). Never
@@ -157,6 +184,7 @@ export const useHomeAgent = defineStore(
       telegram: emptyRuntimeState('telegram'),
       slack: emptyRuntimeState('slack'),
       discord: emptyRuntimeState('discord'),
+      mock: emptyRuntimeState('mock'),
     })
 
     // Per-channel message queues — `channels[kind].active` flips the polling
@@ -165,6 +193,7 @@ export const useHomeAgent = defineStore(
       telegram: [] as ChannelQueueItem[],
       slack: [] as ChannelQueueItem[],
       discord: [] as ChannelQueueItem[],
+      mock: [] as ChannelQueueItem[],
     } satisfies Record<ChannelKind, ChannelQueueItem[]>
 
     // Adapter instances — one per kind. Created at setup time; their methods
@@ -174,6 +203,7 @@ export const useHomeAgent = defineStore(
       telegram: createTelegramAdapter(),
       slack: createSlackAdapter(),
       discord: null, // populated when Discord lands
+      mock: MOCK_ENABLED ? createMockAdapter() : null,
     }
 
     /**
@@ -205,25 +235,49 @@ export const useHomeAgent = defineStore(
      * notably `configureHomeAgent` — route a confirmation prompt back to the
      * originating channel instead of popping a desktop modal nobody sees.
      */
-    let activeRemoteTurn: { adapter: ChannelAdapter; meta?: InboundMeta } | null = null
+    let activeRemoteTurn: {
+      adapter: ChannelAdapter
+      meta?: InboundMeta
+      // Set by the agentic streaming watcher: freezes the in-progress draft so
+      // a confirmation prompt (and everything after it) lands below a settled
+      // message instead of editing the message above.
+      checkpoint?: () => Promise<void>
+    } | null = null
 
     /**
      * In-flight in-channel confirmations keyed by channel kind. Resolved by the
      * next inbound yes/no reply (intercepted in `processChannelMessages` so it
      * never blocks on the busy drain loop) or by timeout.
      */
-    const pendingConfirmations: Partial<
-      Record<
-        ChannelKind,
-        { resolve: (_v: boolean) => void; timeoutId: ReturnType<typeof setTimeout> }
-      >
-    > = {}
+    type PendingConfirmation = {
+      resolve: (_v: boolean) => void
+      timeoutId: ReturnType<typeof setTimeout>
+      adapter: ChannelAdapter
+      meta?: InboundMeta
+      summaryMarkdown: string
+      // Handle to the posted button message, set once the keyboard send round-
+      // trips. Lets us edit the prompt in place (drop the buttons, show the
+      // outcome) when the confirmation settles.
+      ref?: ChannelMessageRef
+    }
+    const pendingConfirmations: Partial<Record<ChannelKind, PendingConfirmation>> = {}
 
-    function settleConfirmation(kind: ChannelKind, answer: boolean): void {
+    function settleConfirmation(kind: ChannelKind, answer: boolean, outcomeNote?: string): void {
       const pending = pendingConfirmations[kind]
       if (!pending) return
       clearTimeout(pending.timeoutId)
       delete pendingConfirmations[kind]
+      // Settle the interactive prompt in place: replace the buttons with the
+      // outcome so it no longer looks tappable/pending. Best-effort — a failed
+      // edit must not block resolving the confirmation.
+      if (pending.ref) {
+        const outcome = outcomeNote ?? (answer ? '✅ Confirmed.' : '❌ Cancelled.')
+        void pending.adapter.editKeyboardMessage(
+          pending.ref,
+          pending.adapter.formatMarkdown(`${pending.summaryMarkdown}\n\n${outcome}`),
+          pending.meta,
+        )
+      }
       pending.resolve(answer)
     }
 
@@ -236,6 +290,14 @@ export const useHomeAgent = defineStore(
 
     function closeSettings(): void {
       showSettings.value = false
+    }
+
+    /** Visibility flag for the dev-only mock channel panel (toggled from the
+     *  beaker button next to the Home Agent setup gear). */
+    const showMockPanel = ref(false)
+
+    function toggleMockPanel(): void {
+      showMockPanel.value = !showMockPanel.value
     }
 
     /**
@@ -272,6 +334,14 @@ export const useHomeAgent = defineStore(
      */
     function recomputeActive() {
       for (const kind of KINDS) {
+        // The mock channel needs neither the home-agent backend nor verified
+        // credentials — only the chat LLM backend, which `chatStore.generate`
+        // ensures on demand. Activate it whenever debug tools + the master
+        // switch are on so e2e tests can drive it immediately.
+        if (kind === 'mock') {
+          channels.mock.active = MOCK_ENABLED && masterEnabled.value
+          continue
+        }
         channels[kind].active =
           isAvailable.value &&
           masterEnabled.value &&
@@ -294,28 +364,32 @@ export const useHomeAgent = defineStore(
     // starts (or restarts if creds changed). One watcher per kind so each
     // can decide its own "credentials ready" predicate without coupling.
     for (const kind of KINDS) {
-      watch(
-        [isAvailable, () => channels[kind].config, () => channelPrefs[kind].identity],
-        ([avail, config, identity]) => {
-          if (!avail) return
-          // Readiness + identity threading are fully data-driven via
-          // CHANNEL_FIELD_SPEC — no per-kind branching. A channel injects once
-          // every required secret is present; the identity (chatId / userId /
-          // …) is folded back into its config key if missing.
-          const spec = CHANNEL_FIELD_SPEC[kind]
-          const payload: Record<string, string | undefined> = {
-            ...(config as Record<string, string>),
-          }
-          if (spec.requiredSecrets.some((field) => !payload[field])) return
-          if (identity && !payload[spec.identityField]) {
-            payload[spec.identityField] = identity ?? undefined
-          }
-          void window.electronAPI.homeAgent.channel
-            .inject(kind, payload)
-            .catch((e: unknown) => console.error(`homeAgent: inject(${kind}) failed:`, e))
-        },
-        { flush: 'post', immediate: true, deep: true },
-      )
+      // The mock channel has no backend bot, so it skips credential injection;
+      // every other kind injects once its required secrets are present.
+      if (kind !== 'mock') {
+        watch(
+          [isAvailable, () => channels[kind].config, () => channelPrefs[kind].identity],
+          ([avail, config, identity]) => {
+            if (!avail) return
+            // Readiness + identity threading are fully data-driven via
+            // CHANNEL_FIELD_SPEC — no per-kind branching. A channel injects once
+            // every required secret is present; the identity (chatId / userId /
+            // …) is folded back into its config key if missing.
+            const spec = CHANNEL_FIELD_SPEC[kind]
+            const payload: Record<string, string | undefined> = {
+              ...(config as Record<string, string>),
+            }
+            if (spec.requiredSecrets.some((field) => !payload[field])) return
+            if (identity && !payload[spec.identityField]) {
+              payload[spec.identityField] = identity ?? undefined
+            }
+            void window.electronAPI.homeAgent.channel
+              .inject(kind, payload)
+              .catch((e: unknown) => console.error(`homeAgent: inject(${kind}) failed:`, e))
+          },
+          { flush: 'post', immediate: true, deep: true },
+        )
+      }
 
       // Per-channel polling lifecycle.
       watch(
@@ -567,16 +641,60 @@ export const useHomeAgent = defineStore(
       settleConfirmation(kind, false)
       return new Promise<boolean>((resolve) => {
         const timeoutId = setTimeout(() => {
+          const pending = pendingConfirmations[kind]
           delete pendingConfirmations[kind]
-          void reply(adapter, '⌛ No response — the settings change was cancelled.', meta)
+          // Settle the prompt visually in place when possible, else fall back
+          // to a fresh message.
+          if (pending?.ref) {
+            void adapter.editKeyboardMessage(
+              pending.ref,
+              adapter.formatMarkdown(`${summaryMarkdown}\n\n⌛ No response — cancelled.`),
+              meta,
+            )
+          } else {
+            void reply(adapter, '⌛ No response — cancelled.', meta)
+          }
           resolve(false)
         }, CONFIRM_TIMEOUT_MS)
-        pendingConfirmations[kind] = { resolve, timeoutId }
-        void replyMarkdown(
+        const entry: PendingConfirmation = {
+          resolve,
+          timeoutId,
           adapter,
-          `${summaryMarkdown}\n\nReply **yes** to apply or **no** to cancel.`,
           meta,
-        )
+          summaryMarkdown,
+        }
+        pendingConfirmations[kind] = entry
+        // Interactive buttons instead of a typed yes/no reply: a tap resolves
+        // the confirmation (intercepted in processChannelMessages) and the
+        // prompt is edited in place to show the outcome.
+        const buttons: KeyboardButton[][] = [
+          [
+            { text: '✅ Confirm', callbackData: 'confirm:yes' },
+            { text: '✖ Cancel', callbackData: 'confirm:no' },
+          ],
+        ]
+        void (async () => {
+          // Freeze the in-progress streamed reply first so the prompt (and any
+          // follow-up content) lands below a settled message rather than having
+          // the message above it rewritten when the turn finalizes.
+          try {
+            await activeRemoteTurn?.checkpoint?.()
+          } catch (e) {
+            console.error('homeAgent: confirmation checkpoint failed:', e)
+          }
+          try {
+            const res = await adapter.keyboard(
+              adapter.formatMarkdown(summaryMarkdown),
+              buttons,
+              meta,
+            )
+            // The user may answer before the send round-trips; only keep the ref
+            // if this confirmation is still the pending one.
+            if (res.ref && pendingConfirmations[kind] === entry) entry.ref = res.ref
+          } catch {
+            // best-effort
+          }
+        })()
       })
     }
 
@@ -608,15 +726,15 @@ export const useHomeAgent = defineStore(
         const channel = requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
         const answer = await Promise.race([mirror, channel])
         // If the desktop card answered first the channel is still waiting:
-        // tell the user there and settle it. (The channel-answered and timeout
-        // paths already delete their own pending entry + post a message.)
+        // settle it and edit the in-channel prompt in place to note the desktop
+        // origin. (The channel-answered and timeout paths already delete their
+        // own pending entry + settle the prompt.)
         if (pendingConfirmations[kind]) {
-          void reply(
-            turn.adapter,
+          settleConfirmation(
+            kind,
+            answer,
             answer ? '✅ Confirmed from the desktop app.' : '❌ Cancelled from the desktop app.',
-            turn.meta,
           )
-          settleConfirmation(kind, answer)
         }
         // Remove the mirror card if it is still showing (channel/timeout win).
         confirmations.cancelForConversation(conversationKey, answer)
@@ -629,6 +747,148 @@ export const useHomeAgent = defineStore(
         summaryMarkdown,
         origin: 'desktop',
       })
+    }
+
+    /** True while a remote (Telegram/Slack) turn is being processed. Lets
+     *  desktop-only flows (e.g. the model-download modal) reroute to a remote
+     *  path instead of getting stuck waiting for a desktop click. */
+    function isRemoteTurnActive(): boolean {
+      return activeRemoteTurn !== null
+    }
+
+    /** Ask the remote user (mirrored on the desktop) to approve a download. */
+    async function requestDownloadConfirmation(
+      turn: { adapter: ChannelAdapter; meta?: InboundMeta },
+      conversationKey: string,
+      summaryMarkdown: string,
+    ): Promise<boolean> {
+      const kind = turn.adapter.kind
+      const mirror = confirmations.request({
+        conversationKey,
+        title: DOWNLOAD_CONFIRM_TITLE,
+        summaryMarkdown,
+        origin: 'remote',
+        channelLabel: kind,
+      })
+      const channel = requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
+      const answer = await Promise.race([mirror, channel])
+      if (pendingConfirmations[kind]) {
+        settleConfirmation(
+          kind,
+          answer,
+          answer ? '✅ Confirmed from the desktop app.' : '❌ Cancelled from the desktop app.',
+        )
+      }
+      confirmations.cancelForConversation(conversationKey, answer)
+      return answer
+    }
+
+    /**
+     * Remote model-download path used when `checkModelAvailability` finds missing
+     * models during a remote turn (no desktop user to drive the modal). Declines
+     * gated models that need browser interaction, asks approval in-channel
+     * (mirrored on the desktop), then runs the download headlessly with progress
+     * streamed to both the channel and the desktop activity sink. Resolves on
+     * success; throws (silent/cancelled AppError) on decline or failure so the
+     * caller's `reject` unwinds the inference attempt cleanly.
+     */
+    async function handleRemoteModelDownload(list: DownloadModelParam[]): Promise<void> {
+      const turn = activeRemoteTurn
+      if (!turn) {
+        throw createAppError({
+          category: 'inference',
+          code: 'model/download-no-channel',
+          userMessage: 'A model download needs confirmation but no channel is active.',
+          surface: 'silent',
+        })
+      }
+      const { adapter, meta } = turn
+      const globalSetup = useGlobalSetup()
+      const models = useModels()
+      const activities = useActivities()
+      const conversationKey = conversations.activeKey
+
+      let metaList
+      try {
+        metaList = await fetchModelMeta(list, {
+          apiHost: globalSetup.apiHost,
+          hfToken: models.hfToken,
+        })
+      } catch (e) {
+        await reply(adapter, '⚠️ Could not check the required model download. Try again.', meta)
+        throw createAppError({
+          category: 'inference',
+          code: 'model/download-meta-failed',
+          userMessage: 'Could not check the required model download.',
+          surface: 'silent',
+          cause: e,
+        })
+      }
+
+      const blocked = metaList.filter((m) => m.gated && !m.accessGranted)
+      if (blocked.length > 0) {
+        const names = blocked.map((m) => m.repo_id).join(', ')
+        await reply(
+          adapter,
+          `🔒 ${names} ${blocked.length === 1 ? 'is gated' : 'are gated'} and can't be downloaded remotely. Open AI Playground on your computer to accept the license / set a Hugging Face token, then try again.`,
+          meta,
+        )
+        throw createCancellation({
+          technicalMessage: `gated model(s) not downloadable remotely: ${names}`,
+        })
+      }
+
+      const summaryLines = metaList.map((m) => `• \`${m.repo_id}\`${m.size ? ` (${m.size})` : ''}`)
+      const summaryMarkdown = `I need to download ${metaList.length === 1 ? 'a model' : `${metaList.length} models`} before I can answer:\n${summaryLines.join('\n')}`
+      const approved = await requestDownloadConfirmation(turn, conversationKey, summaryMarkdown)
+      if (!approved) {
+        throw createCancellation({ technicalMessage: 'remote model download declined' })
+      }
+
+      const activityId = activities.begin({
+        category: 'backend',
+        label: 'Downloading model…',
+        scope: { kind: 'chat', conversationKey },
+        progress: 0,
+      })
+      const draft = draftStream(adapter, meta)
+      let lastChannelUpdate = 0
+      try {
+        await runModelDownload(list, {
+          apiHost: globalSetup.apiHost,
+          hfToken: models.hfTokenIsValid ? models.hfToken : undefined,
+          onProgress: (p) => {
+            activities.update(activityId, {
+              label: `Downloading ${p.repoId}… (${p.completed}/${p.total})`,
+              progress: Math.max(0, Math.min(1, p.percent / 100)),
+            })
+            const now = Date.now()
+            if (p.speed !== undefined && now - lastChannelUpdate > DOWNLOAD_DRAFT_THROTTLE_MS) {
+              lastChannelUpdate = now
+              draft.update(
+                `⬇️ Downloading \`${p.repoId}\` — ${p.percent}% (${p.completed}/${p.total} models)`,
+              )
+            }
+          },
+          onModelCompleted: () => {
+            models.refreshModels()
+          },
+        })
+        await draft.finalize('✅ Download complete.')
+      } catch (e) {
+        draft.cancel()
+        const message = isAppError(e) ? e.userMessage : extractMessage(e)
+        await reply(adapter, `⚠️ The model download failed: ${escapeHtml(message)}`, meta)
+        throw createAppError({
+          category: 'inference',
+          code: 'model/download-failed',
+          userMessage: 'The model download failed.',
+          surface: 'silent',
+          cause: e,
+        })
+      } finally {
+        activities.end(activityId)
+      }
     }
 
     /**
@@ -951,6 +1211,11 @@ export const useHomeAgent = defineStore(
       documents: RemoteDocument[],
       meta?: InboundMeta,
     ): Promise<void> {
+      // Make the remote thread the active conversation before ingesting so the
+      // auto-checked documents are persisted to *that* thread's RAG selection
+      // (selection is per-conversation). Without this, an enabled upload could
+      // land on whatever conversation happened to be active at the desktop.
+      focusRemoteChatDiscussion()
       const textInference = useTextInference()
       const stopTyping = typing(adapter, 'typing', meta)
       const added: string[] = []
@@ -1062,11 +1327,21 @@ export const useHomeAgent = defineStore(
       adapter: ChannelAdapter,
       targetKey: string,
       meta?: InboundMeta,
-    ): () => Promise<void> {
+    ): { flush: () => Promise<void>; checkpoint: () => Promise<void> } {
       const sentMediaForPart = new WeakSet<object>()
       let sendChain: Promise<void> = Promise.resolve()
       let stopped = false
-      const draft = draftStream(adapter, meta)
+      // The current draft segment. A confirmation `checkpoint()` finalizes the
+      // segment in place and opens a fresh one, so a confirmation prompt (and
+      // everything after it) lands below a settled message instead of editing
+      // the message above. `frozenPartCount` is the number of leading assistant
+      // parts already committed to earlier (frozen) segments.
+      let draft = draftStream(adapter, meta)
+      let frozenPartCount = 0
+      // While > 0 a media (photo/video/3D) send is mid-flight: pause draft text
+      // updates so the next segment's narration can't post above the media it
+      // should follow.
+      let mediaInFlight = 0
 
       // Snapshot the assistant message that already exists on this thread so
       // we don't stream/ship parts that belong to a previous turn.
@@ -1075,11 +1350,36 @@ export const useHomeAgent = defineStore(
         .reverse()
         .find((m) => m.role === 'assistant')?.id
 
+      // Parts of the assistant message for THIS turn (empty if only the
+      // pre-existing assistant from a previous turn is present).
+      function currentTurnParts(): RawPart[] {
+        const msgs = chatStore.getMessagesForKey(targetKey) ?? []
+        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
+        if (!lastAssistant || lastAssistant.id === preExistingAssistantId) return []
+        return lastAssistant.parts as RawPart[]
+      }
+
       function enqueueImage(fn: () => Promise<unknown>) {
         sendChain = sendChain
           .then(() => fn())
           .then(() => undefined)
           .catch((e) => console.error('homeAgent stream image send failed:', e))
+      }
+
+      // Like enqueueImage, but first freezes the current draft segment so the
+      // "Generating …" marker settles ABOVE the media and any later narration
+      // streams into a fresh segment BELOW it (instead of the message above the
+      // media being rewritten Generating -> Generated after it appears).
+      function enqueueMedia(fn: () => Promise<unknown>) {
+        mediaInFlight++
+        sendChain = sendChain
+          .then(() => checkpoint())
+          .then(() => fn())
+          .then(() => undefined)
+          .catch((e) => console.error('homeAgent stream media send failed:', e))
+          .finally(() => {
+            mediaInFlight--
+          })
       }
 
       function shipPendingImages(parts: RawPart[]) {
@@ -1102,7 +1402,7 @@ export const useHomeAgent = defineStore(
           sentMediaForPart.add(part as object)
           const media = part.output?.images ?? []
           if (media.length === 0) continue
-          enqueueImage(async () => {
+          enqueueMedia(async () => {
             for (const item of media) {
               if (item.type === 'image' && item.imageUrl) {
                 await sendImageToChannel(adapter, item.imageUrl, '', meta)
@@ -1117,14 +1417,17 @@ export const useHomeAgent = defineStore(
       }
 
       function tick() {
-        const msgs = chatStore.getMessagesForKey(targetKey) ?? []
-        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
-        if (!lastAssistant) return
-        // Ignore the pre-existing assistant from a previous turn.
-        if (lastAssistant.id === preExistingAssistantId) return
-        const parts = lastAssistant.parts as RawPart[]
-        const draftText = adapter.formatDraft(parts)
-        if (draftText) draft.update(draftText)
+        const parts = currentTurnParts()
+        if (parts.length === 0) return
+        // Hold off on text updates while media is being shipped so the next
+        // segment can't surface above the media it should follow.
+        if (mediaInFlight === 0) {
+          // Only stream parts that belong to the current (unfrozen) segment.
+          const draftText = adapter.formatDraft(parts.slice(frozenPartCount))
+          if (draftText) draft.update(draftText)
+        }
+        // Image sends scan all parts (deduped via WeakSet) so nothing is missed
+        // across segment boundaries.
         shipPendingImages(parts)
       }
 
@@ -1132,18 +1435,32 @@ export const useHomeAgent = defineStore(
         if (!stopped) tick()
       }, 250)
 
-      return async function flush() {
+      // Freeze the current segment as a settled message and open a fresh draft
+      // for whatever streams next. Called right before a confirmation prompt is
+      // posted so the prompt appears below, not above, the in-progress reply.
+      async function checkpoint() {
+        if (stopped) return
+        const parts = currentTurnParts()
+        const segmentParts = parts.slice(frozenPartCount)
+        // Finalize "as-is" (draft rendering) — the tool is still mid-execution,
+        // so present-tense markers (e.g. "Using …") are the accurate snapshot.
+        const segmentText = adapter.formatDraft(segmentParts)
+        await draft.finalize(segmentText)
+        frozenPartCount = parts.length
+        draft = draftStream(adapter, meta)
+      }
+
+      async function flush() {
         stopped = true
         clearInterval(intervalId)
-        const msgs = chatStore.getMessagesForKey(targetKey) ?? []
-        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
-        const isStaleAssistant = !lastAssistant || lastAssistant.id === preExistingAssistantId
-        const parts = isStaleAssistant ? [] : (lastAssistant!.parts as RawPart[])
+        const parts = currentTurnParts()
         shipPendingImages(parts)
-        const finalText = adapter.formatFinal(parts)
+        const finalText = adapter.formatFinal(parts.slice(frozenPartCount))
         await draft.finalize(finalText)
         await sendChain
       }
+
+      return { flush, checkpoint }
     }
 
     async function handleAgenticMessage(
@@ -1160,8 +1477,8 @@ export const useHomeAgent = defineStore(
       // Show "typing…" the moment we accept the turn — covers the silent
       // window before the watcher has any reasoning/text/tool part to send.
       const stopTyping = typing(adapter, 'typing', meta)
-      const flush = watchAndStreamToChannel(adapter, targetKey, meta)
-      activeRemoteTurn = { adapter, meta }
+      const { flush, checkpoint } = watchAndStreamToChannel(adapter, targetKey, meta)
+      activeRemoteTurn = { adapter, meta, checkpoint }
       // Captured from a thrown pre-stream failure or a swallowed stream failure,
       // and relayed to the channel after the streamed content is flushed.
       let turnError: unknown = null
@@ -1508,6 +1825,16 @@ export const useHomeAgent = defineStore(
         clearInterval(phaseIntervalId)
         draft.cancel()
       }
+      // Settle the phase draft to a final line BEFORE the media is sent, so the
+      // progress message becomes a stable header above the result instead of
+      // being left on a stale phase (e.g. "Finalizing image…" on Slack, which
+      // keeps the edited message) or rewritten after the media appears.
+      const settlePhaseDraft = async (finalText: string) => {
+        if (phaseStopped) return
+        phaseStopped = true
+        clearInterval(phaseIntervalId)
+        await draft.finalize(finalText)
+      }
 
       try {
         promptStore.setModeOnly('imageGen')
@@ -1586,6 +1913,7 @@ export const useHomeAgent = defineStore(
           return
         }
 
+        await settlePhaseDraft(adapter.formatItalic(`🎨 Generated using preset ${presetName}`))
         await waitAndSendAllImages(adapter, newImageIds, prompt, meta)
       } finally {
         stopDraft()
@@ -1792,21 +2120,34 @@ export const useHomeAgent = defineStore(
 
     async function processChannelMessages(kind: ChannelKind) {
       try {
-        const msgs = await window.electronAPI.homeAgent.channel.poll(kind)
+        // The mock channel sources inbound messages from the in-memory bus
+        // instead of the IPC/HTTP poll — no backend round-trip.
+        const msgs =
+          kind === 'mock'
+            ? mockChannelBus.drainInbound()
+            : await window.electronAPI.homeAgent.channel.poll(kind)
         if (!msgs || msgs.length === 0) return
         const queue = messageQueues[kind]
         for (const msg of msgs) {
-          // Intercept yes/no replies to a pending settings-change confirmation
-          // here (independent of the busy drain loop, which is blocked awaiting
-          // this very answer). A recognized answer is consumed; anything else
-          // cancels the change and falls through as a normal message.
-          if (pendingConfirmations[kind] && !msg.callback) {
-            const answer = parseConfirmationReply(msg.text ?? '')
-            if (answer !== null) {
-              settleConfirmation(kind, answer)
+          // Resolve a pending settings/download confirmation here (independent of
+          // the busy drain loop, which is blocked awaiting this very answer).
+          if (pendingConfirmations[kind]) {
+            // Primary path: an interactive Confirm/Cancel button tap.
+            if (msg.callback === 'confirm:yes' || msg.callback === 'confirm:no') {
+              settleConfirmation(kind, msg.callback === 'confirm:yes')
               continue
             }
-            settleConfirmation(kind, false)
+            // Fallback path: a typed yes/no reply. A recognized answer is
+            // consumed; anything else cancels the change and falls through as a
+            // normal message.
+            if (!msg.callback) {
+              const answer = parseConfirmationReply(msg.text ?? '')
+              if (answer !== null) {
+                settleConfirmation(kind, answer)
+                continue
+              }
+              settleConfirmation(kind, false)
+            }
           }
           if (queue.length >= MAX_QUEUE_SIZE) {
             toast.warning(`Home Agent: ${kind} queue full, dropping oldest message.`)
@@ -1843,6 +2184,81 @@ export const useHomeAgent = defineStore(
     function stopPolling(kind: ChannelKind) {
       disposePoll(kind)
       messageQueues[kind].length = 0
+    }
+
+    // ── Mock channel drive API (dev only) ────────────────────────────────────
+    // Lets e2e tests (and the dev panel) inject inbound traffic and assert on
+    // captured outbound replies without IPC or the Python backend.
+
+    /** Inject a text/photo/audio/document message as if it arrived from a
+     *  remote channel, then drain immediately so the reply is produced without
+     *  waiting for the 2s poll tick. */
+    async function mockSend(
+      text: string,
+      opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>,
+    ): Promise<void> {
+      mockChannelBus.pushInbound({ text, ...opts })
+      await processChannelMessages('mock')
+      await mockWaitForIdle()
+    }
+
+    /** Inject an inline-keyboard tap (e.g. an `/imgGen` preset button). */
+    async function mockSendCallback(callback: string): Promise<void> {
+      mockChannelBus.pushInbound({ callback })
+      await processChannelMessages('mock')
+      await mockWaitForIdle()
+    }
+
+    /** Route a media URL through the real outbound media-send path so the
+     *  image/video/3D delivery (including the rendered 3D thumbnail "screenshot"
+     *  and the `.glb` document) can be verified without a full generation. The
+     *  `kind` is inferred from the extension when omitted. */
+    async function mockSendMedia(
+      url: string,
+      opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
+    ): Promise<void> {
+      const adapter = adapters.mock
+      if (!adapter) return
+      const caption = opts?.caption ?? ''
+      const lower = url.toLowerCase()
+      const kind =
+        opts?.kind ??
+        (lower.endsWith('.glb') || lower.endsWith('.gltf')
+          ? 'model3d'
+          : /\.(mp4|webm|mov)(\?|$)/.test(lower)
+            ? 'video'
+            : 'image')
+      if (kind === 'model3d') {
+        await send3DModelToChannel(adapter, url, caption)
+      } else if (kind === 'video') {
+        await sendVideoToChannel(adapter, url, caption)
+      } else {
+        await sendImageToChannel(adapter, url, caption)
+      }
+    }
+
+    /** Captured outbound events the mock adapter recorded so far. */
+    const mockOutbox = computed(() => mockChannelBus.outbox)
+
+    /** Reset both the inbound queue and the captured outbox. */
+    function mockClear(): void {
+      mockChannelBus.clear()
+    }
+
+    /** Resolve once the mock drain loop is idle and its queue is empty. */
+    function mockWaitForIdle(timeoutMs = 120_000): Promise<void> {
+      const deadline = Date.now() + timeoutMs
+      return new Promise<void>((resolve) => {
+        const check = () => {
+          const idle = !drainBusyByKind.mock && messageQueues.mock.length === 0
+          if (idle || Date.now() > deadline) {
+            resolve()
+            return
+          }
+          setTimeout(check, 50)
+        }
+        check()
+      })
     }
 
     // ── Config / activation API (channel-agnostic) ──────────────────────────
@@ -2000,6 +2416,22 @@ export const useHomeAgent = defineStore(
 
     void initConfig()
 
+    // Expose a programmatic drive surface for e2e automation (chrome-devtools
+    // MCP, scripts, …). Dev-only — guarded by debug tools so it never ships in
+    // production builds.
+    if (MOCK_ENABLED) {
+      window.__homeAgentMock = {
+        send: (text: string, opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>) =>
+          mockSend(text, opts),
+        sendCallback: (callback: string) => mockSendCallback(callback),
+        sendMedia: (url: string, opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string }) =>
+          mockSendMedia(url, opts),
+        outbox: () => mockChannelBus.outbox.slice(),
+        clear: () => mockClear(),
+        waitForIdle: (timeoutMs?: number) => mockWaitForIdle(timeoutMs),
+      }
+    }
+
     // ── Read-only convenience getters ───────────────────────────────────────
     // External consumers (setup composables, setup-step components) read these.
     // They are NOT used for persistence — `channelPrefs` is persisted directly.
@@ -2034,6 +2466,9 @@ export const useHomeAgent = defineStore(
       showSettings,
       openSettings,
       closeSettings,
+      // Dev-only mock channel panel visibility
+      showMockPanel,
+      toggleMockPanel,
       // Bare-/load summary cache (persisted)
       summaryCache,
       summarizeConversation,
@@ -2046,7 +2481,16 @@ export const useHomeAgent = defineStore(
       setVerified,
       // Settings self-configuration (used by the configureHomeAgent tool)
       requestSettingsConfirmation,
+      isRemoteTurnActive,
+      handleRemoteModelDownload,
       resetHomeAgentConfig,
+      // Dev-only mock channel drive API (no-ops when debug tools are disabled).
+      mockSend,
+      mockSendCallback,
+      mockSendMedia,
+      mockOutbox,
+      mockClear,
+      mockWaitForIdle,
     }
   },
   {

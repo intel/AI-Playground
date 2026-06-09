@@ -8,6 +8,7 @@ import {
   DRAFT_SPINNER_FRAMES,
   DRAFT_THROTTLE_MS,
   reasoningElapsedMsFromParts,
+  renderGenericToolMarker,
   stripAipgMediaReferences,
 } from './adapterHelpers'
 
@@ -60,6 +61,9 @@ function formatDraft(parts: RawPart[]): string {
     } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
       const marker = renderImageToolPart(part, 'Generating')
       if (marker) lines.push(marker)
+    } else {
+      const marker = renderGenericToolMarker(part, 'using')
+      if (marker) lines.push(marker)
     }
   }
   return lines.join('\n\n')
@@ -92,6 +96,9 @@ function formatFinal(parts: RawPart[]): string {
       if (cleaned) lines.push(markdownToSlackMrkdwn(cleaned))
     } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
       const marker = renderImageToolPart(part, 'Generated')
+      if (marker) lines.push(marker)
+    } else {
+      const marker = renderGenericToolMarker(part, 'used')
       if (marker) lines.push(marker)
     }
   }
@@ -319,6 +326,22 @@ export function createSlackAdapter(): ChannelAdapter {
         text,
         blocks,
         channel: meta?.channel,
+      })
+      return {
+        success: r.success,
+        error: r.error,
+        ref: r.success && r.ts && r.channel ? { ts: r.ts, channel: r.channel } : undefined,
+      }
+    },
+    editKeyboardMessage: async (ref, text) => {
+      if (!ref.ts || !ref.channel) return { success: false, error: 'no message ref' }
+      // chat.update with a single section block replaces the original message
+      // (text + actions buttons) so the prompt no longer looks tappable.
+      const r = await window.electronAPI.homeAgent.channel.send('slack', 'update', {
+        channel: ref.channel,
+        ts: ref.ts,
+        text,
+        blocks: [{ type: 'section', text: { type: 'mrkdwn', text } }],
       })
       return { success: r.success, error: r.error }
     },

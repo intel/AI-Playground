@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .base import ChannelBase
+from .commands import HOME_AGENT_COMMANDS
 from .types import SendResult
 
 
@@ -310,12 +311,46 @@ class TelegramChannel(ChannelBase):
                 for row in rows
             ]
             markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-            self._run_coro(
+            msg = self._run_coro(
                 self._app_instance.bot.send_message(  # type: ignore[union-attr]
                     chat_id=target,
                     text=text,
                     parse_mode=parse_mode,
                     reply_markup=markup,
+                )
+            )
+            # Return the message id so the renderer can edit the prompt in place
+            # (e.g. settle an interactive confirmation by dropping the buttons).
+            return {"status": "ok", "message_id": getattr(msg, "message_id", None)}
+        except Exception as exc:
+            return {"error": str(exc), "_http_status": 500}
+
+    def send_edit_message(self, payload: dict) -> SendResult:
+        """Edit a previously-sent message's text and drop its inline keyboard."""
+        raw_message_id = (
+            payload.get("message_id")
+            if "message_id" in payload
+            else payload.get("messageId")
+        )
+        text = payload.get("text", "") or ""
+        parse_mode = payload.get("parse_mode") or payload.get("parseMode") or None
+        target = self._outbound_chat_id(payload.get("channel"))
+        if not self.is_running() or not target:
+            return {"error": "Telegram not configured", "_http_status": 400}
+        try:
+            message_id = int(raw_message_id) if raw_message_id is not None else 0
+        except (TypeError, ValueError):
+            return {"error": "message_id must be an integer", "_http_status": 400}
+        if message_id == 0:
+            return {"error": "message_id must be a non-zero integer", "_http_status": 400}
+        try:
+            self._run_coro(
+                self._app_instance.bot.edit_message_text(  # type: ignore[union-attr]
+                    chat_id=target,
+                    message_id=message_id,
+                    text=text,
+                    parse_mode=parse_mode,
+                    reply_markup=None,
                 )
             )
             return {"status": "ok"}
@@ -429,6 +464,32 @@ class TelegramChannel(ChannelBase):
             if not data.startswith("imgGen:"):
                 return
             logger.info("Telegram imgGen callback: chat_id=%s data=%r", chat_id, data)
+            self.queue_append({"chat_id": chat_id, "callback": data})
+
+        async def handle_confirm_callback(
+            update: Update, context: ContextTypes.DEFAULT_TYPE
+        ) -> None:
+            cq = update.callback_query
+            if cq is None or cq.message is None:
+                return
+            chat_id = str(cq.message.chat_id)
+            allow = self._allowed_chat_id
+            self._record_authorized_chat_id(chat_id)
+            if allow and chat_id != allow:
+                logger.warning("Ignoring confirm callback from unauthorized chat_id: %s", chat_id)
+                try:
+                    await cq.answer()
+                except Exception as exc:
+                    logger.debug("confirm unauthorized ack failed: %s", exc)
+                return
+            data = cq.data or ""
+            try:
+                await cq.answer()
+            except Exception as exc:
+                logger.warning("Failed to ack confirm callback_query: %s", exc)
+            if not data.startswith("confirm:"):
+                return
+            logger.info("Telegram confirm callback: chat_id=%s data=%r", chat_id, data)
             self.queue_append({"chat_id": chat_id, "callback": data})
 
         async def handle_load_callback(
@@ -621,40 +682,28 @@ class TelegramChannel(ChannelBase):
             application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
             application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
-            # CommandHandler matches case-sensitively and Telegram's setMyCommands
-            # menu entries must be lowercase, so we register both spellings for
-            # /imgGen to keep the historical text trigger working and surface a
-            # lowercase autocomplete entry.
-            application.add_handler(
-                CommandHandler(
-                    ["imggen", "imgGen"],
-                    make_command_handler(
-                        "imgGen", lambda args: f"/imgGen {' '.join(args)}".strip()
-                    ),
+            # All slash commands are derived from the shared HOME_AGENT_COMMANDS
+            # source of truth (see channels/commands.py) so a command can never be
+            # registered on one transport but forgotten on another. CommandHandler
+            # matches case-sensitively, so camelCase aliases (e.g. /imgGen) are
+            # registered alongside the lowercase menu entry.
+            for cmd in HOME_AGENT_COMMANDS:
+                application.add_handler(
+                    CommandHandler(
+                        [cmd.name, *cmd.telegram_aliases],
+                        make_command_handler(
+                            cmd.name, lambda args, c=cmd: c.build_full_text(args)
+                        ),
+                    )
                 )
-            )
-            application.add_handler(CommandHandler("help", make_command_handler("help")))
-            application.add_handler(CommandHandler("start", make_command_handler("help")))
-            application.add_handler(
-                CommandHandler(
-                    "chat",
-                    make_command_handler("chat", lambda args: f"/chat {' '.join(args)}".strip()),
-                )
-            )
-            application.add_handler(CommandHandler("cancel", make_command_handler("cancel")))
-            application.add_handler(CommandHandler("new", make_command_handler("new")))
-            application.add_handler(CommandHandler("history", make_command_handler("history")))
-            application.add_handler(
-                CommandHandler(
-                    "load",
-                    make_command_handler("load", lambda args: f"/load {' '.join(args)}".strip()),
-                )
-            )
             application.add_handler(
                 CallbackQueryHandler(handle_load_callback, pattern=r"^loadConv:")
             )
             application.add_handler(
                 CallbackQueryHandler(handle_imggen_callback, pattern=r"^imgGen:")
+            )
+            application.add_handler(
+                CallbackQueryHandler(handle_confirm_callback, pattern=r"^confirm:")
             )
             await application.initialize()
             await application.start()
@@ -662,15 +711,7 @@ class TelegramChannel(ChannelBase):
 
             try:
                 await application.bot.set_my_commands(
-                    [
-                        BotCommand("help", "Show available commands"),
-                        BotCommand("chat", "Force a text chat reply (no image generation)"),
-                        BotCommand("imggen", "Pick a preset and generate an image"),
-                        BotCommand("cancel", "Cancel a pending image-generation prompt"),
-                        BotCommand("new", "Start a new Home Agent chat thread"),
-                        BotCommand("history", "List your saved Home Agent chats"),
-                        BotCommand("load", "Resume a chat (no id = pick from menu)"),
-                    ]
+                    [BotCommand(cmd.name, cmd.description) for cmd in HOME_AGENT_COMMANDS]
                 )
                 logger.info("Registered Telegram bot command menu")
             except Exception as exc:

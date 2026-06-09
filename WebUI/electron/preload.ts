@@ -228,6 +228,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   webBrowser: {
     navigate: (url: string) => ipcRenderer.invoke('webBrowser:navigate', url),
     readPage: () => ipcRenderer.invoke('webBrowser:readPage'),
+    search: (query: string, maxResults?: number) =>
+      ipcRenderer.invoke('webBrowser:search', query, maxResults),
     interact: (interaction: WebBrowserInteraction) =>
       ipcRenderer.invoke('webBrowser:interact', interaction),
     screenshot: () => ipcRenderer.invoke('webBrowser:screenshot'),
@@ -282,7 +284,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
           | 'voice'
           | 'document'
           | 'typing'
-          | 'keyboard',
+          | 'keyboard'
+          | 'editMessage',
         payload: Record<string, unknown>,
       ) => ipcRenderer.invoke('channel:send', kind, action, payload),
     },

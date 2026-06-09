@@ -515,9 +515,24 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
    *  are free to shape it however the platform requires. */
   async channelSend(
     kind: ChannelKind,
-    action: 'reply' | 'update' | 'photo' | 'video' | 'voice' | 'document' | 'typing' | 'keyboard',
+    action:
+      | 'reply'
+      | 'update'
+      | 'photo'
+      | 'video'
+      | 'voice'
+      | 'document'
+      | 'typing'
+      | 'keyboard'
+      | 'editMessage',
     payload: ChannelSendPayload,
-  ): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }> {
+  ): Promise<{
+    success: boolean
+    ts?: string
+    channel?: string
+    messageId?: number
+    error?: string
+  }> {
     if (this.currentStatus !== 'running') return { success: false, error: 'Home Agent not running' }
     try {
       const url = `${this.baseUrl}/channel/${kind}/send/${action}`
@@ -530,6 +545,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
         status?: string
         ts?: string
         channel?: string
+        message_id?: number
         error?: string
       }
       if (!res.ok || parsed.error) {
@@ -538,7 +554,12 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
           error: parsed.error ?? `status ${res.status}`,
         }
       }
-      return { success: true, ts: parsed.ts, channel: parsed.channel }
+      return {
+        success: true,
+        ts: parsed.ts,
+        channel: parsed.channel,
+        messageId: parsed.message_id,
+      }
     } catch (e) {
       return { success: false, error: String(e) }
     }
@@ -803,7 +824,8 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
           | 'voice'
           | 'document'
           | 'typing'
-          | 'keyboard',
+          | 'keyboard'
+          | 'editMessage',
         payload: ChannelSendPayload,
       ) => this.channelSend(kind, action, payload),
     )

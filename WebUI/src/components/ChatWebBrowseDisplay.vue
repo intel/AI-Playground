@@ -35,8 +35,10 @@ const isBrowsing = computed(() =>
   props.entries.some((e) => e.state === 'input-streaming' || e.state === 'input-available'),
 )
 
+// Count only actual page visits (entries with a resolved URL) so search-only
+// rows are listed in the trace but don't inflate the "Browsed N pages" header.
 const completedCount = computed(
-  () => props.entries.filter((e) => e.state === 'output-available').length,
+  () => props.entries.filter((e) => e.state === 'output-available' && e.url).length,
 )
 
 const headerLabel = computed(() => {

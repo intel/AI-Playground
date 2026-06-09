@@ -243,6 +243,9 @@
     ></installation-progress-dialog>
     <MaskEditorDialog />
 
+    <!-- Dev-only Home Agent mock channel for e2e testing -->
+    <MockChannelPanel v-if="debugToolsEnabled" />
+
     <!-- Demo Mode Overlay -->
     <DemoModeOverlayDriverJsRef ref="demoModeOverlayDriverJs" />
     <DemoModeNotificationDots />
@@ -334,6 +337,7 @@ import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
 import DemoModeNotificationDots from '@/components/DemoModeNotificationDots.vue'
 import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 import HomeAgentToggle from '@/components/HomeAgentToggle.vue'
+import MockChannelPanel from '@/components/MockChannelPanel.vue'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 
 const theme = useTheme()

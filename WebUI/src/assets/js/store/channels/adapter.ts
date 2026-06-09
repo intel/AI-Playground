@@ -29,6 +29,8 @@ export type RawPart = {
   type: string
   text?: string
   state?: string
+  // Present on dynamic (MCP) tool parts whose `type` is just 'dynamic-tool'.
+  toolName?: string
   input?: { workflow?: string; prompt?: string }
   output?: {
     images?: { type: string; imageUrl?: string; videoUrl?: string; model3dUrl?: string }[]
@@ -85,6 +87,15 @@ export type ChannelAdapter = {
   keyboard: (
     text: string,
     buttons: KeyboardButton[][],
+    meta?: InboundMeta,
+  ) => Promise<ChannelSendResult>
+  /** Edit a previously-sent `keyboard` message in place: replace its text and
+   *  drop the buttons. Used to settle an interactive confirmation prompt so it
+   *  no longer looks tappable/pending. `ref` is the handle returned by
+   *  `keyboard()`. Best-effort — a failed edit must not break the turn. */
+  editKeyboardMessage: (
+    ref: ChannelMessageRef,
+    text: string,
     meta?: InboundMeta,
   ) => Promise<ChannelSendResult>
   /** Returns a stop function — idempotent. Telegram refreshes a chat action

@@ -46,6 +46,25 @@ export const useWebBrowser = defineStore('webBrowser', () => {
     }
   }
 
+  async function search(query: string, maxResults?: number): Promise<WebSearchResults> {
+    isBusy.value = true
+    try {
+      return await window.electronAPI.webBrowser.search(query, maxResults)
+    } finally {
+      isBusy.value = false
+    }
+  }
+
+  // Returns the current page as a base64-encoded PNG (no data: prefix).
+  async function screenshot(): Promise<string> {
+    isBusy.value = true
+    try {
+      return await window.electronAPI.webBrowser.screenshot()
+    } finally {
+      isBusy.value = false
+    }
+  }
+
   async function interact(interaction: WebBrowserInteraction): Promise<WebPageSnapshot> {
     isBusy.value = true
     try {
@@ -76,6 +95,8 @@ export const useWebBrowser = defineStore('webBrowser', () => {
     refreshState,
     navigate,
     readPage,
+    search,
+    screenshot,
     interact,
     show,
     hide,

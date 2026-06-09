@@ -3,6 +3,50 @@ declare interface Window {
   chrome: Chrome
   electronAPI: electronAPI
   envVars: { platformTitle: string; productVersion: string; debugToolsEnabled: boolean }
+  // Dev-only Home Agent mock-channel drive surface (see channels/mockAdapter.ts).
+  // Only attached when debug tools are enabled.
+  __homeAgentMock?: HomeAgentMockApi
+}
+
+type HomeAgentMockInboundOpts = {
+  chat_id?: string
+  channel?: string
+  ts?: string
+  images?: Array<{ mime: string; data_base64: string }>
+  audio?: Array<{ mime: string; data_base64: string }>
+  documents?: Array<{ filename: string; mime: string; data_base64: string }>
+}
+
+type HomeAgentMockOutboundEvent = {
+  kind:
+    | 'reply'
+    | 'photo'
+    | 'video'
+    | 'voice'
+    | 'document'
+    | 'keyboard'
+    | 'keyboardEdit'
+    | 'draftUpdate'
+    | 'draftFinal'
+    | 'typingStart'
+    | 'typingStop'
+  text?: string
+  caption?: string
+  filename?: string
+  mime?: string
+  base64?: string
+  buttons?: Array<Array<{ text: string; callbackData: string }>>
+  meta?: { channel?: string; ts?: string; chatId?: string }
+  ts: number
+}
+
+type HomeAgentMockApi = {
+  send(text: string, opts?: HomeAgentMockInboundOpts): Promise<void>
+  sendCallback(callback: string): Promise<void>
+  sendMedia(url: string, opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string }): Promise<void>
+  outbox(): HomeAgentMockOutboundEvent[]
+  clear(): void
+  waitForIdle(timeoutMs?: number): Promise<void>
 }
 
 interface ImportMetaEnv {
@@ -187,6 +231,17 @@ type WebBrowserInteraction =
   | { action: 'click'; linkIndex?: number; selector?: string }
   | { action: 'scroll'; selector?: string }
   | { action: 'back' }
+
+type WebSearchResult = {
+  title: string
+  url: string
+  snippet: string
+}
+
+type WebSearchResults = {
+  query: string
+  results: WebSearchResult[]
+}
 
 type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
@@ -394,6 +449,7 @@ type electronAPI = {
   webBrowser: {
     navigate(url: string): Promise<WebPageSnapshot>
     readPage(): Promise<WebPageSnapshot>
+    search(query: string, maxResults?: number): Promise<WebSearchResults>
     interact(interaction: WebBrowserInteraction): Promise<WebPageSnapshot>
     screenshot(): Promise<string>
     show(): Promise<WebBrowserState>
@@ -461,9 +517,16 @@ type electronAPI = {
           | 'voice'
           | 'document'
           | 'typing'
-          | 'keyboard',
+          | 'keyboard'
+          | 'editMessage',
         payload: Record<string, unknown>,
-      ): Promise<{ success: boolean; ts?: string; channel?: string; error?: string }>
+      ): Promise<{
+        success: boolean
+        ts?: string
+        channel?: string
+        messageId?: number
+        error?: string
+      }>
     }
   }
 }
