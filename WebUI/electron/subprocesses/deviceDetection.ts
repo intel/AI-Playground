@@ -142,4 +142,3 @@ export function linuxHasVulkanLoader(): boolean {
   )
   return (_vulkanCache = found)
 }
-

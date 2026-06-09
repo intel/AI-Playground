@@ -106,7 +106,10 @@ async function detectIntelGpusViaLspci(): Promise<GpuHardwareDevice[]> {
     appLogger.info(`Detected ${devices.length} Intel GPU(s) via lspci`, 'electron-backend')
     return devices
   } catch (e) {
-    appLogger.warn(`Failed to detect Intel GPUs via lspci: ${JSON.stringify(e)}`, 'electron-backend')
+    appLogger.warn(
+      `Failed to detect Intel GPUs via lspci: ${JSON.stringify(e)}`,
+      'electron-backend',
+    )
     return []
   }
 }

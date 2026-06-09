@@ -48,7 +48,6 @@ import { BrowserWindow, app, dialog } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode, configureComfyUiManagerSecurityLevel } from './comfyuiTools.ts'
 import { getBundledComfyUiGitRefSync } from '../remoteUpdates.ts'
-import { appLoggerInstance as comfyDbgLogger } from '../logging/logger.ts'
 type Device = Omit<InferenceDevice, 'selected'>
 
 export type ComfyUiVariant = 'xpu' | 'cuda' | 'cpu'
@@ -63,12 +62,7 @@ const UPSTREAM_PYPROJECT_BACKUP = 'pyproject.toml.aipg-upstream'
 // Delegates to the shared, distro-robust + logged Level Zero detector so the
 // XPU vs CPU decision is consistent across backends and visible in the logs.
 function linuxHasIntelGpuRuntime(): boolean {
-  const found = linuxHasLevelZeroRuntime()
-  comfyDbgLogger.info(
-    `[comfyui-variant] linuxHasIntelGpuRuntime=${found} (Level Zero loader ${found ? 'present' : 'absent'})`,
-    'comfyui-backend',
-  )
-  return found
+  return linuxHasLevelZeroRuntime()
 }
 
 // Library-path entries prepended to LD_LIBRARY_PATH when the XPU variant is
@@ -231,6 +225,15 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private comfyUiVariant: ComfyUiVariant = 'xpu'
   private variantMismatchToastSent = false
 
+  // Tri-state record of whether a torch.xpu device probe has positively
+  // confirmed at least one usable Intel GPU. `null` = not probed yet (or last
+  // probe never ran), `true` = >=1 usable XPU device, `false` = 0 devices.
+  // spawnAPIProcess() requires `true` before launching as the XPU variant, so a
+  // transient/stale `comfyUiVariant === 'xpu'` can never start a doomed XPU
+  // process on a machine whose GPU is not actually usable (e.g. Resizable BAR
+  // disabled -> device_count() == 0).
+  private usableXpuConfirmed: boolean | null = null
+
   // Per-launch loopback auth token, regenerated on every spawn. Consumed by
   // the bundled `aipg-auth` ComfyUI custom_node middleware which rejects any
   // request without a matching Bearer header / ?token= query / session cookie.
@@ -260,60 +263,17 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }
 
   private getDesiredVariant(): ComfyUiVariant {
-    const productMode = this.settings.productMode
-    const platform = process.platform
-    this.appLogger.info(
-      `[comfyui-variant] getDesiredVariant: productMode=${productMode} platform=${platform}`,
-      this.name,
-    )
-    if (productMode === 'nvidia') {
-      this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'cuda' (nvidia productMode)`, this.name)
-      return 'cuda'
-    }
-    if (platform === 'win32') {
-      this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'xpu' (win32)`, this.name)
-      return 'xpu'
-    }
-    if (platform === 'linux' && linuxHasIntelGpuRuntime()) {
-      this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'xpu' (linux + Intel GPU runtime)`, this.name)
-      return 'xpu'
-    }
-    this.appLogger.info(`[comfyui-variant] getDesiredVariant → 'cpu' (fallback)`, this.name)
+    if (this.settings.productMode === 'nvidia') return 'cuda'
+    if (process.platform === 'win32') return 'xpu'
+    if (process.platform === 'linux' && linuxHasIntelGpuRuntime()) return 'xpu'
     return 'cpu'
   }
 
   private getEffectiveVariant(): ComfyUiVariant {
-    const productMode = this.settings.productMode
-    this.appLogger.info(
-      `[comfyui-variant] getEffectiveVariant: productMode=${productMode}`,
-      this.name,
-    )
-    if (productMode) {
-      const v = this.getDesiredVariant()
-      this.appLogger.info(
-        `[comfyui-variant] getEffectiveVariant → '${v}' (productMode branch)`,
-        this.name,
-      )
-      return v
-    }
+    if (this.settings.productMode) return this.getDesiredVariant()
     const restored = this.readInstalledVariant()
-    this.appLogger.info(
-      `[comfyui-variant] getEffectiveVariant: installedVariant=${restored}`,
-      this.name,
-    )
-    if (restored) {
-      this.appLogger.info(
-        `[comfyui-variant] getEffectiveVariant → '${restored}' (from aipg-variant.json)`,
-        this.name,
-      )
-      return restored
-    }
-    const v = this.getDesiredVariant()
-    this.appLogger.info(
-      `[comfyui-variant] getEffectiveVariant → '${v}' (no marker, using desired)`,
-      this.name,
-    )
-    return v
+    if (restored) return restored
+    return this.getDesiredVariant()
   }
 
   /**
@@ -399,11 +359,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
             true,
           )
         } else {
-          this.appLogger.error(
-            `Intel GPU install failed: ${result.output}`,
-            this.name,
-            true,
-          )
+          this.appLogger.error(`Intel GPU install failed: ${result.output}`, this.name, true)
         }
       }
     } else {
@@ -1276,10 +1232,6 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   async detectDevices() {
     this.comfyUiVariant = this.getEffectiveVariant()
-    this.appLogger.info(
-      `[comfyui-variant] detectDevices: resolved comfyUiVariant='${this.comfyUiVariant}'`,
-      this.name,
-    )
 
     if (this.comfyUiVariant === 'cpu') {
       this.devices = [{ id: '*', name: 'Auto select device', selected: true }]
@@ -1355,7 +1307,6 @@ except Exception as e:
   }
 
   private async detectXpuDevicesWithTorch(): Promise<void> {
-    const availableDevices = [{ id: '*', name: 'Auto select device', selected: true }]
     let allDevices: Device[] = []
     try {
       const pythonScript = `
@@ -1434,11 +1385,15 @@ except Exception as e:
         this.name,
         true,
       )
+      this.usableXpuConfirmed = false
       this.comfyUiVariant = 'cpu'
       this.devices = [{ id: '*', name: 'Auto select device', selected: true }]
       this.updateStatus()
       return
     }
+    // A device probe positively confirmed at least one usable XPU device, so it
+    // is safe for spawnAPIProcess() to launch as the XPU variant.
+    this.usableXpuConfirmed = true
     this.devices = allDevices.map((d) => ({ ...d, selected: false }))
     this.updateStatus()
   }
@@ -1459,6 +1414,34 @@ except Exception as e:
     // Regenerate the per-launch loopback auth token so the env block of any
     // previous ComfyUI process is no longer reusable.
     this.loopbackAuthToken = randomBytes(32).toString('hex')
+
+    // Defensive XPU usability guard. `comfyUiVariant` can be 'xpu' here either
+    // from a stale aipg-variant.json marker or from the transient window inside
+    // detectDevices(), which sets the variant to 'xpu' synchronously and only
+    // flips it to 'cpu' after its multi-second torch.xpu probe completes. Two
+    // startup orchestrators (the main-process apiServiceRegistry and the
+    // renderer backendServices store) call detectDevices()/start() concurrently
+    // on the same instance, so a spawn can observe 'xpu' before any probe has
+    // confirmed a usable device. On a machine whose Intel GPU is not actually
+    // usable (e.g. Resizable BAR disabled -> torch.xpu.device_count() == 0),
+    // launching as XPU makes ComfyUI "assume Nvidia" and crash with
+    // "Torch not compiled with CUDA enabled". Only run as XPU once a probe has
+    // positively confirmed at least one device; otherwise fall back to CPU.
+    // Runs before the stale-ipex cleanup below so the CPU fallback also strips
+    // any leftover ipex_to_cuda injection from a previous XPU install.
+    if (
+      process.platform === 'linux' &&
+      this.comfyUiVariant === 'xpu' &&
+      this.usableXpuConfirmed !== true
+    ) {
+      this.appLogger.warn(
+        'ComfyUI variant is xpu but no usable Intel GPU device has been confirmed by a torch.xpu probe; ' +
+          'falling back to CPU for this launch to avoid a "Torch not compiled with CUDA enabled" crash.',
+        this.name,
+        true,
+      )
+      this.comfyUiVariant = 'cpu'
+    }
 
     // Ensure non-XPU variants don't keep stale ipex_to_cuda injection from previous installs.
     if (this.comfyUiVariant !== 'xpu') {
@@ -1484,11 +1467,6 @@ except Exception as e:
 
     const additionalEnvVariables = this.getEnvVars()
     const mediaDir = getMediaDir()
-    this.appLogger.info(
-      `[comfyui-variant] spawnAPIProcess: comfyUiVariant='${this.comfyUiVariant}' platform=${process.platform}`,
-      this.name,
-      true,
-    )
     // --enable-cors-header is required so ComfyUI's origin_only_middleware
     // doesn't 403 our cross-origin requests from the renderer (Vite dev origin
     // / file:// in prod both trigger Sec-Fetch-Site: cross-site against
@@ -1566,11 +1544,6 @@ except Exception as e:
       '--enable-cors-header',
       rendererOrigin,
     ]
-    this.appLogger.info(
-      `[comfyui-variant] spawnAPIProcess: --cpu flag will be ${this.comfyUiVariant === 'cpu' ? 'ADDED' : 'NOT ADDED'} (variant='${this.comfyUiVariant}')`,
-      this.name,
-      true,
-    )
     this.appLogger.info(
       `starting comfyui with ${JSON.stringify({ parameters, additionalEnvVariables })}`,
       this.name,

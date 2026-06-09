@@ -1,9 +1,6 @@
 /**
  * Shared helpers for apt-based Linux package installation. Used by both
  * ComfyUI (Intel GPU / Level Zero) and OpenVINO system dependency setup.
- *
- * Note: openVINOBackendService.ts has its own inline copies of these helpers
- * that predate this module. Those can be migrated to use this module later.
  */
 import { promisify } from 'util'
 import { exec } from 'child_process'
@@ -48,12 +45,8 @@ export async function isAptPackageAvailable(packageName: string): Promise<boolea
 }
 
 export async function getMissingPackages(packages: string[]): Promise<string[]> {
-  const missing: string[] = []
-  for (const pkg of packages) {
-    // eslint-disable-next-line no-await-in-loop
-    if (!(await isAptPackageInstalled(pkg))) missing.push(pkg)
-  }
-  return missing
+  const installed = await Promise.all(packages.map((pkg) => isAptPackageInstalled(pkg)))
+  return packages.filter((_, i) => !installed[i])
 }
 
 export function parseAptMissingPackages(output: string): string[] {
@@ -83,14 +76,15 @@ export async function resolvePackageList(
   unconditional: string[] = [],
 ): Promise<string[]> {
   const resolved: string[] = [...unconditional]
-  for (const alternatives of alternativeSets) {
-    for (const pkg of alternatives) {
-      // eslint-disable-next-line no-await-in-loop
-      if (await isAptPackageAvailable(pkg)) {
-        resolved.push(pkg)
-        break
-      }
-    }
+  const picks = await Promise.all(
+    alternativeSets.map(async (alternatives) => {
+      const availability = await Promise.all(alternatives.map((pkg) => isAptPackageAvailable(pkg)))
+      const idx = availability.findIndex(Boolean)
+      return idx >= 0 ? alternatives[idx] : undefined
+    }),
+  )
+  for (const pick of picks) {
+    if (pick) resolved.push(pick)
   }
   return resolved
 }

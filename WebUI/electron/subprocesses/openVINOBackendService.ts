@@ -11,6 +11,15 @@ import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { ensureManagedPython, installBackend, uvPipInstallToTarget } from './uvBasedBackends/uv.ts'
 import { binary, extract } from './tools.ts'
+import {
+  getMissingPackages,
+  hasAptGet,
+  hasPkexec,
+  parseAptMissingPackages,
+  resolvePackageList,
+  runPkexecInstall,
+  waitForTerminalInstall,
+} from './linuxPackageInstaller.ts'
 
 const execAsync = promisify(exec)
 
@@ -605,8 +614,7 @@ export class OpenVINOBackendService implements ApiService {
     //    libazurestorage needing libxml2) may never actually be invoked at runtime for
     //    local model inference.
     const sameName = [...ldconfigMap.entries()].find(
-      ([name, realPath]) =>
-        name.startsWith(`${libBase}.so.`) && filesystem.existsSync(realPath),
+      ([name, realPath]) => name.startsWith(`${libBase}.so.`) && filesystem.existsSync(realPath),
     )
     if (sameName) return { path: sameName[1], isAbiRisky: true }
 
@@ -663,175 +671,12 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
-  private async hasAptGet(): Promise<boolean> {
-    try {
-      await execAsync('command -v apt-get')
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  private async isAptPackageInstalled(packageName: string): Promise<boolean> {
-    try {
-      const { stdout } = await execAsync("dpkg-query -W -f='${db:Status-Status}' " + packageName)
-      return stdout.trim() === 'installed'
-    } catch {
-      return false
-    }
-  }
-
-  private async getMissingLinuxRuntimePackages(
-    packageList = this.linuxRuntimePackages,
-  ): Promise<string[]> {
-    const missing: string[] = []
-    for (const packageName of packageList) {
-      // eslint-disable-next-line no-await-in-loop
-      const installed = await this.isAptPackageInstalled(packageName)
-      if (!installed) {
-        missing.push(packageName)
-      }
-    }
-    return missing
-  }
-
-  private async getUnavailablePackages(packageList: string[]): Promise<string[]> {
-    const unavailable: string[] = []
-    for (const packageName of packageList) {
-      // eslint-disable-next-line no-await-in-loop
-      const isAvailable = await this.isAptPackageAvailable(packageName)
-      if (!isAvailable) {
-        unavailable.push(packageName)
-      }
-    }
-    return unavailable
-  }
-
-  private async isAptPackageAvailable(packageName: string): Promise<boolean> {
-    try {
-      await execAsync(`apt-cache show ${packageName}`)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  private async resolveLinuxRuntimePackagesForCurrentDistro(): Promise<string[]> {
-    const selectedPackages = [...this.linuxRuntimePackages]
-
-    for (const alternatives of this.linuxAlternativePackages) {
-      let selected: string | null = null
-      for (const packageName of alternatives) {
-        // eslint-disable-next-line no-await-in-loop
-        const isAvailable = await this.isAptPackageAvailable(packageName)
-        if (isAvailable) {
-          selected = packageName
-          break
-        }
-      }
-      if (selected) {
-        selectedPackages.push(selected)
-      } else {
-        this.appLogger.warn(
-          `No available package found in alternatives set: ${alternatives.join(', ')}`,
-          this.name,
-        )
-      }
-    }
-
-    return selectedPackages
-  }
-
-  private async hasPkexec(): Promise<boolean> {
-    try {
-      await execAsync('command -v pkexec')
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  private parseAptMissingPackages(output: string): string[] {
-    const missing = new Set<string>()
-    const unableToLocateRegex = /^E:\s+Unable to locate package\s+(.+)$/gm
-    const noCandidateRegex = /^Package\s+(.+)\s+has no installation candidate$/gm
-
-    let match: RegExpExecArray | null
-    while ((match = unableToLocateRegex.exec(output)) !== null) {
-      if (match[1]) missing.add(match[1].trim())
-    }
-    while ((match = noCandidateRegex.exec(output)) !== null) {
-      if (match[1]) missing.add(match[1].trim())
-    }
-
-    return [...missing]
-  }
-
-  private async runPkexecInstall(missingPackages: string[]): Promise<{
-    success: boolean
-    output: string
-  }> {
-    const installCommand =
-      'export DEBIAN_FRONTEND=noninteractive; ' +
-      `apt-get update && apt-get install -y ${missingPackages.join(' ')}`
-
-    return await new Promise((resolve) => {
-      const child = spawn('pkexec', ['bash', '-lc', installCommand], {
-        windowsHide: true,
-      })
-
-      let stdout = ''
-      let stderr = ''
-
-      child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString()
-      })
-      child.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString()
-      })
-
-      child.on('error', (error: Error) => {
-        resolve({ success: false, output: `${stderr}\n${error.message}`.trim() })
-      })
-
-      child.on('exit', (code: number | null) => {
-        resolve({ success: code === 0, output: `${stdout}\n${stderr}`.trim() })
-      })
-    })
-  }
-
-  private async waitForTerminalInstall(missingPackages: string[]): Promise<boolean> {
-    const installCommand =
-      `sudo apt-get update && sudo apt-get install -y ${missingPackages.join(' ')}` +
-      '; echo; read -p "Press Enter to close..."'
-
-    try {
-      const terminalProcess = spawn('x-terminal-emulator', ['-e', 'bash', '-lc', installCommand], {
-        stdio: 'inherit',
-      })
-
-      await new Promise<void>((resolve) => {
-        terminalProcess.on('exit', () => {
-          resolve()
-        })
-        terminalProcess.on('error', () => {
-          resolve()
-        })
-      })
-
-      return true
-    } catch (error) {
-      this.appLogger.warn(`Failed to open terminal for dependency install: ${error}`, this.name)
-      return false
-    }
-  }
-
   private async ensureLinuxRuntimeDependencies(
     onProgress?: (message: string) => Promise<void> | void,
   ): Promise<void> {
     if (process.platform !== 'linux') return
 
-    const hasApt = await this.hasAptGet()
+    const hasApt = await hasAptGet()
     if (!hasApt) {
       this.appLogger.warn(
         'apt-get not found; skipping automatic Linux dependency install',
@@ -840,8 +685,11 @@ export class OpenVINOBackendService implements ApiService {
       return
     }
 
-    const distroAwarePackageList = await this.resolveLinuxRuntimePackagesForCurrentDistro()
-    const missingPackages = await this.getMissingLinuxRuntimePackages(distroAwarePackageList)
+    const distroAwarePackageList = await resolvePackageList(
+      this.linuxAlternativePackages,
+      this.linuxRuntimePackages,
+    )
+    const missingPackages = await getMissingPackages(distroAwarePackageList)
 
     if (missingPackages.length === 0) {
       this.appLogger.info(
@@ -870,11 +718,11 @@ export class OpenVINOBackendService implements ApiService {
 
     await onProgress?.('installing Ubuntu dependencies for OpenVINO')
 
-    const pkexecAvailable = await this.hasPkexec()
+    const pkexecAvailable = await hasPkexec()
     if (pkexecAvailable) {
-      const installResult = await this.runPkexecInstall(missingPackages)
+      const installResult = await runPkexecInstall(missingPackages, 'apt-get update')
       if (!installResult.success) {
-        const aptMissing = this.parseAptMissingPackages(installResult.output)
+        const aptMissing = parseAptMissingPackages(installResult.output)
         if (aptMissing.length > 0) {
           this.appLogger.error(
             `OpenVINO dependency install failed. Missing in apt repo: ${aptMissing.join(', ')}`,
@@ -889,7 +737,7 @@ export class OpenVINOBackendService implements ApiService {
       }
     } else {
       await onProgress?.('pkexec unavailable, falling back to terminal installer')
-      const terminalExited = await this.waitForTerminalInstall(missingPackages)
+      const terminalExited = await waitForTerminalInstall(missingPackages, 'sudo apt-get update')
       if (!terminalExited) {
         throw new Error(
           `Could not open installer automatically. Please install: ${missingPackages.join(', ')}`,
@@ -901,8 +749,7 @@ export class OpenVINOBackendService implements ApiService {
 
     let stillMissing: string[] = []
     for (let retryAttempt = 0; retryAttempt < 5; retryAttempt++) {
-      // eslint-disable-next-line no-await-in-loop
-      stillMissing = await this.getMissingLinuxRuntimePackages(distroAwarePackageList)
+      stillMissing = await getMissingPackages(distroAwarePackageList)
       if (stillMissing.length === 0) {
         this.appLogger.info('Installed missing Linux runtime dependencies for OpenVINO', this.name)
         return
@@ -912,21 +759,16 @@ export class OpenVINOBackendService implements ApiService {
           `Still missing on attempt ${retryAttempt + 1}: ${stillMissing.join(', ')}. Retrying...`,
           this.name,
         )
-        // eslint-disable-next-line no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
 
-    const unavailable = await this.getUnavailablePackages(stillMissing)
-    const availableButMissing = stillMissing.filter((p) => !unavailable.includes(p))
-    const exactlyMissing = availableButMissing.length > 0 ? availableButMissing : stillMissing
-
     this.appLogger.error(
-      `OpenVINO dependencies still missing after installer: ${exactlyMissing.join(', ')}`,
+      `OpenVINO dependencies still missing after installer: ${stillMissing.join(', ')}`,
       this.name,
     )
 
-    throw new Error(`Dependencies still missing after installer: ${exactlyMissing.join(', ')}`)
+    throw new Error(`Dependencies still missing after installer: ${stillMissing.join(', ')}`)
   }
 
   private async ensureLinuxRuntimeDependenciesForStartup(): Promise<void> {
@@ -1515,7 +1357,10 @@ export class OpenVINOBackendService implements ApiService {
       // Detect the host Ubuntu version to pick the best OVMS build.
       // Try the exact distro match first, then fall back to older builds.
       const distros = await this.getOvmsDistroTargets()
-      this.appLogger.info(`OVMS distro download targets (in priority order): ${distros.join(', ')}`, this.name)
+      this.appLogger.info(
+        `OVMS distro download targets (in priority order): ${distros.join(', ')}`,
+        this.name,
+      )
 
       for (const distro of distros) {
         const pkg = `ovms_${distro}_${this.version}_python_on.tar.gz`
@@ -1902,8 +1747,6 @@ export class OpenVINOBackendService implements ApiService {
         'qwen3',
         '--cache_dir',
         'cache',
-        '--log_level',
-        'DEBUG',
       ]
 
       if (selectedDevice.startsWith('NPU')) {
@@ -1914,46 +1757,6 @@ export class OpenVINOBackendService implements ApiService {
 
       const extraLibPaths = await this.resolveOvmsExtraLibPaths()
       const ovmsEnv = this.buildOvmsEnv(extraLibPaths)
-
-      // Log key environment for diagnostics
-      this.appLogger.info(
-        `OVMS LD_LIBRARY_PATH: ${ovmsEnv.LD_LIBRARY_PATH ?? '(not set)'}`,
-        this.name,
-      )
-      this.appLogger.info(`OVMS PYTHONHOME: ${ovmsEnv.PYTHONHOME ?? '(not set)'}`, this.name)
-      this.appLogger.info(`OVMS PYTHONPATH: ${ovmsEnv.PYTHONPATH ?? '(not set)'}`, this.name)
-
-      // Log model directory contents to diagnose tokenizer/chat-template issues
-      const modelDir = path.join(this.baseDir, 'models', 'LLM', 'openvino', modelRepoId.split('/').join('---'))
-      this.appLogger.info(`OVMS model directory: ${modelDir}`, this.name)
-      try {
-        const modelFiles = filesystem.readdirSync(modelDir)
-        this.appLogger.info(`OVMS model files: ${modelFiles.join(', ')}`, this.name)
-        const tokenizerConfigPath = path.join(modelDir, 'tokenizer_config.json')
-        if (filesystem.existsSync(tokenizerConfigPath)) {
-          const tokenizerConfig = JSON.parse(filesystem.readFileSync(tokenizerConfigPath, 'utf-8'))
-          const hasChatTemplate = typeof tokenizerConfig.chat_template === 'string' && tokenizerConfig.chat_template.length > 0
-          this.appLogger.info(
-            `OVMS tokenizer_config.json found — has chat_template: ${hasChatTemplate}` +
-              (hasChatTemplate ? ` (${tokenizerConfig.chat_template.length} chars)` : ''),
-            this.name,
-          )
-        } else {
-          this.appLogger.warn(`OVMS tokenizer_config.json NOT FOUND at ${tokenizerConfigPath}`, this.name)
-        }
-      } catch (e) {
-        this.appLogger.warn(`OVMS model directory check failed: ${e}`, this.name)
-      }
-
-      // Log available system memory
-      if (process.platform === 'linux') {
-        try {
-          const { stdout: memInfo } = await execAsync(
-            "free -m | awk '/^Mem:/ {printf \"total=%sMB available=%sMB\", $2, $7}'",
-          )
-          this.appLogger.info(`System memory: ${memInfo}`, this.name)
-        } catch { /* non-critical */ }
-      }
 
       const childProcess = spawn(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
