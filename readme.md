@@ -123,17 +123,20 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
    sudo apt install -y libfuse2t64
    ```
 
-3. Make it executable and start the app from a terminal:
+3. Make it executable and start the app:
 
    ```bash
    cd build/electron
    chmod +x "AI Playground-"*.AppImage
-   ./"AI Playground-"*.AppImage --no-sandbox
+   ./"AI Playground-"*.AppImage
    ```
 
-   The `--no-sandbox` flag is required. Launching the AppImage by double-clicking
-   it in your file manager does **not** work. Do **not** start it with `sudo` —
-   Electron refuses to run as root.
+   `--no-sandbox` is baked into the launcher (see `build/scripts/after-pack.cjs`),
+   so you can also start the app by double-clicking the AppImage in your file
+   manager — provided the file manager is allowed to run executables (in GNOME
+   Files: Preferences → "Executable Text Files" / right-click → Run, or
+   `chmod +x` as above). Do **not** start it with `sudo` — Electron refuses to
+   run as root.
 
 4. OpenVINO Ubuntu dependencies are checked during OpenVINO backend setup.
 
