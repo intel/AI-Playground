@@ -368,10 +368,15 @@ export const installBackendWithExtra = async (
   }
 }
 
-export const checkBackend = async (backend: string) => {
+export const checkBackend = async (backend: string, extra?: UvExtra) => {
   const logger = loggerFor(`uv.check.${backend}`)
   await assertUv(logger)
   const uvCommand = ['sync', '--check', '--directory', aipgBaseDir, '--project', backend]
+  // Resolve against the same optional-dependency extra the backend was installed
+  // with (e.g. 'xpu'). Without it, uv resolves the base deps — generic torch,
+  // which pulls the CUDA index on Linux — and reports a spurious mismatch
+  // against an xpu/cpu venv.
+  if (extra) uvCommand.push('--extra', extra)
   logger.info(`Checking backend: ${backend} with ${JSON.stringify(uvCommand)}`)
 
   return uv(uvCommand, logger)
@@ -396,6 +401,7 @@ export const checkBackendWithDetails = async (
   backend: string,
   venvPath: string,
   options?: { skipLockfileCheck?: boolean },
+  extra?: UvExtra,
 ): Promise<BackendCheckDetails> => {
   const logger = loggerFor(`uv.check-details.${backend}`)
   await assertUv(logger)
@@ -433,6 +439,11 @@ export const checkBackendWithDetails = async (
     '--project',
     backend,
   ]
+  // Match the installed optional-dependency extra (e.g. 'xpu') so the resolution
+  // compares against the same torch variant that was actually installed.
+  // Otherwise uv resolves the base deps (generic torch → CUDA index on Linux)
+  // and reports a phantom xpu→cuda mismatch.
+  if (extra) uvCommand.push('--extra', extra)
   logger.info(`Checking backend with details: ${backend} with ${JSON.stringify(uvCommand)}`)
 
   try {

@@ -503,6 +503,12 @@ export abstract class LongLivedPythonApiService implements ApiService {
   private isCapturingStartupLogs: boolean = false
   private startupStartTime: number = 0
 
+  // The in-flight startup promise. Two orchestrators (the main-process
+  // apiServiceRegistry and the renderer backendServices store) call start()
+  // concurrently on the same instance, so the second caller must await the same
+  // startup rather than throwing "Server startup already requested".
+  private startInFlight: Promise<BackendStatus> | null = null
+
   readonly appLogger = appLoggerInstance
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
@@ -605,10 +611,22 @@ export abstract class LongLivedPythonApiService implements ApiService {
       this.lastStartupErrorDetails = null
       return 'running'
     }
-    if (this.desiredStatus === 'running') {
-      throw new Error('Server startup already requested')
+    // A startup is already in progress (concurrent caller): await the same
+    // result instead of throwing, so neither orchestrator reports a spurious
+    // "Server startup already requested" error.
+    if (this.startInFlight) {
+      return this.startInFlight
     }
 
+    this.startInFlight = this.runStartup()
+    try {
+      return await this.startInFlight
+    } finally {
+      this.startInFlight = null
+    }
+  }
+
+  private async runStartup(): Promise<BackendStatus> {
     this.desiredStatus = 'running'
     this.setStatus('starting')
 

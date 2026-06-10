@@ -433,6 +433,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         this.serviceFolder,
         this.pythonEnvDir,
         skipLockfileCheck ? { skipLockfileCheck: true } : undefined,
+        // Check against the same uv extra the backend was installed with
+        // (xpu/cuda/cpu). Without it uv resolves the base deps (generic torch →
+        // CUDA index on Linux) and reports a spurious xpu→cuda mismatch.
+        this.getEffectiveVariant(),
       )
 
       // If venv doesn't exist, service is not set up
@@ -798,7 +802,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         let needsInstall = true
         if (existingMarker?.mode === 'locked' && markerMatches && !variantChanged) {
           try {
-            await checkBackend(this.serviceFolder)
+            await checkBackend(this.serviceFolder, this.comfyUiVariant)
             needsInstall = false
             this.appLogger.info('ComfyUI locked deps already synced, skipping', this.name)
           } catch {
@@ -1398,10 +1402,43 @@ except Exception as e:
     this.updateStatus()
   }
 
+  /**
+   * Remove stale SQLite WAL/SHM sidecar files left behind by a crashed ComfyUI
+   * run. ComfyUI opens `comfyui.db` in WAL mode; an unclean shutdown can leave a
+   * locked/orphaned `comfyui.db-wal` / `comfyui.db-shm` pair that makes SQLite
+   * refuse to open the database on the next start, blocking ComfyUI entirely.
+   *
+   * Safe to call here because spawnAPIProcess() runs before any ComfyUI process
+   * is alive, so nothing holds the files; SQLite recovers from the main `.db`.
+   * The DB lives under ComfyUI's user directory (default `<serviceDir>/user`,
+   * since we don't pass --user-directory).
+   */
+  private cleanupStaleComfyUiDbLocks(): void {
+    const userDir = path.join(this.serviceDir, 'user')
+    for (const sidecar of ['comfyui.db-wal', 'comfyui.db-shm']) {
+      const sidecarPath = path.join(userDir, sidecar)
+      try {
+        if (filesystem.existsSync(sidecarPath)) {
+          filesystem.removeSync(sidecarPath)
+          this.appLogger.info(`Removed stale ComfyUI DB lock file: ${sidecarPath}`, this.name)
+        }
+      } catch (e) {
+        this.appLogger.warn(
+          `Failed to remove stale ComfyUI DB lock file ${sidecarPath}: ${e}`,
+          this.name,
+        )
+      }
+    }
+  }
+
   async spawnAPIProcess(): Promise<{
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+    // Clear any stale SQLite WAL/SHM sidecars from a crashed run that would
+    // otherwise block ComfyUI from opening its database.
+    this.cleanupStaleComfyUiDbLocks()
+
     // Re-apply ComfyUI-Manager security_level=strong on every start so that
     // (a) installs that predate this hardening get locked down on next launch,
     // and (b) anyone tampering with config.ini gets it reverted.
