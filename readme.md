@@ -150,6 +150,40 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
    sudo apt-get install -y python3 python3-venv libtbb12 libhwloc15 libgomp1 libnuma1 ocl-icd-libopencl1 libfuse2t64
    ```
 
+### Behind a corporate / HTTP proxy
+
+AI Playground downloads tools at build time (`uv`, `7zip`) and backend binaries
+on first run (llama.cpp, OpenVINO/OVMS). Both honor the standard proxy
+environment variables when they are set — export them before building or
+launching:
+
+```bash
+export https_proxy="http://proxy.example.com:port"
+export http_proxy="http://proxy.example.com:port"
+export no_proxy="localhost,127.0.0.1"   # hosts to reach directly
+```
+
+With these set:
+
+- **Build** (`npm run fetch-external-resources` / `npm run build:linux`) routes
+  Node's downloads through the proxy (the script runs with
+  `NODE_USE_ENV_PROXY=1`).
+- **Runtime** the app reads the same variables at startup and points Electron's
+  network stack (`net.fetch`) at the proxy, so llama.cpp and OVMS downloads
+  succeed.
+
+> ⚠️ **Launching from a file manager won't pick up the proxy.** Double-clicking
+> the AppImage starts it from the desktop session, which does **not** inherit
+> `http_proxy` exported in `~/.profile` or `~/.bashrc`. Either launch the
+> AppImage from a terminal where the variables are exported, or configure a
+> system-wide proxy (e.g. GNOME Settings → Network → Network Proxy) so the
+> desktop session provides them.
+
+If your network blocks the downloads entirely, you can also pre-place the build
+tools manually: drop the extracted `uv`/`7zip` binaries into
+`WebUI/build/resources/` (the fetch script skips any file already present)
+before running the build.
+
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
 

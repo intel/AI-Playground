@@ -32,6 +32,7 @@ import {
   OpenDialogSyncOptions,
   protocol,
   screen,
+  session,
   shell,
   utilityProcess,
   UtilityProcess,
@@ -2099,6 +2100,44 @@ function isAdmin(): boolean {
   }
 }
 
+/**
+ * Route Electron `net.fetch` traffic (llama.cpp / OVMS / remote-update
+ * downloads) through an HTTP(S) proxy when one is configured via the standard
+ * `*_proxy` environment variables. Chromium's network stack does not reliably
+ * honor these env vars on its own, so we read them and set the session proxy
+ * explicitly. No-op when no proxy is set, so direct-internet users are
+ * unaffected.
+ *
+ * Note: GUI launches (double-click from a file manager) do NOT inherit
+ * `http_proxy` exported in `~/.profile`/`~/.bashrc`; launch from a terminal
+ * where the vars are set, or configure a system-wide proxy.
+ */
+async function configureProxyFromEnv(): Promise<void> {
+  const proxy =
+    process.env.https_proxy ||
+    process.env.HTTPS_PROXY ||
+    process.env.http_proxy ||
+    process.env.HTTP_PROXY
+  if (!proxy) {
+    return
+  }
+  const noProxy = process.env.no_proxy || process.env.NO_PROXY
+  const proxyBypassRules = noProxy
+    ? noProxy
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .join(',')
+    : undefined
+  appLogger.info(
+    `Configuring Electron session proxy from environment: ${proxy}${
+      proxyBypassRules ? ` (bypass: ${proxyBypassRules})` : ''
+    }`,
+    'proxy',
+  )
+  await session.defaultSession.setProxy({ proxyRules: proxy, proxyBypassRules })
+}
+
 app.whenReady().then(async () => {
   /*
     The current user does not have write permission for files in the program directory and is not an administrator.
@@ -2128,6 +2167,10 @@ app.whenReady().then(async () => {
     app.exit()
   } else {
     const settings = await loadSettings()
+
+    // Honor *_proxy env vars for all backend downloads (net.fetch) before any
+    // service setup kicks off.
+    await configureProxyFromEnv()
 
     initEventHandle()
 
