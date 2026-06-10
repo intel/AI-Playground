@@ -11,7 +11,7 @@ import { useProductMode } from './productMode'
 import { synthesizeSpeech, bytesToBlobUrl } from '@/lib/synthesizeSpeech'
 import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 
-export const SPEECHT5_MODEL_NAME = 'microsoft/speecht5_tts'
+export const SPEECHT5_MODEL_NAME = 'llmware/speech-t5-tts-ov'
 
 /**
  * Resolved text-to-speech endpoint configuration consumed by the shared

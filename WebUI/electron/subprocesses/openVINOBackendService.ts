@@ -73,8 +73,8 @@ export class OpenVINOBackendService implements ApiService {
   // Logger
   readonly appLogger = appLoggerInstance
 
-  private version = '2026.1.0'
-  private releaseTag: string | undefined = '72cc0624'
+  private version = '2026.2.0'
+  private releaseTag: string | undefined = undefined
 
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.name = name
