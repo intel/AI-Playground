@@ -14,6 +14,7 @@ import { useGlobalSetup } from './globalSetup'
 import { useModels } from './models'
 import { parseConfirmationReply } from './confirmationReply'
 import { fetchModelMeta, runModelDownload } from '@/lib/modelDownloader'
+import { extractToolMedia } from '@/assets/js/tools/toolMedia'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
@@ -1359,17 +1360,11 @@ export const useHomeAgent = defineStore(
         return lastAssistant.parts as RawPart[]
       }
 
-      function enqueueImage(fn: () => Promise<unknown>) {
-        sendChain = sendChain
-          .then(() => fn())
-          .then(() => undefined)
-          .catch((e) => console.error('homeAgent stream image send failed:', e))
-      }
-
-      // Like enqueueImage, but first freezes the current draft segment so the
-      // "Generating …" marker settles ABOVE the media and any later narration
-      // streams into a fresh segment BELOW it (instead of the message above the
-      // media being rewritten Generating -> Generated after it appears).
+      // Serialize a media send onto the send chain, first freezing the current
+      // draft segment so the "Generating …" marker settles ABOVE the media and
+      // any later narration streams into a fresh segment BELOW it (instead of the
+      // message above the media being rewritten Generating -> Generated after it
+      // appears).
       function enqueueMedia(fn: () => Promise<unknown>) {
         mediaInFlight++
         sendChain = sendChain
@@ -1383,33 +1378,22 @@ export const useHomeAgent = defineStore(
       }
 
       function shipPendingImages(parts: RawPart[]) {
+        // `extractToolMedia` is the single source of truth for which tools emit
+        // shippable media and where it lives in their output — so a new media
+        // tool is forwarded automatically once it's registered there.
         for (const part of parts) {
-          // Screenshot tool: ship the captured window image to the channel so the
-          // remote user sees it (the data URI is only injected into the model's
-          // request, not the visible reply).
-          if (part.type === 'tool-captureScreenshot') {
-            if (part.state !== 'output-available') continue
-            if (sentMediaForPart.has(part as object)) continue
-            sentMediaForPart.add(part as object)
-            const dataUri = part.output?.dataUri
-            if (!part.output?.ok || !dataUri) continue
-            enqueueImage(() => sendImageToChannel(adapter, dataUri, '', meta))
-            continue
-          }
-          if (part.type !== 'tool-comfyUI' && part.type !== 'tool-comfyUiImageEdit') continue
-          if (part.state !== 'output-available') continue
+          const items = extractToolMedia(part)
+          if (items.length === 0) continue
           if (sentMediaForPart.has(part as object)) continue
           sentMediaForPart.add(part as object)
-          const media = part.output?.images ?? []
-          if (media.length === 0) continue
           enqueueMedia(async () => {
-            for (const item of media) {
-              if (item.type === 'image' && item.imageUrl) {
-                await sendImageToChannel(adapter, item.imageUrl, '', meta)
-              } else if (item.type === 'video' && item.videoUrl) {
-                await sendVideoToChannel(adapter, item.videoUrl, '', meta)
-              } else if (item.type === 'model3d' && item.model3dUrl) {
-                await send3DModelToChannel(adapter, item.model3dUrl, '', meta)
+            for (const item of items) {
+              if (item.kind === 'image') {
+                await sendImageToChannel(adapter, item.url, '', meta)
+              } else if (item.kind === 'video') {
+                await sendVideoToChannel(adapter, item.url, '', meta)
+              } else {
+                await send3DModelToChannel(adapter, item.url, '', meta)
               }
             }
           })

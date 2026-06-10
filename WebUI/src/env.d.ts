@@ -379,6 +379,7 @@ type electronAPI = {
     resolution?: string,
   ): Promise<{ success: boolean; url?: string; error?: string }>
   stopOvmsImageServer(): Promise<{ success: boolean; error?: string }>
+  stopOvmsChatServers(): Promise<{ success: boolean; error?: string }>
   getOvmsImageServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
   // ComfyUI Tools - uses uv for Python package management
   comfyui: {

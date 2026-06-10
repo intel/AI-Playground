@@ -11,7 +11,7 @@ import { usePresets, type Preset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { chatBackends, restartChatBackend } from './chatBackends'
+import { stopChatBackends, restartChatBackend } from './chatBackends'
 import { imageUrlToDataUri } from '@/lib/utils'
 import { isCancellation } from '../errors/appError'
 
@@ -176,24 +176,6 @@ function getPresetDefault(preset: Preset, settingName: string): unknown {
     ?.defaultValue
 }
 
-async function stopChatBackend(): Promise<void> {
-  console.log('[ComfyUIImageEdit Tool] Stopping chat backend to free resources for image editing')
-  const backendServices = useBackendServices()
-
-  // Stop any running chat backends to free up memory/resources
-  for (const serviceName of chatBackends) {
-    const backend = backendServices.info.find((s) => s.serviceName === serviceName)
-    console.log(`[ComfyUIImageEdit Tool] Checking backend "${serviceName}":`, backend)
-    try {
-      console.log(`[ComfyUIImageEdit Tool]  Backend: ${serviceName}, status: ${backend?.status}`)
-      console.log(`[ComfyUIImageEdit Tool] Stopping ${serviceName}...`)
-      await backendServices.stopService(serviceName)
-    } catch (error) {
-      console.warn(`[ComfyUIImageEdit Tool] Failed to stop ${serviceName}:`, error)
-    }
-  }
-}
-
 type ImageEditArgs = {
   workflow: string
   variant?: string
@@ -282,7 +264,7 @@ export async function executeImageEdit(
   }
 
   if (!useDeveloperSettings().keepModelsLoaded) {
-    await stopChatBackend()
+    await stopChatBackends()
   }
 
   const sourceImageUrl = findSourceImage(messages)

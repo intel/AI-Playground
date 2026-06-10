@@ -417,16 +417,22 @@ export class OpenVINOBackendService implements ApiService {
       ...mappedDevices,
     ]
 
-    // Helper function to select device by priority
+    // Helper function to select device, preferring a previously persisted id so
+    // the user's choice survives restart, then falling back to priority > AUTO.
     const selectByPriority = (
       deviceList: InferenceDevice[],
       priority: string[],
+      persistedId?: string,
     ): InferenceDevice[] => {
       const result = deviceList.map((d) => ({ ...d, selected: false }))
+      const persistedDevice =
+        persistedId !== undefined ? result.find((d) => d.id === persistedId) : undefined
       // Match by id prefix (e.g., 'GPU' matches 'GPU.0', 'GPU.1', etc.)
-      const selectedDevice = priority
-        .map((id) => result.find((d) => d.id === id || d.id.startsWith(`${id}.`)))
-        .find((d) => d !== undefined)
+      const selectedDevice =
+        persistedDevice ??
+        priority
+          .map((id) => result.find((d) => d.id === id || d.id.startsWith(`${id}.`)))
+          .find((d) => d !== undefined)
       if (selectedDevice) {
         selectedDevice.selected = true
       } else {
@@ -435,13 +441,18 @@ export class OpenVINOBackendService implements ApiService {
       return result
     }
 
-    // LLM devices: priority GPU > AUTO
-    this.devices = selectByPriority(baseDevices, ['GPU'])
+    // LLM devices: persisted > priority GPU > AUTO
+    this.devices = selectByPriority(
+      baseDevices,
+      ['GPU'],
+      this.settings.lastSelectedDevicePerBackend[this.name],
+    )
 
-    // STT devices: priority NPU > CPU > GPU > AUTO
+    // STT devices: persisted > priority NPU > CPU > GPU > AUTO
     this.sttDevices = selectByPriority(
       baseDevices.map((d) => ({ ...d })),
       ['NPU', 'CPU', 'GPU'],
+      this.settings.lastSelectedDevicePerBackend[`${this.name}:stt`],
     )
 
     this.appLogger.info(
@@ -967,6 +978,22 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
+  /**
+   * Stop only the chat-related sub-servers (LLM + embedding) to free GPU memory,
+   * leaving transcription (STT), speech (TTS) and image servers running.
+   */
+  async stopChatServers(): Promise<void> {
+    try {
+      this.appLogger.info('Stopping chat servers (LLM + embedding)', this.name)
+      await this.stopOvmsLlmServer()
+      await this.stopOvmsEmbeddingServer()
+      this.appLogger.info('Chat servers stopped successfully', this.name)
+    } catch (error) {
+      this.appLogger.error(`Failed to stop chat servers: ${error}`, this.name)
+      throw error
+    }
+  }
+
   // Model server management methods
   private async startOvmsLlmServer(
     modelRepoId: string,
@@ -1388,7 +1415,8 @@ export class OpenVINOBackendService implements ApiService {
 
   private async startOvmsSpeechServer(modelRepoId: string): Promise<OvmsServerProcess> {
     try {
-      const selectedDevice = this.sttDevices.find((d) => d.selected)?.id || 'AUTO'
+      // The TTS model (SpeechT5) is CPU-only under OVMS, so ignore the selected GPU/NPU device.
+      const selectedDevice = 'CPU'
       const port = await getPort({ port: portNumbers(29400, 29499) })
       // Validate model path exists
       this.resolveSpeechModelPath(modelRepoId)

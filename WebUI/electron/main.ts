@@ -262,6 +262,11 @@ const LocalSettingsSchema = z.object({
   // Intel NPU memory budgets on most shipping hardware. Override per-machine
   // by editing settings.json, e.g. ["AUTO", "CPU", "GPU", "NPU"] to re-enable.
   openvinoImageGenDevices: z.array(z.string()).default(['CPU', 'GPU']),
+  // Last inference device chosen per backend, keyed by service name
+  // (e.g. 'llamacpp-backend') or '<serviceName>:stt' for the OpenVINO STT
+  // sub-device. Restored at boot in each service's detectDevices() so the app
+  // does not reset to the default GPU (iGPU) on every restart.
+  lastSelectedDevicePerBackend: z.record(z.string(), z.string()).default({}),
   /** When true, skip hardware probe and treat Phison SSD as detected (optional overlay in userData settings). */
   PhisonSSDdetected: z.boolean().optional().default(false),
 })
@@ -1342,6 +1347,10 @@ function initEventHandle() {
         )
         return
       }
+      // Persist so the boot-time auto-start can restore this device instead of
+      // resetting to the default GPU on the next restart.
+      settings.lastSelectedDevicePerBackend[serviceName] = deviceId
+      persistLocalSettingsToDisk()
       return service.selectDevice(deviceId)
     },
   )
@@ -1363,6 +1372,8 @@ function initEventHandle() {
         return
       }
       if ('selectSttDevice' in service && typeof service.selectSttDevice === 'function') {
+        settings.lastSelectedDevicePerBackend[`${serviceName}:stt`] = deviceId
+        persistLocalSettingsToDisk()
         return service.selectSttDevice(deviceId)
       }
       appLogger.warn(`Service ${serviceName} does not support selectSttDevice`, 'electron-backend')
@@ -1795,6 +1806,29 @@ function initEventHandle() {
     }
 
     return { success: false, error: 'Image server not supported' }
+  })
+
+  ipcMain.handle('stopOvmsChatServers', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('stopChatServers' in service && typeof service.stopChatServers === 'function') {
+      try {
+        await service.stopChatServers()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop OVMS chat servers: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Chat servers not supported' }
   })
 
   ipcMain.handle('getOvmsImageServerUrl', async (_event: IpcMainInvokeEvent) => {

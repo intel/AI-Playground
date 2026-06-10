@@ -10,7 +10,7 @@ import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { chatBackends, restartChatBackend } from './chatBackends'
+import { stopChatBackends, restartChatBackend } from './chatBackends'
 import {
   DEFAULT_RESOLUTION_CONFIG,
   getResolutionsFromConfig,
@@ -30,24 +30,6 @@ const globalDefaultSettings = {
   resolution: '704x384',
   batchSize: 4,
   negativePrompt: 'nsfw',
-}
-
-async function stopChatBackend(): Promise<void> {
-  console.log('[ComfyUI Tool] Stopping chat backend to free resources for image generation')
-  const backendServices = useBackendServices()
-
-  // Stop any running chat backends to free up memory/resources
-  for (const serviceName of chatBackends) {
-    const backend = backendServices.info.find((s) => s.serviceName === serviceName)
-    console.log(`[ComfyUI Tool] Checking backend "${serviceName}":`, backend)
-    try {
-      console.log(`[ComfyUI Tool]  Backend: ${serviceName}, status: ${backend?.status}`)
-      console.log(`[ComfyUI Tool] Stopping ${serviceName}...`)
-      await backendServices.stopService(serviceName)
-    } catch (error) {
-      console.warn(`[ComfyUI Tool] Failed to stop ${serviceName}:`, error)
-    }
-  }
 }
 
 // Helper function to get a sensible default megapixel tier from resolution config
@@ -233,7 +215,7 @@ export async function executeComfyGeneration(args: {
   }
 
   if (!useDeveloperSettings().keepModelsLoaded) {
-    await stopChatBackend()
+    await stopChatBackends()
   }
 
   // Ensure ComfyUI backend is running - this is unrecoverable

@@ -156,6 +156,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       resolution,
     ),
   stopOvmsImageServer: () => ipcRenderer.invoke('stopOvmsImageServer'),
+  stopOvmsChatServers: () => ipcRenderer.invoke('stopOvmsChatServers'),
   getOvmsImageServerUrl: () => ipcRenderer.invoke('getOvmsImageServerUrl'),
   // ComfyUI Tools
   comfyui: {
