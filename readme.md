@@ -99,14 +99,15 @@ npm run build
 
 The installer executable will be located in the `build/electron` folder.
 
-### Build and run on Linux (AppImage)
+### Build and run on Linux (AppImage or .deb)
 
 > Linux support is experimental. The frontend, AI Backend, LlamaCPP and ComfyUI
-> backends run on Ubuntu x64. The packaged installer/AppImage supports Ubuntu 24
+> backends run on Ubuntu x64. The packaged installer/AppImage/.deb supports Ubuntu 24
 > or newer only. See [`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md)
 > for GPU driver requirements.
 
-The Linux build produces a single, portable **AppImage** (no installation, no root).
+The Linux build produces both a single, portable **AppImage** (no installation, no
+root) and a **`.deb`** package for a system-wide install via `apt`.
 
 1. Build it from the `WebUI` directory:
 
@@ -115,7 +116,9 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
    npm run build:linux
    ```
 
-   The `AI Playground-<version>.AppImage` is written to `build/electron`.
+   Both `AI Playground-<version>.AppImage` and `AI Playground-<version>.deb` are
+   written to `build/electron`. The build host needs `ar` (from `binutils`,
+   usually already present) to assemble the `.deb`.
 
 2. Install FUSE once (required to run any AppImage):
 
@@ -137,6 +140,19 @@ The Linux build produces a single, portable **AppImage** (no installation, no ro
    Files: Preferences → "Executable Text Files" / right-click → Run, or
    `chmod +x` as above). Do **not** start it with `sudo` — Electron refuses to
    run as root.
+
+   Alternatively, install the **`.deb`** instead of running the AppImage. `apt`
+   resolves the runtime dependencies declared in the package
+   (`libgtk-3-0`, `libnss3`, `libasound2`, `libdbus-1-3`, `pciutils`, `python3`):
+
+   ```bash
+   cd build/electron
+   sudo apt install ./"AI Playground-"*.deb
+   ```
+
+   This installs the app system-wide; launch it as **AI Playground** from your
+   application menu or run `ai-playground` from a terminal. `--no-sandbox` is
+   baked into the launcher here too. Uninstall with `sudo apt remove ai-playground`.
 
 4. OpenVINO Ubuntu dependencies are checked during OpenVINO backend setup.
 
