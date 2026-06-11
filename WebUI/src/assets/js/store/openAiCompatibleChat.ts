@@ -17,6 +17,7 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
+import { completeOrphanedToolParts } from './toolMessageSanitize'
 import { useErrors } from './errors'
 import { useActivities } from './activities'
 import { useConfirmations } from './confirmations'
@@ -343,7 +344,14 @@ export const useOpenAiCompatibleChat = defineStore(
         () => resolveMcpInstructions(),
       )
       const systemPromptToUse = `${baseSystemPrompt}${mcpInstructions}`
-      let messages = await convertToModelMessages(m.messages)
+      // Self-heal orphaned tool calls (interrupted/stopped turns, HMR) before
+      // converting: an assistant tool-call with no matching result would make
+      // convertToModelMessages/streamText throw "Tool result is missing …" and
+      // brick the thread. See toolMessageSanitize.ts.
+      let messages = await convertToModelMessages(completeOrphanedToolParts(m.messages))
+      // [HA-DIAG] Temporary: gate perf logging to Home Agent turns. Declared here
+      // (not at the streamText callbacks) so the earlier image-trim block can log.
+      const haDiag = textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME
 
       // Convert aipg-media image URLs to base64 for the backend (can be slow for
       // large images), so surface it as an activity when there is anything to do.
@@ -490,6 +498,37 @@ export const useOpenAiCompatibleChat = defineStore(
         })
       }
 
+      // Keep only the most recent image in the prompt. A vision model re-encodes
+      // (CLIP) every image in the history on every turn, so replaying old images
+      // makes each turn progressively slower as the conversation grows. Scan from
+      // the newest message backwards, keep the first image found, and replace all
+      // earlier ones with a short text placeholder. No-op without vision (images
+      // were already stripped above) or when there is at most one image.
+      if (textInference.modelSupportsVision) {
+        let keptLatestImage = false
+        let droppedImages = 0
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const content = messages[i].content
+          if (!Array.isArray(content)) continue
+          let changed = false
+          const newContent = content.map((part) => {
+            const p = part as { type: string; mediaType?: string }
+            if (p.type !== 'file' || !p.mediaType?.startsWith('image/')) return part
+            if (!keptLatestImage) {
+              keptLatestImage = true
+              return part
+            }
+            changed = true
+            droppedImages++
+            return { type: 'text', text: '[earlier image omitted]' } as typeof part
+          })
+          if (changed) messages[i] = { ...messages[i], content: newContent } as (typeof messages)[number]
+        }
+        if (haDiag && (keptLatestImage || droppedImages)) {
+          console.log(`[HA-DIAG] images kept=${keptLatestImage ? 1 : 0} droppedFromHistory=${droppedImages}`)
+        }
+      }
+
       // Only enable tools if model supports tool calling and tools are enabled
       const availableTools = await activities.track(
         { category: 'tools', label: i18nState.COM_ACTIVITY_PREPARING_TOOLS, scope: activityScope },
@@ -524,6 +563,21 @@ export const useOpenAiCompatibleChat = defineStore(
       }
       ensureInferenceActivity()
 
+      // ── [HA-DIAG] Temporary Home Agent perf diagnostics ───────────────────
+      // Per-turn model + tool surface + prompt size, then per-step prefill
+      // timings and which tools were called. Metadata only — no prompt/response
+      // content. (`haDiag` is declared just after convertToModelMessages above.)
+      const diagTurnStart = Date.now()
+      let diagStepIdx = 0
+      if (haDiag) {
+        const toolNames = Object.keys(availableTools)
+        console.log(
+          `[HA-DIAG] turn start model=${textInference.activeModel} backend=${textInference.backend} ` +
+            `tools=${toolNames.length} [${toolNames.join(',')}] ` +
+            `systemPromptChars=${systemPromptToUse.length} inputMsgs=${messages.length} stepCap=20`,
+        )
+      }
+
       const result = await streamText({
         model: model.value,
         messages,
@@ -547,6 +601,17 @@ export const useOpenAiCompatibleChat = defineStore(
           // Drive the inference activity: content/tool-call means the model is no
           // longer waiting; a tool result means it will process that output next.
           const chunkType = chunk.chunk.type
+          if (haDiag && (chunkType === 'tool-call' || chunkType === 'tool-result')) {
+            const c = chunk.chunk as { toolName?: string; toolCallId?: string }
+            // Prefill stats (promptN/cacheN/promptMs) are stable once prefill is
+            // done, so they're accurate here even though onStepFinish (which has
+            // the full step line) is delayed by tool execution on tool turns.
+            const t = timings
+            console.log(
+              `[HA-DIAG] ${chunkType} tool=${c.toolName ?? '?'} id=${c.toolCallId ?? '?'} ` +
+                `promptN=${t?.prompt_n ?? '?'} cacheN=${t?.cache_n ?? '?'} promptMs=${t?.prompt_ms == null ? '?' : Math.round(t.prompt_ms)}`,
+            )
+          }
           if (
             chunkType === 'text-delta' ||
             chunkType === 'reasoning-delta' ||
@@ -634,6 +699,24 @@ export const useOpenAiCompatibleChat = defineStore(
           }
         },
         onStepFinish: (step) => {
+          if (haDiag) {
+            diagStepIdx++
+            const calls = step.toolCalls.map((c) => c.toolName).join(',') || 'none'
+            // `timings` (captured from llama.cpp raw chunks in onChunk) holds the
+            // just-finished step's numbers. promptN/promptMs = prefill size/time;
+            // cacheN = prefix tokens reused from the prompt cache (high = good);
+            // predN/predMs = tokens decoded and decode time. promptMs >> predMs with
+            // low cacheN means we are re-prefilling the whole history every step.
+            const t = timings
+            const ms = (v?: number) => (v == null ? '?' : Math.round(v))
+            console.log(
+              `[HA-DIAG] step ${diagStepIdx} finishReason=${step.finishReason} ` +
+                `inTok=${step.usage?.inputTokens ?? '?'} outTok=${step.usage?.outputTokens ?? '?'} ` +
+                `promptN=${t?.prompt_n ?? '?'} cacheN=${t?.cache_n ?? '?'} promptMs=${ms(t?.prompt_ms)} ` +
+                `predN=${t?.predicted_n ?? '?'} predMs=${ms(t?.predicted_ms)} ` +
+                `toolCalls=${step.toolCalls.length} [${calls}] textLen=${step.text?.length ?? 0}`,
+            )
+          }
           // After a step that ran tool(s), the model processes their output before the
           // next step's first token. Re-arm so that inter-step gap (e.g. the chat
           // backend reloading after an image tool) isn't silent. Cleared on the next
@@ -646,6 +729,12 @@ export const useOpenAiCompatibleChat = defineStore(
         },
         onFinish: (result) => {
           finishTime = Date.now()
+          if (haDiag) {
+            console.log(
+              `[HA-DIAG] turn done steps=${diagStepIdx} wallMs=${finishTime - diagTurnStart} ` +
+                `finalInTok=${result.usage?.inputTokens ?? '?'} finalOutTok=${result.usage?.outputTokens ?? '?'}`,
+            )
+          }
           clearInferenceActivity()
           if (result.usage) {
             usage = result.usage

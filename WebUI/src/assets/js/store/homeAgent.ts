@@ -1508,12 +1508,21 @@ export const useHomeAgent = defineStore(
       meta?: InboundMeta,
     ): Promise<void> {
       try {
+        const t0 = Date.now()
         const base64 = await mediaToBase64(imageUrl)
+        console.log(
+          `[HA-DIAG] sendImage read ok url=${imageUrl.slice(0, 40)} b64Bytes=${base64.length} readMs=${Date.now() - t0}`,
+        )
+        const t1 = Date.now()
         const result = await photo(adapter, base64, caption, meta)
+        console.log(
+          `[HA-DIAG] sendImage photo result success=${result.success} sendMs=${Date.now() - t1} error=${result.error ?? '-'}`,
+        )
         if (!result.success) {
           throw new Error(result.error ?? 'photo returned failure')
         }
       } catch (e) {
+        console.error('[HA-DIAG] sendImage FAILED:', e)
         await reply(
           adapter,
           `⚠️ Image was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,

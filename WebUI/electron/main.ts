@@ -547,9 +547,32 @@ async function createWindow() {
     destroyWebBrowser()
   })
 
+  // [HA-DIAG] Temporary: surface renderer `[HA-DIAG]` perf logs in the main
+  // terminal stream (renderer console.log normally only reaches DevTools).
+  // Remove together with the renderer-side [HA-DIAG] logging.
+  win.webContents.on('console-message', (event: unknown, ...rest: unknown[]) => {
+    const e = event as { message?: string }
+    // Electron 35+ passes a single event object with `.message`; older builds
+    // pass (event, level, message, line, sourceId).
+    const message =
+      typeof e?.message === 'string' ? e.message : (rest[1] as string | undefined) ?? ''
+    // Route through appLogger so the line reaches the in-app debug viewer (fed
+    // by the `debugLog` IPC). appLogger also mirrors back to the renderer, which
+    // App.vue re-logs as `[ha-diag] <message>` — that re-enters this handler. The
+    // `[ha-diag]` source prefix (absent from the original renderer line) marks
+    // the echo, so skipping it breaks the otherwise-infinite loop.
+    if (message.includes('[HA-DIAG]') && !message.includes('[ha-diag]')) {
+      appLogger.info(message, 'ha-diag')
+    }
+  })
+
   win.webContents.on('did-finish-load', () => {
     setTimeout(() => {
       appLogger.onWebcontentReady(win!.webContents)
+      // [HA-DIAG] One-shot marker: if you see this line, the rebuilt main process
+      // with the renderer-log forwarder is running. If it's absent, main.ts did
+      // not reload — fully restart Electron (HMR only reloads the renderer).
+      appLogger.info('[HA-DIAG] forwarder installed — renderer perf logs will appear here', 'ha-diag')
     }, 100)
 
     // Check localStorage for developer settings after page loads
