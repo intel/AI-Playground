@@ -19,7 +19,7 @@ function redact(message: string): string {
 
 class Logger {
   webContents: WebContents | null = null
-  private pathToLogFiles: string = path.resolve(
+  readonly pathToLogFiles: string = path.resolve(
     app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'),
   )
   private startupMessageCache: {

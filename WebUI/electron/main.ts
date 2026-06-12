@@ -578,6 +578,57 @@ async function createWindow() {
     }, 500)
   })
 
+  // Pipe renderer console warnings/errors to the app log file. Writes via
+  // logMessageToFile directly: the regular logger methods echo every message
+  // back to the renderer's debug stream, which a console-logging renderer
+  // would turn into a feedback loop. Rate-limited so a hot error loop can't
+  // bloat the log file (appendFileSync blocks the main process).
+  const RENDERER_LOG_WINDOW_MS = 1000
+  const MAX_RENDERER_LOGS_PER_WINDOW = 10
+  let rendererLogWindowStart = 0
+  let rendererLogCount = 0
+  win.webContents.on('console-message', (event) => {
+    if (event.level !== 'warning' && event.level !== 'error') return
+    const now = Date.now()
+    if (now - rendererLogWindowStart > RENDERER_LOG_WINDOW_MS) {
+      rendererLogWindowStart = now
+      rendererLogCount = 0
+    }
+    if (rendererLogCount < MAX_RENDERER_LOGS_PER_WINDOW) {
+      appLogger.logMessageToFile(
+        `[${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`,
+        'renderer',
+      )
+    } else if (rendererLogCount === MAX_RENDERER_LOGS_PER_WINDOW) {
+      appLogger.logMessageToFile('rate limit exceeded, suppressing further messages this second', 'renderer')
+    }
+    rendererLogCount++
+  })
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    appLogger.error(
+      `render-process-gone: reason=${details.reason} exitCode=${details.exitCode}`,
+      'electron-backend',
+      true,
+    )
+    dialog.showErrorBox(
+      'AI Playground — Renderer Crashed',
+      `The application window has crashed unexpectedly.\n\n` +
+        `Reason: ${details.reason}\n` +
+        `Exit code: ${details.exitCode}\n\n` +
+        `Check logs for details:\n${appLogger.pathToLogFiles}`,
+    )
+  })
+
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    if (errorCode === -3) return // ERR_ABORTED: navigation cancelled, not a failure
+    appLogger.error(
+      `did-fail-load: code=${errorCode} desc="${errorDescription}" url="${validatedURL}"`,
+      'electron-backend',
+      true,
+    )
+  })
+
   const session = win.webContents.session
 
   if (!app.isPackaged || settings.debug) {
@@ -2139,6 +2190,13 @@ async function configureProxyFromEnv(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  // Startup diagnostic — helps diagnose installation and configuration issues
+  appLogger.info(
+    `startup: isPackaged=${app.isPackaged} platform=${process.platform} DIST="${process.env.DIST}" userData="${app.getPath('userData')}"`,
+    'electron-backend',
+    true,
+  )
+
   /*
     The current user does not have write permission for files in the program directory and is not an administrator.
     Close the current program and let the user start the program with administrator privileges

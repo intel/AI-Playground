@@ -112,6 +112,8 @@ root) and a **`.deb`** package for a system-wide install via `apt`.
 1. Build it from the `WebUI` directory:
 
    ```bash
+   cd WebUI
+   npm install                        # install build dependencies
    npm run fetch-external-resources   # one-time: downloads uv/7zip
    npm run build:linux
    ```
