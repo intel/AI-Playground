@@ -171,6 +171,7 @@ const conversations = useConversations()
 const homeAgent = useHomeAgent()
 const emits = defineEmits<{
   (e: 'conversationSelected'): void
+  (e: 'filterKindChange', kind: ThreadKind): void
 }>()
 
 const images = (conversation: AipgUiMessage[]) => {
@@ -219,6 +220,12 @@ const images = (conversation: AipgUiMessage[]) => {
 const filterKind = ref<ThreadKind>(conversations.getThreadKind(conversations.activeKey))
 
 watch(
+  filterKind,
+  (kind) => emits('filterKindChange', kind),
+  { immediate: true },
+)
+
+watch(
   () => conversations.activeKey,
   (k) => {
     if (!k) return
@@ -241,6 +248,11 @@ const reversedConversationKeys = computed(() => {
 function switchKind(kind: ThreadKind) {
   if (kind === filterKind.value) return
 
+  // Flip the filter up-front so the switch always reflects the user's choice,
+  // even when the resolved target key equals the current activeKey (in which
+  // case the activeKey watcher would not fire).
+  filterKind.value = kind
+
   if (kind === 'homeAgent') {
     const list = conversations.conversationList
     const stored = homeAgent.activeRemoteConversationKey
@@ -255,9 +267,8 @@ function switchKind(kind: ThreadKind) {
       return
     }
     // No remote threads exist yet — keep activeKey on the current main thread
-    // so the chat view stays usable, but flip the filter so the empty-state
-    // hint shows for Home Agent.
-    filterKind.value = 'homeAgent'
+    // so the chat view stays usable; the filter was already flipped above so
+    // the empty-state hint shows for Home Agent.
     return
   }
 
