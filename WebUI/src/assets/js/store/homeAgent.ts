@@ -669,7 +669,27 @@ export const useHomeAgent = defineStore(
             markdownToTelegramHtml(reply),
             'HTML',
           )
+          return
         }
+        // No reply text. The AI SDK's chat.sendMessage does NOT throw on a
+        // failed/timed-out request (e.g. a slow model load on cold start) — it
+        // resolves normally and parks the error on the chat's reactive state.
+        // So generate() returning is not proof of success. Check the swallowed
+        // per-conversation error and surface it; otherwise the Telegram user
+        // gets nothing and the reply is silently lost.
+        const genError = chatStore.getErrorForKey(targetKey)
+        if (genError) throw new Error(genError)
+      } catch (e) {
+        // Generation failed (commonly a model-load/inference timeout on a cold
+        // start), either by throwing here or via the swallowed-error rethrow
+        // above. Surface a best-effort error so the user knows to retry instead
+        // of waiting on a reply that will never come.
+        console.error('Error generating Telegram reply:', e)
+        await window.electronAPI.homeAgent
+          .sendTelegramReply(
+            '⚠️ The request timed out or failed — the model may still be loading. Please try again in a moment.',
+          )
+          .catch(() => {})
       } finally {
         stopTyping()
       }
@@ -1087,6 +1107,25 @@ export const useHomeAgent = defineStore(
           files,
         })
         maybeSetHomeAgentConversationTitle(targetKey)
+        // generate() returning is not proof of success: the AI SDK's
+        // chat.sendMessage swallows request failures onto the chat's reactive
+        // error state instead of throwing. Surface that so a swallowed error
+        // (e.g. the inference request failing after a slow load) isn't lost.
+        const genError = chatStore.getErrorForKey(targetKey)
+        if (genError) throw new Error(genError)
+      } catch (e) {
+        // The most common failure here is the model failing to (re)load before
+        // generation — e.g. not enough VRAM for the chosen context size — which
+        // throws out of generate()'s ensureReadyForInference(). Without this
+        // catch the error propagates to drainQueue and is only console.logged,
+        // so the Telegram user is left with a "typing…" indicator that simply
+        // stops and never receives any reply. Surface a best-effort error.
+        console.error('Error generating agentic Telegram reply:', e)
+        await window.electronAPI.homeAgent
+          .sendTelegramReply(
+            '⚠️ The request failed — the model may have run out of memory or is still loading. Please try again, or reduce the context size in Chat settings.',
+          )
+          .catch(() => {})
       } finally {
         stopTyping()
         if (isHomeAgentActive.value) {

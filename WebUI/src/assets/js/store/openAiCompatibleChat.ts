@@ -520,6 +520,17 @@ export const useOpenAiCompatibleChat = defineStore(
     // chat and Home Agent side-channel — cannot leak each other's prompt.
     const temporarySystemPrompts: Record<string, string | null> = {}
 
+    // Surface the swallowed request error for a specific conversation. The AI
+    // SDK's `Chat.sendMessage` does not throw on a failed/timed-out request —
+    // it resolves normally and parks the error on `chat.error` for the UI to
+    // render reactively. Side-channel callers (Home Agent → Telegram) that
+    // don't observe `chat.error` would otherwise see a silent no-op. This lets
+    // them detect the failure for the exact key they generated against, rather
+    // than only the active conversation (see the `error` computed below).
+    function getErrorForKey(conversationKey: string): string | undefined {
+      return chats[conversationKey]?.error?.message
+    }
+
     function getMessagesForKey(conversationKey: string): AipgUiMessage[] | undefined {
       // Prefer live chat instance state when present; otherwise fall back to the
       // persisted bucket so threads that exist in `conversationList` but haven't
@@ -712,6 +723,7 @@ export const useOpenAiCompatibleChat = defineStore(
       fileInput,
       generate,
       getMessagesForKey,
+      getErrorForKey,
       summarizeMessages,
       stop,
       processing,
