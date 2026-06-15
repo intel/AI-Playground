@@ -1081,20 +1081,35 @@ export class LlamaCppBackendService implements ApiService {
         isReady: false,
       }
 
-      // Set up process event handlers
-      childProcess.stdout!.on('data', (message) => {
-        const msg = message.toString()
-        if (msg.startsWith('I ')) {
-          this.appLogger.info(`[LLM] ${message}`, this.name)
-        } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[LLM] ${message}`, this.name)
-        } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[LLM] ${message}`, this.name)
-        }
-      })
+      // Track startup failures so we can surface an actionable error to the
+      // user instead of silently waiting out the full health-check timeout.
+      // The most common failure is the GPU running out of memory for the
+      // requested context size (KV cache + compute buffers), which makes
+      // llama-server abort during init.
+      let memoryFailureDetected = false
+      let processExited = false
+      let exitCode: number | null = null
 
-      childProcess.stderr!.on('data', (message) => {
+      const memoryFailureMarkers = [
+        'failed to allocate',
+        'out of memory',
+        'cannot meet free memory target',
+        'failed to create context',
+      ]
+      const scanForMemoryFailure = (msg: string) => {
+        const lower = msg.toLowerCase()
+        if (memoryFailureMarkers.some((marker) => lower.includes(marker))) {
+          memoryFailureDetected = true
+        }
+      }
+
+      const handleServerOutput = (message: Buffer | string) => {
         const msg = message.toString()
+        // Once a failure is detected the flag never flips back, so there's no
+        // need to keep scanning the (high-volume) startup output.
+        if (!memoryFailureDetected) {
+          scanForMemoryFailure(msg)
+        }
         if (msg.startsWith('I ')) {
           this.appLogger.info(`[LLM] ${message}`, this.name)
         } else if (msg.startsWith('W ')) {
@@ -1102,7 +1117,24 @@ export class LlamaCppBackendService implements ApiService {
         } else if (msg.startsWith('E ')) {
           this.appLogger.error(`[LLM] ${message}`, this.name)
         }
-      })
+      }
+
+      // Returns an actionable error message if the server has failed to start,
+      // otherwise null. Consumed by waitForServerReady to abort the wait early.
+      const getStartupError = (): string | null => {
+        if (memoryFailureDetected) {
+          return `Model failed to load: not enough memory to run "${modelRepoId}" with a context size of ${ctxSize}. Try reducing the context size and load the model again.`
+        }
+        if (processExited) {
+          return `Model failed to load: the server for "${modelRepoId}" exited unexpectedly (code ${exitCode}). This is often caused by running out of memory — try reducing the context size and load the model again.`
+        }
+        return null
+      }
+
+      // Set up process event handlers
+      childProcess.stdout!.on('data', handleServerOutput)
+
+      childProcess.stderr!.on('data', handleServerOutput)
 
       childProcess.on('error', (error: Error) => {
         this.appLogger.error(`LLM server process error: ${error}`, this.name)
@@ -1110,6 +1142,8 @@ export class LlamaCppBackendService implements ApiService {
 
       childProcess.on('exit', (code: number | null) => {
         this.appLogger.info(`LLM server process exited with code: ${code}`, this.name)
+        processExited = true
+        exitCode = code
         if (this.llamaLlmProcess === llamaProcess) {
           this.llamaLlmProcess = null
           this.currentLlmModel = null
@@ -1118,7 +1152,11 @@ export class LlamaCppBackendService implements ApiService {
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(`http://127.0.0.1:${port}/health`, childProcess)
+      await this.waitForServerReady(
+        `http://127.0.0.1:${port}/health`,
+        childProcess,
+        getStartupError,
+      )
       llamaProcess.isReady = true
 
       this.llamaLlmProcess = llamaProcess
@@ -1334,11 +1372,23 @@ export class LlamaCppBackendService implements ApiService {
     return modelPath
   }
 
-  private async waitForServerReady(healthUrl: string, process: ChildProcess): Promise<void> {
+  private async waitForServerReady(
+    healthUrl: string,
+    process: ChildProcess,
+    getStartupError?: () => string | null,
+  ): Promise<void> {
     const maxAttempts = this.llamaCppBuildVariant === 'ssd-offload' ? 500 : 120
     const delayMs = 1000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Abort early with an actionable message if the server has reported a
+      // fatal startup error (e.g. ran out of memory for the context size).
+      const startupError = getStartupError?.()
+      if (startupError) {
+        this.appLogger.error(startupError, this.name)
+        throw new Error(startupError)
+      }
+
       // Check if process has exited before attempting health check
       if (!process || process.killed) {
         this.appLogger.warn(

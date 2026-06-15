@@ -10,6 +10,7 @@ import { usePresets, type ChatPreset } from './presets'
 import { useDeveloperSettings } from './developerSettings'
 import { useHomeAgent } from './homeAgent'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
+import * as toast from '@/assets/js/toast.ts'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -850,12 +851,21 @@ export const useTextInference = defineStore(
           }
         }
 
-        await backendServices.ensureBackendReadiness(
-          serviceName,
-          llmModelName,
-          embeddingModelToSend,
-          contextSize.value,
-        )
+        try {
+          await backendServices.ensureBackendReadiness(
+            serviceName,
+            llmModelName,
+            embeddingModelToSend,
+            contextSize.value,
+          )
+        } catch (error) {
+          // Surface model-load failures (e.g. out of memory for the chosen
+          // context size) to the user. This is the single chokepoint for both
+          // the chat-send path and direct backend restarts, so the toast fires
+          // regardless of what triggered the (re)load.
+          toast.error(error instanceof Error ? error.message : String(error))
+          throw error
+        }
       }
 
       // If Home Agent is active, also ensure it is running

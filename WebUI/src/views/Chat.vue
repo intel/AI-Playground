@@ -395,7 +395,9 @@ async function handlePromptSubmit(prompt: string) {
     nextTick(scrollToBottom)
     await openAiCompatibleChat.generate(question)
   } catch (error) {
-    // Reset state on any error (including download cancellation)
+    // Reset state on any error (including download cancellation). Model-load
+    // failures are surfaced to the user via toast at the backend-readiness
+    // chokepoint (textInference.ensureBackendReadiness).
     promptStore.promptSubmitted = false
     console.error('Error during text inference:', error)
   }
