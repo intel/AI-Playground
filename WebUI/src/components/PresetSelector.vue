@@ -85,6 +85,8 @@ import { usePresets, type Preset, type ChatPreset } from '@/assets/js/store/pres
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { backendToService } from '@/assets/js/store/textInference'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { useHomeAgent } from '@/assets/js/store/homeAgent'
+import { HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -110,6 +112,7 @@ const emits = defineEmits<{
 const presetsStore = usePresets()
 const backendServices = useBackendServices()
 const presetSwitching = usePresetSwitching()
+const homeAgent = useHomeAgent()
 
 const filteredPresets = computed(() => {
   return presetsStore.getPresetsByCategories(props.categories || [], props.type)
@@ -207,6 +210,17 @@ function isPresetDisabled(preset: Preset): boolean {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
 
+    // The Home Agent toggle and the chat preset are two reflections of one
+    // state: when Home Agent is on, only the Home Agent preset is selectable;
+    // when it's off, the Home Agent preset itself is locked. Switching between
+    // them happens via the header toggle, not the picker.
+    const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
+    if (homeAgent.isHomeAgentActive) {
+      if (!isHomeAgentPreset) return true
+    } else if (isHomeAgentPreset) {
+      return true
+    }
+
     // Check if NPU is required but not available
     if (chatPreset.requiresNpuSupport) {
       const hasNpuDevice = backendServices.info
@@ -231,6 +245,16 @@ function isPresetDisabled(preset: Preset): boolean {
 function showDisabledReason(preset: Preset) {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
+    const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
+    const blueToast = { style: { content: { background: '#3b82f6', color: '#ffffff' } } }
+    if (isHomeAgentPreset && !homeAgent.isHomeAgentActive) {
+      toast.show('Turn on the Home Agent toggle to use this preset.', blueToast)
+      return
+    }
+    if (!isHomeAgentPreset && homeAgent.isHomeAgentActive) {
+      toast.show('Home Agent is on. Turn it off to switch presets.', blueToast)
+      return
+    }
     if (chatPreset.requiresNpuSupport) {
       toast.show('NPU device not available. This preset requires an Intel NPU.', {
         style: {
