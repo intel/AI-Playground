@@ -203,10 +203,16 @@ export class LlamaCppBackendService implements ApiService {
 
     try {
       // Handle LLM model
+      // A running server is only ever torn down by its `exit` handler, so a
+      // process that wedged without exiting (GPU stall, hung worker) would keep
+      // its stale `isReady === true` and we'd route requests at a dead server
+      // forever. Re-probe `/health` so an unresponsive-but-alive server is
+      // treated as needing a relaunch, not reused.
+      const llmServerResponsive = await this.isLlmServerResponsive()
       const needsLlmRestart =
         this.currentLlmModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
-        !this.llamaLlmProcess?.isReady
+        !llmServerResponsive
 
       if (needsLlmRestart) {
         await this.stopLlamaLlmServer()
@@ -1014,6 +1020,33 @@ export class LlamaCppBackendService implements ApiService {
       ...process.env,
       ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
       ...llamaCppPhison.getModelServerEnvAdditions(this.llamaCppBuildVariant),
+    }
+  }
+
+  /**
+   * Liveness probe for the currently-tracked LLM server. Returns false when no
+   * server is tracked, the process has died, or `/health` does not answer within
+   * a short timeout (wedged/hung server). llama-server's `/health` is a trivial
+   * handler that stays responsive even mid-generation, so a short timeout will
+   * not produce false negatives for a merely-busy server.
+   */
+  private async isLlmServerResponsive(): Promise<boolean> {
+    const proc = this.llamaLlmProcess
+    if (!proc?.isReady || proc.process.killed) {
+      return false
+    }
+    try {
+      const response = await fetch(`http://127.0.0.1:${proc.port}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000),
+      })
+      return response.ok
+    } catch {
+      this.appLogger.warn(
+        `LLM server on port ${proc.port} failed health probe; will relaunch`,
+        this.name,
+      )
+      return false
     }
   }
 

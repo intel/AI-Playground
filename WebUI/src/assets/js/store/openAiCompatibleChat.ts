@@ -142,36 +142,55 @@ export const useOpenAiCompatibleChat = defineStore(
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
         fetch: async (url, init) => {
-          const requestUrl = new URL(url as string)
-          const currentBaseUrl = textInference.currentBackendUrl
-          if (currentBaseUrl) {
-            const latestBase = new URL(currentBaseUrl)
-            requestUrl.hostname = latestBase.hostname
-            requestUrl.port = latestBase.port
-          }
-          // When Home Agent is active, the LLM proxy lives behind the Home
-          // Agent Flask service. Attach the upstream inference URL header and
-          // the per-launch loopback auth token so the proxy accepts the call.
-          const upstreamUrl = textInference.homeAgentUpstreamUrl
-          if (upstreamUrl) {
-            let token = await getHomeAgentAuthToken()
-            const build = (t: string): RequestInit => {
-              const headers = new Headers(init?.headers)
-              headers.set('X-Upstream-Url', upstreamUrl)
-              if (t) headers.set('X-AIPG-Auth', t)
-              return { ...init, headers }
+          // Resolve the request against the latest backend URL each call, so a
+          // retry after a relaunch picks up the (possibly new) port.
+          const doFetch = async (): Promise<Response> => {
+            const requestUrl = new URL(url as string)
+            const currentBaseUrl = textInference.currentBackendUrl
+            if (currentBaseUrl) {
+              const latestBase = new URL(currentBaseUrl)
+              requestUrl.hostname = latestBase.hostname
+              requestUrl.port = latestBase.port
             }
-            let response = await globalThis.fetch(requestUrl.toString(), build(token))
-            if (response.status === 401) {
-              invalidateHomeAgentAuthToken()
-              token = await getHomeAgentAuthToken(true)
-              if (token) {
-                response = await globalThis.fetch(requestUrl.toString(), build(token))
+            // When Home Agent is active, the LLM proxy lives behind the Home
+            // Agent Flask service. Attach the upstream inference URL header and
+            // the per-launch loopback auth token so the proxy accepts the call.
+            const upstreamUrl = textInference.homeAgentUpstreamUrl
+            if (upstreamUrl) {
+              let token = await getHomeAgentAuthToken()
+              const build = (t: string): RequestInit => {
+                const headers = new Headers(init?.headers)
+                headers.set('X-Upstream-Url', upstreamUrl)
+                if (t) headers.set('X-AIPG-Auth', t)
+                return { ...init, headers }
               }
+              let response = await globalThis.fetch(requestUrl.toString(), build(token))
+              if (response.status === 401) {
+                invalidateHomeAgentAuthToken()
+                token = await getHomeAgentAuthToken(true)
+                if (token) {
+                  response = await globalThis.fetch(requestUrl.toString(), build(token))
+                }
+              }
+              return response
             }
-            return response
+            return globalThis.fetch(requestUrl.toString(), init)
           }
-          return globalThis.fetch(requestUrl.toString(), init)
+
+          try {
+            return await doFetch()
+          } catch (error) {
+            // A thrown fetch error (vs. an HTTP error status) means the request
+            // never reached a live server — typically the llama-server process
+            // crashed or wedged (connection refused / timeout). Don't retry a
+            // user-initiated abort. Otherwise relaunch the backend once (which
+            // re-probes health and relaunches a dead/hung server) and retry
+            // against the refreshed port.
+            if (init?.signal?.aborted) throw error
+            console.warn('Inference request failed; relaunching backend and retrying once:', error)
+            await textInference.ensureBackendReadiness()
+            return await doFetch()
+          }
         },
       }).chatModel(textInference.activeModel?.split('/').join('---') ?? ''),
     )
