@@ -357,6 +357,19 @@ onMounted(() => {
   promptStore.registerCancelCallback('chat', handleCancel)
 })
 
+// When async content (e.g. a generated picture) finishes loading, the panel
+// grows after the initial scroll. Re-pin to the bottom on such load events so
+// the view doesn't lag behind. `load` doesn't bubble but does fire in the
+// capture phase, so a single listener on the container catches all images.
+watch(chatPanel, (el, _old, onCleanup) => {
+  if (!el) return
+  const onContentLoad = () => {
+    if (autoScrollEnabled.value) nextTick(() => scrollToBottom())
+  }
+  el.addEventListener('load', onContentLoad, true)
+  onCleanup(() => el.removeEventListener('load', onContentLoad, true))
+})
+
 onUnmounted(() => {
   promptStore.unregisterSubmitCallback('chat')
   promptStore.unregisterCancelCallback('chat')
@@ -415,12 +428,24 @@ function handleCancel() {
   promptStore.promptSubmitted = false
 }
 
+let lastScrollTop = 0
+
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement
-  const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
+  const scrollTop = target.scrollTop
+  const distanceFromBottom = target.scrollHeight - (scrollTop + target.clientHeight)
 
-  autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
+
+  // Only a genuine upward scroll (user dragging up) disables autoscroll.
+  // Programmatic scroll-to-bottom and content growth only move scrollTop down or
+  // leave it unchanged, so the smooth animation can't wrongly disable autoscroll.
+  if (scrollTop < lastScrollTop - 1) {
+    autoScrollEnabled.value = false
+  } else if (distanceFromBottom <= 35) {
+    autoScrollEnabled.value = true
+  }
+  lastScrollTop = scrollTop
 }
 
 function scrollToBottom(smooth = true) {
