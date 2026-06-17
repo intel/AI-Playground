@@ -498,14 +498,16 @@ export const useOpenAiCompatibleChat = defineStore(
         })
       }
 
-      // Keep only the most recent image in the prompt. A vision model re-encodes
+      // Keep only the most recent images in the prompt. A vision model re-encodes
       // (CLIP) every image in the history on every turn, so replaying old images
       // makes each turn progressively slower as the conversation grows. Scan from
-      // the newest message backwards, keep the first image found, and replace all
-      // earlier ones with a short text placeholder. No-op without vision (images
-      // were already stripped above) or when there is at most one image.
+      // the newest message backwards, keep the first MAX_HISTORY_IMAGES found, and
+      // replace all earlier ones with a short text placeholder. No-op without
+      // vision (images were already stripped above) or when there are at most that
+      // many images.
+      const MAX_HISTORY_IMAGES = 2
       if (textInference.modelSupportsVision) {
-        let keptLatestImage = false
+        let keptImages = 0
         let droppedImages = 0
         for (let i = messages.length - 1; i >= 0; i--) {
           const content = messages[i].content
@@ -514,8 +516,8 @@ export const useOpenAiCompatibleChat = defineStore(
           const newContent = content.map((part) => {
             const p = part as { type: string; mediaType?: string }
             if (p.type !== 'file' || !p.mediaType?.startsWith('image/')) return part
-            if (!keptLatestImage) {
-              keptLatestImage = true
+            if (keptImages < MAX_HISTORY_IMAGES) {
+              keptImages++
               return part
             }
             changed = true
@@ -524,8 +526,8 @@ export const useOpenAiCompatibleChat = defineStore(
           })
           if (changed) messages[i] = { ...messages[i], content: newContent } as (typeof messages)[number]
         }
-        if (haDiag && (keptLatestImage || droppedImages)) {
-          console.log(`[HA-DIAG] images kept=${keptLatestImage ? 1 : 0} droppedFromHistory=${droppedImages}`)
+        if (haDiag && (keptImages || droppedImages)) {
+          console.log(`[HA-DIAG] images kept=${keptImages} droppedFromHistory=${droppedImages}`)
         }
       }
 
