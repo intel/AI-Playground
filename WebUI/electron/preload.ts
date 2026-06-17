@@ -131,6 +131,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('startTranscriptionServer', modelName),
   stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),
   getTranscriptionServerUrl: () => ipcRenderer.invoke('getTranscriptionServerUrl'),
+  startSpeechServer: (modelName: string) => ipcRenderer.invoke('startSpeechServer', modelName),
+  stopSpeechServer: () => ipcRenderer.invoke('stopSpeechServer'),
+  getSpeechServerUrl: () => ipcRenderer.invoke('getSpeechServerUrl'),
+  synthesizeSpeech: (options: {
+    baseURL: string
+    model: string
+    input: string
+    voice?: string
+    apiKey?: string
+    format?: string
+  }) => ipcRenderer.invoke('synthesizeSpeech', options),
   ensureOvmsImageReady: (
     serviceName: string,
     modelName: string,
@@ -145,6 +156,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       resolution,
     ),
   stopOvmsImageServer: () => ipcRenderer.invoke('stopOvmsImageServer'),
+  stopOvmsChatServers: () => ipcRenderer.invoke('stopOvmsChatServers'),
   getOvmsImageServerUrl: () => ipcRenderer.invoke('getOvmsImageServerUrl'),
   // ComfyUI Tools
   comfyui: {
@@ -214,30 +226,69 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ) => ipcRenderer.invoke('mcp:updateServer', serverId, config),
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
   },
+  webBrowser: {
+    navigate: (url: string) => ipcRenderer.invoke('webBrowser:navigate', url),
+    readPage: () => ipcRenderer.invoke('webBrowser:readPage'),
+    search: (query: string, maxResults?: number) =>
+      ipcRenderer.invoke('webBrowser:search', query, maxResults),
+    interact: (interaction: WebBrowserInteraction) =>
+      ipcRenderer.invoke('webBrowser:interact', interaction),
+    screenshot: () => ipcRenderer.invoke('webBrowser:screenshot'),
+    show: () => ipcRenderer.invoke('webBrowser:show'),
+    hide: () => ipcRenderer.invoke('webBrowser:hide'),
+    close: () => ipcRenderer.invoke('webBrowser:close'),
+    getState: () => ipcRenderer.invoke('webBrowser:getState'),
+    onStateChanged: (callback: (state: WebBrowserState) => void) =>
+      ipcRenderer.on('webBrowser:stateChanged', (_event, state: WebBrowserState) =>
+        callback(state),
+      ),
+  },
+  screenshot: {
+    listWindows: () => ipcRenderer.invoke('screenshot:listWindows'),
+    captureWindow: (target: { id: string; name: string }) =>
+      ipcRenderer.invoke('screenshot:captureWindow', target),
+    getPermissionStatus: () => ipcRenderer.invoke('screenshot:getPermissionStatus'),
+    openPermissionSettings: () => ipcRenderer.send('screenshot:openPermissionSettings'),
+  },
   homeAgent: {
-    saveConfig: (token: string, chatId: string) =>
-      ipcRenderer.invoke('homeAgent:saveConfig', token, chatId),
-    loadConfig: () => ipcRenderer.invoke('homeAgent:loadConfig'),
-    clearConfig: () => ipcRenderer.invoke('homeAgent:clearConfig'),
-    testTelegram: () => ipcRenderer.invoke('homeAgent:testTelegram'),
-    detectChatId: (token: string) => ipcRenderer.invoke('homeAgent:detectChatId', token),
-    detectChatIdFromSaved: () => ipcRenderer.invoke('homeAgent:detectChatIdFromSaved'),
-    injectToken: (token: string, chatId?: string) =>
-      ipcRenderer.invoke('homeAgent:injectToken', token, chatId),
-    pollTelegram: () => ipcRenderer.invoke('homeAgent:pollTelegram'),
-    flushPending: () => ipcRenderer.invoke('homeAgent:flushPending'),
-    sendTelegramReply: (text: string, parseMode?: string) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramReply', text, parseMode),
-    sendTelegramPhoto: (imageBase64: string, caption?: string) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramPhoto', imageBase64, caption),
-    sendTelegramChatAction: (action?: string) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramChatAction', action),
-    sendTelegramDraft: (opts: { draftId: number; text?: string; parseMode?: string }) =>
-      ipcRenderer.invoke('homeAgent:sendTelegramDraft', opts),
-    sendTelegramKeyboard: (opts: {
-      text: string
-      parseMode?: string
-      buttons: Array<Array<{ text: string; callbackData: string }>>
-    }) => ipcRenderer.invoke('homeAgent:sendTelegramKeyboard', opts),
+    // Persist an inbound document (base64) to disk for RAG ingestion.
+    saveDocument: (filename: string, base64: string) =>
+      ipcRenderer.invoke('saveHomeAgentDocument', filename, base64),
+    // Channel-agnostic dispatcher. Every method is keyed by ChannelKind
+    // (`'telegram'` | `'slack'` | `'discord'`) so adding a new platform
+    // requires zero edits here — only a new entry in the renderer-side
+    // channel registry and a Python channel module.
+    channel: {
+      saveConfig: (kind: string, config: Record<string, string>) =>
+        ipcRenderer.invoke('channel:saveConfig', kind, config),
+      loadConfig: (kind: string) => ipcRenderer.invoke('channel:loadConfig', kind),
+      clearConfig: (kind: string) => ipcRenderer.invoke('channel:clearConfig', kind),
+      savePrefs: (kind: string, prefs: { verified?: boolean; enabled?: boolean }) =>
+        ipcRenderer.invoke('channel:savePrefs', kind, prefs),
+      loadPrefs: (kind: string) => ipcRenderer.invoke('channel:loadPrefs', kind),
+      test: (kind: string) => ipcRenderer.invoke('channel:test', kind),
+      inject: (kind: string, config: Record<string, string | undefined>) =>
+        ipcRenderer.invoke('channel:inject', kind, config),
+      detectIdentity: (kind: string, config: Record<string, string | undefined>) =>
+        ipcRenderer.invoke('channel:detectIdentity', kind, config),
+      detectIdentityFromSaved: (kind: string) =>
+        ipcRenderer.invoke('channel:detectIdentityFromSaved', kind),
+      poll: (kind: string) => ipcRenderer.invoke('channel:poll', kind),
+      flushPending: (kind: string) => ipcRenderer.invoke('channel:flushPending', kind),
+      send: (
+        kind: string,
+        action:
+          | 'reply'
+          | 'update'
+          | 'photo'
+          | 'video'
+          | 'voice'
+          | 'document'
+          | 'typing'
+          | 'keyboard'
+          | 'editMessage',
+        payload: Record<string, unknown>,
+      ) => ipcRenderer.invoke('channel:send', kind, action, payload),
+    },
   },
 })

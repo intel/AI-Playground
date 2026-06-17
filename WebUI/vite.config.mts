@@ -19,7 +19,16 @@ export default defineConfig(({ command }) => {
     },
     plugins: [
       tailwindcss(),
-      vue(),
+      vue({
+        template: {
+          compilerOptions: {
+            // `<model-viewer>` (from @google/model-viewer) is a native custom
+            // element, not a Vue component. Without this Vue tries to resolve it
+            // as a component and logs "Failed to resolve component: model-viewer".
+            isCustomElement: (tag) => tag === 'model-viewer',
+          },
+        },
+      }),
       AutoImport({
         imports: ['vue'],
         dts: 'src/auto-import.d.ts',

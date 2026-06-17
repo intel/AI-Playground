@@ -7,6 +7,9 @@ dependencies = [
   "flask-cors",
   "Requests",
   "python-telegram-bot",
+  "slack-bolt",
+  "aiohttp",
+  "av",
 ]
 [tool.uv]
 python-preference = "only-managed"

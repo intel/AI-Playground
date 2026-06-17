@@ -5,7 +5,7 @@ import * as filesystem from 'fs-extra'
 import { app, net, type BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { createEnhancedErrorDetails, type ApiService, type ErrorDetails } from './service.ts'
-import { vulkanDeviceSelectorEnv } from './deviceDetection.ts'
+import { vulkanDeviceSelectorEnv, withSelectedDevice } from './deviceDetection.ts'
 import type { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { binary, extract } from './tools.ts'
@@ -399,10 +399,11 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      this.devices = availableDevices.map((d, index) => ({
-        ...d,
-        selected: index === 0,
-      }))
+      this.devices = withSelectedDevice(
+        availableDevices.map((d) => ({ ...d, selected: false })),
+        this.settings.lastSelectedDevicePerBackend[this.name],
+        (ds) => ds[0],
+      )
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       this.devices = [{ id: '0', name: 'Auto select device', selected: true }]

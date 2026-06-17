@@ -258,12 +258,15 @@ import {
 } from '@/lib/utils.ts'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import {
   useImageGenerationPresets,
   type ImageMediaItem,
 } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { useConversations } from '@/assets/js/store/conversations'
+import { useActivities } from '@/assets/js/store/activities'
 import {
   useTextInference,
   type ValidFileExtension,
@@ -294,6 +297,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
 const speechToText = useSpeechToText()
+const textToSpeech = useTextToSpeech()
 const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
 const prompt = ref('')
@@ -302,6 +306,8 @@ const imageGeneration = useImageGenerationPresets()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
+const conversations = useConversations()
+const activities = useActivities()
 const textareaRef = ref<HTMLTextAreaElement>()
 const isTextareaFocused = ref(false)
 const presetsStore = usePresets()
@@ -309,7 +315,11 @@ const dialogStore = useDialogStore()
 const demoMode = useDemoMode()
 const productModeStore = useProductMode()
 
-audioRecorder.registerTranscriptionCallback((text) => (prompt.value = text))
+audioRecorder.registerTranscriptionCallback((text) => {
+  prompt.value = text
+  // Mark this as a voice-originated turn so the reply can be auto-spoken.
+  textToSpeech.pendingVoiceTurn = true
+})
 
 // Get active chat preset
 const activeChatPreset = computed(() => {
@@ -400,7 +410,16 @@ function removeImage(index: number) {
   openAiCompatibleChat.fileInput = openAiCompatibleChat.fileInput.filter((_, i) => i !== index)
 }
 
-const isProcessing = computed(() => openAiCompatibleChat.processing || imageGeneration.processing)
+// Busy state is unified through the activity sink: in addition to the streaming /
+// generation flags, any active chat activity for the current conversation (backend
+// prep, RAG search, tool resolution, thinking) keeps the prompt area in its busy
+// state so the send/stop control matches the in-turn activity indicator.
+const isProcessing = computed(
+  () =>
+    openAiCompatibleChat.processing ||
+    imageGeneration.processing ||
+    activities.chatActivity(conversations.activeKey) !== null,
+)
 
 const isStopping = computed(() => imageGeneration.stopping)
 

@@ -3,6 +3,50 @@ declare interface Window {
   chrome: Chrome
   electronAPI: electronAPI
   envVars: { platformTitle: string; productVersion: string; debugToolsEnabled: boolean }
+  // Dev-only Home Agent mock-channel drive surface (see channels/mockAdapter.ts).
+  // Only attached when debug tools are enabled.
+  __homeAgentMock?: HomeAgentMockApi
+}
+
+type HomeAgentMockInboundOpts = {
+  chat_id?: string
+  channel?: string
+  ts?: string
+  images?: Array<{ mime: string; data_base64: string }>
+  audio?: Array<{ mime: string; data_base64: string }>
+  documents?: Array<{ filename: string; mime: string; data_base64: string }>
+}
+
+type HomeAgentMockOutboundEvent = {
+  kind:
+    | 'reply'
+    | 'photo'
+    | 'video'
+    | 'voice'
+    | 'document'
+    | 'keyboard'
+    | 'keyboardEdit'
+    | 'draftUpdate'
+    | 'draftFinal'
+    | 'typingStart'
+    | 'typingStop'
+  text?: string
+  caption?: string
+  filename?: string
+  mime?: string
+  base64?: string
+  buttons?: Array<Array<{ text: string; callbackData: string }>>
+  meta?: { channel?: string; ts?: string; chatId?: string }
+  ts: number
+}
+
+type HomeAgentMockApi = {
+  send(text: string, opts?: HomeAgentMockInboundOpts): Promise<void>
+  sendCallback(callback: string): Promise<void>
+  sendMedia(url: string, opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string }): Promise<void>
+  outbox(): HomeAgentMockOutboundEvent[]
+  clear(): void
+  waitForIdle(timeoutMs?: number): Promise<void>
 }
 
 interface ImportMetaEnv {
@@ -30,6 +74,17 @@ type SamplePrompt = {
   prompt: string
   mode: ModeType
   presetName?: string
+}
+
+// A desktop window the screenshot tool can be bound to. Stored as id + name so
+// capture can fall back to title matching when the (unstable) id is gone.
+type ScreenshotWindow = {
+  id: string
+  name: string
+}
+
+type ScreenshotWindowSource = ScreenshotWindow & {
+  thumbnailDataUrl: string | null
 }
 
 type DemoProfile = {
@@ -152,6 +207,42 @@ type McpToolCallResult = {
   structuredContent?: unknown
 }
 
+type WebPageLink = {
+  index: number
+  text: string
+  href: string
+}
+
+type WebPageSnapshot = {
+  title: string
+  url: string
+  text: string
+  links: WebPageLink[]
+}
+
+type WebBrowserState = {
+  isOpen: boolean
+  isVisible: boolean
+  currentUrl: string
+  title: string
+}
+
+type WebBrowserInteraction =
+  | { action: 'click'; linkIndex?: number; selector?: string }
+  | { action: 'scroll'; selector?: string }
+  | { action: 'back' }
+
+type WebSearchResult = {
+  title: string
+  url: string
+  snippet: string
+}
+
+type WebSearchResults = {
+  query: string
+  results: WebSearchResult[]
+}
+
 type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
 type ModeType = 'chat' | WorkflowModeType
@@ -268,6 +359,19 @@ type electronAPI = {
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  startSpeechServer(modelName: string): Promise<{ success: boolean; error?: string }>
+  stopSpeechServer(): Promise<{ success: boolean; error?: string }>
+  getSpeechServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
+  synthesizeSpeech(options: {
+    baseURL: string
+    model: string
+    input: string
+    voice?: string
+    apiKey?: string
+    format?: string
+  }): Promise<
+    { success: true; dataBase64: string; mediaType: string } | { success: false; error: string }
+  >
   ensureOvmsImageReady(
     serviceName: string,
     modelName: string,
@@ -275,6 +379,7 @@ type electronAPI = {
     resolution?: string,
   ): Promise<{ success: boolean; url?: string; error?: string }>
   stopOvmsImageServer(): Promise<{ success: boolean; error?: string }>
+  stopOvmsChatServers(): Promise<{ success: boolean; error?: string }>
   getOvmsImageServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>
   // ComfyUI Tools - uses uv for Python package management
   comfyui: {
@@ -342,42 +447,88 @@ type electronAPI = {
     ): Promise<void>
     removeServer(serverId: string): Promise<void>
   }
+  webBrowser: {
+    navigate(url: string): Promise<WebPageSnapshot>
+    readPage(): Promise<WebPageSnapshot>
+    search(query: string, maxResults?: number): Promise<WebSearchResults>
+    interact(interaction: WebBrowserInteraction): Promise<WebPageSnapshot>
+    screenshot(): Promise<string>
+    show(): Promise<WebBrowserState>
+    hide(): Promise<WebBrowserState>
+    close(): Promise<WebBrowserState>
+    getState(): Promise<WebBrowserState>
+    onStateChanged(callback: (state: WebBrowserState) => void): void
+  }
+  screenshot: {
+    listWindows(): Promise<ScreenshotWindowSource[]>
+    captureWindow(target: ScreenshotWindow): Promise<string>
+    getPermissionStatus(): Promise<{
+      platform: string
+      status: 'granted' | 'denied' | 'restricted' | 'not-determined' | 'unknown'
+    }>
+    openPermissionSettings(): void
+  }
   homeAgent: {
-    saveConfig(token: string, chatId: string): Promise<{ success: boolean; error?: string }>
-    loadConfig(): Promise<{ token: string; chatId: string } | null>
-    clearConfig(): Promise<void>
-    testTelegram(): Promise<{ success: boolean; error?: string }>
-    detectChatId(token: string): Promise<{ chatId: string } | { error: string }>
-    detectChatIdFromSaved(): Promise<{ chatId: string } | { error: string }>
-    injectToken(token: string, chatId?: string): Promise<{ status: string; error?: string }>
-    pollTelegram(): Promise<
-      Array<{
-        text?: string
-        chat_id: string
-        images?: Array<{ mime: string; data_base64: string }>
-        callback?: string
+    saveDocument(
+      filename: string,
+      base64: string,
+    ): Promise<{ success: boolean; filepath?: string; error?: string }>
+    channel: {
+      saveConfig(
+        kind: string,
+        config: Record<string, string>,
+      ): Promise<{ success: boolean; error?: string }>
+      loadConfig(kind: string): Promise<Record<string, string> | null>
+      clearConfig(kind: string): Promise<void>
+      savePrefs(
+        kind: string,
+        prefs: { verified?: boolean; enabled?: boolean },
+      ): Promise<{ success: boolean; error?: string }>
+      loadPrefs(kind: string): Promise<{ verified: boolean; enabled: boolean } | null>
+      test(kind: string): Promise<{ success: boolean; error?: string }>
+      inject(
+        kind: string,
+        config: Record<string, string | undefined>,
+      ): Promise<{ status: string; error?: string }>
+      detectIdentity(
+        kind: string,
+        config: Record<string, string | undefined>,
+      ): Promise<{ identity: string } | { error: string }>
+      detectIdentityFromSaved(kind: string): Promise<{ identity: string } | { error: string }>
+      poll(kind: string): Promise<
+        Array<{
+          text?: string
+          chat_id: string
+          channel?: string
+          ts?: string
+          images?: Array<{ mime: string; data_base64: string }>
+          audio?: Array<{ mime: string; data_base64: string }>
+          documents?: Array<{ filename: string; mime: string; data_base64: string }>
+          callback?: string
+        }>
+      >
+      flushPending(kind: string): Promise<void>
+      send(
+        kind: string,
+        action:
+          | 'reply'
+          | 'update'
+          | 'photo'
+          | 'video'
+          | 'voice'
+          | 'document'
+          | 'typing'
+          | 'keyboard'
+          | 'editMessage',
+        payload: Record<string, unknown>,
+      ): Promise<{
+        success: boolean
+        ts?: string
+        channel?: string
+        messageId?: number
+        error?: string
       }>
-    >
-    flushPending(): Promise<void>
-    sendTelegramReply(
-      text: string,
-      parseMode?: string,
-    ): Promise<{ success: boolean; error?: string }>
-    sendTelegramPhoto(
-      imageBase64: string,
-      caption?: string,
-    ): Promise<{ success: boolean; error?: string }>
-    sendTelegramChatAction(action?: string): Promise<{ success: boolean; error?: string }>
-    sendTelegramDraft(opts: {
-      draftId: number
-      text?: string
-      parseMode?: string
-    }): Promise<{ success: boolean; error?: string }>
-    sendTelegramKeyboard(opts: {
-      text: string
-      parseMode?: string
-      buttons: Array<Array<{ text: string; callbackData: string }>>
-    }): Promise<{ success: boolean; error?: string }>
+    }
   }
 }
 
@@ -625,7 +776,10 @@ type NumberRange = {
 }
 
 type DownloadFailedParams = {
-  type: 'error' | 'cancelConfrim' | 'cancelDownload' | 'conflict'
+  // User cancellation is no longer modeled here; it is rejected as a benign
+  // silent AppError (see createCancellation / CANCELLED_CODE). Only genuine
+  // failures and conflicts flow through this shape.
+  type: 'error' | 'conflict'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error?: any
 }

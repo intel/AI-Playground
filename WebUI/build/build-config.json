@@ -12,7 +12,7 @@
     {
       "from": "../home-agent",
       "to": "home-agent",
-      "filter": ["*.py", "pyproject.toml", "uv.lock"]
+      "filter": ["*.py", "channels/*.py", "pyproject.toml", "uv.lock"]
     },
     {
       "from": "../OpenVINO",

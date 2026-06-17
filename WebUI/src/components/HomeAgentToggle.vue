@@ -1,5 +1,5 @@
 <template>
-  <div class="inline-flex items-center gap-2" :title="toggleTitle">
+  <div class="inline-flex items-center gap-3" :title="masterTitle">
     <span
       class="text-xs font-medium select-none text-foreground"
       style="line-height: 1; vertical-align: middle"
@@ -8,27 +8,29 @@
     </span>
 
     <button
+      type="button"
       role="switch"
-      :aria-checked="isHomeAgentActive"
-      :aria-label="ariaLabel"
-      :disabled="!isAvailable || (!isReadyToActivate && !isHomeAgentActive)"
-      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-      :class="isHomeAgentActive ? 'bg-primary' : 'bg-muted-foreground/40'"
-      @click="toggle"
+      :aria-checked="homeAgent.masterEnabled"
+      :aria-label="`Home Agent: ${homeAgent.masterEnabled ? 'on' : 'off'}`"
+      :title="masterTitle"
+      :disabled="!isAvailable"
+      class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      :class="
+        isOn
+          ? 'bg-primary/15 border-primary text-foreground'
+          : 'bg-muted/40 border-border text-muted-foreground hover:bg-muted'
+      "
+      @click="homeAgent.toggleMaster()"
     >
       <span
-        class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
-        :class="isHomeAgentActive ? 'translate-x-4' : 'translate-x-0'"
+        class="w-1.5 h-1.5 rounded-full"
+        :style="{ backgroundColor: isOn ? 'var(--color-primary, #22c55e)' : 'currentColor' }"
       />
+      <span class="tabular-nums">{{ homeAgent.masterEnabled ? 'On' : 'Off' }}</span>
+      <span v-if="isOn && activeCount > 0" class="text-muted-foreground">
+        · {{ activeCount }} {{ activeCount === 1 ? 'channel' : 'channels' }}
+      </span>
     </button>
-
-    <span
-      class="text-xs font-medium select-none tabular-nums min-w-6"
-      style="line-height: 1; vertical-align: middle"
-      :class="isHomeAgentActive ? 'text-foreground' : 'text-muted-foreground'"
-    >
-      {{ isHomeAgentActive ? 'On' : 'Off' }}
-    </span>
 
     <button
       type="button"
@@ -40,52 +42,56 @@
     >
       <Cog6ToothIcon class="w-4 h-4" />
     </button>
+
+    <button
+      v-if="debugToolsEnabled"
+      type="button"
+      title="Mock channel (dev) — drive the Home Agent for e2e testing"
+      aria-label="Toggle mock channel panel"
+      class="transition-colors"
+      :class="
+        homeAgent.showMockPanel
+          ? 'text-primary'
+          : 'text-muted-foreground hover:text-foreground'
+      "
+      @click="homeAgent.toggleMockPanel()"
+    >
+      <BeakerIcon class="w-4 h-4" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
+import { Cog6ToothIcon, BeakerIcon } from '@heroicons/vue/24/solid'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { CHANNELS } from '@/assets/js/store/channels/channelRegistry'
 
 const homeAgent = useHomeAgent()
 const setupWizard = useSetupWizard()
 const backendServices = useBackendServices()
 
-const isHomeAgentActive = computed(() => homeAgent.isHomeAgentActive)
+const debugToolsEnabled = window.envVars.debugToolsEnabled
+
 const isAvailable = computed(() => homeAgent.isAvailable)
-const isReadyToActivate = computed(() => homeAgent.isReadyToActivate)
 const isInstalled = computed(
   () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.isSetUp === true,
 )
 
-const toggleTitle = computed(() => {
-  if (!isAvailable.value)
+const isOn = computed(() => isAvailable.value && homeAgent.masterEnabled)
+
+const activeCount = computed(() => CHANNELS.filter((c) => homeAgent.channels[c.kind].active).length)
+
+const masterTitle = computed(() => {
+  if (!isInstalled.value)
     return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
-  if (!isReadyToActivate.value)
-    return 'Verify the Telegram connection in Setup Wizard before turning Home Agent on.'
-  return isHomeAgentActive.value
-    ? 'Home Agent is on — answering Telegram; click to turn off.'
-    : 'Home Agent is off — click to enable Telegram messaging.'
+  if (!isAvailable.value) return 'Home Agent backend is starting…'
+  return homeAgent.masterEnabled
+    ? 'Home Agent is on — click to turn off. Enable individual channels in Setup.'
+    : 'Home Agent is off — click to turn on. Enable individual channels in Setup.'
 })
-
-const ariaLabel = computed(() => {
-  // Mirror the disabled-state wording from `toggleTitle` instead of always
-  // saying "click to turn on/off" — otherwise a screen reader announces the
-  // wrong affordance when the switch is non-interactive.
-  if (!isAvailable.value || (!isReadyToActivate.value && !isHomeAgentActive.value)) {
-    return toggleTitle.value
-  }
-  return isHomeAgentActive.value
-    ? 'Home Agent on, click to turn off'
-    : 'Home Agent off, click to turn on'
-})
-
-function toggle() {
-  homeAgent.toggle()
-}
 
 function openSetup() {
   void setupWizard.openHomeAgentSetup()

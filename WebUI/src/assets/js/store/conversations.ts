@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch, watchEffect } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { AipgUiMessage } from './openAiCompatibleChat'
+import { completeOrphanedToolParts } from './toolMessageSanitize'
 
 /**
  * Legacy fixed key for the original singleton Telegram thread. Kept only as a
@@ -47,6 +48,14 @@ export const useConversations = defineStore(
   () => {
     const conversationList = ref<Record<string, AipgUiMessage[]>>({})
     const conversationThreadMeta = ref<Record<string, ConversationThreadMeta>>({})
+    /**
+     * Per-conversation RAG document selection: conversationKey -> enabled doc
+     * hashes. The indexed-document library itself stays shared/global (in
+     * `textInference.ragList`); only which documents are *enabled* is scoped to
+     * the conversation. A conversation with no entry has nothing enabled, so a
+     * brand-new conversation starts without active RAG documents.
+     */
+    const conversationRagSelection = ref<Record<string, string[]>>({})
     const activeKey = ref('')
     const activeConversation = computed(() => conversationList.value[activeKey.value])
 
@@ -60,12 +69,15 @@ export const useConversations = defineStore(
     const lastMainKey = ref<string | null>(null)
 
     function updateConversation(messages: AipgUiMessage[], conversationKey: string) {
-      conversationList.value[conversationKey] = messages
+      // Never persist an orphaned tool call (interrupted/stopped turn): it would
+      // brick the thread on the next generation. See toolMessageSanitize.ts.
+      conversationList.value[conversationKey] = completeOrphanedToolParts(messages)
     }
 
     function deleteConversation(conversationKey: string) {
       delete conversationList.value[conversationKey]
       delete conversationThreadMeta.value[conversationKey]
+      delete conversationRagSelection.value[conversationKey]
     }
 
     function clearConversation(conversationKey: string) {
@@ -101,6 +113,14 @@ export const useConversations = defineStore(
 
     function getThreadKind(conversationKey: string): ThreadKind {
       return conversationThreadMeta.value[conversationKey]?.kind ?? 'main'
+    }
+
+    function getThreadRagHashes(conversationKey: string): string[] {
+      return conversationRagSelection.value[conversationKey] ?? []
+    }
+
+    function setThreadRagHashes(conversationKey: string, hashes: string[]) {
+      conversationRagSelection.value[conversationKey] = [...new Set(hashes)]
     }
 
     // Keep `lastMainKey` synced with the most recently selected main thread so
@@ -168,6 +188,7 @@ export const useConversations = defineStore(
     return {
       conversationList,
       conversationThreadMeta,
+      conversationRagSelection,
       activeKey,
       activeConversation,
       lastMainKey,
@@ -180,6 +201,8 @@ export const useConversations = defineStore(
       setThreadMeta,
       getThreadMeta,
       getThreadKind,
+      getThreadRagHashes,
+      setThreadRagHashes,
       createConversation,
       addNewConversation,
     }
@@ -187,7 +210,12 @@ export const useConversations = defineStore(
   {
     persist: {
       storage: demoAwareStorage,
-      pick: ['conversationList', 'conversationThreadMeta', 'lastMainKey'],
+      pick: [
+        'conversationList',
+        'conversationThreadMeta',
+        'conversationRagSelection',
+        'lastMainKey',
+      ],
       afterHydrate: (ctx) => {
         // Backfill legacy meta first so the helper below can correctly skip
         // Home Agent threads when looking for the "latest empty MAIN" tail.

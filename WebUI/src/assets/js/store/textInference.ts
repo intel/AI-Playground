@@ -11,6 +11,8 @@ import { useDeveloperSettings } from './developerSettings'
 import { useHomeAgent } from './homeAgent'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import * as toast from '@/assets/js/toast.ts'
+import { useActivities } from './activities'
+import { useI18N } from './i18n'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -103,6 +105,11 @@ export const useTextInference = defineStore(
     const developerSettings = useDeveloperSettings()
     const homeAgent = useHomeAgent()
     const conversations = useConversations()
+    const activities = useActivities()
+    const i18nState = useI18N().state
+    // Tracks the in-flight backend-preparation activity (begin/end are paired with
+    // start/completeBackendPreparation).
+    let backendPrepActivityId: string | null = null
     const backend = ref<LlmBackend>('llamaCPP')
     const ragList = ref<IndexedDocument[]>([])
     const defaultSystemPrompt = `You are a helpful AI assistant embedded in an application called AI Playground, developed by Intel.
@@ -312,6 +319,24 @@ export const useTextInference = defineStore(
     const metricsEnabled = ref(true)
     const aipgToolsEnabled = ref(true)
     const mcpToolsEnabled = ref(true)
+
+    // Per-built-in-tool enablement overrides (by tool name). Most built-in tools
+    // default on; opt-in/privacy-sensitive tools (captureScreenshot) default off.
+    const builtinToolEnablement = ref<Record<string, boolean>>({})
+    // The single desktop window captureScreenshot is bound to. The screenshot
+    // tool can only ever capture this user-selected window.
+    const screenshotWindow = ref<ScreenshotWindow | null>(null)
+
+    function isBuiltinToolEnabled(toolName: string): boolean {
+      const override = builtinToolEnablement.value[toolName]
+      if (override !== undefined) return override
+      return toolName === 'captureScreenshot' ? false : true
+    }
+
+    function setBuiltinToolEnabled(toolName: string, enabled: boolean): void {
+      builtinToolEnablement.value = { ...builtinToolEnablement.value, [toolName]: enabled }
+    }
+
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)
@@ -473,12 +498,22 @@ export const useTextInference = defineStore(
     async function addDocumentToRagList(document: IndexedDocument) {
       const langchainDocument: IndexedDocument =
         await window.electronAPI.addDocumentToRAGList(document)
-      console.log(langchainDocument)
-      if (ragList.value.some((item) => item.hash === langchainDocument.hash)) {
-        console.log('Document already in list')
+      const existing = ragList.value.find((item) => item.hash === langchainDocument.hash)
+      if (existing) {
+        // Same content (by hash) is already indexed. Don't duplicate, but honor
+        // an explicit request to enable it (e.g. a Home Agent document upload
+        // stub arrives with isChecked: true) so re-sending a file the user
+        // already has makes it usable instead of silently no-op'ing.
+        if (langchainDocument.isChecked) {
+          existing.isChecked = true
+          persistActiveRagSelection()
+        }
         return
       }
       ragList.value.push(langchainDocument)
+      if (langchainDocument.isChecked) {
+        persistActiveRagSelection()
+      }
     }
 
     async function embedInputUsingRag(prompt: string) {
@@ -546,6 +581,11 @@ export const useTextInference = defineStore(
         }
       }
 
+      const ragActivityId = activities.begin({
+        category: 'rag',
+        label: i18nState.COM_ACTIVITY_SEARCHING_DOCS,
+        scope: { kind: 'chat', conversationKey: conversations.activeKey },
+      })
       try {
         ragRetrievalState.inProgress = true
 
@@ -555,6 +595,7 @@ export const useTextInference = defineStore(
           if (!activeEmbeddingModel.value) {
             console.warn('No embedding model selected for RAG, skipping RAG retrieval')
             ragRetrievalState.inProgress = false
+            activities.end(ragActivityId)
             return {
               systemPrompt: systemPrompt.value,
               ragResults: null,
@@ -570,6 +611,7 @@ export const useTextInference = defineStore(
               embeddingUrlResult.error || 'Unknown error',
             )
             ragRetrievalState.inProgress = false
+            activities.end(ragActivityId)
             return {
               systemPrompt: systemPrompt.value,
               ragResults: null,
@@ -584,6 +626,7 @@ export const useTextInference = defineStore(
         ragRetrievalState.lastResults = ragResults
 
         ragRetrievalState.inProgress = false
+        activities.end(ragActivityId)
 
         if (ragResults && ragResults.length > 0) {
           // Build RAG context from retrieved documents
@@ -610,6 +653,7 @@ export const useTextInference = defineStore(
       } catch (error) {
         console.error('Error retrieving RAG documents:', error)
         ragRetrievalState.inProgress = false
+        activities.end(ragActivityId, 'failed')
         // Return base system prompt on error - generation can continue without RAG
         return {
           systemPrompt: systemPrompt.value,
@@ -619,11 +663,33 @@ export const useTextInference = defineStore(
       }
     }
 
+    /**
+     * Mirror the active conversation's RAG selection into the shared library's
+     * live `isChecked` flags. Called whenever the active conversation changes so
+     * the UI + inference path (which all read `isChecked`) reflect the thread's
+     * own selection. A conversation with no stored selection (e.g. a brand-new
+     * one) ends up with everything unchecked.
+     */
+    function syncRagSelectionForActiveKey() {
+      const enabled = new Set(conversations.getThreadRagHashes(conversations.activeKey))
+      ragList.value.forEach((item) => (item.isChecked = enabled.has(item.hash)))
+    }
+
+    /** Persist the current live selection back onto the active conversation. */
+    function persistActiveRagSelection() {
+      if (!conversations.activeKey) return
+      conversations.setThreadRagHashes(
+        conversations.activeKey,
+        ragList.value.filter((item) => item.isChecked).map((item) => item.hash),
+      )
+    }
+
     function updateFileCheckStatus(hash: string, isChecked: boolean) {
       const index = ragList.value.findIndex((item) => item.hash === hash)
       if (index !== -1) {
         ragList.value[index].isChecked = isChecked
       }
+      persistActiveRagSelection()
     }
 
     function deleteFile(hash: string) {
@@ -631,18 +697,22 @@ export const useTextInference = defineStore(
       if (index !== -1) {
         ragList.value.splice(index, 1)
       }
+      persistActiveRagSelection()
     }
 
     function checkAllFiles() {
       ragList.value.forEach((item) => (item.isChecked = true))
+      persistActiveRagSelection()
     }
 
     function uncheckAllFiles() {
       ragList.value.forEach((item) => (item.isChecked = false))
+      persistActiveRagSelection()
     }
 
     function deleteAllFiles() {
       ragList.value.length = 0
+      persistActiveRagSelection()
     }
 
     // Define a type for document location information
@@ -813,10 +883,23 @@ export const useTextInference = defineStore(
     // Backend preparation methods
     function startBackendPreparation() {
       backendReadinessState.isPreparingBackend = true
+      // Surface backend/model start as an activity on the active chat turn so the
+      // user sees "Loading <model>…" / "Preparing <backend> backend…" instead of
+      // a silent wait. (preparationMessage reflects the current reason.)
+      if (backendPrepActivityId) activities.end(backendPrepActivityId)
+      backendPrepActivityId = activities.begin({
+        category: 'backend',
+        label: preparationMessage.value,
+        scope: { kind: 'chat', conversationKey: conversations.activeKey },
+      })
     }
 
     function completeBackendPreparation() {
       backendReadinessState.isPreparingBackend = false
+      if (backendPrepActivityId) {
+        activities.end(backendPrepActivityId)
+        backendPrepActivityId = null
+      }
       updateLastUsedConfig()
     }
 
@@ -896,7 +979,14 @@ export const useTextInference = defineStore(
         )
 
         if (uniqueDownloads.length > 0) {
-          dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
+          // On a remote Home Agent turn there is nobody at the desktop to act on
+          // the download modal; route the approval + progress to the channel
+          // (mirrored into the desktop window) instead of getting stuck.
+          if (homeAgent.isRemoteTurnActive()) {
+            homeAgent.handleRemoteModelDownload(uniqueDownloads).then(resolve).catch(reject)
+          } else {
+            dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
+          }
         } else {
           resolve()
         }
@@ -1394,6 +1484,18 @@ export const useTextInference = defineStore(
       { flush: 'post', immediate: true },
     )
 
+    // Mirror the active conversation's RAG selection into the shared library's
+    // live `isChecked` flags whenever the active conversation changes. A new /
+    // empty conversation has no stored selection, so it starts with no enabled
+    // RAG documents; switching back to a thread restores its selection. Home
+    // Agent turns set `activeKey` to the remote thread before generating, so
+    // this works uniformly for remote threads too. `immediate: true` restores
+    // the resumed thread's selection on startup.
+    watch(() => conversations.activeKey, syncRagSelectionForActiveKey, {
+      flush: 'post',
+      immediate: true,
+    })
+
     // Initialize with first chat preset if available and no preset is selected
     // Note: We call loadSettingsForActivePreset() directly here instead of using
     // presetSwitching.switchPreset() because the watcher is synchronous.
@@ -1436,6 +1538,10 @@ export const useTextInference = defineStore(
       metricsEnabled,
       aipgToolsEnabled,
       mcpToolsEnabled,
+      builtinToolEnablement,
+      isBuiltinToolEnabled,
+      setBuiltinToolEnabled,
+      screenshotWindow,
       maxTokens,
       contextSize,
       maxContextSizeFromModel,
@@ -1518,6 +1624,8 @@ export const useTextInference = defineStore(
         'temperature',
         'ragList',
         'settingsPerPreset',
+        'builtinToolEnablement',
+        'screenshotWindow',
       ],
     },
   },

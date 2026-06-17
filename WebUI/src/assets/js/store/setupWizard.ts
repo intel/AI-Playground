@@ -6,10 +6,14 @@ import { useGlobalSetup } from './globalSetup'
 import { usePresets } from './presets'
 import { usePresetSwitching } from './presetSwitching'
 import { useSpeechToText } from './speechToText'
+import { useTextToSpeech } from './textToSpeech'
 import { useDemoMode } from './demoMode'
 import { useHomeAgent } from './homeAgent'
+import { CHANNELS } from './channels/channelRegistry'
 import { mapStatusToColor, mapToDisplayStatus } from '@/lib/utils'
 import * as toast from '@/assets/js/toast'
+import { useErrors } from './errors'
+import { extractMessage } from '../errors/appError'
 import type { ErrorDetails } from '../../../../electron/subprocesses/service'
 
 const ALL_BACKENDS: BackendServiceName[] = [
@@ -99,7 +103,9 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   const presetSwitching = usePresetSwitching()
   const demoMode = useDemoMode()
   const speechToText = useSpeechToText()
+  const textToSpeech = useTextToSpeech()
   const homeAgent = useHomeAgent()
+  const errors = useErrors()
 
   const pendingProductMode = ref<ProductMode | null>(null)
   const installSelection = ref(new Set<BackendServiceName>())
@@ -589,39 +595,55 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       initialLoadingPollHandle = null
     }
 
-    await globalSetup.initSetup()
-    const modeStatus = await productModeStore.ensureReady()
+    // A failure here previously bubbled out as an unhandled rejection, leaving the
+    // app stuck on the "verifying backends" loading bar forever. Route it to the
+    // (now reachable) global failed screen and the error sink instead.
+    try {
+      await globalSetup.initSetup()
+      const modeStatus = await productModeStore.ensureReady()
 
-    if (modeStatus === 'ready') {
-      const allRequiredSetUp = backendServices.info
-        .filter((s) => s.isRequired)
-        .every((s) => s.isSetUp)
+      if (modeStatus === 'ready') {
+        const allRequiredSetUp = backendServices.info
+          .filter((s) => s.isRequired)
+          .every((s) => s.isSetUp)
 
-      const anyFailed = backendServices.info.some(
-        (s) => s.status === 'failed' || s.status === 'installationFailed',
-      )
+        const anyFailed = backendServices.info.some(
+          (s) => s.status === 'failed' || s.status === 'installationFailed',
+        )
 
-      if (allRequiredSetUp && !anyFailed) {
-        pendingProductMode.value = productModeStore.productMode
-        await backendServices.refreshPhisonSsdDetection()
-        seedInstallSelection()
-        await dismiss()
-        return
+        if (allRequiredSetUp && !anyFailed) {
+          pendingProductMode.value = productModeStore.productMode
+          await backendServices.refreshPhisonSsdDetection()
+          seedInstallSelection()
+          await dismiss()
+          return
+        }
       }
-    }
 
-    if (!productModeStore.hardwareRecommendation) {
-      await productModeStore.detectRecommendation()
-    }
+      if (!productModeStore.hardwareRecommendation) {
+        await productModeStore.detectRecommendation()
+      }
 
-    pendingProductMode.value =
-      productModeStore.productMode ??
-      productModeStore.hardwareRecommendation?.recommendedMode ??
-      null
-    await backendServices.refreshPhisonSsdDetection()
-    seedInstallSelection()
-    wizardDirty.value = false
-    globalSetup.loadingState = 'setupWizard'
+      pendingProductMode.value =
+        productModeStore.productMode ??
+        productModeStore.hardwareRecommendation?.recommendedMode ??
+        null
+      await backendServices.refreshPhisonSsdDetection()
+      seedInstallSelection()
+      wizardDirty.value = false
+      globalSetup.loadingState = 'setupWizard'
+    } catch (error) {
+      globalSetup.errorMessage = extractMessage(error)
+      globalSetup.loadingState = 'failed'
+      errors.report(error, {
+        category: 'setup',
+        code: 'setup/initialize-failed',
+        userMessage: 'AI Playground failed to start. See the details on screen.',
+        // The failed screen already shows the message; avoid a redundant toast.
+        surface: 'silent',
+        severity: 'fatal',
+      })
+    }
   }
 
   async function syncPresetsForCurrentProductMode() {
@@ -675,7 +697,8 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       if (anyFailed) return
     }
 
-    if (homeAgent.isFeatureEnabled && !homeAgent.telegramVerified) {
+    const noChannelVerified = CHANNELS.every((c) => !homeAgent.channelPrefs[c.kind].verified)
+    if (homeAgent.isFeatureEnabled && noChannelVerified) {
       const homeAgentJustInstalled = toInstall.some((r) => r.serviceName === 'home-agent-backend')
       if (homeAgentJustInstalled || isHomeAgentInstalledAndActive()) {
         // Sync presets *before* swapping the wizard page so the Home Agent setup
@@ -709,9 +732,14 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       toast.error('Service failed to stop')
       return
     }
-    // Clear Home Agent Telegram config on reinstall so user must re-verify
+    // Clear Home Agent channel configs on reinstall so the user must re-verify
+    // each channel before turning it back on. Both Telegram and Slack credentials
+    // are wiped — the backend's safeStorage files and the bot/Slack-app tokens
+    // injected into the running service must not survive a reinstall.
     if (name === 'home-agent-backend') {
-      await homeAgent.clearConfig()
+      for (const c of CHANNELS) {
+        await homeAgent.clearChannelConfig(c.kind)
+      }
     }
     await installBackend(name)
   }
@@ -765,6 +793,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     }
 
     speechToText.initialize()
+    textToSpeech.initialize()
   }
 
   /**
@@ -774,6 +803,11 @@ export const useSetupWizard = defineStore('setupWizard', () => {
    */
   async function finishHomeAgentSetup() {
     await dismiss()
+    // Reset the wizard page after the wizard is hidden (dismiss set loadingState
+    // to 'running') so HomeAgentSetupPage unmounts and its local UI state
+    // (active tab, Reconfigure expansion) starts fresh on the next open. The
+    // outer wizard uses v-show, so without this the page would stay mounted.
+    wizardPage.value = 'main'
     await syncPresetsForCurrentProductMode()
   }
 

@@ -28,7 +28,11 @@ import {
 } from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
 import { getMediaDir } from '../util.ts'
-import { cudaVisibleDevicesEnv, levelZeroDeviceSelectorEnv } from './deviceDetection.ts'
+import {
+  cudaVisibleDevicesEnv,
+  levelZeroDeviceSelectorEnv,
+  withSelectedDevice,
+} from './deviceDetection.ts'
 import { BrowserWindow, app } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { downloadCustomNode, configureComfyUiManagerSecurityLevel } from './comfyuiTools.ts'
@@ -1067,7 +1071,12 @@ except Exception as e:
 
     this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
     this.devices =
-      allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
+      allDevices.length > 0
+        ? withSelectedDevice(
+            allDevices.map((d) => ({ ...d, selected: false })),
+            this.settings.lastSelectedDevicePerBackend[this.name],
+          )
+        : availableDevices
     this.updateStatus()
   }
 
@@ -1140,7 +1149,12 @@ except Exception as e:
     }
     this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
     this.devices =
-      allDevices.length > 0 ? allDevices.map((d) => ({ ...d, selected: false })) : availableDevices
+      allDevices.length > 0
+        ? withSelectedDevice(
+            allDevices.map((d) => ({ ...d, selected: false })),
+            this.settings.lastSelectedDevicePerBackend[this.name],
+          )
+        : availableDevices
     this.updateStatus()
   }
 

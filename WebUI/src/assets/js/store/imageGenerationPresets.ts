@@ -4,7 +4,8 @@ import { demoAwareStorage } from '../demoAwareStorage'
 import { useComfyUiPresets } from './comfyUiPresets'
 import { useDemoMode } from './demoMode'
 import { useI18N } from './i18n'
-import * as toast from '@/assets/js/toast.ts'
+import { useErrors } from './errors'
+import { createAppError } from '../errors/appError'
 import { useBackendServices } from './backendServices'
 import { usePresets, presetRequiresUserPrompt, type ComfyInput } from './presets'
 
@@ -44,6 +45,7 @@ import {
 
 export type GenerateState =
   | 'no_start'
+  | 'start_backend'
   | 'input_image'
   | 'install_workflow_components'
   | 'load_workflow_components'
@@ -71,7 +73,11 @@ export type GenerationSettings = Partial<{
 
 export type ComfyDynamicInputWithCurrent = ComfyInput & { current: string | number | boolean }
 
-export type MediaItemState = 'queued' | 'generating' | 'done' | 'stopped'
+export type MediaItemState = 'queued' | 'generating' | 'done' | 'stopped' | 'failed'
+
+/** A media item that has not reached a terminal state yet. */
+export const isInFlight = (item: MediaItem): boolean =>
+  item.state === 'queued' || item.state === 'generating'
 
 type BaseMediaItem = {
   id: string
@@ -110,6 +116,27 @@ export const is3D = (item: MediaItem): item is Model3DMediaItem => item.type ===
 
 export const isImage = (item: MediaItem): item is ImageMediaItem => item.type === 'image'
 
+/**
+ * Transparent 1x1 SVG injected as the `imageUrl` for queued items so the slot
+ * exists before any real output arrives (see `comfyUiPresets.queueBatch`). It is
+ * not real output, so "has media" checks must treat it as empty.
+ */
+export const PLACEHOLDER_IMAGE_URL =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1" height="1"%3E%3C/svg%3E'
+
+/**
+ * Whether a media item carries real, displayable output (not an empty or
+ * placeholder slot). Used to hide cancelled/failed items that never produced
+ * media (e.g. items left in a terminal `stopped`/`failed` state after a batch
+ * is cancelled) from galleries and auto-selection.
+ */
+export const hasDisplayableMedia = (item: MediaItem): boolean => {
+  if (isVideo(item)) return !!item.videoUrl && item.videoUrl.trim() !== ''
+  if (is3D(item)) return !!item.model3dUrl && item.model3dUrl.trim() !== ''
+  const url = item.imageUrl
+  return !!url && url.trim() !== '' && url !== PLACEHOLDER_IMAGE_URL
+}
+
 const globalDefaultSettings = {
   seed: -1,
   width: 512,
@@ -143,6 +170,7 @@ export const useImageGenerationPresets = defineStore(
     const backendServices = useBackendServices()
     const uiStore = useUIStore()
     const dialogStore = useDialogStore()
+    const errors = useErrors()
     const i18nState = useI18N().state
 
     const activePreset = computed(() => {
@@ -489,12 +517,46 @@ export const useImageGenerationPresets = defineStore(
     const generatedImages = ref<MediaItem[]>([])
     const currentState = ref<GenerateState>('no_start')
     const stepText = ref('')
+    // Human-readable message for the most recent generation failure. Drives the
+    // error panel in WorkflowResult.vue and the tool-call watchers; cleared at the
+    // start of each generate().
+    const lastError = ref<string | null>(null)
+
+    // When a generation is started by a chat tool call, the tool sets this to its
+    // activity id so the generation-phase activity (created in comfyUiPresets) nests
+    // under the chat turn's activity. Null for the desktop image-gen path.
+    const generationParentActivityId = ref<string | null>(null)
+
+    // Flip every not-yet-terminal media item to a terminal state. This is the
+    // single place generation failures/cancellations land, so the UI and tool
+    // watchers can no longer get stuck on an item that never leaves
+    // 'queued'/'generating'.
+    function settleInFlightItems(state: 'failed' | 'stopped') {
+      generatedImages.value = generatedImages.value.map((item) =>
+        isInFlight(item) ? { ...item, state } : item,
+      )
+    }
+
+    function failGeneration(message: string) {
+      lastError.value = message
+      settleInFlightItems('failed')
+      currentState.value = 'error'
+      processing.value = false
+      stopping.value = false
+    }
+
+    function cancelGeneration() {
+      settleInFlightItems('stopped')
+      currentState.value = 'no_start'
+      processing.value = false
+      stopping.value = false
+    }
 
     function loadSettingsForActivePreset() {
       if (!activePreset.value) return
 
       const settingsKey = getSettingsKey()
-      console.log('### loadSettingsForActivePreset', settingsKey, settingsPerPreset.value)
+      console.log('### loadSettingsForActivePreset', settingsKey, JSON.stringify(settingsPerPreset.value[settingsKey], null, 2))
       const getSavedOrDefault = (settingName: string) => {
         if (!settingsKey) return
         const saved = settingsPerPreset.value[settingsKey]?.[settingName]
@@ -502,7 +564,6 @@ export const useImageGenerationPresets = defineStore(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const globalDefaultValue: any =
           globalDefaultSettings[settingName as keyof typeof globalDefaultSettings]
-        console.log('### getSavedOrDefault', settingName, saved, presetValue, globalDefaultValue)
         return saved ?? presetValue ?? globalDefaultValue
       }
 
@@ -521,11 +582,6 @@ export const useImageGenerationPresets = defineStore(
 
       // Load currently selected edit image into first dynamic image input
       let image: MediaItem | undefined
-      console.log(
-        '### loadSettingsForActivePreset',
-        activePreset.value?.category,
-        selectedEditedImageId.value,
-      )
       if (activePreset.value?.category === 'edit-images' && selectedEditedImageId.value) {
         image = generatedImages.value.find((img) => img.id === selectedEditedImageId.value)
       } else if (activePreset.value?.category === 'create-videos') {
@@ -534,7 +590,6 @@ export const useImageGenerationPresets = defineStore(
         )
       }
 
-      console.log('### image', image)
       if (image && image.type === 'image') {
         const currentImageInput = comfyInputs.value.find((input) => input.type === 'image')
         if (currentImageInput) {
@@ -600,8 +655,11 @@ export const useImageGenerationPresets = defineStore(
             const dataUri = await imageUrlToDataUri(image.imageUrl)
             newImage.imageUrl = await saveImageToMediaInput(dataUri)
           } catch (error) {
-            console.error('Error copying image as input for mode', error)
-            toast.error('Error copying image as input for mode')
+            errors.report(error, {
+              category: 'generation',
+              code: 'generation/copy-input-failed',
+              userMessage: 'Could not copy the image as a generation input.',
+            })
           }
         }
         newImage.fromImageGen = true
@@ -715,10 +773,18 @@ export const useImageGenerationPresets = defineStore(
     async function generate(mode: WorkflowModeType = 'imageGen', sourceImage?: string) {
       console.log('### generate', mode, sourceImage, activePreset.value)
       if (!activePreset.value) {
-        toast.error('No preset selected')
+        errors.report(
+          createAppError({
+            category: 'validation',
+            code: 'generation/no-preset',
+            userMessage: 'No preset selected.',
+            surface: 'toast',
+          }),
+        )
         return
       }
 
+      lastError.value = null
       generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
       const imageIds: string[] = Array.from({ length: batchSize.value }, () => crypto.randomUUID())
       imageIds.forEach((imageId) => {
@@ -817,6 +883,10 @@ export const useImageGenerationPresets = defineStore(
       currentState,
       stepText,
       stopping,
+      lastError,
+      generationParentActivityId,
+      failGeneration,
+      cancelGeneration,
       safetyCheck,
       showPreview,
       inferenceSteps,

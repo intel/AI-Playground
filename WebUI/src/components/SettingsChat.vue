@@ -120,6 +120,14 @@
           />
         </div>
 
+        <div
+          v-if="showTools && textInference.modelSupportsToolCalling"
+          class="pl-2"
+          :class="{ 'opacity-50': !textInference.aipgToolsEnabled }"
+        >
+          <SettingsBuiltinTools />
+        </div>
+
         <!-- MCP Tools toggle -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
@@ -211,6 +219,7 @@ import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import Rag from '@/components/Rag.vue'
 import SettingsMcp from '@/components/SettingsMcp.vue'
+import SettingsBuiltinTools from '@/components/SettingsBuiltinTools.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
