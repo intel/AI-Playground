@@ -1,7 +1,7 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "3.1.1-beta",
+  "version": "3.1.2-beta",
   "scripts": {
     "dev": "cross-env VITE_DEBUG_TOOLS=\"true\" VITE_PLATFORM_TITLE=\"from Intel®\" AIPG_DEBUGGING_PORT=\"29222\" vite",
     "preview": "vite preview",

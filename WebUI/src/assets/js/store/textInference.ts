@@ -1470,6 +1470,12 @@ export const useTextInference = defineStore(
       (newKey) => {
         if (!newKey) return
         const meta = conversations.getThreadMeta(newKey)
+        // Home Agent threads are always pinned to the bundled Home Agent preset,
+        // even before they've been stamped, so opening one switches the picker.
+        if (conversations.getThreadKind(newKey) === 'homeAgent') {
+          applyPresetToGlobals(HOME_AGENT_CHAT_PRESET_NAME, meta?.variant ?? null)
+          return
+        }
         if (!meta?.presetName) return
         const exists = presetsStore.presets.some((p) => p.name === meta.presetName)
         if (!exists) {

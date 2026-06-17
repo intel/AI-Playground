@@ -405,50 +405,6 @@ export const useHomeAgent = defineStore(
       )
     }
 
-    // Keep the chat preset in lockstep with the toggle: ON pins the Home Agent
-    // preset (and routes the desktop view onto the Home Agent thread), OFF falls
-    // back to Basic Chat in a fresh main conversation. `isHomeAgentActive` is the
-    // aggregate of every channel's active state, so this fires whenever the agent
-    // flips on (first channel up) or off (last channel down), for both manual
-    // toggles and automatic activation. The picker reads `isHomeAgentActive` to
-    // gray out the non-active presets (PresetSelector), so this keeps the active
-    // preset from ever being the grayed-out one.
-    watch(isHomeAgentActive, (val) => {
-      void syncChatPresetToActiveState(val)
-    })
-
-    /**
-     * Switch the chat preset to match the toggle state. Fire-and-forget from the
-     * watcher. Skips silently if no suitable target preset exists yet (early
-     * startup, before presets hydrate) to avoid noisy switch failures.
-     *
-     * OFF falls back to the first non-Home-Agent chat preset (highest
-     * displayPriority, picker-visible) rather than a hardcoded name, so it stays
-     * resilient if the default chat preset is renamed or removed.
-     */
-    async function syncChatPresetToActiveState(active: boolean): Promise<void> {
-      const target = active
-        ? HOME_AGENT_CHAT_PRESET_NAME
-        : presetsStore
-            .getPresetsByCategories([], 'chat')
-            .find((p) => p.name !== HOME_AGENT_CHAT_PRESET_NAME)?.name
-      if (!target || !presetsStore.presets.find((p) => p.name === target)) return
-      try {
-        const result = await presetSwitching.switchPreset(target, { skipModeSwitch: true })
-        if (!result.success) {
-          if (result.error) toast.error(`Failed to switch preset: ${result.error}`)
-          return
-        }
-        if (active) {
-          focusRemoteChatDiscussion()
-        } else {
-          conversations.addNewConversation()
-        }
-      } catch (e) {
-        console.error('homeAgent: syncChatPresetToActiveState failed:', e)
-      }
-    }
-
     // When the user selects a Home Agent thread from the desktop UI (e.g. the
     // HistoryChat list), mirror that into `activeRemoteConversationKey` so the
     // channel bridge keeps routing into the same conversation.

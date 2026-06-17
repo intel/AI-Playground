@@ -210,14 +210,10 @@ function isPresetDisabled(preset: Preset): boolean {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
 
-    // The Home Agent toggle and the chat preset are two reflections of one
-    // state: when Home Agent is on, only the Home Agent preset is selectable;
-    // when it's off, the Home Agent preset itself is locked. Switching between
-    // them happens via the header toggle, not the picker.
+    // When the Home Agent is off, its dedicated preset is locked — it's enabled
+    // via the header toggle, not the picker.
     const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
-    if (homeAgent.isHomeAgentActive) {
-      if (!isHomeAgentPreset) return true
-    } else if (isHomeAgentPreset) {
+    if (!homeAgent.isHomeAgentActive && isHomeAgentPreset) {
       return true
     }
 
@@ -259,10 +255,6 @@ function showDisabledReason(preset: Preset) {
     const blueToast = { style: { content: { background: '#3b82f6', color: '#ffffff' } } }
     if (isHomeAgentPreset && !homeAgent.isHomeAgentActive) {
       toast.show('Turn on the Home Agent toggle to use this preset.', blueToast)
-      return
-    }
-    if (!isHomeAgentPreset && homeAgent.isHomeAgentActive) {
-      toast.show('Home Agent is on. Turn it off to switch presets.', blueToast)
       return
     }
     if (chatPreset.requiresNpuSupport) {
