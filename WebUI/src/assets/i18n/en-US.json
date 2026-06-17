@@ -213,7 +213,7 @@
   "DOWNLOADER_LICENSE": "Terms",
   "DOWNLOADER_CONFLICT": "Another download task is currently in progress, and a new task cannot be started. You can cancel the current download task and start a new download task",
   "DOWNLOADER_TERMS_TIP": "I have reviewed the model card(s) and license(s). I agree to all terms and conditions would like to download the third-party model(s).",
-  "DOWNLOADER_FOR_ANSWER_GENERATE": "Answer Model",
+  "DOWNLOADER_FOR_ANSWER_GENERATE": "Chat Model",
   "DOWNLOADER_FOR_RAG_QUERY": "RAG Embed Model",
   "DOWNLOADER_FOR_IMAGE_GENERATE": "Image Model",
   "DOWNLOADER_FOR_INAPINT_GENERATE": "Inpaint/OutPaint Model",

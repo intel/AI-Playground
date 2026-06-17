@@ -116,6 +116,42 @@
     "maxContextSize": 131072
   },
   {
+    "name": "unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q5_K_M.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": true,
+    "largeMoe": true,
+    "maxContextSize": 262144
+  },
+  {
+    "name": "unsloth/gemma-4-26B-A4B-it-qat-GGUF/gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": false,
+    "largeMoe": true,
+    "maxContextSize": 262144
+  },
+  {
+    "name": "unsloth/Qwen3.5-122B-A10B-GGUF/Q5_K_M/Qwen3.5-122B-A10B-Q5_K_M-00001-of-00003.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": true,
+    "largeMoe": true,
+    "maxContextSize": 262144
+  },
+  {
+    "name": "unsloth/gpt-oss-120b-GGUF/Q5_K_M/gpt-oss-120b-Q5_K_M-00001-of-00002.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": true,
+    "largeMoe": true,
+    "maxContextSize": 131072
+  },
+  {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": false,
