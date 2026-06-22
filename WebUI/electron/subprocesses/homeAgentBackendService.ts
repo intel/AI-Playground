@@ -788,9 +788,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       (_event, kind: ChannelKind, prefs: Partial<ChannelPrefsFile>) =>
         this.saveChannelPrefs(kind, prefs),
     )
-    ipcMain.handle('channel:loadPrefs', (_event, kind: ChannelKind) =>
-      this.loadChannelPrefs(kind),
-    )
+    ipcMain.handle('channel:loadPrefs', (_event, kind: ChannelKind) => this.loadChannelPrefs(kind))
 
     // Backend dispatch — channel-keyed by first arg.
     ipcMain.handle('channel:test', (_event, kind: ChannelKind) => this.channelTest(kind))

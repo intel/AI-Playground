@@ -558,7 +558,11 @@ export const useImageGenerationPresets = defineStore(
       if (!activePreset.value) return
 
       const settingsKey = getSettingsKey()
-      console.log('### loadSettingsForActivePreset', settingsKey, JSON.stringify(settingsPerPreset.value[settingsKey], null, 2))
+      console.log(
+        '### loadSettingsForActivePreset',
+        settingsKey,
+        JSON.stringify(settingsPerPreset.value[settingsKey], null, 2),
+      )
       const getSavedOrDefault = (settingName: string) => {
         if (!settingsKey) return
         const saved = settingsPerPreset.value[settingsKey]?.[settingName]

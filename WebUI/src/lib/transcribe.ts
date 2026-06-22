@@ -35,10 +35,7 @@ export async function transcribeAudioBuffer(
  * transcribe it. WAV is accepted by both the OVMS Whisper server and
  * whisper.cpp's OpenAI-compatible endpoint.
  */
-export async function transcribeAudioBlob(
-  blob: Blob,
-  cfg: TranscriptionEndpoint,
-): Promise<string> {
+export async function transcribeAudioBlob(blob: Blob, cfg: TranscriptionEndpoint): Promise<string> {
   const wavBlob = await convertToWav(blob)
   return transcribeAudioBuffer(await wavBlob.arrayBuffer(), cfg)
 }

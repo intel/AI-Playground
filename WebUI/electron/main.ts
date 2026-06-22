@@ -582,7 +582,7 @@ async function createWindow() {
     // Electron 35+ passes a single event object with `.message`; older builds
     // pass (event, level, message, line, sourceId).
     const message =
-      typeof e?.message === 'string' ? e.message : (rest[1] as string | undefined) ?? ''
+      typeof e?.message === 'string' ? e.message : ((rest[1] as string | undefined) ?? '')
     // Route through appLogger so the line reaches the in-app debug viewer (fed
     // by the `debugLog` IPC). appLogger also mirrors back to the renderer, which
     // App.vue re-logs as `[ha-diag] <message>` — that re-enters this handler. The
@@ -599,7 +599,10 @@ async function createWindow() {
       // [HA-DIAG] One-shot marker: if you see this line, the rebuilt main process
       // with the renderer-log forwarder is running. If it's absent, main.ts did
       // not reload — fully restart Electron (HMR only reloads the renderer).
-      appLogger.info('[HA-DIAG] forwarder installed — renderer perf logs will appear here', 'ha-diag')
+      appLogger.info(
+        '[HA-DIAG] forwarder installed — renderer perf logs will appear here',
+        'ha-diag',
+      )
     }, 100)
 
     // Check localStorage for developer settings after page loads
@@ -650,7 +653,10 @@ async function createWindow() {
         'renderer',
       )
     } else if (rendererLogCount === MAX_RENDERER_LOGS_PER_WINDOW) {
-      appLogger.logMessageToFile('rate limit exceeded, suppressing further messages this second', 'renderer')
+      appLogger.logMessageToFile(
+        'rate limit exceeded, suppressing further messages this second',
+        'renderer',
+      )
     }
     rendererLogCount++
   })

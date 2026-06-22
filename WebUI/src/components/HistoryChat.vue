@@ -219,11 +219,7 @@ const images = (conversation: AipgUiMessage[]) => {
 // changes via the watcher below.
 const filterKind = ref<ThreadKind>(conversations.getThreadKind(conversations.activeKey))
 
-watch(
-  filterKind,
-  (kind) => emits('filterKindChange', kind),
-  { immediate: true },
-)
+watch(filterKind, (kind) => emits('filterKindChange', kind), { immediate: true })
 
 watch(
   () => conversations.activeKey,

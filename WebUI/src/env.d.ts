@@ -43,7 +43,10 @@ type HomeAgentMockOutboundEvent = {
 type HomeAgentMockApi = {
   send(text: string, opts?: HomeAgentMockInboundOpts): Promise<void>
   sendCallback(callback: string): Promise<void>
-  sendMedia(url: string, opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string }): Promise<void>
+  sendMedia(
+    url: string,
+    opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
+  ): Promise<void>
   outbox(): HomeAgentMockOutboundEvent[]
   clear(): void
   waitForIdle(timeoutMs?: number): Promise<void>

@@ -38,7 +38,6 @@ window.addEventListener('error', (event) => {
   })
 })
 
-
 if (initialPage !== null) {
   usePromptStore().setCurrentMode(initialPage)
 }

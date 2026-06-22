@@ -736,11 +736,7 @@ function isMcpTool(part: ToolUIPart<AipgTools> | DynamicToolUIPart): part is Dyn
 
 // Web-browsing tool parts (browseWeb + interactWithWebPage) are aggregated into a
 // single "Browsed N pages" trace element per assistant message.
-const webBrowsePartTypes = new Set([
-  'tool-searchWeb',
-  'tool-browseWeb',
-  'tool-interactWithWebPage',
-])
+const webBrowsePartTypes = new Set(['tool-searchWeb', 'tool-browseWeb', 'tool-interactWithWebPage'])
 
 function isWebBrowsePart(part: ToolUIPart<AipgTools> | DynamicToolUIPart): boolean {
   return isAipgTool(part) && webBrowsePartTypes.has(part.type)

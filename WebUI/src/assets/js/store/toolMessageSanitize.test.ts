@@ -11,7 +11,9 @@ describe('completeOrphanedToolParts', () => {
   it('completes an orphaned tool call (input-available) with an output-error', () => {
     const input = [
       msg('user', [{ type: 'text', text: 'hi' }]),
-      msg('assistant', [{ type: 'tool-browseWeb', toolCallId: 'c1', state: 'input-available', input: {} }]),
+      msg('assistant', [
+        { type: 'tool-browseWeb', toolCallId: 'c1', state: 'input-available', input: {} },
+      ]),
     ]
     const out = completeOrphanedToolParts(input)
     expect(out).not.toBe(input) // changed → new reference
@@ -22,7 +24,9 @@ describe('completeOrphanedToolParts', () => {
 
   it('completes orphaned dynamic-tool and input-streaming parts', () => {
     const out = completeOrphanedToolParts([
-      msg('assistant', [{ type: 'dynamic-tool', toolName: 'mcp', toolCallId: 'c2', state: 'input-streaming' }]),
+      msg('assistant', [
+        { type: 'dynamic-tool', toolName: 'mcp', toolCallId: 'c2', state: 'input-streaming' },
+      ]),
     ])
     expect((out[0].parts[0] as { state: string }).state).toBe('output-error')
   })

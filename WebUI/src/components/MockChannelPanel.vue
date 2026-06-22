@@ -20,7 +20,9 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-2 space-y-1">
-        <p v-if="outbox.length === 0" class="text-muted-foreground italic">No captured output yet.</p>
+        <p v-if="outbox.length === 0" class="text-muted-foreground italic">
+          No captured output yet.
+        </p>
         <div
           v-for="(ev, idx) in outbox"
           :key="idx"
@@ -36,7 +38,13 @@
             [{{ ev.mime ?? 'binary' }}, {{ ev.base64.length }} b64 chars]
           </div>
           <div v-if="ev.buttons" class="text-muted-foreground">
-            keyboard: {{ ev.buttons.flat().map((b) => b.text).join(' | ') }}
+            keyboard:
+            {{
+              ev.buttons
+                .flat()
+                .map((b) => b.text)
+                .join(' | ')
+            }}
           </div>
         </div>
       </div>

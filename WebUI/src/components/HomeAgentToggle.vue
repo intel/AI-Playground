@@ -50,9 +50,7 @@
       aria-label="Toggle mock channel panel"
       class="transition-colors"
       :class="
-        homeAgent.showMockPanel
-          ? 'text-primary'
-          : 'text-muted-foreground hover:text-foreground'
+        homeAgent.showMockPanel ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
       "
       @click="homeAgent.toggleMockPanel()"
     >

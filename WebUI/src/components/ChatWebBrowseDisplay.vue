@@ -82,10 +82,7 @@ function openExternally(url?: string) {
       <Spinner v-if="isBrowsing" class="size-3.5" />
     </div>
 
-    <ol
-      v-if="isExpanded"
-      class="flex flex-col gap-1 px-3 pb-3 animate-in fade-in-0 duration-200"
-    >
+    <ol v-if="isExpanded" class="flex flex-col gap-1 px-3 pb-3 animate-in fade-in-0 duration-200">
       <li
         v-for="(entry, index) in entries"
         :key="entry.toolCallId"
@@ -125,10 +122,7 @@ function openExternally(url?: string) {
           >
             Loading…
           </span>
-          <span
-            v-else-if="entry.state === 'output-error'"
-            class="text-xs text-destructive"
-          >
+          <span v-else-if="entry.state === 'output-error'" class="text-xs text-destructive">
             {{ entry.errorText || 'Failed to load page' }}
           </span>
         </div>

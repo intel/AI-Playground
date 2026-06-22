@@ -73,10 +73,7 @@ export const searchWeb = tool({
     RESEARCH_DEPTH_GUIDANCE,
   inputSchema: z.object({
     query: z.string().describe('The search query.'),
-    maxResults: z
-      .number()
-      .optional()
-      .describe('Maximum number of results to return (default 8).'),
+    maxResults: z.number().optional().describe('Maximum number of results to return (default 8).'),
   }),
   execute: async (args: { query: string; maxResults?: number }, options) => {
     const activities = useActivities()
@@ -100,7 +97,7 @@ export const searchWeb = tool({
 
 export const browseWeb = tool({
   description:
-    'Open a web page in AI Playground\'s background browser and read its content. ' +
+    "Open a web page in AI Playground's background browser and read its content. " +
     'Pass a full URL (e.g. "https://example.com") — typically a result URL from searchWeb. ' +
     'Returns the page title, readable text, and a numbered list of links you can ' +
     'follow with interactWithWebPage. The browser runs in the background; the user ' +
@@ -207,9 +204,7 @@ export const interactWithWebPage = tool({
     selector: z
       .string()
       .optional()
-      .describe(
-        'For "click"/"scroll": an optional CSS selector to target instead of a linkIndex.',
-      ),
+      .describe('For "click"/"scroll": an optional CSS selector to target instead of a linkIndex.'),
   }),
   execute: async (
     args: { action: 'click' | 'scroll' | 'back'; linkIndex?: number; selector?: string },

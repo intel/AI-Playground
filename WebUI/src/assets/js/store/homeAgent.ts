@@ -49,19 +49,10 @@ import {
 } from './channels/types'
 import type { ChannelAdapter, RawPart } from './channels/adapter'
 import { escapeHtml } from './channels/adapterHelpers'
-import {
-  isAppError,
-  extractMessage,
-  createAppError,
-  createCancellation,
-} from '../errors/appError'
+import { isAppError, extractMessage, createAppError, createCancellation } from '../errors/appError'
 import { createTelegramAdapter } from './channels/telegramAdapter'
 import { createSlackAdapter } from './channels/slackAdapter'
-import {
-  createMockAdapter,
-  mockChannelBus,
-  type MockInboundMessage,
-} from './channels/mockAdapter'
+import { createMockAdapter, mockChannelBus, type MockInboundMessage } from './channels/mockAdapter'
 
 // ── Channel registry ────────────────────────────────────────────────────────
 // Kinds we manage in this store. Adding a third one means appending to this
@@ -2430,8 +2421,10 @@ export const useHomeAgent = defineStore(
         send: (text: string, opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>) =>
           mockSend(text, opts),
         sendCallback: (callback: string) => mockSendCallback(callback),
-        sendMedia: (url: string, opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string }) =>
-          mockSendMedia(url, opts),
+        sendMedia: (
+          url: string,
+          opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
+        ) => mockSendMedia(url, opts),
         outbox: () => mockChannelBus.outbox.slice(),
         clear: () => mockClear(),
         waitForIdle: (timeoutMs?: number) => mockWaitForIdle(timeoutMs),
