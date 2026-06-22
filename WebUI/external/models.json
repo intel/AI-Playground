@@ -404,6 +404,60 @@
     "npuSupport": true
   },
   {
+    "name": "OpenVINO/Qwen3.5-4B-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
+    "supportsReasoning": true,
+    "maxContextSize": 32768
+  },
+  {
+    "name": "OpenVINO/Qwen3-VL-8B-Instruct-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "maxContextSize": 32768
+  },
+  {
+    "name": "OpenVINO/Qwen3.5-9B-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
+    "supportsReasoning": true,
+    "maxContextSize": 32768
+  },
+  {
+    "name": "OpenVINO/Qwen3.6-27B-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
+    "supportsReasoning": true,
+    "maxContextSize": 32768
+  },
+  {
+    "name": "OpenVINO/Qwen3.6-35B-A3B-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
+    "supportsReasoning": true,
+    "maxContextSize": 32768
+  },
+  {
+    "name": "OpenVINO/gemma-4-E4B-it-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "gemma4",
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "maxContextSize": 32768
+  },
+  {
     "name": "ChristianAzinn/bge-small-en-v1.5-gguf/bge-small-en-v1.5.Q8_0.gguf",
     "type": "embedding",
     "backend": "llamaCPP",
