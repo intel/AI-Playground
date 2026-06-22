@@ -36,6 +36,7 @@ export function modelNameForComfyApi(name: string, platform: NodeJS.Platform): s
 import { useUIStore } from './ui'
 import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
+import { useHomeAgent } from './homeAgent'
 import { imageUrlToDataUri, saveImageToMediaInput } from '@/lib/utils'
 import {
   getDemoModeInputImage,
@@ -172,6 +173,7 @@ export const useImageGenerationPresets = defineStore(
     const dialogStore = useDialogStore()
     const errors = useErrors()
     const i18nState = useI18N().state
+    const homeAgent = useHomeAgent()
 
     const activePreset = computed(() => {
       console.log('### activePreset', presetsStore.activePresetWithVariant)
@@ -695,7 +697,14 @@ export const useImageGenerationPresets = defineStore(
       const downloadList = await getMissingModels()
       if (downloadList.length === 0) return
       return new Promise<void>((resolve, reject) => {
-        dialogStore.showDownloadDialog(downloadList, resolve, reject)
+        // On a remote Home Agent turn there is nobody at the desktop to act on
+        // the download modal; route the approval + progress to the channel
+        // (mirrored into the desktop window) instead of getting stuck.
+        if (homeAgent.isRemoteTurnActive()) {
+          homeAgent.handleRemoteModelDownload(downloadList).then(resolve).catch(reject)
+        } else {
+          dialogStore.showDownloadDialog(downloadList, resolve, reject)
+        }
       })
     }
 

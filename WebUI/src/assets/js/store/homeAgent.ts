@@ -1829,6 +1829,10 @@ export const useHomeAgent = defineStore(
         await draft.finalize(finalText)
       }
 
+      // Mark this as a remote turn so any required model downloads route their
+      // approval + progress to the channel (via handleRemoteModelDownload)
+      // instead of popping a desktop-only modal nobody at the channel can see.
+      activeRemoteTurn = { adapter, meta }
       try {
         promptStore.setModeOnly('imageGen')
 
@@ -1860,16 +1864,14 @@ export const useHomeAgent = defineStore(
           )
           return
         }
+        // Custom nodes / Python packages have no remote install path, so a
+        // missing one is still a hard block. Missing models, however, are
+        // routed through the in-channel download flow below.
         if (
           validation.missingCustomNodes.length > 0 ||
-          validation.missingPythonPackages.length > 0 ||
-          validation.missingModels.length > 0
+          validation.missingPythonPackages.length > 0
         ) {
           const parts: string[] = []
-          if (validation.missingModels.length > 0)
-            parts.push(
-              `missing models: ${validation.missingModels.map((m) => m.repo_id).join(', ')}`,
-            )
           if (validation.missingCustomNodes.length > 0)
             parts.push(`missing custom nodes: ${validation.missingCustomNodes.join(', ')}`)
           if (validation.missingPythonPackages.length > 0)
@@ -1879,6 +1881,16 @@ export const useHomeAgent = defineStore(
             `⚠️ Image generation requirements are not met: ${parts.join('; ')}. Please configure AI Playground first.`,
             meta,
           )
+          return
+        }
+
+        // Required models that are not downloaded yet: with activeRemoteTurn set
+        // above this routes the approval + progress to the channel. On decline /
+        // cancel / failure the helper has already messaged the channel, so just
+        // unwind cleanly.
+        try {
+          await imageGenStore.ensureModelsAreAvailable()
+        } catch {
           return
         }
 
@@ -1909,6 +1921,7 @@ export const useHomeAgent = defineStore(
         await settlePhaseDraft(adapter.formatItalic(`🎨 Generated using preset ${presetName}`))
         await waitAndSendAllImages(adapter, newImageIds, prompt, meta)
       } finally {
+        activeRemoteTurn = null
         stopDraft()
         stopTyping()
         promptStore.setModeOnly(previousMode)
