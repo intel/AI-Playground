@@ -669,6 +669,7 @@ export const usePresets = defineStore(
     // ========================================================================
 
     function getPresetsByCategories(categories: string[], type?: string): Preset[] {
+      const backendServices = useBackendServices()
       return presets.value
         .filter((preset) => {
           // If type is specified, filter by type
@@ -676,6 +677,16 @@ export const usePresets = defineStore(
 
           // Hide chat presets that opt out of the standard picker (e.g. Home Agent)
           if (preset.type === 'chat' && (preset as ChatPreset).excludeFromChatPresetPicker) {
+            return false
+          }
+
+          // Hide Phison presets entirely on systems that do not offer the Phison build.
+          // On capable systems they remain listed (greyed-out until installed + active).
+          if (
+            preset.type === 'chat' &&
+            (preset as ChatPreset).requiresPhison &&
+            !backendServices.phisonSsdDetected
+          ) {
             return false
           }
 
@@ -776,9 +787,15 @@ export const usePresets = defineStore(
       const hasNpuDevice = backendServices.info
         .find((s) => s.serviceName === 'openvino-backend')
         ?.devices?.some((d) => d.id.includes('NPU'))
-      const phisonReady =
-        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
-          ?.llamaCppPhisonArtifactReady ?? false
+      // Phison is "usable" only when the system offers it, the binary is installed,
+      // and the SSD-offload variant is the active build. This keeps an inactive Phison
+      // preset out of default-preset auto-selection.
+      const phisonUsable =
+        backendServices.phisonSsdDetected &&
+        (backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+          ?.llamaCppPhisonArtifactReady ??
+          false) &&
+        backendServices.llamaCppBuildVariant === 'ssd-offload'
 
       return presets.value.filter((p) => {
         if (p.type !== 'chat') return false
@@ -787,7 +804,7 @@ export const usePresets = defineStore(
         if (chatPreset.requiresNpuSupport && !hasNpuDevice) {
           return false
         }
-        if (chatPreset.requiresPhison && !phisonReady) {
+        if (chatPreset.requiresPhison && !phisonUsable) {
           return false
         }
         return true

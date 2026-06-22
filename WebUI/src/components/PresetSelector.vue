@@ -228,13 +228,16 @@ function isPresetDisabled(preset: Preset): boolean {
       }
     }
 
-    // Check if the Phison aiDAPTIV+ build is required but not installed
+    // Check if the Phison aiDAPTIV+ build is required but not installed or not active.
+    // The preset is only usable when the SSD-offload binary is on disk AND it is the
+    // currently active build variant.
     if (chatPreset.requiresPhison) {
       const phisonReady =
         backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
           ?.llamaCppPhisonArtifactReady ?? false
-      if (!phisonReady) {
-        return true // Disable until the Phison build is installed
+      const phisonActive = backendServices.llamaCppBuildVariant === 'ssd-offload'
+      if (!phisonReady || !phisonActive) {
+        return true // Disable until the Phison build is installed and activated
       }
     }
 
@@ -264,7 +267,13 @@ function showDisabledReason(preset: Preset) {
         },
       })
     } else if (chatPreset.requiresPhison) {
-      toast.show('This preset requires the Phison aiDAPTIV+ SSD build of Llama.cpp.', {
+      const phisonReady =
+        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+          ?.llamaCppPhisonArtifactReady ?? false
+      const message = phisonReady
+        ? 'Enable the Phison aiDAPTIV+ SSD build of Llama.cpp to use this preset.'
+        : 'This preset requires the Phison aiDAPTIV+ SSD build of Llama.cpp.'
+      toast.show(message, {
         style: {
           content: { background: '#3b82f6', color: '#ffffff' },
         },

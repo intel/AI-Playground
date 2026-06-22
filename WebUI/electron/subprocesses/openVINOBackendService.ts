@@ -1892,8 +1892,6 @@ export class OpenVINOBackendService implements ApiService {
         path.resolve(path.join(this.baseDir, 'models', 'LLM', 'openvino')),
         '--target_device',
         selectedDevice,
-        '--cache_size',
-        '2',
         '--task',
         'text_generation',
         '--tool_parser',
