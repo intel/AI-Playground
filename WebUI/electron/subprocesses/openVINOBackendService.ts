@@ -11,6 +11,7 @@ import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { ensureManagedPython, installBackend, uvPipInstallToTarget } from './uvBasedBackends/uv.ts'
 import { binary, extract } from './tools.ts'
+import { resolveModels } from '../remoteUpdates.ts'
 import {
   getMissingPackages,
   hasAptGet,
@@ -1800,6 +1801,29 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
+  /**
+   * Resolve the OVMS `--tool_parser` for a model from its models.json entry.
+   * Falls back to 'hermes3' when the model is unknown or has no override
+   * (Qwen3.x and most chat models emit Hermes-style <tool_call> tags).
+   */
+  private async resolveToolParser(modelRepoId: string): Promise<string> {
+    const fallback = 'hermes3'
+    try {
+      const models = await resolveModels(this.settings)
+      const parser = models.find((m) => m.name === modelRepoId)?.toolParser
+      if (parser) {
+        this.appLogger.info(`Using tool_parser '${parser}' for ${modelRepoId}`, this.name)
+        return parser
+      }
+    } catch (error) {
+      this.appLogger.warn(
+        `Failed to resolve tool_parser for ${modelRepoId}, using '${fallback}': ${error}`,
+        this.name,
+      )
+    }
+    return fallback
+  }
+
   // Model server management methods
   private async startOvmsLlmServer(
     modelRepoId: string,
@@ -1808,6 +1832,7 @@ export class OpenVINOBackendService implements ApiService {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const maxPromptLen = contextSize ?? 8192
+      const toolParser = await this.resolveToolParser(modelRepoId)
 
       this.appLogger.info(
         `Starting OVMS server for model: ${modelRepoId} on port ${this.port} with device ${selectedDevice}`,
@@ -1832,7 +1857,7 @@ export class OpenVINOBackendService implements ApiService {
         '--task',
         'text_generation',
         '--tool_parser',
-        'hermes3',
+        toolParser,
         '--reasoning_parser',
         'qwen3',
         '--cache_dir',

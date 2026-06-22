@@ -23,6 +23,7 @@ export type Model = {
   type: ModelType
   backend?: LlmBackend
   supportsToolCalling?: boolean
+  toolParser?: string // OVMS --tool_parser override; defaults to 'hermes3'
   supportsVision?: boolean
   supportsReasoning?: boolean
   maxContextSize?: number

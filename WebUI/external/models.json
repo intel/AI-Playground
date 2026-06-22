@@ -329,6 +329,7 @@
     "name": "OpenVINO/gpt-oss-20b-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
+    "toolParser": "gptoss",
     "supportsVision": false,
     "supportsReasoning": true,
     "maxContextSize": 8192
@@ -346,6 +347,7 @@
     "name": "OpenVINO/Mistral-7B-Instruct-v0.3-int4-cw-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
+    "toolParser": "mistral",
     "supportsVision": false,
     "supportsReasoning": false,
     "maxContextSize": 32000,
