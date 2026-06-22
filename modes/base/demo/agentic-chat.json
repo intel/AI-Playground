@@ -10,7 +10,7 @@
     "openVINO": "OpenVINO/Qwen3-8B-int4-cw-ov",
     "llamaCPP": "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf"
   },
-  "systemPrompt": "/no_think You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help users accomplish their goals.",
+  "systemPrompt": "You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help users accomplish their goals.",
   "contextSize": 8192,
   "maxNewTokens": 2047,
   "requiresToolCalling": true,

@@ -24,6 +24,10 @@ export const ModelSchema = z.object({
   default: z.boolean().optional(), // No longer required - priority is determined by position in models.json
   backend: z.enum(llmBackendTypes).optional(),
   supportsReasoning: z.boolean().optional(),
+  // Model template honors `chat_template_kwargs.enable_thinking` so thinking can
+  // be toggled on/off per request (Qwen3 family, gemma4). Independent of
+  // `supportsReasoning`: gemma4 defaults to thinking off but still supports the toggle.
+  supportsThinkingToggle: z.boolean().optional(),
   supportsToolCalling: z.boolean().optional(),
   // OVMS tool-call parser override; defaults to 'hermes3' when omitted.
   toolParser: z.enum(ovmsToolParsers).optional(),

@@ -107,6 +107,18 @@
             @click="() => (textInference.metricsEnabled = !textInference.metricsEnabled)"
           />
         </div>
+        <!-- Thinking toggle - only shown for models whose template supports enable_thinking -->
+        <div
+          v-if="textInference.modelSupportsThinkingToggle"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">Thinking</Label>
+          <Checkbox
+            id="thinking"
+            :model-value="textInference.thinkingEnabled"
+            @click="() => (textInference.thinkingEnabled = !textInference.thinkingEnabled)"
+          />
+        </div>
         <!-- Built-in Tools toggle - only shown when preset has showTools enabled -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"

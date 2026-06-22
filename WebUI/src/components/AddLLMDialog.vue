@@ -57,6 +57,10 @@
               <Checkbox id="reasoning" v-model="supportsReasoning" />
               <Label for="reasoning">Reasoning</Label>
             </div>
+            <div class="flex items-center gap-2">
+              <Checkbox id="thinking-toggle" v-model="supportsThinkingToggle" />
+              <Label for="thinking-toggle">Thinking Toggle</Label>
+            </div>
             <div v-if="showNpuSupportCheckbox" class="flex items-center gap-2">
               <Checkbox id="npu-support" v-model="npuSupport" />
               <Label for="npu-support">NPU Support</Label>
@@ -144,6 +148,7 @@ const animate = ref(false)
 const supportsVision = ref(false)
 const supportsToolCalling = ref(false)
 const supportsReasoning = ref(false)
+const supportsThinkingToggle = ref(false)
 const npuSupport = ref(false)
 const maxContextSize = ref('32768')
 
@@ -230,6 +235,7 @@ async function addModel() {
       supportsVision: supportsVision.value || undefined,
       supportsToolCalling: supportsToolCalling.value || undefined,
       supportsReasoning: supportsReasoning.value || undefined,
+      supportsThinkingToggle: supportsThinkingToggle.value || undefined,
       npuSupport: npuSupport.value || undefined,
       maxContextSize: maxContextSize.value ? parseInt(maxContextSize.value, 10) : undefined,
       isPredefined: false,
@@ -259,6 +265,7 @@ function closeAdd() {
   supportsVision.value = false
   supportsToolCalling.value = false
   supportsReasoning.value = false
+  supportsThinkingToggle.value = false
   npuSupport.value = false
   maxContextSize.value = '32768'
   emits('close')

@@ -32,6 +32,7 @@ export type LlmModel = {
   supportsToolCalling?: boolean
   supportsVision?: boolean
   supportsReasoning?: boolean
+  supportsThinkingToggle?: boolean
   maxContextSize?: number
   npuSupport?: boolean
   largeMoe?: boolean
@@ -170,6 +171,7 @@ export const useTextInference = defineStore(
           supportsToolCalling: m.supportsToolCalling,
           supportsVision: m.supportsVision,
           supportsReasoning: m.supportsReasoning,
+          supportsThinkingToggle: m.supportsThinkingToggle,
           maxContextSize: m.maxContextSize,
           npuSupport: m.npuSupport,
           largeMoe: m.largeMoe,
@@ -328,6 +330,10 @@ export const useTextInference = defineStore(
     const metricsEnabled = ref(true)
     const aipgToolsEnabled = ref(true)
     const mcpToolsEnabled = ref(true)
+    // Whether the model should think before answering. Only meaningful for models
+    // whose template honors `enable_thinking` (see modelSupportsThinkingToggle);
+    // the value is injected as chat_template_kwargs.enable_thinking at inference.
+    const thinkingEnabled = ref(true)
 
     // Per-built-in-tool enablement overrides (by tool name). Most built-in tools
     // default on; opt-in/privacy-sensitive tools (captureScreenshot) default off.
@@ -372,6 +378,14 @@ export const useTextInference = defineStore(
         .filter((m) => m.type === backend.value)
         .find((m) => m.active)
       return currentModel?.supportsVision === true
+    })
+
+    // Check if the active model supports toggling thinking on/off (Qwen3 family, gemma4)
+    const modelSupportsThinkingToggle = computed(() => {
+      const currentModel = llmModels.value
+        .filter((m) => m.type === backend.value)
+        .find((m) => m.active)
+      return currentModel?.supportsThinkingToggle === true
     })
 
     // Check if the active preset requires tool calling
@@ -1280,6 +1294,10 @@ export const useTextInference = defineStore(
       mcpToolsEnabled.value =
         (savedSettings.mcpToolsEnabled as boolean | undefined) ?? defaultToolsEnabled
 
+      // Load thinking-enabled (defaults to true when unsaved; only takes effect for
+      // models that support the toggle via modelSupportsThinkingToggle).
+      thinkingEnabled.value = (savedSettings.thinkingEnabled as boolean | undefined) ?? true
+
       // Defer clearing the flag so the persistence watcher (default flush:
       // 'pre') sees `isLoadingSettings === true` when it runs for the writes
       // above. Otherwise it would re-save the freshly-loaded values and
@@ -1411,6 +1429,7 @@ export const useTextInference = defineStore(
         metricsEnabled,
         aipgToolsEnabled,
         mcpToolsEnabled,
+        thinkingEnabled,
       ],
       () => {
         // Don't save if we're loading settings (prevents overwriting during preset switch)
@@ -1434,6 +1453,7 @@ export const useTextInference = defineStore(
           metricsEnabled: metricsEnabled.value,
           aipgToolsEnabled: aipgToolsEnabled.value,
           mcpToolsEnabled: mcpToolsEnabled.value,
+          thinkingEnabled: thinkingEnabled.value,
         }
       },
       { deep: true },
@@ -1608,6 +1628,10 @@ export const useTextInference = defineStore(
 
       // Vision support
       modelSupportsVision,
+
+      // Thinking toggle support
+      thinkingEnabled,
+      modelSupportsThinkingToggle,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

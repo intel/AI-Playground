@@ -26,6 +26,7 @@ export type Model = {
   toolParser?: string // OVMS --tool_parser override; defaults to 'hermes3'
   supportsVision?: boolean
   supportsReasoning?: boolean
+  supportsThinkingToggle?: boolean // Template honors enable_thinking toggle (Qwen3 family, gemma4)
   maxContextSize?: number
   npuSupport?: boolean
   largeMoe?: boolean // Large Mixture-of-Experts model; Phison aiDAPTIV+ SSD offload enables loading models larger than VRAM
@@ -139,6 +140,7 @@ export const useModels = defineStore(
             supportsToolCalling: combinedModel.supportsToolCalling,
             supportsVision: combinedModel.supportsVision ?? (mmproj ? true : undefined),
             supportsReasoning: combinedModel.supportsReasoning,
+            supportsThinkingToggle: combinedModel.supportsThinkingToggle,
             maxContextSize: combinedModel.maxContextSize,
             npuSupport: combinedModel.npuSupport,
             largeMoe: combinedModel.largeMoe,
@@ -161,6 +163,7 @@ export const useModels = defineStore(
           supportsToolCalling: model.supportsToolCalling,
           supportsVision: model.supportsVision,
           supportsReasoning: model.supportsReasoning,
+          supportsThinkingToggle: model.supportsThinkingToggle,
           maxContextSize: model.maxContextSize,
           npuSupport: model.npuSupport,
         }

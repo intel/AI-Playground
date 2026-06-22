@@ -141,6 +141,20 @@ export const useOpenAiCompatibleChat = defineStore(
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
+        // For models that support toggling thinking (Qwen3 family, gemma4), send the
+        // explicit enable_thinking value so the toggle is authoritative regardless of
+        // the family's template default (Qwen3 defaults on, gemma4 defaults off). Both
+        // llama-server (--jinja) and OVMS (--reasoning_parser qwen3) honor this kwarg.
+        transformRequestBody: (args) =>
+          textInference.modelSupportsThinkingToggle
+            ? {
+                ...args,
+                chat_template_kwargs: {
+                  ...(args.chat_template_kwargs as Record<string, unknown> | undefined),
+                  enable_thinking: textInference.thinkingEnabled,
+                },
+              }
+            : args,
         fetch: async (url, init) => {
           // Resolve the request against the latest backend URL each call, so a
           // retry after a relaunch picks up the (possibly new) port.
@@ -543,7 +557,8 @@ export const useOpenAiCompatibleChat = defineStore(
             droppedImages++
             return { type: 'text', text: '[earlier image omitted]' } as typeof part
           })
-          if (changed) messages[i] = { ...messages[i], content: newContent } as (typeof messages)[number]
+          if (changed)
+            messages[i] = { ...messages[i], content: newContent } as (typeof messages)[number]
         }
         if (haDiag && (keptImages || droppedImages)) {
           console.log(`[HA-DIAG] images kept=${keptImages} droppedFromHistory=${droppedImages}`)

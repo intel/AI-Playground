@@ -79,6 +79,7 @@
     "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": false,
+    "supportsThinkingToggle": true,
     "maxContextSize": 128000
   },
   {
@@ -96,6 +97,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 40960
   },
   {
@@ -113,6 +115,7 @@
     "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
   {
@@ -122,6 +125,7 @@
     "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
   {
@@ -131,6 +135,7 @@
     "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": false,
+    "supportsThinkingToggle": true,
     "maxContextSize": 131072
   },
   {
@@ -139,6 +144,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
   },
@@ -148,6 +154,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": false,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
   },
@@ -157,6 +164,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
   },
@@ -203,6 +211,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
   },
@@ -230,6 +239,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": false,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
   },
@@ -248,6 +258,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
   },
@@ -275,6 +286,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 40960
   },
   {
@@ -323,6 +335,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 40960
   },
   {
@@ -340,6 +353,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 40960,
     "npuSupport": true
   },
@@ -410,6 +424,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
   {
@@ -428,6 +443,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
   {
@@ -437,6 +453,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
   {
@@ -446,16 +463,8 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 262144
-  },
-  {
-    "name": "OpenVINO/gemma-4-E4B-it-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": true,
-    "toolParser": "gemma4",
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "maxContextSize": 131072
   },
   {
     "name": "ChristianAzinn/bge-small-en-v1.5-gguf/bge-small-en-v1.5.Q8_0.gguf",
