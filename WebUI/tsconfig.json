@@ -12,6 +12,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
+    /* Node.js types for the electron/ folder */
+    "types": ["node"],
     /* Linting */
     "strict": true,
     "noUnusedLocals": false,

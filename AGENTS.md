@@ -407,16 +407,27 @@ A virtual framebuffer (`Xvfb`) is already running on `:1`.
 
 ### Backend services on Linux
 
-The `ai-backend` and `llamacpp-backend` services work on Linux (Ubuntu x64):
+The `ai-backend`, `llamacpp-backend`, `comfyui-backend`, and `openvino-backend`
+services run on Linux (Ubuntu x64). The packaged installer/AppImage supports
+Ubuntu 24 or newer only:
 
 - Run `npm run fetch-external-resources` once to download `uv` and `7zip` binaries for
   the current platform (placed in `build/resources/`).
 - Start the Electron app with `DISPLAY=:1 npm run dev`. On the setup dialog, click
-  **Install** next to `AI Playground` (ai-backend) and `Llama.cpp - GGUF` (llamacpp-backend).
+  **Install** next to the backends you need.
 - `ai-backend` runs a Python Flask server on port 59000 (health: `GET /healthy`).
-- `llamacpp-backend` downloads the `ubuntu-x64` CPU build from GitHub releases and
-  provides on-demand LLM inference (health: `GET /health`).
-- ComfyUI and OpenVINO are not yet supported on Linux.
+- `llamacpp-backend` downloads the `ubuntu-vulkan-x64` (GPU) build when a Vulkan
+  loader is present, otherwise the `ubuntu-x64` CPU build (health: `GET /health`).
+- `comfyui-backend` uses the `xpu` (torch+xpu) variant when the Intel Level Zero
+  runtime is present, otherwise `cpu`.
+- `openvino-backend` runs OVMS against the **system** Python on Linux and detects
+  Intel `GPU`/`NPU` devices via its Python detection venv.
+
+**Intel GPU on Linux** (Arc / iGPU): GPU acceleration requires host userspace
+drivers (Vulkan for llama.cpp; Level Zero for ComfyUI-XPU and OpenVINO). The card
+appearing in `lspci` is not sufficient. See
+[`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md) for the full
+driver install/verify procedure and per-backend requirements.
 
 ### Testing inference end-to-end
 

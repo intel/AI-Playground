@@ -4,6 +4,7 @@ import * as fs from 'fs-extra'
 import { copyFileWithDirs, existingFileOrError, spawnProcessAsync } from './osProcessHelper.ts'
 import { app } from 'electron'
 import { execSync } from 'node:child_process'
+import { packagedResourcesRoot } from '../aipgRoot.ts'
 
 const logger = appLoggerInstance
 const processLogHandler = (data: string) => {
@@ -11,10 +12,12 @@ const processLogHandler = (data: string) => {
 }
 const logSourceName = 'updateIntelPresets'
 
-const resourcesBaseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+const resourcesBaseDir = app.isPackaged
+  ? packagedResourcesRoot()
+  : path.join(__dirname, '../../../')
 const modesBaseDir = path.resolve(
   app.isPackaged
-    ? path.join(process.resourcesPath, 'modes')
+    ? path.join(packagedResourcesRoot(), 'modes')
     : path.join(__dirname, '../../../modes/'),
 )
 

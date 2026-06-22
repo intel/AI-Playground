@@ -7,17 +7,6 @@ required-markers = [
     "sys_platform == 'linux'",
 ]
 
-[options]
-exclude-newer = "2026-05-18T13:46:16.934036Z"
-exclude-newer-span = "P2D"
-
-[options.exclude-newer-package]
-torchvision = false
-torch = false
-triton-xpu = false
-torchaudio = false
-triton = false
-
 [[package]]
 name = "aipg-default-backend"
 version = "3.0.3b0"

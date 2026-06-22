@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import { appLoggerInstance } from '../logging/logger'
+import { packagedResourcesRoot } from '../aipgRoot.ts'
 
 export type McpServerConfig =
   | {
@@ -27,7 +28,7 @@ type McpConfigFile = {
 
 function getExternalResourcesDir(): string {
   return path.resolve(
-    app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
+    app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'),
   )
 }
 

@@ -5,8 +5,13 @@ import { promisify } from 'node:util'
 import * as filesystem from 'fs-extra'
 import { app, net, type BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
+import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { createEnhancedErrorDetails, type ApiService, type ErrorDetails } from './service.ts'
-import { vulkanDeviceSelectorEnv, withSelectedDevice } from './deviceDetection.ts'
+import {
+  vulkanDeviceSelectorEnv,
+  withSelectedDevice,
+  linuxHasVulkanLoader,
+} from './deviceDetection.ts'
 import type { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { binary, extract } from './tools.ts'
@@ -100,7 +105,7 @@ export class LlamaCppBackendService implements ApiService {
   readonly settings: LocalSettings
 
   // Service directories
-  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
   readonly serviceDir: string
   readonly llamaCppSsdOffloadConfigPath: string
   devices: InferenceDevice[] = [{ id: '0', name: 'Auto select device', selected: true }]
@@ -406,11 +411,18 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      this.devices = withSelectedDevice(
-        availableDevices.map((d) => ({ ...d, selected: false })),
-        this.settings.lastSelectedDevicePerBackend[this.name],
-        (ds) => ds[0],
-      )
+      // When the build exposes no GPU backend (e.g. the CPU-only ubuntu-x64
+      // build, or a Vulkan build without a usable ICD/driver), --list-devices
+      // returns nothing. Fall back to a single auto device so the UI selector
+      // always has a valid value (otherwise it renders with value=undefined).
+      this.devices =
+        availableDevices.length > 0
+          ? withSelectedDevice(
+              availableDevices.map((d) => ({ ...d, selected: false })),
+              this.settings.lastSelectedDevicePerBackend[this.name],
+              (ds) => ds[0],
+            )
+          : [{ id: '0', name: 'Auto select device', selected: true }]
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
@@ -696,9 +708,21 @@ export class LlamaCppBackendService implements ApiService {
   }
 
   private resolveDownloadUrl(): string {
+    // Linux: pick the GPU-accelerated Vulkan build when a Vulkan ICD loader is
+    // present, mirroring the win-vulkan-x64 build used on Windows. Falls back to
+    // the CPU-only ubuntu-x64 build when Vulkan isn't available.
+    const linuxArch = this.linuxHasVulkan() ? 'ubuntu-vulkan-x64' : 'ubuntu-x64'
+    if (process.platform === 'linux') {
+      this.appLogger.info(
+        linuxArch === 'ubuntu-vulkan-x64'
+          ? 'Linux Vulkan loader detected — using GPU (ubuntu-vulkan-x64) llama.cpp build'
+          : 'Linux Vulkan loader not found — using CPU-only (ubuntu-x64) llama.cpp build',
+        this.name,
+      )
+    }
     const platformArchMap: Record<string, string> = {
       darwin: 'macos-arm64',
-      linux: 'ubuntu-x64',
+      linux: linuxArch,
       win32: 'win-vulkan-x64',
     }
     const platformArch = platformArchMap[process.platform] ?? 'win-vulkan-x64'
@@ -708,6 +732,16 @@ export class LlamaCppBackendService implements ApiService {
       platformExtension,
       platformArch,
     )
+  }
+
+  /**
+   * Detect whether a Vulkan ICD loader is installed on Linux. When present we
+   * download the GPU-accelerated llama.cpp build so `--gpu-layers 999` offloads
+   * to the Intel GPU via Vulkan (same as Windows' win-vulkan-x64 build).
+   * Delegates to the shared, distro-robust + logged detector.
+   */
+  private linuxHasVulkan(): boolean {
+    return linuxHasVulkanLoader()
   }
 
   private async extractLlamacpp(): Promise<void> {

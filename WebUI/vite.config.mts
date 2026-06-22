@@ -41,7 +41,12 @@ export default defineConfig(({ command }) => {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */ '[startup] Electron App')
             } else {
-              options.startup()
+              // On Linux, Electron's setuid chrome-sandbox is usually not usable
+              // in dev (cache dir, non-root user), so it fails to start without
+              // `sudo chown root:root chrome-sandbox`. Pass --no-sandbox to skip
+              // it. This mirrors the runtime switch set in electron/main.ts.
+              const argv = process.platform === 'linux' ? ['.', '--no-sandbox'] : undefined
+              options.startup(argv)
             }
           },
           vite: {

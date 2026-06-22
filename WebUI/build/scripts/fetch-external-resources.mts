@@ -83,6 +83,126 @@ async function downloadFileIfNotPresent(url: string): Promise<DownloadResult> {
 }
 
 /**
+ * Check whether a command is available on PATH (Linux/macOS).
+ */
+function commandExists(cmd: string): boolean {
+  try {
+    execSync(`command -v ${cmd}`, { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Detect the system package manager and return the command to install the
+ * C/C++ build toolchain + Python dev headers + cmake needed to build
+ * source-only Python wheels on Linux (e.g. insightface's mesh_core_cython).
+ */
+function getLinuxToolchainInstallCommand(): string | undefined {
+  const managers: { probe: string; packages: string; install: (pkgs: string) => string }[] = [
+    {
+      probe: 'apt-get',
+      packages: 'build-essential python3-dev cmake',
+      // `|| true` so a failing `update` (e.g. clock skew making Release files
+      // "not valid yet", or transient mirror errors) does not short-circuit
+      // the install, which can still succeed from cached package lists.
+      // `Acquire::Check-Date=false` tolerates a wrong system clock.
+      install: (pkgs) =>
+        `apt-get update -o Acquire::Check-Date=false || true; apt-get install -y ${pkgs}`,
+    },
+    {
+      probe: 'dnf',
+      packages: 'gcc-c++ gcc make python3-devel cmake',
+      install: (pkgs) => `dnf install -y ${pkgs}`,
+    },
+    {
+      probe: 'pacman',
+      packages: 'base-devel cmake',
+      install: (pkgs) => `pacman -S --needed --noconfirm ${pkgs}`,
+    },
+    {
+      probe: 'zypper',
+      packages: 'gcc-c++ gcc make python3-devel cmake',
+      install: (pkgs) => `zypper install -y ${pkgs}`,
+    },
+  ]
+
+  for (const manager of managers) {
+    if (commandExists(manager.probe)) {
+      return manager.install(manager.packages)
+    }
+  }
+  return undefined
+}
+
+/**
+ * Ensure a C/C++ build toolchain is available on Linux so that source-only
+ * Python wheels (notably insightface==0.7.3, which has no Linux wheel and
+ * compiles a Cython C++ extension) build successfully during backend setup.
+ *
+ * Best effort: auto-installs via the detected package manager when possible,
+ * otherwise prints actionable manual instructions. Never fails the fetch.
+ */
+function ensureLinuxBuildToolchain(): void {
+  if (target.data !== 'linux') return
+
+  // Require the GNU compilers specifically (gcc/g++), not just the generic
+  // cc/c++ aliases: source-only wheels like insightface invoke the GNU
+  // compiler recorded in CPython's sysconfig (e.g. `x86_64-linux-gnu-g++`),
+  // which a clang-only or partial toolchain does NOT provide.
+  const requiredCommands = ['gcc', 'g++', 'make', 'cmake']
+  const missing = requiredCommands.filter((cmd) => !commandExists(cmd))
+
+  if (missing.length === 0) {
+    console.log('✅ Linux build toolchain present (gcc, g++, make, cmake)')
+    return
+  }
+
+  console.log(
+    `🔧 Linux build toolchain incomplete (missing: ${missing.join(', ')}). ` +
+      'Required to build source-only wheels such as insightface.',
+  )
+
+  const installCommand = getLinuxToolchainInstallCommand()
+  if (!installCommand) {
+    console.warn(
+      '⚠️  Could not detect a supported package manager (apt-get/dnf/pacman/zypper).\n' +
+        '    Please install a C/C++ compiler, Python dev headers and cmake manually,\n' +
+        '    e.g. on Debian/Ubuntu: sudo apt install -y build-essential python3-dev cmake',
+    )
+    return
+  }
+
+  const isRoot = typeof process.getuid === 'function' && process.getuid() === 0
+  // When not root, run through interactive `sudo` so the user can enter their
+  // password. stdio is inherited so the prompt is visible and answerable.
+  const finalCommand = isRoot ? installCommand : `sudo sh -c ${JSON.stringify(installCommand)}`
+
+  if (!isRoot && !commandExists('sudo')) {
+    console.warn(
+      '⚠️  Build toolchain is missing and `sudo` is not available to install it.\n' +
+        '    Run this once as root, then re-run the backend install:\n' +
+        `      sh -c ${JSON.stringify(installCommand)}`,
+    )
+    return
+  }
+
+  console.log(`📦 Installing Linux build toolchain (you may be prompted for your sudo password):`)
+  console.log(`    ${installCommand}`)
+  try {
+    execSync(finalCommand, { stdio: 'inherit' })
+    console.log('✅ Linux build toolchain installed.')
+  } catch {
+    console.warn(
+      '⚠️  Toolchain install failed or was cancelled.\n' +
+        '    Run this once manually, then re-run the backend install:\n' +
+        `      sudo sh -c ${JSON.stringify(installCommand)}`,
+    )
+  }
+}
+
+/**
  * Prepare target directories
  */
 function prepareDirectories(): void {
@@ -115,6 +235,10 @@ async function main(): Promise<void> {
   try {
     // Prepare directories
     prepareDirectories()
+
+    // On Linux, ensure a C/C++ build toolchain is present so source-only
+    // wheels (e.g. insightface) compile during backend setup.
+    ensureLinuxBuildToolchain()
 
     // Download all required files
     const downloads = await Promise.all([

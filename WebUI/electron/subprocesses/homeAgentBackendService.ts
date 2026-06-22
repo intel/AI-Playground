@@ -233,7 +233,7 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       ].join(pathSep),
       PYTHONNOUSERSITE: 'true',
       PYTHONIOENCODING: 'utf-8',
-      PIP_CONFIG_FILE: 'nul',
+      PIP_CONFIG_FILE: process.platform === 'win32' ? 'nul' : '/dev/null',
       AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
     }
 

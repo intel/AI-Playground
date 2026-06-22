@@ -33,6 +33,7 @@ import {
   OpenDialogSyncOptions,
   protocol,
   screen,
+  session,
   shell,
   systemPreferences,
   utilityProcess,
@@ -97,6 +98,7 @@ import {
   type McpServerConfig,
 } from './subprocesses/mcpServers'
 import { externalResourcesDir, getMediaDir } from './util.ts'
+import { packagedResourcesRoot } from './aipgRoot.ts'
 import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
@@ -183,14 +185,23 @@ process.env.DIST = path.join(__dirname, '../')
 process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? '../..' : '../../../public')
 
 const externalRes = path.resolve(
-  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
+  app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'),
 )
 
 const modesDir = path.resolve(
   app.isPackaged
-    ? path.join(process.resourcesPath, 'modes')
+    ? path.join(packagedResourcesRoot(), 'modes')
     : path.join(__dirname, '../../../modes/'),
 )
+// On Linux (incl. headless Xvfb/VNC), Chromium's GPU process is often "not
+// usable" and Electron aborts on startup. Disable hardware acceleration so the
+// software rasterizer is used. This does NOT affect AI/compute workloads, which
+// use Level Zero/SYCL/Vulkan directly. --no-sandbox avoids SUID-sandbox issues.
+if (process.platform === 'linux') {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('no-sandbox')
+}
 const singleInstanceLock = app.requestSingleInstanceLock()
 
 const appLogger = appLoggerInstance
@@ -205,16 +216,32 @@ fs.mkdirSync(mediaInputDir, { recursive: true })
 /** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
 function getLocalPathFromAipgMediaUrl(url: string): string | null {
   if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return null
-  // Strip protocol, then strip any trailing slash — Chromium occasionally
-  // appends one to custom-protocol URLs (e.g. `aipg-media://foo.png/`), and
-  // `net.fetch(file://.../foo.png/)` treats the trailing slash as "directory"
-  // and fails. Mirrors what the legacy inline handler did.
+  // `aipg-media` is registered as a *standard* scheme, so Chromium parses the
+  // segment after `://` as the URL authority and lowercases it. The current
+  // URL format therefore keeps the media-relative path in the URL *path* under
+  // a constant `media` authority (see `mediaUrl()` in `src/lib/utils.ts`) so
+  // case-sensitive filenames survive on case-sensitive filesystems (Linux).
+  //
+  // Legacy URLs (`aipg-media://<relative-path>`) put the path directly in the
+  // authority; keep resolving those for already-persisted media references.
+  // (Their case was lost to the authority lowercasing, so they only ever
+  // resolved on case-insensitive filesystems — unchanged by this branch.)
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  const relativeRaw = parsed.host === 'media' ? parsed.pathname : parsed.host + parsed.pathname
+  // Strip any trailing slash — Chromium occasionally appends one to
+  // custom-protocol URLs (e.g. `…/foo.png/`), and `net.fetch(file://.../foo.png/)`
+  // treats the trailing slash as "directory" and fails.
   // `decodeURIComponent` throws `URIError` on malformed `%` sequences (e.g.
-  // `aipg-media://%E0`); treat that as an invalid URL rather than letting the
-  // exception escape into the protocol handler or IPC reply.
+  // `%E0`); treat that as an invalid URL rather than letting the exception
+  // escape into the protocol handler or IPC reply.
   let decodedUrl: string
   try {
-    decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, '').replace(/[/\\]+$/, ''))
+    decodedUrl = decodeURIComponent(relativeRaw.replace(/[/\\]+$/, ''))
   } catch {
     return null
   }
@@ -406,7 +433,7 @@ let demoProfile: DemoProfile | null = null
 
 /** Packaged: `resources/settings.json` (same role as dev `external/settings-dev.json`). */
 function getPackagedSettingsPath(): string {
-  return path.join(process.resourcesPath, 'settings.json')
+  return path.join(packagedResourcesRoot(), 'settings.json')
 }
 
 /** Dev-only defaults shipped in the repo (read-only for the app). */
@@ -599,6 +626,57 @@ async function createWindow() {
         appLogger.error(`Failed to check developer settings: ${e}`, 'electron-backend')
       }
     }, 500)
+  })
+
+  // Pipe renderer console warnings/errors to the app log file. Writes via
+  // logMessageToFile directly: the regular logger methods echo every message
+  // back to the renderer's debug stream, which a console-logging renderer
+  // would turn into a feedback loop. Rate-limited so a hot error loop can't
+  // bloat the log file (appendFileSync blocks the main process).
+  const RENDERER_LOG_WINDOW_MS = 1000
+  const MAX_RENDERER_LOGS_PER_WINDOW = 10
+  let rendererLogWindowStart = 0
+  let rendererLogCount = 0
+  win.webContents.on('console-message', (event) => {
+    if (event.level !== 'warning' && event.level !== 'error') return
+    const now = Date.now()
+    if (now - rendererLogWindowStart > RENDERER_LOG_WINDOW_MS) {
+      rendererLogWindowStart = now
+      rendererLogCount = 0
+    }
+    if (rendererLogCount < MAX_RENDERER_LOGS_PER_WINDOW) {
+      appLogger.logMessageToFile(
+        `[${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`,
+        'renderer',
+      )
+    } else if (rendererLogCount === MAX_RENDERER_LOGS_PER_WINDOW) {
+      appLogger.logMessageToFile('rate limit exceeded, suppressing further messages this second', 'renderer')
+    }
+    rendererLogCount++
+  })
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    appLogger.error(
+      `render-process-gone: reason=${details.reason} exitCode=${details.exitCode}`,
+      'electron-backend',
+      true,
+    )
+    dialog.showErrorBox(
+      'AI Playground — Renderer Crashed',
+      `The application window has crashed unexpectedly.\n\n` +
+        `Reason: ${details.reason}\n` +
+        `Exit code: ${details.exitCode}\n\n` +
+        `Check logs for details:\n${appLogger.pathToLogFiles}`,
+    )
+  })
+
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    if (errorCode === -3) return // ERR_ABORTED: navigation cancelled, not a failure
+    appLogger.error(
+      `did-fail-load: code=${errorCode} desc="${errorDescription}" url="${validatedURL}"`,
+      'electron-backend',
+      true,
+    )
   })
 
   const session = win.webContents.session
@@ -2418,8 +2496,15 @@ function needAdminPermission() {
     fs.writeFile(filename, '', (err) => {
       if (err) {
         if (err && err.code == 'EPERM') {
-          if (path.parse(externalRes).root == path.parse(process.env.windir!).root) {
+          // windir is only defined on Windows; on Linux/macOS this check is skipped.
+          if (
+            process.platform === 'win32' &&
+            process.env.windir &&
+            path.parse(externalRes).root == path.parse(process.env.windir).root
+          ) {
             resolve(!isAdmin())
+          } else {
+            resolve(false)
           }
         } else {
           resolve(false)
@@ -2445,7 +2530,52 @@ function isAdmin(): boolean {
   }
 }
 
+/**
+ * Route Electron `net.fetch` traffic (llama.cpp / OVMS / remote-update
+ * downloads) through an HTTP(S) proxy when one is configured via the standard
+ * `*_proxy` environment variables. Chromium's network stack does not reliably
+ * honor these env vars on its own, so we read them and set the session proxy
+ * explicitly. No-op when no proxy is set, so direct-internet users are
+ * unaffected.
+ *
+ * Note: GUI launches (double-click from a file manager) do NOT inherit
+ * `http_proxy` exported in `~/.profile`/`~/.bashrc`; launch from a terminal
+ * where the vars are set, or configure a system-wide proxy.
+ */
+async function configureProxyFromEnv(): Promise<void> {
+  const proxy =
+    process.env.https_proxy ||
+    process.env.HTTPS_PROXY ||
+    process.env.http_proxy ||
+    process.env.HTTP_PROXY
+  if (!proxy) {
+    return
+  }
+  const noProxy = process.env.no_proxy || process.env.NO_PROXY
+  const proxyBypassRules = noProxy
+    ? noProxy
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .join(',')
+    : undefined
+  appLogger.info(
+    `Configuring Electron session proxy from environment: ${proxy}${
+      proxyBypassRules ? ` (bypass: ${proxyBypassRules})` : ''
+    }`,
+    'proxy',
+  )
+  await session.defaultSession.setProxy({ proxyRules: proxy, proxyBypassRules })
+}
+
 app.whenReady().then(async () => {
+  // Startup diagnostic — helps diagnose installation and configuration issues
+  appLogger.info(
+    `startup: isPackaged=${app.isPackaged} platform=${process.platform} DIST="${process.env.DIST}" userData="${app.getPath('userData')}"`,
+    'electron-backend',
+    true,
+  )
+
   /*
     The current user does not have write permission for files in the program directory and is not an administrator.
     Close the current program and let the user start the program with administrator privileges
@@ -2474,6 +2604,10 @@ app.whenReady().then(async () => {
     app.exit()
   } else {
     const settings = await loadSettings()
+
+    // Honor *_proxy env vars for all backend downloads (net.fetch) before any
+    // service setup kicks off.
+    await configureProxyFromEnv()
 
     initEventHandle()
 

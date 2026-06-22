@@ -99,6 +99,109 @@ npm run build
 
 The installer executable will be located in the `build/electron` folder.
 
+### Build and run on Linux (AppImage or .deb)
+
+> Linux support is experimental. The frontend, AI Backend, LlamaCPP and ComfyUI
+> backends run on Ubuntu x64. The packaged installer/AppImage/.deb supports Ubuntu 24
+> or newer only. See [`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md)
+> for GPU driver requirements.
+
+The Linux build produces both a single, portable **AppImage** (no installation, no
+root) and a **`.deb`** package for a system-wide install via `apt`.
+
+1. Build it from the `WebUI` directory:
+
+   ```bash
+   cd WebUI
+   npm install                        # install build dependencies
+   npm run fetch-external-resources   # one-time: downloads uv/7zip
+   npm run build:linux
+   ```
+
+   Both `AI Playground-<version>.AppImage` and `AI Playground-<version>.deb` are
+   written to `build/electron`. The build host needs `ar` (from `binutils`,
+   usually already present) to assemble the `.deb`.
+
+2. Install FUSE once (required to run any AppImage):
+
+   ```bash
+   sudo apt install -y libfuse2t64
+   ```
+
+3. Make it executable and start the app:
+
+   ```bash
+   cd build/electron
+   chmod +x "AI Playground-"*.AppImage
+   ./"AI Playground-"*.AppImage
+   ```
+
+   `--no-sandbox` is baked into the launcher (see `build/scripts/after-pack.cjs`),
+   so you can also start the app by double-clicking the AppImage in your file
+   manager — provided the file manager is allowed to run executables (in GNOME
+   Files: Preferences → "Executable Text Files" / right-click → Run, or
+   `chmod +x` as above). Do **not** start it with `sudo` — Electron refuses to
+   run as root.
+
+   Alternatively, install the **`.deb`** instead of running the AppImage. `apt`
+   resolves the runtime dependencies declared in the package
+   (`libgtk-3-0`, `libnss3`, `libasound2`, `libdbus-1-3`, `pciutils`, `python3`):
+
+   ```bash
+   cd build/electron
+   sudo apt install ./"AI Playground-"*.deb
+   ```
+
+   This installs the app system-wide; launch it as **AI Playground** from your
+   application menu or run `ai-playground` from a terminal. `--no-sandbox` is
+   baked into the launcher here too. Uninstall with `sudo apt remove ai-playground`.
+
+4. OpenVINO Ubuntu dependencies are checked during OpenVINO backend setup.
+
+   If required packages are missing, AI Playground can open a terminal installer.
+   The terminal asks for your sudo password and runs the package install command.
+
+   On Ubuntu, the install command is:
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y python3 python3-venv libtbb12 libhwloc15 libgomp1 libnuma1 ocl-icd-libopencl1 libfuse2t64
+   ```
+
+### Behind a corporate / HTTP proxy
+
+AI Playground downloads tools at build time (`uv`, `7zip`) and backend binaries
+on first run (llama.cpp, OpenVINO/OVMS). Both honor the standard proxy
+environment variables when they are set — export them before building or
+launching:
+
+```bash
+export https_proxy="http://proxy.example.com:port"
+export http_proxy="http://proxy.example.com:port"
+export no_proxy="localhost,127.0.0.1"   # hosts to reach directly
+```
+
+With these set:
+
+- **Build** (`npm run fetch-external-resources` / `npm run build:linux`) routes
+  Node's downloads through the proxy (the script runs with
+  `NODE_USE_ENV_PROXY=1`).
+- **Runtime** the app reads the same variables at startup and points Electron's
+  network stack (`net.fetch`) at the proxy, so llama.cpp and OVMS downloads
+  succeed.
+
+> ⚠️ **Launching from a file manager won't pick up the proxy.** Double-clicking
+> the AppImage starts it from the desktop session, which does **not** inherit
+> `http_proxy` exported in `~/.profile` or `~/.bashrc`. Either launch the
+> AppImage from a terminal where the variables are exported, or configure a
+> system-wide proxy (e.g. GNOME Settings → Network → Network Proxy) so the
+> desktop session provides them.
+
+If your network blocks the downloads entirely, you can also pre-place the build
+tools manually: drop the extracted `uv`/`7zip` binaries into
+`WebUI/build/resources/` (the fetch script skips any file already present)
+before running the build.
+
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
 
