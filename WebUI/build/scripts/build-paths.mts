@@ -67,7 +67,7 @@ export const UV_URL = {
 }
 export const XPU_SMI_URL = {
   win32:
-    'https://github.com/intel/xpumanager/releases/download/v1.3.6/xpu-smi-1.3.6-20260206.143316.1004f6cb_win.zip',
+    'https://github.com/intel/xpumanager/releases/download/v2.0.0/xpu-smi-v2.0.0-fcd9c37_win.zip',
   // For now we only bundle the Windows CLI. Linux users can rely on the system package manager.
   // (The app's Linux support currently doesn't include OpenVINO/ComfyUI anyway.)
   darwin: null,

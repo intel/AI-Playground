@@ -96,7 +96,7 @@ export class OpenVINOBackendService implements ApiService {
   // Logger
   readonly appLogger = appLoggerInstance
 
-  private version = '2026.2.0'
+  private version = '2026.2.1'
   private releaseTag: string | undefined = undefined
   private readonly linuxRuntimePackages = [
     'python3',
