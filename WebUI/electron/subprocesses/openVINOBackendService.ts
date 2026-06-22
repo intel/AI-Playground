@@ -869,6 +869,7 @@ export class OpenVINOBackendService implements ApiService {
       const pythonDevices = await this.detectDevicesWithPython()
       if (pythonDevices) {
         this.applyDetectedDevices(pythonDevices)
+        await this.warnIfNpuSiliconMissingDriver(pythonDevices)
         this.updateStatus()
         return
       }
@@ -883,6 +884,7 @@ export class OpenVINOBackendService implements ApiService {
     try {
       const ovmsDevices = await this.detectDevicesWithOvms()
       this.applyDetectedDevices(ovmsDevices)
+      await this.warnIfNpuSiliconMissingDriver(ovmsDevices)
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       // Fallback to default device on error
@@ -890,6 +892,44 @@ export class OpenVINOBackendService implements ApiService {
       this.sttDevices = [...defaultDevices]
     }
     this.updateStatus()
+  }
+
+  /**
+   * Linux-only: surface a warning when an Intel NPU is on the PCI bus
+   * (lspci class 1200, vendor 8086) but OpenVINO did not enumerate it.
+   * This happens when the kernel module `intel_vpu` is loaded (so /dev/accel/accel0
+   * exists) but the userspace stack from intel/linux-npu-driver is not installed.
+   * The Intel GPU APT repo does NOT carry these packages — they only ship as a
+   * release tarball on GitHub.
+   */
+  private async warnIfNpuSiliconMissingDriver(
+    devices: { id: string; name: string }[],
+  ): Promise<void> {
+    if (process.platform !== 'linux') return
+    if (devices.some((d) => d.id === 'NPU' || d.id.startsWith('NPU.'))) return
+    try {
+      // PCI class 1200 = Processing accelerators. NPU silicon is exposed there.
+      // Timeout matches the codebase pattern (other execAsync calls use timeout: 5000);
+      // 2s is plenty for `lspci` which reads from sysfs.
+      const { stdout } = await execAsync('lspci -nn -d 8086:', { timeout: 2000 })
+      const hasNpuOnBus = /Processing accelerators \[1200\]/.test(stdout)
+      if (!hasNpuOnBus) return
+      this.appLogger.warn(
+        'Intel NPU detected on PCI bus but not enumerated by OpenVINO. ' +
+          'Install the NPU userspace driver from ' +
+          'https://github.com/intel/linux-npu-driver/releases ' +
+          '(packages: intel-driver-compiler-npu, intel-fw-npu, intel-level-zero-npu). ',
+        this.name,
+        true,
+      )
+    } catch (error) {
+      // Best-effort probe. Log so real failures (missing binary, permissions,
+      // process killed by timeout) are diagnosable instead of silently swallowed.
+      this.appLogger.warn(
+        `NPU PCI probe skipped (lspci unavailable, timed out, or failed): ${error}`,
+        this.name,
+      )
+    }
   }
 
   /**

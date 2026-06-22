@@ -66,11 +66,25 @@ cd AI-Playground
 
 ### Install Node.js Dependencies
 
-1. Install the Node.js development environment from [Node.js](https://nodejs.org/en/download).
+1. Install the **Node.js ≥ 20** development environment.
+
+   - **Windows / macOS:** download the installer from [Node.js](https://nodejs.org/en/download).
+   - **Ubuntu 24.04 / Debian:** the distro's `apt install nodejs` ships Node 18
+     (no `npm`) and is **too old**. Install Node 22 LTS via NodeSource instead:
+
+     ```bash
+     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+     sudo apt install -y nodejs
+     node --version    # expect: v22.x
+     npm  --version    # expect: 10.x
+     ```
+
+     Behind a corporate proxy that intercepts `deb.nodesource.com`, prefix the
+     `curl` with `--proxy "$http_proxy"` and ensure `https_proxy` is exported.
 
 2. Navigate to the `WebUI` directory and install all Node.js dependencies:
 
-```cmd
+```bash
 cd WebUI
 npm install
 ```
@@ -201,6 +215,25 @@ If your network blocks the downloads entirely, you can also pre-place the build
 tools manually: drop the extracted `uv`/`7zip` binaries into
 `WebUI/build/resources/` (the fetch script skips any file already present)
 before running the build.
+
+#### Corporate proxy + Intel-owned external hosts
+
+A common gotcha on Intel networks: `apt` and `curl` honor `no_proxy` exactly,
+but a **broad** entry like `no_proxy=*.intel.com` will **also** match the
+externally-hosted CDN `repositories.intel.com` (resolves to AWS), causing
+`apt update` to hang trying to reach it directly through the corporate firewall.
+
+Work around it by **scoping the proxy override per-host** rather than rewriting
+`no_proxy`:
+
+```bash
+# /etc/apt/apt.conf.d/99-intel-proxy
+Acquire::http::Proxy::repositories.intel.com  "http://proxy.example.com:port";
+Acquire::https::Proxy::repositories.intel.com "http://proxy.example.com:port";
+```
+
+For interactive `curl` calls (e.g. fetching the NPU driver tarball from
+`github.com` which redirects to AWS), pass `--proxy "$http_proxy"` explicitly.
 
 ## Model Support
 AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
