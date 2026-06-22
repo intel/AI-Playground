@@ -11,6 +11,7 @@
           :used-tokens="contextUsedTokens"
           :max-tokens="contextMaxTokens"
           :max-context-size="textInference.maxContextSizeFromModel"
+          :dynamic-context="textInference.contextSizeIsDynamic"
           :usage="contextUsage"
         />
       </div>
@@ -482,7 +483,11 @@ const isTextAreaDisabled = computed(() => {
 
 // Context usage data for Context component
 const contextUsedTokens = computed(() => openAiCompatibleChat.usedTokens)
-const contextMaxTokens = computed(() => textInference.contextSize)
+const contextMaxTokens = computed(() =>
+  textInference.contextSizeIsDynamic
+    ? (textInference.maxContextSizeFromModel ?? 0)
+    : textInference.contextSize,
+)
 const contextUsage = computed(() => openAiCompatibleChat.contextUsage)
 const contextError = computed(() => openAiCompatibleChat.error)
 

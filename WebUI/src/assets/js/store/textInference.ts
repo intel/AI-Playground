@@ -269,6 +269,12 @@ export const useTextInference = defineStore(
         (backend.value === 'openVINO' && runningOnOpenvinoNpu.value),
     )
 
+    // OpenVINO on GPU uses a dynamic KV cache: the effective context size is
+    // determined at runtime based on available VRAM rather than a fixed setting.
+    const contextSizeIsDynamic = computed(
+      () => backend.value === 'openVINO' && !runningOnOpenvinoNpu.value,
+    )
+
     // Backend preparation computed properties
     const needsBackendPreparation = computed(() => {
       const currentModel = activeModel.value
@@ -1562,6 +1568,7 @@ export const useTextInference = defineStore(
       isMinSize,
       ragList,
       contextSizeSettingSupported,
+      contextSizeIsDynamic,
       systemPrompt,
       selectModel,
       selectEmbeddingModel,

@@ -275,7 +275,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
-    "maxContextSize": 32768
+    "maxContextSize": 40960
   },
   {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
@@ -283,7 +283,7 @@
     "supportsToolCalling": false,
     "supportsVision": false,
     "supportsReasoning": false,
-    "maxContextSize": 40960
+    "maxContextSize": 131072
   },
   {
     "name": "OpenVINO/Phi-3-mini-4k-instruct-int4-ov",
@@ -323,7 +323,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
-    "maxContextSize": 32768
+    "maxContextSize": 40960
   },
   {
     "name": "OpenVINO/gpt-oss-20b-int4-ov",
@@ -332,7 +332,7 @@
     "toolParser": "gptoss",
     "supportsVision": false,
     "supportsReasoning": true,
-    "maxContextSize": 8192
+    "maxContextSize": 131072
   },
   {
     "name": "OpenVINO/Qwen3-8B-int4-cw-ov",
@@ -340,7 +340,7 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
-    "maxContextSize": 32768,
+    "maxContextSize": 40960,
     "npuSupport": true
   },
   {
@@ -350,7 +350,7 @@
     "toolParser": "mistral",
     "supportsVision": false,
     "supportsReasoning": false,
-    "maxContextSize": 32000,
+    "maxContextSize": 32768,
     "npuSupport": true
   },
   {
@@ -375,7 +375,7 @@
     "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": false,
-    "maxContextSize": 32768
+    "maxContextSize": 128000
   },
   {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-gq-ov",
@@ -383,7 +383,7 @@
     "supportsToolCalling": false,
     "supportsVision": false,
     "supportsReasoning": false,
-    "maxContextSize": 40960,
+    "maxContextSize": 131072,
     "npuSupport": true
   },
   {
@@ -410,7 +410,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
-    "maxContextSize": 32768
+    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/Qwen3-VL-8B-Instruct-int4-ov",
@@ -419,7 +419,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": false,
-    "maxContextSize": 32768
+    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/Qwen3.5-9B-int4-ov",
@@ -428,7 +428,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
-    "maxContextSize": 32768
+    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/Qwen3.6-27B-int4-ov",
@@ -437,7 +437,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
-    "maxContextSize": 32768
+    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/Qwen3.6-35B-A3B-int4-ov",
@@ -446,7 +446,7 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
-    "maxContextSize": 32768
+    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/gemma-4-E4B-it-int4-ov",
@@ -455,7 +455,7 @@
     "toolParser": "gemma4",
     "supportsVision": true,
     "supportsReasoning": false,
-    "maxContextSize": 32768
+    "maxContextSize": 131072
   },
   {
     "name": "ChristianAzinn/bge-small-en-v1.5-gguf/bge-small-en-v1.5.Q8_0.gguf",
