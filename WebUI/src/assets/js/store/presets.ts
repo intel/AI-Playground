@@ -195,11 +195,15 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   requiresToolCalling: z.boolean().optional(),
   requiresReasoning: z.boolean().optional(),
   requiresNpuSupport: z.boolean().optional(), // Filter models to only show NPU-compatible ones
+  // Only available when the Phison aiDAPTIV+ (ssd-offload) Llama.cpp build is installed.
+  // Used by presets bundling large MoE models that rely on SSD offload.
+  requiresPhison: z.boolean().optional(),
   toolsEnabledByDefault: z.boolean().optional(), // Explicit default for tools toggle
   // UI visibility controls
   enableRAG: z.boolean().optional(), // Show "Add Documents" + embeddings selector (default: false)
   showTools: z.boolean().optional(), // Show "Enable Tools" toggle (default: false)
   filterTxt2TxtOnly: z.boolean().optional(), // Filter out vision AND reasoning models
+  filterLargeMoeOnly: z.boolean().optional(), // Only show large Mixture-of-Experts models (e.g. for the Phison aiDAPTIV+ preset)
   lockDeviceToNpu: z.boolean().optional(), // Lock device selector to NPU
   advancedMode: z.boolean().optional(), // Show advanced features: unspecified models + system prompt editing + vision model support
   // When true, the preset is hidden from the standard chat PresetSelector. Used by built-in
@@ -665,6 +669,7 @@ export const usePresets = defineStore(
     // ========================================================================
 
     function getPresetsByCategories(categories: string[], type?: string): Preset[] {
+      const backendServices = useBackendServices()
       return presets.value
         .filter((preset) => {
           // If type is specified, filter by type
@@ -672,6 +677,16 @@ export const usePresets = defineStore(
 
           // Hide chat presets that opt out of the standard picker (e.g. Home Agent)
           if (preset.type === 'chat' && (preset as ChatPreset).excludeFromChatPresetPicker) {
+            return false
+          }
+
+          // Hide Phison presets entirely on systems that do not offer the Phison build.
+          // On capable systems they remain listed (greyed-out until installed + active).
+          if (
+            preset.type === 'chat' &&
+            (preset as ChatPreset).requiresPhison &&
+            !backendServices.phisonSsdDetected
+          ) {
             return false
           }
 
@@ -772,12 +787,24 @@ export const usePresets = defineStore(
       const hasNpuDevice = backendServices.info
         .find((s) => s.serviceName === 'openvino-backend')
         ?.devices?.some((d) => d.id.includes('NPU'))
+      // Phison is "usable" only when the system offers it, the binary is installed,
+      // and the SSD-offload variant is the active build. This keeps an inactive Phison
+      // preset out of default-preset auto-selection.
+      const phisonUsable =
+        backendServices.phisonSsdDetected &&
+        (backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+          ?.llamaCppPhisonArtifactReady ??
+          false) &&
+        backendServices.llamaCppBuildVariant === 'ssd-offload'
 
       return presets.value.filter((p) => {
         if (p.type !== 'chat') return false
         const chatPreset = p as ChatPreset
         if (chatPreset.excludeFromChatPresetPicker) return false
         if (chatPreset.requiresNpuSupport && !hasNpuDevice) {
+          return false
+        }
+        if (chatPreset.requiresPhison && !phisonUsable) {
           return false
         }
         return true

@@ -194,19 +194,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, toRaw } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import ProgressBar from './ProgressBar.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useI18N } from '@/assets/js/store/i18n'
-import { SSEProcessor } from '@/assets/js/sseProcessor'
-import * as util from '@/assets/js/util'
 import * as toast from '@/assets/js/toast'
 import { useModels } from '@/assets/js/store/models'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { EtaEstimator } from '@/lib/etaEstimator'
 import { aipgFetch } from '@/lib/loopbackAuth'
+import { fetchModelMeta, runModelDownload } from '@/lib/modelDownloader'
+import { createCancellation } from '@/assets/js/errors/appError'
 
 const i18nState = useI18N().state
 const languages = i18nState
@@ -221,7 +221,6 @@ let downloding = false
 const curDownloadTip = ref('')
 const allDownloadTip = ref('')
 const percent = ref(0)
-const completeCount = ref(0)
 const taskPercent = ref(0)
 const showConfirm = ref(false)
 const sizeRequesting = ref(false)
@@ -233,76 +232,6 @@ const animate = ref(false)
 const readTerms = ref(false)
 const downloadModelRender = ref<DownloadModelRender[]>([])
 const etaEstimator = new EtaEstimator(100)
-
-function dataProcess(line: string) {
-  console.log(line)
-  const dataJson = line.slice(5)
-  const data = JSON.parse(dataJson) as LLMOutCallback
-  switch (data.type) {
-    case 'download_model_progress': {
-      const etaStr = etaEstimator.updateAndEstimate(data.percent)
-      curDownloadTip.value = `${i18nState.COM_DOWNLOAD_MODEL} ${data.repo_id}\r\n${data.download_size}/${data.total_size} ${data.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${data.speed} ETA: ${etaStr}`
-      percent.value = data.percent
-      break
-    }
-    case 'download_model_completed':
-      completeCount.value++
-      const allTaskCount = downloadModelRender.value.length
-      if (completeCount.value == allTaskCount) {
-        downloding = false
-        dialogStore.closeDownloadDialog()
-        downloadSuccessFunction.value?.()
-      } else {
-        taskPercent.value = util.toFixed((completeCount.value / allTaskCount) * 100, 1)
-        percent.value = 100
-        allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} ${completeCount.value}/${allTaskCount}`
-      }
-      models.refreshModels()
-      break
-    case 'allComplete':
-      downloding = false
-      dialogStore.closeDownloadDialog()
-      break
-    case 'error':
-      hashError.value = true
-      downloding = false
-      abortController?.abort()
-      aipgFetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-
-      switch (data.err_type) {
-        case 'not_enough_disk_space':
-          downloadErrorRetryable.value = false
-          errorText.value = i18nState.ERR_NOT_ENOUGH_DISK_SPACE.replace(
-            '{requires_space}',
-            data.requires_space,
-          ).replace('{free_space}', data.free_space)
-          break
-        case 'repositories_not_found':
-          downloadErrorRetryable.value = false
-          errorText.value = i18nState.ERROR_REPO_NOT_EXISTS
-          break
-        case 'download_exception':
-          downloadErrorRetryable.value = true
-          errorText.value = i18nState.ERR_DOWNLOAD_FAILED
-          break
-        case 'runtime_error':
-          downloadErrorRetryable.value = false
-          errorText.value = i18nState.ERROR_RUNTIME_ERROR
-          break
-        case 'unknown_exception':
-          downloadErrorRetryable.value = false
-          errorText.value = i18nState.ERROR_GENERATE_UNKONW_EXCEPTION
-          break
-        default:
-          downloadErrorRetryable.value = false
-          errorText.value = i18nState.ERROR_GENERATE_UNKONW_EXCEPTION
-          break
-      }
-
-      downloadFailFunction.value?.({ type: 'error', error: errorText.value })
-      break
-  }
-}
 
 watch(downloadDialogVisible, async (isVisible) => {
   if (isVisible) {
@@ -335,38 +264,16 @@ async function initializeDownloadDialog() {
   readTerms.value = false
 
   try {
-    const sizeResponse = await aipgFetch(`${globalSetup.apiHost}/api/getModelSize`, {
-      method: 'POST',
-      body: JSON.stringify(downloadList.value),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const meta = await fetchModelMeta(downloadList.value, {
+      apiHost: globalSetup.apiHost,
+      hfToken: models.hfToken,
     })
-    const gatedResponse = await aipgFetch(`${globalSetup.apiHost}/api/isModelGated`, {
-      method: 'POST',
-      body: JSON.stringify([downloadList.value, models.hfToken]),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    const accessResponse = await aipgFetch(`${globalSetup.apiHost}/api/isAccessGranted`, {
-      method: 'POST',
-      body: JSON.stringify([downloadList.value, models.hfToken]),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    const sizeData = (await sizeResponse.json()) as ApiResponse & { sizeList: StringKV }
-    const gatedData = (await gatedResponse.json()) as ApiResponse & {
-      gatedList: Record<string, boolean>
-    }
-    const accessData = (await accessResponse.json()) as ApiResponse & {
-      accessList: Record<string, boolean>
-    }
+    const byKey = new Map(meta.map((m) => [`${m.repo_id}_${m.type}`, m]))
     for (const item of downloadModelRender.value) {
-      item.size = sizeData.sizeList[`${item.repo_id}_${item.type}`] || ''
-      item.gated = gatedData.gatedList[item.repo_id] || false
-      item.accessGranted = accessData.accessList[item.repo_id] || false
+      const m = byKey.get(`${item.repo_id}_${item.type}`)
+      item.size = m?.size || ''
+      item.gated = m?.gated || false
+      item.accessGranted = m?.accessGranted || false
     }
     sizeRequesting.value = false
   } catch (ex) {
@@ -403,6 +310,8 @@ function getInfoUrl(repoId: string, type: string) {
 function getFunctionTip(type: string): string {
   switch (type) {
     case 'llm':
+    case 'ggufLLM':
+    case 'openvinoLLM':
       return i18nState.DOWNLOADER_FOR_ANSWER_GENERATE
     case 'embedding':
       return i18nState.DOWNLOADER_FOR_RAG_QUERY
@@ -418,30 +327,70 @@ function download() {
   )
   allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} 0/${accessableDownloadList.length}`
   percent.value = 0
-  completeCount.value = 0
+  taskPercent.value = 0
   abortController = new AbortController()
   curDownloadTip.value = ''
-  aipgFetch(`${globalSetup.apiHost}/api/downloadModel`, {
-    method: 'POST',
-    body: JSON.stringify(toRaw({ data: accessableDownloadList })),
-    headers: {
-      'Content-Type': 'application/json',
-      ...(models.hfTokenIsValid ? { Authorization: `Bearer ${models.hfToken}` } : {}),
-    },
+  runModelDownload(accessableDownloadList, {
+    apiHost: globalSetup.apiHost,
+    hfToken: models.hfTokenIsValid ? models.hfToken : undefined,
     signal: abortController.signal,
+    onProgress: (p) => {
+      // Per-file progress events carry a speed; the synthetic 100% event emitted
+      // on completion does not — only refresh the ETA line on real progress.
+      if (p.speed !== undefined) {
+        const etaStr = etaEstimator.updateAndEstimate(p.percent)
+        curDownloadTip.value = `${i18nState.COM_DOWNLOAD_MODEL} ${p.repoId}\r\n${p.downloadSize}/${p.totalSize} ${p.percent}% ${i18nState.COM_DOWNLOAD_SPEED}: ${p.speed} ETA: ${etaStr}`
+      }
+      percent.value = p.percent
+      taskPercent.value = p.taskPercent
+      allDownloadTip.value = `${i18nState.DOWNLOADER_DONWLOAD_TASK_PROGRESS} ${p.completed}/${p.total}`
+    },
+    onModelCompleted: () => {
+      models.refreshModels()
+    },
+    onError: (e) => {
+      hashError.value = true
+      downloding = false
+      downloadErrorRetryable.value = e.retryable
+      switch (e.errType) {
+        case 'not_enough_disk_space':
+          errorText.value = i18nState.ERR_NOT_ENOUGH_DISK_SPACE.replace(
+            '{requires_space}',
+            e.requiresSpace ?? '',
+          ).replace('{free_space}', e.freeSpace ?? '')
+          break
+        case 'repositories_not_found':
+          errorText.value = i18nState.ERROR_REPO_NOT_EXISTS
+          break
+        case 'download_exception':
+          errorText.value = i18nState.ERR_DOWNLOAD_FAILED
+          break
+        case 'runtime_error':
+          errorText.value = i18nState.ERROR_RUNTIME_ERROR
+          break
+        default:
+          errorText.value = i18nState.ERROR_GENERATE_UNKONW_EXCEPTION
+          break
+      }
+      downloadFailFunction.value?.({ type: 'error', error: errorText.value })
+    },
   })
-    .then((response) => {
-      const reader = response.body!.getReader()
-      return new SSEProcessor(reader, dataProcess, undefined).start()
+    .then(() => {
+      downloding = false
+      dialogStore.closeDownloadDialog()
+      downloadSuccessFunction.value?.()
     })
-    .catch((ex) => {
-      downloadFailFunction.value?.({ type: 'error', error: ex })
+    .catch(() => {
+      // onError already surfaced a structured failure; an abort or other
+      // rejection just needs to stop the spinner.
       downloding = false
     })
 }
 
 function cancelConfirm() {
-  downloadFailFunction.value?.({ type: 'cancelConfrim' })
+  downloadFailFunction.value?.(
+    createCancellation({ technicalMessage: 'Download cancelled by user' }),
+  )
   dialogStore.closeDownloadDialog()
 }
 
@@ -463,7 +412,9 @@ function retryDownload() {
 function cancelDownload() {
   abortController?.abort()
   aipgFetch(`${globalSetup.apiHost}/api/stopDownloadModel`)
-  downloadFailFunction.value?.({ type: 'cancelDownload' })
+  downloadFailFunction.value?.(
+    createCancellation({ technicalMessage: 'Download cancelled by user' }),
+  )
   downloding = false
   dialogStore.closeDownloadDialog()
 }

@@ -3,6 +3,7 @@
   "openvinoLLM": "./resources/models/LLM/openvino",
   "embedding": "./resources/models/LLM/embedding",
   "STT": "./resources/models/STT",
+  "TTS": "./resources/models/TTS",
   "openvino-image": "./resources/models/openvino-image",
   "checkpoints": "./resources/models/ComfyUI/checkpoints",
   "inpaint": "./resources/models/ComfyUI/inpaint",

@@ -107,6 +107,18 @@
             @click="() => (textInference.metricsEnabled = !textInference.metricsEnabled)"
           />
         </div>
+        <!-- Thinking toggle - only shown for models whose template supports enable_thinking -->
+        <div
+          v-if="textInference.modelSupportsThinkingToggle"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">Thinking</Label>
+          <Checkbox
+            id="thinking"
+            :model-value="textInference.thinkingEnabled"
+            @click="() => (textInference.thinkingEnabled = !textInference.thinkingEnabled)"
+          />
+        </div>
         <!-- Built-in Tools toggle - only shown when preset has showTools enabled -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"
@@ -118,6 +130,14 @@
             :model-value="textInference.aipgToolsEnabled"
             @click="() => (textInference.aipgToolsEnabled = !textInference.aipgToolsEnabled)"
           />
+        </div>
+
+        <div
+          v-if="showTools && textInference.modelSupportsToolCalling"
+          class="pl-2"
+          :class="{ 'opacity-50': !textInference.aipgToolsEnabled }"
+        >
+          <SettingsBuiltinTools />
         </div>
 
         <!-- MCP Tools toggle -->
@@ -211,6 +231,7 @@ import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import Rag from '@/components/Rag.vue'
 import SettingsMcp from '@/components/SettingsMcp.vue'
+import SettingsBuiltinTools from '@/components/SettingsBuiltinTools.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'

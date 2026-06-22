@@ -3,7 +3,9 @@ import type { HoverCardRootProps, HoverCardRootEmits } from 'reka-ui'
 import { computed } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { useForwardPropsEmits } from 'reka-ui'
+import { InformationCircleIcon } from '@heroicons/vue/24/outline'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '../hover-card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../tooltip'
 import { Button } from '../button'
 import ContextIcon from './ContextIcon.vue'
 
@@ -11,6 +13,7 @@ export interface ContextProps extends HoverCardRootProps {
   usedTokens: number
   maxTokens: number
   maxContextSize?: number
+  dynamicContext?: boolean
   usage?: {
     inputTokens?: number
     outputTokens?: number
@@ -33,6 +36,7 @@ const hoverCardProps = reactiveOmit(
   'usedTokens',
   'maxTokens',
   'maxContextSize',
+  'dynamicContext',
   'usage',
   'modelId',
 )
@@ -85,7 +89,25 @@ const outputTokensFormatted = computed(() => formatNumber(props.usage?.outputTok
           <span class="text-muted-foreground">Max Context for Model</span>
           <span>{{ maxContextSizeFormatted }}</span>
         </div>
-        <div v-if="maxTokensFormatted" class="flex items-center justify-between">
+        <div v-if="dynamicContext" class="flex items-center justify-between">
+          <span class="text-muted-foreground">Configured Context Size</span>
+          <TooltipProvider :delay-duration="0">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span
+                  class="inline-flex items-center gap-1 cursor-help underline decoration-dotted"
+                >
+                  Dynamic
+                  <InformationCircleIcon class="size-3.5 text-muted-foreground" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent class="max-w-56 text-center">
+                The context size is determined automatically at runtime based on the available VRAM.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <div v-else-if="maxTokensFormatted" class="flex items-center justify-between">
           <span class="text-muted-foreground">Configured Context Size</span>
           <span>{{ maxTokensFormatted }}</span>
         </div>

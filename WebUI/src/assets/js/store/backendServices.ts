@@ -520,6 +520,43 @@ export const useBackendServices = defineStore(
       }
     }
 
+    async function startSpeechServer(modelName: string): Promise<void> {
+      try {
+        const result = await window.electronAPI.startSpeechServer(modelName)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to start speech server')
+        }
+      } catch (error) {
+        console.error(`Failed to start speech server:`, error)
+        throw error
+      }
+    }
+
+    async function stopSpeechServer(): Promise<void> {
+      try {
+        const result = await window.electronAPI.stopSpeechServer()
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to stop speech server')
+        }
+      } catch (error) {
+        console.error(`Failed to stop speech server:`, error)
+        throw error
+      }
+    }
+
+    async function getSpeechServerUrl(): Promise<string | null> {
+      try {
+        const result = await window.electronAPI.getSpeechServerUrl()
+        if (result.success && result.url) {
+          return result.url
+        }
+        return null
+      } catch (error) {
+        console.error(`Failed to get speech server URL:`, error)
+        return null
+      }
+    }
+
     async function shouldShowInstallationDialog(): Promise<boolean> {
       // Wait a moment for async setup checks to complete in the main process
       // Services like ai-backend check setup asynchronously, so we need to give them time
@@ -610,6 +647,9 @@ export const useBackendServices = defineStore(
       startTranscriptionServer,
       stopTranscriptionServer,
       getTranscriptionServerUrl,
+      startSpeechServer,
+      stopSpeechServer,
+      getSpeechServerUrl,
       getServiceErrorDetails,
       shouldShowInstallationDialog,
       startAllSetUpServicesInBackground,

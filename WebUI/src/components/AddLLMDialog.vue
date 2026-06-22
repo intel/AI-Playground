@@ -57,6 +57,10 @@
               <Checkbox id="reasoning" v-model="supportsReasoning" />
               <Label for="reasoning">Reasoning</Label>
             </div>
+            <div class="flex items-center gap-2">
+              <Checkbox id="thinking-toggle" v-model="supportsThinkingToggle" />
+              <Label for="thinking-toggle">Thinking Toggle</Label>
+            </div>
             <div v-if="showNpuSupportCheckbox" class="flex items-center gap-2">
               <Checkbox id="npu-support" v-model="npuSupport" />
               <Label for="npu-support">NPU Support</Label>
@@ -125,10 +129,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModels } from '@/assets/js/store/models'
 import { useTextInference } from '@/assets/js/store/textInference'
+import { useErrors } from '@/assets/js/store/errors'
+import { isCancellation } from '@/assets/js/errors/appError'
 
 const i18nState = useI18N().state
 const textInference = useTextInference()
 const models = useModels()
+const errors = useErrors()
 const modelRequest = ref('')
 const visionModelRequest = ref('')
 const addModelErrorMessage = ref('')
@@ -141,6 +148,7 @@ const animate = ref(false)
 const supportsVision = ref(false)
 const supportsToolCalling = ref(false)
 const supportsReasoning = ref(false)
+const supportsThinkingToggle = ref(false)
 const npuSupport = ref(false)
 const maxContextSize = ref('32768')
 
@@ -227,12 +235,22 @@ async function addModel() {
       supportsVision: supportsVision.value || undefined,
       supportsToolCalling: supportsToolCalling.value || undefined,
       supportsReasoning: supportsReasoning.value || undefined,
+      supportsThinkingToggle: supportsThinkingToggle.value || undefined,
       npuSupport: npuSupport.value || undefined,
       maxContextSize: maxContextSize.value ? parseInt(maxContextSize.value, 10) : undefined,
       isPredefined: false,
     })
     textInference.selectModel(textInference.backend, trimmedModelRequest)
-    textInference.checkModelAvailability()
+    // Fire-and-forget: guard so a user cancellation (or any failure) of the
+    // download can't escape as an unhandled rejection into the global sink.
+    textInference.checkModelAvailability().catch((e) => {
+      if (isCancellation(e)) return
+      errors.report(e, {
+        category: 'setup',
+        code: 'model/check-failed',
+        userMessage: 'Could not check model availability.',
+      })
+    })
     closeAdd()
   }
 
@@ -247,6 +265,7 @@ function closeAdd() {
   supportsVision.value = false
   supportsToolCalling.value = false
   supportsReasoning.value = false
+  supportsThinkingToggle.value = false
   npuSupport.value = false
   maxContextSize.value = '32768'
   emits('close')

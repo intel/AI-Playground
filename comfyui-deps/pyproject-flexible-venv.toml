@@ -30,9 +30,9 @@ cuda = [
 python-preference = "only-managed"
 link-mode = "clone"
 index-strategy = "unsafe-best-match"
-required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 prerelease = "if-necessary-or-explicit"
-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 conflicts = [
   [
     { extra = "xpu" },

@@ -67,6 +67,53 @@ export async function detectIntelGpusViaXpuSmi(): Promise<GpuHardwareDevice[]> {
   }
 }
 
+/**
+ * Detect Intel GPUs on Linux using the `lspci` command.
+ * This is the Linux equivalent of xpu-smi / PowerShell detection on Windows:
+ * it yields the PCI device id (e.g. `0xB08F`) used by `deviceArch.ts` to map
+ * the GPU to an architecture, so Intel GPUs are handled with the same logic.
+ */
+async function detectIntelGpusViaLspci(): Promise<GpuHardwareDevice[]> {
+  if (process.platform !== 'linux') return []
+
+  try {
+    appLogger.info('Using lspci for Intel GPU detection on Linux', 'electron-backend')
+    const out = await spawnProcessAsync('lspci', ['-nn'], () => {}, undefined, undefined, 5000)
+
+    const devices: GpuHardwareDevice[] = []
+    for (const line of out.split('\n')) {
+      // Match Intel VGA/Display/3D controller lines, e.g.:
+      // "00:02.0 VGA compatible controller [0300]: Intel Corporation Device [8086:7d55]"
+      if (
+        line.includes('Intel') &&
+        (line.includes('VGA') || line.includes('Display') || line.includes('3D'))
+      ) {
+        const deviceMatch = line.match(/\[8086:([0-9a-fA-F]{4})\]/)
+        // Capture the full product name up to the [8086:xxxx] id bracket so
+        // names like "DG2 [Arc A770]" are kept intact (a non-greedy "(.+?) \["
+        // would truncate to just "DG2").
+        const nameMatch = line.match(/Intel Corporation (.+?)\s*\[8086:/)
+        if (deviceMatch) {
+          devices.push({
+            device: 'INTEL_GPU_LSPCI',
+            name: nameMatch ? nameMatch[1].trim() : 'Intel GPU',
+            gpuDeviceId: `0x${deviceMatch[1].toUpperCase()}`,
+          })
+        }
+      }
+    }
+
+    appLogger.info(`Detected ${devices.length} Intel GPU(s) via lspci`, 'electron-backend')
+    return devices
+  } catch (e) {
+    appLogger.warn(
+      `Failed to detect Intel GPUs via lspci: ${JSON.stringify(e)}`,
+      'electron-backend',
+    )
+    return []
+  }
+}
+
 const PowerShellGpuSchema = z.array(
   z.object({
     Name: z.string(),
@@ -164,7 +211,10 @@ export async function detectGpuHardwareDevices(): Promise<{
   detected: GpuHardwareDevice[]
   hasNvidia: boolean
 }> {
-  const [intel, nvidia] = await Promise.all([detectIntelGpusViaXpuSmi(), detectNvidiaGpusViaSmi()])
+  const [intel, nvidia] = await Promise.all([
+    process.platform === 'linux' ? detectIntelGpusViaLspci() : detectIntelGpusViaXpuSmi(),
+    detectNvidiaGpusViaSmi(),
+  ])
 
   const needsFallback = intel.length === 0 || intel.every((d) => d.gpuDeviceId === null)
 

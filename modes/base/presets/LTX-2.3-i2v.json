@@ -1,0 +1,360 @@
+{
+  "type": "comfy",
+  "name": "LTX-2.3-i2v",
+  "description": "Image to Video generation using Lightricks LTX-2.3 (22B) with audio. Animates an existing image into a short video clip. Recommended for systems with discrete GPUs and high vRAM.",
+  "extendedDescription": "Generate video clips from a reference image and text description, using LTX 2.3. Use a very descriptive prompt that describes the core subject of the video including what words are spoken or type of music is played. Describe the action that transpires, and any camera movement and background of the scene.",
+  "displayPriority": 340,
+  "tags": ["LTX Video", "LTX 2.3", "high-vram"],
+  "backend": "comfyui",
+  "category": "create-videos",
+  "toolCategory": "edit-images",
+  "mediaType": "video",
+  "toolInstructions": "Use this workflow to animate the most recent image in the conversation into a short video clip with audio (image-to-video) using LTX 2.3. Requires an existing image. Write a detailed prompt describing the subject, the action that transpires, any spoken words or music, the camera movement, and the background. Resource-intensive (high VRAM); only use when the user explicitly asks to animate an image or create a video from it.",
+  "resolutionConfig": {
+    "megapixels": [
+      { "label": "0.1", "totalPixels": 102400 },
+      { "label": "0.25", "totalPixels": 262144 },
+      { "label": "0.35", "totalPixels": 366025 },
+      { "label": "0.5", "totalPixels": 495616 }
+    ],
+    "aspectRatios": [
+      "21/9",
+      "16/9",
+      "3/2",
+      "4/3",
+      "1/1",
+      "3/4",
+      "2/3",
+      "9/16",
+      "9/21"
+    ],
+    "useLookupTable": false
+  },
+  "requiredCustomNodes": [
+    "Lightricks/ComfyUI-LTXVideo@2acf7af8991f33b5cc06ec26753cb6e88e057d04",
+    "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
+  ],
+  "requiredPythonPackages": [],
+  "requiredModels": [
+    {
+      "type": "checkpoints",
+      "model": "Lightricks/LTX-2.3-fp8/ltx-2.3-22b-dev-fp8.safetensors"
+    },
+    {
+      "type": "lora",
+      "model": "Lightricks/LTX-2.3/ltx-2.3-22b-distilled-lora-384.safetensors"
+    },
+    {
+      "type": "clip",
+      "model": "Comfy-Org/ltx-2/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors"
+    }
+  ],
+  "settings": [
+    {
+      "type": "string",
+      "label": "Prompt",
+      "displayed": false,
+      "modifiable": true,
+      "defaultValue": "",
+      "settingName": "prompt"
+    },
+    {
+      "type": "number",
+      "label": "Seed",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": -1,
+      "settingName": "seed"
+    },
+    {
+      "type": "number",
+      "label": "Inference Steps",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 8,
+      "settingName": "inferenceSteps"
+    },
+    {
+      "type": "number",
+      "label": "Width",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "width"
+    },
+    {
+      "type": "number",
+      "label": "Height",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 512,
+      "settingName": "height"
+    },
+    {
+      "type": "string",
+      "label": "Resolution",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "512x512",
+      "settingName": "resolution"
+    },
+    {
+      "type": "number",
+      "label": "Batch Size",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": 1,
+      "settingName": "batchSize"
+    },
+    {
+      "type": "string",
+      "label": "Negative Prompt",
+      "displayed": false,
+      "modifiable": false,
+      "defaultValue": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+      "settingName": "negativePrompt"
+    },
+    {
+      "type": "number",
+      "label": "Total Frames",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 105,
+      "step": 8,
+      "min": 25,
+      "max": 257,
+      "nodeTitle": "Length",
+      "nodeInput": "value"
+    },
+    {
+      "type": "number",
+      "label": "Frame Rate",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": 24,
+      "min": 8,
+      "max": 30,
+      "nodeTitle": "Frame Rate",
+      "nodeInput": "value"
+    },
+    {
+      "type": "image",
+      "label": "Reference Image",
+      "displayed": true,
+      "modifiable": true,
+      "defaultValue": "",
+      "nodeTitle": "Load Image",
+      "nodeInput": "image"
+    }
+  ],
+  "comfyUiApiWorkflow": {
+    "236": {
+      "inputs": {
+        "ckpt_name": "Lightricks---LTX-2.3-fp8\\ltx-2.3-22b-dev-fp8.safetensors"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": { "title": "Load Checkpoint" }
+    },
+    "243": {
+      "inputs": {
+        "text_encoder": "Comfy-Org---ltx-2\\split_files\\text_encoders\\gemma_3_12B_it_fp4_mixed.safetensors",
+        "ckpt_name": "Lightricks---LTX-2.3-fp8\\ltx-2.3-22b-dev-fp8.safetensors",
+        "device": "default"
+      },
+      "class_type": "LTXAVTextEncoderLoader",
+      "_meta": { "title": "LTXV Audio Text Encoder Loader" }
+    },
+    "221": {
+      "inputs": {
+        "ckpt_name": "Lightricks---LTX-2.3-fp8\\ltx-2.3-22b-dev-fp8.safetensors"
+      },
+      "class_type": "LTXVAudioVAELoader",
+      "_meta": { "title": "LTXV Audio VAE Loader" }
+    },
+    "232": {
+      "inputs": {
+        "lora_name": "Lightricks---LTX-2.3\\ltx-2.3-22b-distilled-lora-384.safetensors",
+        "strength_model": 0.5,
+        "model": ["236", 0]
+      },
+      "class_type": "LoraLoaderModelOnly",
+      "_meta": { "title": "Load LoRA" }
+    },
+    "225": {
+      "inputs": { "value": 105 },
+      "class_type": "PrimitiveInt",
+      "_meta": { "title": "Length" }
+    },
+    "260": {
+      "inputs": { "value": 24 },
+      "class_type": "PrimitiveInt",
+      "_meta": { "title": "Frame Rate" }
+    },
+    "240": {
+      "inputs": {
+        "text": "",
+        "clip": ["243", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "prompt" }
+    },
+    "247": {
+      "inputs": {
+        "text": "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+        "clip": ["243", 0]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "CLIP Text Encode (Negative Prompt)" }
+    },
+    "239": {
+      "inputs": {
+        "frame_rate": ["261", 0],
+        "positive": ["240", 0],
+        "negative": ["247", 0]
+      },
+      "class_type": "LTXVConditioning",
+      "_meta": { "title": "LTXVConditioning" }
+    },
+    "228": {
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "length": ["225", 0],
+        "batch_size": 1
+      },
+      "class_type": "EmptyLTXVLatentVideo",
+      "_meta": { "title": "EmptyLTXVLatentVideo" }
+    },
+    "269": {
+      "inputs": { "image": "input.png" },
+      "class_type": "LoadImage",
+      "_meta": { "title": "Load Image" }
+    },
+    "248": {
+      "inputs": {
+        "img_compression": 18,
+        "image": ["269", 0]
+      },
+      "class_type": "LTXVPreprocess",
+      "_meta": { "title": "LTXVPreprocess" }
+    },
+    "249": {
+      "inputs": {
+        "strength": 0.7,
+        "bypass": false,
+        "vae": ["236", 2],
+        "image": ["248", 0],
+        "latent": ["228", 0]
+      },
+      "class_type": "LTXVImgToVideoInplace",
+      "_meta": { "title": "LTXVImgToVideoInplace" }
+    },
+    "214": {
+      "inputs": {
+        "frames_number": ["225", 0],
+        "frame_rate": ["260", 0],
+        "batch_size": 1,
+        "audio_vae": ["221", 0]
+      },
+      "class_type": "LTXVEmptyLatentAudio",
+      "_meta": { "title": "LTXV Empty Latent Audio" }
+    },
+    "222": {
+      "inputs": {
+        "video_latent": ["249", 0],
+        "audio_latent": ["214", 0]
+      },
+      "class_type": "LTXVConcatAVLatent",
+      "_meta": { "title": "LTXVConcatAVLatent" }
+    },
+    "231": {
+      "inputs": {
+        "cfg": 1,
+        "model": ["232", 0],
+        "positive": ["239", 0],
+        "negative": ["239", 1]
+      },
+      "class_type": "CFGGuider",
+      "_meta": { "title": "CFGGuider" }
+    },
+    "237": {
+      "inputs": { "noise_seed": 0 },
+      "class_type": "RandomNoise",
+      "_meta": { "title": "RandomNoise" }
+    },
+    "246": {
+      "inputs": { "sampler_name": "euler_ancestral" },
+      "class_type": "KSamplerSelect",
+      "_meta": { "title": "KSamplerSelect" }
+    },
+    "252": {
+      "inputs": {
+        "sigmas": "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+      },
+      "class_type": "ManualSigmas",
+      "_meta": { "title": "ManualSigmas" }
+    },
+    "215": {
+      "inputs": {
+        "noise": ["237", 0],
+        "guider": ["231", 0],
+        "sampler": ["246", 0],
+        "sigmas": ["252", 0],
+        "latent_image": ["222", 0]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": { "title": "SamplerCustomAdvanced" }
+    },
+    "218": {
+      "inputs": {
+        "av_latent": ["215", 0]
+      },
+      "class_type": "LTXVSeparateAVLatent",
+      "_meta": { "title": "LTXVSeparateAVLatent" }
+    },
+    "251": {
+      "inputs": {
+        "tile_size": 768,
+        "overlap": 64,
+        "temporal_size": 4096,
+        "temporal_overlap": 4,
+        "samples": ["218", 0],
+        "vae": ["236", 2]
+      },
+      "class_type": "VAEDecodeTiled",
+      "_meta": { "title": "VAE Decode (Tiled)" }
+    },
+    "220": {
+      "inputs": {
+        "samples": ["218", 1],
+        "audio_vae": ["221", 0]
+      },
+      "class_type": "LTXVAudioVAEDecode",
+      "_meta": { "title": "LTXV Audio VAE Decode" }
+    },
+    "261": {
+      "inputs": { "a": ["260", 0] },
+      "class_type": "CM_IntToFloat",
+      "_meta": { "title": "Frame rate (float)" }
+    },
+    "242": {
+      "inputs": {
+        "fps": ["261", 0],
+        "images": ["251", 0],
+        "audio": ["220", 0]
+      },
+      "class_type": "CreateVideo",
+      "_meta": { "title": "Create Video" }
+    },
+    "75": {
+      "inputs": {
+        "filename_prefix": "AIPG_Video",
+        "format": "auto",
+        "codec": "auto",
+        "video": ["242", 0]
+      },
+      "class_type": "SaveVideo",
+      "_meta": { "title": "Save Video" }
+    }
+  }
+}

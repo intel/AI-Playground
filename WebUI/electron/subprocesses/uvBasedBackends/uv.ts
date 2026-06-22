@@ -1,16 +1,19 @@
 import { app } from 'electron'
 import { appLoggerInstance } from '../../logging/logger.ts'
+import { packagedResourcesRoot } from '../../aipgRoot.ts'
 import path from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import z from 'zod'
 
 export const aipgBaseDir = app.isPackaged
-  ? process.resourcesPath
+  ? packagedResourcesRoot()
   : path.join(__dirname, '../../../')
 export const buildResources = app.isPackaged
   ? aipgBaseDir
   : path.join(aipgBaseDir, 'build', 'resources')
+// The fetch-external-resources script stores the uv binary as `uv.exe` on ALL
+// platforms (including Linux/macOS) for naming consistency — do not use binary().
 export const uvPath = path.join(buildResources, 'uv.exe')
 const uvEnv = (extraEnv: Record<string, string> = {}) => ({
   ...process.env,
@@ -141,6 +144,89 @@ const uvWithJsonOutput = (
       })
     },
   )
+
+/**
+ * Run a uv command and resolve with its raw stdout (used for commands like
+ * `uv python find` whose output is a plain path rather than JSON).
+ */
+const uvWithStdout = (
+  uvCommand: string[],
+  logger: ReturnType<typeof loggerFor>,
+  extraEnv?: Record<string, string>,
+) =>
+  new Promise<string>((resolve, reject) => {
+    logger.info(`Spawning UV process with command: ${uvCommand.join(' ')}`)
+    const uvProcess = spawn(uvPath, uvCommand, { env: uvEnv(extraEnv) })
+    let stdout = ''
+    let stderr = ''
+    uvProcess.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString()
+    })
+    uvProcess.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString()
+    })
+    uvProcess.on('close', (code: number) => {
+      if (code === 0) {
+        resolve(stdout)
+      } else {
+        reject(new Error(stderr.trim() || stdout.trim() || `UV process exited with code ${code}`))
+      }
+    })
+    uvProcess.on('error', (error) => reject(error))
+  })
+
+/**
+ * Ensure a specific managed CPython version is installed and return the path to
+ * its interpreter executable.
+ *
+ * This is used to supply a genuine, ABI-correct CPython runtime to native
+ * binaries that are linked against a specific `libpythonX.Y.so` (e.g. the OVMS
+ * ubuntu24 build needs libpython3.12), independent of whatever Python the host
+ * distribution ships. The interpreter (and its matching stdlib + shared
+ * library) lands under `UV_PYTHON_INSTALL_DIR` (aipgBaseDir/python-interpreter).
+ *
+ * @param version - Requested version, e.g. '3.12' or '3.12.8'.
+ * @returns Absolute path to the managed python executable (e.g. `.../bin/python3.12`).
+ */
+export const ensureManagedPython = async (version: string): Promise<string> => {
+  const logger = loggerFor(`uv.python.${version}`)
+  await assertUv(logger)
+  // Force managed interpreters so we never pick up an incompatible system Python.
+  const onlyManagedEnv = { UV_PYTHON_PREFERENCE: 'only-managed' }
+  logger.info(`Ensuring managed CPython ${version} is installed`)
+  await uv(['python', 'install', version], logger, onlyManagedEnv)
+  const interpreterPath = (
+    await uvWithStdout(['python', 'find', version], logger, onlyManagedEnv)
+  ).trim()
+  logger.info(`Managed CPython ${version} interpreter resolved to: ${interpreterPath}`)
+  return interpreterPath
+}
+
+/**
+ * Install Python packages into a flat target directory using `uv pip install --target`.
+ * Packages installed this way are importable when the target directory is on sys.path
+ * (e.g. via PYTHONPATH). Used to provision third-party packages for native binaries
+ * that embed Python but do not ship all required dependencies (e.g. OVMS needs jinja2
+ * for chat-template rendering but does not bundle it).
+ *
+ * @param packages - Package names or `name==version` specifiers to install.
+ * @param targetDir - Directory where packages are installed; must be on sys.path.
+ * @param pythonInterpreter - Path to the Python interpreter to resolve dependencies
+ *   against (optional; omit to let uv use its default managed interpreter).
+ */
+export const uvPipInstallToTarget = async (
+  packages: string[],
+  targetDir: string,
+  pythonInterpreter?: string,
+): Promise<void> => {
+  const logger = loggerFor('uv.pip.install')
+  await assertUv(logger)
+  const args = ['pip', 'install', ...packages, '--target', targetDir]
+  if (pythonInterpreter) {
+    args.push('--python', pythonInterpreter)
+  }
+  await uv(args, logger)
+}
 
 /**
  * Detect if an error message indicates a UV cache hash mismatch
@@ -282,10 +368,15 @@ export const installBackendWithExtra = async (
   }
 }
 
-export const checkBackend = async (backend: string) => {
+export const checkBackend = async (backend: string, extra?: UvExtra) => {
   const logger = loggerFor(`uv.check.${backend}`)
   await assertUv(logger)
   const uvCommand = ['sync', '--check', '--directory', aipgBaseDir, '--project', backend]
+  // Resolve against the same optional-dependency extra the backend was installed
+  // with (e.g. 'xpu'). Without it, uv resolves the base deps — generic torch,
+  // which pulls the CUDA index on Linux — and reports a spurious mismatch
+  // against an xpu/cpu venv.
+  if (extra) uvCommand.push('--extra', extra)
   logger.info(`Checking backend: ${backend} with ${JSON.stringify(uvCommand)}`)
 
   return uv(uvCommand, logger)
@@ -310,6 +401,7 @@ export const checkBackendWithDetails = async (
   backend: string,
   venvPath: string,
   options?: { skipLockfileCheck?: boolean },
+  extra?: UvExtra,
 ): Promise<BackendCheckDetails> => {
   const logger = loggerFor(`uv.check-details.${backend}`)
   await assertUv(logger)
@@ -347,6 +439,11 @@ export const checkBackendWithDetails = async (
     '--project',
     backend,
   ]
+  // Match the installed optional-dependency extra (e.g. 'xpu') so the resolution
+  // compares against the same torch variant that was actually installed.
+  // Otherwise uv resolves the base deps (generic torch → CUDA index on Linux)
+  // and reports a phantom xpu→cuda mismatch.
+  if (extra) uvCommand.push('--extra', extra)
   logger.info(`Checking backend with details: ${backend} with ${JSON.stringify(uvCommand)}`)
 
   try {

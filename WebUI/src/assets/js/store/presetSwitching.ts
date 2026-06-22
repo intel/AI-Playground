@@ -9,6 +9,7 @@ import { useDialogStore } from './dialogs'
 import { useI18N } from './i18n'
 import { useDemoMode } from './demoMode'
 import { useSetupWizard } from './setupWizard'
+import { useErrors } from './errors'
 
 /**
  * Maps a preset to its corresponding UI mode based on type and category.
@@ -113,6 +114,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   const i18nState = useI18N().state
   const demoMode = useDemoMode()
   const setupWizard = useSetupWizard()
+  const errors = useErrors()
 
   // Switching state
   const isSwitching = ref(false)
@@ -234,10 +236,15 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
       console.log(`[PresetSwitching] Successfully switched to preset: ${presetName}`)
       return { success: true }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      console.error(`[PresetSwitching] Failed to switch preset: ${errorMessage}`)
-      switchError.value = errorMessage
-      return { success: false, error: errorMessage }
+      const reported = errors.report(error, {
+        category: 'setup',
+        code: 'preset/switch-failed',
+        userMessage: 'Could not switch preset.',
+        surface: 'toast',
+        context: { presetName },
+      })
+      switchError.value = reported.technicalMessage
+      return { success: false, error: reported.technicalMessage }
     } finally {
       isSwitching.value = false
       switchingPresetName.value = null

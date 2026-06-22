@@ -33,4 +33,4 @@ portable-git/
 models/
 
 # Home Agent — runtime Telegram chat id (local dev); never commit
-home-agent/.chat_id
+home-agent/.*id

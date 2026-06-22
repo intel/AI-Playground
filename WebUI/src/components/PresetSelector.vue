@@ -85,6 +85,8 @@ import { usePresets, type Preset, type ChatPreset } from '@/assets/js/store/pres
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { backendToService } from '@/assets/js/store/textInference'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { useHomeAgent } from '@/assets/js/store/homeAgent'
+import { HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -110,6 +112,7 @@ const emits = defineEmits<{
 const presetsStore = usePresets()
 const backendServices = useBackendServices()
 const presetSwitching = usePresetSwitching()
+const homeAgent = useHomeAgent()
 
 const filteredPresets = computed(() => {
   return presetsStore.getPresetsByCategories(props.categories || [], props.type)
@@ -207,6 +210,13 @@ function isPresetDisabled(preset: Preset): boolean {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
 
+    // When the Home Agent is off, its dedicated preset is locked — it's enabled
+    // via the header toggle, not the picker.
+    const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
+    if (!homeAgent.isHomeAgentActive && isHomeAgentPreset) {
+      return true
+    }
+
     // Check if NPU is required but not available
     if (chatPreset.requiresNpuSupport) {
       const hasNpuDevice = backendServices.info
@@ -215,6 +225,19 @@ function isPresetDisabled(preset: Preset): boolean {
 
       if (!hasNpuDevice) {
         return true // Disable if NPU required but not available
+      }
+    }
+
+    // Check if the Phison aiDAPTIV+ build is required but not installed or not active.
+    // The preset is only usable when the SSD-offload binary is on disk AND it is the
+    // currently active build variant.
+    if (chatPreset.requiresPhison) {
+      const phisonReady =
+        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+          ?.llamaCppPhisonArtifactReady ?? false
+      const phisonActive = backendServices.llamaCppBuildVariant === 'ssd-offload'
+      if (!phisonReady || !phisonActive) {
+        return true // Disable until the Phison build is installed and activated
       }
     }
 
@@ -231,8 +254,26 @@ function isPresetDisabled(preset: Preset): boolean {
 function showDisabledReason(preset: Preset) {
   if (preset.type === 'chat') {
     const chatPreset = preset as ChatPreset
+    const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
+    const blueToast = { style: { content: { background: '#3b82f6', color: '#ffffff' } } }
+    if (isHomeAgentPreset && !homeAgent.isHomeAgentActive) {
+      toast.show('Turn on the Home Agent toggle to use this preset.', blueToast)
+      return
+    }
     if (chatPreset.requiresNpuSupport) {
       toast.show('NPU device not available. This preset requires an Intel NPU.', {
+        style: {
+          content: { background: '#3b82f6', color: '#ffffff' },
+        },
+      })
+    } else if (chatPreset.requiresPhison) {
+      const phisonReady =
+        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+          ?.llamaCppPhisonArtifactReady ?? false
+      const message = phisonReady
+        ? 'Enable the Phison aiDAPTIV+ SSD build of Llama.cpp to use this preset.'
+        : 'This preset requires the Phison aiDAPTIV+ SSD build of Llama.cpp.'
+      toast.show(message, {
         style: {
           content: { background: '#3b82f6', color: '#ffffff' },
         },

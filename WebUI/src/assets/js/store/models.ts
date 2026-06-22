@@ -23,10 +23,13 @@ export type Model = {
   type: ModelType
   backend?: LlmBackend
   supportsToolCalling?: boolean
+  toolParser?: string // OVMS --tool_parser override; defaults to 'hermes3'
   supportsVision?: boolean
   supportsReasoning?: boolean
+  supportsThinkingToggle?: boolean // Template honors enable_thinking toggle (Qwen3 family, gemma4)
   maxContextSize?: number
   npuSupport?: boolean
+  largeMoe?: boolean // Large Mixture-of-Experts model; Phison aiDAPTIV+ SSD offload enables loading models larger than VRAM
   isPredefined?: boolean // true if model is defined in models.json
 }
 
@@ -137,8 +140,10 @@ export const useModels = defineStore(
             supportsToolCalling: combinedModel.supportsToolCalling,
             supportsVision: combinedModel.supportsVision ?? (mmproj ? true : undefined),
             supportsReasoning: combinedModel.supportsReasoning,
+            supportsThinkingToggle: combinedModel.supportsThinkingToggle,
             maxContextSize: combinedModel.maxContextSize,
             npuSupport: combinedModel.npuSupport,
+            largeMoe: combinedModel.largeMoe,
             isPredefined: !!predefinedModel, // true if model is defined in models.json
           }
           return model
@@ -158,6 +163,7 @@ export const useModels = defineStore(
           supportsToolCalling: model.supportsToolCalling,
           supportsVision: model.supportsVision,
           supportsReasoning: model.supportsReasoning,
+          supportsThinkingToggle: model.supportsThinkingToggle,
           maxContextSize: model.maxContextSize,
           npuSupport: model.npuSupport,
         }
@@ -256,6 +262,10 @@ export const useModels = defineStore(
           // STT path for openvino transcription models
           return pathsToUse['STT'] || ''
         }
+        if (type === 'TTS') {
+          // TTS path for openvino text-to-speech models
+          return pathsToUse['TTS'] || ''
+        }
         if (type === 'openvino-image') {
           return pathsToUse['openvino-image'] || ''
         }
@@ -298,6 +308,45 @@ export const useModels = defineStore(
         {
           repo_id: modelName,
           type: 'STT',
+          backend: 'openvino',
+          model_path: modelPath,
+        },
+      ]
+    }
+
+    /**
+     * Check if a speech (TTS) model exists
+     * @param modelName - The model name (e.g., 'microsoft/speecht5_tts')
+     * @returns Promise<boolean> - True if model exists
+     */
+    async function checkSpeechModelExists(modelName: string): Promise<boolean> {
+      const checkParams = [
+        {
+          repo_id: modelName,
+          type: 'TTS',
+          backend: 'openvino' as const,
+        },
+      ]
+      const results = await checkModelAlreadyLoaded(checkParams)
+      return results.length > 0 && results[0].already_loaded
+    }
+
+    /**
+     * Get missing speech (TTS) model download parameters
+     * @param modelName - The model name (e.g., 'microsoft/speecht5_tts')
+     * @returns Promise<DownloadModelParam[]> - Array with model if missing, empty if exists
+     */
+    async function getMissingSpeechModel(modelName: string): Promise<DownloadModelParam[]> {
+      const exists = await checkSpeechModelExists(modelName)
+      if (exists) {
+        return []
+      }
+
+      const modelPath = getModelPath('TTS', 'openvino')
+      return [
+        {
+          repo_id: modelName,
+          type: 'TTS',
           backend: 'openvino',
           model_path: modelPath,
         },
@@ -416,6 +465,8 @@ export const useModels = defineStore(
       hfEndpoint,
       checkTranscriptionModelExists,
       getMissingTranscriptionModel,
+      checkSpeechModelExists,
+      getMissingSpeechModel,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       hfEndpointIsValid: computed(() => isValidUrl(hfEndpoint.value)),
       verifyHfEndpoint,

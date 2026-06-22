@@ -38,12 +38,15 @@ const items = computed(() => {
     reasoning: activePreset?.type === 'chat' && activePreset.requiresReasoning === true,
     npuSupport: activePreset?.type === 'chat' && activePreset.requiresNpuSupport === true,
     txt2TxtOnly: activePreset?.type === 'chat' && activePreset.filterTxt2TxtOnly === true,
+    largeMoeOnly: activePreset?.type === 'chat' && activePreset.filterLargeMoeOnly === true,
     advancedMode: activePreset?.type === 'chat' && activePreset.advancedMode === true,
   }
 
   return textInference.llmModels
     .filter((m) => m.type === textInference.backend)
     .filter((m) => {
+      // Restrict to large Mixture-of-Experts models only (e.g. the Phison aiDAPTIV+ preset)
+      if (requirements.largeMoeOnly && !m.largeMoe) return false
       // Filter by preset requirements
       if (requirements.vision && !m.supportsVision) return false
       if (requirements.toolCalling && !m.supportsToolCalling) return false

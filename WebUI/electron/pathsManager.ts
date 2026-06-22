@@ -1,7 +1,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { app } from 'electron'
+import { packagedResourcesRoot } from './aipgRoot.ts'
 import type { ModelPaths, ModelLists } from '@/assets/js/store/models'
 import { llmBackendTypes } from '../src/types/shared'
+
+/**
+ * Base directory that relative model paths in `model_config.json` (e.g.
+ * `"./resources/models/..."`) are anchored to. This is the app root — the parent
+ * of the packaged `resources/` directory — NOT `process.cwd()`, which is
+ * unreliable (e.g. an AppImage launched from an arbitrary folder). On Linux this
+ * resolves under the writable resources root so downloads land exactly where the
+ * backends (llama.cpp / OpenVINO) look for models.
+ */
+function modelPathResolveBaseDir(): string {
+  return app.isPackaged ? path.dirname(packagedResourcesRoot()) : process.cwd()
+}
 
 export class PathsManager {
   modelPaths: ModelPaths = {
@@ -20,7 +34,7 @@ export class PathsManager {
   }
   updateModelPaths(modelPaths: ModelPaths) {
     this.initModelPaths(modelPaths)
-    const workDir = process.cwd()
+    const workDir = modelPathResolveBaseDir()
     const savePaths = Object.assign({}, this.modelPaths)
     Object.keys(savePaths).forEach((key) => {
       let modelPath = path.resolve(modelPaths[key])
@@ -33,17 +47,18 @@ export class PathsManager {
     fs.writeFileSync(this.configPath, JSON.stringify(savePaths, null, 4))
   }
   private initModelPaths(modelPaths: ModelPaths) {
+    const baseDir = modelPathResolveBaseDir()
     // Initialize base paths
     Object.keys(this.modelPaths).forEach((key) => {
       if (key in modelPaths) {
-        const modelPath = path.resolve(modelPaths[key])
+        const modelPath = path.resolve(baseDir, modelPaths[key])
         this.modelPaths[key] = modelPath
       }
     })
     // Copy all other paths (ComfyUI paths like lora, checkpoints, vae, etc.)
     Object.keys(modelPaths).forEach((key) => {
       if (!(key in this.modelPaths)) {
-        const modelPath = path.resolve(modelPaths[key])
+        const modelPath = path.resolve(baseDir, modelPaths[key])
         this.modelPaths[key] = modelPath
       }
     })
@@ -69,7 +84,10 @@ export class PathsManager {
       .readdirSync(dir, { encoding: 'utf-8', recursive: true })
       .filter((pathName) => pathName.endsWith('.gguf'))
       .map((path) => path.replace('---', '/'))
-      .map((path) => path.replace('\\', '/'))
+      // Replace ALL backslashes (Windows): split GGUF models live in a subfolder
+      // (e.g. `repo/Q5_K_M/model-00001-of-00002.gguf`) so a single replace would
+      // leave nested separators and break downloaded-model detection.
+      .map((path) => path.replace(/\\/g, '/'))
       .reduce((acc, pathname) => acc.add(pathname), new Set<string>())
 
     return [...modelsSet]

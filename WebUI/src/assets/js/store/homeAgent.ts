@@ -1,16 +1,29 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import type { FileUIPart } from 'ai'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 import { useOpenAiCompatibleChat, type AipgUiMessage } from './openAiCompatibleChat'
-import { useImageGenerationPresets, isImage } from './imageGenerationPresets'
+import { useImageGenerationPresets, isImage, isVideo, is3D } from './imageGenerationPresets'
 import { usePromptStore } from './promptArea'
 import { usePresetSwitching } from './presetSwitching'
 import { usePresets } from './presets'
+import { useConfirmations } from './confirmations'
+import { useActivities } from './activities'
+import { useGlobalSetup } from './globalSetup'
+import { useModels } from './models'
+import { parseConfirmationReply } from './confirmationReply'
+import { fetchModelMeta, runModelDownload } from '@/lib/modelDownloader'
+import { extractToolMedia } from '@/assets/js/tools/toolMedia'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
+import type { IndexedDocument, ValidFileExtension } from './textInference'
+import { useSpeechToText } from './speechToText'
+import { useTextToSpeech } from './textToSpeech'
+import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
+import { synthesizeSpeech, bytesToBase64 } from '@/lib/synthesizeSpeech'
+import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 import {
   useConversations,
   HOME_AGENT_CONVERSATION_KEY,
@@ -18,11 +31,40 @@ import {
   HOME_AGENT_CHAT_PRESET_NAME,
 } from './conversations'
 import { saveImageToMediaInput } from '@/lib/utils'
-import { markdownToTelegramHtml } from '../telegramMarkdown'
+import { render3dThumbnail } from '@/lib/render3dThumbnail'
 import * as toast from '../toast'
+import {
+  CHANNEL_FIELD_SPEC,
+  type ChannelConfig,
+  type ChannelKind,
+  type ChannelPrefs,
+  type ChannelRuntimeState,
+  type InboundMeta,
+  type RemoteImage,
+  type RemoteAudio,
+  type RemoteDocument,
+  type KeyboardButton,
+  type ChannelQueueItem,
+  type ChannelMessageRef,
+} from './channels/types'
+import type { ChannelAdapter, RawPart } from './channels/adapter'
+import { escapeHtml } from './channels/adapterHelpers'
+import { isAppError, extractMessage, createAppError, createCancellation } from '../errors/appError'
+import { createTelegramAdapter } from './channels/telegramAdapter'
+import { createSlackAdapter } from './channels/slackAdapter'
+import { createMockAdapter, mockChannelBus, type MockInboundMessage } from './channels/mockAdapter'
 
-type TelegramImage = { mime: string; data_base64: string }
-type TelegramQueueItem = { text?: string; images?: TelegramImage[]; callback?: string }
+// ── Channel registry ────────────────────────────────────────────────────────
+// Kinds we manage in this store. Adding a third one means appending to this
+// list and dropping in a new adapter — no other edits to this file.
+//
+// The dev-only `mock` channel bypasses IPC and the Python backend entirely so
+// e2e tests can drive the full Home Agent message pipeline. It is only managed
+// when debug tools are enabled (i.e. `npm run dev`).
+const MOCK_ENABLED = !!window.envVars?.debugToolsEnabled
+const KINDS = (
+  MOCK_ENABLED ? ['telegram', 'slack', 'mock'] : ['telegram', 'slack']
+) as readonly ChannelKind[]
 
 /**
  * Pending state for the interactive `/imgGen` preset picker.
@@ -37,19 +79,44 @@ type ImgGenPending =
 const POLL_INTERVAL_MS = 2000
 const MAX_QUEUE_SIZE = 20
 const IMGGEN_PENDING_TIMEOUT_MS = 5 * 60_000
+const IMG_GEN_TIMEOUT_MS = 120_000
+/** How long to wait for an in-channel yes/no before auto-cancelling a settings change. */
+const CONFIRM_TIMEOUT_MS = 2 * 60_000
+/** Title shown on the inline desktop confirmation card for settings changes. */
+const SETTINGS_CONFIRM_TITLE = 'Apply Home Agent settings?'
+/** Title shown on the inline desktop confirmation card for remote downloads. */
+const DOWNLOAD_CONFIRM_TITLE = 'Download model?'
+/** Min gap between in-channel download progress draft updates. */
+const DOWNLOAD_DRAFT_THROTTLE_MS = 3000
 
-/** Module-level so Vite HMR does not orphan intervals across Pinia setup closures. */
-let telegramPollIntervalId: ReturnType<typeof setInterval> | null = null
+/** Module-level so Vite HMR does not orphan intervals across Pinia setup
+ *  closures. Indexed by ChannelKind so adding a kind = one map entry. */
+const pollIntervalIds: Partial<Record<ChannelKind, ReturnType<typeof setInterval>>> = {}
+const drainBusyByKind: Partial<Record<ChannelKind, boolean>> = {}
 
-function disposeTelegramPollHandlers() {
-  if (telegramPollIntervalId !== null) {
-    clearInterval(telegramPollIntervalId)
-    telegramPollIntervalId = null
+function disposePoll(kind: ChannelKind) {
+  const id = pollIntervalIds[kind]
+  if (id !== undefined) {
+    clearInterval(id)
+    delete pollIntervalIds[kind]
   }
 }
 
-/** Module-level so HMR release doesn't strand drainQueue mid-patch. */
-let telegramDrainBusy = false
+function disposeAllPollHandlers() {
+  for (const kind of KINDS) disposePoll(kind)
+}
+
+function emptyRuntimeState(kind: ChannelKind): ChannelRuntimeState {
+  return {
+    kind,
+    config: {},
+    active: false,
+  }
+}
+
+function emptyPrefs(): ChannelPrefs {
+  return { verified: false, identity: null, enabled: false }
+}
 
 function extractAssistantReply(messages: AipgUiMessage[] | undefined): string | null {
   if (!messages || messages.length === 0) return null
@@ -72,6 +139,7 @@ export const useHomeAgent = defineStore(
     const presetSwitching = usePresetSwitching()
     const conversations = useConversations()
     const presetsStore = usePresets()
+    const confirmations = useConfirmations()
 
     /**
      * Mirrors `isHomeAgentEnabled` from settings.json. Hydrated once on store
@@ -80,15 +148,62 @@ export const useHomeAgent = defineStore(
      * register the backend / IPC handlers / preset.
      */
     const isFeatureEnabled = ref(false)
-    const isHomeAgentActive = ref(false)
-    const telegramToken = ref<string | null>(null)
-    const telegramChatId = ref<string | null>(null)
-    const telegramVerified = ref(false)
 
     /**
-     * Conversation key Telegram traffic currently routes into. `null` means
+     * Master Home Agent on/off — the single title-bar toggle. Persisted so the
+     * agent resumes (or stays off) across restarts. A channel only runs when
+     * the master is on AND the channel itself is enabled + verified.
+     */
+    const masterEnabled = ref(true)
+
+    /**
+     * Persisted, non-secret per-channel preferences (verified / identity /
+     * enabled). Kept separate from `channels` so Pinia can persist it wholesale
+     * without ever serializing the in-memory secret `config`. This is the
+     * source of truth for "is this channel set up and wanted"; `channels[kind]`
+     * holds only runtime state (secrets + derived `active`).
+     */
+    const channelPrefs = reactive<Record<ChannelKind, ChannelPrefs>>({
+      telegram: emptyPrefs(),
+      slack: emptyPrefs(),
+      discord: emptyPrefs(),
+      mock: emptyPrefs(),
+    })
+
+    // Runtime-only per-channel state (secret config + derived `active`). Never
+    // persisted; rebuilt on launch from safeStorage + channelPrefs.
+    const channels = reactive<Record<ChannelKind, ChannelRuntimeState>>({
+      telegram: emptyRuntimeState('telegram'),
+      slack: emptyRuntimeState('slack'),
+      discord: emptyRuntimeState('discord'),
+      mock: emptyRuntimeState('mock'),
+    })
+
+    // Per-channel message queues — `channels[kind].active` flips the polling
+    // on/off but the queues live here so HMR doesn't lose in-flight messages.
+    const messageQueues = {
+      telegram: [] as ChannelQueueItem[],
+      slack: [] as ChannelQueueItem[],
+      discord: [] as ChannelQueueItem[],
+      mock: [] as ChannelQueueItem[],
+    } satisfies Record<ChannelKind, ChannelQueueItem[]>
+
+    // Adapter instances — one per kind. Created at setup time; their methods
+    // close over the IPC bridge so the renderer always uses the same adapter
+    // identity (matters for the draft-stream cache the streaming code uses).
+    const adapters: Record<ChannelKind, ChannelAdapter | null> = {
+      telegram: createTelegramAdapter(),
+      slack: createSlackAdapter(),
+      discord: null, // populated when Discord lands
+      mock: MOCK_ENABLED ? createMockAdapter() : null,
+    }
+
+    /**
+     * Conversation key remote traffic currently routes into. `null` means
      * "create one on first use" — covers fresh installs and post-`/new`
-     * sessions before the user sends anything.
+     * sessions before the user sends anything. Single global because the UI
+     * only ever shows one Home Agent thread at a time regardless of which
+     * channel posted into it.
      */
     const activeRemoteConversationKey = ref<string | null>(null)
 
@@ -106,6 +221,58 @@ export const useHomeAgent = defineStore(
      */
     const pendingImgGen = ref<ImgGenPending | null>(null)
 
+    /**
+     * The channel turn currently being handled (set while a remote agentic /
+     * chat message is generating). Lets tools running inside `generate()` —
+     * notably `configureHomeAgent` — route a confirmation prompt back to the
+     * originating channel instead of popping a desktop modal nobody sees.
+     */
+    let activeRemoteTurn: {
+      adapter: ChannelAdapter
+      meta?: InboundMeta
+      // Set by the agentic streaming watcher: freezes the in-progress draft so
+      // a confirmation prompt (and everything after it) lands below a settled
+      // message instead of editing the message above.
+      checkpoint?: () => Promise<void>
+    } | null = null
+
+    /**
+     * In-flight in-channel confirmations keyed by channel kind. Resolved by the
+     * next inbound yes/no reply (intercepted in `processChannelMessages` so it
+     * never blocks on the busy drain loop) or by timeout.
+     */
+    type PendingConfirmation = {
+      resolve: (_v: boolean) => void
+      timeoutId: ReturnType<typeof setTimeout>
+      adapter: ChannelAdapter
+      meta?: InboundMeta
+      summaryMarkdown: string
+      // Handle to the posted button message, set once the keyboard send round-
+      // trips. Lets us edit the prompt in place (drop the buttons, show the
+      // outcome) when the confirmation settles.
+      ref?: ChannelMessageRef
+    }
+    const pendingConfirmations: Partial<Record<ChannelKind, PendingConfirmation>> = {}
+
+    function settleConfirmation(kind: ChannelKind, answer: boolean, outcomeNote?: string): void {
+      const pending = pendingConfirmations[kind]
+      if (!pending) return
+      clearTimeout(pending.timeoutId)
+      delete pendingConfirmations[kind]
+      // Settle the interactive prompt in place: replace the buttons with the
+      // outcome so it no longer looks tappable/pending. Best-effort — a failed
+      // edit must not block resolving the confirmation.
+      if (pending.ref) {
+        const outcome = outcomeNote ?? (answer ? '✅ Confirmed.' : '❌ Cancelled.')
+        void pending.adapter.editKeyboardMessage(
+          pending.ref,
+          pending.adapter.formatMarkdown(`${pending.summaryMarkdown}\n\n${outcome}`),
+          pending.meta,
+        )
+      }
+      pending.resolve(answer)
+    }
+
     /** Visibility flag for the dedicated Home Agent inference settings panel. */
     const showSettings = ref(false)
 
@@ -117,6 +284,14 @@ export const useHomeAgent = defineStore(
       showSettings.value = false
     }
 
+    /** Visibility flag for the dev-only mock channel panel (toggled from the
+     *  beaker button next to the Home Agent setup gear). */
+    const showMockPanel = ref(false)
+
+    function toggleMockPanel(): void {
+      showMockPanel.value = !showMockPanel.value
+    }
+
     /**
      * Per-thread summary cache for the bare `/load` menu. Keyed by conversation
      * key; entries are invalidated whenever the conversation grows (we compare
@@ -125,14 +300,10 @@ export const useHomeAgent = defineStore(
      */
     const summaryCache = ref<Record<string, { messageCount: number; summary: string }>>({})
 
-    const _messageQueue: TelegramQueueItem[] = []
-    let _userDisabled = false
-
-    const isTelegramConfigured = computed(() => !!telegramToken.value && !!telegramChatId.value)
-
-    // "Ready to activate" = previously verified. telegramVerified is persisted,
-    // so this is true immediately on startup if the user verified in a previous run.
-    const isReadyToActivate = computed(() => telegramVerified.value)
+    // Umbrella "currently fielding remote traffic" flag — true if any channel
+    // is on. Many existing call sites (textInference, …) treat this as "are we
+    // serving a remote chat right now?" — keep that semantic.
+    const isHomeAgentActive = computed(() => KINDS.some((k) => channels[k].active))
 
     const isAvailable = computed(
       () =>
@@ -145,54 +316,89 @@ export const useHomeAgent = defineStore(
       () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.baseUrl,
     )
 
-    // When the backend becomes available and Telegram has been verified, auto-activate.
-    watch(isAvailable, (val) => {
-      if (val && isReadyToActivate.value && !_userDisabled) {
-        isHomeAgentActive.value = true
+    /**
+     * Single source of activation truth. A channel is active iff the backend
+     * is available, the master switch is on, and the channel is both enabled
+     * (user pref) and verified. Runs immediately (and deeply) so that on
+     * launch — once Pinia has restored `masterEnabled` / `channelPrefs` and the
+     * backend reports running — previously-on channels resume polling without
+     * any user action.
+     */
+    function recomputeActive() {
+      for (const kind of KINDS) {
+        // The mock channel needs neither the home-agent backend nor verified
+        // credentials — only the chat LLM backend, which `chatStore.generate`
+        // ensures on demand. Activate it whenever debug tools + the master
+        // switch are on so e2e tests can drive it immediately.
+        if (kind === 'mock') {
+          channels.mock.active = MOCK_ENABLED && masterEnabled.value
+          continue
+        }
+        channels[kind].active =
+          isAvailable.value &&
+          masterEnabled.value &&
+          channelPrefs[kind].enabled &&
+          channelPrefs[kind].verified
       }
-      if (!val) {
-        isHomeAgentActive.value = false
-      }
-    })
-
-    // Single polling bot start via Flask (/set-telegram-token). Runs when backend + credentials
-    // are ready (token may hydrate after the backend reports running).
+    }
     watch(
-      [isAvailable, telegramToken, telegramChatId],
-      ([avail, tok, cid]) => {
-        const token = tok?.trim()
-        const chatId = cid?.trim()
-        if (!avail || !token || !chatId) return
-        void window.electronAPI.homeAgent
-          .injectToken(token, chatId)
-          .catch((e: unknown) => console.error('homeAgent: injectToken failed:', e))
-      },
-      { flush: 'post', immediate: true },
+      [
+        isAvailable,
+        masterEnabled,
+        () => KINDS.map((k) => channelPrefs[k].enabled),
+        () => KINDS.map((k) => channelPrefs[k].verified),
+      ],
+      recomputeActive,
+      { immediate: true, deep: true },
     )
 
-    // When verification state changes, sync active state.
-    watch(isReadyToActivate, (val) => {
-      if (!val) {
-        isHomeAgentActive.value = false
-      } else if (isAvailable.value && !_userDisabled) {
-        isHomeAgentActive.value = true
+    // When the backend + channel credentials are ready, inject so the bot
+    // starts (or restarts if creds changed). One watcher per kind so each
+    // can decide its own "credentials ready" predicate without coupling.
+    for (const kind of KINDS) {
+      // The mock channel has no backend bot, so it skips credential injection;
+      // every other kind injects once its required secrets are present.
+      if (kind !== 'mock') {
+        watch(
+          [isAvailable, () => channels[kind].config, () => channelPrefs[kind].identity],
+          ([avail, config, identity]) => {
+            if (!avail) return
+            // Readiness + identity threading are fully data-driven via
+            // CHANNEL_FIELD_SPEC — no per-kind branching. A channel injects once
+            // every required secret is present; the identity (chatId / userId /
+            // …) is folded back into its config key if missing.
+            const spec = CHANNEL_FIELD_SPEC[kind]
+            const payload: Record<string, string | undefined> = {
+              ...(config as Record<string, string>),
+            }
+            if (spec.requiredSecrets.some((field) => !payload[field])) return
+            if (identity && !payload[spec.identityField]) {
+              payload[spec.identityField] = identity ?? undefined
+            }
+            void window.electronAPI.homeAgent.channel
+              .inject(kind, payload)
+              .catch((e: unknown) => console.error(`homeAgent: inject(${kind}) failed:`, e))
+          },
+          { flush: 'post', immediate: true, deep: true },
+        )
       }
-    })
 
-    // Start/stop Telegram polling when active state changes
-    watch(isHomeAgentActive, (val) => {
-      if (val) {
-        startPolling()
-      } else {
-        stopPolling()
-      }
-    })
+      // Per-channel polling lifecycle.
+      watch(
+        () => channels[kind].active,
+        (val) => {
+          if (val) {
+            startPolling(kind)
+          } else {
+            stopPolling(kind)
+          }
+        },
+      )
+    }
 
     // When the user selects a Home Agent thread from the desktop UI (e.g. the
     // HistoryChat list), mirror that into `activeRemoteConversationKey` so the
-    // Telegram bridge keeps routing into the same conversation. Keeps the two
-    // "last active Home Agent thread" stores in lockstep with `/load` and
-    // `focusRemoteChatDiscussion()` from the Telegram side.
+    // channel bridge keeps routing into the same conversation.
     watch(
       () => conversations.activeKey,
       (k) => {
@@ -210,7 +416,7 @@ export const useHomeAgent = defineStore(
     const HISTORY_REGEX = /^\/history\s*$/i
     const LOAD_REGEX = /^\/load\s+(\S+)\s*$/i
     const LOAD_BARE_REGEX = /^\/load\s*$/i
-    const IMG_GEN_TIMEOUT_MS = 120_000
+    const RESET_REGEX = /^\/reset(?:Config)?\s*$/i
 
     const HELP_MESSAGE =
       '🤖 <b>Available commands</b>\n\n' +
@@ -229,12 +435,21 @@ export const useHomeAgent = defineStore(
       'Pick a recent chat from a tappable menu (the bot summarizes each one).\n\n' +
       '<code>/load </code><i>&lt;id&gt;</i>\n' +
       'Resume a specific chat. Use the id from <code>/history</code>.\n\n' +
+      '/reset\n' +
+      'Restore the Home Agent settings (model, system prompt, etc.) to their defaults. Use this if a settings change broke something.\n\n' +
       '/help\n' +
       'Show this help message.\n\n' +
       'Any other message is handled by the AI in <b>agentic mode</b>: it decides whether to reply with text or generate an image based on your request.\n\n' +
       '📷 <b>Photos</b>\n' +
       'Send a photo (with or without a caption) and the AI will answer based on what it sees. ' +
-      'Requires a <b>vision-capable model</b> selected in Chat settings.'
+      'Requires a <b>vision-capable model</b> selected in Chat settings.\n\n' +
+      '🎙️ <b>Voice messages</b>\n' +
+      'Send a voice note or audio file and it will be transcribed and handled like a typed message. ' +
+      'Requires Speech To Text (OVMS) enabled, or a fallback transcription endpoint configured in Settings.\n' +
+      'When Text To Speech is enabled, the reply to a voice message is also sent back as a voice message.\n\n' +
+      '📄 <b>Documents</b>\n' +
+      'Send a <code>txt</code>, <code>md</code>, <code>doc</code>, <code>docx</code> or <code>pdf</code> file and it is added to the knowledge base. ' +
+      'Future questions are answered using the content of the documents you upload.'
 
     function resolveLoadTarget(idArg: string): string | null {
       const items = listRemoteConversations()
@@ -271,7 +486,7 @@ export const useHomeAgent = defineStore(
 
     /**
      * Allocate a brand-new Home Agent conversation, mark it as the routing
-     * target for new Telegram messages, and return its key. If the most-recent
+     * target for new remote messages, and return its key. If the most-recent
      * Home Agent conversation is still empty, reuse it instead of stacking
      * empty buckets.
      */
@@ -291,7 +506,7 @@ export const useHomeAgent = defineStore(
       return newKey
     }
 
-    /** Switch which Home Agent thread Telegram messages route into. */
+    /** Switch which Home Agent thread remote messages route into. */
     function switchRemoteConversation(key: string): boolean {
       const meta = conversations.getThreadMeta(key)
       if (meta?.kind !== 'homeAgent') return false
@@ -329,10 +544,9 @@ export const useHomeAgent = defineStore(
           isActive: key === activeRemoteConversationKey.value,
         }
       })
-      // Most recent first. Numeric timestamp keys sort by their integer value so
-      // newer chats land on top; the legacy singleton string key parses to NaN
-      // → 0 so it falls to the bottom (instead of being pushed to the top by
-      // lexical ordering, where '_' > '9').
+      // Most recent first. Numeric timestamp keys sort by their integer value
+      // so newer chats land on top; the legacy singleton string key parses to
+      // NaN → 0 so it falls to the bottom.
       return entries.sort((a, b) => (parseInt(b.key) || 0) - (parseInt(a.key) || 0))
     }
 
@@ -344,10 +558,8 @@ export const useHomeAgent = defineStore(
       promptStore.setModeOnly('chat')
     }
 
-    /**
-     * Flatten the last 5 messages of a conversation into a "User: …" /
-     * "Assistant: …" transcript suitable for one-shot summarization.
-     */
+    /** Flatten the last 5 messages of a conversation into a "User: …" /
+     *  "Assistant: …" transcript suitable for one-shot summarization. */
     function flattenForSummary(messages: AipgUiMessage[]): string {
       const last5 = messages.slice(-5)
       return last5
@@ -364,11 +576,6 @@ export const useHomeAgent = defineStore(
         .join('\n')
     }
 
-    /**
-     * Return a 5-word-or-less label for a conversation suitable for an
-     * inline-keyboard button. Cached per `(conversationKey, messageCount)` so
-     * unchanged threads do not re-summarize on subsequent /load presses.
-     */
     async function summarizeConversation(key: string): Promise<string> {
       const msgs = chatStore.getMessagesForKey(key) ?? conversations.conversationList[key] ?? []
       if (msgs.length === 0) return 'Empty chat'
@@ -390,21 +597,374 @@ export const useHomeAgent = defineStore(
       }
     }
 
+    // ── Channel-dispatch helpers ─────────────────────────────────────────────
+    // All handler bodies funnel outbound traffic through these small wrappers
+    // so the same logic services every channel without duplicating the slash-
+    // command + image-gen pipelines.
+
+    async function reply(adapter: ChannelAdapter, htmlSnippet: string, meta?: InboundMeta) {
+      return adapter.reply(adapter.formatRichSnippet(htmlSnippet), meta)
+    }
+
+    async function replyMarkdown(adapter: ChannelAdapter, md: string, meta?: InboundMeta) {
+      return adapter.reply(adapter.formatMarkdown(md), meta)
+    }
+
+    // Surface a failed turn to the remote user. Stream failures are reported
+    // silently for side-channels (and never thrown), so without this the channel
+    // would just go quiet on errors like a context-size overflow.
+    async function relayTurnError(adapter: ChannelAdapter, error: unknown, meta?: InboundMeta) {
+      const message = isAppError(error) ? error.userMessage : extractMessage(error)
+      await reply(adapter, `⚠️ ${escapeHtml(message)}`, meta)
+    }
+
+    /**
+     * Ask the user to confirm a settings change over the active channel.
+     * Posts the summary, then resolves with the next yes/no reply (intercepted
+     * in `processChannelMessages`) or `false` on timeout.
+     */
+    function requestRemoteConfirmation(
+      adapter: ChannelAdapter,
+      summaryMarkdown: string,
+      meta?: InboundMeta,
+    ): Promise<boolean> {
+      const kind = adapter.kind
+      // Cancel any earlier pending confirmation on this channel.
+      settleConfirmation(kind, false)
+      return new Promise<boolean>((resolve) => {
+        const timeoutId = setTimeout(() => {
+          const pending = pendingConfirmations[kind]
+          delete pendingConfirmations[kind]
+          // Settle the prompt visually in place when possible, else fall back
+          // to a fresh message.
+          if (pending?.ref) {
+            void adapter.editKeyboardMessage(
+              pending.ref,
+              adapter.formatMarkdown(`${summaryMarkdown}\n\n⌛ No response — cancelled.`),
+              meta,
+            )
+          } else {
+            void reply(adapter, '⌛ No response — cancelled.', meta)
+          }
+          resolve(false)
+        }, CONFIRM_TIMEOUT_MS)
+        const entry: PendingConfirmation = {
+          resolve,
+          timeoutId,
+          adapter,
+          meta,
+          summaryMarkdown,
+        }
+        pendingConfirmations[kind] = entry
+        // Interactive buttons instead of a typed yes/no reply: a tap resolves
+        // the confirmation (intercepted in processChannelMessages) and the
+        // prompt is edited in place to show the outcome.
+        const buttons: KeyboardButton[][] = [
+          [
+            { text: '✅ Confirm', callbackData: 'confirm:yes' },
+            { text: '✖ Cancel', callbackData: 'confirm:no' },
+          ],
+        ]
+        void (async () => {
+          // Freeze the in-progress streamed reply first so the prompt (and any
+          // follow-up content) lands below a settled message rather than having
+          // the message above it rewritten when the turn finalizes.
+          try {
+            await activeRemoteTurn?.checkpoint?.()
+          } catch (e) {
+            console.error('homeAgent: confirmation checkpoint failed:', e)
+          }
+          try {
+            const res = await adapter.keyboard(
+              adapter.formatMarkdown(summaryMarkdown),
+              buttons,
+              meta,
+            )
+            // The user may answer before the send round-trips; only keep the ref
+            // if this confirmation is still the pending one.
+            if (res.ref && pendingConfirmations[kind] === entry) entry.ref = res.ref
+          } catch {
+            // best-effort
+          }
+        })()
+      })
+    }
+
+    /**
+     * Human-in-the-loop confirmation for the Home Agent self-configuration
+     * tool. Always renders an inline confirmation card in the desktop chat
+     * (via the confirmations sink). When a remote turn is in flight it ALSO
+     * posts an in-channel yes/no and mirrors it into the desktop window:
+     * whichever side answers first wins, and the loser is settled. Returns
+     * whether the user approved the change.
+     */
+    async function requestSettingsConfirmation(args: {
+      conversationKey: string
+      toolCallId?: string
+      summaryMarkdown: string
+    }): Promise<boolean> {
+      const { conversationKey, toolCallId, summaryMarkdown } = args
+      const turn = activeRemoteTurn
+      if (turn && isHomeAgentActive.value) {
+        const kind = turn.adapter.kind
+        const mirror = confirmations.request({
+          conversationKey,
+          toolCallId,
+          title: SETTINGS_CONFIRM_TITLE,
+          summaryMarkdown,
+          origin: 'remote',
+          channelLabel: kind,
+        })
+        const channel = requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
+        const answer = await Promise.race([mirror, channel])
+        // If the desktop card answered first the channel is still waiting:
+        // settle it and edit the in-channel prompt in place to note the desktop
+        // origin. (The channel-answered and timeout paths already delete their
+        // own pending entry + settle the prompt.)
+        if (pendingConfirmations[kind]) {
+          settleConfirmation(
+            kind,
+            answer,
+            answer ? '✅ Confirmed from the desktop app.' : '❌ Cancelled from the desktop app.',
+          )
+        }
+        // Remove the mirror card if it is still showing (channel/timeout win).
+        confirmations.cancelForConversation(conversationKey, answer)
+        return answer
+      }
+      return confirmations.request({
+        conversationKey,
+        toolCallId,
+        title: SETTINGS_CONFIRM_TITLE,
+        summaryMarkdown,
+        origin: 'desktop',
+      })
+    }
+
+    /** True while a remote (Telegram/Slack) turn is being processed. Lets
+     *  desktop-only flows (e.g. the model-download modal) reroute to a remote
+     *  path instead of getting stuck waiting for a desktop click. */
+    function isRemoteTurnActive(): boolean {
+      return activeRemoteTurn !== null
+    }
+
+    /** Ask the remote user (mirrored on the desktop) to approve a download. */
+    async function requestDownloadConfirmation(
+      turn: { adapter: ChannelAdapter; meta?: InboundMeta },
+      conversationKey: string,
+      summaryMarkdown: string,
+    ): Promise<boolean> {
+      const kind = turn.adapter.kind
+      const mirror = confirmations.request({
+        conversationKey,
+        title: DOWNLOAD_CONFIRM_TITLE,
+        summaryMarkdown,
+        origin: 'remote',
+        channelLabel: kind,
+      })
+      const channel = requestRemoteConfirmation(turn.adapter, summaryMarkdown, turn.meta)
+      const answer = await Promise.race([mirror, channel])
+      if (pendingConfirmations[kind]) {
+        settleConfirmation(
+          kind,
+          answer,
+          answer ? '✅ Confirmed from the desktop app.' : '❌ Cancelled from the desktop app.',
+        )
+      }
+      confirmations.cancelForConversation(conversationKey, answer)
+      return answer
+    }
+
+    /**
+     * Remote model-download path used when `checkModelAvailability` finds missing
+     * models during a remote turn (no desktop user to drive the modal). Declines
+     * gated models that need browser interaction, asks approval in-channel
+     * (mirrored on the desktop), then runs the download headlessly with progress
+     * streamed to both the channel and the desktop activity sink. Resolves on
+     * success; throws (silent/cancelled AppError) on decline or failure so the
+     * caller's `reject` unwinds the inference attempt cleanly.
+     */
+    async function handleRemoteModelDownload(list: DownloadModelParam[]): Promise<void> {
+      const turn = activeRemoteTurn
+      if (!turn) {
+        throw createAppError({
+          category: 'inference',
+          code: 'model/download-no-channel',
+          userMessage: 'A model download needs confirmation but no channel is active.',
+          surface: 'silent',
+        })
+      }
+      const { adapter, meta } = turn
+      const globalSetup = useGlobalSetup()
+      const models = useModels()
+      const activities = useActivities()
+      const conversationKey = conversations.activeKey
+
+      let metaList
+      try {
+        metaList = await fetchModelMeta(list, {
+          apiHost: globalSetup.apiHost,
+          hfToken: models.hfToken,
+        })
+      } catch (e) {
+        await reply(adapter, '⚠️ Could not check the required model download. Try again.', meta)
+        throw createAppError({
+          category: 'inference',
+          code: 'model/download-meta-failed',
+          userMessage: 'Could not check the required model download.',
+          surface: 'silent',
+          cause: e,
+        })
+      }
+
+      const blocked = metaList.filter((m) => m.gated && !m.accessGranted)
+      if (blocked.length > 0) {
+        const names = blocked.map((m) => m.repo_id).join(', ')
+        await reply(
+          adapter,
+          `🔒 ${names} ${blocked.length === 1 ? 'is gated' : 'are gated'} and can't be downloaded remotely. Open AI Playground on your computer to accept the license / set a Hugging Face token, then try again.`,
+          meta,
+        )
+        throw createCancellation({
+          technicalMessage: `gated model(s) not downloadable remotely: ${names}`,
+        })
+      }
+
+      const summaryLines = metaList.map((m) => `• \`${m.repo_id}\`${m.size ? ` (${m.size})` : ''}`)
+      const summaryMarkdown = `I need to download ${metaList.length === 1 ? 'a model' : `${metaList.length} models`} before I can answer:\n${summaryLines.join('\n')}`
+      const approved = await requestDownloadConfirmation(turn, conversationKey, summaryMarkdown)
+      if (!approved) {
+        throw createCancellation({ technicalMessage: 'remote model download declined' })
+      }
+
+      const activityId = activities.begin({
+        category: 'backend',
+        label: 'Downloading model…',
+        scope: { kind: 'chat', conversationKey },
+        progress: 0,
+      })
+      const draft = draftStream(adapter, meta)
+      let lastChannelUpdate = 0
+      try {
+        await runModelDownload(list, {
+          apiHost: globalSetup.apiHost,
+          hfToken: models.hfTokenIsValid ? models.hfToken : undefined,
+          onProgress: (p) => {
+            activities.update(activityId, {
+              label: `Downloading ${p.repoId}… (${p.completed}/${p.total})`,
+              progress: Math.max(0, Math.min(1, p.percent / 100)),
+            })
+            const now = Date.now()
+            if (p.speed !== undefined && now - lastChannelUpdate > DOWNLOAD_DRAFT_THROTTLE_MS) {
+              lastChannelUpdate = now
+              draft.update(
+                `⬇️ Downloading \`${p.repoId}\` — ${p.percent}% (${p.completed}/${p.total} models)`,
+              )
+            }
+          },
+          onModelCompleted: () => {
+            models.refreshModels()
+          },
+        })
+        await draft.finalize('✅ Download complete.')
+      } catch (e) {
+        draft.cancel()
+        const message = isAppError(e) ? e.userMessage : extractMessage(e)
+        await reply(adapter, `⚠️ The model download failed: ${escapeHtml(message)}`, meta)
+        throw createAppError({
+          category: 'inference',
+          code: 'model/download-failed',
+          userMessage: 'The model download failed.',
+          surface: 'silent',
+          cause: e,
+        })
+      } finally {
+        activities.end(activityId)
+      }
+    }
+
+    /**
+     * Restore the Home Agent preset to its bundled defaults — the deterministic
+     * recovery path when a tool-driven settings change breaks inference. Does
+     * not depend on the LLM (so it works even if the model/backend is broken).
+     */
+    function resetHomeAgentConfig(): void {
+      const textInference = useTextInference()
+      textInference.applyPresetToGlobals(HOME_AGENT_CHAT_PRESET_NAME, null)
+      textInference.resetActivePresetSettings()
+    }
+
+    /**
+     * Send a synthesized voice reply when the inbound message was itself a
+     * voice message and Text To Speech is enabled. Best-effort: failures are
+     * logged and never break the (already-delivered) text reply.
+     */
+    async function maybeSendVoiceReply(
+      adapter: ChannelAdapter,
+      text: string,
+      fromVoice: boolean,
+      meta?: InboundMeta,
+    ): Promise<void> {
+      if (!fromVoice) return
+      const trimmed = markdownToSpeechText(text ?? '').trim()
+      if (!trimmed) return
+      const textToSpeech = useTextToSpeech()
+      if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
+
+      try {
+        const endpoint = await textToSpeech.resolveSpeech()
+        if (!endpoint) return
+        // Request WAV — it's universally supported by TTS servers (OVMS and
+        // OpenAI-compatible fallbacks). The home-agent channel layer transcodes
+        // to Ogg/Opus so Telegram still renders a real voice bubble, decoupling
+        // us from the server's `response_format` support.
+        const { bytes, mediaType } = await synthesizeSpeech(trimmed, endpoint, { format: 'wav' })
+        const base64 = bytesToBase64(bytes)
+        await adapter.voice(base64, mediaType || 'audio/wav', meta)
+      } catch (e) {
+        console.error('homeAgent: voice reply failed:', e)
+      }
+    }
+
+    async function keyboard(
+      adapter: ChannelAdapter,
+      htmlIntro: string,
+      buttons: KeyboardButton[][],
+      meta?: InboundMeta,
+    ) {
+      return adapter.keyboard(adapter.formatRichSnippet(htmlIntro), buttons, meta)
+    }
+
+    async function photo(
+      adapter: ChannelAdapter,
+      base64: string,
+      caption: string,
+      meta?: InboundMeta,
+    ) {
+      return adapter.photo(base64, caption, meta)
+    }
+
+    function typing(adapter: ChannelAdapter, action: string, meta?: InboundMeta): () => void {
+      return adapter.startTypingHeartbeat(action, meta)
+    }
+
+    function draftStream(adapter: ChannelAdapter, meta?: InboundMeta) {
+      return adapter.createDraftStream(meta)
+    }
+
     /**
      * Pin the live preset/backend to Home Agent and prep inference so the
-     * summarizer uses the bundled Home Agent model. Returns `false` and replies
-     * to Telegram with an error if readiness fails. Used by both `/load` (bare)
-     * and `/history` before they fan out summary calls.
-     *
-     * Lazy-instantiates `useTextInference` to avoid the documented setup-time
-     * cycle with this store.
+     * summarizer uses the bundled Home Agent model. Returns `false` and
+     * replies to the active channel with an error if readiness fails.
      */
-    async function ensureSummarizerReady(): Promise<boolean> {
+    async function ensureSummarizerReady(
+      adapter: ChannelAdapter,
+      meta?: InboundMeta,
+    ): Promise<boolean> {
       const textInference = useTextInference()
-      // Snapshot the user's currently selected desktop preset/variant so we can
-      // restore them after we transiently switch to the Home Agent preset for
-      // summarization. Without this, calls like `/history` from Telegram would
-      // permanently overwrite the desktop session's preset.
+      // Snapshot the user's currently selected desktop preset/variant so we
+      // can restore them after transiently switching to the Home Agent
+      // preset for summarization.
       const previousPreset = presetsStore.activePresetName
       const previousVariant = previousPreset
         ? (presetsStore.activeVariantName[previousPreset] ?? null)
@@ -415,8 +975,10 @@ export const useHomeAgent = defineStore(
         return true
       } catch (e) {
         console.error('homeAgent: ensureReadyForInference for summary failed:', e)
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ Could not prepare the model to summarize chats. Try again later.',
+          meta,
         )
         return false
       } finally {
@@ -430,45 +992,27 @@ export const useHomeAgent = defineStore(
       }
     }
 
-    /** Minimal HTML escape for chunks of summary text rendered with parse_mode=HTML. */
-    function escapeHtml(input: string): string {
-      return input.replace(/[&<>"']/g, (c) =>
-        c === '&'
-          ? '&amp;'
-          : c === '<'
-            ? '&lt;'
-            : c === '>'
-              ? '&gt;'
-              : c === '"'
-                ? '&quot;'
-                : '&#39;',
-      )
-    }
-
     /**
-     * Handle a bare `/load` (no argument) by sending an inline keyboard with
-     * the 3 most recent Home Agent chats. Each button label is an AI-generated
-     * 5-word-or-less summary of that thread; tapping a button is equivalent to
-     * `/load <key>` (handled via the Python CallbackQueryHandler on `loadConv:`).
+     * Handle a bare `/load` (no argument) by sending a keyboard with the 3
+     * most recent Home Agent chats. Button labels are AI-generated 5-word-or-
+     * less summaries; tapping is equivalent to `/load <key>`.
      */
-    async function handleLoadMenu(): Promise<void> {
+    async function handleLoadMenu(adapter: ChannelAdapter, meta?: InboundMeta): Promise<void> {
       focusRemoteChatDiscussion()
 
       const candidates = listRemoteConversations().slice(0, 3)
       if (candidates.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
-          '📭 No saved chats yet. Send a message to start one.',
-        )
+        await reply(adapter, '📭 No saved chats yet. Send a message to start one.', meta)
         return
       }
 
       // Quick acknowledgement so the user knows the bot is working — summary
       // generation can take a few seconds (3 sequential LLM calls worst case).
-      await window.electronAPI.homeAgent.sendTelegramReply('🤔 Preparing recent chats…')
+      await reply(adapter, '🤔 Preparing recent chats…', meta)
 
-      const stopTyping = startTypingHeartbeat('typing')
+      const stopTyping = typing(adapter, 'typing', meta)
       try {
-        if (!(await ensureSummarizerReady())) return
+        if (!(await ensureSummarizerReady(adapter, meta))) return
 
         const items: Array<{ key: string; label: string }> = []
         for (const c of candidates) {
@@ -479,57 +1023,44 @@ export const useHomeAgent = defineStore(
 
         const buttons = items.map((it) => [{ text: it.label, callbackData: `loadConv:${it.key}` }])
 
-        await window.electronAPI.homeAgent.sendTelegramKeyboard({
-          text: '📂 Pick a chat to resume:',
-          parseMode: 'HTML',
-          buttons,
-        })
+        await keyboard(adapter, '📂 Pick a chat to resume:', buttons, meta)
       } finally {
         stopTyping()
       }
     }
 
     /** Cap on the number of /history entries that get AI-generated summaries.
-     *  Keeps the worst-case latency bounded when the user has accumulated many
-     *  Home Agent chats. Entries past the cap are still listed (with their
-     *  timestamp title) plus a footer noting how many were trimmed. */
+     *  Keeps the worst-case latency bounded; older entries get a "…" stub. */
     const MAX_HISTORY_SUMMARIES = 10
 
-    /**
-     * Handle `/history` by replying with the full list of Home Agent chats.
-     * Each line gets a 5-word-or-less AI summary (cache-aware) for the most
-     * recent up-to-`MAX_HISTORY_SUMMARIES` threads; older entries fall back to
-     * their timestamp-based title and a "…" placeholder so the user is not
-     * blocked on summarising an old archive.
-     */
-    async function handleHistoryCommand(): Promise<void> {
+    async function handleHistoryCommand(
+      adapter: ChannelAdapter,
+      meta?: InboundMeta,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
 
       const items = listRemoteConversations()
       if (items.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '📭 No saved Home Agent chat threads yet. Send a message to start one.',
+          meta,
         )
         return
       }
 
       const summaryTargets = items.slice(0, MAX_HISTORY_SUMMARIES)
 
-      // Only spin up the model if at least one entry actually needs work.
-      // For all-cache-hit calls this short-circuits and avoids loading the
-      // backend just to format the response.
       const anyNeedsGen = summaryTargets.some((c) => {
         const cached = summaryCache.value[c.key]
         return !cached || cached.messageCount !== c.messageCount
       })
 
-      // Heartbeat is only meaningful while we're actually generating; cache-hit
-      // path is essentially instant.
-      const stopTyping = anyNeedsGen ? startTypingHeartbeat('typing') : () => {}
+      const stopTyping = anyNeedsGen ? typing(adapter, 'typing', meta) : () => {}
       try {
         if (anyNeedsGen) {
-          await window.electronAPI.homeAgent.sendTelegramReply('🤔 Preparing chat history…')
-          if (!(await ensureSummarizerReady())) return
+          await reply(adapter, '🤔 Preparing chat history…', meta)
+          if (!(await ensureSummarizerReady(adapter, meta))) return
         }
 
         const summaries: Record<string, string> = {}
@@ -550,12 +1081,13 @@ export const useHomeAgent = defineStore(
             ? `\n\n…and <b>${trimmedCount}</b> older chat${trimmedCount === 1 ? '' : 's'} (no summary).`
             : ''
 
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '📜 <b>Your Home Agent chats</b>\n\n' +
             lines.join('\n') +
             footer +
             '\n\nResume one with <code>/load &lt;id&gt;</code> or just <code>/load</code> for a tap menu.',
-          'HTML',
+          meta,
         )
       } finally {
         stopTyping()
@@ -563,12 +1095,12 @@ export const useHomeAgent = defineStore(
     }
 
     /**
-     * Convert Telegram image payloads into persisted `aipg-media://` URLs and
-     * return them as AI SDK `FileUIPart`s. Returns `undefined` for empty input
-     * so callers can pass the value straight through to `chat.sendMessage`.
+     * Convert remote image payloads into persisted `aipg-media://` URLs and
+     * return them as AI SDK `FileUIPart`s.
      */
-    async function prepareTelegramFiles(
-      images: TelegramImage[] | undefined,
+    async function prepareRemoteFiles(
+      images: RemoteImage[] | undefined,
+      sourceLabel: string,
     ): Promise<FileUIPart[] | undefined> {
       if (!images || images.length === 0) return undefined
       const parts: FileUIPart[] = []
@@ -582,39 +1114,171 @@ export const useHomeAgent = defineStore(
             type: 'file',
             mediaType: img.mime,
             url: aipgUrl,
-            filename: `telegram-${Date.now()}-${i}.${ext}`,
+            filename: `${sourceLabel}-${Date.now()}-${i}.${ext}`,
           })
         } catch (e) {
-          console.error('homeAgent: failed to persist Telegram image:', e)
+          console.error(`homeAgent: failed to persist ${sourceLabel} image:`, e)
         }
       }
       return parts.length > 0 ? parts : undefined
     }
 
     /**
-     * If the active chat model does not support vision, reply to Telegram and
-     * return `false` so the caller skips inference. Returns `true` when it's
-     * safe to proceed (no images, or model supports vision).
+     * If the active chat model does not support vision, reply to the channel
+     * and return `false`. Returns `true` when it's safe to proceed.
      */
-    async function ensureVisionCapableForImages(hasImages: boolean): Promise<boolean> {
+    async function ensureVisionCapableForImages(
+      adapter: ChannelAdapter,
+      hasImages: boolean,
+      meta?: InboundMeta,
+    ): Promise<boolean> {
       if (!hasImages) return true
-      // Lazy instantiation: textInference imports useHomeAgent at top of its setup;
-      // calling useTextInference() here (not in this store's setup body) avoids
-      // a circular setup-time dependency. Same pattern as presetSwitching.
       const textInference = useTextInference()
       if (textInference.modelSupportsVision) return true
-      await window.electronAPI.homeAgent.sendTelegramReply(
+      await reply(
+        adapter,
         '⚠️ The active chat model does not support images. Select a vision-capable model in Chat settings, then resend the image.',
+        meta,
       )
       return false
     }
 
-    async function handleChatMessage(text: string, images?: TelegramImage[]): Promise<void> {
+    /**
+     * Transcribe inbound voice/audio payloads into text using the shared STT
+     * resolver (OVMS Whisper first, configured fallback endpoint otherwise).
+     * Shows a typing indicator while transcribing. Returns the combined
+     * transcript (possibly empty) or `null` when no STT endpoint is available
+     * or transcription failed — in which case the user has already been
+     * notified via `reply()`.
+     */
+    async function transcribeRemoteAudio(
+      adapter: ChannelAdapter,
+      audio: RemoteAudio[],
+      meta?: InboundMeta,
+    ): Promise<string | null> {
+      const speechToText = useSpeechToText()
+      const endpoint = await speechToText.resolveTranscription()
+      if (!endpoint) {
+        await reply(
+          adapter,
+          '⚠️ No speech-to-text is available. Enable Speech To Text (OVMS) or configure a fallback transcription endpoint in Settings.',
+          meta,
+        )
+        return null
+      }
+      const stopTyping = typing(adapter, 'typing', meta)
+      try {
+        const parts: string[] = []
+        for (const a of audio) {
+          const blob = base64ToBlob(a.data_base64, a.mime)
+          const text = await transcribeAudioBlob(blob, endpoint)
+          if (text) parts.push(text.trim())
+        }
+        return parts.filter(Boolean).join(' ').trim()
+      } catch (e) {
+        console.error('homeAgent: audio transcription failed:', e)
+        await reply(
+          adapter,
+          `⚠️ Could not transcribe the audio: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
+        )
+        return null
+      } finally {
+        stopTyping()
+      }
+    }
+
+    const SUPPORTED_DOC_EXTENSIONS: ValidFileExtension[] = ['txt', 'doc', 'docx', 'md', 'pdf']
+
+    /**
+     * Ingest inbound document attachments into the shared RAG knowledge base.
+     * Each document is persisted to disk (langchain loaders require a real
+     * filepath) and added to `textInference.ragList` auto-checked, so the next
+     * Home Agent turn retrieves it (the `home-agent-chat` preset has
+     * `enableRAG: true`). Best-effort: failures are logged and reported back to
+     * the channel without breaking the rest of the message handling.
+     */
+    async function ingestRemoteDocuments(
+      adapter: ChannelAdapter,
+      documents: RemoteDocument[],
+      meta?: InboundMeta,
+    ): Promise<void> {
+      // Make the remote thread the active conversation before ingesting so the
+      // auto-checked documents are persisted to *that* thread's RAG selection
+      // (selection is per-conversation). Without this, an enabled upload could
+      // land on whatever conversation happened to be active at the desktop.
+      focusRemoteChatDiscussion()
+      const textInference = useTextInference()
+      const stopTyping = typing(adapter, 'typing', meta)
+      const added: string[] = []
+      const failed: string[] = []
+      try {
+        for (const doc of documents) {
+          const filename = doc.filename || 'document'
+          const ext = filename.includes('.')
+            ? (filename.split('.').pop()!.toLowerCase() as ValidFileExtension)
+            : ('' as ValidFileExtension)
+          if (!SUPPORTED_DOC_EXTENSIONS.includes(ext)) {
+            failed.push(filename)
+            continue
+          }
+          try {
+            const result = await window.electronAPI.homeAgent.saveDocument(
+              filename,
+              doc.data_base64,
+            )
+            if (!result.success || !result.filepath) {
+              throw new Error(result.error || 'failed to persist document')
+            }
+            const stub: IndexedDocument = {
+              filename,
+              filepath: result.filepath,
+              type: ext,
+              splitDB: [],
+              hash: '',
+              isChecked: true,
+            }
+            await textInference.addDocumentToRagList(stub)
+            added.push(filename)
+          } catch (e) {
+            console.error(`homeAgent: failed to ingest document ${filename}:`, e)
+            failed.push(filename)
+          }
+        }
+      } finally {
+        stopTyping()
+      }
+
+      if (added.length > 0) {
+        const list = added.map((n) => `• ${escapeHtml(n)}`).join('\n')
+        await reply(
+          adapter,
+          `📄 Added ${added.length} document${added.length === 1 ? '' : 's'} to the knowledge base:\n${list}\nAsk me a question and I'll use them as context.`,
+          meta,
+        )
+      }
+      if (failed.length > 0) {
+        await reply(
+          adapter,
+          `⚠️ Couldn't add ${failed.length} file${failed.length === 1 ? '' : 's'}. Supported types: ${SUPPORTED_DOC_EXTENSIONS.join(', ')}.`,
+          meta,
+        )
+      }
+    }
+
+    async function handleChatMessage(
+      adapter: ChannelAdapter,
+      text: string,
+      images?: RemoteImage[],
+      meta?: InboundMeta,
+      fromVoice = false,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
       const targetKey = ensureActiveRemoteConversation()
-      if (!(await ensureVisionCapableForImages(!!images?.length))) return
-      const files = await prepareTelegramFiles(images)
-      const stopTyping = startTypingHeartbeat('typing')
+      if (!(await ensureVisionCapableForImages(adapter, !!images?.length, meta))) return
+      const files = await prepareRemoteFiles(images, adapter.kind)
+      const stopTyping = typing(adapter, 'typing', meta)
+      activeRemoteTurn = { adapter, meta }
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -623,390 +1287,122 @@ export const useHomeAgent = defineStore(
         })
         maybeSetHomeAgentConversationTitle(targetKey)
         if (!isHomeAgentActive.value) return
-        const reply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
-        if (reply) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
-            markdownToTelegramHtml(reply),
-            'HTML',
-          )
+        // A stream failure (e.g. context overflow) is swallowed by the chat's
+        // onError and generate() returns normally — surface it to the channel.
+        const turnError = chatStore.consumeTurnError(targetKey)
+        if (turnError) {
+          await relayTurnError(adapter, turnError, meta)
+          return
         }
+        const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
+        if (assistantReply) {
+          await replyMarkdown(adapter, assistantReply, meta)
+          await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
+        }
+      } catch (e) {
+        // A pre-stream failure (backend/model prep, RAG) is thrown instead.
+        if (isHomeAgentActive.value) await relayTurnError(adapter, e, meta)
       } finally {
+        activeRemoteTurn = null
         stopTyping()
       }
     }
 
     /**
-     * Show a persistent Telegram "typing…" indicator while a long-running
-     * operation is in flight. Telegram chat actions auto-expire after ~5s
-     * on the client (per https://core.telegram.org/bots/api#sendchataction),
-     * so we fire one immediately and refresh every 4s until stopped.
-     *
-     * Returns a stop function — idempotent, safe to call from a `finally`.
+     * Poll the live assistant message on a tight interval during an agentic
+     * turn and stream it via the adapter's draft stream. Reasoning, text and
+     * tool-call markers are concatenated into one growing message that
+     * animates in place; photos produced by ComfyUI tool calls still ship as
+     * separate adapter.photo() calls.
      */
-    function startTypingHeartbeat(action: string = 'typing'): () => void {
-      let stopped = false
-      void window.electronAPI.homeAgent.sendTelegramChatAction(action)
-      const intervalId = setInterval(() => {
-        if (stopped) return
-        void window.electronAPI.homeAgent.sendTelegramChatAction(action)
-      }, 4000)
-      return () => {
-        if (stopped) return
-        stopped = true
-        clearInterval(intervalId)
-      }
-    }
-
-    // Strip every `aipg-media://…` reference from a text part before sending it
-    // to Telegram. ComfyUI tool results already produce the image via
-    // `output.images` (shipped as a separate sendPhoto call); the model has the
-    // URL in its tool-result context though and often parrots it back in the
-    // narration ("You can view it here: aipg-media://AIPG_Image_…png"). On
-    // Telegram these URLs are not clickable / addressable, so leaving them in
-    // looks like a broken link next to the actual photo.
-    const AIPG_MEDIA_URL_TOKEN_RE = /aipg-media:\/\/[^\s)\]]+/
-    const AIPG_MEDIA_URL_GLOBAL_RE = /aipg-media:\/\/[^\s)\]]+/g
-    // ![alt](aipg-media://…) — pure image token, drop wholesale.
-    const AIPG_MEDIA_IMAGE_MD_RE = /!\[[^\]]*]\(aipg-media:\/\/[^)\s]+\)/g
-    // [text](aipg-media://…) — markdown link wrapping our URL; drop the whole
-    // link (the inner text is usually "view it here" type filler).
-    const AIPG_MEDIA_LINK_MD_RE = /\[[^\]]*]\(aipg-media:\/\/[^)\s]+\)/g
-    // Optional " · " / "—" / colon-style preamble followed by the URL, possibly
-    // wrapped in parens or angle brackets. Catches common narration patterns
-    // like "view it here: aipg-media://…" or "(file: aipg-media://…)".
-    const AIPG_MEDIA_PHRASING_RE =
-      /(?:[(\[<«]\s*)?(?:(?:you\s+can\s+)?(?:view|see|find|open|download|access|check\s+it\s+out)(?:\s+(?:it|the\s+(?:image|file|photo|result|generated\s+image)))?(?:\s+(?:here|at|out))?|here'?s?\s+(?:the\s+)?(?:image|link|file|url|photo|result|generated\s+image)|available(?:\s+at|\s+here)?|saved\s+(?:to|at)|stored\s+at|link|image|file|url|photo|path|location)\s*[:=]?\s*[(<\[«]?\s*aipg-media:\/\/[^\s)\]>»]+\s*[)\]>»]?/gi
-
-    function stripAipgMediaReferences(input: string): string {
-      if (!input || !AIPG_MEDIA_URL_TOKEN_RE.test(input)) return input
-      let out = input
-        .replace(AIPG_MEDIA_IMAGE_MD_RE, '')
-        .replace(AIPG_MEDIA_LINK_MD_RE, '')
-        .replace(AIPG_MEDIA_PHRASING_RE, '')
-        .replace(AIPG_MEDIA_URL_GLOBAL_RE, '')
-      // Tidy up the gaps left behind: empty parens / brackets, doubled spaces,
-      // and stranded punctuation that used to lead into the URL.
-      out = out
-        .replace(/\(\s*\)|\[\s*\]|<\s*>/g, '')
-        .replace(/[ \t]+([,.!?;])/g, '$1')
-        .replace(/[ \t]{2,}/g, ' ')
-        .replace(/[ \t]+\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-      return out.trim()
-    }
-
-    // ── Draft streaming helper ────────────────────────────────────────────
-    // Wraps Telegram's sendMessageDraft (Bot API 9.5) for animated, in-place
-    // updates of a single message while it is being generated. See
-    // https://core.telegram.org/bots/api#sendmessagedraft.
-    //
-    // Behavior:
-    //   - 800 ms throttle, "latest text wins" coalescing, to stay under
-    //     Telegram's ~1 msg/sec/chat rate limit.
-    //   - 25 s keep-alive interval so the 30 s ephemeral preview window does
-    //     not lapse during slow phases (model downloads, custom-node installs).
-    //   - All draft sends are best-effort: failures are swallowed so a
-    //     transient Telegram outage never breaks the actual chat turn. The
-    //     final sendMessage (via sendTelegramReply, ie. finalize()) is the
-    //     canonical, persisted message — drafts are pure UX gravy.
-    const DRAFT_THROTTLE_MS = 800
-    const DRAFT_KEEPALIVE_MS = 25_000
-    // Telegram only refreshes the 30 s draft preview window when the text
-    // actually changes between updates — identical sendMessageDraft calls are
-    // no-ops. During quiet phases (LLM paused on a tool call, ComfyUI mid-
-    // render) we'd otherwise watch the preamble expire mid-turn. Appending a
-    // rotating Braille spinner per keep-alive guarantees the payload differs
-    // and incidentally gives the user a small "still working" indicator.
-    const DRAFT_SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
-
-    function newDraftId(): number {
-      // Telegram requires a non-zero int draft_id; uniqueness is only needed
-      // across concurrent open drafts in the same chat. Date.now() & 0x7fffffff
-      // gives a stable monotonic 31-bit value that fits Python int and JS
-      // safe-int comfortably.
-      const id = Date.now() & 0x7fffffff
-      return id === 0 ? 1 : id
-    }
-
-    type DraftStream = {
-      update: (text: string) => void
-      finalize: (finalText: string, finalParseMode?: string) => Promise<void>
-      cancel: () => void
-    }
-
-    function createDraftStream(
-      draftId: number,
-      parseMode: 'HTML' | 'Markdown' = 'HTML',
-    ): DraftStream {
-      // `baseText` is the current authoritative content (no spinner suffix).
-      // `lastSentVariant` is whatever string was last POSTed to Telegram —
-      // possibly with a spinner appended by the keep-alive timer. Tracking
-      // them separately stops keep-alive's spinner from spuriously
-      // invalidating the throttle's "no real change" check on the next tick.
-      let baseText = ''
-      let lastSentVariant = ''
-      let throttleTimerId: ReturnType<typeof setTimeout> | null = null
-      let keepAliveIntervalId: ReturnType<typeof setInterval> | null = null
-      let stopped = false
-      let spinnerFrame = 0
-
-      async function send(variant: string): Promise<void> {
-        try {
-          const result = await window.electronAPI.homeAgent.sendTelegramDraft({
-            draftId,
-            text: variant,
-            parseMode,
-          })
-          if (!result?.success) {
-            // Keep lastSentVariant unchanged so the next throttle tick can retry
-            // with the same content instead of being skipped as a no-op.
-            return
-          }
-          lastSentVariant = variant
-        } catch {
-          // Swallow — drafts are best-effort.
-        }
-      }
-
-      function scheduleSend(): void {
-        if (stopped || throttleTimerId !== null) return
-        throttleTimerId = setTimeout(() => {
-          throttleTimerId = null
-          if (stopped || !baseText) return
-          if (baseText !== lastSentVariant) void send(baseText)
-        }, DRAFT_THROTTLE_MS)
-      }
-
-      function startKeepAlive(): void {
-        if (keepAliveIntervalId !== null) return
-        keepAliveIntervalId = setInterval(() => {
-          if (stopped || !baseText) return
-          const frame = DRAFT_SPINNER_FRAMES[spinnerFrame % DRAFT_SPINNER_FRAMES.length]
-          spinnerFrame++
-          void send(`${baseText} ${frame}`)
-        }, DRAFT_KEEPALIVE_MS)
-      }
-
-      function update(text: string): void {
-        if (stopped) return
-        // Skip no-op updates so the throttle isn't reset by every poll tick
-        // when the source content has not actually advanced.
-        if (text === baseText) return
-        baseText = text
-        if (lastSentVariant === '' && text !== '') {
-          // First non-empty update: send immediately for low first-frame
-          // latency, and start the keep-alive so the preview survives long
-          // gaps between subsequent updates.
-          startKeepAlive()
-          void send(text)
-          return
-        }
-        scheduleSend()
-      }
-
-      function cancel(): void {
-        stopped = true
-        if (throttleTimerId !== null) {
-          clearTimeout(throttleTimerId)
-          throttleTimerId = null
-        }
-        if (keepAliveIntervalId !== null) {
-          clearInterval(keepAliveIntervalId)
-          keepAliveIntervalId = null
-        }
-      }
-
-      async function finalize(finalText: string, finalParseMode?: string): Promise<void> {
-        cancel()
-        if (!finalText) return
-        try {
-          const result = await window.electronAPI.homeAgent.sendTelegramReply(
-            finalText,
-            finalParseMode ?? parseMode,
-          )
-          if (!result?.success) {
-            console.error(
-              'homeAgent: draft finalize sendTelegramReply returned error:',
-              result?.error ?? 'unknown',
-            )
-          }
-        } catch (e) {
-          console.error('homeAgent: draft finalize sendTelegramReply failed:', e)
-        }
-      }
-
-      return { update, finalize, cancel }
-    }
-
-    type RawPart = {
-      type: string
-      text?: string
-      state?: string
-      input?: { workflow?: string; prompt?: string }
-      output?: { images?: { type: string; imageUrl?: string; videoUrl?: string }[] }
-      providerMetadata?: { aipg?: { reasoningStarted?: number; reasoningFinished?: number } }
-    }
-
-    /**
-     * Poll `chatStore.getMessagesForKey(targetKey)` every 250 ms during an
-     * agentic turn and stream the in-flight assistant message to Telegram as a
-     * single animated draft (sendMessageDraft, Bot API 9.5). Reasoning, text,
-     * and tool-call phase markers are concatenated into one growing message
-     * that animates in place on the Telegram client, replacing the older
-     * per-part discrete-bubble flow.
-     *
-     * Photos produced by ComfyUI tool calls (output-available) still ship as
-     * separate `sendPhoto` messages — drafts are text-only. On flush we
-     * finalize the draft with one persisted `sendMessage` carrying the
-     * canonical reply (reasoning + text parts + a "Generated using preset X"
-     * marker for each completed tool call). The marker stays so the chat scroll
-     * preserves the why-this-image context next to the actual photo bubble.
-     *
-     * Polling (vs. a Vue watcher) keeps this resilient to Pinia store
-     * reactivity boundaries — when `chatStore.messages` is replaced wholesale
-     * mid-generation, a watcher on a captured `messages` ref would miss the
-     * swap.
-     */
-    function watchAndStreamToTelegram(targetKey: string): () => Promise<void> {
-      const sentImagesForPart = new WeakSet<object>()
+    function watchAndStreamToChannel(
+      adapter: ChannelAdapter,
+      targetKey: string,
+      meta?: InboundMeta,
+    ): { flush: () => Promise<void>; checkpoint: () => Promise<void> } {
+      const sentMediaForPart = new WeakSet<object>()
       let sendChain: Promise<void> = Promise.resolve()
       let stopped = false
-      const draft = createDraftStream(newDraftId(), 'HTML')
+      // The current draft segment. A confirmation `checkpoint()` finalizes the
+      // segment in place and opens a fresh one, so a confirmation prompt (and
+      // everything after it) lands below a settled message instead of editing
+      // the message above. `frozenPartCount` is the number of leading assistant
+      // parts already committed to earlier (frozen) segments.
+      let draft = draftStream(adapter, meta)
+      let frozenPartCount = 0
+      // While > 0 a media (photo/video/3D) send is mid-flight: pause draft text
+      // updates so the next segment's narration can't post above the media it
+      // should follow.
+      let mediaInFlight = 0
 
-      // Snapshot the assistant message that already exists on this thread so we
-      // don't stream/ship parts that belong to a previous turn. `chat.sendMessage`
-      // pushes the new USER message synchronously but only pushes the new
-      // ASSISTANT message on the first stream chunk — until then,
-      // `[...msgs].reverse().find(m => m.role === 'assistant')` resolves to the
-      // PRIOR assistant (loaded from disk after an AIPG restart, that's the
-      // assistant carrying the last generated image's `tool-comfyUI` part with
-      // state='output-available'). Acting on it here would replay the previous
-      // turn's draft text and re-ship its image to Telegram on every new turn.
+      // Snapshot the assistant message that already exists on this thread so
+      // we don't stream/ship parts that belong to a previous turn.
       const preExistingMsgs = chatStore.getMessagesForKey(targetKey) ?? []
       const preExistingAssistantId = [...preExistingMsgs]
         .reverse()
         .find((m) => m.role === 'assistant')?.id
 
-      function enqueueImage(fn: () => Promise<unknown>) {
+      // Parts of the assistant message for THIS turn (empty if only the
+      // pre-existing assistant from a previous turn is present).
+      function currentTurnParts(): RawPart[] {
+        const msgs = chatStore.getMessagesForKey(targetKey) ?? []
+        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
+        if (!lastAssistant || lastAssistant.id === preExistingAssistantId) return []
+        return lastAssistant.parts as RawPart[]
+      }
+
+      // Serialize a media send onto the send chain, first freezing the current
+      // draft segment so the "Generating …" marker settles ABOVE the media and
+      // any later narration streams into a fresh segment BELOW it (instead of the
+      // message above the media being rewritten Generating -> Generated after it
+      // appears).
+      function enqueueMedia(fn: () => Promise<unknown>) {
+        mediaInFlight++
         sendChain = sendChain
+          .then(() => checkpoint())
           .then(() => fn())
           .then(() => undefined)
-          .catch((e) => console.error('homeAgent stream image send failed:', e))
-      }
-
-      // Render a single tool-comfyUI / tool-comfyUiImageEdit part. `verb`
-      // controls the lead phrase so the live draft reads "Generating using …"
-      // (active) and the persisted final reads "Generated using …" (past tense,
-      // since by flush time the tool call has resolved).
-      function renderImageToolPart(part: RawPart, verb: 'Generating' | 'Generated'): string | null {
-        const { workflow, prompt } = part.input ?? {}
-        if (!workflow && !prompt) return null
-        const phase = part.state === 'output-available' ? '✅' : '🎨'
-        const titleBase = workflow
-          ? `${verb} using preset <i>${escapeHtml(workflow)}</i>`
-          : `${verb} image`
-        const noticeLines = [`${phase} ${titleBase}`]
-        if (prompt) noticeLines.push(`<i>${escapeHtml(prompt)}</i>`)
-        return noticeLines.join('\n')
-      }
-
-      function buildDraftText(parts: RawPart[]): string {
-        const lines: string[] = []
-        for (const part of parts) {
-          if (part.type === 'reasoning') {
-            const txt = (part.text ?? '').trim()
-            if (txt) lines.push(`<blockquote>💭 ${escapeHtml(txt)}</blockquote>`)
-          } else if (part.type === 'text') {
-            const cleaned = stripAipgMediaReferences(part.text ?? '').trim()
-            if (cleaned) lines.push(markdownToTelegramHtml(cleaned))
-          } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
-            const marker = renderImageToolPart(part, 'Generating')
-            if (marker) lines.push(marker)
-          }
-        }
-        return lines.join('\n\n')
-      }
-
-      function buildFinalText(parts: RawPart[]): string {
-        const lines: string[] = []
-        // Coalesce all reasoning parts in this turn into a single expandable
-        // blockquote with a "Thought for X.X seconds" header, a blank line,
-        // and the full reasoning transcript. Each reasoning part carries its
-        // own start/finish timestamps via providerMetadata.aipg (set in
-        // openAiCompatibleChat's customFetch onChunk handler); the SDK can
-        // emit several reasoning blocks per turn (e.g. across tool-call
-        // cycles) so we sum per-block elapsed durations rather than spanning
-        // earliest-start → latest-finish — that keeps tool-execution gaps out
-        // of the reported figure.
-        let reasoningElapsedMs = 0
-        const reasoningChunks: string[] = []
-        for (const part of parts) {
-          if (part.type !== 'reasoning') continue
-          const txt = (part.text ?? '').trim()
-          if (!txt) continue
-          reasoningChunks.push(escapeHtml(txt))
-          const timing = part.providerMetadata?.aipg
-          if (timing?.reasoningStarted && timing?.reasoningFinished) {
-            reasoningElapsedMs += Math.max(0, timing.reasoningFinished - timing.reasoningStarted)
-          }
-        }
-        if (reasoningChunks.length > 0) {
-          const seconds = (reasoningElapsedMs / 1000).toFixed(1)
-          const header = `💭 <i>Thought for ${seconds} seconds</i>`
-          const body = reasoningChunks.join('\n\n')
-          // Single <blockquote expandable> so Telegram collapses both the
-          // header and the transcript together by default.
-          lines.push(`<blockquote expandable>${header}\n\n${body}</blockquote>`)
-        }
-        for (const part of parts) {
-          if (part.type === 'reasoning') {
-            // Replaced by the coalesced expandable summary above.
-            continue
-          } else if (part.type === 'text') {
-            const cleaned = stripAipgMediaReferences(part.text ?? '').trim()
-            if (cleaned) lines.push(markdownToTelegramHtml(cleaned))
-          } else if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
-            // Persist the tool marker too — the live draft showed
-            // "Generating using preset X"; the persisted message reads
-            // "Generated using preset X" so the photo bubble below it keeps
-            // its surrounding context.
-            const marker = renderImageToolPart(part, 'Generated')
-            if (marker) lines.push(marker)
-          }
-        }
-        return lines.join('\n\n')
+          .catch((e) => console.error('homeAgent stream media send failed:', e))
+          .finally(() => {
+            mediaInFlight--
+          })
       }
 
       function shipPendingImages(parts: RawPart[]) {
+        // `extractToolMedia` is the single source of truth for which tools emit
+        // shippable media and where it lives in their output — so a new media
+        // tool is forwarded automatically once it's registered there.
         for (const part of parts) {
-          if (part.type !== 'tool-comfyUI' && part.type !== 'tool-comfyUiImageEdit') continue
-          if (part.state !== 'output-available') continue
-          if (sentImagesForPart.has(part as object)) continue
-          sentImagesForPart.add(part as object)
-          const images =
-            part.output?.images?.filter(
-              (i): i is { type: string; imageUrl: string } =>
-                i.type === 'image' && typeof i.imageUrl === 'string',
-            ) ?? []
-          if (images.length === 0) continue
-          enqueueImage(async () => {
-            for (const img of images) {
-              await sendImageToTelegram(img.imageUrl, '')
+          const items = extractToolMedia(part)
+          if (items.length === 0) continue
+          if (sentMediaForPart.has(part as object)) continue
+          sentMediaForPart.add(part as object)
+          enqueueMedia(async () => {
+            for (const item of items) {
+              if (item.kind === 'image') {
+                await sendImageToChannel(adapter, item.url, '', meta)
+              } else if (item.kind === 'video') {
+                await sendVideoToChannel(adapter, item.url, '', meta)
+              } else {
+                await send3DModelToChannel(adapter, item.url, '', meta)
+              }
             }
           })
         }
       }
 
       function tick() {
-        const msgs = chatStore.getMessagesForKey(targetKey) ?? []
-        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
-        if (!lastAssistant) return
-        // Ignore the pre-existing assistant from a previous turn — it would
-        // otherwise replay its old draft text and re-ship its old image.
-        if (lastAssistant.id === preExistingAssistantId) return
-        const parts = lastAssistant.parts as RawPart[]
-        const draftText = buildDraftText(parts)
-        if (draftText) draft.update(draftText)
+        const parts = currentTurnParts()
+        if (parts.length === 0) return
+        // Hold off on text updates while media is being shipped so the next
+        // segment can't surface above the media it should follow.
+        if (mediaInFlight === 0) {
+          // Only stream parts that belong to the current (unfrozen) segment.
+          const draftText = adapter.formatDraft(parts.slice(frozenPartCount))
+          if (draftText) draft.update(draftText)
+        }
+        // Image sends scan all parts (deduped via WeakSet) so nothing is missed
+        // across segment boundaries.
         shipPendingImages(parts)
       }
 
@@ -1014,32 +1410,53 @@ export const useHomeAgent = defineStore(
         if (!stopped) tick()
       }, 250)
 
-      return async function flush() {
+      // Freeze the current segment as a settled message and open a fresh draft
+      // for whatever streams next. Called right before a confirmation prompt is
+      // posted so the prompt appears below, not above, the in-progress reply.
+      async function checkpoint() {
+        if (stopped) return
+        const parts = currentTurnParts()
+        const segmentParts = parts.slice(frozenPartCount)
+        // Finalize "as-is" (draft rendering) — the tool is still mid-execution,
+        // so present-tense markers (e.g. "Using …") are the accurate snapshot.
+        const segmentText = adapter.formatDraft(segmentParts)
+        await draft.finalize(segmentText)
+        frozenPartCount = parts.length
+        draft = draftStream(adapter, meta)
+      }
+
+      async function flush() {
         stopped = true
         clearInterval(intervalId)
-        const msgs = chatStore.getMessagesForKey(targetKey) ?? []
-        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
-        // Same guard as `tick()`: if the stream produced no new assistant (e.g.
-        // it errored before any chunk arrived), the prior turn's assistant is
-        // still on top — do not finalize with its content.
-        const isStaleAssistant = !lastAssistant || lastAssistant.id === preExistingAssistantId
-        const parts = isStaleAssistant ? [] : (lastAssistant!.parts as RawPart[])
+        const parts = currentTurnParts()
         shipPendingImages(parts)
-        const finalText = buildFinalText(parts)
-        await draft.finalize(finalText, 'HTML')
+        const finalText = adapter.formatFinal(parts.slice(frozenPartCount))
+        await draft.finalize(finalText)
         await sendChain
       }
+
+      return { flush, checkpoint }
     }
 
-    async function handleAgenticMessage(text: string, images?: TelegramImage[]): Promise<void> {
+    async function handleAgenticMessage(
+      adapter: ChannelAdapter,
+      text: string,
+      images?: RemoteImage[],
+      meta?: InboundMeta,
+      fromVoice = false,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
       const targetKey = ensureActiveRemoteConversation()
-      if (!(await ensureVisionCapableForImages(!!images?.length))) return
-      const files = await prepareTelegramFiles(images)
+      if (!(await ensureVisionCapableForImages(adapter, !!images?.length, meta))) return
+      const files = await prepareRemoteFiles(images, adapter.kind)
       // Show "typing…" the moment we accept the turn — covers the silent
       // window before the watcher has any reasoning/text/tool part to send.
-      const stopTyping = startTypingHeartbeat('typing')
-      const flush = watchAndStreamToTelegram(targetKey)
+      const stopTyping = typing(adapter, 'typing', meta)
+      const { flush, checkpoint } = watchAndStreamToChannel(adapter, targetKey, meta)
+      activeRemoteTurn = { adapter, meta, checkpoint }
+      // Captured from a thrown pre-stream failure or a swallowed stream failure,
+      // and relayed to the channel after the streamed content is flushed.
+      let turnError: unknown = null
       try {
         await chatStore.generate(text, {
           conversationKey: targetKey,
@@ -1047,10 +1464,26 @@ export const useHomeAgent = defineStore(
           files,
         })
         maybeSetHomeAgentConversationTitle(targetKey)
+        turnError = chatStore.consumeTurnError(targetKey)
+      } catch (e) {
+        turnError = e
       } finally {
+        activeRemoteTurn = null
         stopTyping()
         if (isHomeAgentActive.value) {
+          // Flush first so any partial streamed content (e.g. the browse trace)
+          // lands before the error notice.
           await flush()
+          if (turnError) {
+            await relayTurnError(adapter, turnError, meta)
+          } else {
+            // After the streamed text reply is delivered, send a voice version
+            // if the inbound turn was itself a voice message.
+            const assistantReply = extractAssistantReply(chatStore.getMessagesForKey(targetKey))
+            if (assistantReply) {
+              await maybeSendVoiceReply(adapter, assistantReply, fromVoice, meta)
+            }
+          }
         } else {
           // Home Agent was disabled mid-generation: still drain so already
           // enqueued sends complete, but do not block the caller.
@@ -1059,34 +1492,126 @@ export const useHomeAgent = defineStore(
       }
     }
 
-    async function sendImageToTelegram(imageUrl: string, caption: string): Promise<void> {
+    async function sendImageToChannel(
+      adapter: ChannelAdapter,
+      imageUrl: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       try {
-        const base64 = await imageToBase64(imageUrl)
-        const result = await window.electronAPI.homeAgent.sendTelegramPhoto(base64, caption)
+        const t0 = Date.now()
+        const base64 = await mediaToBase64(imageUrl)
+        console.log(
+          `[HA-DIAG] sendImage read ok url=${imageUrl.slice(0, 40)} b64Bytes=${base64.length} readMs=${Date.now() - t0}`,
+        )
+        const t1 = Date.now()
+        const result = await photo(adapter, base64, caption, meta)
+        console.log(
+          `[HA-DIAG] sendImage photo result success=${result.success} sendMs=${Date.now() - t1} error=${result.error ?? '-'}`,
+        )
         if (!result.success) {
-          throw new Error(result.error ?? 'sendTelegramPhoto returned failure')
+          throw new Error(result.error ?? 'photo returned failure')
         }
       } catch (e) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        console.error('[HA-DIAG] sendImage FAILED:', e)
+        await reply(
+          adapter,
           `⚠️ Image was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
         )
       }
     }
 
-    async function imageToBase64(imageUrl: string): Promise<string> {
-      if (imageUrl.startsWith('aipg-media://')) {
-        const result = await window.electronAPI.readAipgMediaAsBase64(imageUrl)
+    async function sendVideoToChannel(
+      adapter: ChannelAdapter,
+      videoUrl: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
+      try {
+        const base64 = await mediaToBase64(videoUrl)
+        const result = await adapter.video(
+          base64,
+          caption,
+          basenameForUrl(videoUrl, 'video.mp4'),
+          meta,
+        )
+        if (!result.success) {
+          throw new Error(result.error ?? 'video returned failure')
+        }
+      } catch (e) {
+        await reply(
+          adapter,
+          `⚠️ Video was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
+        )
+      }
+    }
+
+    /**
+     * Ship a generated 3D model. Chat clients have no inline glTF preview, so
+     * we render a thumbnail on-device and send it as a photo first, then ship
+     * the `.glb` as a document. If thumbnail rendering fails we still send the
+     * document so the user gets the file.
+     */
+    async function send3DModelToChannel(
+      adapter: ChannelAdapter,
+      model3dUrl: string,
+      caption: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
+      try {
+        try {
+          const thumb = await render3dThumbnail(model3dUrl)
+          await photo(adapter, thumb.base64, caption, meta)
+        } catch (e) {
+          console.error('homeAgent: 3D thumbnail render failed, sending document only:', e)
+        }
+        const base64 = await mediaToBase64(model3dUrl)
+        const result = await adapter.document(
+          base64,
+          basenameForUrl(model3dUrl, 'model.glb'),
+          caption,
+          meta,
+        )
+        if (!result.success) {
+          throw new Error(result.error ?? 'document returned failure')
+        }
+      } catch (e) {
+        await reply(
+          adapter,
+          `⚠️ 3D model was generated but could not be sent: ${e instanceof Error ? e.message : String(e)}`,
+          meta,
+        )
+      }
+    }
+
+    /** Extract a filename from an `aipg-media://`/http(s) URL, falling back to
+     *  `fallback` for data URIs or empty basenames. */
+    function basenameForUrl(url: string, fallback: string): string {
+      try {
+        const withoutScheme = url.replace(/^aipg-media:\/\//, '').split(/[?#]/)[0]
+        const base = withoutScheme.split('/').pop()
+        return base && base.length > 0 ? base : fallback
+      } catch {
+        return fallback
+      }
+    }
+
+    async function mediaToBase64(mediaUrl: string): Promise<string> {
+      if (mediaUrl.startsWith('aipg-media://')) {
+        const result = await window.electronAPI.readAipgMediaAsBase64(mediaUrl)
         if (!result.success) {
           throw new Error(`readAipgMediaAsBase64 failed: ${result.error}`)
         }
         return result.data
       }
-      if (imageUrl.startsWith('data:image/')) {
-        const comma = imageUrl.indexOf('base64,')
-        if (comma === -1) throw new Error('Malformed image data URI')
-        return imageUrl.slice(comma + 'base64,'.length)
+      if (mediaUrl.startsWith('data:')) {
+        const comma = mediaUrl.indexOf('base64,')
+        if (comma === -1) throw new Error('Malformed media data URI')
+        return mediaUrl.slice(comma + 'base64,'.length)
       }
-      const resp = await fetch(imageUrl)
+      const resp = await fetch(mediaUrl)
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`)
       const arrayBuf = await resp.arrayBuffer()
       const bytes = new Uint8Array(arrayBuf)
@@ -1099,11 +1624,15 @@ export const useHomeAgent = defineStore(
     }
 
     /**
-     * After generate() is called, wait for all newly enqueued images to finish
-     * (done or stopped/error) sending each one to Telegram as soon as it's ready.
-     * Returns when all images have been handled or the timeout expires.
+     * After generate() is called, wait for all newly enqueued images to
+     * finish (done or stopped/error) sending each one as soon as it's ready.
      */
-    async function waitAndSendAllImages(newImageIds: Set<string>, prompt: string): Promise<void> {
+    async function waitAndSendAllImages(
+      adapter: ChannelAdapter,
+      newImageIds: Set<string>,
+      prompt: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       const deadline = Date.now() + IMG_GEN_TIMEOUT_MS
       const sentIds = new Set<string>()
 
@@ -1115,39 +1644,42 @@ export const useHomeAgent = defineStore(
           const img = imageGenStore.generatedImages.find((i) => i.id === id)
           if (!img) continue
 
-          if (img.state === 'done' && isImage(img) && img.imageUrl) {
+          if (img.state === 'done') {
             sentIds.add(id)
-            await sendImageToTelegram(img.imageUrl, prompt)
+            if (isImage(img) && img.imageUrl) {
+              await sendImageToChannel(adapter, img.imageUrl, prompt, meta)
+            } else if (isVideo(img) && img.videoUrl) {
+              await sendVideoToChannel(adapter, img.videoUrl, prompt, meta)
+            } else if (is3D(img) && img.model3dUrl) {
+              await send3DModelToChannel(adapter, img.model3dUrl, prompt, meta)
+            }
           } else if (img.state === 'stopped') {
             sentIds.add(id) // count as handled, don't send
           }
         }
 
-        // Check for global error state
         if (imageGenStore.currentState === 'error') {
           const remaining = [...newImageIds].filter((id) => !sentIds.has(id))
           if (remaining.length > 0) {
-            await window.electronAPI.homeAgent.sendTelegramReply(
+            await reply(
+              adapter,
               '⚠️ Image generation failed. Please check AI Playground for details.',
+              meta,
             )
           }
           return
         }
 
-        // All images handled
         if (sentIds.size === newImageIds.size) return
       }
 
-      // Timeout — report images that never completed
       const unsent = [...newImageIds].filter((id) => !sentIds.has(id))
       if (unsent.length > 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
-          `⚠️ ${unsent.length} image(s) timed out and were not sent.`,
-        )
+        await reply(adapter, `⚠️ ${unsent.length} image(s) timed out and were not sent.`, meta)
       }
     }
 
-    /** Clear `pendingImgGen` if its deadline has elapsed. Cheap; safe to call on every queue iteration. */
+    /** Clear `pendingImgGen` if its deadline has elapsed. */
     function expireImgGenPendingIfStale(): void {
       const p = pendingImgGen.value
       if (p && Date.now() > p.deadline) {
@@ -1155,42 +1687,40 @@ export const useHomeAgent = defineStore(
       }
     }
 
-    /**
-     * Show an inline-keyboard preset picker for /imgGen.
-     *
-     * `cachedPrompt` carries any text the user typed after the slash command
-     * (e.g. `/imgGen a sunset over snowy mountains`) so we can generate
-     * immediately once they tap a preset — no second message required.
-     */
-    async function showImgGenPresetPicker(cachedPrompt: string): Promise<void> {
+    async function showImgGenPresetPicker(
+      adapter: ChannelAdapter,
+      cachedPrompt: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       focusRemoteChatDiscussion()
 
       const comfyService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
       if (!comfyService || comfyService.status !== 'running') {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ Image generation is not available — the ComfyUI backend is not running.',
+          meta,
         )
         return
       }
 
-      // `getPresetsByCategories` already returns sorted by displayPriority desc.
-      // Drop presets that opt out via the `excludeFromHomeAgentPicker` flag — those
-      // need extra UI configuration (reference images, manual model picks, etc.)
-      // and can't be driven cleanly via a chat command.
       const presetsList = presetsStore
         .getPresetsByCategories(['create-images'], 'comfy')
         .filter((p) => !p.excludeFromHomeAgentPicker)
       if (presetsList.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ No image generation presets are available. Configure one in AI Playground.',
+          meta,
         )
         return
       }
 
-      // Telegram caps callback_data at 64 bytes. Preset names in this repo are
-      // short (≤30 chars typical), but guard defensively.
+      // Telegram caps callback_data at 64 bytes; Slack caps action_id at 255
+      // bytes but truncates button labels at 75 chars. Both limits matter —
+      // gate on the tighter Telegram cap so the same picker works for either.
       const encoder = new TextEncoder()
-      const buttons: Array<Array<{ text: string; callbackData: string }>> = []
+      const buttons: KeyboardButton[][] = []
       for (const p of presetsList) {
         const cb = `imgGen:preset:${p.name}`
         if (encoder.encode(cb).length > 64) continue
@@ -1198,8 +1728,10 @@ export const useHomeAgent = defineStore(
         buttons.push([{ text: label, callbackData: cb }])
       }
       if (buttons.length === 0) {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ No image generation presets with safe-length names. Configure one in AI Playground.',
+          meta,
         )
         return
       }
@@ -1214,68 +1746,60 @@ export const useHomeAgent = defineStore(
       const intro = cachedPrompt
         ? '🎨 Pick a preset to generate your image:'
         : '🎨 Pick a preset, then send your prompt as the next message:'
-      await window.electronAPI.homeAgent.sendTelegramKeyboard({
-        text: intro,
-        parseMode: 'HTML',
-        buttons,
-      })
+      await keyboard(adapter, intro, buttons, meta)
     }
 
     /**
-     * Map the live ComfyUI/imageGen state machine to a one-line phase string
-     * for the draft preview. Driven on a 500 ms interval inside
-     * `runImgGenWithPreset` so the user sees animated transitions through
-     * `install_workflow_components` → `load_*` → `generating N/M` → photo.
+     * Generate an image using the named preset and the given prompt. Reused
+     * by both the cached-prompt fast-path and the awaitingPrompt → free-text
+     * path.
      */
-    function imgGenPhaseText(presetName: string): string {
-      const state = imageGenStore.currentState
-      const step = imageGenStore.stepText
-      switch (state) {
-        case 'install_workflow_components':
-          return '🛠 Installing workflow components…'
-        case 'load_workflow_components':
-          return '🧠 Loading workflow components…'
-        case 'load_model':
-        case 'load_model_components':
-          return '🎨 Loading model…'
-        case 'generating':
-          return step ? `✨ ${escapeHtml(step)}` : '✨ Generating…'
-        case 'image_out':
-          return '🖼 Finalizing image…'
-        case 'error':
-        case 'no_start':
-        default:
-          return `🎬 Preparing <i>${escapeHtml(presetName)}</i>…`
-      }
-    }
-
-    /**
-     * Generate an image using the named preset and the given prompt. Reused by
-     * both the cached-prompt fast-path (preset tap with prompt already supplied)
-     * and the awaitingPrompt → free-text path (preset tap, then prompt arrives).
-     */
-    async function runImgGenWithPreset(presetName: string, prompt: string): Promise<void> {
+    async function runImgGenWithPreset(
+      adapter: ChannelAdapter,
+      presetName: string,
+      prompt: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       const comfyService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
       if (!comfyService || comfyService.status !== 'running') {
-        await window.electronAPI.homeAgent.sendTelegramReply(
+        await reply(
+          adapter,
           '⚠️ Image generation is not available — the ComfyUI backend is not running.',
+          meta,
         )
         return
       }
 
       const previousMode = promptStore.getCurrentMode()
-      // `upload_photo` so Telegram shows "sending a photo…" rather than
-      // "typing…" during the ComfyUI render — matches the eventual delivery.
-      const stopTyping = startTypingHeartbeat('upload_photo')
+      // Match the typing indicator to the eventual delivery so Telegram shows
+      // "sending a photo/video/document…" during the ComfyUI render. Read the
+      // media type from the target preset by name (the active preset hasn't
+      // been switched yet at this point). Slack ignores the action name and
+      // just toggles the :eyes: reaction.
+      const targetMediaType = presetsStore.presets.find((p) => p.name === presetName)?.mediaType
+      const uploadAction =
+        targetMediaType === 'video'
+          ? 'upload_video'
+          : targetMediaType === 'model3d'
+            ? 'upload_document'
+            : 'upload_photo'
+      const stopTyping = typing(adapter, uploadAction, meta)
 
-      // Phase-aware draft. Drafts auto-expire 30 s after the last update, so
-      // the keep-alive timer inside `createDraftStream` covers the gap between
-      // ComfyUI state transitions during long model loads.
-      const draft = createDraftStream(newDraftId(), 'HTML')
+      // Phase-aware draft. Drafts auto-expire 30 s after the last update on
+      // Telegram (Slack has no expiry); the keep-alive timer inside the
+      // Telegram draft stream covers the gap between long ComfyUI state
+      // transitions.
+      const draft = draftStream(adapter, meta)
       let phaseStopped = false
       const updateDraftPhase = () => {
         if (phaseStopped) return
-        draft.update(imgGenPhaseText(presetName))
+        draft.update(
+          adapter.formatImgGenPhase({
+            presetName,
+            state: imageGenStore.currentState,
+            step: imageGenStore.stepText,
+          }),
+        )
       }
       updateDraftPhase()
       const phaseIntervalId = setInterval(updateDraftPhase, 500)
@@ -1285,7 +1809,21 @@ export const useHomeAgent = defineStore(
         clearInterval(phaseIntervalId)
         draft.cancel()
       }
+      // Settle the phase draft to a final line BEFORE the media is sent, so the
+      // progress message becomes a stable header above the result instead of
+      // being left on a stale phase (e.g. "Finalizing image…" on Slack, which
+      // keeps the edited message) or rewritten after the media appears.
+      const settlePhaseDraft = async (finalText: string) => {
+        if (phaseStopped) return
+        phaseStopped = true
+        clearInterval(phaseIntervalId)
+        await draft.finalize(finalText)
+      }
 
+      // Mark this as a remote turn so any required model downloads route their
+      // approval + progress to the channel (via handleRemoteModelDownload)
+      // instead of popping a desktop-only modal nobody at the channel can see.
+      activeRemoteTurn = { adapter, meta }
       try {
         promptStore.setModeOnly('imageGen')
 
@@ -1293,46 +1831,57 @@ export const useHomeAgent = defineStore(
           skipModeSwitch: true,
         })
         if (!switchResult.success) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
-            `⚠️ Could not select preset <i>${escapeHtml(presetName)}</i>: ${escapeHtml(
-              switchResult.error ?? 'unknown error',
-            )}`,
-            'HTML',
-          )
+          const presetLabel = adapter.formatItalic(adapter.escapeInline(presetName))
+          const errLabel = adapter.escapeInline(switchResult.error ?? 'unknown error')
+          await reply(adapter, `⚠️ Could not select preset ${presetLabel}: ${errLabel}`, meta)
           return
         }
 
         if (!imageGenStore.activePreset) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             '⚠️ No image generation preset is selected. Please configure one in AI Playground.',
+            meta,
           )
           return
         }
 
         const validation = await imageGenStore.validatePresetRequirements()
         if (!validation.backendRunning) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             '⚠️ Image generation is not available — the ComfyUI backend is not running.',
+            meta,
           )
           return
         }
+        // Custom nodes / Python packages have no remote install path, so a
+        // missing one is still a hard block. Missing models, however, are
+        // routed through the in-channel download flow below.
         if (
           validation.missingCustomNodes.length > 0 ||
-          validation.missingPythonPackages.length > 0 ||
-          validation.missingModels.length > 0
+          validation.missingPythonPackages.length > 0
         ) {
           const parts: string[] = []
-          if (validation.missingModels.length > 0)
-            parts.push(
-              `missing models: ${validation.missingModels.map((m) => m.repo_id).join(', ')}`,
-            )
           if (validation.missingCustomNodes.length > 0)
             parts.push(`missing custom nodes: ${validation.missingCustomNodes.join(', ')}`)
           if (validation.missingPythonPackages.length > 0)
             parts.push(`missing packages: ${validation.missingPythonPackages.join(', ')}`)
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             `⚠️ Image generation requirements are not met: ${parts.join('; ')}. Please configure AI Playground first.`,
+            meta,
           )
+          return
+        }
+
+        // Required models that are not downloaded yet: with activeRemoteTurn set
+        // above this routes the approval + progress to the channel. On decline /
+        // cancel / failure the helper has already messaged the channel, so just
+        // unwind cleanly.
+        try {
+          await imageGenStore.ensureModelsAreAvailable()
+        } catch {
           return
         }
 
@@ -1341,8 +1890,10 @@ export const useHomeAgent = defineStore(
         try {
           await imageGenStore.generate('imageGen')
         } catch (e) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
+          await reply(
+            adapter,
             `⚠️ Image generation failed to start: ${e instanceof Error ? e.message : String(e)}`,
+            meta,
           )
           return
         }
@@ -1354,34 +1905,31 @@ export const useHomeAgent = defineStore(
         )
 
         if (newImageIds.size === 0) {
-          await window.electronAPI.homeAgent.sendTelegramReply(
-            '⚠️ Image generation did not produce any images.',
-          )
+          await reply(adapter, '⚠️ Image generation did not produce any images.', meta)
           return
         }
 
-        await waitAndSendAllImages(newImageIds, prompt)
+        await settlePhaseDraft(adapter.formatItalic(`🎨 Generated using preset ${presetName}`))
+        await waitAndSendAllImages(adapter, newImageIds, prompt, meta)
       } finally {
+        activeRemoteTurn = null
         stopDraft()
         stopTyping()
         promptStore.setModeOnly(previousMode)
       }
     }
 
-    /**
-     * Handle a preset-button tap from the inline keyboard.
-     *
-     * If the picker was opened with a cached prompt (user ran `/imgGen <text>`),
-     * we generate immediately. Otherwise we transition to `awaitingPrompt` and
-     * wait for the next plain-text message.
-     */
-    async function handleImgGenPresetCallback(presetName: string): Promise<void> {
+    async function handleImgGenPresetCallback(
+      adapter: ChannelAdapter,
+      presetName: string,
+      meta?: InboundMeta,
+    ): Promise<void> {
       const pending = pendingImgGen.value
       const cachedPrompt = pending?.phase === 'awaitingPresetTap' ? pending.cachedPrompt.trim() : ''
 
       if (cachedPrompt) {
         pendingImgGen.value = null
-        await runImgGenWithPreset(presetName, cachedPrompt)
+        await runImgGenWithPreset(adapter, presetName, cachedPrompt, meta)
         return
       }
 
@@ -1390,250 +1938,428 @@ export const useHomeAgent = defineStore(
         presetName,
         deadline: Date.now() + IMGGEN_PENDING_TIMEOUT_MS,
       }
-      await window.electronAPI.homeAgent.sendTelegramReply(
+      await reply(
+        adapter,
         `✅ Selected <i>${escapeHtml(presetName)}</i>.\nNow send your prompt as the next message, or /cancel to abort.`,
-        'HTML',
+        meta,
       )
     }
 
     /** Cancel button on the picker OR the /cancel slash command. */
-    async function handleImgGenCancel(): Promise<void> {
+    async function handleImgGenCancel(adapter: ChannelAdapter, meta?: InboundMeta): Promise<void> {
       const wasPending = pendingImgGen.value !== null
       pendingImgGen.value = null
-      await window.electronAPI.homeAgent.sendTelegramReply(
+      await reply(
+        adapter,
         wasPending ? '✖ Image generation cancelled.' : 'Nothing to cancel.',
+        meta,
       )
     }
 
-    async function drainQueue() {
-      if (telegramDrainBusy) return
-      telegramDrainBusy = true
+    /**
+     * Channel-agnostic queue drain. Pulls items off the per-channel queue and
+     * dispatches them through `adapter`.
+     */
+    async function drainCommonQueue(kind: ChannelKind) {
+      if (drainBusyByKind[kind]) return
+      drainBusyByKind[kind] = true
+      const queue = messageQueues[kind]
+      const adapter = adapters[kind]
+      if (!adapter) {
+        drainBusyByKind[kind] = false
+        return
+      }
       try {
-        while (_messageQueue.length > 0 && isHomeAgentActive.value) {
-          const item = _messageQueue.shift()!
+        while (queue.length > 0 && channels[kind].active) {
+          const item = queue.shift()!
+          const meta = item.meta
           expireImgGenPendingIfStale()
 
           // Inline-keyboard taps from the /imgGen preset picker arrive with a
-          // `callback` field instead of `text` — route them before any
-          // text-based regex matching.
+          // `callback` field instead of `text`.
           if (item.callback) {
             try {
               if (item.callback === 'imgGen:cancel') {
-                await handleImgGenCancel()
+                await handleImgGenCancel(adapter, meta)
               } else if (item.callback.startsWith('imgGen:preset:')) {
                 const name = item.callback.slice('imgGen:preset:'.length)
-                await handleImgGenPresetCallback(name)
+                await handleImgGenPresetCallback(adapter, name, meta)
               }
             } catch (e) {
-              console.error('Error processing Telegram callback:', e)
+              console.error(`Error processing ${kind} callback:`, e)
             }
             continue
           }
 
-          const text = item.text ?? ''
+          let text = item.text ?? ''
           const images = item.images
+          // Whether the inbound turn came from a voice message — used to decide
+          // whether to also reply with a synthesized voice message.
+          const fromVoice = !!item.audio?.length
+          // Voice/audio messages: transcribe first, then treat the transcript
+          // as the message text so slash-commands spoken aloud and plain
+          // prompts both flow through the normal handling below.
+          if (item.audio?.length) {
+            const transcript = await transcribeRemoteAudio(adapter, item.audio, meta)
+            if (transcript === null) continue // STT unavailable / failed — already replied
+            text = [text, transcript].filter(Boolean).join(' ').trim()
+            if (!text) {
+              await reply(
+                adapter,
+                "🎙️ I couldn't make out any speech in that audio. Please try again.",
+                meta,
+              )
+              continue
+            }
+          }
+          // Document attachments: ingest into the RAG knowledge base. If the
+          // message carried only documents (no caption/text or images), there is
+          // nothing left to chat about, so stop after confirming the upload.
+          if (item.documents?.length) {
+            await ingestRemoteDocuments(adapter, item.documents, meta)
+            if (!text.trim() && !images?.length) continue
+          }
           try {
             if (HELP_REGEX.test(text)) {
               focusRemoteChatDiscussion()
-              await window.electronAPI.homeAgent.sendTelegramReply(HELP_MESSAGE, 'HTML')
+              await reply(adapter, HELP_MESSAGE, meta)
+            } else if (RESET_REGEX.test(text)) {
+              resetHomeAgentConfig()
+              await reply(adapter, '♻️ Home Agent settings restored to defaults.', meta)
             } else if (CANCEL_REGEX.test(text)) {
-              await handleImgGenCancel()
+              await handleImgGenCancel(adapter, meta)
             } else if (NEW_REGEX.test(text)) {
               const newKey = createNewRemoteConversation()
               focusRemoteChatDiscussion()
-              await window.electronAPI.homeAgent.sendTelegramReply(
+              await reply(
+                adapter,
                 `🆕 Started a new chat thread: <i>${homeAgentTitleFor(newKey).replace(/[<>&]/g, '')}</i>.\nNext message will land in this thread.`,
-                'HTML',
+                meta,
               )
             } else if (HISTORY_REGEX.test(text)) {
-              await handleHistoryCommand()
+              await handleHistoryCommand(adapter, meta)
             } else if (LOAD_BARE_REGEX.test(text)) {
-              await handleLoadMenu()
+              await handleLoadMenu(adapter, meta)
             } else if (LOAD_REGEX.test(text)) {
               const match = text.match(LOAD_REGEX)
               const arg = match?.[1] ?? ''
               const key = resolveLoadTarget(arg)
               if (!key) {
-                // `arg` is user-supplied from `/load <id>` and goes into HTML
-                // parse mode — unescaped `<`/`&` would either be dropped by
-                // Telegram or cause the whole message to be rejected.
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                await reply(
+                  adapter,
                   `⚠️ Couldn't find a chat with id <code>${escapeHtml(arg)}</code>. Try <code>/history</code> first.`,
-                  'HTML',
+                  meta,
                 )
               } else if (switchRemoteConversation(key)) {
                 focusRemoteChatDiscussion()
                 const items = listRemoteConversations()
-                const item = items.find((i) => i.key === key)
-                await window.electronAPI.homeAgent.sendTelegramReply(
-                  `📂 Loaded <i>${escapeHtml(item?.title ?? key)}</i>.\nReplies and new messages now use this thread.`,
-                  'HTML',
+                const found = items.find((i) => i.key === key)
+                await reply(
+                  adapter,
+                  `📂 Loaded <i>${escapeHtml(found?.title ?? key)}</i>.\nReplies and new messages now use this thread.`,
+                  meta,
                 )
               } else {
-                await window.electronAPI.homeAgent.sendTelegramReply(
-                  '⚠️ Could not load that chat thread.',
-                )
+                await reply(adapter, '⚠️ Could not load that chat thread.', meta)
               }
             } else if (IMG_GEN_REGEX.test(text)) {
               const prompt = text.replace(IMG_GEN_REGEX, '').trim()
               if (images?.length) {
-                // /imgGen is text-to-image — the Telegram photo is not used as a reference.
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                await reply(
+                  adapter,
                   'ℹ️ <code>/imgGen</code> is text-only — the attached photo is ignored.',
-                  'HTML',
+                  meta,
                 )
               }
-              await showImgGenPresetPicker(prompt)
+              await showImgGenPresetPicker(adapter, prompt, meta)
             } else if (CHAT_REGEX.test(text)) {
               const msg = text.replace(CHAT_REGEX, '').trim()
               if (msg || images?.length) {
-                await handleChatMessage(msg, images)
+                await handleChatMessage(adapter, msg, images, meta, fromVoice)
               } else {
                 focusRemoteChatDiscussion()
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                await reply(
+                  adapter,
                   '⚠️ Please add a message after the command.\nExample: <code>/chat Hello, world!</code>',
-                  'HTML',
+                  meta,
                 )
               }
             } else if (pendingImgGen.value?.phase === 'awaitingPrompt') {
-              // After the user tapped a preset, the next plain-text message
-              // becomes the prompt. Photo-only messages (text === '[image]')
-              // are rejected with a reminder — /imgGen is text-only.
               const presetName = pendingImgGen.value.presetName
               const promptText = images?.length && text === '[image]' ? '' : text.trim()
               if (!promptText) {
-                await window.electronAPI.homeAgent.sendTelegramReply(
+                await reply(
+                  adapter,
                   '⚠️ Please send your prompt as text. Photos are ignored for /imgGen. /cancel to abort.',
-                  'HTML',
+                  meta,
                 )
               } else {
                 pendingImgGen.value = null
-                await runImgGenWithPreset(presetName, promptText)
+                await runImgGenWithPreset(adapter, presetName, promptText, meta)
               }
             } else if (pendingImgGen.value?.phase === 'awaitingPresetTap' && text.trim()) {
-              // The picker keyboard is still up; remind the user to tap a button.
-              await window.electronAPI.homeAgent.sendTelegramReply(
-                '🖼️ Tap a preset above, or /cancel to dismiss the picker.',
-                'HTML',
-              )
+              await reply(adapter, '🖼️ Tap a preset above, or /cancel to dismiss the picker.', meta)
             } else {
-              // Agentic mode — AI decides whether to chat or generate an image.
-              // For photo-only messages the Python side queues "[image]" as a
-              // placeholder; clear it so the model isn't biased by a literal token.
+              // Agentic mode — for photo-only messages the Python side queues
+              // "[image]" as a placeholder; clear it so the model isn't biased
+              // by a literal token.
               const agenticText = images?.length && text === '[image]' ? '' : text
-              await handleAgenticMessage(agenticText, images)
+              await handleAgenticMessage(adapter, agenticText, images, meta, fromVoice)
             }
           } catch (e) {
-            console.error('Error processing Telegram message:', e)
+            console.error(`Error processing ${kind} message:`, e)
           }
         }
       } finally {
-        telegramDrainBusy = false
+        drainBusyByKind[kind] = false
       }
     }
 
-    async function processTelegramMessages() {
+    async function processChannelMessages(kind: ChannelKind) {
       try {
-        const msgs = await window.electronAPI.homeAgent.pollTelegram()
+        // The mock channel sources inbound messages from the in-memory bus
+        // instead of the IPC/HTTP poll — no backend round-trip.
+        const msgs =
+          kind === 'mock'
+            ? mockChannelBus.drainInbound()
+            : await window.electronAPI.homeAgent.channel.poll(kind)
         if (!msgs || msgs.length === 0) return
+        const queue = messageQueues[kind]
         for (const msg of msgs) {
-          if (_messageQueue.length >= MAX_QUEUE_SIZE) {
-            toast.warning('Home Agent: message queue full, dropping oldest message.')
-            _messageQueue.shift()
+          // Resolve a pending settings/download confirmation here (independent of
+          // the busy drain loop, which is blocked awaiting this very answer).
+          if (pendingConfirmations[kind]) {
+            // Primary path: an interactive Confirm/Cancel button tap.
+            if (msg.callback === 'confirm:yes' || msg.callback === 'confirm:no') {
+              settleConfirmation(kind, msg.callback === 'confirm:yes')
+              continue
+            }
+            // Fallback path: a typed yes/no reply. A recognized answer is
+            // consumed; anything else cancels the change and falls through as a
+            // normal message.
+            if (!msg.callback) {
+              const answer = parseConfirmationReply(msg.text ?? '')
+              if (answer !== null) {
+                settleConfirmation(kind, answer)
+                continue
+              }
+              settleConfirmation(kind, false)
+            }
           }
-          _messageQueue.push({ text: msg.text, images: msg.images, callback: msg.callback })
+          if (queue.length >= MAX_QUEUE_SIZE) {
+            toast.warning(`Home Agent: ${kind} queue full, dropping oldest message.`)
+            queue.shift()
+          }
+          queue.push({
+            text: msg.text,
+            images: msg.images,
+            audio: msg.audio,
+            documents: msg.documents,
+            callback: msg.callback,
+            // Thread inbound metadata so adapters can target reactions /
+            // threaded sends at the originating message (only Slack uses this
+            // today; benign for Telegram).
+            meta:
+              msg.channel || msg.ts || msg.chat_id
+                ? { channel: msg.channel, ts: msg.ts, chatId: msg.chat_id }
+                : undefined,
+          })
         }
-        void drainQueue()
+        void drainCommonQueue(kind)
       } catch (e) {
-        console.error('Error polling Telegram:', e)
+        console.error(`Error polling ${kind}:`, e)
       }
     }
 
-    function startPolling() {
-      disposeTelegramPollHandlers()
-      telegramPollIntervalId = setInterval(() => {
-        void processTelegramMessages()
+    function startPolling(kind: ChannelKind) {
+      disposePoll(kind)
+      pollIntervalIds[kind] = setInterval(() => {
+        void processChannelMessages(kind)
       }, POLL_INTERVAL_MS)
     }
 
-    function stopPolling() {
-      disposeTelegramPollHandlers()
-      _messageQueue.length = 0
+    function stopPolling(kind: ChannelKind) {
+      disposePoll(kind)
+      messageQueues[kind].length = 0
     }
 
-    async function saveConfig(
-      token: string,
-      chatId: string,
+    // ── Mock channel drive API (dev only) ────────────────────────────────────
+    // Lets e2e tests (and the dev panel) inject inbound traffic and assert on
+    // captured outbound replies without IPC or the Python backend.
+
+    /** Inject a text/photo/audio/document message as if it arrived from a
+     *  remote channel, then drain immediately so the reply is produced without
+     *  waiting for the 2s poll tick. */
+    async function mockSend(
+      text: string,
+      opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>,
+    ): Promise<void> {
+      mockChannelBus.pushInbound({ text, ...opts })
+      await processChannelMessages('mock')
+      await mockWaitForIdle()
+    }
+
+    /** Inject an inline-keyboard tap (e.g. an `/imgGen` preset button). */
+    async function mockSendCallback(callback: string): Promise<void> {
+      mockChannelBus.pushInbound({ callback })
+      await processChannelMessages('mock')
+      await mockWaitForIdle()
+    }
+
+    /** Route a media URL through the real outbound media-send path so the
+     *  image/video/3D delivery (including the rendered 3D thumbnail "screenshot"
+     *  and the `.glb` document) can be verified without a full generation. The
+     *  `kind` is inferred from the extension when omitted. */
+    async function mockSendMedia(
+      url: string,
+      opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
+    ): Promise<void> {
+      const adapter = adapters.mock
+      if (!adapter) return
+      const caption = opts?.caption ?? ''
+      const lower = url.toLowerCase()
+      const kind =
+        opts?.kind ??
+        (lower.endsWith('.glb') || lower.endsWith('.gltf')
+          ? 'model3d'
+          : /\.(mp4|webm|mov)(\?|$)/.test(lower)
+            ? 'video'
+            : 'image')
+      if (kind === 'model3d') {
+        await send3DModelToChannel(adapter, url, caption)
+      } else if (kind === 'video') {
+        await sendVideoToChannel(adapter, url, caption)
+      } else {
+        await sendImageToChannel(adapter, url, caption)
+      }
+    }
+
+    /** Captured outbound events the mock adapter recorded so far. */
+    const mockOutbox = computed(() => mockChannelBus.outbox)
+
+    /** Reset both the inbound queue and the captured outbox. */
+    function mockClear(): void {
+      mockChannelBus.clear()
+    }
+
+    /** Resolve once the mock drain loop is idle and its queue is empty. */
+    function mockWaitForIdle(timeoutMs = 120_000): Promise<void> {
+      const deadline = Date.now() + timeoutMs
+      return new Promise<void>((resolve) => {
+        const check = () => {
+          const idle = !drainBusyByKind.mock && messageQueues.mock.length === 0
+          if (idle || Date.now() > deadline) {
+            resolve()
+            return
+          }
+          setTimeout(check, 50)
+        }
+        check()
+      })
+    }
+
+    // ── Config / activation API (channel-agnostic) ──────────────────────────
+
+    async function saveChannelConfig(
+      kind: ChannelKind,
+      config: Partial<ChannelConfig>,
     ): Promise<{ success: boolean; error?: string }> {
       try {
-        const result = await window.electronAPI.homeAgent.saveConfig(token, chatId)
+        // safeStorage save (electron main process). Pass the flat config blob;
+        // the main side partitions secret vs public fields.
+        const result = await window.electronAPI.homeAgent.channel.saveConfig(
+          kind,
+          config as Record<string, string>,
+        )
         if (result.success) {
-          const configChanged = token !== telegramToken.value || chatId !== telegramChatId.value
-          telegramToken.value = token
-          telegramChatId.value = chatId
-          // Reset verified only when credentials actually change — must re-verify
-          if (configChanged) {
-            telegramVerified.value = false
-            isHomeAgentActive.value = false
-            _userDisabled = false
+          const prev = channels[kind].config as Record<string, string>
+          const next = config as Record<string, string>
+          const fieldChanged = Object.keys(next).some((k) => prev[k] !== next[k])
+          channels[kind].config = { ...config }
+          // Track identity in the dedicated prefs `.identity` field so consumers
+          // don't need to know which sub-key carries it for each kind.
+          const idKey = CHANNEL_FIELD_SPEC[kind].identityField
+          if (idKey && next[idKey] !== undefined) channelPrefs[kind].identity = next[idKey]
+          // Credentials changed — force re-verification (but keep the user's
+          // enabled preference; the channel just won't run until re-verified).
+          if (fieldChanged) {
+            channelPrefs[kind].verified = false
+            // Mirror the invalidation to disk so a restart can't resurrect the
+            // stale verified flag from the durable config.
+            persistChannelPrefs(kind)
           }
         }
         return result
       } catch (e) {
-        console.error('homeAgent.saveConfig failed:', e)
+        console.error(`homeAgent.saveChannelConfig(${kind}) failed:`, e)
         return { success: false, error: String(e) }
       }
     }
 
-    async function clearConfig(): Promise<void> {
+    async function clearChannelConfig(kind: ChannelKind): Promise<void> {
       try {
-        await window.electronAPI.homeAgent.clearConfig()
+        await window.electronAPI.homeAgent.channel.clearConfig(kind)
       } catch (e) {
-        console.error('homeAgent.clearConfig failed:', e)
+        console.error(`homeAgent.clearChannelConfig(${kind}) failed:`, e)
       }
-      telegramToken.value = null
-      telegramChatId.value = null
-      telegramVerified.value = false
-      isHomeAgentActive.value = false
-      _userDisabled = false
+      channels[kind] = emptyRuntimeState(kind)
+      channelPrefs[kind] = emptyPrefs()
     }
 
-    function setVerified() {
-      telegramVerified.value = true
+    /**
+     * Persist the durable setup flags (verified / enabled) to the on-disk
+     * channel config so they survive even when the Pinia/localStorage blob is
+     * gone (legacy migration, demo-mode sessionStorage, cleared localStorage).
+     * Fire-and-forget: the in-memory `channelPrefs` is the live source; disk is
+     * the durable backup re-read by `initConfig()` on the next launch.
+     */
+    function persistChannelPrefs(kind: ChannelKind): void {
+      void window.electronAPI.homeAgent.channel
+        .savePrefs(kind, {
+          verified: channelPrefs[kind].verified,
+          enabled: channelPrefs[kind].enabled,
+        })
+        .catch((e: unknown) => console.error(`homeAgent.persistChannelPrefs(${kind}) failed:`, e))
     }
 
-    function activate() {
-      if (!isAvailable.value) {
-        toast.error(
-          'Home Agent is not installed. Please install it from App Settings → Installation Management.',
-        )
+    /** Mark a channel verified after a successful test. A freshly verified
+     *  channel defaults to enabled so it starts running immediately (subject
+     *  to the master switch) — matching the prior "verify ⇒ on" behavior. */
+    function setVerified(kind: ChannelKind) {
+      channelPrefs[kind].verified = true
+      channelPrefs[kind].enabled = true
+      persistChannelPrefs(kind)
+    }
+
+    /** Per-channel enable/disable — invoked from the setup screen. Enabling a
+     *  channel requires it to be verified first. */
+    function setChannelEnabled(kind: ChannelKind, on: boolean) {
+      if (on && !channelPrefs[kind].verified) {
+        toast.error(`Verify the ${kind} connection before enabling it.`)
         return
       }
-      if (!isReadyToActivate.value) {
-        toast.error('Complete Telegram setup and verify the connection in Setup Wizard.')
-        return
-      }
-      _userDisabled = false
-      isHomeAgentActive.value = true
-      focusRemoteChatDiscussion()
+      channelPrefs[kind].enabled = on
+      persistChannelPrefs(kind)
+      if (on && masterEnabled.value && isAvailable.value) focusRemoteChatDiscussion()
     }
 
-    function toggle() {
-      if (isHomeAgentActive.value) {
-        _userDisabled = true
-        isHomeAgentActive.value = false
-      } else {
-        activate()
+    /** Master Home Agent on/off — the single title-bar toggle. */
+    function setMasterEnabled(on: boolean) {
+      masterEnabled.value = on
+      if (on && isAvailable.value && KINDS.some((k) => channelPrefs[k].enabled)) {
+        focusRemoteChatDiscussion()
       }
     }
 
-    // Load token from safeStorage (not persisted to disk for security).
-    // telegramChatId and telegramVerified ARE persisted, so they are already
-    // populated synchronously before this resolves.
+    function toggleMaster() {
+      setMasterEnabled(!masterEnabled.value)
+    }
+
+    /** Load tokens from safeStorage. Persisted Pinia state already carries
+     *  `channelPrefs` (verified / identity / enabled); this rehydrates the
+     *  in-memory secret config and back-fills identity when it is missing. */
     async function initConfig() {
       try {
-        // Resolve the feature flag first; when it's off there is no Home Agent
-        // backend / IPC bridge to load credentials from, so skip the rest.
         try {
           const localSettings = await window.electronAPI.getLocalSettings()
           isFeatureEnabled.value = !!localSettings.isHomeAgentEnabled
@@ -1642,21 +2368,43 @@ export const useHomeAgent = defineStore(
           isFeatureEnabled.value = false
         }
         if (!isFeatureEnabled.value) {
-          telegramToken.value = null
-          telegramChatId.value = null
-          telegramVerified.value = false
-          isHomeAgentActive.value = false
+          for (const k of KINDS) channels[k] = emptyRuntimeState(k)
           return
         }
-        const cfg = await window.electronAPI.homeAgent.loadConfig()
-        if (cfg) {
-          telegramToken.value = cfg.token
-          telegramChatId.value = cfg.chatId
-        } else if (!telegramVerified.value) {
-          // No config in safeStorage — clear everything only if nothing was persisted
-          telegramToken.value = null
-          telegramChatId.value = null
-          isHomeAgentActive.value = false
+        for (const kind of KINDS) {
+          const cfg = await window.electronAPI.homeAgent.channel.loadConfig(kind)
+          if (cfg) {
+            channels[kind].config = { ...cfg, kind } as Partial<ChannelConfig>
+            // Back-fill the prefs `.identity` from the saved config's identity
+            // key (chatId / userId / …). The persisted Pinia state may already
+            // carry it, but a migrated legacy config or an older persisted blob
+            // without identity would otherwise leave it null — making the setup
+            // wizard think no chat/DM partner exists even though the backend
+            // has one.
+            const idKey = CHANNEL_FIELD_SPEC[kind].identityField
+            const savedIdentity = (cfg as Record<string, string>)[idKey]
+            if (savedIdentity && !channelPrefs[kind].identity) {
+              channelPrefs[kind].identity = savedIdentity
+            }
+          } else if (!channelPrefs[kind].verified) {
+            channels[kind].config = {}
+          }
+          // Back-fill the durable setup flags from disk. This is what makes a
+          // previously-verified channel survive a lost Pinia blob: the token +
+          // identity already rehydrate from disk above, and verified/enabled
+          // now come from the same durable file rather than only localStorage.
+          // Disk wins when it has flags set, so a credential-change invalidation
+          // (verified=false written to disk) can't be undone by a stale Pinia
+          // value either.
+          try {
+            const prefs = await window.electronAPI.homeAgent.channel.loadPrefs(kind)
+            if (prefs) {
+              channelPrefs[kind].verified = prefs.verified
+              channelPrefs[kind].enabled = prefs.enabled
+            }
+          } catch (e) {
+            console.error(`homeAgent.initConfig: loadPrefs(${kind}) failed:`, e)
+          }
         }
       } catch (e) {
         console.error('homeAgent.initConfig failed:', e)
@@ -1665,14 +2413,45 @@ export const useHomeAgent = defineStore(
 
     void initConfig()
 
+    // Expose a programmatic drive surface for e2e automation (chrome-devtools
+    // MCP, scripts, …). Dev-only — guarded by debug tools so it never ships in
+    // production builds.
+    if (MOCK_ENABLED) {
+      window.__homeAgentMock = {
+        send: (text: string, opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>) =>
+          mockSend(text, opts),
+        sendCallback: (callback: string) => mockSendCallback(callback),
+        sendMedia: (
+          url: string,
+          opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
+        ) => mockSendMedia(url, opts),
+        outbox: () => mockChannelBus.outbox.slice(),
+        clear: () => mockClear(),
+        waitForIdle: (timeoutMs?: number) => mockWaitForIdle(timeoutMs),
+      }
+    }
+
+    // ── Read-only convenience getters ───────────────────────────────────────
+    // External consumers (setup composables, setup-step components) read these.
+    // They are NOT used for persistence — `channelPrefs` is persisted directly.
+    const telegramVerified = computed(() => channelPrefs.telegram.verified)
+    const telegramChatId = computed(() => channelPrefs.telegram.identity ?? '')
+    const slackVerified = computed(() => channelPrefs.slack.verified)
+    const slackUserId = computed(() => channelPrefs.slack.identity ?? '')
+
     return {
       isFeatureEnabled,
       isHomeAgentActive,
-      isTelegramConfigured,
-      isReadyToActivate,
+      // Master title-bar switch + persisted per-channel prefs.
+      masterEnabled,
+      channelPrefs,
+      // Runtime channel state map (secrets + derived `active`); in-memory only.
+      channels,
+      // Read-only per-kind convenience getters over channelPrefs.
       telegramVerified,
       telegramChatId,
-      telegramToken,
+      slackVerified,
+      slackUserId,
       isAvailable,
       homeAgentBaseUrl,
       // Remote conversation registry
@@ -1682,40 +2461,57 @@ export const useHomeAgent = defineStore(
       switchRemoteConversation,
       ensureActiveRemoteConversation,
       listRemoteConversations,
-      // Settings panel visibility (consumed by App.vue + HomeAgentToggle.vue)
+      // Settings panel visibility
       showSettings,
       openSettings,
       closeSettings,
+      // Dev-only mock channel panel visibility
+      showMockPanel,
+      toggleMockPanel,
       // Bare-/load summary cache (persisted)
       summaryCache,
       summarizeConversation,
-      activate,
-      toggle,
-      saveConfig,
-      clearConfig,
+      // Channel-agnostic control surface
+      setChannelEnabled,
+      setMasterEnabled,
+      toggleMaster,
+      saveChannelConfig,
+      clearChannelConfig,
       setVerified,
+      // Settings self-configuration (used by the configureHomeAgent tool)
+      requestSettingsConfirmation,
+      isRemoteTurnActive,
+      handleRemoteModelDownload,
+      resetHomeAgentConfig,
+      // Dev-only mock channel drive API (no-ops when debug tools are disabled).
+      mockSend,
+      mockSendCallback,
+      mockSendMedia,
+      mockOutbox,
+      mockClear,
+      mockWaitForIdle,
     }
   },
   {
     persist: {
       storage: demoAwareStorage,
-      // telegramChatId persisted (non-sensitive) for display purposes.
-      // telegramVerified persisted — this is the key flag for "ready to activate".
-      // telegramToken NOT persisted — lives only in safeStorage.
-      // isHomeAgentActive NOT persisted — re-derived on startup by watchers
-      //   (isAvailable is false until the backend service reports ready).
-      // activeRemoteConversationKey persisted so /load <id> survives restart and
-      //   the same Telegram thread keeps draining into its conversation bucket.
+      // Persist only non-secret state. `channelPrefs` (verified / identity /
+      // enabled per kind) and `masterEnabled` drive activation on the next
+      // launch; the secret `config` in `channels` is rehydrated from
+      // safeStorage by initConfig() and never serialized here.
+      // activeRemoteConversationKey persisted so /load <id> survives restart.
       // summaryCache persisted so /load menu summaries survive restarts.
-      pick: ['telegramVerified', 'telegramChatId', 'activeRemoteConversationKey', 'summaryCache'],
+      pick: ['masterEnabled', 'channelPrefs', 'activeRemoteConversationKey', 'summaryCache'],
     },
   },
 )
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    disposeTelegramPollHandlers()
-    telegramDrainBusy = false
+    disposeAllPollHandlers()
+    for (const k of Object.keys(drainBusyByKind)) {
+      drainBusyByKind[k as ChannelKind] = false
+    }
   })
   import.meta.hot.accept(acceptHMRUpdate(useHomeAgent, import.meta.hot))
 }

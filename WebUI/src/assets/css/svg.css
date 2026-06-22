@@ -183,6 +183,10 @@
   --svg: url('@/assets/svg/upload.svg');
 }
 
+.i-speaker {
+  --svg: url('@/assets/svg/speaker.svg');
+}
+
 .i-stop {
   --svg: url('@/assets/svg/stop.svg');
 }

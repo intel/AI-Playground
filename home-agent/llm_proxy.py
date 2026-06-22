@@ -61,9 +61,24 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
 
     if stream:
         def generate() -> Iterator[bytes]:
+            saw_done = False
             try:
                 for chunk in upstream_resp.iter_content(chunk_size=None):
+                    if b"[DONE]" in chunk:
+                        saw_done = True
                     yield chunk
+            except (requests.exceptions.ChunkedEncodingError,
+                    requests.exceptions.ConnectionError) as exc:
+                # The upstream LLM server was torn down mid-stream — this is
+                # expected when the app stops llama.cpp to free VRAM for image
+                # generation right after a tool-call has already been streamed.
+                # The meaningful payload is already delivered, so close the SSE
+                # stream cleanly with a synthetic terminator instead of letting
+                # a ConnectionReset bubble up as a network error that kills the
+                # whole agent turn (and never delivers the reply to the client).
+                logger.warning("Upstream stream interrupted, closing gracefully: %s", exc)
+                if not saw_done:
+                    yield b"data: [DONE]\n\n"
             finally:
                 upstream_resp.close()
 

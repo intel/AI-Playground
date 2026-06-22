@@ -237,13 +237,32 @@ export function isImageUrl(url: string | undefined | null): boolean {
 }
 
 /**
+ * Builds an `aipg-media://` URL for a path relative to the media directory.
+ *
+ * The media-relative path MUST live in the URL *path*, under a constant
+ * `media` authority — never in the authority itself. `aipg-media` is
+ * registered as a *standard* scheme (see `registerSchemesAsPrivileged` in
+ * `electron/main.ts`), and Chromium lowercases the authority of standard URLs.
+ * Putting a case-sensitive filename there (e.g. ComfyUI's `ComfyUI_00001_.png`)
+ * therefore resolves to `comfyui_00001_.png`, which silently works on
+ * case-insensitive filesystems (Windows/macOS) but fails with
+ * `net::ERR_FILE_NOT_FOUND` on case-sensitive ones (Linux). Keeping the path in
+ * the URL path preserves case on every OS.
+ */
+export function mediaUrl(relativePath: string): string {
+  const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '')
+  const encoded = normalized.split('/').map(encodeURIComponent).join('/')
+  return `aipg-media://media/${encoded}`
+}
+
+/**
  * Saves an image data URI to media/input and returns an aipg-media URL.
  * @param dataUri - data:image/(png|jpeg|webp);base64,... string
- * @returns aipg-media://input/<filename>
+ * @returns aipg-media://media/input/<filename>
  */
 export async function saveImageToMediaInput(dataUri: string): Promise<string> {
   const pathSegment = await window.electronAPI.saveImageToMediaInput(dataUri)
-  return `aipg-media://${pathSegment}`
+  return mediaUrl(pathSegment)
 }
 
 /**

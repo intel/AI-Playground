@@ -21,6 +21,7 @@ if (isAdmin()) {
 import {
   app,
   BrowserWindow,
+  desktopCapturer,
   dialog,
   ipcMain,
   IpcMainEvent,
@@ -32,7 +33,9 @@ import {
   OpenDialogSyncOptions,
   protocol,
   screen,
+  session,
   shell,
+  systemPreferences,
   utilityProcess,
   UtilityProcess,
 } from 'electron'
@@ -71,6 +74,20 @@ import {
   stopMcpServer,
 } from './subprocesses/mcpManager'
 import {
+  close as closeWebBrowser,
+  destroyWebBrowser,
+  getState as getWebBrowserState,
+  hide as hideWebBrowser,
+  interact as interactWebBrowser,
+  navigate as navigateWebBrowser,
+  readPage as readWebBrowserPage,
+  screenshot as screenshotWebBrowser,
+  search as searchWebBrowser,
+  setWebBrowserMainWindow,
+  show as showWebBrowser,
+  type WebBrowserInteraction,
+} from './subprocesses/webBrowserManager'
+import {
   addMcpServer,
   detectAndRegisterAutoMcpServers,
   getMcpConfigPath,
@@ -81,6 +98,7 @@ import {
   type McpServerConfig,
 } from './subprocesses/mcpServers'
 import { externalResourcesDir, getMediaDir } from './util.ts'
+import { packagedResourcesRoot } from './aipgRoot.ts'
 import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
@@ -167,14 +185,23 @@ process.env.DIST = path.join(__dirname, '../')
 process.env.VITE_PUBLIC = path.join(__dirname, app.isPackaged ? '../..' : '../../../public')
 
 const externalRes = path.resolve(
-  app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../external/'),
+  app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'),
 )
 
 const modesDir = path.resolve(
   app.isPackaged
-    ? path.join(process.resourcesPath, 'modes')
+    ? path.join(packagedResourcesRoot(), 'modes')
     : path.join(__dirname, '../../../modes/'),
 )
+// On Linux (incl. headless Xvfb/VNC), Chromium's GPU process is often "not
+// usable" and Electron aborts on startup. Disable hardware acceleration so the
+// software rasterizer is used. This does NOT affect AI/compute workloads, which
+// use Level Zero/SYCL/Vulkan directly. --no-sandbox avoids SUID-sandbox issues.
+if (process.platform === 'linux') {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('no-sandbox')
+}
 const singleInstanceLock = app.requestSingleInstanceLock()
 
 const appLogger = appLoggerInstance
@@ -189,16 +216,32 @@ fs.mkdirSync(mediaInputDir, { recursive: true })
 /** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
 function getLocalPathFromAipgMediaUrl(url: string): string | null {
   if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return null
-  // Strip protocol, then strip any trailing slash — Chromium occasionally
-  // appends one to custom-protocol URLs (e.g. `aipg-media://foo.png/`), and
-  // `net.fetch(file://.../foo.png/)` treats the trailing slash as "directory"
-  // and fails. Mirrors what the legacy inline handler did.
+  // `aipg-media` is registered as a *standard* scheme, so Chromium parses the
+  // segment after `://` as the URL authority and lowercases it. The current
+  // URL format therefore keeps the media-relative path in the URL *path* under
+  // a constant `media` authority (see `mediaUrl()` in `src/lib/utils.ts`) so
+  // case-sensitive filenames survive on case-sensitive filesystems (Linux).
+  //
+  // Legacy URLs (`aipg-media://<relative-path>`) put the path directly in the
+  // authority; keep resolving those for already-persisted media references.
+  // (Their case was lost to the authority lowercasing, so they only ever
+  // resolved on case-insensitive filesystems — unchanged by this branch.)
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  const relativeRaw = parsed.host === 'media' ? parsed.pathname : parsed.host + parsed.pathname
+  // Strip any trailing slash — Chromium occasionally appends one to
+  // custom-protocol URLs (e.g. `…/foo.png/`), and `net.fetch(file://.../foo.png/)`
+  // treats the trailing slash as "directory" and fails.
   // `decodeURIComponent` throws `URIError` on malformed `%` sequences (e.g.
-  // `aipg-media://%E0`); treat that as an invalid URL rather than letting the
-  // exception escape into the protocol handler or IPC reply.
+  // `%E0`); treat that as an invalid URL rather than letting the exception
+  // escape into the protocol handler or IPC reply.
   let decodedUrl: string
   try {
-    decodedUrl = decodeURIComponent(url.replace(/^aipg-media:\/\//i, '').replace(/[/\\]+$/, ''))
+    decodedUrl = decodeURIComponent(relativeRaw.replace(/[/\\]+$/, ''))
   } catch {
     return null
   }
@@ -246,6 +289,11 @@ const LocalSettingsSchema = z.object({
   // Intel NPU memory budgets on most shipping hardware. Override per-machine
   // by editing settings.json, e.g. ["AUTO", "CPU", "GPU", "NPU"] to re-enable.
   openvinoImageGenDevices: z.array(z.string()).default(['CPU', 'GPU']),
+  // Last inference device chosen per backend, keyed by service name
+  // (e.g. 'llamacpp-backend') or '<serviceName>:stt' for the OpenVINO STT
+  // sub-device. Restored at boot in each service's detectDevices() so the app
+  // does not reset to the default GPU (iGPU) on every restart.
+  lastSelectedDevicePerBackend: z.record(z.string(), z.string()).default({}),
   /** When true, skip hardware probe and treat Phison SSD as detected (optional overlay in userData settings). */
   PhisonSSDdetected: z.boolean().optional().default(false),
 })
@@ -385,7 +433,7 @@ let demoProfile: DemoProfile | null = null
 
 /** Packaged: `resources/settings.json` (same role as dev `external/settings-dev.json`). */
 function getPackagedSettingsPath(): string {
-  return path.join(process.resourcesPath, 'settings.json')
+  return path.join(packagedResourcesRoot(), 'settings.json')
 }
 
 /** Dev-only defaults shipped in the repo (read-only for the app). */
@@ -520,9 +568,41 @@ async function createWindow() {
       contextIsolation: true,
     },
   })
+  setWebBrowserMainWindow(win)
+  win.on('close', () => {
+    // Tear down the headless web-browser window so the app can quit cleanly.
+    destroyWebBrowser()
+  })
+
+  // [HA-DIAG] Temporary: surface renderer `[HA-DIAG]` perf logs in the main
+  // terminal stream (renderer console.log normally only reaches DevTools).
+  // Remove together with the renderer-side [HA-DIAG] logging.
+  win.webContents.on('console-message', (event: unknown, ...rest: unknown[]) => {
+    const e = event as { message?: string }
+    // Electron 35+ passes a single event object with `.message`; older builds
+    // pass (event, level, message, line, sourceId).
+    const message =
+      typeof e?.message === 'string' ? e.message : ((rest[1] as string | undefined) ?? '')
+    // Route through appLogger so the line reaches the in-app debug viewer (fed
+    // by the `debugLog` IPC). appLogger also mirrors back to the renderer, which
+    // App.vue re-logs as `[ha-diag] <message>` — that re-enters this handler. The
+    // `[ha-diag]` source prefix (absent from the original renderer line) marks
+    // the echo, so skipping it breaks the otherwise-infinite loop.
+    if (message.includes('[HA-DIAG]') && !message.includes('[ha-diag]')) {
+      appLogger.info(message, 'ha-diag')
+    }
+  })
+
   win.webContents.on('did-finish-load', () => {
     setTimeout(() => {
       appLogger.onWebcontentReady(win!.webContents)
+      // [HA-DIAG] One-shot marker: if you see this line, the rebuilt main process
+      // with the renderer-log forwarder is running. If it's absent, main.ts did
+      // not reload — fully restart Electron (HMR only reloads the renderer).
+      appLogger.info(
+        '[HA-DIAG] forwarder installed — renderer perf logs will appear here',
+        'ha-diag',
+      )
     }, 100)
 
     // Check localStorage for developer settings after page loads
@@ -549,6 +629,60 @@ async function createWindow() {
         appLogger.error(`Failed to check developer settings: ${e}`, 'electron-backend')
       }
     }, 500)
+  })
+
+  // Pipe renderer console warnings/errors to the app log file. Writes via
+  // logMessageToFile directly: the regular logger methods echo every message
+  // back to the renderer's debug stream, which a console-logging renderer
+  // would turn into a feedback loop. Rate-limited so a hot error loop can't
+  // bloat the log file (appendFileSync blocks the main process).
+  const RENDERER_LOG_WINDOW_MS = 1000
+  const MAX_RENDERER_LOGS_PER_WINDOW = 10
+  let rendererLogWindowStart = 0
+  let rendererLogCount = 0
+  win.webContents.on('console-message', (event) => {
+    if (event.level !== 'warning' && event.level !== 'error') return
+    const now = Date.now()
+    if (now - rendererLogWindowStart > RENDERER_LOG_WINDOW_MS) {
+      rendererLogWindowStart = now
+      rendererLogCount = 0
+    }
+    if (rendererLogCount < MAX_RENDERER_LOGS_PER_WINDOW) {
+      appLogger.logMessageToFile(
+        `[${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`,
+        'renderer',
+      )
+    } else if (rendererLogCount === MAX_RENDERER_LOGS_PER_WINDOW) {
+      appLogger.logMessageToFile(
+        'rate limit exceeded, suppressing further messages this second',
+        'renderer',
+      )
+    }
+    rendererLogCount++
+  })
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    appLogger.error(
+      `render-process-gone: reason=${details.reason} exitCode=${details.exitCode}`,
+      'electron-backend',
+      true,
+    )
+    dialog.showErrorBox(
+      'AI Playground — Renderer Crashed',
+      `The application window has crashed unexpectedly.\n\n` +
+        `Reason: ${details.reason}\n` +
+        `Exit code: ${details.exitCode}\n\n` +
+        `Check logs for details:\n${appLogger.pathToLogFiles}`,
+    )
+  })
+
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    if (errorCode === -3) return // ERR_ABORTED: navigation cancelled, not a failure
+    appLogger.error(
+      `did-fail-load: code=${errorCode} desc="${errorDescription}" url="${validatedURL}"`,
+      'electron-backend',
+      true,
+    )
   })
 
   const session = win.webContents.session
@@ -717,6 +851,10 @@ function handleUtilityFunction<T, R>(
     child.postMessage({ type: eventType, args: args })
   })
 }
+
+app.on('before-quit', () => {
+  destroyWebBrowser()
+})
 
 app.on('quit', async () => {
   await stopAllMcpServers()
@@ -984,6 +1122,38 @@ function initEventHandle() {
     await fs.promises.writeFile(filePath, buffer)
     return `input/${filename}`
   })
+
+  // Persist an inbound Home Agent document (base64) to disk so the langchain
+  // RAG loaders (which require a real filepath) can index it, and so the
+  // persisted ragList entry keeps a stable path. Returns the absolute path.
+  ipcMain.handle(
+    'saveHomeAgentDocument',
+    async (
+      _event,
+      filename: string,
+      base64: string,
+    ): Promise<{ success: boolean; filepath?: string; error?: string }> => {
+      const supportedExtensions = ['txt', 'md', 'doc', 'docx', 'pdf']
+      try {
+        if (typeof filename !== 'string' || typeof base64 !== 'string') {
+          return { success: false, error: 'invalid arguments' }
+        }
+        const safeName = path.basename(filename).replace(/[^\w.\-]+/g, '_')
+        const ext = safeName.includes('.') ? safeName.split('.').pop()!.toLowerCase() : ''
+        if (!supportedExtensions.includes(ext)) {
+          return { success: false, error: `unsupported document type (.${ext})` }
+        }
+        const ragDocumentsDir = path.join(mediaDir, 'rag-documents')
+        await fs.promises.mkdir(ragDocumentsDir, { recursive: true })
+        const uniqueName = `${randomUUID()}-${safeName}`
+        const filePath = path.join(ragDocumentsDir, uniqueName)
+        await fs.promises.writeFile(filePath, Buffer.from(base64, 'base64'))
+        return { success: true, filepath: filePath }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    },
+  )
 
   ipcMain.handle(
     'readAipgMediaAsBase64',
@@ -1284,6 +1454,10 @@ function initEventHandle() {
         )
         return
       }
+      // Persist so the boot-time auto-start can restore this device instead of
+      // resetting to the default GPU on the next restart.
+      settings.lastSelectedDevicePerBackend[serviceName] = deviceId
+      persistLocalSettingsToDisk()
       return service.selectDevice(deviceId)
     },
   )
@@ -1305,6 +1479,8 @@ function initEventHandle() {
         return
       }
       if ('selectSttDevice' in service && typeof service.selectSttDevice === 'function') {
+        settings.lastSelectedDevicePerBackend[`${serviceName}:stt`] = deviceId
+        persistLocalSettingsToDisk()
         return service.selectSttDevice(deviceId)
       }
       appLogger.warn(`Service ${serviceName} does not support selectSttDevice`, 'electron-backend')
@@ -1554,6 +1730,126 @@ function initEventHandle() {
     return { success: false, error: 'Transcription server not supported' }
   })
 
+  ipcMain.handle('startSpeechServer', async (_event: IpcMainInvokeEvent, modelName: string) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('startSpeechServer' in service && typeof service.startSpeechServer === 'function') {
+      try {
+        await service.startSpeechServer(modelName)
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to start speech server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Speech server not supported' }
+  })
+
+  ipcMain.handle('stopSpeechServer', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('stopSpeechServer' in service && typeof service.stopSpeechServer === 'function') {
+      try {
+        await service.stopSpeechServer()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop speech server: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Speech server not supported' }
+  })
+
+  ipcMain.handle('getSpeechServerUrl', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('getSpeechServerUrl' in service && typeof service.getSpeechServerUrl === 'function') {
+      const speechUrl = service.getSpeechServerUrl()
+      if (speechUrl) {
+        return { success: true, url: speechUrl }
+      }
+      return { success: false, error: 'Speech server not running' }
+    }
+
+    return { success: false, error: 'Speech server not supported' }
+  })
+
+  // Synthesize speech in the main process so it is not subject to the
+  // renderer's CORS policy. Many OpenAI-compatible `/audio/speech` servers
+  // (e.g. local TTS fallbacks) do not answer the CORS preflight that an
+  // `application/json` POST triggers, which blocks a direct renderer fetch.
+  ipcMain.handle(
+    'synthesizeSpeech',
+    async (
+      _event: IpcMainInvokeEvent,
+      options: {
+        baseURL: string
+        model: string
+        input: string
+        voice?: string
+        apiKey?: string
+        format?: string
+      },
+    ): Promise<
+      { success: true; dataBase64: string; mediaType: string } | { success: false; error: string }
+    > => {
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (options.apiKey) {
+          headers['Authorization'] = `Bearer ${options.apiKey}`
+        }
+        const body: Record<string, unknown> = {
+          model: options.model,
+          input: options.input,
+          response_format: options.format || 'wav',
+        }
+        if (options.voice) {
+          body.voice = options.voice
+        }
+        const url = `${options.baseURL.replace(/\/$/, '')}/audio/speech`
+        const res = await net.fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '')
+          return { success: false, error: `Speech synthesis failed (${res.status}): ${detail}` }
+        }
+        const arrayBuffer = await res.arrayBuffer()
+        const mediaType = res.headers.get('content-type')?.split(';')[0]?.trim() || 'audio/wav'
+        const dataBase64 = Buffer.from(arrayBuffer).toString('base64')
+        return { success: true, dataBase64, mediaType }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to synthesize speech: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    },
+  )
+
   ipcMain.handle(
     'ensureOvmsImageReady',
     async (
@@ -1617,6 +1913,29 @@ function initEventHandle() {
     }
 
     return { success: false, error: 'Image server not supported' }
+  })
+
+  ipcMain.handle('stopOvmsChatServers', async (_event: IpcMainInvokeEvent) => {
+    if (!serviceRegistry) {
+      return { success: false, error: 'Service registry not ready' }
+    }
+    const service = serviceRegistry.getService('openvino-backend')
+    if (!service) {
+      return { success: false, error: 'OpenVINO backend service not found' }
+    }
+
+    if ('stopChatServers' in service && typeof service.stopChatServers === 'function') {
+      try {
+        await service.stopChatServers()
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to stop OVMS chat servers: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    }
+
+    return { success: false, error: 'Chat servers not supported' }
   })
 
   ipcMain.handle('getOvmsImageServerUrl', async (_event: IpcMainInvokeEvent) => {
@@ -1867,6 +2186,106 @@ function initEventHandle() {
     appLogger.warn(`MCP auto-detect failed: ${e}`, 'mcp')
   }
 
+  // Screenshot capture IPC handlers. `listWindows` is only ever called from the
+  // settings UI so the user can bind the screenshot tool to a single window;
+  // it is never exposed to the LLM. `captureWindow` only ever receives the
+  // user-bound window from the renderer (the tool has no window argument).
+
+  // macOS gates window/screen capture behind Screen Recording permission. When it
+  // is missing, `desktopCapturer.getSources` throws an opaque "Failed to get
+  // sources." — and crucially, once granted, the *running* app keeps failing until
+  // it is restarted. Convert both cases into an actionable message.
+  const SCREEN_PERMISSION_MESSAGE =
+    'Screen Recording permission is required to capture windows. On macOS, open System ' +
+    'Settings → Privacy & Security → Screen Recording, enable AI Playground (or Electron in ' +
+    'development), then fully quit and restart the app — newly granted permission does not ' +
+    'apply to the already-running process.'
+
+  function getScreenCaptureStatus():
+    | 'granted'
+    | 'denied'
+    | 'restricted'
+    | 'not-determined'
+    | 'unknown' {
+    if (process.platform !== 'darwin') return 'granted'
+    return systemPreferences.getMediaAccessStatus('screen')
+  }
+
+  async function getWindowSources(thumbnailSize: { width: number; height: number }) {
+    if (getScreenCaptureStatus() !== 'granted') {
+      throw new Error(SCREEN_PERMISSION_MESSAGE)
+    }
+    try {
+      return await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize,
+        fetchWindowIcons: false,
+      })
+    } catch (error) {
+      // On macOS this is almost always the "granted but not yet restarted" case.
+      if (process.platform === 'darwin') {
+        throw new Error(SCREEN_PERMISSION_MESSAGE)
+      }
+      throw error
+    }
+  }
+
+  ipcMain.handle('screenshot:getPermissionStatus', () => ({
+    platform: process.platform,
+    status: getScreenCaptureStatus(),
+  }))
+
+  ipcMain.on('screenshot:openPermissionSettings', () => {
+    if (process.platform === 'darwin') {
+      void shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+      )
+    }
+  })
+
+  ipcMain.handle('screenshot:listWindows', async () => {
+    const sources = await getWindowSources({ width: 320, height: 200 })
+    return sources
+      .filter((source) => source.name.trim().length > 0)
+      .map((source) => ({
+        id: source.id,
+        name: source.name,
+        thumbnailDataUrl: source.thumbnail.isEmpty() ? null : source.thumbnail.toDataURL(),
+      }))
+  })
+
+  ipcMain.handle(
+    'screenshot:captureWindow',
+    async (_event, target: { id: string; name: string }) => {
+      if (!target || typeof target.id !== 'string') {
+        throw new Error('screenshot:captureWindow: invalid target window')
+      }
+      // Capture at the primary display's pixel resolution (capped) so the
+      // screenshot is legible to a vision model rather than a tiny thumbnail.
+      const display = screen.getPrimaryDisplay()
+      const thumbnailSize = {
+        width: Math.min(Math.round(display.size.width * display.scaleFactor), 2560),
+        height: Math.min(Math.round(display.size.height * display.scaleFactor), 1600),
+      }
+      const sources = await getWindowSources(thumbnailSize)
+      // Source ids are not stable across app restarts, so fall back to matching
+      // by window title when the exact id is gone.
+      const source =
+        sources.find((s) => s.id === target.id) ?? sources.find((s) => s.name === target.name)
+      if (!source) {
+        throw new Error(
+          `Window "${target.name}" is no longer available. Ask the user to re-select the window to capture.`,
+        )
+      }
+      if (source.thumbnail.isEmpty()) {
+        throw new Error(
+          `Window "${target.name}" could not be captured (it may be minimized or hidden).`,
+        )
+      }
+      return source.thumbnail.toDataURL()
+    },
+  )
+
   // MCP server IPC handlers
   ipcMain.handle('mcp:startServer', async (_event, serverId: string) => {
     return await startMcpServer(serverId)
@@ -1894,6 +2313,44 @@ function initEventHandle() {
       return await invokeMcpServerTool(serverId, toolName, args)
     },
   )
+
+  // Web browser IPC handlers — drives the headless BrowserWindow that the chat
+  // LLM uses to browse the web (see subprocesses/webBrowserManager.ts).
+  ipcMain.handle('webBrowser:navigate', async (_event, url: string) => {
+    return await navigateWebBrowser(url)
+  })
+
+  ipcMain.handle('webBrowser:readPage', async () => {
+    return await readWebBrowserPage()
+  })
+
+  ipcMain.handle('webBrowser:search', async (_event, query: string, maxResults?: number) => {
+    return await searchWebBrowser(query, maxResults)
+  })
+
+  ipcMain.handle('webBrowser:interact', async (_event, interaction: WebBrowserInteraction) => {
+    return await interactWebBrowser(interaction)
+  })
+
+  ipcMain.handle('webBrowser:screenshot', async () => {
+    return await screenshotWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:show', () => {
+    return showWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:hide', () => {
+    return hideWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:close', () => {
+    return closeWebBrowser()
+  })
+
+  ipcMain.handle('webBrowser:getState', () => {
+    return getWebBrowserState()
+  })
 
   // MCP config file handlers
   // TODO: Consider consolidating with openImageWithSystem/openImageInFolder
@@ -2045,8 +2502,15 @@ function needAdminPermission() {
     fs.writeFile(filename, '', (err) => {
       if (err) {
         if (err && err.code == 'EPERM') {
-          if (path.parse(externalRes).root == path.parse(process.env.windir!).root) {
+          // windir is only defined on Windows; on Linux/macOS this check is skipped.
+          if (
+            process.platform === 'win32' &&
+            process.env.windir &&
+            path.parse(externalRes).root == path.parse(process.env.windir).root
+          ) {
             resolve(!isAdmin())
+          } else {
+            resolve(false)
           }
         } else {
           resolve(false)
@@ -2072,7 +2536,52 @@ function isAdmin(): boolean {
   }
 }
 
+/**
+ * Route Electron `net.fetch` traffic (llama.cpp / OVMS / remote-update
+ * downloads) through an HTTP(S) proxy when one is configured via the standard
+ * `*_proxy` environment variables. Chromium's network stack does not reliably
+ * honor these env vars on its own, so we read them and set the session proxy
+ * explicitly. No-op when no proxy is set, so direct-internet users are
+ * unaffected.
+ *
+ * Note: GUI launches (double-click from a file manager) do NOT inherit
+ * `http_proxy` exported in `~/.profile`/`~/.bashrc`; launch from a terminal
+ * where the vars are set, or configure a system-wide proxy.
+ */
+async function configureProxyFromEnv(): Promise<void> {
+  const proxy =
+    process.env.https_proxy ||
+    process.env.HTTPS_PROXY ||
+    process.env.http_proxy ||
+    process.env.HTTP_PROXY
+  if (!proxy) {
+    return
+  }
+  const noProxy = process.env.no_proxy || process.env.NO_PROXY
+  const proxyBypassRules = noProxy
+    ? noProxy
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .join(',')
+    : undefined
+  appLogger.info(
+    `Configuring Electron session proxy from environment: ${proxy}${
+      proxyBypassRules ? ` (bypass: ${proxyBypassRules})` : ''
+    }`,
+    'proxy',
+  )
+  await session.defaultSession.setProxy({ proxyRules: proxy, proxyBypassRules })
+}
+
 app.whenReady().then(async () => {
+  // Startup diagnostic — helps diagnose installation and configuration issues
+  appLogger.info(
+    `startup: isPackaged=${app.isPackaged} platform=${process.platform} DIST="${process.env.DIST}" userData="${app.getPath('userData')}"`,
+    'electron-backend',
+    true,
+  )
+
   /*
     The current user does not have write permission for files in the program directory and is not an administrator.
     Close the current program and let the user start the program with administrator privileges
@@ -2101,6 +2610,10 @@ app.whenReady().then(async () => {
     app.exit()
   } else {
     const settings = await loadSettings()
+
+    // Honor *_proxy env vars for all backend downloads (net.fetch) before any
+    // service setup kicks off.
+    await configureProxyFromEnv()
 
     initEventHandle()
 
