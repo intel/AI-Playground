@@ -55,15 +55,15 @@ export const EMBEDDABLE_PYTHON_URL =
   'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
 export const GET_PIP_SCRIPT_URL = 'https://bootstrap.pypa.io/get-pip.py'
 export const SEVEN_ZR_EXE_URL = {
-  win32: 'https://github.com/ip7z/7zip/releases/download/25.01/7zr.exe',
-  darwin: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz',
-  linux: 'https://github.com/ip7z/7zip/releases/download/25.01/7z2501-linux-x64.tar.xz',
+  win32: 'https://github.com/ip7z/7zip/releases/download/26.01/7zr.exe',
+  darwin: 'https://github.com/ip7z/7zip/releases/download/26.01/7z2601-mac.tar.xz',
+  linux: 'https://github.com/ip7z/7zip/releases/download/26.01/7z2601-linux-x64.tar.xz',
 }
 export const UV_URL = {
-  win32: 'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-x86_64-pc-windows-msvc.zip',
-  darwin: 'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-aarch64-apple-darwin.tar.gz',
+  win32: 'https://github.com/astral-sh/uv/releases/download/0.11.23/uv-x86_64-pc-windows-msvc.zip',
+  darwin: 'https://github.com/astral-sh/uv/releases/download/0.11.23/uv-aarch64-apple-darwin.tar.gz',
   linux:
-    'https://github.com/astral-sh/uv/releases/download/0.11.6/uv-x86_64-unknown-linux-gnu.tar.gz',
+    'https://github.com/astral-sh/uv/releases/download/0.11.23/uv-x86_64-unknown-linux-gnu.tar.gz',
 }
 export const XPU_SMI_URL = {
   win32:
