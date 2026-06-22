@@ -116,6 +116,15 @@
     "maxContextSize": 262144
   },
   {
+    "name": "unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf",
+    "mmproj": "unsloth/Qwen3.5-4B-GGUF/mmproj-BF16.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": true,
+    "supportsReasoning": true,
+    "maxContextSize": 262144
+  },
+  {
     "name": "unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-UD-Q4_K_XL.gguf",
     "mmproj": "unsloth/gemma-4-E4B-it-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",
@@ -259,6 +268,14 @@
     "supportsReasoning": true,
     "largeMoe": true,
     "maxContextSize": 262144
+  },
+  {
+    "name": "OpenVINO/Qwen3-8B-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": true,
+    "maxContextSize": 32768
   },
   {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",

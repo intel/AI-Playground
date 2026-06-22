@@ -7,8 +7,8 @@
   "tags": ["Advanced", "Manual", "Expert"],
   "backends": ["llamaCPP", "openVINO"],
   "preferredModels": {
-    "openVINO": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
-    "llamaCPP": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf"
+    "openVINO": "OpenVINO/Qwen3-8B-int4-cw-ov",
+    "llamaCPP": "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf"
   },
   "systemPrompt": "You are a helpful AI assistant.",
   "contextSize": 8192,

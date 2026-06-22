@@ -1365,6 +1365,10 @@ export class OpenVINOBackendService implements ApiService {
       const versionPath = this.releaseTag
         ? `weekly/${this.version}.${this.releaseTag}`
         : this.version
+      // The Windows package embeds the full version in its filename, e.g.
+      //   ovms_windows_2026.2.1_python_on.zip
+      candidates.push(`${storageBaseUrl}/${versionPath}/ovms_windows_${this.version}_python_on.zip`)
+      // Fallback to the legacy non-versioned name for older storage layouts.
       candidates.push(`${storageBaseUrl}/${versionPath}/ovms_windows_python_on.zip`)
     } else {
       // Detect the host Ubuntu version to pick the best OVMS build.
