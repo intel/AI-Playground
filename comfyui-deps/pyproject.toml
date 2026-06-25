@@ -9,15 +9,15 @@ dependencies = [
   "aiohttp>=3.13.5",
   "albumentations>=1.4.16",
   "alembic",
-  "av>=14.2.0",
+  "av>=16.0.0",
   "blake3",
   "chardet",
   "color-matcher",
-  "comfy-aimdo>=0.2.12",
-  "comfy-kitchen>=0.2.8",
-  "comfyui-embedded-docs==0.4.3",
-  "comfyui-frontend-package==1.42.11",
-  "comfyui-workflow-templates==0.9.57",
+  "comfy-aimdo==0.4.10",
+  "comfy-kitchen==0.2.10",
+  "comfyui-embedded-docs==0.5.4",
+  "comfyui-frontend-package==1.45.15",
+  "comfyui-workflow-templates==0.10.0",
   "diffusers>=0.38.0",
   "einops",
   "filelock",
@@ -64,7 +64,10 @@ dependencies = [
   "spandrel",
   "SQLAlchemy",
   "stringzilla==3.12.6",
-  "svglib",
+  # svglib pulls in rlpycairo -> pycairo, which has no Linux wheel and would be
+  # built from source (needs system cairo/pkg-config/meson). Exclude on Linux to
+  # keep installs toolchain-free; the few SVG-loading nodes are non-essential.
+  "svglib; sys_platform != 'linux'",
   "lxml>=6.1.0",
   "mako>=1.3.12",
   "timm>=0.9.2",
@@ -105,9 +108,9 @@ cuda = [
 python-preference = "only-managed"
 link-mode = "clone"
 index-strategy = "unsafe-best-match"
-required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 prerelease = "if-necessary-or-explicit"
-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 conflicts = [
   [
     { extra = "xpu" },

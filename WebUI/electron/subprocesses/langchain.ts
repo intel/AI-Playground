@@ -12,12 +12,12 @@ import { RecursiveCharacterTextSplitter } from '@langchain/classic/text_splitter
 
 import { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 
-import { createHash } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'
 import fs from 'fs'
 
 /** OpenAI SDK v6+ rejects empty-string apiKey; local embedding servers ignore this value. */
-const LOCAL_COMPAT_OPENAI_API_KEY = 'local-rag-placeholder'
+const LOCAL_COMPAT_OPENAI_API_KEY = process.env.AIPG_LOCAL_OPENAI_API_KEY?.trim() || randomUUID()
 
 let documentEmbeddingStore: LocalFileStore
 
@@ -66,7 +66,7 @@ async function addDocumentToRAGList(document: IndexedDocument): Promise<IndexedD
   const newDocument = {
     ...document,
     splitDB: splitDocument,
-    hash: await generateFileMD5Hash(document.filepath),
+    hash: await generateFileSHA256Hash(document.filepath),
   }
   return newDocument
 }
@@ -118,7 +118,7 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
   const cacheBackedEmbeddings = CacheBackedEmbeddings.fromBytesStore(
     underlyingEmbeddings,
     documentEmbeddingStore,
-    { namespace: createHash('md5').update(underlyingEmbeddings.model).digest('hex') },
+    { namespace: createHash('sha256').update(underlyingEmbeddings.model).digest('hex') },
   )
 
   const vectorStore = await MemoryVectorStore.fromDocuments(
@@ -139,10 +139,10 @@ async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[
   return result.filter(([_doc, score]) => score > 0.5).map(([doc, _score]) => doc)
 }
 
-async function generateFileMD5Hash(filePath: string): Promise<string> {
+async function generateFileSHA256Hash(filePath: string): Promise<string> {
   try {
     const fileBuffer = await readFile(filePath)
-    const hashSum = createHash('md5')
+    const hashSum = createHash('sha256')
     hashSum.update(fileBuffer)
     const hex = hashSum.digest('hex')
     return hex

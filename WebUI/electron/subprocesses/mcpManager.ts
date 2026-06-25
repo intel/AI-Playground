@@ -163,7 +163,8 @@ export async function startMcpServer(serverId: string): Promise<McpStatus> {
   })()
 
   pendingStarts.set(serverId, startPromise)
-  void startPromise.finally(() => pendingStarts.delete(serverId))
+  const clearPendingStart = () => pendingStarts.delete(serverId)
+  startPromise.then(clearPendingStart, clearPendingStart)
   return startPromise
 }
 

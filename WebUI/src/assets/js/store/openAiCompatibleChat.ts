@@ -16,15 +16,25 @@ import {
 } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { useTextInference } from './textInference'
-import { useConversations } from './conversations'
-import { aipgTools } from '../tools/tools'
+import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
+import { completeOrphanedToolParts } from './toolMessageSanitize'
+import { useErrors } from './errors'
+import { useActivities } from './activities'
+import { useConfirmations } from './confirmations'
+import { useI18N } from './i18n'
+import { createAppError, extractMessage, isCancellation } from '../errors/appError'
+import type { AppError } from '../errors/types'
+import { aipgTools, homeAgentTools } from '../tools/tools'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
-import * as toast from '../toast'
 import { LanguageModelV2ToolResultOutput, JSONSchema7 } from '@ai-sdk/provider'
 import { dynamicTool, jsonSchema } from '@ai-sdk/provider-utils'
 import { imageUrlToDataUri } from '@/lib/utils'
 import { getHomeAgentAuthToken, invalidateHomeAgentAuthToken } from '@/lib/loopbackAuth'
+
+// Web tools that share browseWeb's single "Browse the web" enablement toggle:
+// they all act on the same background browser browseWeb drives.
+const WEB_COMPANION_TOOLS = new Set(['searchWeb', 'interactWithWebPage', 'screenshotWebPage'])
 
 const LlamaCppRawValueTimingsSchema = z.object({
   cache_n: z.number(),
@@ -77,7 +87,25 @@ export const useOpenAiCompatibleChat = defineStore(
   () => {
     const textInference = useTextInference()
     const conversations = useConversations()
+    const errors = useErrors()
+    const activities = useActivities()
+    const confirmations = useConfirmations()
+    const i18nState = useI18N().state
     const manuallyStopped = ref(false)
+
+    // Last failure per conversation, captured in the chat `onError` hook. Lets
+    // callers (e.g. the Home Agent channel handlers) surface a turn's error even
+    // though stream failures are swallowed by `onError` and `generate()` returns
+    // normally. Cleared at the start of each turn and consumed via
+    // `consumeTurnError`.
+    const turnErrors = new Map<string, AppError>()
+
+    // Per-conversation AI SDK chat instances. Declared up here (before the
+    // `processing` computed and its safety-net watch below) because Vue evaluates
+    // a watch's source getter once eagerly at setup time; reading `chats` from a
+    // later `const` would otherwise hit the temporal dead zone ("Cannot access
+    // 'chats' before initialization"). Populated lazily via getOrCreateChat().
+    const chats: Record<string, Chat<AipgUiMessage>> = {}
 
     const processing = computed(() => {
       // If manually stopped, immediately return false to unblock UI
@@ -86,42 +114,97 @@ export const useOpenAiCompatibleChat = defineStore(
       return status === 'submitted' || status === 'streaming'
     })
 
+    // Safety net: when the active turn ends (completes, is stopped, or errors
+    // before onFinish), clear any lingering chat-scoped inference/tools activities
+    // so the status line can't get stuck (mirrors the generation watchdog).
+    watch(
+      () => processing.value,
+      (isProcessing, wasProcessing) => {
+        if (wasProcessing && !isProcessing) {
+          const key = conversations.activeKey
+          activities.endScope(
+            (a) =>
+              a.scope.kind === 'chat' &&
+              a.scope.conversationKey === key &&
+              (a.category === 'inference' || a.category === 'tools'),
+          )
+          // Settle any confirmation still awaiting input for this turn as
+          // declined, so a tool's execute() can never hang on a card the user
+          // will never see again (stopped/errored/navigated-away turn).
+          confirmations.cancelForConversation(key, false)
+        }
+      },
+    )
+
     const model = computed(() =>
       createOpenAICompatible({
         name: 'model',
         baseURL: `${textInference.currentBackendUrl}/v1/`,
         includeUsage: true,
-        fetch: async (url, init) => {
-          const requestUrl = new URL(url as string)
-          const currentBaseUrl = textInference.currentBackendUrl
-          if (currentBaseUrl) {
-            const latestBase = new URL(currentBaseUrl)
-            requestUrl.hostname = latestBase.hostname
-            requestUrl.port = latestBase.port
-          }
-          // When Home Agent is active, the LLM proxy lives behind the Home
-          // Agent Flask service. Attach the upstream inference URL header and
-          // the per-launch loopback auth token so the proxy accepts the call.
-          const upstreamUrl = textInference.homeAgentUpstreamUrl
-          if (upstreamUrl) {
-            let token = await getHomeAgentAuthToken()
-            const build = (t: string): RequestInit => {
-              const headers = new Headers(init?.headers)
-              headers.set('X-Upstream-Url', upstreamUrl)
-              if (t) headers.set('X-AIPG-Auth', t)
-              return { ...init, headers }
-            }
-            let response = await globalThis.fetch(requestUrl.toString(), build(token))
-            if (response.status === 401) {
-              invalidateHomeAgentAuthToken()
-              token = await getHomeAgentAuthToken(true)
-              if (token) {
-                response = await globalThis.fetch(requestUrl.toString(), build(token))
+        // For models that support toggling thinking (Qwen3 family, gemma4), send the
+        // explicit enable_thinking value so the toggle is authoritative regardless of
+        // the family's template default (Qwen3 defaults on, gemma4 defaults off). Both
+        // llama-server (--jinja) and OVMS (--reasoning_parser qwen3) honor this kwarg.
+        transformRequestBody: (args) =>
+          textInference.modelSupportsThinkingToggle
+            ? {
+                ...args,
+                chat_template_kwargs: {
+                  ...(args.chat_template_kwargs as Record<string, unknown> | undefined),
+                  enable_thinking: textInference.thinkingEnabled,
+                },
               }
+            : args,
+        fetch: async (url, init) => {
+          // Resolve the request against the latest backend URL each call, so a
+          // retry after a relaunch picks up the (possibly new) port.
+          const doFetch = async (): Promise<Response> => {
+            const requestUrl = new URL(url as string)
+            const currentBaseUrl = textInference.currentBackendUrl
+            if (currentBaseUrl) {
+              const latestBase = new URL(currentBaseUrl)
+              requestUrl.hostname = latestBase.hostname
+              requestUrl.port = latestBase.port
             }
-            return response
+            // When Home Agent is active, the LLM proxy lives behind the Home
+            // Agent Flask service. Attach the upstream inference URL header and
+            // the per-launch loopback auth token so the proxy accepts the call.
+            const upstreamUrl = textInference.homeAgentUpstreamUrl
+            if (upstreamUrl) {
+              let token = await getHomeAgentAuthToken()
+              const build = (t: string): RequestInit => {
+                const headers = new Headers(init?.headers)
+                headers.set('X-Upstream-Url', upstreamUrl)
+                if (t) headers.set('X-AIPG-Auth', t)
+                return { ...init, headers }
+              }
+              let response = await globalThis.fetch(requestUrl.toString(), build(token))
+              if (response.status === 401) {
+                invalidateHomeAgentAuthToken()
+                token = await getHomeAgentAuthToken(true)
+                if (token) {
+                  response = await globalThis.fetch(requestUrl.toString(), build(token))
+                }
+              }
+              return response
+            }
+            return globalThis.fetch(requestUrl.toString(), init)
           }
-          return globalThis.fetch(requestUrl.toString(), init)
+
+          try {
+            return await doFetch()
+          } catch (error) {
+            // A thrown fetch error (vs. an HTTP error status) means the request
+            // never reached a live server — typically the llama-server process
+            // crashed or wedged (connection refused / timeout). Don't retry a
+            // user-initiated abort. Otherwise relaunch the backend once (which
+            // re-probes health and relaunches a dead/hung server) and retry
+            // against the refreshed port.
+            if (init?.signal?.aborted) throw error
+            console.warn('Inference request failed; relaunching backend and retrying once:', error)
+            await textInference.ensureBackendReadiness()
+            return await doFetch()
+          }
         },
       }).chatModel(textInference.activeModel?.split('/').join('---') ?? ''),
     )
@@ -143,7 +226,35 @@ export const useOpenAiCompatibleChat = defineStore(
 
     function resolveBuiltinTools(): ToolSet {
       if (!textInference.aipgToolsEnabled) return {}
-      return { ...aipgTools }
+      const tools: ToolSet = {}
+      for (const [name, builtinTool] of Object.entries(aipgTools)) {
+        // searchWeb/interactWithWebPage/screenshotWebPage are companions to
+        // browseWeb (they search for, act on, or capture a page in the same
+        // background browser), so they all share the single "Browse the web" toggle.
+        const enablementKey = WEB_COMPANION_TOOLS.has(name) ? 'browseWeb' : name
+        // Per-tool enablement (off by default for opt-in tools like captureScreenshot).
+        if (!textInference.isBuiltinToolEnabled(enablementKey)) continue
+        // The screenshot tool needs a user-bound window and a vision-capable model
+        // (the model receives the capture as an image and can't use it otherwise).
+        if (
+          name === 'captureScreenshot' &&
+          (!textInference.screenshotWindow || !textInference.modelSupportsVision)
+        ) {
+          continue
+        }
+        // screenshotWebPage also delivers the page as an image, so it only makes
+        // sense for vision-capable models.
+        if (name === 'screenshotWebPage' && !textInference.modelSupportsVision) {
+          continue
+        }
+        tools[name] = builtinTool
+      }
+      // The Home Agent self-inspection/configuration tools are only meaningful
+      // for the Home Agent preset; never expose them to ordinary chat presets.
+      if (textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME) {
+        Object.assign(tools, homeAgentTools)
+      }
+      return tools
     }
 
     async function resolveMcpInstructions(): Promise<string> {
@@ -220,7 +331,14 @@ export const useOpenAiCompatibleChat = defineStore(
             } as JSONSchema7),
             execute: async (input) => {
               const args = input as Record<string, unknown>
-              return await window.electronAPI.mcp.invokeServerTool(server.id, mcpTool.name, args)
+              return await activities.track(
+                {
+                  category: 'tools',
+                  label: i18nState.COM_ACTIVITY_RUNNING_TOOL.replace('{tool}', mcpTool.name),
+                  scope: { kind: 'chat', conversationKey: conversations.activeKey },
+                },
+                () => window.electronAPI.mcp.invokeServerTool(server.id, mcpTool.name, args),
+              )
             },
           }) as ToolSet[string]
         }
@@ -250,30 +368,67 @@ export const useOpenAiCompatibleChat = defineStore(
         ? temporarySystemPrompts[requestConversationKey]
         : null
       const baseSystemPrompt = perConversationPrompt || textInference.systemPrompt
-      const mcpInstructions = await resolveMcpInstructions()
-      const systemPromptToUse = `${baseSystemPrompt}${mcpInstructions}`
-      let messages = await convertToModelMessages(m.messages)
-
-      // Convert aipg-media image URLs to base64 for the backend
-      messages = await Promise.all(
-        messages.map(async (msg) => {
-          if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg
-          const content = await Promise.all(
-            msg.content.map(async (part) => {
-              if (
-                part.type === 'file' &&
-                part.mediaType?.startsWith('image/') &&
-                typeof part.data === 'string' &&
-                part.data.startsWith('aipg-media://')
-              ) {
-                return { ...part, data: await imageUrlToDataUri(part.data) }
-              }
-              return part
-            }),
-          )
-          return { ...msg, content }
-        }),
+      const activityScope = {
+        kind: 'chat' as const,
+        conversationKey: requestConversationKey ?? conversations.activeKey,
+      }
+      const mcpInstructions = await activities.track(
+        { category: 'tools', label: i18nState.COM_ACTIVITY_PREPARING_TOOLS, scope: activityScope },
+        () => resolveMcpInstructions(),
       )
+      const systemPromptToUse = `${baseSystemPrompt}${mcpInstructions}`
+      // Self-heal orphaned tool calls (interrupted/stopped turns, HMR) before
+      // converting: an assistant tool-call with no matching result would make
+      // convertToModelMessages/streamText throw "Tool result is missing …" and
+      // brick the thread. See toolMessageSanitize.ts.
+      let messages = await convertToModelMessages(completeOrphanedToolParts(m.messages))
+      // [HA-DIAG] Temporary: gate perf logging to Home Agent turns. Declared here
+      // (not at the streamText callbacks) so the earlier image-trim block can log.
+      const haDiag = textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME
+
+      // Convert aipg-media image URLs to base64 for the backend (can be slow for
+      // large images), so surface it as an activity when there is anything to do.
+      const hasMediaToConvert = messages.some(
+        (msg) =>
+          msg.role === 'user' &&
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (part) =>
+              part.type === 'file' &&
+              typeof part.data === 'string' &&
+              part.data.startsWith('aipg-media://'),
+          ),
+      )
+      const convertMedia = async () =>
+        Promise.all(
+          messages.map(async (msg) => {
+            if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg
+            const content = await Promise.all(
+              msg.content.map(async (part) => {
+                if (
+                  part.type === 'file' &&
+                  part.mediaType?.startsWith('image/') &&
+                  typeof part.data === 'string' &&
+                  part.data.startsWith('aipg-media://')
+                ) {
+                  return { ...part, data: await imageUrlToDataUri(part.data) }
+                }
+                return part
+              }),
+            )
+            return { ...msg, content }
+          }),
+        )
+      messages = hasMediaToConvert
+        ? await activities.track(
+            {
+              category: 'tools',
+              label: i18nState.COM_ACTIVITY_READING_IMAGES,
+              scope: activityScope,
+            },
+            convertMedia,
+          )
+        : await convertMedia()
 
       // Filter out annotatedImageUrl json from tool results
       messages = messages.map((m) => {
@@ -299,6 +454,60 @@ export const useOpenAiCompatibleChat = defineStore(
         }
       })
 
+      // Screenshot tool results carry the capture as a data URI. The OpenAI-compatible
+      // provider JSON.stringifies a tool result's value into the tool message text, so
+      // the raw base64 would be sent as text (the model can't "see" it and the context
+      // explodes). Instead, replace the tool result with a short text and inject the
+      // capture as a real vision image in a following user message — the same path that
+      // user-uploaded images take (and which the backend actually supports).
+      type ChatModelMessage = (typeof messages)[number]
+      messages = messages.flatMap((m): ChatModelMessage[] => {
+        if (m.role !== 'tool') return [m]
+        const injectedImages: Array<{ mediaType: string; data: string; windowName: string }> = []
+        const content = m.content.map((part) => {
+          if (
+            part.type === 'tool-result' &&
+            (part.toolName === 'captureScreenshot' || part.toolName === 'screenshotWebPage') &&
+            part.output.type === 'json'
+          ) {
+            const value = part.output.value as {
+              ok?: boolean
+              windowName?: string
+              dataUri?: string
+            } | null
+            if (value?.ok && typeof value.dataUri === 'string') {
+              const mediaType =
+                value.dataUri.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)?.[1] ?? 'image/png'
+              const windowName =
+                value.windowName ?? (part.toolName === 'screenshotWebPage' ? 'web page' : 'window')
+              injectedImages.push({ mediaType, data: value.dataUri, windowName })
+              return {
+                ...part,
+                output: {
+                  type: 'text',
+                  value: `Screenshot of "${windowName}" captured. The image is attached in the following message.`,
+                } as LanguageModelV2ToolResultOutput,
+              }
+            }
+          }
+          return part
+        })
+        const rewritten = { ...m, content } as ChatModelMessage
+        if (injectedImages.length === 0) return [rewritten]
+        const imageMessage = {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Here is the captured screenshot to inspect:' },
+            ...injectedImages.map((img) => ({
+              type: 'file' as const,
+              mediaType: img.mediaType,
+              data: img.data,
+            })),
+          ],
+        } as ChatModelMessage
+        return [rewritten, imageMessage]
+      })
+
       // Filter out image parts from messages if model doesn't support vision
       if (!textInference.modelSupportsVision) {
         messages = messages.map((msg) => {
@@ -322,9 +531,88 @@ export const useOpenAiCompatibleChat = defineStore(
         })
       }
 
+      // Keep only the most recent images in the prompt. A vision model re-encodes
+      // (CLIP) every image in the history on every turn, so replaying old images
+      // makes each turn progressively slower as the conversation grows. Scan from
+      // the newest message backwards, keep the first MAX_HISTORY_IMAGES found, and
+      // replace all earlier ones with a short text placeholder. No-op without
+      // vision (images were already stripped above) or when there are at most that
+      // many images.
+      const MAX_HISTORY_IMAGES = 2
+      if (textInference.modelSupportsVision) {
+        let keptImages = 0
+        let droppedImages = 0
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const content = messages[i].content
+          if (!Array.isArray(content)) continue
+          let changed = false
+          const newContent = content.map((part) => {
+            const p = part as { type: string; mediaType?: string }
+            if (p.type !== 'file' || !p.mediaType?.startsWith('image/')) return part
+            if (keptImages < MAX_HISTORY_IMAGES) {
+              keptImages++
+              return part
+            }
+            changed = true
+            droppedImages++
+            return { type: 'text', text: '[earlier image omitted]' } as typeof part
+          })
+          if (changed)
+            messages[i] = { ...messages[i], content: newContent } as (typeof messages)[number]
+        }
+        if (haDiag && (keptImages || droppedImages)) {
+          console.log(`[HA-DIAG] images kept=${keptImages} droppedFromHistory=${droppedImages}`)
+        }
+      }
+
       // Only enable tools if model supports tool calling and tools are enabled
-      const availableTools = await resolveTools()
+      const availableTools = await activities.track(
+        { category: 'tools', label: i18nState.COM_ACTIVITY_PREPARING_TOOLS, scope: activityScope },
+        () => resolveTools(),
+      )
       const hasTools = Object.keys(availableTools).length > 0
+
+      // Surface the silent inference waits as an activity: before the first token the
+      // backend is prefilling the prompt/context ("Processing prompt…"); after a tool
+      // runs the model incorporates its output before continuing ("Processing
+      // results…"). Cleared on first content / tool call, re-armed after tool results.
+      // (Genuine chain-of-thought surfaces inline via reasoning-delta, which clears
+      // this — we are not relabelling real reasoning.)
+      let inferenceActivityId: string | null = null
+      let sawToolResult = false
+      const ensureInferenceActivity = () => {
+        if (!inferenceActivityId) {
+          inferenceActivityId = activities.begin({
+            category: 'inference',
+            label: sawToolResult
+              ? i18nState.COM_ACTIVITY_PROCESSING_RESULTS
+              : i18nState.COM_ACTIVITY_PROCESSING_PROMPT,
+            scope: activityScope,
+          })
+        }
+      }
+      const clearInferenceActivity = () => {
+        if (inferenceActivityId) {
+          activities.end(inferenceActivityId)
+          inferenceActivityId = null
+        }
+      }
+      ensureInferenceActivity()
+
+      // ── [HA-DIAG] Temporary Home Agent perf diagnostics ───────────────────
+      // Per-turn model + tool surface + prompt size, then per-step prefill
+      // timings and which tools were called. Metadata only — no prompt/response
+      // content. (`haDiag` is declared just after convertToModelMessages above.)
+      const diagTurnStart = Date.now()
+      let diagStepIdx = 0
+      if (haDiag) {
+        const toolNames = Object.keys(availableTools)
+        console.log(
+          `[HA-DIAG] turn start model=${textInference.activeModel} backend=${textInference.backend} ` +
+            `tools=${toolNames.length} [${toolNames.join(',')}] ` +
+            `systemPromptChars=${systemPromptToUse.length} inputMsgs=${messages.length} stepCap=20`,
+        )
+      }
 
       const result = await streamText({
         model: model.value,
@@ -334,6 +622,11 @@ export const useOpenAiCompatibleChat = defineStore(
         maxOutputTokens: textInference.maxTokens,
         temperature: textInference.temperature,
         includeRawChunks: true,
+        // Surfaced to tool execute() so tools (e.g. configureHomeAgent) know
+        // which conversation/channel they are running in.
+        experimental_context: {
+          conversationKey: requestConversationKey ?? conversations.activeKey,
+        },
         ...(hasTools
           ? {
               tools: availableTools,
@@ -341,6 +634,31 @@ export const useOpenAiCompatibleChat = defineStore(
             }
           : {}),
         onChunk: (chunk) => {
+          // Drive the inference activity: content/tool-call means the model is no
+          // longer waiting; a tool result means it will process that output next.
+          const chunkType = chunk.chunk.type
+          if (haDiag && (chunkType === 'tool-call' || chunkType === 'tool-result')) {
+            const c = chunk.chunk as { toolName?: string; toolCallId?: string }
+            // Prefill stats (promptN/cacheN/promptMs) are stable once prefill is
+            // done, so they're accurate here even though onStepFinish (which has
+            // the full step line) is delayed by tool execution on tool turns.
+            const t = timings
+            console.log(
+              `[HA-DIAG] ${chunkType} tool=${c.toolName ?? '?'} id=${c.toolCallId ?? '?'} ` +
+                `promptN=${t?.prompt_n ?? '?'} cacheN=${t?.cache_n ?? '?'} promptMs=${t?.prompt_ms == null ? '?' : Math.round(t.prompt_ms)}`,
+            )
+          }
+          if (
+            chunkType === 'text-delta' ||
+            chunkType === 'reasoning-delta' ||
+            chunkType === 'tool-call' ||
+            chunkType === 'tool-input-start'
+          ) {
+            clearInferenceActivity()
+          } else if (chunkType === 'tool-result') {
+            sawToolResult = true
+            ensureInferenceActivity()
+          }
           if (chunk.chunk.type === 'raw') {
             const rawValue = LlamaCppRawValueSchema.safeParse(chunk.chunk.rawValue)
             if (rawValue.success) {
@@ -416,8 +734,44 @@ export const useOpenAiCompatibleChat = defineStore(
             }
           }
         },
+        onStepFinish: (step) => {
+          if (haDiag) {
+            diagStepIdx++
+            const calls = step.toolCalls.map((c) => c.toolName).join(',') || 'none'
+            // `timings` (captured from llama.cpp raw chunks in onChunk) holds the
+            // just-finished step's numbers. promptN/promptMs = prefill size/time;
+            // cacheN = prefix tokens reused from the prompt cache (high = good);
+            // predN/predMs = tokens decoded and decode time. promptMs >> predMs with
+            // low cacheN means we are re-prefilling the whole history every step.
+            const t = timings
+            const ms = (v?: number) => (v == null ? '?' : Math.round(v))
+            console.log(
+              `[HA-DIAG] step ${diagStepIdx} finishReason=${step.finishReason} ` +
+                `inTok=${step.usage?.inputTokens ?? '?'} outTok=${step.usage?.outputTokens ?? '?'} ` +
+                `promptN=${t?.prompt_n ?? '?'} cacheN=${t?.cache_n ?? '?'} promptMs=${ms(t?.prompt_ms)} ` +
+                `predN=${t?.predicted_n ?? '?'} predMs=${ms(t?.predicted_ms)} ` +
+                `toolCalls=${step.toolCalls.length} [${calls}] textLen=${step.text?.length ?? 0}`,
+            )
+          }
+          // After a step that ran tool(s), the model processes their output before the
+          // next step's first token. Re-arm so that inter-step gap (e.g. the chat
+          // backend reloading after an image tool) isn't silent. Cleared on the next
+          // text/reasoning delta; the final step has no tool calls so it won't re-arm,
+          // and onFinish clears any straggler.
+          if (step.toolCalls.length > 0 || step.toolResults.length > 0) {
+            sawToolResult = true
+            ensureInferenceActivity()
+          }
+        },
         onFinish: (result) => {
           finishTime = Date.now()
+          if (haDiag) {
+            console.log(
+              `[HA-DIAG] turn done steps=${diagStepIdx} wallMs=${finishTime - diagTurnStart} ` +
+                `finalInTok=${result.usage?.inputTokens ?? '?'} finalOutTok=${result.usage?.outputTokens ?? '?'}`,
+            )
+          }
+          clearInferenceActivity()
           if (result.usage) {
             usage = result.usage
           } else if (usageFromRawChunk) {
@@ -473,8 +827,6 @@ export const useOpenAiCompatibleChat = defineStore(
       })
     }
 
-    const chats: Record<string, Chat<AipgUiMessage>> = {}
-
     function getOrCreateChat(conversationKey: string): Chat<AipgUiMessage> {
       const existing = chats[conversationKey]
       if (existing) return existing
@@ -488,6 +840,25 @@ export const useOpenAiCompatibleChat = defineStore(
           body: { timings_per_token: true, _aipgConversationKey: conversationKey },
         }),
         messages: conversations.conversationList[conversationKey],
+        // Single sink for streaming/transport/tool failures. Surface a toast only
+        // for the conversation the user is actively looking at; background threads
+        // (e.g. Home Agent side-channels) are recorded silently here and reported
+        // to their own channel in the deferred channel phase. A manual stop is not
+        // an error.
+        onError: (error) => {
+          if (manuallyStopped.value) return
+          const isActiveDesktop = conversationKey === conversations.activeKey
+          turnErrors.set(
+            conversationKey,
+            errors.report(error, {
+              category: 'inference',
+              code: 'inference/stream-failed',
+              userMessage: `Generation failed: ${extractMessage(error)}`,
+              surface: isActiveDesktop ? 'toast' : 'silent',
+              context: { conversationKey },
+            }),
+          )
+        },
       })
       chats[conversationKey] = chat
       return chat
@@ -570,27 +941,48 @@ export const useOpenAiCompatibleChat = defineStore(
       // 1b. Stamp meta so the thread keeps a record of its current profile.
       textInference.stampMetaForConversation(targetKey)
 
-      // 1c. Ensure backend and models are ready (using the now-reactivated globals)
-      await textInference.ensureReadyForInference()
-
       // Reset manual stop flag
       manuallyStopped.value = false
+      // Clear any prior failure so consumeTurnError only ever reflects this turn.
+      turnErrors.delete(targetKey)
 
-      // 2. Block if images attached to non-vision model (UI path only)
-      if (!sideChannel) {
-        if (fileInput.value.length > 0 && !textInference.modelSupportsVision) {
-          const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
-          if (hasImageFiles) {
-            const errorMessage =
-              'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
-            toast.error(errorMessage)
-            throw new Error(errorMessage)
-          }
+      // 2. Block if images attached to non-vision model (UI path only). Validate
+      //    before touching the backend so we don't load a model just to reject.
+      if (!sideChannel && fileInput.value.length > 0 && !textInference.modelSupportsVision) {
+        const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
+        if (hasImageFiles) {
+          throw errors.report(
+            createAppError({
+              category: 'validation',
+              code: 'inference/vision-unsupported',
+              userMessage:
+                'The selected model does not support image inputs. Please remove the images or select a vision-capable model.',
+              surface: 'toast',
+              context: { conversationKey: targetKey },
+            }),
+          )
         }
       }
 
-      // 3. Prepare RAG context (if RAG is enabled)
-      const ragContext = await textInference.prepareRagContext(question)
+      // 3. Ensure backend/models are ready and prepare RAG context. These run
+      //    before the stream starts, so failures never reach the Chat onError
+      //    hook — report them here (toast for the active desktop conversation).
+      let ragContext: Awaited<ReturnType<typeof textInference.prepareRagContext>>
+      try {
+        await textInference.ensureReadyForInference()
+        ragContext = await textInference.prepareRagContext(question)
+      } catch (error) {
+        // The user cancelling a required model download is not a failure — abort
+        // the turn quietly, keeping their prompt/attachments for a retry.
+        if (isCancellation(error)) return
+        throw errors.report(error, {
+          category: 'inference',
+          code: 'inference/preparation-failed',
+          userMessage: `Could not start generation: ${extractMessage(error)}`,
+          surface: sideChannel ? 'silent' : 'toast',
+          context: { conversationKey: targetKey },
+        })
+      }
       temporarySystemPrompts[targetKey] = ragContext.systemPrompt
 
       // 4. Get chat instance and send message
@@ -618,6 +1010,10 @@ export const useOpenAiCompatibleChat = defineStore(
         temporarySystemPrompts[targetKey] = null
       }
 
+      // The Chat onError hook records stream failures. A failed turn should keep
+      // the user's prompt/attachments for retry instead of clearing them.
+      const hadError = !!chat.error && !manuallyStopped.value
+
       const outgoingMessages = chat.messages
 
       // 5. Store RAG source in message metadata
@@ -631,8 +1027,8 @@ export const useOpenAiCompatibleChat = defineStore(
       // 6. Persist conversation (sanitize base64 image parts to aipg-media)
       conversations.updateConversation(outgoingMessages, targetKey)
 
-      // 7. Clear inputs
-      if (clearInputs) {
+      // 7. Clear inputs only on a clean turn, so failures/stops are retryable.
+      if (clearInputs && !hadError) {
         messageInput.value = ''
         fileInput.value = []
       }
@@ -651,7 +1047,18 @@ export const useOpenAiCompatibleChat = defineStore(
       textInference.ensureGlobalsMatchConversation(targetKey)
       textInference.stampMetaForConversation(targetKey)
 
-      await textInference.ensureReadyForInference()
+      try {
+        await textInference.ensureReadyForInference()
+      } catch (error) {
+        // Cancelling a required model download aborts the regenerate quietly.
+        if (isCancellation(error)) return
+        throw errors.report(error, {
+          category: 'inference',
+          code: 'inference/preparation-failed',
+          userMessage: `Could not start generation: ${extractMessage(error)}`,
+          context: { conversationKey: targetKey },
+        })
+      }
       manuallyStopped.value = false
 
       const chat = chats[targetKey]
@@ -703,6 +1110,15 @@ export const useOpenAiCompatibleChat = defineStore(
 
     const error = computed(() => chats[conversations.activeKey]?.error?.message)
 
+    // Read-and-clear the last failure for a conversation. Used by background
+    // callers (Home Agent channels) to relay a turn's error to the remote user,
+    // since stream failures are reported silently and never thrown.
+    function consumeTurnError(conversationKey: string): AppError | undefined {
+      const e = turnErrors.get(conversationKey)
+      turnErrors.delete(conversationKey)
+      return e
+    }
+
     return {
       chat: chats[conversations.activeKey],
       messages,
@@ -718,6 +1134,7 @@ export const useOpenAiCompatibleChat = defineStore(
       removeMessage,
       regenerate,
       error,
+      consumeTurnError,
     }
   },
   {

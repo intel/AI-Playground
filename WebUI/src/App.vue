@@ -178,7 +178,7 @@
           id="show-history-button"
           v-show="!uiStore.showHistory"
           @click="openHistory"
-          class="text-foreground px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-lg text-sm"
+          class="text-foreground px-3 py-1.5 bg-card border border-border shadow-sm hover:bg-muted rounded-lg text-sm"
         >
           {{ languages.COM_SHOW_HISTORY }}
         </button>
@@ -242,6 +242,9 @@
       v-show="dialogStore.installationProgressDialogVisible"
     ></installation-progress-dialog>
     <MaskEditorDialog />
+
+    <!-- Dev-only Home Agent mock channel for e2e testing -->
+    <MockChannelPanel v-if="debugToolsEnabled" />
 
     <!-- Demo Mode Overlay -->
     <DemoModeOverlayDriverJsRef ref="demoModeOverlayDriverJs" />
@@ -334,6 +337,7 @@ import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
 import DemoModeNotificationDots from '@/components/DemoModeNotificationDots.vue'
 import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 import HomeAgentToggle from '@/components/HomeAgentToggle.vue'
+import MockChannelPanel from '@/components/MockChannelPanel.vue'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 
 const theme = useTheme()
@@ -509,7 +513,7 @@ watch(
   (state) => {
     if (state === 'running' && demoMode.enabled) {
       void demoMode.applyExplicitDefaults()
-      setTimeout(() => startTour(), 2200)
+      window.setTimeout(startTour, 2200)
     }
   },
 )

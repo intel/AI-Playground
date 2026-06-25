@@ -11,11 +11,7 @@ export type ComfyUiDepsMarker = {
  * Normalize a user or git ref for comparison (trim, lowercase hex hashes).
  */
 export function normalizeComfyUiRef(ref: string): string {
-  const t = ref.trim()
-  if (/^[0-9a-f]{7,40}$/i.test(t)) {
-    return t.toLowerCase()
-  }
-  return t.toLowerCase()
+  return ref.trim().toLowerCase()
 }
 
 /**

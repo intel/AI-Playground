@@ -10,6 +10,9 @@
   "tags": ["dGPU", "high vRAM"],
   "backend": "comfyui",
   "category": "create-videos",
+  "toolCategory": "edit-images",
+  "mediaType": "video",
+  "toolInstructions": "Use this workflow to animate the most recent image in the conversation into a short video (image-to-video). Requires an existing image. Write a detailed prompt describing the subject, the action of the subject, the camera movement, and the background of the scene. Resource-intensive (high VRAM); only use when the user explicitly asks for a video.",
   "resolutionConfig": {
     "megapixels": [
       { "label": "0.25", "totalPixels": 262144 },

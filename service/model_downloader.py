@@ -1,6 +1,7 @@
 import concurrent.futures
 import os
 import queue
+import re
 import shutil
 import logging
 import time
@@ -200,9 +201,16 @@ class HFPlaygroundDownloader:
     ) -> bool:
         """
         Enumerate a specific file reference (e.g., namespace/repo/file.gguf).
-        Returns True if the specific file was successfully added, False otherwise.
+
+        When the referenced file is one shard of a split GGUF
+        (e.g. `model-00001-of-00003.gguf`), every sibling shard in the same folder
+        is enumerated so the whole model is downloaded, not just the single shard.
+        Returns True if at least one file was successfully added, False otherwise.
         """
         try:
+            if self.enum_split_gguf_shards(file_list, repo_id):
+                return True
+
             file_info = self.fs.info(repo_id)
             size = file_info.get("size", 0)
             self.total_size += size
@@ -218,6 +226,48 @@ class HFPlaygroundDownloader:
         except Exception as e:
             print(f"Warning: Failed to get info for specific file {repo_id}: {e}")
             return False
+
+    def enum_split_gguf_shards(self, file_list: List, repo_id: str) -> bool:
+        """If repo_id points at one shard of a split GGUF, enumerate every shard.
+
+        Matches the standard llama.cpp split naming `*-NNNNN-of-NNNNN.gguf` and lists
+        the sibling shards in the same folder so the complete model is queued. Returns
+        True when shards were added, False otherwise (caller falls back to single-file
+        handling).
+        """
+        basename = path.basename(repo_id)
+        shard_match = re.search(r"-\d{5}-of-\d{5}\.gguf$", basename)
+        if not shard_match:
+            return False
+
+        folder = repo_id.rsplit("/", 1)[0]
+        prefix = basename[: shard_match.start()]
+        try:
+            entries = self.fs.ls(folder, detail=True)
+        except Exception as e:
+            print(f"Warning: Failed to list split GGUF folder {folder}: {e}")
+            return False
+
+        added = False
+        for item in entries:
+            if item.get("type") == "directory":
+                continue
+            name = item.get("name")
+            base = path.basename(name)
+            if not (base.startswith(prefix) and re.search(r"-\d{5}-of-\d{5}\.gguf$", base)):
+                continue
+            size = item.get("size", 0)
+            self.total_size += size
+            relative_path = path.relpath(name, utils.trim_repo(repo_id))
+            subfolder = path.dirname(relative_path).replace("\\", "/")
+            filename = path.basename(relative_path)
+            url = hf_hub_url(
+                repo_id=utils.trim_repo(repo_id), subfolder=subfolder, filename=filename
+            )
+            file_list.append(HFFileItem(relative_path, size, url))
+            added = True
+
+        return added
 
     def populate_file_list(
         self, file_list: List, repo_id: str, model_type: str

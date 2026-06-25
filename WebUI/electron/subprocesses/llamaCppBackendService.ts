@@ -1,11 +1,17 @@
 import { exec, execFile, spawn, type ChildProcess } from 'node:child_process'
+import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as filesystem from 'fs-extra'
 import { app, net, type BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
+import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { createEnhancedErrorDetails, type ApiService, type ErrorDetails } from './service.ts'
-import { vulkanDeviceSelectorEnv } from './deviceDetection.ts'
+import {
+  vulkanDeviceSelectorEnv,
+  withSelectedDevice,
+  linuxHasVulkanLoader,
+} from './deviceDetection.ts'
 import type { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { binary, extract } from './tools.ts'
@@ -99,7 +105,7 @@ export class LlamaCppBackendService implements ApiService {
   readonly settings: LocalSettings
 
   // Service directories
-  readonly baseDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, '../../../')
+  readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
   readonly serviceDir: string
   readonly llamaCppSsdOffloadConfigPath: string
   devices: InferenceDevice[] = [{ id: '0', name: 'Auto select device', selected: true }]
@@ -203,10 +209,16 @@ export class LlamaCppBackendService implements ApiService {
 
     try {
       // Handle LLM model
+      // A running server is only ever torn down by its `exit` handler, so a
+      // process that wedged without exiting (GPU stall, hung worker) would keep
+      // its stale `isReady === true` and we'd route requests at a dead server
+      // forever. Re-probe `/health` so an unresponsive-but-alive server is
+      // treated as needing a relaunch, not reused.
+      const llmServerResponsive = await this.isLlmServerResponsive()
       const needsLlmRestart =
         this.currentLlmModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
-        !this.llamaLlmProcess?.isReady
+        !llmServerResponsive
 
       if (needsLlmRestart) {
         await this.stopLlamaLlmServer()
@@ -299,22 +311,20 @@ export class LlamaCppBackendService implements ApiService {
   private syncSetupFlagsFromDisk(): void {
     const wasSetUp = this.isSetUp
     this.isSetUp = this.computeIsSetUp()
-    if (!this.isSetUp) {
-      if (
-        wasSetUp &&
-        this.currentStatus !== 'installing' &&
-        this.currentStatus !== 'running' &&
-        this.currentStatus !== 'starting'
-      ) {
-        this.currentStatus = 'notInstalled'
-      }
-    } else {
-      if (
-        !wasSetUp &&
-        (this.currentStatus === 'notInstalled' || this.currentStatus === 'uninitializedStatus')
-      ) {
-        this.currentStatus = 'notYetStarted'
-      }
+    if (
+      !this.isSetUp &&
+      wasSetUp &&
+      this.currentStatus !== 'installing' &&
+      this.currentStatus !== 'running' &&
+      this.currentStatus !== 'starting'
+    ) {
+      this.currentStatus = 'notInstalled'
+    } else if (
+      this.isSetUp &&
+      !wasSetUp &&
+      (this.currentStatus === 'notInstalled' || this.currentStatus === 'uninitializedStatus')
+    ) {
+      this.currentStatus = 'notYetStarted'
     }
     if (this.currentStatus === 'uninitializedStatus') {
       this.currentStatus = 'notInstalled'
@@ -399,10 +409,18 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      this.devices = availableDevices.map((d, index) => ({
-        ...d,
-        selected: index === 0,
-      }))
+      // When the build exposes no GPU backend (e.g. the CPU-only ubuntu-x64
+      // build, or a Vulkan build without a usable ICD/driver), --list-devices
+      // returns nothing. Fall back to a single auto device so the UI selector
+      // always has a valid value (otherwise it renders with value=undefined).
+      this.devices =
+        availableDevices.length > 0
+          ? withSelectedDevice(
+              availableDevices.map((d) => ({ ...d, selected: false })),
+              this.settings.lastSelectedDevicePerBackend[this.name],
+              (ds) => ds[0],
+            )
+          : [{ id: '0', name: 'Auto select device', selected: true }]
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
       this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
@@ -688,9 +706,21 @@ export class LlamaCppBackendService implements ApiService {
   }
 
   private resolveDownloadUrl(): string {
+    // Linux: pick the GPU-accelerated Vulkan build when a Vulkan ICD loader is
+    // present, mirroring the win-vulkan-x64 build used on Windows. Falls back to
+    // the CPU-only ubuntu-x64 build when Vulkan isn't available.
+    const linuxArch = this.linuxHasVulkan() ? 'ubuntu-vulkan-x64' : 'ubuntu-x64'
+    if (process.platform === 'linux') {
+      this.appLogger.info(
+        linuxArch === 'ubuntu-vulkan-x64'
+          ? 'Linux Vulkan loader detected — using GPU (ubuntu-vulkan-x64) llama.cpp build'
+          : 'Linux Vulkan loader not found — using CPU-only (ubuntu-x64) llama.cpp build',
+        this.name,
+      )
+    }
     const platformArchMap: Record<string, string> = {
       darwin: 'macos-arm64',
-      linux: 'ubuntu-x64',
+      linux: linuxArch,
       win32: 'win-vulkan-x64',
     }
     const platformArch = platformArchMap[process.platform] ?? 'win-vulkan-x64'
@@ -700,6 +730,16 @@ export class LlamaCppBackendService implements ApiService {
       platformExtension,
       platformArch,
     )
+  }
+
+  /**
+   * Detect whether a Vulkan ICD loader is installed on Linux. When present we
+   * download the GPU-accelerated llama.cpp build so `--gpu-layers 999` offloads
+   * to the Intel GPU via Vulkan (same as Windows' win-vulkan-x64 build).
+   * Delegates to the shared, distro-robust + logged detector.
+   */
+  private linuxHasVulkan(): boolean {
+    return linuxHasVulkanLoader()
   }
 
   private async extractLlamacpp(): Promise<void> {
@@ -829,12 +869,13 @@ export class LlamaCppBackendService implements ApiService {
       return
     }
 
+    const activeDir = this.getActiveLlamaCppDir()
     const deleteScriptPath = path.join(
-      this.getActiveLlamaCppDir(),
+      activeDir,
       llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
     )
     const createScriptPath = path.join(
-      this.getActiveLlamaCppDir(),
+      activeDir,
       llamaCppPhison.LLAMACPP_SSD_OFFLOAD_CREATE_SERVICE_SCRIPT,
     )
 
@@ -844,8 +885,12 @@ export class LlamaCppBackendService implements ApiService {
       }
     }
 
-    await this.runElevatedBatchFile(deleteScriptPath)
-    await this.runElevatedBatchFile(createScriptPath)
+    // Run the delete + create service scripts inside a single elevated session so the user
+    // only sees one UAC prompt for the whole configure step instead of one prompt per script.
+    await this.runElevatedBatch(
+      [`call "${deleteScriptPath}"`, `call "${createScriptPath}"`],
+      activeDir,
+    )
   }
 
   private async stopSsdOffloadArtifactsForCleanup(): Promise<void> {
@@ -853,84 +898,67 @@ export class LlamaCppBackendService implements ApiService {
       return
     }
 
+    const activeDir = this.getActiveLlamaCppDir()
     const deleteScriptPath = path.join(
-      this.getActiveLlamaCppDir(),
+      activeDir,
       llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
     )
 
+    // Batch the service teardown and the ada.exe kill into a single elevated session so the
+    // user sees one UAC prompt rather than one for the delete script plus one for taskkill.
+    const commands: string[] = []
     if (filesystem.existsSync(deleteScriptPath)) {
-      try {
-        this.appLogger.info(`Stopping SSD offload Windows service before cleanup`, this.name)
-        await this.runElevatedBatchFile(deleteScriptPath)
-      } catch (error) {
-        this.appLogger.warn(
-          `Failed to stop SSD offload service with delete script before cleanup: ${error}`,
-          this.name,
-        )
-      }
+      commands.push(`call "${deleteScriptPath}"`)
     }
-
-    await this.killSsdOffloadProcess()
-  }
-
-  private async killSsdOffloadProcess(): Promise<void> {
-    if (process.platform !== 'win32') {
-      return
-    }
-
-    this.appLogger.info(
-      `Killing ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before SSD offload cleanup`,
-      this.name,
-    )
+    // taskkill returns a non-zero exit code when the process is not running; the batch script
+    // intentionally runs every line (no early exit) so best-effort teardown always completes.
+    commands.push(`taskkill /F /IM "${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME}" /T`)
 
     try {
-      await this.runElevatedCommand(
-        'taskkill.exe',
-        ['/F', '/IM', llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME, '/T'],
-        this.getActiveLlamaCppDir(),
+      this.appLogger.info(
+        `Stopping SSD offload Windows service and ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before cleanup`,
+        this.name,
       )
+      await this.runElevatedBatch(commands, activeDir)
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      const lowerMessage = message.toLowerCase()
-
-      if (
-        lowerMessage.includes('not found') ||
-        lowerMessage.includes('no running instance') ||
-        lowerMessage.includes('not recognized') ||
-        lowerMessage.includes('no instance')
-      ) {
-        return
-      }
-
       this.appLogger.warn(
-        `Failed to kill ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before cleanup: ${message}`,
+        `Failed to stop SSD offload artifacts before cleanup: ${error}`,
         this.name,
       )
     }
   }
 
-  private async runElevatedBatchFile(scriptPath: string): Promise<void> {
-    await this.runElevatedCommand(scriptPath, [], this.getActiveLlamaCppDir())
-  }
+  /**
+   * Runs one or more shell commands inside a single elevated (UAC) session.
+   *
+   * All steps are written to a temporary `.cmd` script launched once via
+   * `Start-Process -Verb RunAs -Wait`, so a multi-step elevated operation triggers a single
+   * UAC prompt instead of one prompt per step. Individual command failures do not abort the
+   * batch — the script runs every line so best-effort teardown steps (e.g. `taskkill` when
+   * nothing is running) cannot block the remaining work.
+   */
+  private async runElevatedBatch(commands: string[], workingDirectory: string): Promise<void> {
+    const steps = commands.filter((command) => command.trim().length > 0)
+    if (steps.length === 0) {
+      return
+    }
 
-  private async runElevatedCommand(
-    filePath: string,
-    args: string[],
-    workingDirectory: string,
-  ): Promise<void> {
-    this.appLogger.info(`Running elevated command ${filePath}`, this.name)
-    const escapedFilePath = filePath.replaceAll("'", "''")
+    this.appLogger.info(
+      `Running ${steps.length} elevated command(s) in a single UAC prompt`,
+      this.name,
+    )
+
+    const scriptPath = path.join(os.tmpdir(), `aipg-phison-elevated-${Date.now()}.cmd`)
+    const scriptBody = ['@echo off', ...steps].join('\r\n')
+    await filesystem.writeFile(scriptPath, scriptBody, 'utf8')
+
+    const escapedScriptPath = scriptPath.replaceAll("'", "''")
     const escapedWorkingDirectory = workingDirectory.replaceAll("'", "''")
-    const argumentList =
-      args.length > 0
-        ? ` -ArgumentList ${args.map((arg) => `'${arg.replaceAll("'", "''")}'`).join(', ')}`
-        : ''
-
     const powershellArgs = [
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      `Start-Process -FilePath '${escapedFilePath}'${argumentList} -WorkingDirectory '${escapedWorkingDirectory}' -Verb RunAs -Wait`,
+      `Start-Process -FilePath '${escapedScriptPath}' -WorkingDirectory '${escapedWorkingDirectory}' -Verb RunAs -Wait`,
     ]
 
     try {
@@ -946,7 +974,16 @@ export class LlamaCppBackendService implements ApiService {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Failed to run elevated command ${filePath}: ${message}`)
+      throw new Error(`Failed to run elevated batch: ${message}`)
+    } finally {
+      try {
+        await filesystem.remove(scriptPath)
+      } catch (cleanupError) {
+        this.appLogger.warn(
+          `Failed to remove temporary elevated script ${scriptPath}: ${cleanupError}`,
+          this.name,
+        )
+      }
     }
   }
 
@@ -1016,6 +1053,33 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
+  /**
+   * Liveness probe for the currently-tracked LLM server. Returns false when no
+   * server is tracked, the process has died, or `/health` does not answer within
+   * a short timeout (wedged/hung server). llama-server's `/health` is a trivial
+   * handler that stays responsive even mid-generation, so a short timeout will
+   * not produce false negatives for a merely-busy server.
+   */
+  private async isLlmServerResponsive(): Promise<boolean> {
+    const proc = this.llamaLlmProcess
+    if (!proc?.isReady || proc.process.killed) {
+      return false
+    }
+    try {
+      const response = await fetch(`http://127.0.0.1:${proc.port}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000),
+      })
+      return response.ok
+    } catch {
+      this.appLogger.warn(
+        `LLM server on port ${proc.port} failed health probe; will relaunch`,
+        this.name,
+      )
+      return false
+    }
+  }
+
   // Model server management methods
   private async startLlamaLlmServer(
     modelRepoId: string,
@@ -1081,20 +1145,35 @@ export class LlamaCppBackendService implements ApiService {
         isReady: false,
       }
 
-      // Set up process event handlers
-      childProcess.stdout!.on('data', (message) => {
-        const msg = message.toString()
-        if (msg.startsWith('I ')) {
-          this.appLogger.info(`[LLM] ${message}`, this.name)
-        } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[LLM] ${message}`, this.name)
-        } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[LLM] ${message}`, this.name)
-        }
-      })
+      // Track startup failures so we can surface an actionable error to the
+      // user instead of silently waiting out the full health-check timeout.
+      // The most common failure is the GPU running out of memory for the
+      // requested context size (KV cache + compute buffers), which makes
+      // llama-server abort during init.
+      let memoryFailureDetected = false
+      let processExited = false
+      let exitCode: number | null = null
 
-      childProcess.stderr!.on('data', (message) => {
+      const memoryFailureMarkers = [
+        'failed to allocate',
+        'out of memory',
+        'cannot meet free memory target',
+        'failed to create context',
+      ]
+      const scanForMemoryFailure = (msg: string) => {
+        const lower = msg.toLowerCase()
+        if (memoryFailureMarkers.some((marker) => lower.includes(marker))) {
+          memoryFailureDetected = true
+        }
+      }
+
+      const handleServerOutput = (message: Buffer | string) => {
         const msg = message.toString()
+        // Once a failure is detected the flag never flips back, so there's no
+        // need to keep scanning the (high-volume) startup output.
+        if (!memoryFailureDetected) {
+          scanForMemoryFailure(msg)
+        }
         if (msg.startsWith('I ')) {
           this.appLogger.info(`[LLM] ${message}`, this.name)
         } else if (msg.startsWith('W ')) {
@@ -1102,7 +1181,24 @@ export class LlamaCppBackendService implements ApiService {
         } else if (msg.startsWith('E ')) {
           this.appLogger.error(`[LLM] ${message}`, this.name)
         }
-      })
+      }
+
+      // Returns an actionable error message if the server has failed to start,
+      // otherwise null. Consumed by waitForServerReady to abort the wait early.
+      const getStartupError = (): string | null => {
+        if (memoryFailureDetected) {
+          return `Model failed to load: not enough memory to run "${modelRepoId}" with a context size of ${ctxSize}. Try reducing the context size and load the model again.`
+        }
+        if (processExited) {
+          return `Model failed to load: the server for "${modelRepoId}" exited unexpectedly (code ${exitCode}). This is often caused by running out of memory — try reducing the context size and load the model again.`
+        }
+        return null
+      }
+
+      // Set up process event handlers
+      childProcess.stdout!.on('data', handleServerOutput)
+
+      childProcess.stderr!.on('data', handleServerOutput)
 
       childProcess.on('error', (error: Error) => {
         this.appLogger.error(`LLM server process error: ${error}`, this.name)
@@ -1110,6 +1206,8 @@ export class LlamaCppBackendService implements ApiService {
 
       childProcess.on('exit', (code: number | null) => {
         this.appLogger.info(`LLM server process exited with code: ${code}`, this.name)
+        processExited = true
+        exitCode = code
         if (this.llamaLlmProcess === llamaProcess) {
           this.llamaLlmProcess = null
           this.currentLlmModel = null
@@ -1118,7 +1216,11 @@ export class LlamaCppBackendService implements ApiService {
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(`http://127.0.0.1:${port}/health`, childProcess)
+      await this.waitForServerReady(
+        `http://127.0.0.1:${port}/health`,
+        childProcess,
+        getStartupError,
+      )
       llamaProcess.isReady = true
 
       this.llamaLlmProcess = llamaProcess
@@ -1334,11 +1436,23 @@ export class LlamaCppBackendService implements ApiService {
     return modelPath
   }
 
-  private async waitForServerReady(healthUrl: string, process: ChildProcess): Promise<void> {
+  private async waitForServerReady(
+    healthUrl: string,
+    process: ChildProcess,
+    getStartupError?: () => string | null,
+  ): Promise<void> {
     const maxAttempts = this.llamaCppBuildVariant === 'ssd-offload' ? 500 : 120
     const delayMs = 1000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Abort early with an actionable message if the server has reported a
+      // fatal startup error (e.g. ran out of memory for the context size).
+      const startupError = getStartupError?.()
+      if (startupError) {
+        this.appLogger.error(startupError, this.name)
+        throw new Error(startupError)
+      }
+
       // Check if process has exited before attempting health check
       if (!process || process.killed) {
         this.appLogger.warn(

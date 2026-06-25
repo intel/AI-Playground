@@ -191,6 +191,7 @@ import {
   MediaItem,
   isVideo,
   is3D,
+  hasDisplayableMedia,
 } from '@/assets/js/store/imageGenerationPresets'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 import ThumbnailPreviewStrip from './ThumbnailPreviewStrip.vue'
@@ -222,6 +223,10 @@ const hasValidImageUrl = (image: MediaItem): boolean => {
 const nonQueuedImages = computed(() =>
   imageGeneration.generatedImages
     .filter((i) => i.state !== 'queued' && i.mode === props.mode)
+    // Hide cancelled/failed placeholder items that never produced media — a
+    // cancelled batch leaves empty 'stopped' items that would otherwise render
+    // as blank cards. 'generating' items are kept so their progress spinner shows.
+    .filter((i) => i.state === 'generating' || hasDisplayableMedia(i))
     .reverse(),
 )
 

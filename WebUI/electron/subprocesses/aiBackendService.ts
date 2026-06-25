@@ -139,7 +139,7 @@ export class AiBackendService extends LongLivedPythonApiService {
       PYTHONNOUSERSITE: 'true',
       PYTHONIOENCODING: 'utf-8',
       HF_ENDPOINT: this.settings.huggingfaceEndpoint,
-      PIP_CONFIG_FILE: 'nul',
+      PIP_CONFIG_FILE: process.platform === 'win32' ? 'nul' : '/dev/null',
       AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
     }
 

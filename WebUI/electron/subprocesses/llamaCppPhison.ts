@@ -10,7 +10,7 @@ type PhisonLogger = {
 }
 
 export const LLAMACPP_SSD_OFFLOAD_DOWNLOAD_URL_TEMPLATE =
-  'https://phisonbucket.s3.ap-northeast-1.amazonaws.com/aiDAPTIV_vNXWV_3_05T0B00.zip'
+  'https://phisonbucket.s3.ap-northeast-1.amazonaws.com/aiDAPTIV_vNXWVB_3_05.0.zip'
 export const LLAMACPP_SSD_OFFLOAD_CONFIG_NAME = 'aidaptiv_config.json'
 export const LLAMACPP_SSD_OFFLOAD_LEGACY_CONFIG_NAME = 'aidaptiv(303G0B).json'
 export const LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT = 'wService_delete.bat'
@@ -38,7 +38,7 @@ const LLAMACPP_SSD_OFFLOAD_DEFAULT_CONFIG = {
     offload_path: 'R:\\',
     debug_log_path: 'R:\\',
     dram_kv_offload_gb: 0,
-    ssd_kv_offload_gb: 10,
+    cache_kv_offload_gb: 10,
     kv_cache_resume_policy: true,
     vram_experts_cached_gb: 10,
   },
@@ -169,10 +169,21 @@ export async function updateSsdOffloadConfig(
 
   try {
     const config = await filesystem.readJson(configPath)
+    const aidaptiv = { ...(config.aidaptiv ?? {}) }
+
+    // Migrate the legacy `ssd_kv_offload_gb` key to `cache_kv_offload_gb`
+    // (the `--ssd-kv-offload-gb` flag was renamed to `--cache-kv-offload-gb`).
+    if ('ssd_kv_offload_gb' in aidaptiv) {
+      if (!('cache_kv_offload_gb' in aidaptiv)) {
+        aidaptiv.cache_kv_offload_gb = aidaptiv.ssd_kv_offload_gb
+      }
+      delete aidaptiv.ssd_kv_offload_gb
+    }
+
     const updatedConfig = {
       ...config,
       aidaptiv: {
-        ...(config.aidaptiv ?? {}),
+        ...aidaptiv,
         offload_path: offloadDrive,
         debug_log_path: offloadDrive,
       },

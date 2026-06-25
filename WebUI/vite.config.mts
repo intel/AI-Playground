@@ -19,7 +19,16 @@ export default defineConfig(({ command }) => {
     },
     plugins: [
       tailwindcss(),
-      vue(),
+      vue({
+        template: {
+          compilerOptions: {
+            // `<model-viewer>` (from @google/model-viewer) is a native custom
+            // element, not a Vue component. Without this Vue tries to resolve it
+            // as a component and logs "Failed to resolve component: model-viewer".
+            isCustomElement: (tag) => tag === 'model-viewer',
+          },
+        },
+      }),
       AutoImport({
         imports: ['vue'],
         dts: 'src/auto-import.d.ts',
@@ -32,7 +41,12 @@ export default defineConfig(({ command }) => {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */ '[startup] Electron App')
             } else {
-              options.startup()
+              // On Linux, Electron's setuid chrome-sandbox is usually not usable
+              // in dev (cache dir, non-root user), so it fails to start without
+              // `sudo chown root:root chrome-sandbox`. Pass --no-sandbox to skip
+              // it. This mirrors the runtime switch set in electron/main.ts.
+              const argv = process.platform === 'linux' ? ['.', '--no-sandbox'] : undefined
+              options.startup(argv)
             }
           },
           vite: {

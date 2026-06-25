@@ -4,5 +4,5 @@
   "currentTheme": "light",
   "isDemoModeEnabled": false,
   "openvinoImageGenDevices": ["CPU", "GPU"],
-  "isHomeAgentEnabled": false
+  "isHomeAgentEnabled": true
 }

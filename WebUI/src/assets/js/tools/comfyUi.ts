@@ -3,11 +3,14 @@ import { watch } from 'vue'
 import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
 import { useComfyUiPresets } from '../store/comfyUiPresets'
 import { useBackendServices } from '../store/backendServices'
+import { useActivities } from '../store/activities'
+import { useConversations } from '../store/conversations'
+import { useI18N } from '../store/i18n'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { chatBackends, restartChatBackend } from './chatBackends'
+import { stopChatBackends, restartChatBackend } from './chatBackends'
 import {
   DEFAULT_RESOLUTION_CONFIG,
   getResolutionsFromConfig,
@@ -15,7 +18,17 @@ import {
   findClosestResolutionInConfig,
 } from '../store/imageGenerationUtils'
 import type { ResolutionConfig, MegapixelOption } from '../store/presets'
+import { isCancellation } from '../errors/appError'
 import { tool } from 'ai'
+
+/**
+ * Idle/stall watchdog window. Instead of a hard cap on total generation time
+ * (which killed long-but-healthy renders like LTX image-to-video at ~80%), the
+ * timeout is reset every time ComfyUI reports progress (a change to the tracked
+ * media items, currentState, or stepText). It only fires when generation makes
+ * NO progress for this long — i.e. the backend is genuinely stuck.
+ */
+const GENERATION_IDLE_TIMEOUT_MS = 5 * 60_000
 
 // Global defaults as fallback (matching imageGenerationPresets.ts)
 const globalDefaultSettings = {
@@ -26,24 +39,6 @@ const globalDefaultSettings = {
   resolution: '704x384',
   batchSize: 4,
   negativePrompt: 'nsfw',
-}
-
-async function stopChatBackend(): Promise<void> {
-  console.log('[ComfyUI Tool] Stopping chat backend to free resources for image generation')
-  const backendServices = useBackendServices()
-
-  // Stop any running chat backends to free up memory/resources
-  for (const serviceName of chatBackends) {
-    const backend = backendServices.info.find((s) => s.serviceName === serviceName)
-    console.log(`[ComfyUI Tool] Checking backend "${serviceName}":`, backend)
-    try {
-      console.log(`[ComfyUI Tool]  Backend: ${serviceName}, status: ${backend?.status}`)
-      console.log(`[ComfyUI Tool] Stopping ${serviceName}...`)
-      await backendServices.stopService(serviceName)
-    } catch (error) {
-      console.warn(`[ComfyUI Tool] Failed to stop ${serviceName}:`, error)
-    }
-  }
 }
 
 // Helper function to get a sensible default megapixel tier from resolution config
@@ -76,8 +71,9 @@ export function getAvailableWorkflows(): Array<{
       if (preset.type !== 'comfy' || preset.backend !== 'comfyui') {
         return false
       }
-      // Only presets with toolCategory 'create-images'
-      return preset.toolCategory === 'create-images'
+      // Presets the create tool can drive from a prompt alone: images and
+      // text-to-video. Image-to-video presets live behind the edit tool.
+      return preset.toolCategory === 'create-images' || preset.toolCategory === 'create-videos'
     })
     .map((preset: Preset) => {
       const comfyPreset = preset as ComfyUiPreset
@@ -192,21 +188,44 @@ export async function executeComfyGeneration(args: {
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
   await delay(100)
 
-  if (!useDeveloperSettings().keepModelsLoaded) {
-    await stopChatBackend()
-  }
-
+  const activities = useActivities()
+  const conversations = useConversations()
+  const i18nState = useI18N().state
   const imageGeneration = useImageGenerationPresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
   const presets = usePresets()
 
-  // Helper to create error result instead of throwing
-  const createErrorResult = (message: string): ComfyUiToolOutput => ({
-    success: false,
-    message,
-    images: [],
+  // Surface the whole tool call as a chat activity ("Generating image…") and nest
+  // the image-gen FSM phases under it (via generationParentActivityId) so the chat
+  // status line shows live progress instead of a silent wait.
+  const toolActivityId = activities.begin({
+    category: 'tools',
+    label: i18nState.COM_ACTIVITY_GENERATING_IMAGE,
+    scope: { kind: 'chat', conversationKey: conversations.activeKey },
   })
+  imageGeneration.generationParentActivityId = toolActivityId
+  let toolActivityEnded = false
+  const finishToolActivity = (state: 'done' | 'failed' = 'done') => {
+    if (toolActivityEnded) return
+    toolActivityEnded = true
+    imageGeneration.generationParentActivityId = null
+    activities.end(toolActivityId, state)
+  }
+
+  // Helper to create error result instead of throwing
+  const createErrorResult = (message: string): ComfyUiToolOutput => {
+    finishToolActivity('failed')
+    return {
+      success: false,
+      message,
+      images: [],
+    }
+  }
+
+  if (!useDeveloperSettings().keepModelsLoaded) {
+    await stopChatBackends()
+  }
 
   // Ensure ComfyUI backend is running - this is unrecoverable
   const comfyUiService = backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
@@ -375,8 +394,13 @@ export async function executeComfyGeneration(args: {
     }
   }
 
-  // Set up temporary image tracking, using preset default for batchSize if not provided
-  const batchSize = args.batchSize ?? (getPresetDefault('batchSize') as number | null) ?? 1
+  // Set up temporary image tracking, using preset default for batchSize if not provided.
+  // Batching only makes sense for images (cheap alternates); video and 3D are
+  // expensive and a single result is expected, so force batchSize 1 for them
+  // regardless of what the model requested.
+  const presetMediaType = (preset?.mediaType as 'image' | 'video' | 'model3d') || 'image'
+  const requestedBatchSize = args.batchSize ?? (getPresetDefault('batchSize') as number | null) ?? 1
+  const batchSize = presetMediaType === 'image' ? requestedBatchSize : 1
   const imageIds: string[] = Array.from({ length: batchSize }, () => crypto.randomUUID())
 
   // Save original values
@@ -453,8 +477,8 @@ export async function executeComfyGeneration(args: {
       args.seed ?? (getPresetDefault('seed') as number | null) ?? globalDefaultSettings.seed
     imageGeneration.batchSize = batchSize
 
-    // Determine media type from preset, default to 'image'
-    const mediaType = (preset?.mediaType as 'image' | 'video' | 'model3d') || 'image'
+    // Media type from preset (computed above for batch clamping)
+    const mediaType = presetMediaType
 
     // Create media items in queued state
     imageIds.forEach((imageId) => {
@@ -496,16 +520,56 @@ export async function executeComfyGeneration(args: {
 
     console.log('[ComfyUI Tool] Generation started, waiting for completion')
 
-    // Wait for all images to complete
-    const result = await new Promise<ComfyUiToolOutput>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Image generation timed out after 5 minutes'))
-      }, 300000) // 5 minute timeout
+    // Wait for all images to reach a terminal state. Resolves with a structured
+    // error result (rather than hanging) when the generation fails, the backend
+    // stops, items are cancelled, or the watchdog/timeout fires.
+    const result = await new Promise<ComfyUiToolOutput>((resolve) => {
+      let timeout: ReturnType<typeof setTimeout> | null = null
+      let stopWatcher: (() => void) | null = null
 
-      const checkCompletion = () => {
-        const completedMedia = imageGeneration.generatedImages.filter(
+      const cleanup = () => {
+        if (timeout) {
+          clearTimeout(timeout)
+          timeout = null
+        }
+        if (stopWatcher) {
+          stopWatcher()
+          stopWatcher = null
+        }
+      }
+
+      // (Re)arm the idle watchdog. Called on every progress signal so the timer
+      // only elapses after a true stall, letting slow renders run to completion.
+      const armIdleTimeout = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => {
+          cleanup()
+          resolve(createErrorResult('ComfyUI generation stalled (no progress for 5 minutes)'))
+        }, GENERATION_IDLE_TIMEOUT_MS)
+      }
+
+      const trackedItems = () =>
+        imageGeneration.generatedImages.filter((item) => imageIds.includes(item.id))
+
+      const check = () => {
+        // Failure / cancellation: the generation errored or an item moved to a
+        // terminal non-success state. Don't keep waiting for a 'done' that will
+        // never arrive (this was the source of multi-minute tool-call stalls).
+        const failed =
+          imageGeneration.currentState === 'error' ||
+          trackedItems().some((item) => item.state === 'failed' || item.state === 'stopped')
+        if (failed) {
+          cleanup()
+          resolve(
+            createErrorResult(
+              `ComfyUI generation failed: ${imageGeneration.lastError ?? 'unknown error'}`,
+            ),
+          )
+          return
+        }
+
+        const completedMedia = trackedItems().filter(
           (item): item is MediaItem =>
-            imageIds.includes(item.id) &&
             item.state === 'done' &&
             ((item.type === 'image' && 'imageUrl' in item && !!item.imageUrl) ||
               (item.type === 'video' && 'videoUrl' in item && !!item.videoUrl) ||
@@ -513,7 +577,7 @@ export async function executeComfyGeneration(args: {
         )
 
         if (completedMedia.length >= batchSize) {
-          clearTimeout(timeout)
+          cleanup()
           const results = completedMedia.map((item) => {
             if (item.type === 'image') {
               return {
@@ -545,25 +609,29 @@ export async function executeComfyGeneration(args: {
         }
       }
 
-      // Check immediately in case images are already done
-      checkCompletion()
+      armIdleTimeout()
 
-      // Watch for changes
-      const stopWatcher = watch(
-        () => imageGeneration.generatedImages,
+      // Watch the media items, workflow state, and step text so failures surface
+      // immediately and each progress tick re-arms the idle watchdog. Clean the
+      // watcher up as soon as we settle.
+      stopWatcher = watch(
+        () => [
+          imageGeneration.generatedImages,
+          imageGeneration.currentState,
+          imageGeneration.stepText,
+        ],
         () => {
-          checkCompletion()
+          armIdleTimeout()
+          check()
         },
         { deep: true },
       )
 
-      // Clean up watcher on timeout
-      setTimeout(() => {
-        stopWatcher()
-      }, 300000)
+      // Check immediately in case the generation already settled.
+      check()
     })
 
-    console.log('[ComfyUI Tool] Generation completed successfully')
+    console.log('[ComfyUI Tool] Generation completed:', result.success === false ? 'error' : 'ok')
     return result
   } catch (error) {
     console.error('[ComfyUI Tool] Generation error:', error)
@@ -582,15 +650,30 @@ export async function executeComfyGeneration(args: {
       }
     })
 
+    // A user cancelling a required model download is not a tool failure — report
+    // it back to the model as a benign cancellation (the finally still cleans up).
+    if (isCancellation(error)) {
+      return {
+        success: false,
+        message: 'Image generation was cancelled by the user.',
+        images: [],
+      }
+    }
+
     // Return error result instead of throwing
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return createErrorResult(`ComfyUI generation failed: ${errorMessage}`)
   } finally {
+    // Keep the activity alive through cleanup so the post-generation window (which
+    // frees the GPU and restarts the chat backend — several seconds) isn't silent.
+    // Relabel it to reflect what's actually happening before the LLM responds.
     await restoreState()
     if (!useDeveloperSettings().keepModelsLoaded) {
+      activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
       await comfyUi.free()
       await restartChatBackend()
     }
+    finishToolActivity()
   }
 }
 

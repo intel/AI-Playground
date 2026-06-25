@@ -26,11 +26,13 @@ import { populateImageEditHistory } from '@/assets/js/store/demoModeDefaults'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { useDemoMode } from '@/assets/js/store/demoMode'
 import { usePresets } from '@/assets/js/store/presets'
+import { useErrors } from '@/assets/js/store/errors'
 
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const demoMode = useDemoMode()
 const presetsStore = usePresets()
+const errors = useErrors()
 
 const FALLBACK_SAMPLES: SamplePrompt[] = [
   {
@@ -78,7 +80,9 @@ const activeSample = computed(() => {
 
 function applySample(sample: SamplePrompt) {
   if (sample.mode === 'imageEdit') {
-    void populateImageEditHistory(imageGeneration, sample.presetName)
+    populateImageEditHistory(imageGeneration, sample.presetName).catch((e: unknown) =>
+      errors.report(e, { surface: 'silent' }),
+    )
   }
   promptStore.injectPromptText(sample.prompt)
   document.getElementById('prompt-input')?.focus()

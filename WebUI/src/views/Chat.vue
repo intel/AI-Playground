@@ -13,22 +13,19 @@
     v-if="
       (activeConversation && activeConversation.length > 0) ||
       openAiCompatibleChat.processing ||
-      textInference.isPreparingBackend
+      hasActiveChatActivity ||
+      hasPendingConfirmation
     "
     id="chatPanel"
     ref="chatPanel"
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 relative"
     @scroll="handleScroll"
   >
-    <div
-      class="sticky top-0 z-10 flex justify-center items-center bg-background/80 backdrop-blur-sm rounded-md py-4 px-6 mx-auto w-full max-w-md shadow-md"
-      v-if="textInference.isPreparingBackend"
-    >
-      <loading-bar :text="textInference.preparationMessage" class="w-full"></loading-bar>
-    </div>
-
     <!-- eslint-disable vue/require-v-for-key -->
-    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6">
+    <!-- pt-20 reserves space for the fixed "Show History" button (App.vue) so short
+         chats don't sit under it. For long chats this padding just scrolls out of
+         view, so no JS overflow detection is needed. -->
+    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6 pt-20">
       <template v-for="(message, i) in activeConversation">
         <!-- eslint-enable -->
         <div v-if="message.role === 'user'" class="flex items-start gap-3">
@@ -228,13 +225,90 @@
                       </div>
                     </div>
                   </template>
+                  <template v-else-if="isAipgTool(part) && part.type === 'tool-captureScreenshot'">
+                    <div>
+                      <div
+                        v-if="part.state === 'output-available' && (part as any).output?.dataUri"
+                      >
+                        <span class="text-muted-foreground">
+                          Captured screenshot of
+                          <b>{{ (part as any).output?.windowName ?? 'window' }}</b>
+                        </span>
+                        <img
+                          :src="(part as any).output.dataUri"
+                          :alt="`Screenshot of ${(part as any).output?.windowName ?? 'window'}`"
+                          class="mt-2 max-w-full rounded-md border-2 border-border"
+                        />
+                      </div>
+                      <div
+                        v-else-if="
+                          part.state === 'input-streaming' || part.state === 'input-available'
+                        "
+                      >
+                        <span class="text-muted-foreground">Capturing screenshot...</span>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else-if="isAipgTool(part) && part.type === 'tool-screenshotWebPage'">
+                    <div>
+                      <div
+                        v-if="part.state === 'output-available' && (part as any).output?.dataUri"
+                      >
+                        <span class="text-muted-foreground">Captured web page</span>
+                        <img
+                          :src="(part as any).output.dataUri"
+                          alt="Screenshot of the web page"
+                          class="mt-2 max-w-full rounded-md border-2 border-border"
+                        />
+                      </div>
+                      <div
+                        v-else-if="
+                          part.state === 'input-streaming' || part.state === 'input-available'
+                        "
+                      >
+                        <span class="text-muted-foreground">Capturing web page...</span>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else-if="isWebBrowsePart(part)">
+                    <ChatWebBrowseDisplay
+                      v-if="isFirstWebBrowsePart(message, partIndex)"
+                      :entries="webBrowseEntriesFor(message)"
+                    />
+                  </template>
                   <template v-else-if="isMcpTool(part)">
                     <ChatMcpToolDisplay :part="part" :state="part.state" />
                   </template>
+                  <template v-else>
+                    <ChatToolDisplay :part="part" :state="part.state" />
+                  </template>
                 </template>
               </template>
+
+              <!-- In-turn status inside the assistant bubble: thinking / tool /
+                   post-image-gen "reloading chat model" etc. Hidden while image
+                   generation is processing (ChatWorkflowResult shows that inline). -->
+              <ChatActivityIndicator
+                v-if="
+                  i === activeConversation.length - 1 &&
+                  hasActiveChatActivity &&
+                  !imageGeneration.processing
+                "
+                :conversation-key="conversations.activeKey"
+              />
+
+              <!-- Inline human-in-the-loop confirmation (e.g. Home Agent self-config).
+                   Mirrors remote-channel confirmations into the desktop window so
+                   the app never looks stuck while a tool awaits approval. -->
+              <ChatConfirmation
+                v-if="i === activeConversation.length - 1 && hasPendingConfirmation"
+                :conversation-key="conversations.activeKey"
+              />
             </div>
-            <div class="answer-tools flex gap-3 items-center text-muted-foreground">
+            <div
+              v-if="messageHasVisibleContent(message)"
+              class="answer-tools flex gap-3 items-center text-muted-foreground"
+            >
               <button
                 class="flex items-end"
                 :title="languages.COM_COPY"
@@ -242,6 +316,22 @@
               >
                 <span class="svg-icon i-copy w-4 h-4"></span>
                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+              </button>
+              <button
+                v-if="textToSpeech.enabled"
+                class="flex items-end"
+                title="Speak"
+                :disabled="openAiCompatibleChat.processing"
+                :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
+                @click="toggleSpeak(message)"
+              >
+                <span
+                  class="svg-icon w-4 h-4"
+                  :class="textToSpeech.speakingMessageId === message.id ? 'i-stop' : 'i-speaker'"
+                ></span>
+                <span class="text-xs ml-1">{{
+                  textToSpeech.speakingMessageId === message.id ? 'Stop' : 'Speak'
+                }}</span>
               </button>
               <button
                 class="flex items-end"
@@ -284,6 +374,20 @@
           </div>
         </div>
       </template>
+
+      <!-- Standalone status for the pre-bubble phase (backend/model prep before the
+           assistant message exists). Once the assistant bubble appears, the
+           indicator lives inside it (above) instead, to avoid a duplicate avatar. -->
+      <ChatActivityIndicator
+        v-if="hasActiveChatActivity && !lastMessageIsAssistant"
+        :conversation-key="conversations.activeKey"
+        with-avatar
+      />
+      <ChatConfirmation
+        v-if="hasPendingConfirmation && !lastMessageIsAssistant"
+        :conversation-key="conversations.activeKey"
+        with-avatar
+      />
     </div>
   </div>
 </template>
@@ -293,12 +397,21 @@ import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { useErrors } from '@/assets/js/store/errors'
+import { createAppError } from '@/assets/js/errors/appError'
+import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
+import ChatToolDisplay from '@/components/ChatToolDisplay.vue'
+import ChatWebBrowseDisplay, { type WebBrowseEntry } from '@/components/ChatWebBrowseDisplay.vue'
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
+import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
+import ChatConfirmation from '@/components/ChatConfirmation.vue'
+import { useConversations } from '@/assets/js/store/conversations'
+import { useActivities } from '@/assets/js/store/activities'
+import { useConfirmations } from '@/assets/js/store/confirmations'
 import {
   useImageGenerationPresets,
   type MediaItem,
@@ -310,10 +423,49 @@ import { aipgTools, AipgTools } from '@/assets/js/tools/tools'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
+const textToSpeech = useTextToSpeech()
 const textInference = useTextInference()
 const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const comfyUi = useComfyUiPresets()
+const conversations = useConversations()
+const activities = useActivities()
+const confirmations = useConfirmations()
+const errors = useErrors()
+
+// True while any activity (backend prep, thinking, tools, generation) is running
+// for the active conversation, so the chat panel stays visible to host the
+// in-turn activity indicator even before the first token streams.
+const hasActiveChatActivity = computed(
+  () => activities.chatActivity(conversations.activeKey, ['generation']) !== null,
+)
+
+// A tool (e.g. Home Agent self-config) is awaiting an inline yes/no for the
+// active conversation. Drives the ChatConfirmation card; also mirrors a pending
+// remote-channel confirmation into the desktop window.
+const hasPendingConfirmation = computed(
+  () => confirmations.forConversation(conversations.activeKey) !== null,
+)
+
+// Whether a message already shows something (streamed text, reasoning, or a tool
+// part). Used to suppress action buttons / show the activity indicator inside an
+// otherwise-empty in-progress assistant bubble.
+function messageHasVisibleContent(message: { parts?: { type: string; text?: string }[] }): boolean {
+  return (
+    message.parts?.some((part) => {
+      if (part.type === 'text') return stripAipgMediaImages(part.text ?? '').length > 0
+      if (part.type === 'reasoning') return true
+      return isToolOrDynamicToolUIPart(part as Parameters<typeof isToolOrDynamicToolUIPart>[0])
+    }) ?? false
+  )
+}
+
+// True when the last message is an assistant turn (its bubble already hosts the
+// activity indicator), so the standalone bottom indicator is only used earlier
+// (backend prep, before the assistant bubble exists).
+const lastMessageIsAssistant = computed(
+  () => activeConversation.value?.[activeConversation.value.length - 1]?.role === 'assistant',
+)
 
 const i18nState = useI18N().state
 const languages = i18nState
@@ -357,6 +509,19 @@ onMounted(() => {
   promptStore.registerCancelCallback('chat', handleCancel)
 })
 
+// When async content (e.g. a generated picture) finishes loading, the panel
+// grows after the initial scroll. Re-pin to the bottom on such load events so
+// the view doesn't lag behind. `load` doesn't bubble but does fire in the
+// capture phase, so a single listener on the container catches all images.
+watch(chatPanel, (el, _old, onCleanup) => {
+  if (!el) return
+  const onContentLoad = () => {
+    if (autoScrollEnabled.value) nextTick(() => scrollToBottom())
+  }
+  el.addEventListener('load', onContentLoad, true)
+  onCleanup(() => el.removeEventListener('load', onContentLoad, true))
+})
+
 onUnmounted(() => {
   promptStore.unregisterSubmitCallback('chat')
   promptStore.unregisterCancelCallback('chat')
@@ -387,7 +552,14 @@ watch(
 async function handlePromptSubmit(prompt: string) {
   const question = prompt.trim()
   if (question == '') {
-    toast.error(useI18N().state.ANSWER_ERROR_NOT_PROMPT)
+    errors.report(
+      createAppError({
+        category: 'validation',
+        code: 'inference/empty-prompt',
+        userMessage: i18nState.ANSWER_ERROR_NOT_PROMPT,
+        surface: 'toast',
+      }),
+    )
     promptStore.promptSubmitted = false
     return
   }
@@ -395,9 +567,12 @@ async function handlePromptSubmit(prompt: string) {
     nextTick(scrollToBottom)
     await openAiCompatibleChat.generate(question)
   } catch (error) {
-    // Reset state on any error (including download cancellation)
+    // generate() already reported via the sink; this catch just unblocks the UI
+    // (and the sink dedupes if we report an already-handled AppError). Model-load
+    // failures are surfaced separately via toast at the backend-readiness
+    // chokepoint (textInference.ensureBackendReadiness).
     promptStore.promptSubmitted = false
-    console.error('Error during text inference:', error)
+    errors.report(error, { category: 'inference', code: 'inference/generate-failed' })
   }
 }
 
@@ -413,12 +588,24 @@ function handleCancel() {
   promptStore.promptSubmitted = false
 }
 
+let lastScrollTop = 0
+
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement
-  const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight)
+  const scrollTop = target.scrollTop
+  const distanceFromBottom = target.scrollHeight - (scrollTop + target.clientHeight)
 
-  autoScrollEnabled.value = distanceFromBottom <= 35
   showScrollButton.value = distanceFromBottom > 60
+
+  // Only a genuine upward scroll (user dragging up) disables autoscroll.
+  // Programmatic scroll-to-bottom and content growth only move scrollTop down or
+  // leave it unchanged, so the smooth animation can't wrongly disable autoscroll.
+  if (scrollTop < lastScrollTop - 1) {
+    autoScrollEnabled.value = false
+  } else if (distanceFromBottom <= 35) {
+    autoScrollEnabled.value = true
+  }
+  lastScrollTop = scrollTop
 }
 
 function scrollToBottom(smooth = true) {
@@ -450,6 +637,35 @@ function getMessageTextForCopy(message: { parts: { type: string; text?: string }
     .filter((t) => t.length > 0)
     .join('\n\n')
 }
+
+function toggleSpeak(message: { id: string; parts: { type: string; text?: string }[] }): void {
+  if (textToSpeech.speakingMessageId === message.id) {
+    textToSpeech.stopSpeaking()
+    return
+  }
+  textToSpeech.speak(getMessageTextForCopy(message), message.id)
+}
+
+// Auto-play the assistant reply when the user's input came from speech.
+watch(
+  () => openAiCompatibleChat.processing,
+  (processing, wasProcessing) => {
+    if (!(wasProcessing && !processing)) return
+    if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
+    if (!textToSpeech.pendingVoiceTurn) return
+
+    textToSpeech.pendingVoiceTurn = false
+
+    const messages = openAiCompatibleChat.messages
+    const last = messages?.[messages.length - 1]
+    if (!last || last.role !== 'assistant') return
+
+    const text = getMessageTextForCopy(last)
+    if (text.trim().length > 0) {
+      textToSpeech.speak(text, last.id)
+    }
+  },
+)
 
 // Helper functions for AIPG tool rendering
 function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {
@@ -516,6 +732,57 @@ function isAipgTool(
 // Type guard to check if a part is an MCP tool (dynamic tool with mcp__ prefix)
 function isMcpTool(part: ToolUIPart<AipgTools> | DynamicToolUIPart): part is DynamicToolUIPart {
   return part.type === 'dynamic-tool' && part.toolName.startsWith('mcp__')
+}
+
+// Web-browsing tool parts (browseWeb + interactWithWebPage) are aggregated into a
+// single "Browsed N pages" trace element per assistant message.
+const webBrowsePartTypes = new Set(['tool-searchWeb', 'tool-browseWeb', 'tool-interactWithWebPage'])
+
+function isWebBrowsePart(part: ToolUIPart<AipgTools> | DynamicToolUIPart): boolean {
+  return isAipgTool(part) && webBrowsePartTypes.has(part.type)
+}
+
+type ChatMessage = NonNullable<typeof activeConversation.value>[number]
+
+function webBrowsePartsOf(message: ChatMessage) {
+  return (message.parts ?? []).filter((part) =>
+    isWebBrowsePart(part as ToolUIPart<AipgTools> | DynamicToolUIPart),
+  ) as ToolUIPart<AipgTools>[]
+}
+
+// Renders the aggregated component only at the position of the first browse part
+// so it appears once (in order) rather than per tool call.
+function isFirstWebBrowsePart(message: ChatMessage, partIndex: number): boolean {
+  const parts = message.parts ?? []
+  const firstIndex = parts.findIndex((part) =>
+    isWebBrowsePart(part as ToolUIPart<AipgTools> | DynamicToolUIPart),
+  )
+  return firstIndex === partIndex
+}
+
+function webBrowseEntriesFor(message: ChatMessage): WebBrowseEntry[] {
+  return webBrowsePartsOf(message).map((part) => {
+    const input = part.input as { url?: string; action?: string; query?: string } | undefined
+    if (part.type === 'tool-searchWeb') {
+      return {
+        toolCallId: part.toolCallId,
+        state: part.state,
+        title: input?.query ? `Search: "${input.query}"` : 'Web search',
+        action: 'search',
+        errorText: part.state === 'output-error' ? part.errorText : undefined,
+      }
+    }
+    const output = part.state === 'output-available' ? (part.output as WebPageSnapshot) : undefined
+    return {
+      toolCallId: part.toolCallId,
+      state: part.state,
+      title: output?.title,
+      url: output?.url,
+      requestedUrl: part.type === 'tool-browseWeb' ? input?.url : undefined,
+      action: part.type === 'tool-interactWithWebPage' ? input?.action : undefined,
+      errorText: part.state === 'output-error' ? part.errorText : undefined,
+    }
+  })
 }
 
 // Watch for new tool calls starting to initialize their image tracking

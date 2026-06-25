@@ -25,6 +25,17 @@ _NON_STREAM_READ_TIMEOUT_S = 300
 _STREAM_READ_TIMEOUT_S = 600
 
 
+def _safe_response_content_type(raw_content_type: str | None, default: str) -> str:
+    """Return only content types expected from OpenAI-compatible endpoints."""
+    if not raw_content_type:
+        return default
+
+    content_type = raw_content_type.split(";", maxsplit=1)[0].strip().lower()
+    if content_type in ("application/json", "text/event-stream"):
+        return content_type
+    return default
+
+
 def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Response:
     """Forward flask_request to upstream_url/v1/chat/completions."""
     target = upstream_url.rstrip("/") + "/v1/chat/completions"
@@ -61,21 +72,40 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
 
     if stream:
         def generate() -> Iterator[bytes]:
+            saw_done = False
             try:
                 for chunk in upstream_resp.iter_content(chunk_size=None):
+                    if b"[DONE]" in chunk:
+                        saw_done = True
                     yield chunk
+            except (requests.exceptions.ChunkedEncodingError,
+                    requests.exceptions.ConnectionError) as exc:
+                # The upstream LLM server was torn down mid-stream — this is
+                # expected when the app stops llama.cpp to free VRAM for image
+                # generation right after a tool-call has already been streamed.
+                # The meaningful payload is already delivered, so close the SSE
+                # stream cleanly with a synthetic terminator instead of letting
+                # a ConnectionReset bubble up as a network error that kills the
+                # whole agent turn (and never delivers the reply to the client).
+                logger.warning("Upstream stream interrupted, closing gracefully: %s", exc)
+                if not saw_done:
+                    yield b"data: [DONE]\n\n"
             finally:
                 upstream_resp.close()
 
         return Response(
             stream_with_context(generate()),
             status=upstream_resp.status_code,
-            content_type=upstream_resp.headers.get("Content-Type", "text/event-stream"),
+            content_type=_safe_response_content_type(
+                upstream_resp.headers.get("Content-Type"), "text/event-stream"
+            ),
         )
 
     return Response(
         upstream_resp.content,
         status=upstream_resp.status_code,
-        content_type=upstream_resp.headers.get("Content-Type", "application/json"),
+        content_type=_safe_response_content_type(
+            upstream_resp.headers.get("Content-Type"), "application/json"
+        ),
     )
 

@@ -28,7 +28,7 @@
         </AlertDialogContent>
       </AlertDialog>
       <button
-        v-show="mode === 'chat'"
+        v-show="mode === 'chat' && chatFilterKind !== 'homeAgent'"
         @click="selectNewConversation"
         class="svg-icon i-add w-7 h-7"
         :title="languages.COM_ADD"
@@ -44,6 +44,7 @@
     <HistoryChat
       v-show="props.mode == 'chat'"
       @conversation-selected="emit('conversationSelected')"
+      @filter-kind-change="(kind) => (chatFilterKind = kind)"
     />
     <HistoryWorkflow v-show="props.mode === 'imageGen'" mode="imageGen" />
     <HistoryWorkflow v-show="props.mode === 'imageEdit'" mode="imageEdit" />
@@ -54,7 +55,8 @@
 <script setup lang="ts">
 import HistoryChat from '@/components/HistoryChat.vue'
 import HistoryWorkflow from '@/components/HistoryWorkflow.vue'
-import { useConversations } from '@/assets/js/store/conversations.ts'
+import { ref } from 'vue'
+import { useConversations, type ThreadKind } from '@/assets/js/store/conversations.ts'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { mapModeToLabel } from '@/lib/utils.ts'
 import SideModalBase from '@/components/SideModalBase.vue'
@@ -72,6 +74,8 @@ import {
 
 const conversations = useConversations()
 const imageGeneration = useImageGenerationPresets()
+
+const chatFilterKind = ref<ThreadKind>('main')
 
 const props = defineProps<{
   mode: ModeType
