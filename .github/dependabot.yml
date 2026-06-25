@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/WebUI'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '04:00'
+      timezone: 'UTC'
+    commit-message:
+      prefix: 'chore(deps)'
+    labels:
+      - 'dependencies'
+      - 'javascript'
+    open-pull-requests-limit: 10
+    groups:
+      webui-dependencies:
+        patterns:
+          - '*'
+
+  - package-ecosystem: 'uv'
+    directory: '/comfyui-deps'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '04:15'
+      timezone: 'UTC'
+    commit-message:
+      prefix: 'chore(deps)'
+    labels:
+      - 'dependencies'
+      - 'python:uv'
+    open-pull-requests-limit: 10
+    groups:
+      comfyui-dependencies:
+        patterns:
+          - '*'
