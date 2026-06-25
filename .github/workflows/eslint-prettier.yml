@@ -11,6 +11,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npm run lint:ci
       - run: npm run format:ci
