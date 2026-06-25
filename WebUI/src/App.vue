@@ -513,7 +513,7 @@ watch(
   (state) => {
     if (state === 'running' && demoMode.enabled) {
       void demoMode.applyExplicitDefaults()
-      setTimeout(() => startTour(), 2200)
+      window.setTimeout(startTour, 2200)
     }
   },
 )

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BackendVersionSchema, useBackendServices } from '@/assets/js/store/backendServices'
+import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useI18N } from '@/assets/js/store/i18n'
 import {
   DropdownMenu,
@@ -18,7 +19,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
   Dialog,
@@ -27,7 +27,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   Form,
@@ -49,13 +48,18 @@ const props = defineProps<{
 }>()
 
 const backendServices = useBackendServices()
+const setupWizard = useSetupWizard()
 const i18nState = useI18N().state
 const backendStatus = computed(
   () => backendServices.info.find((s) => s.serviceName === props.backend)?.status ?? 'notInstalled',
 )
+const isSetUp = computed(
+  () => backendServices.info.find((s) => s.serviceName === props.backend)?.isSetUp ?? false,
+)
 
 const menuOpen = ref(false)
 const settingsDialogOpen = ref(false)
+const reinstallDialogOpen = ref(false)
 
 // Backend-specific validation schemas
 const getFormSchema = (backend: BackendServiceName) => {
@@ -109,6 +113,14 @@ const showReinstall = computed(() => {
 const showSettings = computed(() => {
   return ['comfyui-backend', 'llamacpp-backend', 'openvino-backend'].includes(props.backend)
 })
+const showHomeAgentSetup = computed(() => {
+  return props.backend === 'home-agent-backend' && isSetUp.value
+})
+
+const handleHomeAgentSetup = () => {
+  menuOpen.value = false
+  void setupWizard.openHomeAgentSetup()
+}
 
 // Get backend-specific placeholders and descriptions
 const getVersionPlaceholder = (backend: BackendServiceName) => {
@@ -166,10 +178,15 @@ const getInitialFormValues = () => {
   return values
 }
 // Handler for reinstalling a service with enhanced error handling
-const handleReinstall = async () => {
+const handleReinstall = async (versionToInstall?: { version?: string; releaseTag?: string }) => {
   try {
     await backendServices.uninstallService(props.backend)
-    const setupResult = await backendServices.setUpService(props.backend)
+    const setupResult = await backendServices.setUpService(
+      props.backend,
+      versionToInstall?.version
+        ? { version: versionToInstall.version, releaseTag: versionToInstall.releaseTag }
+        : undefined,
+    )
 
     if (setupResult.success) {
       try {
@@ -321,7 +338,8 @@ const versionActionClass = computed(() => {
 // Handler for version action - clears override and reinstalls
 const handleVersionAction = async () => {
   menuOpen.value = false
-  await handleReinstall()
+  // Install the version the button advertises (uiOverride ?? target), not the one already installed.
+  await handleReinstall(getEffectiveTarget(props.backend))
 }
 
 // Check if user has set a custom override
@@ -346,7 +364,11 @@ const clearOverride = () => {
 }
 
 const showMenuButton = computed(
-  () => showReinstall.value || showSettings.value || showVersionAction.value,
+  () =>
+    showReinstall.value ||
+    showSettings.value ||
+    showVersionAction.value ||
+    showHomeAgentSetup.value,
 )
 </script>
 
@@ -365,225 +387,208 @@ const showMenuButton = computed(
         {{ versionActionLabel }}
       </DropdownMenuItem>
 
-      <AlertDialog
-        v-if="showReinstall"
-        @update:open="
-          (open: boolean) => {
-            if (!open) menuOpen = false
-          }
-        "
-      >
-        <AlertDialogTrigger asChild
-          ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
-            i18nState.BACKEND_REINSTALL
-          }}</DropdownMenuItem></AlertDialogTrigger
-        >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{{ i18nState.BACKEND_CONFIRM }}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {{
-                i18nState.BACKEND_REINSTALL_DESCRIPTION.replace(
-                  '{backend}',
-                  mapServiceNameToDisplayName(backend),
-                )
-              }}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
-            <AlertDialogAction @click="handleReinstall">{{
-              i18nState.COM_CONTINUE
-            }}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DropdownMenuItem v-if="showHomeAgentSetup" @select="handleHomeAgentSetup">{{
+        i18nState.COM_GO_TO_SETUP || 'Setup'
+      }}</DropdownMenuItem>
 
-      <Dialog
-        v-if="showSettings"
-        @update:open="
-          (open: boolean) => {
-            if (!open) menuOpen = false
-          }
-        "
-        v-model:open="settingsDialogOpen"
-      >
-        <DialogTrigger asChild
-          ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
-            i18nState.COM_SETTINGS
-          }}</DropdownMenuItem></DialogTrigger
-        >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{{
-              i18nState.BACKEND_SETTINGS_TITLE.replace(
-                '{backend}',
-                mapServiceNameToDisplayName(backend),
-              )
-            }}</DialogTitle>
-            <DialogDescription>
-              {{
-                i18nState.BACKEND_SETTINGS_DESCRIPTION.replace(
-                  '{backend}',
-                  mapServiceNameToDisplayName(backend),
-                )
-              }}
-            </DialogDescription>
-          </DialogHeader>
+      <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
+        i18nState.BACKEND_REINSTALL
+      }}</DropdownMenuItem>
 
-          <Form
-            v-if="settingsDialogOpen"
-            v-slot="{ handleSubmit }"
-            as=""
-            :initial-values="getInitialFormValues()"
-            keep-values
-            :validation-schema="formSchema"
-          >
-            <form
-              id="dialogForm"
-              @submit="
-                handleSubmit($event, (values) => {
-                  console.log('Form submitted with values:', values)
-                  const override = BackendVersionSchema.parse(values)
-
-                  backendServices.versionState[props.backend].uiOverride = override
-
-                  // Save comfyUiParameters separately (not part of version override)
-                  if (props.backend === 'comfyui-backend' && 'comfyUiParameters' in values) {
-                    const params = (values as { comfyUiParameters?: string }).comfyUiParameters
-                    // Store null if empty or matches default (meaning 'use default')
-                    backendServices.comfyUiParameters =
-                      !params || params === backendServices.comfyUiDefaultParameters ? null : params
-                  }
-
-                  // Save llamaCppParameters separately (not part of version override)
-                  if (props.backend === 'llamacpp-backend' && 'llamaCppParameters' in values) {
-                    const params = (values as { llamaCppParameters?: string }).llamaCppParameters
-                    backendServices.llamaCppParameters =
-                      !params || params === backendServices.llamaCppDefaultParameters
-                        ? null
-                        : params
-                  }
-
-                  settingsDialogOpen = false
-                  menuOpen = false
-                })
-              "
-            >
-              <!-- Version fields (single version + optional release tag for OpenVINO) -->
-              <FormField v-slot="{ componentField }" name="version">
-                <FormItem>
-                  <FormLabel>{{ i18nState.BACKEND_VERSION }}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      :placeholder="getVersionPlaceholder(backend)"
-                      v-bind="componentField"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {{ getVersionDescription(backend) }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
-
-              <!-- OpenVINO weekly release tag -->
-              <FormField
-                v-if="backend === 'openvino-backend'"
-                v-slot="{ componentField }"
-                name="releaseTag"
-              >
-                <FormItem class="mt-4">
-                  <FormLabel>{{ i18nState.BACKEND_RELEASE_TAG || 'Release Tag' }}</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="72cc0624" v-bind="componentField" />
-                  </FormControl>
-                  <FormDescription>
-                    {{
-                      i18nState.BACKEND_OPENVINO_RELEASE_TAG_DESCRIPTION ||
-                      'Hex commit hash for weekly builds. Leave empty to use a regular release.'
-                    }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
-
-              <!-- ComfyUI startup parameters -->
-              <FormField
-                v-if="backend === 'comfyui-backend'"
-                v-slot="{ componentField }"
-                name="comfyUiParameters"
-              >
-                <FormItem class="mt-4">
-                  <FormLabel>{{
-                    i18nState.BACKEND_COMFYUI_PARAMETERS_LABEL || 'Startup Parameters'
-                  }}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      :placeholder="backendServices.comfyUiDefaultParameters"
-                      v-bind="componentField"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {{
-                      i18nState.BACKEND_COMFYUI_PARAMETERS_DESCRIPTION ||
-                      'Command-line arguments passed to ComfyUI on startup. Restart required to apply changes.'
-                    }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
-
-              <FormField
-                v-if="backend === 'llamacpp-backend'"
-                v-slot="{ componentField }"
-                name="llamaCppParameters"
-              >
-                <FormItem class="mt-4">
-                  <FormLabel>{{
-                    i18nState.BACKEND_LLAMACPP_PARAMETERS_LABEL || 'Startup Parameters'
-                  }}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      :placeholder="backendServices.llamaCppDefaultParameters"
-                      v-bind="componentField"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {{
-                      i18nState.BACKEND_LLAMACPP_PARAMETERS_DESCRIPTION ||
-                      'Command-line arguments passed to llama-server on startup. Applied on next model load.'
-                    }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
-            </form>
-          </Form>
-
-          <DialogFooter class="gap-2">
-            <Button
-              v-if="hasUserOverride"
-              type="button"
-              variant="outline"
-              class="px-3 py-1.5 rounded text-sm"
-              @click="clearOverride"
-            >
-              Clear Override
-            </Button>
-            <Button
-              type="submit"
-              form="dialogForm"
-              class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded text-sm"
-            >
-              {{ i18nState.BACKEND_SAVE_CHANGES }}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DropdownMenuItem v-if="showSettings" @select="settingsDialogOpen = true">{{
+        i18nState.COM_SETTINGS
+      }}</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
+
+  <AlertDialog v-if="showReinstall" v-model:open="reinstallDialogOpen">
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{{ i18nState.BACKEND_CONFIRM }}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {{
+            i18nState.BACKEND_REINSTALL_DESCRIPTION.replace(
+              '{backend}',
+              mapServiceNameToDisplayName(backend),
+            )
+          }}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
+        <AlertDialogAction @click="handleReinstall">{{ i18nState.COM_CONTINUE }}</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+
+  <Dialog v-if="showSettings" v-model:open="settingsDialogOpen">
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>{{
+          i18nState.BACKEND_SETTINGS_TITLE.replace(
+            '{backend}',
+            mapServiceNameToDisplayName(backend),
+          )
+        }}</DialogTitle>
+        <DialogDescription>
+          {{
+            i18nState.BACKEND_SETTINGS_DESCRIPTION.replace(
+              '{backend}',
+              mapServiceNameToDisplayName(backend),
+            )
+          }}
+        </DialogDescription>
+      </DialogHeader>
+
+      <Form
+        v-if="settingsDialogOpen"
+        v-slot="{ handleSubmit }"
+        as=""
+        :initial-values="getInitialFormValues()"
+        keep-values
+        :validation-schema="formSchema"
+      >
+        <form
+          id="dialogForm"
+          @submit="
+            handleSubmit($event, (values) => {
+              console.log('Form submitted with values:', values)
+              const override = BackendVersionSchema.parse(values)
+
+              backendServices.versionState[props.backend].uiOverride = override
+
+              // Save comfyUiParameters separately (not part of version override)
+              if (props.backend === 'comfyui-backend' && 'comfyUiParameters' in values) {
+                const params = (values as { comfyUiParameters?: string }).comfyUiParameters
+                // Store null if empty or matches default (meaning 'use default')
+                backendServices.comfyUiParameters =
+                  !params || params === backendServices.comfyUiDefaultParameters ? null : params
+              }
+
+              // Save llamaCppParameters separately (not part of version override)
+              if (props.backend === 'llamacpp-backend' && 'llamaCppParameters' in values) {
+                const params = (values as { llamaCppParameters?: string }).llamaCppParameters
+                backendServices.llamaCppParameters =
+                  !params || params === backendServices.llamaCppDefaultParameters ? null : params
+              }
+
+              settingsDialogOpen = false
+              menuOpen = false
+            })
+          "
+        >
+          <!-- Version fields (single version + optional release tag for OpenVINO) -->
+          <FormField v-slot="{ componentField }" name="version">
+            <FormItem>
+              <FormLabel>{{ i18nState.BACKEND_VERSION }}</FormLabel>
+              <FormControl>
+                <Input
+                  type="text"
+                  :placeholder="getVersionPlaceholder(backend)"
+                  v-bind="componentField"
+                />
+              </FormControl>
+              <FormDescription>
+                {{ getVersionDescription(backend) }}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+
+          <!-- OpenVINO weekly release tag -->
+          <FormField
+            v-if="backend === 'openvino-backend'"
+            v-slot="{ componentField }"
+            name="releaseTag"
+          >
+            <FormItem class="mt-4">
+              <FormLabel>{{ i18nState.BACKEND_RELEASE_TAG || 'Release Tag' }}</FormLabel>
+              <FormControl>
+                <Input type="text" placeholder="72cc0624" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>
+                {{
+                  i18nState.BACKEND_OPENVINO_RELEASE_TAG_DESCRIPTION ||
+                  'Hex commit hash for weekly builds. Leave empty to use a regular release.'
+                }}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+
+          <!-- ComfyUI startup parameters -->
+          <FormField
+            v-if="backend === 'comfyui-backend'"
+            v-slot="{ componentField }"
+            name="comfyUiParameters"
+          >
+            <FormItem class="mt-4">
+              <FormLabel>{{
+                i18nState.BACKEND_COMFYUI_PARAMETERS_LABEL || 'Startup Parameters'
+              }}</FormLabel>
+              <FormControl>
+                <Input
+                  type="text"
+                  :placeholder="backendServices.comfyUiDefaultParameters"
+                  v-bind="componentField"
+                />
+              </FormControl>
+              <FormDescription>
+                {{
+                  i18nState.BACKEND_COMFYUI_PARAMETERS_DESCRIPTION ||
+                  'Command-line arguments passed to ComfyUI on startup. Restart required to apply changes.'
+                }}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+
+          <FormField
+            v-if="backend === 'llamacpp-backend'"
+            v-slot="{ componentField }"
+            name="llamaCppParameters"
+          >
+            <FormItem class="mt-4">
+              <FormLabel>{{
+                i18nState.BACKEND_LLAMACPP_PARAMETERS_LABEL || 'Startup Parameters'
+              }}</FormLabel>
+              <FormControl>
+                <Input
+                  type="text"
+                  :placeholder="backendServices.llamaCppDefaultParameters"
+                  v-bind="componentField"
+                />
+              </FormControl>
+              <FormDescription>
+                {{
+                  i18nState.BACKEND_LLAMACPP_PARAMETERS_DESCRIPTION ||
+                  'Command-line arguments passed to llama-server on startup. Applied on next model load.'
+                }}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+        </form>
+      </Form>
+
+      <DialogFooter class="gap-2">
+        <Button
+          v-if="hasUserOverride"
+          type="button"
+          variant="outline"
+          class="px-3 py-1.5 rounded text-sm"
+          @click="clearOverride"
+        >
+          Clear Override
+        </Button>
+        <Button
+          type="submit"
+          form="dialogForm"
+          class="bg-primary hover:bg-primary/80 px-3 py-1.5 rounded text-sm"
+        >
+          {{ i18nState.BACKEND_SAVE_CHANGES }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>

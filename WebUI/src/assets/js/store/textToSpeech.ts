@@ -11,7 +11,7 @@ import { useProductMode } from './productMode'
 import { synthesizeSpeech, bytesToBlobUrl } from '@/lib/synthesizeSpeech'
 import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 
-export const SPEECHT5_MODEL_NAME = 'llmware/speech-t5-tts-ov'
+export const SPEECHT5_MODEL_NAME = 'tngtech/Kokoro-82M-int8-ov'
 
 /**
  * Resolved text-to-speech endpoint configuration consumed by the shared
@@ -93,7 +93,7 @@ export const useTextToSpeech = defineStore(
           return {
             baseURL: ovmsUrl,
             model: SPEECHT5_MODEL_NAME.split('/').join('---'),
-            voice: '',
+            voice: 'af_heart',
             apiKey: '',
           }
         }
@@ -105,7 +105,7 @@ export const useTextToSpeech = defineStore(
         return {
           baseURL: fallback.value.baseUrl.trim(),
           model: fallback.value.model.trim() || 'tts-1',
-          voice: fallback.value.voice.trim(),
+          voice: fallback.value.voice.trim() || 'af_heart',
           apiKey: fallback.value.apiKey,
         }
       }

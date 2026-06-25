@@ -1,8 +1,8 @@
 {
   "type": "chat",
   "category": "chat",
-  "name": "Phison",
-  "description": "Run very large Mixture-of-Experts models with Phison aiDAPTIV+ SSD offload, which streams expert weights from a fast SSD so models that exceed available VRAM can still run.",
+  "name": "aiDAPTIV™",
+  "description": "Run large Mixture-of-Experts (MoE) models locally with Phison's Pascari aiDAPTIV™ technology. By intelligently leveraging high-performance storage, aiDAPTIV enables AI models that exceed traditional GPU memory limits.",
   "displayPriority": 90,
   "tags": ["Phison", "aiDAPTIV+", "MoE", "Large"],
   "backends": ["llamaCPP"],

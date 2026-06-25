@@ -25,6 +25,17 @@ _NON_STREAM_READ_TIMEOUT_S = 300
 _STREAM_READ_TIMEOUT_S = 600
 
 
+def _safe_response_content_type(raw_content_type: str | None, default: str) -> str:
+    """Return only content types expected from OpenAI-compatible endpoints."""
+    if not raw_content_type:
+        return default
+
+    content_type = raw_content_type.split(";", maxsplit=1)[0].strip().lower()
+    if content_type in ("application/json", "text/event-stream"):
+        return content_type
+    return default
+
+
 def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Response:
     """Forward flask_request to upstream_url/v1/chat/completions."""
     target = upstream_url.rstrip("/") + "/v1/chat/completions"
@@ -85,12 +96,16 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
         return Response(
             stream_with_context(generate()),
             status=upstream_resp.status_code,
-            content_type=upstream_resp.headers.get("Content-Type", "text/event-stream"),
+            content_type=_safe_response_content_type(
+                upstream_resp.headers.get("Content-Type"), "text/event-stream"
+            ),
         )
 
     return Response(
         upstream_resp.content,
         status=upstream_resp.status_code,
-        content_type=upstream_resp.headers.get("Content-Type", "application/json"),
+        content_type=_safe_response_content_type(
+            upstream_resp.headers.get("Content-Type"), "application/json"
+        ),
     )
 

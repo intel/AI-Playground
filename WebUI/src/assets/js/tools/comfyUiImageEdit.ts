@@ -15,6 +15,14 @@ import { stopChatBackends, restartChatBackend } from './chatBackends'
 import { imageUrlToDataUri } from '@/lib/utils'
 import { isCancellation } from '../errors/appError'
 
+/**
+ * Idle/stall watchdog window. The timeout is re-armed on every progress signal
+ * (tracked item, currentState, or stepText change), so long-but-healthy renders
+ * like LTX image-to-video run to completion. It only fires after this long with
+ * NO progress — i.e. the backend is genuinely stuck.
+ */
+const GENERATION_IDLE_TIMEOUT_MS = 5 * 60_000
+
 const ImageEditImageOutputSchema = z.object({
   id: z.string(),
   type: z.literal('image'),
@@ -396,6 +404,16 @@ export async function executeImageEdit(
         }
       }
 
+      // (Re)arm the idle watchdog. Called on every progress signal so the timer
+      // only elapses after a true stall, letting slow renders run to completion.
+      const armIdleTimeout = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => {
+          cleanup()
+          resolve(createErrorResult('Image edit stalled (no progress for 5 minutes)'))
+        }, GENERATION_IDLE_TIMEOUT_MS)
+      }
+
       const check = () => {
         const tracked = imageGeneration.generatedImages.find((item) => item.id === imageId)
         // Failure / cancellation — resolve with an error instead of hanging.
@@ -462,13 +480,17 @@ export async function executeImageEdit(
         }
       }
 
-      timeout = setTimeout(() => {
-        cleanup()
-        resolve(createErrorResult('Image edit timed out after 5 minutes'))
-      }, 300000)
+      armIdleTimeout()
       stopWatcher = watch(
-        () => [imageGeneration.generatedImages, imageGeneration.currentState],
-        () => check(),
+        () => [
+          imageGeneration.generatedImages,
+          imageGeneration.currentState,
+          imageGeneration.stepText,
+        ],
+        () => {
+          armIdleTimeout()
+          check()
+        },
         { deep: true },
       )
       check()

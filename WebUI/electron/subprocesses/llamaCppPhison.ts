@@ -38,7 +38,7 @@ const LLAMACPP_SSD_OFFLOAD_DEFAULT_CONFIG = {
     offload_path: 'R:\\',
     debug_log_path: 'R:\\',
     dram_kv_offload_gb: 0,
-    ssd_kv_offload_gb: 10,
+    cache_kv_offload_gb: 10,
     kv_cache_resume_policy: true,
     vram_experts_cached_gb: 10,
   },
@@ -169,10 +169,21 @@ export async function updateSsdOffloadConfig(
 
   try {
     const config = await filesystem.readJson(configPath)
+    const aidaptiv = { ...(config.aidaptiv ?? {}) }
+
+    // Migrate the legacy `ssd_kv_offload_gb` key to `cache_kv_offload_gb`
+    // (the `--ssd-kv-offload-gb` flag was renamed to `--cache-kv-offload-gb`).
+    if ('ssd_kv_offload_gb' in aidaptiv) {
+      if (!('cache_kv_offload_gb' in aidaptiv)) {
+        aidaptiv.cache_kv_offload_gb = aidaptiv.ssd_kv_offload_gb
+      }
+      delete aidaptiv.ssd_kv_offload_gb
+    }
+
     const updatedConfig = {
       ...config,
       aidaptiv: {
-        ...(config.aidaptiv ?? {}),
+        ...aidaptiv,
         offload_path: offloadDrive,
         debug_log_path: offloadDrive,
       },

@@ -1108,6 +1108,31 @@ export const useComfyUiPresets = defineStore(
       return new Blob([intArray], { type: mimeType })
     }
 
+    // ComfyUI v0.25.1's LoadImage decodes every image through PyAV. Frames that
+    // decode to a non-rgb24/rgba pixel format (16-bit or grayscale PNGs, incl.
+    // the 1-bit grayscale placeholder used for empty optional inputs) take a
+    // pad/fillborders alignment filter graph when their width isn't a multiple
+    // of 32, which fails format negotiation on the bundled ffmpeg
+    // (av.error.ArgumentError: Invalid argument returned 22). Re-encoding the
+    // image through a 2D canvas forces 8-bit RGBA, so it decodes to rgb24/rgba
+    // and skips that branch entirely.
+    async function reencodeImageTo8BitPng(dataUri: string): Promise<string> {
+      const img = new Image()
+      img.src = dataUri
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('Failed to load image for re-encoding'))
+      })
+      if (img.naturalWidth === 0 || img.naturalHeight === 0) return dataUri
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return dataUri
+      ctx.drawImage(img, 0, 0)
+      return canvas.toDataURL('image/png')
+    }
+
     function validateRequiredImageInputs(): string[] {
       const missingInputs: string[] = []
 
@@ -1194,6 +1219,11 @@ export const useComfyUiPresets = defineStore(
             continue
           }
 
+          // Normalize to 8-bit RGBA PNG so ComfyUI's PyAV-based LoadImage never
+          // hits the alignment filter graph that crashes on planar-float /
+          // grayscale frames (see reencodeImageTo8BitPng).
+          imageDataUri = await reencodeImageTo8BitPng(imageDataUri)
+
           const uploadImageHash = Array.from(
             new Uint8Array(
               await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(imageDataUri)),
@@ -1201,13 +1231,8 @@ export const useComfyUiPresets = defineStore(
           )
             .map((b) => b.toString(16).padStart(2, '0'))
             .join('')
-          // PNG for alpha (inpaint / outpaint composites); else follow data URI
-          let uploadImageExtension = 'png'
-          if (input.type === 'image') {
-            const match = imageDataUri.match(/data:image\/(png|jpeg|webp);base64,/)
-            uploadImageExtension = match?.[1] || 'png'
-          }
-          const uploadImageName = `${uploadImageHash}.${uploadImageExtension}`
+          // Always PNG now that the data URI is canvas-re-encoded above.
+          const uploadImageName = `${uploadImageHash}.png`
           if (mutableWorkflow[keys[0]].inputs !== undefined) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(mutableWorkflow[keys[0]].inputs as any)[input.nodeInput] = uploadImageName

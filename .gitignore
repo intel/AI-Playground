@@ -17,6 +17,7 @@ WebUI/external/workflows_bak/
 
 *.7z
 *.whl
+*.tar.gz
 hijacks/
 ComfyUI/
 ollama-service/

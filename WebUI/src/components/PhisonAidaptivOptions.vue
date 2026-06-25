@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -27,7 +26,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
   Form,
@@ -49,6 +47,7 @@ const i18nState = useI18N().state
 
 const menuOpen = ref(false)
 const settingsDialogOpen = ref(false)
+const reinstallDialogOpen = ref(false)
 
 const llamaInfo = computed(() =>
   backendServices.info.find((s) => s.serviceName === 'llamacpp-backend'),
@@ -191,140 +190,120 @@ async function handlePhisonReinstall() {
     <DropdownMenuContent>
       <DropdownMenuLabel>{{ phisonDisplayName }}</DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <AlertDialog
-        v-if="showReinstall"
-        @update:open="
-          (open: boolean) => {
-            if (!open) menuOpen = false
-          }
-        "
-      >
-        <AlertDialogTrigger asChild
-          ><DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
-            i18nState.BACKEND_REINSTALL
-          }}</DropdownMenuItem></AlertDialogTrigger
-        >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{{ i18nState.BACKEND_CONFIRM }}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {{ i18nState.BACKEND_REINSTALL_DESCRIPTION.replace('{backend}', phisonDisplayName) }}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
-            <AlertDialogAction @click="handlePhisonReinstall">{{
-              i18nState.COM_CONTINUE
-            }}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <Dialog
-        v-model:open="settingsDialogOpen"
-        @update:open="
-          (open: boolean) => {
-            if (!open) menuOpen = false
-          }
-        "
-      >
-        <DialogTrigger asChild>
-          <DropdownMenuItem @select="(e: Event) => e.preventDefault()">{{
-            i18nState.COM_SETTINGS || 'Settings'
-          }}</DropdownMenuItem>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{{
-              i18nState.PHISON_AIDAPTIV_SETTINGS_TITLE || 'Llama.cpp-Phison aiDAPTIV+ SSD offload'
-            }}</DialogTitle>
-            <DialogDescription>
-              {{
-                i18nState.PHISON_AIDAPTIV_SETTINGS_DESCRIPTION ||
-                'SSD offload path and startup parameters for the Phison aiDAPTIV+ Llama.cpp build.'
-              }}
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form
-            v-if="settingsDialogOpen"
-            v-slot="{ handleSubmit }"
-            as=""
-            :initial-values="getInitialFormValues()"
-            keep-values
-            :validation-schema="formSchema"
-          >
-            <form
-              id="phisonAidaptivForm"
-              @submit="
-                handleSubmit($event, (values) => {
-                  void applySettings(values as Record<string, unknown>)
-                })
-              "
-            >
-              <FormField v-slot="{ componentField }" name="llamaCppOffloadDrive">
-                <FormItem>
-                  <FormLabel>{{
-                    i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_LABEL || 'SSD Offload Drive'
-                  }}</FormLabel>
-                  <FormControl>
-                    <select
-                      class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      v-bind="componentField"
-                    >
-                      <option value="">Select a drive</option>
-                      <option
-                        v-for="target in llamaCppStorageTargets"
-                        :key="target.id"
-                        :value="target.path"
-                      >
-                        {{ target.name }}
-                      </option>
-                    </select>
-                  </FormControl>
-                  <FormDescription>
-                    {{
-                      llamaCppStorageTargets.length > 0
-                        ? i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_DESCRIPTION ||
-                          'Assign the drive used for SSD KV offload.'
-                        : i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_EMPTY ||
-                          'No fixed drives detected yet. Install Llama.cpp or reopen settings.'
-                    }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
-
-              <FormField v-slot="{ componentField }" name="llamaCppParameters">
-                <FormItem class="mt-4">
-                  <FormLabel>{{
-                    i18nState.BACKEND_LLAMACPP_PARAMETERS_LABEL || 'Startup Parameters'
-                  }}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      :placeholder="defaultSsdParameters()"
-                      v-bind="componentField"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {{
-                      i18nState.BACKEND_LLAMACPP_SSD_PARAMETERS_DESCRIPTION ||
-                      'Defaults to --config-file for aidaptiv_config.json; edit if needed.'
-                    }}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
-            </form>
-          </Form>
-
-          <DialogFooter class="gap-2">
-            <Button type="submit" form="phisonAidaptivForm" class="bg-primary hover:bg-primary/80">
-              {{ i18nState.BACKEND_SAVE_CHANGES || 'Save changes' }}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
+        i18nState.BACKEND_REINSTALL
+      }}</DropdownMenuItem>
+      <DropdownMenuItem @select="settingsDialogOpen = true">{{
+        i18nState.COM_SETTINGS || 'Settings'
+      }}</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
+
+  <AlertDialog v-if="showReinstall" v-model:open="reinstallDialogOpen">
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{{ i18nState.BACKEND_CONFIRM }}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {{ i18nState.BACKEND_REINSTALL_DESCRIPTION.replace('{backend}', phisonDisplayName) }}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>{{ i18nState.COM_CANCEL }}</AlertDialogCancel>
+        <AlertDialogAction @click="handlePhisonReinstall">{{
+          i18nState.COM_CONTINUE
+        }}</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+
+  <Dialog v-model:open="settingsDialogOpen">
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>{{
+          i18nState.PHISON_AIDAPTIV_SETTINGS_TITLE || 'Llama.cpp-Phison aiDAPTIV+ SSD offload'
+        }}</DialogTitle>
+        <DialogDescription>
+          {{
+            i18nState.PHISON_AIDAPTIV_SETTINGS_DESCRIPTION ||
+            'SSD offload path and startup parameters for the Phison aiDAPTIV+ Llama.cpp build.'
+          }}
+        </DialogDescription>
+      </DialogHeader>
+
+      <Form
+        v-if="settingsDialogOpen"
+        v-slot="{ handleSubmit }"
+        as=""
+        :initial-values="getInitialFormValues()"
+        keep-values
+        :validation-schema="formSchema"
+      >
+        <form
+          id="phisonAidaptivForm"
+          @submit="
+            handleSubmit($event, (values) => {
+              void applySettings(values as Record<string, unknown>)
+            })
+          "
+        >
+          <FormField v-slot="{ componentField }" name="llamaCppOffloadDrive">
+            <FormItem>
+              <FormLabel>{{
+                i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_LABEL || 'SSD Offload Drive'
+              }}</FormLabel>
+              <FormControl>
+                <select
+                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  v-bind="componentField"
+                >
+                  <option value="">Select a drive</option>
+                  <option
+                    v-for="target in llamaCppStorageTargets"
+                    :key="target.id"
+                    :value="target.path"
+                  >
+                    {{ target.name }}
+                  </option>
+                </select>
+              </FormControl>
+              <FormDescription>
+                {{
+                  llamaCppStorageTargets.length > 0
+                    ? i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_DESCRIPTION ||
+                      'Assign the drive used for SSD KV offload.'
+                    : i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_EMPTY ||
+                      'No fixed drives detected yet. Install Llama.cpp or reopen settings.'
+                }}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+
+          <FormField v-slot="{ componentField }" name="llamaCppParameters">
+            <FormItem class="mt-4">
+              <FormLabel>{{
+                i18nState.BACKEND_LLAMACPP_PARAMETERS_LABEL || 'Startup Parameters'
+              }}</FormLabel>
+              <FormControl>
+                <Input type="text" :placeholder="defaultSsdParameters()" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>
+                {{
+                  i18nState.BACKEND_LLAMACPP_SSD_PARAMETERS_DESCRIPTION ||
+                  'Defaults to --config-file for aidaptiv_config.json; edit if needed.'
+                }}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+        </form>
+      </Form>
+
+      <DialogFooter class="gap-2">
+        <Button type="submit" form="phisonAidaptivForm" class="bg-primary hover:bg-primary/80">
+          {{ i18nState.BACKEND_SAVE_CHANGES || 'Save changes' }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>

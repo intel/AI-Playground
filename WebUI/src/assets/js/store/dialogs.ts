@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref } from 'vue'
+import { sanitizeMarkdown } from '@/lib/sanitize'
 import { parse } from '../markdownParser'
 
 // todo: Consider adding "add-l-l-m-dialog" as well
@@ -74,7 +75,7 @@ export const useDialogStore = defineStore('dialog', () => {
     func: (_dontShowAgain?: boolean) => void,
     options?: ShowWarningDialogOptions,
   ) {
-    warningMessage.value = parse(message) as string
+    warningMessage.value = sanitizeMarkdown(parse(message) as string)
     warningConfirmFunction.value = func
     warningCancelFunction.value = () => {}
     warningDontShowAgainKey.value = options?.dontShowAgainKey ?? null
@@ -89,7 +90,7 @@ export const useDialogStore = defineStore('dialog', () => {
    */
   function requestConfirmation(message: string): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
-      warningMessage.value = parse(message) as string
+      warningMessage.value = sanitizeMarkdown(parse(message) as string)
       warningDontShowAgainKey.value = null
       warningConfirmFunction.value = () => resolve(true)
       warningCancelFunction.value = () => resolve(false)

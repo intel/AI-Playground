@@ -7,7 +7,7 @@
         class="py-10 px-20 w-500px flex flex-col items-center justify-center bg-card shadow-2xl rounded-3xl gap-6 text-foreground"
         :class="{ 'animate-scale-in': animate }"
       >
-        <b v-html="i18nState.REQUEST_LLM_MODEL_NAME"></b>
+        <b>{{ i18nState.REQUEST_LLM_MODEL_NAME }}</b>
         <div
           class="flex flex-col items-center gap-2 p-4 border border-yellow-600 bg-yellow-600/10 rounded-lg"
         >
@@ -31,7 +31,7 @@
           v-if="showInfo"
           class="absolute bg-background shadow-lg border border-border rounded-lg p-2.5 z-10 w-0.6"
         >
-          <p v-html="i18nState.REQUEST_LLM_MODEL_DESCRIPTION"></p>
+          <p>{{ i18nState.REQUEST_LLM_MODEL_DESCRIPTION }}</p>
           <ul>
             <li>{{ exampleModelName }}</li>
           </ul>
@@ -103,7 +103,7 @@
               v-if="showVisionInfo"
               class="absolute bg-background shadow-lg border border-border rounded-lg p-2.5 z-10 w-0.6"
             >
-              <p v-html="i18nState.REQUEST_LLM_VISION_MODEL_DESCRIPTION"></p>
+              <p>{{ i18nState.REQUEST_LLM_VISION_MODEL_DESCRIPTION }}</p>
             </span>
           </div>
         </div>

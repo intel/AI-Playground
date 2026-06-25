@@ -513,21 +513,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   async getCurrentVersion(): Promise<string | undefined> {
     try {
       try {
-        const tag = await this.git.run(
-          ['-C', this.serviceDir, 'describe', '--tags', '--exact-match'],
-          {},
-          this.serviceDir,
-        )
+        const tag = await this.gitRun(['describe', '--tags', '--exact-match'])
         const t = tag.trim()
         if (t) return normalizeComfyUiRef(t)
       } catch {
         /* not exactly on a tag */
       }
-      const hash = await this.git.run(
-        ['-C', this.serviceDir, 'rev-parse', '--short', 'HEAD'],
-        {},
-        this.serviceDir,
-      )
+      const hash = await this.gitRun(['rev-parse', '--short', 'HEAD'])
       return normalizeComfyUiRef(hash.trim())
     } catch (e) {
       this.appLogger.error(`failed to get comfyUI version: ${e}`, this.name)
@@ -576,18 +568,65 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     await fs.promises.writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf-8')
   }
 
+  // Every ComfyUI git command runs against its own checkout: `-C serviceDir` plus
+  // serviceDir as the working directory. This collapses that repeated boilerplate.
+  private gitRun(args: string[]): Promise<string> {
+    return this.git.run(['-C', this.serviceDir, ...args], {}, this.serviceDir)
+  }
+
+  // True only if `serviceDir` is the top level of its OWN git repository.
+  // This is the critical safety check: `git -C <dir>` walks upward to find a
+  // `.git`, so if ComfyUI's own `.git` is missing or broken (e.g. an empty
+  // leftover directory), git resolves to the parent AI-Playground repo and any
+  // mutating command (fetch/checkout) would corrupt it. An `existsSync('.git')`
+  // check is NOT sufficient — an empty `.git` dir passes it but is not a repo.
+  private async isOwnGitRepo(): Promise<boolean> {
+    try {
+      const top = (await this.gitRun(['rev-parse', '--show-toplevel'])).trim()
+      const norm = (p: string) =>
+        process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p)
+      return norm(top) === norm(this.serviceDir)
+    } catch {
+      return false
+    }
+  }
+
+  // Switch an existing ComfyUI checkout to `requested` in place (fetch + checkout)
+  // instead of deleting and re-cloning. Deletion is fragile on Windows (locked
+  // files from a loaded .venv, IDE indexing, read-only .git objects) and was the
+  // source of repeated EPERM failures; an in-place update touches only tracked
+  // files and never removes the directory.
+  private async updateExistingCheckout(requested: string): Promise<boolean> {
+    // Hard safety gate: never run mutating git unless this dir is its own repo.
+    if (!(await this.isOwnGitRepo())) {
+      return false
+    }
+    try {
+      // Fetch from the canonical HTTPS URL rather than the `origin` remote: an
+      // existing checkout's origin may be configured as SSH (git@github.com:...),
+      // which fails with "Permission denied (publickey)" in this environment.
+      await this.gitRun(['fetch', '--force', '--tags', this.remoteUrl])
+      try {
+        // Best effort: also fetch the ref directly (covers branches/commits not
+        // reachable via tags). Tags already arrived above, so ignore failures.
+        await this.gitRun(['fetch', '--force', this.remoteUrl, requested])
+      } catch {
+        /* ignore */
+      }
+      // --force discards local changes to tracked files (e.g. pyproject.toml edited
+      // by ComfyUI-Manager) so the checkout cannot be blocked.
+      await this.gitRun(['checkout', '--force', requested])
+      return await this.checkoutMatchesRevision(requested)
+    } catch (e) {
+      this.appLogger.info(`in-place ComfyUI update to ${requested} failed: ${e}`, this.name)
+      return false
+    }
+  }
+
   private async checkoutMatchesRevision(requested: string): Promise<boolean> {
     try {
-      const want = (
-        await this.git.run(
-          ['-C', this.serviceDir, 'rev-parse', `${requested}^{commit}`],
-          {},
-          this.serviceDir,
-        )
-      ).trim()
-      const head = (
-        await this.git.run(['-C', this.serviceDir, 'rev-parse', 'HEAD'], {}, this.serviceDir)
-      ).trim()
+      const want = (await this.gitRun(['rev-parse', `${requested}^{commit}`])).trim()
+      const head = (await this.gitRun(['rev-parse', 'HEAD'])).trim()
       return want.toLowerCase() === head.toLowerCase()
     } catch {
       return false
@@ -596,20 +635,12 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
 
   private async restoreComfyUiPyprojectAndLockFromHead(): Promise<void> {
     try {
-      await this.git.run(
-        ['-C', this.serviceDir, 'checkout', 'HEAD', '--', 'pyproject.toml'],
-        {},
-        this.serviceDir,
-      )
+      await this.gitRun(['checkout', 'HEAD', '--', 'pyproject.toml'])
     } catch {
       this.appLogger.info('restore pyproject.toml from HEAD skipped (missing or failed)', this.name)
     }
     try {
-      await this.git.run(
-        ['-C', this.serviceDir, 'checkout', 'HEAD', '--', 'uv.lock'],
-        {},
-        this.serviceDir,
-      )
+      await this.gitRun(['checkout', 'HEAD', '--', 'uv.lock'])
     } catch {
       this.appLogger.info('restore uv.lock from HEAD skipped (missing or failed)', this.name)
     }
@@ -752,24 +783,58 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         return false
       }
 
-      try {
-        const matches = await this.checkoutMatchesRevision(this.revision)
-        if (matches) {
-          this.appLogger.info('comfyUI already cloned at requested revision, skipping', this.name)
+      // Preferred path: the directory is its own git repo, so update it in place
+      // (no deletion → no EPERM from locked .venv DLLs / IDE indexing / read-only
+      // .git objects). This is also the only path that mutates git, and it is
+      // gated on isOwnGitRepo() so it can never touch the parent AI-Playground repo.
+      if (await this.isOwnGitRepo()) {
+        if (await this.checkoutMatchesRevision(this.revision)) {
+          this.appLogger.info('comfyUI already at requested revision, skipping', this.name)
           return true
         }
         this.appLogger.info(
-          `ComfyUI checkout does not match requested revision ${this.revision}. Removing...`,
+          `Updating ComfyUI checkout to requested revision ${this.revision} in place`,
           this.name,
         )
-        throw new Error('Version mismatch')
-      } catch (_e) {
+        if (await this.updateExistingCheckout(this.revision)) {
+          this.appLogger.info(`comfyUI updated to ${this.revision} in place`, this.name)
+          return true
+        }
+        this.appLogger.warn(
+          'In-place ComfyUI update failed; falling back to remove + fresh clone',
+          this.name,
+        )
+      } else {
+        this.appLogger.warn(
+          `ComfyUI directory ${this.serviceDir} is not its own git repository; removing for a fresh clone`,
+          this.name,
+        )
+      }
+
+      // Fallback: wipe the directory so the caller re-clones. Retry a few times —
+      // after the backend process is killed Windows can take a moment to release
+      // directory handles. Surface a clear, actionable error if it ultimately
+      // cannot be removed rather than letting `git clone` fail later with a
+      // confusing "destination path already exists" message.
+      let lastError: unknown
+      for (let attempt = 0; attempt < 5; attempt++) {
         try {
           filesystem.removeSync(this.serviceDir)
-        } finally {
-          return false
+          lastError = undefined
+          break
+        } catch (removeError) {
+          lastError = removeError
+          await new Promise((resolve) => setTimeout(resolve, 1000))
         }
       }
+      if (lastError) {
+        throw new Error(
+          `Failed to remove existing ComfyUI directory ${this.serviceDir} for reinstall. ` +
+            `Close any program holding files there (a running ComfyUI, an IDE indexing the ` +
+            `folder, or a terminal/Explorer window inside it) and try again. Cause: ${lastError}`,
+        )
+      }
+      return false
     }
 
     const setupComfyUiBaseService = async (): Promise<void> => {
@@ -778,7 +843,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         this.appLogger.info('comfyUI already cloned, skipping', this.name)
       } else {
         await this.git.run(['clone', this.remoteUrl, this.serviceDir])
-        await this.git.run(['-C', this.serviceDir, 'checkout', this.revision], {}, this.serviceDir)
+        await this.gitRun(['checkout', this.revision])
       }
 
       const comfyUIDepsDir = path.join(aipgBaseDir, 'comfyui-deps')

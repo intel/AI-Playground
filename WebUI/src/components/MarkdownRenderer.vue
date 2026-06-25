@@ -2,11 +2,14 @@
 import { base64ToString } from 'uint8array-extras'
 import { parse } from '@/assets/js/markdownParser'
 import { sanitizeMarkdown } from '@/lib/sanitize'
+import { useErrors } from '@/assets/js/store/errors'
 
 const props = defineProps<{
   content: string
   onCopy?: (text: string) => void
 }>()
+
+const errors = useErrors()
 
 const root = ref<HTMLElement | null>(null)
 const renderedHtml = ref('')
@@ -43,8 +46,8 @@ async function updateRenderedContent(content: string) {
       }
     }
   } catch (error) {
-    console.error('Failed to process markdown:', error)
-    renderedHtml.value = content.replace(/\n/g, '<br>')
+    errors.report(error, { surface: 'silent' })
+    renderedHtml.value = sanitizeMarkdown(content.replace(/\n/g, '<br>'))
   } finally {
     isProcessing = false
   }

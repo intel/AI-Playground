@@ -716,28 +716,47 @@ export abstract class LongLivedPythonApiService implements ApiService {
       return 'stopped'
     }
 
+    const waitForExit = (ms: number): Promise<boolean> =>
+      Promise.race([
+        new Promise<boolean>((resolve) => proc.once('exit', () => resolve(true))),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), ms)),
+      ])
+
     // Try graceful shutdown first with SIGTERM
     proc.kill('SIGTERM')
 
     // Wait up to 2 seconds for the process to exit gracefully
-    const gracefulExit = await Promise.race([
-      new Promise<boolean>((resolve) => {
-        proc.once('exit', () => resolve(true))
-      }),
-      new Promise<boolean>((resolve) => {
-        setTimeout(() => resolve(false), 2000)
-      }),
-    ])
+    let exited = await waitForExit(2000)
 
-    if (!gracefulExit) {
-      // Force kill if graceful shutdown failed
+    if (!exited) {
       this.appLogger.warn(
-        `Backend ${this.name} did not exit gracefully within 2s, sending SIGKILL`,
+        `Backend ${this.name} did not exit gracefully within 2s, force killing`,
         this.name,
       )
-      proc.kill('SIGKILL')
-      // Give a short time for the forced kill to take effect
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // On Windows, ChildProcess.kill() only signals the direct child and leaves
+      // descendant processes (e.g. ComfyUI's python and the uv subprocesses spawned
+      // by ComfyUI-Manager) running. Those descendants keep handles on the service
+      // directory — and python's CWD is the service dir itself — which makes a
+      // subsequent reinstall fail to delete it (EPERM). taskkill /T /F tears down
+      // the whole tree.
+      if (process.platform === 'win32' && proc.pid !== undefined) {
+        try {
+          await exec(`taskkill /PID ${proc.pid} /T /F`)
+        } catch (e) {
+          // taskkill exits non-zero when the process is already gone — not fatal.
+          this.appLogger.warn(`taskkill for backend ${this.name} reported: ${e}`, this.name)
+        }
+      } else {
+        proc.kill('SIGKILL')
+      }
+      // Wait for the OS to actually reap the process and release file handles.
+      exited = await waitForExit(5000)
+      if (!exited) {
+        this.appLogger.warn(
+          `Backend ${this.name} still not confirmed exited after force kill`,
+          this.name,
+        )
+      }
     }
 
     this.encapsulatedProcess = null

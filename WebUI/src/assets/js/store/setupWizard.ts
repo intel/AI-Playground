@@ -585,7 +585,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       }
       initialLoadingPollHandle = setTimeout(() => {
         initialLoadingPollHandle = null
-        void initialize()
+        initialize().catch((e: unknown) => errors.report(e, { surface: 'silent' }))
       }, 1000)
       return
     }

@@ -311,22 +311,20 @@ export class LlamaCppBackendService implements ApiService {
   private syncSetupFlagsFromDisk(): void {
     const wasSetUp = this.isSetUp
     this.isSetUp = this.computeIsSetUp()
-    if (!this.isSetUp) {
-      if (
-        wasSetUp &&
-        this.currentStatus !== 'installing' &&
-        this.currentStatus !== 'running' &&
-        this.currentStatus !== 'starting'
-      ) {
-        this.currentStatus = 'notInstalled'
-      }
-    } else {
-      if (
-        !wasSetUp &&
-        (this.currentStatus === 'notInstalled' || this.currentStatus === 'uninitializedStatus')
-      ) {
-        this.currentStatus = 'notYetStarted'
-      }
+    if (
+      !this.isSetUp &&
+      wasSetUp &&
+      this.currentStatus !== 'installing' &&
+      this.currentStatus !== 'running' &&
+      this.currentStatus !== 'starting'
+    ) {
+      this.currentStatus = 'notInstalled'
+    } else if (
+      this.isSetUp &&
+      !wasSetUp &&
+      (this.currentStatus === 'notInstalled' || this.currentStatus === 'uninitializedStatus')
+    ) {
+      this.currentStatus = 'notYetStarted'
     }
     if (this.currentStatus === 'uninitializedStatus') {
       this.currentStatus = 'notInstalled'

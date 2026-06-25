@@ -472,10 +472,13 @@ export const useImageGenerationPresets = defineStore(
         const image = generatedImages.value.find((img) => img.id === newImageId)
         if (!image || image.type !== 'image' || !image.fromImageGen) return
 
-        // Update the first image input
-        const currentImageInput = comfyInputs.value.find((input) => input.type === 'image')
-        if (currentImageInput) {
-          currentImageInput.current.value = image.imageUrl
+        // Only auto-populate when the preset has a single reference image input.
+        // Multi-image presets (e.g. Flux2 Klein edit) manage each slot through
+        // its own LoadImage binding; writing the selection into the first slot
+        // here would clobber slot 1 whenever any other slot is loaded.
+        const imageInputs = comfyInputs.value.filter((input) => input.type === 'image')
+        if (imageInputs.length === 1) {
+          imageInputs[0].current.value = image.imageUrl
           console.log('### updated image input from selected reference image', image.id)
         }
       },

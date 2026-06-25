@@ -5,7 +5,15 @@
  * Uses built-in fetch API and fixed directory structure
  */
 
-import { existsSync, mkdirSync, createWriteStream, renameSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  createWriteStream,
+  renameSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from 'fs'
 import { pipeline } from 'stream/promises'
 import { getBuildPaths } from './build-paths.mts'
 import path, { normalize } from 'path'
@@ -29,6 +37,34 @@ interface DownloadResult {
   filePath: string
   success: boolean
   error?: string
+}
+
+/**
+ * Records, per resource key, the exact pinned URL that was last successfully
+ * downloaded. The version lives in the URL (e.g. `.../26.01/7zr.exe`), so
+ * comparing the recorded URL against the currently pinned one tells us whether
+ * a cached resource is stale. Stored alongside the resources; the whole
+ * directory is gitignored, so this is purely local build state.
+ */
+type ResourceManifest = Record<string, string>
+
+const MANIFEST_PATH = path.join(buildPaths.resourcesDir, '.resource-versions.json')
+
+function readManifest(): ResourceManifest {
+  try {
+    if (existsSync(MANIFEST_PATH)) {
+      return JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) as ResourceManifest
+    }
+  } catch (error) {
+    console.warn(
+      `⚠️  Could not read resource manifest (${MANIFEST_PATH}); treating all resources as outdated: ${error}`,
+    )
+  }
+  return {}
+}
+
+function writeManifest(manifest: ResourceManifest): void {
+  writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2))
 }
 
 /**
@@ -68,15 +104,33 @@ async function downloadFile(url: string, targetPath: string): Promise<DownloadRe
 }
 
 /**
- * Download file if not already present
+ * Download a resource unless a cached copy at the pinned version already exists.
+ *
+ * The cached archive's basename is constant across versions (e.g.
+ * `7z2601-linux-x64.tar.xz`, `uv-...tar.gz`), so an existence check alone would
+ * happily reuse an archive from a previous, now-outdated pin. We therefore also
+ * require the manifest to record the same URL; on a version bump we drop the
+ * stale cache and re-fetch the exact pinned version.
  */
-async function downloadFileIfNotPresent(url: string): Promise<DownloadResult> {
+async function downloadFileIfNeeded(
+  key: string,
+  url: string,
+  manifest: ResourceManifest,
+): Promise<DownloadResult> {
   const fileName = getBaseFileName(url)
   const expectedFilePath = path.join(buildPaths.tmpDir, fileName)
+  const upToDate = manifest[key] === url
 
-  if (existsSync(expectedFilePath)) {
-    console.log(`⏭️  Skipping ${url} - ${expectedFilePath} already exists`)
+  if (upToDate && existsSync(expectedFilePath)) {
+    console.log(`⏭️  Skipping ${key} - cached copy already at pinned version (${url})`)
     return { url, filePath: expectedFilePath, success: true }
+  }
+
+  if (!upToDate && existsSync(expectedFilePath)) {
+    console.log(
+      `♻️  ${key}: pinned version changed (${manifest[key] ?? 'none'} → ${url}); re-downloading`,
+    )
+    rmSync(expectedFilePath)
   }
 
   return await downloadFile(url, expectedFilePath)
@@ -240,14 +294,21 @@ async function main(): Promise<void> {
     // wheels (e.g. insightface) compile during backend setup.
     ensureLinuxBuildToolchain()
 
-    // Download all required files
-    const downloads = await Promise.all([
-      downloadFileIfNotPresent(buildPaths.resourceUrls.uv),
-      downloadFileIfNotPresent(buildPaths.resourceUrls.sevenZipExe),
+    // Resources to fetch, each with a stable key used to track its installed
+    // version in the manifest.
+    const resourceList = [
+      { key: 'uv', url: buildPaths.resourceUrls.uv },
+      { key: 'sevenZip', url: buildPaths.resourceUrls.sevenZipExe },
       ...(buildPaths.resourceUrls.xpuSmiWinZip
-        ? [downloadFileIfNotPresent(buildPaths.resourceUrls.xpuSmiWinZip)]
+        ? [{ key: 'xpuSmi', url: buildPaths.resourceUrls.xpuSmiWinZip }]
         : []),
-    ])
+    ]
+
+    // Download all required files, re-fetching any whose pinned version changed.
+    const manifest = readManifest()
+    const downloads = await Promise.all(
+      resourceList.map((resource) => downloadFileIfNeeded(resource.key, resource.url, manifest)),
+    )
 
     // Check for any download failures
     const failures = downloads.filter((result) => !result.success)
@@ -332,6 +393,14 @@ async function main(): Promise<void> {
         console.log('ℹ️  xpu-smi assets not found after extraction (skipping)')
       }
     }
+
+    // Record the pinned version of every resource only after a fully successful
+    // fetch+extract, so a failed run never marks a resource as up-to-date.
+    for (const resource of resourceList) {
+      manifest[resource.key] = resource.url
+    }
+    writeManifest(manifest)
+    console.log(`📝 Recorded resource versions in ${MANIFEST_PATH}`)
 
     console.log('✅ All Python package resources fetched successfully!')
     console.log(`📂 Resources available in: ${buildPaths.resourcesDir}`)

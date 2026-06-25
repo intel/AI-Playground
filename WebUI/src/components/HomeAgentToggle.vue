@@ -10,10 +10,10 @@
     <button
       type="button"
       role="switch"
-      :aria-checked="homeAgent.masterEnabled"
-      :aria-label="`Home Agent: ${homeAgent.masterEnabled ? 'on' : 'off'}`"
+      :aria-checked="isOn"
+      :aria-label="`Home Agent: ${isOn ? 'on' : 'off'}`"
       :title="masterTitle"
-      :disabled="!isAvailable"
+      :disabled="!isAvailable || !hasConfiguredChannel"
       class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-40"
       :class="
         isOn
@@ -26,7 +26,7 @@
         class="w-1.5 h-1.5 rounded-full"
         :style="{ backgroundColor: isOn ? 'var(--color-primary, #22c55e)' : 'currentColor' }"
       />
-      <span class="tabular-nums">{{ homeAgent.masterEnabled ? 'On' : 'Off' }}</span>
+      <span class="tabular-nums">{{ isOn ? 'On' : 'Off' }}</span>
       <span v-if="isOn && activeCount > 0" class="text-muted-foreground">
         · {{ activeCount }} {{ activeCount === 1 ? 'channel' : 'channels' }}
       </span>
@@ -66,10 +66,12 @@ import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { CHANNELS } from '@/assets/js/store/channels/channelRegistry'
+import { useErrors } from '@/assets/js/store/errors'
 
 const homeAgent = useHomeAgent()
 const setupWizard = useSetupWizard()
 const backendServices = useBackendServices()
+const errors = useErrors()
 
 const debugToolsEnabled = window.envVars.debugToolsEnabled
 
@@ -78,7 +80,11 @@ const isInstalled = computed(
   () => backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.isSetUp === true,
 )
 
-const isOn = computed(() => isAvailable.value && homeAgent.masterEnabled)
+const hasConfiguredChannel = computed(() => homeAgent.hasConfiguredChannel)
+
+const isOn = computed(
+  () => isAvailable.value && hasConfiguredChannel.value && homeAgent.masterEnabled,
+)
 
 const activeCount = computed(() => CHANNELS.filter((c) => homeAgent.channels[c.kind].active).length)
 
@@ -86,12 +92,14 @@ const masterTitle = computed(() => {
   if (!isInstalled.value)
     return 'Home Agent is not installed. Install it from App Settings → Installation Management.'
   if (!isAvailable.value) return 'Home Agent backend is starting…'
+  if (!hasConfiguredChannel.value)
+    return 'No channels set up yet — open Setup to connect Telegram or Slack first.'
   return homeAgent.masterEnabled
     ? 'Home Agent is on — click to turn off. Enable individual channels in Setup.'
     : 'Home Agent is off — click to turn on. Enable individual channels in Setup.'
 })
 
 function openSetup() {
-  void setupWizard.openHomeAgentSetup()
+  setupWizard.openHomeAgentSetup().catch((e: unknown) => errors.report(e, { surface: 'silent' }))
 }
 </script>

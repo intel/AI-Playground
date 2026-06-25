@@ -2294,6 +2294,8 @@ export class OpenVINOBackendService implements ApiService {
         selectedDevice,
         '--task',
         'text2speech',
+        '--model_type',
+        'kokoro',
         '--cache_dir',
         'cache',
       ]

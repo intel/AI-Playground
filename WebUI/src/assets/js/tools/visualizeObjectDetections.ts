@@ -190,17 +190,20 @@ export async function executeVisualizeObjectDetections(
   },
   messages: ModelMessage[],
 ): Promise<{ annotatedImageUrl: string }> {
+  const safeMessages = messages ?? []
+  const detections = args.detections ?? []
+
   console.log('[visualizeObjectDetections] Tool execution started', {
-    detectionsCount: args.detections?.length ?? 0,
-    messagesCount: messages?.length ?? 0,
-    detections: args.detections,
+    detectionsCount: detections.length,
+    messagesCount: safeMessages.length,
+    detections,
   })
 
   try {
     // find latest image url from messages
     console.log('[visualizeObjectDetections] Searching for image in messages', {
-      messagesLength: messages.length,
-      messages: messages.map((msg) => ({
+      messagesLength: safeMessages.length,
+      messages: safeMessages.map((msg) => ({
         role: msg.role,
         contentType: typeof msg.content,
         contentLength: Array.isArray(msg.content) ? msg.content.length : 'N/A',
@@ -208,7 +211,7 @@ export async function executeVisualizeObjectDetections(
     })
 
     // Find the most recent image from any user message in the conversation
-    const imagePart = messages
+    const imagePart = safeMessages
       .filter((msg) => msg.role === 'user' && Array.isArray(msg.content))
       .flatMap((msg) => msg.content as Array<{ type: string; mediaType?: string }>)
       .findLast(
@@ -248,17 +251,17 @@ export async function executeVisualizeObjectDetections(
     }
 
     // Validate detections
-    if (!args.detections || args.detections.length === 0) {
+    if (detections.length === 0) {
       console.error('[visualizeObjectDetections] No detections provided')
       throw new Error('At least one detection is required')
     }
 
     console.log('[visualizeObjectDetections] Validating detections', {
-      detectionsCount: args.detections.length,
+      detectionsCount: detections.length,
     })
 
-    for (let i = 0; i < args.detections.length; i++) {
-      const detection = args.detections[i]
+    for (let i = 0; i < detections.length; i++) {
+      const detection = detections[i]
       console.log(`[visualizeObjectDetections] Validating detection ${i}`, {
         detection,
         hasLabel: !!detection.label,
@@ -286,10 +289,10 @@ export async function executeVisualizeObjectDetections(
 
     console.log('[visualizeObjectDetections] Starting image annotation', {
       imageUrl,
-      detectionsCount: args.detections.length,
+      detectionsCount: detections.length,
     })
 
-    const annotatedImageUrl = await drawDetectionsOnImage(imageUrl, args.detections)
+    const annotatedImageUrl = await drawDetectionsOnImage(imageUrl, detections)
 
     console.log('[visualizeObjectDetections] Image annotation completed', {
       annotatedImageUrlLength: annotatedImageUrl?.length ?? 0,

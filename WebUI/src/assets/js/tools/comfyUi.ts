@@ -21,6 +21,15 @@ import type { ResolutionConfig, MegapixelOption } from '../store/presets'
 import { isCancellation } from '../errors/appError'
 import { tool } from 'ai'
 
+/**
+ * Idle/stall watchdog window. Instead of a hard cap on total generation time
+ * (which killed long-but-healthy renders like LTX image-to-video at ~80%), the
+ * timeout is reset every time ComfyUI reports progress (a change to the tracked
+ * media items, currentState, or stepText). It only fires when generation makes
+ * NO progress for this long — i.e. the backend is genuinely stuck.
+ */
+const GENERATION_IDLE_TIMEOUT_MS = 5 * 60_000
+
 // Global defaults as fallback (matching imageGenerationPresets.ts)
 const globalDefaultSettings = {
   seed: -1,
@@ -529,6 +538,16 @@ export async function executeComfyGeneration(args: {
         }
       }
 
+      // (Re)arm the idle watchdog. Called on every progress signal so the timer
+      // only elapses after a true stall, letting slow renders run to completion.
+      const armIdleTimeout = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => {
+          cleanup()
+          resolve(createErrorResult('ComfyUI generation stalled (no progress for 5 minutes)'))
+        }, GENERATION_IDLE_TIMEOUT_MS)
+      }
+
       const trackedItems = () =>
         imageGeneration.generatedImages.filter((item) => imageIds.includes(item.id))
 
@@ -590,16 +609,21 @@ export async function executeComfyGeneration(args: {
         }
       }
 
-      timeout = setTimeout(() => {
-        cleanup()
-        resolve(createErrorResult('ComfyUI generation timed out after 5 minutes'))
-      }, 300000) // 5 minute timeout
+      armIdleTimeout()
 
-      // Watch both the media items and the workflow state so failures surface
-      // immediately, and clean the watcher up as soon as we settle.
+      // Watch the media items, workflow state, and step text so failures surface
+      // immediately and each progress tick re-arms the idle watchdog. Clean the
+      // watcher up as soon as we settle.
       stopWatcher = watch(
-        () => [imageGeneration.generatedImages, imageGeneration.currentState],
-        () => check(),
+        () => [
+          imageGeneration.generatedImages,
+          imageGeneration.currentState,
+          imageGeneration.stepText,
+        ],
+        () => {
+          armIdleTimeout()
+          check()
+        },
         { deep: true },
       )
 
