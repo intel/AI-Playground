@@ -29,12 +29,13 @@ AI Playground alpha and beta installers are currently available downloadable exe
 
 *	Windows OS
 *	Intel Core Ultra Series 3, Series 2H, Series 2V, or Series 1 H processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM, or Nvidia RTX GPU
+*	Home Agent feature requires a minimum of 32GB of system memory on Intel Core Ultra systems or 16GB of vRAM on discrete GPUs
 
 ## Installation - Packaged Installer: 
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.1.0 alpha_hf (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.1.1-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.1.1-beta/AI-Playground-installer.exe) :new:
+:new: **AI Playground 3.1.2 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.1.2-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.1.2-beta/AI-Playground-installer.exe) :new:
 
 ### Installation Process for v3.x
 1. The installer only installs the Electron frontend, so it completes very quickly.
