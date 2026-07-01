@@ -19,7 +19,8 @@ As a local alternative to cloud AI service, AI Playground is intended to give co
 - Vision, Reasoning and RAG: Chat features support Vision, Reasoning and RAG to analyze and get deep answers on both visual and text content
 Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Document RAG with Mistral 7B Instruct
 - Image Generation: From Stable Diffusion 1.5, SDXL, Flux.1 and Z-image models AI Playground is making a breadth of image generation from quick easy low-res draft generation to high quality image generation
-- Image Editing: Subscription free and private control for upscaling, inpainting, outpainting, 2D to 3D mesh or editing images in a variety of ways.  Good for editing personal photos to taking sketches and generated images to the next level with greater control. 
+- Image Editing: Subscription free and private control for upscaling, inpainting, outpainting, 2D to 3D mesh or editing images in a variety of ways.  Good for editing personal photos to taking sketches and generated images to the next level with greater control.
+- Remote Phone Access: Home Agent feature, allows you to run AI Playground features, while remote, using a chat application from your phone to send prompts and receive results, while your home PC does the work. (Telegram and Slack currently supported)
 
 ## README.md
 - English (readme.md)
@@ -27,7 +28,7 @@ Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Docume
 ## Min Specs
 AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
-*	Windows OS
+*	Windows OS or Ubuntu Linux
 *	Intel Core Ultra Series 3, Series 2H, Series 2V, or Series 1 H processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM, or Nvidia RTX GPU
 *	Home Agent feature requires a minimum of 32GB of system memory on Intel Core Ultra systems or 16GB of vRAM on discrete GPUs
 
@@ -35,7 +36,7 @@ AI Playground alpha and beta installers are currently available downloadable exe
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.1.2 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.1.2-beta) | [Download](https://github.com/intel/AI-Playground/releases/download/v3.1.2-beta/AI-Playground-installer.exe) :new:
+:new: **AI Playground 3.1.2 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.1.2-beta) | [Windows Installer](https://github.com/intel/AI-Playground/releases/download/v3.1.2-beta/AI-Playground-installer.exe) | [Linux Installer](https://github.com/intel/AI-Playground/releases/download/v3.1.2-beta/AI-Playground-installer.deb)
 
 ### Installation Process for v3.x
 1. The installer only installs the Electron frontend, so it completes very quickly.
