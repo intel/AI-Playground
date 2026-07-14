@@ -538,6 +538,11 @@ class ChatRequestConfig:
     top_p: float = 1.0
     stream: bool = False
     endpoint: str = "/chat/completions"
+    # Mirrors textInference.thinkingEnabled in openAiCompatibleChat.ts: for
+    # Qwen3-family/gemma4 models, forwarded as chat_template_kwargs.enable_thinking
+    # so both llama-server (--jinja) and OVMS (--reasoning_parser qwen3) honor it.
+    # None means "don't send it" (model/template default applies).
+    enable_thinking: Optional[bool] = None
 
 
 def chat(prompt: str, config: ChatRequestConfig) -> str:
@@ -555,6 +560,8 @@ def chat(prompt: str, config: ChatRequestConfig) -> str:
         "top_p": config.top_p,
         "stream": config.stream,
     }
+    if config.enable_thinking is not None:
+        payload["chat_template_kwargs"] = {"enable_thinking": config.enable_thinking}
 
     url = f"{config.base_url}{config.endpoint}"
     resp = requests.post(url, json=payload, stream=config.stream, timeout=300)
@@ -595,6 +602,16 @@ def add_generation_args(p: argparse.ArgumentParser, cfg: dict) -> None:
     p.add_argument("--max-tokens", type=int, default=gen["max_tokens"])
     p.add_argument("--top-p", type=float, default=gen["top_p"])
     p.add_argument("--stream", action="store_true")
+    p.add_argument(
+        "--no-thinking",
+        dest="enable_thinking",
+        action="store_const",
+        const=False,
+        default=None,
+        help="Disable reasoning/thinking mode (Qwen3-family, gemma4) via "
+        "chat_template_kwargs.enable_thinking, matching the thinking toggle "
+        "in the AI Playground UI. Without this flag the model/template default applies.",
+    )
 
 
 def add_ov_server_args(p: argparse.ArgumentParser, cfg: dict) -> None:
@@ -726,6 +743,7 @@ def main() -> None:
             max_tokens=args.max_tokens,
             top_p=args.top_p,
             stream=args.stream,
+            enable_thinking=args.enable_thinking,
         )
         result = chat(args.prompt, chat_cfg)
         if not args.stream:
@@ -745,6 +763,7 @@ def main() -> None:
                 max_tokens=args.max_tokens,
                 top_p=args.top_p,
                 stream=args.stream,
+                enable_thinking=args.enable_thinking,
             )
             result = chat(args.prompt, chat_cfg)
             if not args.stream:
@@ -777,6 +796,7 @@ def main() -> None:
             max_tokens=args.max_tokens,
             top_p=args.top_p,
             stream=args.stream,
+            enable_thinking=args.enable_thinking,
             endpoint="/v1/chat/completions",
         )
         result = chat(args.prompt, chat_cfg)
@@ -797,6 +817,7 @@ def main() -> None:
                 max_tokens=args.max_tokens,
                 top_p=args.top_p,
                 stream=args.stream,
+                enable_thinking=args.enable_thinking,
                 endpoint="/v1/chat/completions",
             )
             result = chat(args.prompt, chat_cfg)
