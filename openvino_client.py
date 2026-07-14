@@ -161,6 +161,14 @@ def loopback_host(bind_host: str) -> str:
     return "127.0.0.1" if bind_host in ("0.0.0.0", "::", "") else bind_host
 
 
+def ovms_servable_name(model: str) -> str:
+    """OVMS registers the model under --source_model with '/' replaced by
+    '---' (see startOvmsLlmServer()); chat/completions requests must use
+    this same sanitized name or OVMS 404s with "graph definition not
+    found" for the slash-containing repo id."""
+    return model.replace("/", "---")
+
+
 # ---------------------------------------------------------------------------
 # Device detection (mirrors OpenVINO/detect_devices.py, but run via the
 # installed OVMS Python venv instead of assuming `openvino` is importable
@@ -246,6 +254,10 @@ class OvmsServerConfig:
     def health_url(self) -> str:
         return f"http://{loopback_host(self.rest_bind_address)}:{self.rest_port}/v2/health/ready"
 
+    @property
+    def servable_name(self) -> str:
+        return ovms_servable_name(self.model)
+
     def build_args(self) -> list[str]:
         """Reproduce the exact --flag ordering used by startOvmsLlmServer()."""
         args = [
@@ -256,7 +268,7 @@ class OvmsServerConfig:
             "--rest_workers",
             self.rest_workers,
             "--source_model",
-            self.model.replace("/", "---"),
+            self.servable_name,
             "--model_repository_path",
             str(self.model_repository_path),
             "--target_device",
@@ -708,7 +720,7 @@ def main() -> None:
     if args.command == "ov-chat":
         chat_cfg = ChatRequestConfig(
             base_url=f"http://{loopback_host(args.host)}:{args.port}/v3",
-            model=args.model,
+            model=ovms_servable_name(args.model),
             system_prompt=args.system_prompt,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
@@ -727,7 +739,7 @@ def main() -> None:
         try:
             chat_cfg = ChatRequestConfig(
                 base_url=ov_cfg.base_url,
-                model=ov_cfg.model,
+                model=ov_cfg.servable_name,
                 system_prompt=args.system_prompt,
                 temperature=args.temperature,
                 max_tokens=args.max_tokens,
