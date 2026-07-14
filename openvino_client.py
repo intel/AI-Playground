@@ -98,6 +98,15 @@ try:
 except ImportError:
     requests = None  # only required for anything that talks HTTP to a running server
 
+# Model output can contain arbitrary Unicode (emoji, CJK, etc.), but on Windows
+# a terminal's default stdout/stderr encoding is often a legacy codepage (e.g.
+# cp1252) rather than UTF-8, which raises UnicodeEncodeError on print(). The
+# real AI Playground UI never hits this (browsers are UTF-8 natively); force
+# it here so this script doesn't crash on ordinary model output.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 # ---------------------------------------------------------------------------
 # Built-in defaults: a real AI Playground installation. Override via --config
