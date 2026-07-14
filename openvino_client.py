@@ -178,6 +178,35 @@ def ovms_servable_name(model: str) -> str:
     return model.replace("/", "---")
 
 
+def list_ovms_models(model_repository_path: Path) -> list[str]:
+    """Model folder names already installed under model_repository_path.
+    Each is already sanitized (see ovms_servable_name), so it can be passed
+    straight through as OvmsServerConfig.model -- replace("/", "---") on a
+    string with no '/' is a no-op."""
+    if not model_repository_path.exists():
+        return []
+    return sorted(p.name for p in model_repository_path.iterdir() if p.is_dir())
+
+
+def list_llama_models(gguf_root: Path) -> list[str]:
+    """Repo-style model ids (e.g. 'namespace/repo/file.gguf') for every .gguf
+    installed under gguf_root, reversing LlamaServerConfig.resolve_model_path's
+    gguf_root/<namespace>---<repo>/<rest...> layout."""
+    if not gguf_root.exists():
+        return []
+    models = []
+    for repo_dir in sorted(gguf_root.iterdir()):
+        if not repo_dir.is_dir():
+            continue
+        namespace_repo = repo_dir.name.replace("---", "/", 1)
+        for gguf_file in sorted(repo_dir.rglob("*.gguf")):
+            if gguf_file.name.lower().startswith("mmproj"):
+                continue  # vision projector companion file, not a standalone model
+            rel = gguf_file.relative_to(repo_dir)
+            models.append(f"{namespace_repo}/{rel.as_posix()}")
+    return models
+
+
 # ---------------------------------------------------------------------------
 # Device detection (mirrors OpenVINO/detect_devices.py, but run via the
 # installed OVMS Python venv instead of assuming `openvino` is importable
@@ -554,7 +583,17 @@ class ChatRequestConfig:
     enable_thinking: Optional[bool] = None
 
 
-def chat(prompt: str, config: ChatRequestConfig) -> str:
+def chat(
+    prompt: str,
+    config: ChatRequestConfig,
+    cancel_event: Optional[threading.Event] = None,
+) -> str:
+    """cancel_event, if given, is polled between streamed chunks; setting it
+    closes the connection early (which also stops OVMS/llama-server from
+    generating further tokens once they see the client disconnect) and
+    returns whatever was received so far instead of raising. Only applies
+    to streaming requests -- a non-streaming POST can't be interrupted
+    mid-flight since it's a single blocking call."""
     if requests is None:
         raise RuntimeError("The 'requests' package is required for chat completions.")
 
@@ -581,20 +620,25 @@ def chat(prompt: str, config: ChatRequestConfig) -> str:
         return data["choices"][0]["message"]["content"]
 
     chunks = []
-    for line in resp.iter_lines():
-        if not line:
-            continue
-        line = line.decode("utf-8")
-        if line.startswith("data: "):
-            line = line[len("data: "):]
-        if line.strip() == "[DONE]":
-            break
-        try:
-            delta = json.loads(line)["choices"][0]["delta"].get("content", "")
-        except (KeyError, IndexError, json.JSONDecodeError):
-            continue
-        print(delta, end="", flush=True)
-        chunks.append(delta)
+    try:
+        for line in resp.iter_lines():
+            if cancel_event is not None and cancel_event.is_set():
+                break
+            if not line:
+                continue
+            line = line.decode("utf-8")
+            if line.startswith("data: "):
+                line = line[len("data: "):]
+            if line.strip() == "[DONE]":
+                break
+            try:
+                delta = json.loads(line)["choices"][0]["delta"].get("content", "")
+            except (KeyError, IndexError, json.JSONDecodeError):
+                continue
+            print(delta, end="", flush=True)
+            chunks.append(delta)
+    finally:
+        resp.close()
     print()
     return "".join(chunks)
 
