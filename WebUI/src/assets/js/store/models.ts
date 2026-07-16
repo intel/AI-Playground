@@ -188,9 +188,19 @@ export const useModels = defineStore(
         ? { Authorization: `Bearer ${hfToken.value}` }
         : {}
       const response = await aipgFetch(
-        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`,
+        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${encodeURIComponent(repo_id)}`,
         { headers },
       )
+      // 503 = backend could not reach Hugging Face (timeout/connection error).
+      // This is NOT the same as "repo does not exist"; throw so callers report
+      // a connectivity problem instead of silently treating the model as
+      // missing (falsy `exists`) and aborting with a misleading message.
+      if (response.status === 503) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(
+          `Could not reach Hugging Face to verify ${repo_id}. Check the machine's network/proxy connectivity to huggingface.co and try again. (${data.message ?? 'read timeout'})`,
+        )
+      }
       const data = await response.json()
       return data.exists
     }

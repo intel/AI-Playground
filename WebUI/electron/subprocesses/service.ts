@@ -14,6 +14,7 @@ import { promisify } from 'util'
 import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
 import { LocalSettings } from '../main.ts'
+import { terminateProcessTree } from './processLifecycle.ts'
 
 const exec = promisify(childProcess.exec)
 
@@ -718,48 +719,12 @@ export abstract class LongLivedPythonApiService implements ApiService {
       return 'stopped'
     }
 
-    const waitForExit = (ms: number): Promise<boolean> =>
-      Promise.race([
-        new Promise<boolean>((resolve) => proc.once('exit', () => resolve(true))),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), ms)),
-      ])
-
-    // Try graceful shutdown first with SIGTERM
-    proc.kill('SIGTERM')
-
-    // Wait up to 2 seconds for the process to exit gracefully
-    let exited = await waitForExit(2000)
-
-    if (!exited) {
-      this.appLogger.warn(
-        `Backend ${this.name} did not exit gracefully within 2s, force killing`,
-        this.name,
-      )
-      // On Windows, ChildProcess.kill() only signals the direct child and leaves
-      // descendant processes (e.g. ComfyUI's python and the uv subprocesses spawned
-      // by ComfyUI-Manager) running. Those descendants keep handles on the service
-      // directory — and python's CWD is the service dir itself — which makes a
-      // subsequent reinstall fail to delete it (EPERM). taskkill /T /F tears down
-      // the whole tree.
-      if (process.platform === 'win32' && proc.pid !== undefined) {
-        try {
-          await exec(`taskkill /PID ${proc.pid} /T /F`)
-        } catch (e) {
-          // taskkill exits non-zero when the process is already gone — not fatal.
-          this.appLogger.warn(`taskkill for backend ${this.name} reported: ${e}`, this.name)
-        }
-      } else {
-        proc.kill('SIGKILL')
-      }
-      // Wait for the OS to actually reap the process and release file handles.
-      exited = await waitForExit(5000)
-      if (!exited) {
-        this.appLogger.warn(
-          `Backend ${this.name} still not confirmed exited after force kill`,
-          this.name,
-        )
-      }
-    }
+    // Reliably tear down the whole process tree. On Windows this is critical:
+    // ChildProcess.kill() only signals the direct child, leaving descendants
+    // (ComfyUI's python, the uv subprocesses spawned by ComfyUI-Manager, …)
+    // running. Orphans keep the port + GPU memory (→ OOM on the next launch)
+    // and handles on the service directory (→ EPERM on reinstall).
+    await terminateProcessTree(proc, { name: this.name, appLogger: this.appLogger })
 
     this.encapsulatedProcess = null
     this.setStatus('stopped')

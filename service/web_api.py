@@ -58,6 +58,7 @@ try:
     import model_download_adpater
     import utils
     from model_downloader import HFPlaygroundDownloader
+    from exceptions import HFReachabilityError
     from psutil._common import bytes2human
     import traceback
     import logging
@@ -201,7 +202,19 @@ try:
         # download dialog entirely.
         hf_token = get_bearer_token(request)
         downloader = HFPlaygroundDownloader(hf_token=hf_token)
-        exists = downloader.hf_url_exists(repo_id)
+        try:
+            exists = downloader.hf_url_exists(repo_id)
+        except HFReachabilityError as ex:
+            # Distinct from a genuine `exists: false`: we could not reach HF to
+            # check. Return 503 so the renderer surfaces a connectivity error
+            # instead of aborting generation as "model does not exist".
+            logging.error("checkHFRepoExists could not reach Hugging Face: %s", ex)
+            return jsonify(
+                {
+                    "error": "hf_unreachable",
+                    "message": str(ex),
+                }
+            ), 503
         return jsonify({"exists": exists})
 
     size_cache = dict()

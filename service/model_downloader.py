@@ -12,14 +12,27 @@ from time import sleep
 from typing import Any, Callable, Dict, List
 from hashlib import sha256
 
+import httpx
 import psutil
 import requests
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
+from huggingface_hub.errors import HfHubHTTPError
 from psutil._common import bytes2human
 
 import utils
 from utils import is_specific_file_reference
-from exceptions import DownloadException
+from exceptions import DownloadException, HFReachabilityError
+
+# Network/transient errors that mean "we could not reach HF", as opposed to a
+# definitive "does not exist". huggingface_hub uses httpx for its HTTP calls
+# (hence httpx.HTTPError covers read/connect timeouts); requests is kept for
+# any legacy code path, and HfHubHTTPError covers transient upstream 5xx/429.
+_HF_TRANSIENT_ERRORS = (
+    httpx.HTTPError,
+    requests.exceptions.RequestException,
+    HfHubHTTPError,
+)
+_HF_EXISTS_RETRIES = 3
 
 model_list_cache = dict()
 model_lock = Lock()
@@ -116,8 +129,32 @@ class HFPlaygroundDownloader:
         self.thread_lock = Lock()
         self.hf_token = hf_token
 
-    def hf_url_exists(self, repo_id: str):
-        return self.fs.exists(repo_id)
+    def hf_url_exists(self, repo_id: str) -> bool:
+        """Return whether the given HF repo/file exists.
+
+        `HfFileSystem.exists` already reports a genuinely missing repo/file as
+        ``False``; anything that escapes is a failure to *reach* the HF API
+        (read timeout, connection error, transient 5xx). Retry those a few
+        times, and if they persist raise `HFReachabilityError` so the caller
+        can distinguish "does not exist" from "could not check".
+        """
+        last_exc = None
+        for attempt in range(_HF_EXISTS_RETRIES):
+            try:
+                return self.fs.exists(repo_id)
+            except _HF_TRANSIENT_ERRORS as ex:
+                last_exc = ex
+                logging.warning(
+                    "checking existence of %s failed (attempt %d/%d): %s: %s",
+                    repo_id,
+                    attempt + 1,
+                    _HF_EXISTS_RETRIES,
+                    type(ex).__name__,
+                    ex,
+                )
+                if attempt + 1 < _HF_EXISTS_RETRIES:
+                    sleep(1 + attempt)
+        raise HFReachabilityError(repo_id, last_exc)
 
     def probe_type(self, repo_id: str):
         return model_info(utils.trim_repo(repo_id)).pipeline_tag
@@ -254,7 +291,9 @@ class HFPlaygroundDownloader:
                 continue
             name = item.get("name")
             base = path.basename(name)
-            if not (base.startswith(prefix) and re.search(r"-\d{5}-of-\d{5}\.gguf$", base)):
+            if not (
+                base.startswith(prefix) and re.search(r"-\d{5}-of-\d{5}\.gguf$", base)
+            ):
                 continue
             size = item.get("size", 0)
             self.total_size += size
@@ -426,7 +465,9 @@ class HFPlaygroundDownloader:
                     # The reactor node expects the flat name to be the file itself,
                     # not a directory containing it. Clear any stale directory left
                     # by an earlier (broken) download before moving the file into place.
-                    utils.remove_existing_filesystem_resource(desired_repo_root_dir_name)
+                    utils.remove_existing_filesystem_resource(
+                        desired_repo_root_dir_name
+                    )
                 for item in os.listdir(self.save_path_tmp):
                     dst = (
                         desired_repo_root_dir_name

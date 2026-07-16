@@ -28,6 +28,7 @@ import {
   type ComfyUiDepsMarker,
 } from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
+import { killStaleProcessesByCommandLine } from './processLifecycle.ts'
 import { getMediaDir } from '../util.ts'
 import {
   clearLevelZeroRuntimeCache,
@@ -1646,6 +1647,17 @@ except Exception as e:
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+    // Kill any ComfyUI left over from a previous session (e.g. after a hard
+    // crash / force-quit that skipped our clean shutdown). We match on this
+    // backend's python binary path, which is unique to ComfyUI's env dir. The
+    // port is picked fresh each launch, so an orphan sits on a *different* port
+    // and would otherwise run beside the new instance → GPU out-of-memory.
+    await killStaleProcessesByCommandLine(this.getPythonBinaryPath(), {
+      name: this.name,
+      label: 'ComfyUI',
+      appLogger: this.appLogger,
+    })
+
     // Clear any stale SQLite WAL/SHM sidecars from a crashed run that would
     // otherwise block ComfyUI from opening its database.
     this.cleanupStaleComfyUiDbLocks()

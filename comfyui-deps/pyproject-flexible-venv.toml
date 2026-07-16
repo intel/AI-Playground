@@ -10,18 +10,18 @@ dependencies = []
 
 [project.optional-dependencies]
 xpu = [
-  "torch>=2.10.0",
+  "torch>=2.10.0,<2.13",
   "torchaudio",
   "torchvision",
   "triton-xpu>=3.6.0; sys_platform != 'darwin'",
 ]
 cpu = [
-  "torch>=2.10.0",
+  "torch>=2.10.0,<2.13",
   "torchaudio",
   "torchvision",
 ]
 cuda = [
-  "torch>=2.10.0",
+  "torch>=2.10.0,<2.13",
   "torchaudio",
   "torchvision",
 ]
@@ -30,6 +30,9 @@ cuda = [
 python-preference = "only-managed"
 link-mode = "clone"
 index-strategy = "unsafe-best-match"
+# Hard ceiling: torch 2.13 fails on Linux due to driver issues. Never resolve
+# beyond the 2.12.x series, including via transitive dependencies.
+constraint-dependencies = ["torch<2.13"]
 required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 prerelease = "if-necessary-or-explicit"
 environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
