@@ -107,6 +107,7 @@
     "vue-tsc": "^3.3.5"
   },
   "overrides": {
+    "js-yaml": "4.3.1",
     "@napi-rs/canvas": "0.1.100",
     "langsmith": "^0.7.1",
     "uuid": "^14.0.0",
