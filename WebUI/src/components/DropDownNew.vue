@@ -7,12 +7,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChevronDownIcon } from '@heroicons/vue/24/solid'
 
 interface DropdownItem {
   label: string
   value: string
   active: boolean
+  // Optional hover text shown as a tooltip on the item (e.g. a voice description).
+  description?: string
 }
 
 const props = defineProps<{
@@ -61,24 +64,31 @@ const selectedItem = computed(() => {
         title
       }}</DropdownMenuLabel>
       <DropdownMenuSeparator v-if="title" class="bg-border" />
-      <div class="py-1">
-        <DropdownMenuItem
-          v-for="item in items"
-          :key="item.value"
-          @click="
-            () => {
-              props.onChange(item.value)
-            }
-          "
-          class="text-sm px-4 py-1 flex items-center text-left hover:bg-muted text-foreground"
-        >
-          <div
-            class="w-2 h-2 rounded-full mr-2 shrink-0"
-            :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
-          ></div>
-          {{ item.label }}
-        </DropdownMenuItem>
-      </div>
+      <TooltipProvider :delay-duration="300">
+        <div class="py-1">
+          <Tooltip v-for="item in items" :key="item.value">
+            <TooltipTrigger as-child>
+              <DropdownMenuItem
+                @click="
+                  () => {
+                    props.onChange(item.value)
+                  }
+                "
+                class="text-sm px-4 py-1 flex items-center text-left hover:bg-muted text-foreground"
+              >
+                <div
+                  class="w-2 h-2 rounded-full mr-2 shrink-0"
+                  :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
+                ></div>
+                {{ item.label }}
+              </DropdownMenuItem>
+            </TooltipTrigger>
+            <TooltipContent v-if="item.description" side="right" class="max-w-[280px] text-sm">
+              {{ item.description }}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>

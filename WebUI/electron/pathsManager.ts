@@ -17,6 +17,17 @@ function modelPathResolveBaseDir(): string {
   return app.isPackaged ? path.dirname(packagedResourcesRoot()) : process.cwd()
 }
 
+// The single app-wide PathsManager, exposed so background services (e.g. the
+// qwen3-tts sidecar) can resolve model directories without threading the
+// instance through their constructors. Set when the manager is created in main.ts.
+let sharedPathsManager: PathsManager | null = null
+
+/** Absolute directory configured for a model type (e.g. 'TTS'), or undefined. */
+export function getSharedModelDir(type: string): string | undefined {
+  const paths = sharedPathsManager?.modelPaths as Record<string, string> | undefined
+  return paths?.[type]
+}
+
 export class PathsManager {
   modelPaths: ModelPaths = {
     ggufLLM: '',
@@ -28,6 +39,8 @@ export class PathsManager {
   constructor(configPath: string) {
     this.configPath = configPath
     this.loadConfig()
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- expose the single app-wide instance
+    sharedPathsManager = this
   }
   loadConfig() {
     this.initModelPaths(JSON.parse(fs.readFileSync(this.configPath).toString()) as ModelPaths)
@@ -74,11 +87,25 @@ export class PathsManager {
       throw ex
     }
   }
+  /**
+   * Ensure a model directory exists and can be scanned. Creates it when missing
+   * and writable; on a read-only tree (a shared, admin-provisioned model folder
+   * on an all-users install) creation fails, so this reports the directory
+   * unusable and callers treat it as empty instead of throwing.
+   */
+  private ensureDirReadable(dir: string): boolean {
+    if (fs.existsSync(dir)) return true
+    try {
+      fs.mkdirSync(dir, { recursive: true })
+      return true
+    } catch {
+      return false
+    }
+  }
+
   scanGGUFLLMModels() {
     const dir = this.modelPaths.ggufLLM
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    if (!this.ensureDirReadable(dir)) return []
     console.log('getting models', dir)
     const modelsSet = fs
       .readdirSync(dir, { encoding: 'utf-8', recursive: true })
@@ -94,9 +121,7 @@ export class PathsManager {
   }
   scanOpenVINOModels() {
     const dir = this.modelPaths.openvinoLLM
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    if (!this.ensureDirReadable(dir)) return []
     console.log('getting models', dir)
     const modelsSet = fs
       .readdirSync(dir)
@@ -143,14 +168,37 @@ export class PathsManager {
     return [...seen].sort()
   }
 
+  /**
+   * Whether new models can be written into the configured model directories.
+   * False when models live on a read-only shared location — e.g. an all-users
+   * install whose model folder is a shared, admin-provisioned directory — so
+   * the UI can disable downloads instead of failing mid-transfer. Probes the
+   * nearest existing ancestor of the primary (GGUF LLM) model directory.
+   */
+  isModelDirWritable(): boolean {
+    let dir = this.modelPaths.ggufLLM
+    while (dir && !fs.existsSync(dir)) {
+      const parent = path.dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+    const probe = path.join(dir, `.aipg-write-probe-${process.pid}`)
+    try {
+      fs.writeFileSync(probe, '')
+      fs.rmSync(probe, { force: true })
+      return true
+    } catch {
+      return false
+    }
+  }
+
   scanEmbedding(): Model[] {
     const embeddingModels: Model[] = []
     llmBackendTypes.forEach((backend) => {
+      // Cloud Mode is a remote backend with no local embedding directory.
+      if (backend === 'cloud') return
       const dir = path.join(this.modelPaths.embedding, backend)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-        return
-      }
+      if (!this.ensureDirReadable(dir)) return
 
       if (backend === 'llamaCPP') {
         // For llamaCPP: scan for .gguf files recursively (file-based models)

@@ -33,3 +33,13 @@ backend-shared/
 .qwen/
 .opencode/
 skills-lock.json
+
+# Playwright
+test-results/
+playwright-report/
+playwright-report-e2e/
+blob-report/
+playwright/.cache/
+
+# TS incremental build info
+*.tsbuildinfo

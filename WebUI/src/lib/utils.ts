@@ -100,6 +100,10 @@ export function mapServiceNameToDisplayName(serviceName: string) {
       return 'OpenVINO'
     case 'home-agent-backend':
       return 'Home Agent'
+    case 'qwen3-tts-backend':
+      return 'Text To Speech'
+    case 'cloud-mode':
+      return 'Cloud Mode'
     default:
       return serviceName
   }

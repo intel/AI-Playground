@@ -2,14 +2,7 @@
 import { BackendVersionSchema, useBackendServices } from '@/assets/js/store/backendServices'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useI18N } from '@/assets/js/store/i18n'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +35,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { mapServiceNameToDisplayName, compareVersions } from '@/lib/utils'
 import { z } from 'zod'
-import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
+import SettingsMenu from '@/components/SettingsMenu.vue'
 
 const props = defineProps<{
   backend: BackendServiceName
@@ -381,33 +374,33 @@ const showMenuButton = computed(
 </script>
 
 <template>
-  <DropdownMenu v-model:open="menuOpen" v-if="showMenuButton">
-    <DropdownMenuTrigger><Cog6ToothIcon class="size-6" /></DropdownMenuTrigger>
-    <DropdownMenuContent>
-      <DropdownMenuLabel>{{ mapServiceNameToDisplayName(backend) }}</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <!-- Version action: Update/Downgrade -->
-      <DropdownMenuItem
-        v-if="showVersionAction"
-        @click="handleVersionAction"
-        :class="versionActionClass"
-      >
-        {{ versionActionLabel }}
-      </DropdownMenuItem>
+  <SettingsMenu
+    v-if="showMenuButton"
+    v-model:open="menuOpen"
+    :label="mapServiceNameToDisplayName(backend)"
+    :title="`${mapServiceNameToDisplayName(backend)} options`"
+  >
+    <!-- Version action: Update/Downgrade -->
+    <DropdownMenuItem
+      v-if="showVersionAction"
+      @click="handleVersionAction"
+      :class="versionActionClass"
+    >
+      {{ versionActionLabel }}
+    </DropdownMenuItem>
 
-      <DropdownMenuItem v-if="showHomeAgentSetup" @select="handleHomeAgentSetup">{{
-        i18nState.COM_GO_TO_SETUP || 'Setup'
-      }}</DropdownMenuItem>
+    <DropdownMenuItem v-if="showHomeAgentSetup" @select="handleHomeAgentSetup">{{
+      i18nState.COM_GO_TO_SETUP || 'Setup'
+    }}</DropdownMenuItem>
 
-      <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
-        i18nState.BACKEND_REINSTALL
-      }}</DropdownMenuItem>
+    <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
+      i18nState.BACKEND_REINSTALL
+    }}</DropdownMenuItem>
 
-      <DropdownMenuItem v-if="showSettings" @select="settingsDialogOpen = true">{{
-        i18nState.COM_SETTINGS
-      }}</DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+    <DropdownMenuItem v-if="showSettings" @select="settingsDialogOpen = true">{{
+      i18nState.COM_SETTINGS
+    }}</DropdownMenuItem>
+  </SettingsMenu>
 
   <AlertDialog v-if="showReinstall" v-model:open="reinstallDialogOpen">
     <AlertDialogContent>

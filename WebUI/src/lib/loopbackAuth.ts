@@ -89,3 +89,24 @@ export async function getHomeAgentAuthToken(forceRefresh = false): Promise<strin
 export function invalidateHomeAgentAuthToken(): void {
   invalidate('home-agent-backend')
 }
+
+export async function qwen3TtsFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  let token = await loadToken('qwen3-tts-backend')
+  const buildInit = (t: string): RequestInit => {
+    const headers = new Headers(init?.headers ?? {})
+    if (t) headers.set('X-AIPG-Auth', t)
+    return { ...(init ?? {}), headers }
+  }
+  let response = await fetch(input, buildInit(token))
+  if (response.status === 401) {
+    invalidate('qwen3-tts-backend')
+    token = await loadToken('qwen3-tts-backend', true)
+    if (token) {
+      response = await fetch(input, buildInit(token))
+    }
+  }
+  return response
+}

@@ -2,8 +2,9 @@
   "mcpServers": {
     "datetime": {
       "displayName": "DateTime MCP",
+      "description": "Gives the assistant the real current date and time and lets it convert times between time zones — so answers aren't guessed. Once connected, just ask things like \"what time is it in Tokyo?\" or \"convert 3pm New York time to UTC\".",
       "command": "uvx",
-      "args": ["mcp-server-time"]
+      "args": ["--with", "mcp<2.0.0", "mcp-server-time"]
     }
   }
 }

@@ -1,27 +1,27 @@
 import concurrent.futures
+import logging
 import os
 import queue
 import re
 import shutil
-import logging
 import time
 import traceback
-from os import path, makedirs, rename
-from threading import Thread, Lock
-from time import sleep
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
 from hashlib import sha256
+from os import makedirs, path, rename
+from threading import Lock, Thread
+from time import sleep
+from typing import Any
 
 import httpx
 import psutil
 import requests
+import utils
+from exceptions import DownloadException, HFReachabilityError
 from huggingface_hub import HfFileSystem, hf_hub_url, model_info
 from huggingface_hub.errors import HfHubHTTPError
 from psutil._common import bytes2human
-
-import utils
 from utils import is_specific_file_reference
-from exceptions import DownloadException, HFReachabilityError
 
 # Network/transient errors that mean "we could not reach HF", as opposed to a
 # definitive "does not exist". huggingface_hub uses httpx for its HTTP calls
@@ -93,9 +93,7 @@ class NotEnoughDiskSpaceException(Exception):
     def __init__(self, requires_space: int, free_space: int):
         self.requires_space = requires_space
         self.free_space = free_space
-        message = "Not enough disk space. It requires {}, but only {} of free space is available".format(
-            bytes2human(requires_space), bytes2human(free_space)
-        )
+        message = f"Not enough disk space. It requires {bytes2human(requires_space)}, but only {bytes2human(free_space)} of free space is available"
         super().__init__(message)
 
 
@@ -234,7 +232,7 @@ class HFPlaygroundDownloader:
                 )
 
     def enum_specific_file(
-        self, file_list: List, repo_id: str, model_type: str
+        self, file_list: list, repo_id: str, model_type: str
     ) -> bool:
         """
         Enumerate a specific file reference (e.g., namespace/repo/file.gguf).
@@ -264,7 +262,7 @@ class HFPlaygroundDownloader:
             print(f"Warning: Failed to get info for specific file {repo_id}: {e}")
             return False
 
-    def enum_split_gguf_shards(self, file_list: List, repo_id: str) -> bool:
+    def enum_split_gguf_shards(self, file_list: list, repo_id: str) -> bool:
         """If repo_id points at one shard of a split GGUF, enumerate every shard.
 
         Matches the standard llama.cpp split naming `*-NNNNN-of-NNNNN.gguf` and lists
@@ -309,7 +307,7 @@ class HFPlaygroundDownloader:
         return added
 
     def populate_file_list(
-        self, file_list: List, repo_id: str, model_type: str
+        self, file_list: list, repo_id: str, model_type: str
     ) -> None:
         """
         Populate file list with either specific file or directory enumeration.
@@ -344,7 +342,7 @@ class HFPlaygroundDownloader:
             return item["size"]
 
     def enum_file_list(
-        self, file_list: List, enum_path: str, model_type: str, is_root=True
+        self, file_list: list, enum_path: str, model_type: str, is_root=True
     ):
         # repo = "/".join(enum_path.split("/")[:2])
         list = self.fs.ls(enum_path, detail=True)
@@ -394,7 +392,7 @@ class HFPlaygroundDownloader:
                 )
                 file_list.append(HFFileItem(relative_path, size, url))
 
-    def enum_sd_unet(self, file_list: List[str | Dict[str, Any]]):
+    def enum_sd_unet(self, file_list: list[str | dict[str, Any]]):
         cur_level = 0
         first_model = None
         model_levels = [(".fp32.", 3), (".fp16.", 2), ("", 1)]

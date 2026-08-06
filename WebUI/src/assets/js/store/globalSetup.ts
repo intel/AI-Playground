@@ -9,6 +9,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
     isAdminExec: false,
     device: '',
     version: '0.0.0.1',
+    modelFolderReadOnly: false,
   })
 
   const defaultBackendBaseUrl = ref('http://127.0.0.1:9999')
@@ -30,6 +31,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
 
     state.isAdminExec = setupData.isAdminExec
     state.version = setupData.version
+    state.modelFolderReadOnly = setupData.modelFolderReadOnly
     const aiBackendInfo = apiServiceInformation.find((item) => item.serviceName === 'ai-backend')
     if (!aiBackendInfo) {
       throw new Error('ai-backend service not found')

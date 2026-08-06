@@ -8,6 +8,7 @@ import { useActivities } from '../store/activities'
 import { useConversations } from '../store/conversations'
 import { useI18N } from '../store/i18n'
 import { usePresets, type Preset } from '../store/presets'
+import { useTextInference } from '../store/textInference'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
@@ -160,11 +161,13 @@ export function getAvailableEditWorkflows(): Array<{
   toolInstructions?: string
 }> {
   const presets = usePresets()
+  const textInference = useTextInference()
   return presets.presets
     .filter((p: Preset) => {
       if (!(p.type === 'comfy' && p.backend === 'comfyui')) return false
       if (p.toolCategory !== 'edit-images') return false
-      return true
+      // Honour the per-workflow sub-checkboxes (Settings › Built-in tools).
+      return textInference.isWorkflowPresetEnabled(p.name)
     })
     .map((p: Preset) => ({
       name: p.name,
@@ -243,10 +246,6 @@ export async function executeImageEdit(
 ): Promise<ImageEditToolOutput> {
   console.log('[ComfyUIImageEdit Tool] Starting generation with args:', args)
 
-  // avoid network issues from killing the chat BE while tool call is still streaming
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-  await delay(100)
-
   const activities = useActivities()
   const conversations = useConversations()
   const i18nState = useI18N().state
@@ -272,6 +271,12 @@ export async function executeImageEdit(
   }
 
   if (!useDeveloperSettings().keepModelsLoaded) {
+    // Wait for any in-flight chat stream (the request that carried this tool
+    // call) to finish before freeing the GPU, so stopping the chat backend
+    // can't reset an open llama.cpp socket mid-stream (=> "network error").
+    // Replaces a fixed 100ms guess; bounded internally so a stuck stream can't
+    // hang generation.
+    await useTextInference().waitForInferenceIdle()
     await stopChatBackends()
   }
 
@@ -530,13 +535,71 @@ export async function executeImageEdit(
   }
 }
 
+// User-selectable defaults, resolved per output media type from the enabled edit
+// presets. Standalone, explicitly-typed helpers keep the heavy `useTextInference()`
+// store type out of `getToolDefinition` (whose inferred shape feeds the ai-SDK
+// `tool()` generics), avoiding a type-instantiation blow-up.
+function resolveDefaultEditWorkflow(imageNames: string[]): string {
+  return (
+    useTextInference().getDefaultWorkflow('comfyUiImageEdit:image', imageNames) ?? 'Edit By Prompt'
+  )
+}
+
+/**
+ * Repair a malformed comfyUiImageEdit tool call before execution: if the model
+ * omitted `workflow` or sent a value that isn't a known edit workflow, coerce it
+ * to the default edit workflow. Returns the repaired args as a JSON string, or
+ * null when `workflow` is already valid (nothing to fix) or none exist. Wired
+ * into streamText's experimental_repairToolCall so a bad workflow can't surface
+ * as an "unknown" tool card / failed edit.
+ */
+export function repairEditToolInput(rawInput: string): string | null {
+  const workflows = getAvailableEditWorkflows()
+  if (workflows.length === 0) return null
+  let obj: Record<string, unknown>
+  try {
+    const parsed: unknown = JSON.parse(rawInput || '{}')
+    obj = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    obj = {}
+  }
+  const names = workflows.map((w) => w.name)
+  if (typeof obj.workflow === 'string' && names.includes(obj.workflow)) return null
+  const imageNames = workflows
+    .filter((w) => (w.mediaType ?? 'image') === 'image')
+    .map((w) => w.name)
+  obj.workflow = resolveDefaultEditWorkflow(imageNames)
+  return JSON.stringify(obj)
+}
+
+function resolveDefaultAnimateWorkflow(videoNames: string[]): string | null {
+  return useTextInference().getDefaultWorkflow('comfyUiImageEdit:video', videoNames)
+}
+
+function resolveDefaultTo3DWorkflow(modelNames: string[]): string | null {
+  return useTextInference().getDefaultWorkflow('comfyUiImageEdit:model3d', modelNames)
+}
+
 function getToolDefinition() {
   const workflows = getAvailableEditWorkflows()
-  const defaultWorkflow = 'Edit By Prompt'
+
+  const imageNames = workflows
+    .filter((w) => (w.mediaType ?? 'image') === 'image')
+    .map((w) => w.name)
+  const videoNames = workflows.filter((w) => w.mediaType === 'video').map((w) => w.name)
+  const modelNames = workflows.filter((w) => w.mediaType === 'model3d').map((w) => w.name)
+  const defaultEditWorkflow = resolveDefaultEditWorkflow(imageNames)
+  const defaultAnimateWorkflow = resolveDefaultAnimateWorkflow(videoNames)
+  const defaultTo3DWorkflow = resolveDefaultTo3DWorkflow(modelNames)
+
   const workflowOptions = workflows
     .map((w) => {
       const mediaTypeStr = w.mediaType && w.mediaType !== 'image' ? ` (${w.mediaType})` : ''
-      return w.name + mediaTypeStr + (w.name === defaultWorkflow ? ' (default)' : '')
+      let isDefault = ''
+      if (w.name === defaultEditWorkflow) isDefault = ' (default)'
+      else if (w.name === defaultAnimateWorkflow) isDefault = ' (default animate)'
+      else if (w.name === defaultTo3DWorkflow) isDefault = ' (default 3D)'
+      return w.name + mediaTypeStr + isDefault
     })
     .join(', ')
 
@@ -566,18 +629,32 @@ function getToolDefinition() {
     description += '\n'
   }
 
+  // Per-output-type defaults: what to reach for unless the user asks otherwise.
+  description += `DEFAULTS: For editing an image, default to "${defaultEditWorkflow}".`
+  if (defaultAnimateWorkflow) {
+    description += ` To animate an image into a video, default to "${defaultAnimateWorkflow}".`
+  }
+  if (defaultTo3DWorkflow) {
+    description += ` To convert an image into a 3D model, default to "${defaultTo3DWorkflow}".`
+  }
+  description += '\n\n'
+
   description += `Available edit workflows: ${workflowOptions}`
 
   const workflowNames = workflows.map((w) => w.name) as [string, ...string[]]
 
+  let workflowDescription = `Edit workflow to use. Available: ${workflowOptions}. Use "${defaultEditWorkflow}" for image edits unless the user explicitly requests a different workflow.`
+  if (defaultAnimateWorkflow) {
+    workflowDescription += ` Use "${defaultAnimateWorkflow}" when animating an image into a video.`
+  }
+  if (defaultTo3DWorkflow) {
+    workflowDescription += ` Use "${defaultTo3DWorkflow}" when converting an image into a 3D model.`
+  }
+
   return {
     description,
     inputSchema: z.object({
-      workflow: z
-        .enum(workflowNames)
-        .describe(
-          `Edit workflow to use. Available: ${workflowOptions}. Use "${defaultWorkflow}" unless the user explicitly requests a different workflow.`,
-        ),
+      workflow: z.enum(workflowNames).describe(workflowDescription),
       variant: z
         .string()
         .optional()

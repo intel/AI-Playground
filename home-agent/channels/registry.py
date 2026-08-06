@@ -13,7 +13,6 @@ from .slack import SlackChannel
 from .telegram import TelegramChannel
 from .types import ChannelKind
 
-
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
 

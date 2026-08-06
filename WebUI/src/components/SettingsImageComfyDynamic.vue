@@ -66,6 +66,7 @@
       <LoadImageWithPreview
         v-if="input.type === 'image' && hasMaskEditing"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
+        :label="languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label"
         :image-url-ref="input.current as WritableComputedRef<string>"
         :disabled="!isModifiable(input)"
         @image-loaded="handleImageLoaded"
@@ -75,6 +76,7 @@
       <LoadImage
         v-else-if="input.type === 'image'"
         :id="`${input.nodeTitle}.${input.nodeInput}`"
+        :label="languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label"
         :image-url-ref="input.current as WritableComputedRef<string>"
         :disabled="!isModifiable(input)"
         @image-loaded="handleImageLoaded"

@@ -364,6 +364,42 @@ export const useModels = defineStore(
     }
 
     /**
+     * Check if a Qwen3-TTS model repo exists on disk. The Qwen weights live in the
+     * shared TTS model directory (same as the OpenVINO speech model) and are loaded
+     * locally by the qwen3-tts sidecar.
+     */
+    async function checkQwenTtsModelExists(repoId: string): Promise<boolean> {
+      const results = await checkModelAlreadyLoaded([
+        {
+          repo_id: repoId,
+          type: 'TTS',
+          backend: 'openvino' as const,
+        },
+      ])
+      return results.length > 0 && results[0].already_loaded
+    }
+
+    /**
+     * Return download params for whichever of the given Qwen3-TTS repos are missing,
+     * ready to hand to `showDownloadDialog` (the standard model-download popup).
+     */
+    async function getMissingQwenTtsModels(repoIds: string[]): Promise<DownloadModelParam[]> {
+      const modelPath = getModelPath('TTS', 'openvino')
+      const missing: DownloadModelParam[] = []
+      for (const repoId of repoIds) {
+        if (!(await checkQwenTtsModelExists(repoId))) {
+          missing.push({
+            repo_id: repoId,
+            type: 'TTS',
+            backend: 'openvino',
+            model_path: modelPath,
+          })
+        }
+      }
+      return missing
+    }
+
+    /**
      * Initialize model paths from Electron
      */
     function initPaths(modelPaths: ModelPaths) {
@@ -477,6 +513,8 @@ export const useModels = defineStore(
       getMissingTranscriptionModel,
       checkSpeechModelExists,
       getMissingSpeechModel,
+      checkQwenTtsModelExists,
+      getMissingQwenTtsModels,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       hfEndpointIsValid: computed(() => isValidUrl(hfEndpoint.value)),
       verifyHfEndpoint,

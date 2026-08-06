@@ -2,7 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch, watchEffect } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { AipgUiMessage } from './openAiCompatibleChat'
-import { completeOrphanedToolParts } from './toolMessageSanitize'
+import { completeOrphanedToolParts, sanitizeBulkyToolOutputs } from './toolMessageSanitize'
 
 /**
  * Legacy fixed key for the original singleton Telegram thread. Kept only as a
@@ -71,7 +71,9 @@ export const useConversations = defineStore(
     function updateConversation(messages: AipgUiMessage[], conversationKey: string) {
       // Never persist an orphaned tool call (interrupted/stopped turn): it would
       // brick the thread on the next generation. See toolMessageSanitize.ts.
-      conversationList.value[conversationKey] = completeOrphanedToolParts(messages)
+      conversationList.value[conversationKey] = sanitizeBulkyToolOutputs(
+        completeOrphanedToolParts(messages),
+      )
     }
 
     function deleteConversation(conversationKey: string) {

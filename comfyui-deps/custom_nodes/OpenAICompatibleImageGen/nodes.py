@@ -23,7 +23,9 @@ def _encode_multipart_form(
     for name, value in fields.items():
         parts.append(f"--{boundary}".encode("ascii") + crlf)
         parts.append(
-            f'Content-Disposition: form-data; name="{name}"'.encode("ascii") + crlf + crlf
+            f'Content-Disposition: form-data; name="{name}"'.encode("ascii")
+            + crlf
+            + crlf
         )
         parts.append(str(value).encode("utf-8") + crlf)
     for name, filename, content, content_type in files:
@@ -53,7 +55,7 @@ def _tensor_image_to_rgb_png(image: torch.Tensor) -> bytes:
 
 
 def _mask_hw_numpy(mask: torch.Tensor) -> np.ndarray:
-    """Comfy MASK (1.0 = inpaint region) as H×W float array in [0, 1]."""
+    """Comfy MASK (1.0 = inpaint region) as H×W float array in [0, 1]."""  # noqa: RUF002 - multiplication sign is the intended dimension separator
     if mask.dim() == 2:
         m = mask
     elif mask.dim() == 3:
@@ -87,13 +89,17 @@ def _decode_b64_response(url: str, raw: bytes) -> torch.Tensor:
     try:
         data = json.loads(raw.decode("utf-8"))
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"Invalid JSON from image API at {url}: {raw[:500]!r}") from e
+        raise RuntimeError(
+            f"Invalid JSON from image API at {url}: {raw[:500]!r}"
+        ) from e
     items = data.get("data")
     if not items or not isinstance(items, list):
         raise RuntimeError(f"Image API response missing data[]: {data!r}"[:2000])
     b64 = items[0].get("b64_json") if isinstance(items[0], dict) else None
     if not b64 or not isinstance(b64, str):
-        raise RuntimeError(f"Image API response missing data[0].b64_json: {data!r}"[:2000])
+        raise RuntimeError(
+            f"Image API response missing data[0].b64_json: {data!r}"[:2000]
+        )
     try:
         image_bytes = base64.b64decode(b64, validate=True)
     except (ValueError, TypeError) as e:
@@ -216,14 +222,30 @@ class OpenAICompatibleImageEdit:
     FUNCTION = "edit"
     CATEGORY = "AIPG/remote"
 
-    def edit(self, image, mask, base_url, model, text, seed, steps, width, height, strength=0.67):
+    def edit(
+        self,
+        image,
+        mask,
+        base_url,
+        model,
+        text,
+        seed,
+        steps,
+        width,
+        height,
+        strength=0.67,
+    ):
         url = f"{base_url.rstrip('/')}/images/edits"
         png_image = _tensor_image_to_rgb_png(image)
         m = _mask_hw_numpy(mask)
         has_mask = _mask_has_inpaint_region(m)
         log.debug(
             "edit: image=%s  mask=%s  has_mask=%s  mask_range=[%.4f, %.4f]",
-            tuple(image.shape), tuple(mask.shape), has_mask, float(m.min()), float(m.max()),
+            tuple(image.shape),
+            tuple(mask.shape),
+            has_mask,
+            float(m.min()),
+            float(m.max()),
         )
         if has_mask:
             fields = {
@@ -249,7 +271,9 @@ class OpenAICompatibleImageEdit:
             files = [("image", "image.png", png_image, "image/png")]
         log.debug(
             "POST %s  fields=%s  files=[%s]",
-            url, fields, ", ".join(f"{n}({fn}, {len(c)} bytes)" for n, fn, c, _ in files),
+            url,
+            fields,
+            ", ".join(f"{n}({fn}, {len(c)} bytes)" for n, fn, c, _ in files),
         )
         body, boundary = _encode_multipart_form(fields, files)
         req = urllib.request.Request(

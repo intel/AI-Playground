@@ -1,14 +1,17 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import { useBackendServices, type BackendServiceName } from './backendServices'
 import { useProductMode } from './productMode'
 import { useGlobalSetup } from './globalSetup'
-import { usePresets } from './presets'
+import { usePresets, type ChatPreset } from './presets'
+import { backendToService } from './textInference'
 import { usePresetSwitching } from './presetSwitching'
 import { useSpeechToText } from './speechToText'
 import { useTextToSpeech } from './textToSpeech'
 import { useDemoMode } from './demoMode'
 import { useHomeAgent } from './homeAgent'
+import { useCloudMode } from './cloudMode'
+import { useQwen3TextToSpeech } from './qwen3TextToSpeech'
 import { CHANNELS } from './channels/channelRegistry'
 import { mapStatusToColor, mapToDisplayStatus } from '@/lib/utils'
 import * as toast from '@/assets/js/toast'
@@ -19,13 +22,21 @@ import type { ErrorDetails } from '../../../../electron/subprocesses/service'
 const ALL_BACKENDS: BackendServiceName[] = [
   'ai-backend',
   'home-agent-backend',
+  'qwen3-tts-backend',
   'llamacpp-backend',
   'openvino-backend',
   'comfyui-backend',
 ]
 
-function getBackends(homeAgentEnabled: boolean): BackendServiceName[] {
-  return homeAgentEnabled ? ALL_BACKENDS : ALL_BACKENDS.filter((b) => b !== 'home-agent-backend')
+function getBackends(homeAgentEnabled: boolean, qwen3TtsEnabled: boolean): BackendServiceName[] {
+  let list = ALL_BACKENDS
+  if (!homeAgentEnabled) {
+    list = list.filter((b) => b !== 'home-agent-backend')
+  }
+  if (!qwen3TtsEnabled) {
+    list = list.filter((b) => b !== 'qwen3-tts-backend')
+  }
+  return list
 }
 
 function isBackendAvailableInProductMode(
@@ -80,6 +91,7 @@ const knownSteps: Record<BackendServiceName, string[]> = {
     'install comfyUI manager',
   ],
   'home-agent-backend': ['start', 'install dependencies'],
+  'qwen3-tts-backend': ['start', 'install dependencies'],
 }
 
 const stepDisplayNames: Record<string, string> = {
@@ -105,16 +117,215 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   const speechToText = useSpeechToText()
   const textToSpeech = useTextToSpeech()
   const homeAgent = useHomeAgent()
+  const cloudMode = useCloudMode()
+  const qwen3Tts = useQwen3TextToSpeech()
   const errors = useErrors()
 
   const pendingProductMode = ref<ProductMode | null>(null)
+  const pendingPreferredDevice = ref<PreferredDevice | null>(null)
   const installSelection = ref(new Set<BackendServiceName>())
   const disabledBackends = ref(new Set<BackendServiceName>())
   const wizardDirty = ref(false)
-  const wizardPage = ref<'main' | 'homeAgentSetup'>('main')
+  const wizardPage = ref<'main' | 'homeAgentSetup' | 'cloudModeSetup'>('main')
   const homeAgentSetupOrigin = ref<'install' | 'edit'>('install')
 
   const wizardActivity = ref(new Map<BackendServiceName, string>())
+
+  // Preferred-GPU picker on the wizard's first page. Pre-install we only have
+  // the raw GPU probe, so options are the detected GPUs (labeled dedicated /
+  // integrated); when none are found the picker is hidden entirely. The selection
+  // is persisted as a machine-wide preference and each backend maps it to its own
+  // device on install.
+  const DEVICE_CATEGORY_RANK: Record<DeviceCategory, number> = {
+    dgpu: 4,
+    igpu: 3,
+    npu: 2,
+    cpu: 1,
+    unknown: 0,
+  }
+
+  type PreferredDeviceOption = {
+    key: string
+    label: string
+    category: DeviceCategory
+    value: PreferredDevice
+  }
+
+  // Key by the strongest available identity (UUID → PCI id → name) so two
+  // identically-named GPUs don't collide and the selection stays stable.
+  function preferredDeviceKey(pref: PreferredDevice | null): string | null {
+    if (!pref) return null
+    return `gpu:${pref.uuid ?? pref.instanceId ?? pref.gpuDeviceId ?? pref.name}`
+  }
+
+  const preferredDeviceOptions = computed<PreferredDeviceOption[]>(() => {
+    const detected = productModeStore.hardwareRecommendation?.detectedDevices ?? []
+    const gpuOptions: PreferredDeviceOption[] = detected
+      .map((d) => {
+        const value: PreferredDevice = {
+          name: d.name,
+          gpuDeviceId: d.gpuDeviceId,
+          uuid: d.uuid ?? null,
+          // Carry the probe's per-instance id so two identically-named GPUs
+          // (e.g. dual Arc Pro B60) get distinct keys and stay independently
+          // selectable even without a UUID.
+          instanceId: d.device,
+        }
+        return {
+          key: preferredDeviceKey(value)!,
+          label: d.name,
+          category: d.category ?? ('igpu' as DeviceCategory),
+          value,
+        }
+      })
+      .sort((a, b) => DEVICE_CATEGORY_RANK[b.category] - DEVICE_CATEGORY_RANK[a.category])
+    // GPU-only picker: when no GPU is detected the list is empty and the wizard
+    // hides the "Default GPU" section entirely (there is nothing to choose).
+    return gpuOptions
+  })
+
+  /** Best default preference: the highest-category detected device, else CPU. */
+  function defaultPreferredDevice(): PreferredDevice | null {
+    return preferredDeviceOptions.value[0]?.value ?? null
+  }
+
+  function setPendingPreferredDevice(pref: PreferredDevice) {
+    pendingPreferredDevice.value = pref
+  }
+
+  // Optional "override existing user selection": when on, committing the wizard
+  // rewrites every preset's saved device pick to the chosen default device.
+  // Default off; the toggle is only offered when a preset actually has a pick.
+  const overrideExistingDeviceSelection = ref(false)
+
+  /** Best device on `serviceName` matching the chosen preferred GPU:
+   *  UUID first (deterministic), then name (exact → substring → first GPU).
+   *  undefined if nothing detected. */
+  function matchDeviceForService(
+    serviceName: BackendServiceName,
+    pref: PreferredDevice,
+  ): InferenceDevice | undefined {
+    const devices = backendServices.info.find((s) => s.serviceName === serviceName)?.devices ?? []
+    if (devices.length === 0) return undefined
+    if (pref.uuid) {
+      const byUuid = devices.find((d) => d.uuid != null && d.uuid === pref.uuid)
+      if (byUuid) return byUuid
+    }
+    const byName =
+      devices.find((d) => d.name === pref.name) ??
+      devices.find((d) => d.name.includes(pref.name) || pref.name.includes(d.name))
+    if (byName) return byName
+    return devices.find((d) => d.id.toUpperCase().includes('GPU')) ?? devices[0]
+  }
+
+  /** Local backend service for a preset backend key ('llamaCPP'/'openVINO'/…), or null
+   *  when the key has no local service (e.g. 'cloud'). */
+  function backendServiceName(backendKey: string | undefined): BackendServiceName | null {
+    return backendKey && backendKey in backendToService
+      ? backendToService[backendKey as keyof typeof backendToService]
+      : null
+  }
+
+  /** Backend service a chat preset should target: its already-persisted backend
+   *  choice if any, else the first non-cloud backend it declares. null when the
+   *  preset is cloud-only (no local device). */
+  function chatPresetServiceName(preset: ChatPreset): BackendServiceName | null {
+    const saved = presetsStore.settingsPerPreset[preset.name]
+    const savedBackend = typeof saved?.backend === 'string' ? saved.backend : undefined
+    const backendKey =
+      savedBackend ?? preset.backends.find((b) => b !== 'cloud') ?? preset.backends[0]
+    return backendServiceName(backendKey)
+  }
+
+  /** Overwrite EVERY chat preset's device pick with the chosen preferred device
+   *  (not only presets the user has already opened). The backend-local id is
+   *  matched from the backend's own device list; the preferred UUID is always
+   *  persisted so the preset still re-binds to the right device on next load even
+   *  when the backend can't be matched right now. The active preset's running
+   *  backend is switched live so the change applies immediately. Image-generation
+   *  (ComfyUI) presets use a separate store and are intentionally not touched. */
+  async function overwritePresetDeviceSelections(pref: PreferredDevice) {
+    const prefUuid = pref.uuid ?? null
+    const chatPresets = presetsStore.presets.filter((p): p is ChatPreset => p.type === 'chat')
+
+    // At wizard-commit time an installed backend may report no devices yet,
+    // which would make every match below a silent no-op. Refresh detection
+    // (best-effort) for the backends actually referenced by the presets.
+    //
+    // Collect EVERY candidate backend of each preset, not just the primary one
+    // (`chatPresetServiceName`): a preset like "Assistant" lists both llama.cpp and
+    // OpenVINO, and the per-backend device re-point below must reach OpenVINO too —
+    // otherwise it keeps its prior device (this is how OVMS stayed on NPU after a
+    // "default GPU" override). Cloud has no local service (maps to null) and is skipped.
+    const services = new Set<BackendServiceName>()
+    for (const p of chatPresets) {
+      for (const backendKey of p.backends) {
+        const s = backendServiceName(backendKey)
+        if (s) services.add(s)
+      }
+    }
+    for (const s of services) {
+      const info = backendServices.info.find((i) => i.serviceName === s)
+      if (info?.isSetUp && (info.devices?.length ?? 0) === 0) {
+        try {
+          await backendServices.detectDevices(s)
+        } catch {
+          /* best-effort; fall back to the UUID-only write below */
+        }
+      }
+    }
+
+    for (const preset of chatPresets) {
+      const serviceName = chatPresetServiceName(preset)
+      if (!serviceName) continue
+      const device = matchDeviceForService(serviceName, pref)
+      if (device) {
+        presetsStore.saveSettingsForPreset(preset.name, {
+          selectedDeviceId: device.id,
+          selectedDeviceUuid: device.uuid ?? prefUuid,
+        })
+      } else if (prefUuid) {
+        // No usable device list for this backend right now — persist the
+        // preferred UUID; textInference resolves it to the backend's current id
+        // the next time this preset loads with the backend running.
+        presetsStore.saveSettingsForPreset(preset.name, { selectedDeviceUuid: prefUuid })
+      }
+    }
+
+    // Re-point each chat backend's OWN device selection (lastSelectedDevicePerBackend),
+    // not only the presets'. A multi-backend preset (e.g. "Assistant" on llama.cpp OR
+    // OpenVINO) stores a single device pick tied to `chatPresetServiceName`'s primary
+    // backend, so the secondary backend keeps whatever it had — which is how OVMS ended
+    // up stuck on NPU after a "default GPU" override. Match the preferred device against
+    // each referenced backend's own device list and select it, restarting any that are
+    // running so the change binds immediately (mirrors DeviceSelector).
+    for (const serviceName of services) {
+      const device = matchDeviceForService(serviceName, pref)
+      if (!device) continue
+      const info = backendServices.info.find((s) => s.serviceName === serviceName)
+      if (info?.devices.find((d) => d.selected)?.id === device.id) continue
+      await backendServices.selectDevice(serviceName, device.id)
+      if (info?.status === 'running') {
+        await backendServices.stopService(serviceName)
+        await backendServices.startService(serviceName)
+      }
+    }
+  }
+
+  async function initPendingPreferredDevice() {
+    try {
+      const s = await window.electronAPI.getLocalSettings()
+      pendingPreferredDevice.value = s.preferredDevice ?? defaultPreferredDevice()
+    } catch {
+      pendingPreferredDevice.value = defaultPreferredDevice()
+    }
+    // A persisted CPU preference is meaningless once GPUs are offered (CPU is
+    // hidden then), which would leave nothing selected — fall back to the default.
+    const key = preferredDeviceKey(pendingPreferredDevice.value)
+    if (!preferredDeviceOptions.value.some((o) => o.key === key)) {
+      pendingPreferredDevice.value = defaultPreferredDevice()
+    }
+  }
 
   const errorModalOpen = ref(false)
   const errorModalServiceName = ref<BackendServiceName | null>(null)
@@ -239,7 +450,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
   })
 
   const backendRows = computed<BackendRowViewModel[]>(() => {
-    return getBackends(homeAgent.isFeatureEnabled).map((serviceName) => {
+    return getBackends(homeAgent.isFeatureEnabled, qwen3Tts.isFeatureEnabled).map((serviceName) => {
       const info = backendServices.info.find((s) => s.serviceName === serviceName)
       const available = isBackendAvailableInProductMode(pendingProductMode.value, serviceName)
       const isRequired = info?.isRequired ?? serviceName === 'ai-backend'
@@ -455,7 +666,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   function seedInstallSelection() {
     const newSelection = new Set<BackendServiceName>()
-    for (const serviceName of getBackends(homeAgent.isFeatureEnabled)) {
+    for (const serviceName of getBackends(homeAgent.isFeatureEnabled, qwen3Tts.isFeatureEnabled)) {
       const info = backendServices.info.find((s) => s.serviceName === serviceName)
       if (!info) continue
       if (info.isRequired) continue
@@ -528,7 +739,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   function setPendingMode(mode: ProductMode) {
     pendingProductMode.value = mode
-    for (const sn of getBackends(homeAgent.isFeatureEnabled)) {
+    for (const sn of getBackends(homeAgent.isFeatureEnabled, qwen3Tts.isFeatureEnabled)) {
       const wasAvailable = isBackendAvailableInProductMode(
         productModeStore.productMode ?? pendingProductMode.value,
         sn,
@@ -553,6 +764,8 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       productModeStore.productMode ??
       productModeStore.hardwareRecommendation?.recommendedMode ??
       null
+    await initPendingPreferredDevice()
+    overrideExistingDeviceSelection.value = false
     seedInstallSelection()
     wizardDirty.value = false
     wizardPage.value = 'main'
@@ -629,6 +842,11 @@ export const useSetupWizard = defineStore('setupWizard', () => {
         productModeStore.hardwareRecommendation?.recommendedMode ??
         null
       await backendServices.refreshPhisonSsdDetection()
+      // Seed the default-device selection here too (like openWizard): the
+      // first-run wizard is shown via this path, and without it the Default
+      // Device radio would render with nothing selected.
+      await initPendingPreferredDevice()
+      overrideExistingDeviceSelection.value = false
       seedInstallSelection()
       wizardDirty.value = false
       globalSetup.loadingState = 'setupWizard'
@@ -657,6 +875,21 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   async function commitAndInstall() {
     if (!pendingProductMode.value) return
+
+    // Persist the preferred device BEFORE any install runs: installBackend →
+    // restartBackend → detectDevices() reads it (via the shared settings object)
+    // to pick each backend's matching default device.
+    if (pendingPreferredDevice.value) {
+      // toRaw: strip the Vue reactive proxy so the object survives Electron's
+      // structured-clone IPC ("An object could not be cloned" otherwise).
+      const preferredDevice = toRaw(pendingPreferredDevice.value)
+      await window.electronAPI.updateLocalSettings({ preferredDevice })
+      // Optionally push the chosen default onto every preset that already has
+      // its own device pick, discarding the prior per-preset selections.
+      if (overrideExistingDeviceSelection.value) {
+        await overwritePresetDeviceSelections(preferredDevice)
+      }
+    }
 
     // Capture what needs installing BEFORE syncing mode — syncing resets the
     // variant-switch detection because current and pending modes become equal.
@@ -782,7 +1015,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     await globalSetup.initSetup()
     globalSetup.loadingState = 'running'
 
-    for (const serviceName of getBackends(homeAgent.isFeatureEnabled)) {
+    for (const serviceName of getBackends(homeAgent.isFeatureEnabled, qwen3Tts.isFeatureEnabled)) {
       const info = backendServices.info.find((s) => s.serviceName === serviceName)
       if (!info?.isSetUp) continue
       if (info.isRequired || installSelection.value.has(serviceName)) {
@@ -811,6 +1044,22 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     await syncPresetsForCurrentProductMode()
   }
 
+  /** Open the Cloud Mode provider setup screen. Frontend-only — no backend
+   *  install is involved, so this just swaps the wizard page. */
+  async function openCloudModeSetup() {
+    if (!cloudMode.isFeatureEnabled) return
+    wizardPage.value = 'cloudModeSetup'
+    globalSetup.loadingState = 'setupWizard'
+  }
+
+  /** Finish Cloud Mode setup and close the wizard, mirroring the Home Agent
+   *  finish path so preset state is refreshed on exit. */
+  async function finishCloudModeSetup() {
+    await dismiss()
+    wizardPage.value = 'main'
+    await syncPresetsForCurrentProductMode()
+  }
+
   function showErrorModal(serviceName: BackendServiceName) {
     errorModalServiceName.value = serviceName
     errorModalDetails.value = backendServices.getServiceErrorDetails(serviceName)
@@ -825,6 +1074,11 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   return {
     pendingProductMode,
+    pendingPreferredDevice,
+    preferredDeviceOptions,
+    preferredDeviceKey,
+    setPendingPreferredDevice,
+    overrideExistingDeviceSelection,
     installSelection,
     wizardDirty,
     wizardPage,
@@ -851,6 +1105,8 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     commitAndInstall,
     dismiss,
     finishHomeAgentSetup,
+    openCloudModeSetup,
+    finishCloudModeSetup,
     installBackend,
     repairBackend,
     restartBackend,
@@ -871,6 +1127,8 @@ function mapServiceNameToDisplayName(serviceName: string) {
       return 'OpenVINO'
     case 'home-agent-backend':
       return 'Home Agent'
+    case 'qwen3-tts-backend':
+      return 'Text To Speech (Qwen3-TTS)'
     default:
       return serviceName
   }

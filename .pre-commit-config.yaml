@@ -2,7 +2,9 @@
 # Install once with:  pre-commit install
 # Run on all files :  pre-commit run --all-files
 #
-# Python (service/, home-agent/) is handled by Ruff (matches the Ruff CI check).
+# The first-party Python backends are handled by Ruff (matches the Ruff CI check);
+# rule set + version are pinned in ruff.toml. Vendored trees (ComfyUI/, OpenVINO/)
+# are excluded there, so the file filter below just enumerates our backend dirs.
 # WebUI is handled by ESLint + Prettier via the existing npm scripts (matches the
 # "Lint TS" CI check). ESLint resolves its flat config from WebUI/, not the repo
 # root, so the eslint hook runs against the whole WebUI workspace.
@@ -19,7 +21,7 @@ repos:
       - id: ruff
         name: ruff lint (Python)
         args: [--fix]
-        files: ^(service|home-agent)/.*\.py$
+        files: ^(service|home-agent|qwen3-tts|backend_shared|comfyui-deps)/.*\.py$
 
   - repo: local
     hooks:
@@ -28,7 +30,7 @@ repos:
         name: ruff format (Python)
         language: system
         entry: bash -c 'uvx ruff@0.15.20 format "$@" && git add -- "$@"' --
-        files: ^(service|home-agent)/.*\.py$
+        files: ^(service|home-agent|qwen3-tts|backend_shared|comfyui-deps)/.*\.py$
       # Linter (ESLint with auto-fix)
       - id: eslint
         name: eslint (WebUI)

@@ -13,18 +13,19 @@ import logging
 import re
 import threading
 import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from .base import ChannelBase
 from .commands import HOME_AGENT_COMMANDS
 from .types import SendResult
 
-
 logger = logging.getLogger(__name__)
 
 
-_SLACK_TOKEN_RE = re.compile(r"xox[abporsb]-[A-Za-z0-9-]{10,}|xapp-\d+-[A-Za-z0-9-]{20,}")
+_SLACK_TOKEN_RE = re.compile(
+    r"xox[abporsb]-[A-Za-z0-9-]{10,}|xapp-\d+-[A-Za-z0-9-]{20,}"
+)
 
 # Document extensions the RAG ingestion pipeline (langchain loaders) accepts.
 # Mirrors the desktop uploader (WebUI/src/components/Rag.vue).
@@ -55,7 +56,9 @@ class SlackChannel(ChannelBase):
         app_token = (config.get("appToken") or "").strip()
         raw_user = config.get("userId")
         cleaned_user = (
-            str(raw_user).strip() if raw_user is not None and str(raw_user).strip() else ""
+            str(raw_user).strip()
+            if raw_user is not None and str(raw_user).strip()
+            else ""
         )
         if not bot_token or not app_token:
             return {"error": "botToken and appToken are required", "_http_status": 400}
@@ -65,12 +68,15 @@ class SlackChannel(ChannelBase):
             if self._app_instance == "starting":
                 return {"status": "starting", "_http_status": 409}
             if self._app_instance is not None:
-                same_tokens = self._bot_token == bot_token and self._app_token == app_token
+                same_tokens = (
+                    self._bot_token == bot_token and self._app_token == app_token
+                )
                 if same_tokens:
                     if cleaned_user:
                         self._allowed_user_id = cleaned_user
                         logger.info(
-                            "Slack bot already running — applied user_id=%s", cleaned_user
+                            "Slack bot already running — applied user_id=%s",
+                            cleaned_user,
                         )
                     return {
                         "status": "already_running",
@@ -106,7 +112,12 @@ class SlackChannel(ChannelBase):
 
     # ── Channel protocol: outbound sends ─────────────────────────────────
     def _outbound_target(self, hint: str | None = None) -> str | None:
-        for cand in (hint, self._im_channel, self._allowed_user_id, self._last_seen_user_id):
+        for cand in (
+            hint,
+            self._im_channel,
+            self._allowed_user_id,
+            self._last_seen_user_id,
+        ):
             if cand and str(cand).strip():
                 return str(cand).strip()
         return None
@@ -191,7 +202,11 @@ class SlackChannel(ChannelBase):
             return {"error": "Slack not configured", "_http_status": 400}
         try:
             video_bytes = base64.b64decode(video_b64)
-            kwargs: dict = {"channel": target, "file": video_bytes, "filename": filename}
+            kwargs: dict = {
+                "channel": target,
+                "file": video_bytes,
+                "filename": filename,
+            }
             if caption:
                 kwargs["initial_comment"] = caption
             if thread_ts:
@@ -221,14 +236,20 @@ class SlackChannel(ChannelBase):
             if not is_mp3:
                 try:
                     audio_bytes = to_mp3(audio_bytes)
-                except Exception as exc:  # noqa: BLE001 - best-effort transcode
-                    logger.warning("MP3 transcode failed, sending original audio: %s", exc)
+                except Exception as exc:
+                    logger.warning(
+                        "MP3 transcode failed, sending original audio: %s", exc
+                    )
                     if "ogg" in mime or "opus" in mime:
                         ext = "ogg"
                     elif "wav" in mime:
                         ext = "wav"
             filename = f"aipg-{int(time.time() * 1000)}.{ext}"
-            kwargs: dict = {"channel": target, "file": audio_bytes, "filename": filename}
+            kwargs: dict = {
+                "channel": target,
+                "file": audio_bytes,
+                "filename": filename,
+            }
             if caption:
                 kwargs["initial_comment"] = caption
             if thread_ts:
@@ -321,8 +342,8 @@ class SlackChannel(ChannelBase):
         # not yet run `uv sync`). Slack endpoints just refuse with
         # `Slack not configured`.
         try:
-            from slack_bolt.async_app import AsyncApp
             from slack_bolt.adapter.socket_mode.aiohttp import AsyncSocketModeHandler
+            from slack_bolt.async_app import AsyncApp
         except ImportError as exc:
             logger.error("slack-bolt is not installed: %s", exc)
             self._app_instance = None
@@ -339,10 +360,13 @@ class SlackChannel(ChannelBase):
             if channel and channel.startswith("D"):
                 self._im_channel = channel
 
-        async def _enqueue_command(command_text: str, user_id: str, channel: str) -> None:
+        async def _enqueue_command(
+            command_text: str, user_id: str, channel: str
+        ) -> None:
             if not self._allowed_user_id:
                 logger.info(
-                    "Detection mode: slack command from user_id=%s (not yet configured)", user_id
+                    "Detection mode: slack command from user_id=%s (not yet configured)",
+                    user_id,
                 )
                 return
             if user_id != self._allowed_user_id:
@@ -390,7 +414,9 @@ class SlackChannel(ChannelBase):
                         continue
                     size = f.get("size") or 0
                     if is_document and size and size > _MAX_DOC_BYTES:
-                        logger.warning("slack document too large, skipping: %s", filename)
+                        logger.warning(
+                            "slack document too large, skipping: %s", filename
+                        )
                         continue
                     url = f.get("url_private_download") or f.get("url_private")
                     if not url:
@@ -447,18 +473,23 @@ class SlackChannel(ChannelBase):
                 allow = self._allowed_user_id
                 if not allow:
                     logger.info(
-                        "Detection mode: slack DM from user_id=%s (not yet configured)", user_id
+                        "Detection mode: slack DM from user_id=%s (not yet configured)",
+                        user_id,
                     )
                     return
                 if user_id != allow:
-                    logger.warning("Ignoring slack DM from unauthorized user_id: %s", user_id)
+                    logger.warning(
+                        "Ignoring slack DM from unauthorized user_id: %s", user_id
+                    )
                     return
 
                 text = event.get("text") or ""
                 ts = event.get("ts") or ""
                 files = event.get("files") or []
                 images, audio, documents = (
-                    await _download_slack_files(files, bot_token) if files else ([], [], [])
+                    await _download_slack_files(files, bot_token)
+                    if files
+                    else ([], [], [])
                 )
                 if text:
                     text_payload = text
@@ -506,7 +537,9 @@ class SlackChannel(ChannelBase):
             def _make_slash_handler(cmd):  # type: ignore[no-untyped-def]
                 async def handler(ack, command):  # type: ignore[no-untyped-def]
                     text = (command.get("text") or "").strip() if cmd.takes_args else ""
-                    full_text = f"{cmd.queued_text} {text}".strip() if text else cmd.queued_text
+                    full_text = (
+                        f"{cmd.queued_text} {text}".strip() if text else cmd.queued_text
+                    )
                     await _handle_slash(ack, command, full_text)
 
                 return handler
@@ -560,10 +593,18 @@ class SlackChannel(ChannelBase):
                     )
                     return
                 value = action.get("value") or action.get("action_id") or ""
-                key = value[len("loadConv:") :] if value.startswith("loadConv:") else value
+                key = (
+                    value[len("loadConv:") :]
+                    if value.startswith("loadConv:")
+                    else value
+                )
                 logger.info("Slack loadConv action: user=%s key=%s", user, key)
                 self.queue_append(
-                    {"text": f"/load {key}".strip(), "chat_id": user, "channel": channel}
+                    {
+                        "text": f"/load {key}".strip(),
+                        "chat_id": user,
+                        "channel": channel,
+                    }
                 )
 
             handler = AsyncSocketModeHandler(bolt_app, app_token)

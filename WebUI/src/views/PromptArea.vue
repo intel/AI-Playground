@@ -1,43 +1,12 @@
 <template>
   <div id="prompt-area" class="text-foreground flex flex-col w-full pt-4">
-    <div class="group flex flex-col items-center gap-7 text-base px-4">
+    <div class="group flex flex-col items-center gap-3 text-base px-4">
       <div v-if="contextError" class="flex items-center gap-3">
         <p class="text-red-500">{{ contextError }}</p>
       </div>
-      <div class="grid grid-cols-3 items-center gap-3 h-10">
-        <p class="text-2xl col-start-2 font-bold">Let's Generate</p>
-        <Context
-          v-if="promptStore.getCurrentMode() === 'chat'"
-          :used-tokens="contextUsedTokens"
-          :max-tokens="contextMaxTokens"
-          :max-context-size="textInference.maxContextSizeFromModel"
-          :dynamic-context="textInference.contextSizeIsDynamic"
-          :usage="contextUsage"
-        />
-      </div>
-      <div class="relative w-full max-w-3xl">
-        <!-- Zoom Controls (only in chat mode) -->
-        <div
-          v-if="promptStore.getCurrentMode() === 'chat'"
-          class="absolute -top-8 right-0 flex gap-1 z-[5]"
-        >
-          <button
-            @click="textInference.decreaseFontSize()"
-            :disabled="textInference.isMinSize"
-            class="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Decrease font size"
-          >
-            <MagnifyingGlassMinusIcon class="size-5" />
-          </button>
-          <button
-            @click="textInference.increaseFontSize()"
-            :disabled="textInference.isMaxSize"
-            class="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Increase font size"
-          >
-            <MagnifyingGlassPlusIcon class="size-5" />
-          </button>
-        </div>
+      <p class="text-2xl font-bold">Let's Generate</p>
+      <div class="w-full max-w-3xl flex flex-col">
+        <PromptStatusBar />
         <!-- RAG Documents Display (only when RAG is enabled and has documents) -->
         <div
           v-if="
@@ -90,6 +59,7 @@
           </template>
           <textarea
             id="prompt-input"
+            aria-label="Prompt"
             ref="textareaRef"
             class="resize-none w-full h-48 px-4 pb-16 bg-background/50 rounded-md outline-none border border-border focus-visible:ring-[1px] focus-visible:ring-primary"
             :class="{
@@ -137,22 +107,116 @@
                 type="file"
                 class="hidden"
                 id="file-attachment"
+                aria-label="Attach image or document"
                 :accept="getAcceptedFileTypes()"
                 multiple
                 @change="handleFileInput"
               />
             </div>
           </div>
-          <div id="mode-buttons" class="absolute bottom-4 left-3 flex gap-2">
-            <Button
+          <div
+            id="mode-buttons"
+            class="absolute bottom-4 left-3 flex gap-2"
+            @pointerleave="schedulePickerClose"
+          >
+            <Popover
               v-for="mode in modesWithPresets"
-              :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
               :key="mode"
-              :id="'mode-button-' + mode"
-              @click="handleModeClick(mode)"
+              :open="openPickerMode === mode"
+              @update:open="(val: boolean) => onPickerOpenChange(mode, val)"
             >
-              {{ mapModeToLabel(mode) }}
-            </Button>
+              <!-- Shared anchor pinned to the left edge of the button row, so every
+                   mode's picker opens from the same point (using the full width) -->
+              <PopoverAnchor as-child>
+                <span
+                  aria-hidden="true"
+                  class="pointer-events-none absolute left-0 top-0 bottom-0 w-0"
+                />
+              </PopoverAnchor>
+              <PopoverTrigger as-child>
+                <Button
+                  :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
+                  :id="'mode-button-' + mode"
+                  @pointerenter="(e: PointerEvent) => onPickerPointerEnter(mode, e)"
+                  @pointerdown="onPickerPointerDown"
+                  @focus="(e: FocusEvent) => onPickerFocus(mode, e)"
+                  @blur="schedulePickerClose()"
+                  @click="handleModeClick(mode)"
+                >
+                  {{ mapModeToLabel(mode) }}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="start"
+                :side-offset="8"
+                class="z-[40010] w-auto max-w-[80vw] rounded-lg border border-border bg-card p-2 shadow-xl"
+                @open-auto-focus.prevent
+                @close-auto-focus.prevent
+              >
+                <!-- Hover handlers live on this inner div rather than <PopoverContent>:
+                     that wrapper's root is a Teleport (PopoverPortal), which drops attrs. -->
+                <div
+                  data-aipg-help="preset-selector"
+                  class="flex gap-2 overflow-x-auto max-w-[76vw] pb-1"
+                  @pointerenter="cancelPickerClose"
+                  @pointerleave="schedulePickerClose"
+                >
+                  <TooltipProvider :delay-duration="200">
+                    <Tooltip v-for="preset in presetsForMode(mode)" :key="preset.name">
+                      <TooltipTrigger as-child>
+                        <button
+                          type="button"
+                          :aria-label="preset.name"
+                          :aria-pressed="presetsStore.activePresetName === preset.name"
+                          :aria-disabled="!presetGate(preset).enabled"
+                          :data-aipg-preset-name="preset.name"
+                          class="relative flex-none w-16 h-16 rounded-md overflow-hidden border-2 transition-all duration-150"
+                          :class="[
+                            presetsStore.activePresetName === preset.name
+                              ? 'border-primary ring-2 ring-primary'
+                              : 'border-transparent',
+                            presetGate(preset).enabled
+                              ? 'hover:border-primary'
+                              : 'opacity-40 grayscale cursor-not-allowed',
+                          ]"
+                          @click="selectPresetFromPicker(mode, preset)"
+                        >
+                          <img
+                            v-if="preset.image"
+                            :src="preset.image"
+                            :alt="preset.name"
+                            class="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <div class="absolute bottom-0 w-full bg-background/70 px-0.5 py-0.5">
+                            <span
+                              class="block text-foreground text-[9px] leading-tight font-medium text-center truncate"
+                            >
+                              {{ preset.name }}
+                            </span>
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" class="z-[40011] max-w-[260px]">
+                        <p class="font-semibold">{{ preset.name }}</p>
+                        <p v-if="preset.description" class="mt-1 text-primary-foreground/80">
+                          {{ preset.description }}
+                        </p>
+                        <p v-if="!presetGate(preset).enabled" class="mt-1 text-amber-400 text-xs">
+                          {{ presetGate(preset).reason }}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <p
+                    v-if="presetsForMode(mode).length === 0"
+                    class="text-xs text-muted-foreground px-2 py-4 whitespace-nowrap"
+                  >
+                    No presets available
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div class="absolute bottom-4 right-3 flex gap-2">
             <Button
@@ -212,6 +276,7 @@
               v-if="readyForNewSubmit"
               @click="handleSubmitPromptClick"
               id="send-button"
+              aria-label="Send"
               class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
             >
               →
@@ -219,6 +284,8 @@
             <Button
               v-else-if="!isStopping"
               @click="handleCancelClick"
+              aria-label="Stop generating"
+              aria-busy="true"
               class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
             >
               <i class="svg-icon w-4 h-4 i-stop"></i>
@@ -226,6 +293,8 @@
             <Button
               v-else
               disabled
+              aria-label="Stopping"
+              aria-busy="true"
               class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
             >
               <i class="svg-icon w-4 h-4 i-loading"></i>
@@ -269,34 +338,33 @@ import {
   type ImageMediaItem,
 } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
-import { useConversations } from '@/assets/js/store/conversations'
+import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
+import { useHomeAgent } from '@/assets/js/store/homeAgent'
+import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useActivities } from '@/assets/js/store/activities'
+import { useErrors } from '@/assets/js/store/errors'
 import {
   useTextInference,
   type ValidFileExtension,
   type IndexedDocument,
 } from '@/assets/js/store/textInference'
 import { useI18N } from '@/assets/js/store/i18n'
-import { usePresets, type ChatPreset } from '@/assets/js/store/presets'
-import {
-  PlusIcon,
-  PaperClipIcon,
-  XMarkIcon,
-  MagnifyingGlassPlusIcon,
-  MagnifyingGlassMinusIcon,
-} from '@heroicons/vue/24/outline'
+import { usePresets, type ChatPreset, type Preset } from '@/assets/js/store/presets'
+import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { CameraIcon } from '@heroicons/vue/24/solid'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
-import { Context } from '@/components/ui/context'
 import Button from '@/components/ui/button/Button.vue'
+import PromptStatusBar from '@/components/PromptStatusBar.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import CameraCapture from '@/components/CameraCapture.vue'
 import { useDemoMode, type DemoButtonId } from '@/assets/js/store/demoMode'
 import { useProductMode } from '@/assets/js/store/productMode'
 import DemoSamplePrompts from '@/components/DemoSamplePrompts.vue'
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
@@ -312,10 +380,186 @@ const openAiCompatibleChat = useOpenAiCompatibleChat()
 const textInference = useTextInference()
 const conversations = useConversations()
 const activities = useActivities()
+const errors = useErrors()
 const textareaRef = ref<HTMLTextAreaElement>()
 const isTextareaFocused = ref(false)
 const presetsStore = usePresets()
+const presetSwitching = usePresetSwitching()
+const homeAgent = useHomeAgent()
+const backendServices = useBackendServices()
 const dialogStore = useDialogStore()
+
+// Some chat presets are gated on a feature that the user can enable/install but
+// that may currently be off. They stay visible in the picker but greyed-out and
+// non-selectable (with a reason), unlike presets that are entirely unavailable on
+// this system — those are filtered out upstream (e.g. aiDAPTIV™/Phison without the
+// SSD, or Home Agent when the feature flag is off, which then isn't loaded at all).
+const phisonUsable = computed(
+  () =>
+    backendServices.phisonSsdDetected &&
+    (backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
+      ?.llamaCppPhisonArtifactReady ??
+      false) &&
+    backendServices.llamaCppBuildVariant === 'ssd-offload',
+)
+
+/** Whether a picker preset is currently selectable, plus why not when disabled. */
+function presetGate(preset: Preset): { enabled: boolean; reason?: string } {
+  if (preset.type === 'chat' && (preset as ChatPreset).requiresPhison) {
+    return phisonUsable.value
+      ? { enabled: true }
+      : { enabled: false, reason: 'Install and activate the aiDAPTIV™ build to use this preset.' }
+  }
+  if (preset.name === HOME_AGENT_CHAT_PRESET_NAME) {
+    if (!homeAgent.masterEnabled) {
+      return { enabled: false, reason: 'Enable the Home Agent in settings to use this preset.' }
+    }
+    if (!homeAgent.isAvailable) {
+      return { enabled: false, reason: 'The Home Agent backend is not installed or running yet.' }
+    }
+    return { enabled: true }
+  }
+  return { enabled: true }
+}
+
+// Quick preset picker: which mode's picker popover is currently open (null = none).
+const openPickerMode = ref<ModeType | null>(null)
+
+// Mode -> preset category / type, used to list a mode's presets in the quick picker.
+// Mirrors the mapping in the prompt store.
+const modeToCategories: Record<ModeType, string[]> = {
+  chat: ['chat'],
+  imageGen: ['create-images'],
+  imageEdit: ['edit-images'],
+  video: ['create-videos'],
+}
+const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
+  chat: 'chat',
+  imageGen: 'comfy',
+  imageEdit: 'comfy',
+  video: 'comfy',
+}
+
+function presetsForMode(mode: ModeType): Preset[] {
+  return presetsStore.getPresetsByCategories(modeToCategories[mode], modeToPresetType[mode])
+}
+
+// The picker opens on hover (mouse) with a small delay, and closes shortly after the
+// pointer leaves the button row / picker — the grace delay bridges the offset gap
+// between the two so the menu doesn't flicker on the way up.
+const PICKER_OPEN_DELAY = 80
+const PICKER_CLOSE_DELAY = 150
+let pickerOpenTimer: number | null = null
+let pickerCloseTimer: number | null = null
+// Touch/pen users get no hover, so for them the trigger click may still open the picker.
+let lastPickerPointerType = 'mouse'
+
+function clearPickerTimers() {
+  if (pickerOpenTimer !== null) {
+    window.clearTimeout(pickerOpenTimer)
+    pickerOpenTimer = null
+  }
+  if (pickerCloseTimer !== null) {
+    window.clearTimeout(pickerCloseTimer)
+    pickerCloseTimer = null
+  }
+}
+
+function openPicker(mode: ModeType) {
+  clearPickerTimers()
+  // Suppressed during the guided demo so it doesn't collide with the demo help popover.
+  if (demoMode.enabled) return
+  if (openPickerMode.value === mode) return
+  pickerOpenTimer = window.setTimeout(() => {
+    pickerOpenTimer = null
+    openPickerMode.value = mode
+  }, PICKER_OPEN_DELAY)
+}
+
+function schedulePickerClose() {
+  clearPickerTimers()
+  pickerCloseTimer = window.setTimeout(() => {
+    pickerCloseTimer = null
+    openPickerMode.value = null
+  }, PICKER_CLOSE_DELAY)
+}
+
+function cancelPickerClose() {
+  clearPickerTimers()
+}
+
+function closePicker() {
+  clearPickerTimers()
+  openPickerMode.value = null
+}
+
+function onPickerPointerEnter(mode: ModeType, event: PointerEvent) {
+  if (event.pointerType === 'mouse') openPicker(mode)
+}
+
+function onPickerFocus(mode: ModeType, event: FocusEvent) {
+  // Open for keyboard focus only: clicking the button focuses it too, and that
+  // click is a mode switch, not a request to open the picker.
+  const target = event.target as HTMLElement | null
+  if (target?.matches(':focus-visible')) openPicker(mode)
+}
+
+function onPickerPointerDown(event: PointerEvent) {
+  lastPickerPointerType = event.pointerType
+}
+
+function onPickerOpenChange(mode: ModeType, open: boolean) {
+  // Reka asks to open on trigger click; hover is the only opener for mouse users,
+  // so only close requests (outside click / Escape) are honored there. Touch/pen
+  // taps get no hover, so their click still opens the picker as before.
+  if (!open) {
+    closePicker()
+    return
+  }
+  if (lastPickerPointerType !== 'mouse' && !demoMode.enabled) openPickerMode.value = mode
+}
+
+async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
+  // Greyed-out presets (feature off / not installed) aren't selectable — explain why.
+  const gate = presetGate(preset)
+  if (!gate.enabled) {
+    toast.warning(gate.reason ?? 'This preset is not available yet.')
+    return
+  }
+
+  closePicker() // Selecting a preset closes the picker.
+
+  if (presetSwitching.isSwitching) {
+    toast.warning('Please wait for current preset change to complete')
+    return
+  }
+  // No-op if it's already the active preset for this mode.
+  if (preset.name === presetsStore.activePresetName && promptStore.getCurrentMode() === mode) {
+    return
+  }
+
+  // Hovering only opened the picker, so selecting the preset performs the mode
+  // switch too (skipPresetSwitch: we pick the preset ourselves right after).
+  if (!promptStore.setCurrentMode(mode, { skipPresetSwitch: true })) return
+
+  // Route the active conversation alongside the preset, mirroring SettingsChat:
+  // Home Agent jumps to its remote thread; leaving a Home Agent thread for another
+  // preset spawns a fresh main conversation so we don't write into Home Agent state.
+  const switchingToHomeAgent = preset.name === HOME_AGENT_CHAT_PRESET_NAME
+  const onHomeAgentThread = conversations.getThreadKind(conversations.activeKey) === 'homeAgent'
+
+  const result = await presetSwitching.switchPreset(preset.name, { skipModeSwitch: true })
+  if (result.success) {
+    if (switchingToHomeAgent) {
+      conversations.activeKey = homeAgent.ensureActiveRemoteConversation()
+    } else if (onHomeAgentThread) {
+      conversations.addNewConversation()
+    }
+    toast.success(`Switched to ${preset.name}`)
+  } else if (result.error) {
+    toast.error(`Failed to switch preset: ${result.error}`)
+  }
+}
 const demoMode = useDemoMode()
 const productModeStore = useProductMode()
 
@@ -422,6 +666,10 @@ const isProcessing = computed(
   () =>
     openAiCompatibleChat.processing ||
     imageGeneration.processing ||
+    // Model/backend load runs before the chat stream starts (so `processing` is
+    // still false); keep the busy state up for it too, so the send/stop control
+    // is the single, complete signal for "is the app working on this turn".
+    textInference.isPreparingBackend ||
     activities.chatActivity(conversations.activeKey) !== null,
 )
 
@@ -484,14 +732,6 @@ const isTextAreaDisabled = computed(() => {
   return !readyForNewSubmit.value || !isPromptModifiable.value
 })
 
-// Context usage data for Context component
-const contextUsedTokens = computed(() => openAiCompatibleChat.usedTokens)
-const contextMaxTokens = computed(() =>
-  textInference.contextSizeIsDynamic
-    ? (textInference.maxContextSizeFromModel ?? 0)
-    : textInference.contextSize,
-)
-const contextUsage = computed(() => openAiCompatibleChat.contextUsage)
 const contextError = computed(() => openAiCompatibleChat.error)
 
 watch(isProcessing, (newValue, oldValue) => {
@@ -555,6 +795,12 @@ watch(
 )
 
 function getTextAreaPlaceholder() {
+  // The TTS preset runs in 'chat' mode but takes literal text to speak, not a
+  // chat prompt — so it needs its own placeholder.
+  const active = presetsStore.activePreset
+  if (active?.type === 'chat' && active.ttsPreset) {
+    return languages?.COM_PROMPT_TTS || ''
+  }
   switch (promptStore.getCurrentMode()) {
     case 'chat':
       return languages?.COM_PROMPT_CHAT || ''
@@ -594,7 +840,11 @@ async function handleRecordingClick() {
   await audioRecorder.startRecording()
 
   if (audioRecorder.error) {
-    toast.error(audioRecorder.error)
+    errors.report(audioRecorder.error, {
+      category: 'inference',
+      code: 'inference/audio-record-failed',
+      userMessage: audioRecorder.error,
+    })
   }
 }
 
@@ -607,6 +857,10 @@ function handleCameraClick() {
 
 function handleModeClick(mode: ModeType) {
   const buttonId = `mode-button-${mode}` as DemoButtonId
+  // Clicking switches the mode only; the quick preset picker opens on hover, and
+  // closing it here keeps the menu from being dragged along by the layout shift
+  // a mode switch can cause.
+  closePicker()
   promptStore.setCurrentMode(mode)
   void nextTick(() => {
     requestAnimationFrame(() => {
@@ -704,8 +958,11 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
       }
     }
   } catch (error) {
-    console.error('Error processing image:', error)
-    toast.error('Failed to load image')
+    errors.report(error, {
+      category: 'inference',
+      code: 'inference/image-load-failed',
+      userMessage: 'Failed to load image',
+    })
   } finally {
     URL.revokeObjectURL(imageUrl)
   }
@@ -786,7 +1043,7 @@ async function handleFileInput(event: Event) {
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
     toast.error(
-      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
+      'Document attachments are not enabled for this preset. Use the "Assistant" preset or similar.',
     )
     documentFiles.length = 0
   }
@@ -842,8 +1099,11 @@ async function addDocumentsToRagList(files: File[]) {
 
       await textInference.addDocumentToRagList(newDocument)
     } catch (error) {
-      console.error('Error adding document to RAG list:', error)
-      toast.error(i18nState.RAG_UPLOAD_TYPE_ERROR)
+      errors.report(error, {
+        category: 'inference',
+        code: 'inference/rag-add-failed',
+        userMessage: i18nState.RAG_UPLOAD_TYPE_ERROR,
+      })
     }
   }
 }
@@ -889,7 +1149,7 @@ async function onDrop(files: File[] | null) {
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
     toast.error(
-      'Document attachments are not enabled for this preset. Use "Chat with RAG" or similar preset.',
+      'Document attachments are not enabled for this preset. Use the "Assistant" preset or similar.',
     )
     documentFiles.length = 0
   }

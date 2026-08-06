@@ -1,10 +1,11 @@
-from io import BufferedWriter
 import os
 import time
 import traceback
-from typing import Callable
-import requests
+from collections.abc import Callable
+from io import BufferedWriter
 from threading import Thread
+
+import requests
 from exceptions import DownloadException
 
 

@@ -6,6 +6,11 @@
   "copyright": "Copyright © Intel. All rights reserved",
   "extraResources": [
     {
+      "from": "../backend_shared",
+      "to": "backend_shared",
+      "filter": ["*.py"]
+    },
+    {
       "from": "../service",
       "to": "service",
       "filter": ["*.py", "model_config.json", "pyproject.toml", "uv.lock"]
@@ -14,6 +19,11 @@
       "from": "../home-agent",
       "to": "home-agent",
       "filter": ["*.py", "channels/*.py", "pyproject.toml", "uv.lock"]
+    },
+    {
+      "from": "../qwen3-tts",
+      "to": "qwen3-tts",
+      "filter": ["*.py", "pyproject.toml", "uv.lock"]
     },
     {
       "from": "../OpenVINO",

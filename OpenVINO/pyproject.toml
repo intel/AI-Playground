@@ -1,7 +1,7 @@
 [project]
 name = "aipg-openvino-utils"
 version = "1.0.0"
-requires-python = ">=3.10"
+requires-python = "==3.12.*"
 dependencies = [
   "openvino",
 ]

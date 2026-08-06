@@ -4,7 +4,7 @@ import { z } from 'zod'
 // Type for detection data
 type Detection = {
   label: string
-  location: [number, number, number, number] // [x1, y1, x2, y2]
+  location: number[] // [x1, y1, x2, y2] — validated to length 4 at runtime
 }
 
 /**
@@ -322,7 +322,13 @@ export const visualizeObjectDetections = tool({
         z.object({
           label: z.string().describe('Label/name of the detected object'),
           location: z
-            .tuple([z.number(), z.number(), z.number(), z.number()])
+            // A fixed-length array (not z.tuple): tuples compile to JSON Schema
+            // with `items` as an array of per-position schemas, which strict
+            // validators (Google Gemini's OpenAI-compatible endpoint) reject with
+            // "items must be a boolean or an object". `.length(4)` emits a single
+            // `items` schema plus min/maxItems, which every provider accepts.
+            .array(z.number())
+            .length(4)
             .describe(
               'Bounding box coordinates as [x1, y1, x2, y2] where (x1, y1) is top-left and (x2, y2) is bottom-right',
             ),

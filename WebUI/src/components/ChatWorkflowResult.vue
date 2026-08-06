@@ -63,12 +63,14 @@
             v-else-if="
               currentImage && currentImage.type === 'image' && hasValidImageUrl(currentImage)
             "
+            alt="Generated result"
             class="object-contain shadow-black/40 shadow-md rounded-sm border-3 border-background"
             :src="currentImage.imageUrl"
           />
           <video
             v-else-if="currentImage && isVideo(currentImage)"
             :src="currentImage?.videoUrl as string"
+            aria-label="Generated result"
             class="object-contain p-2"
             controlsList="nodownload nofullscreen noremoteplayback"
             controls

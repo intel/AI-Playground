@@ -6,7 +6,7 @@
   "experimental": true,
   "displayOrder": 30,
   "requiresNvidiaGpu": false,
-  "excludePresets": ["npu-chat"],
+  "excludePresets": [],
   "ui": {
     "i18n": {
       "titleOne": "PRODUCT_MODE_NVIDIA_TITLE_ONE",

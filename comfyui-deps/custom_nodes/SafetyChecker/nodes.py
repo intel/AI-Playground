@@ -17,11 +17,12 @@
 # folder_paths instead of HuggingFace Hub for offline capability.
 
 import os
-from transformers import pipeline
-import numpy as np
-from PIL import Image
-import torch
+
 import folder_paths
+import numpy as np
+import torch
+from PIL import Image
+from transformers import pipeline
 
 
 class SafetyChecker:

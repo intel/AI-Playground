@@ -53,20 +53,19 @@
       >
         <ServerStackIcon class="size-6 text-foreground"></ServerStackIcon>
       </button>
-      <div
-        id="demo-buttons-group"
-        v-if="demoMode.enabled && globalSetup.loadingState === 'running'"
-        class="flex gap-2"
+      <button
+        v-if="globalSetup.loadingState === 'running'"
+        id="contextual-help-toggle"
+        type="button"
+        class="flex size-7 items-center justify-center rounded-full border border-border text-sm font-bold text-foreground transition-colors hover:bg-muted"
+        :class="{ 'bg-primary text-primary-foreground border-primary': contextualHelp.active }"
+        title="What's this? Click, then click a control to learn about it."
+        aria-label="Toggle help mode"
+        :aria-pressed="contextualHelp.active"
+        @click="contextualHelp.toggle()"
       >
-        <button
-          id="demo-need-help-button"
-          class="bg-demo-button text-white px-3 rounded text-xs cursor-pointer"
-          style="height: 30px; min-width: 90px"
-          @click="triggerHelpForCurrentMode(true)"
-        >
-          {{ languages.DEMO_NEED_HELP }}
-        </button>
-      </div>
+        ?
+      </button>
       <button
         v-if="!demoMode.enabled"
         :title="languages.COM_MINI"
@@ -250,6 +249,7 @@
     <DemoModeOverlayDriverJsRef ref="demoModeOverlayDriverJs" />
     <DemoModeNotificationDots />
     <DemoModeAutoresetDialog v-if="demoMode.showResetDialog" />
+    <ContextualHelpLayer />
   </main>
 
   <footer
@@ -339,11 +339,14 @@ import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 import HomeAgentToggle from '@/components/HomeAgentToggle.vue'
 import MockChannelPanel from '@/components/MockChannelPanel.vue'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
+import ContextualHelpLayer from '@/components/ContextualHelpLayer.vue'
+import { useContextualHelp } from '@/assets/js/store/contextualHelp'
 
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
 const productModeStore = useProductMode()
 const demoMode = useDemoMode()
+const contextualHelp = useContextualHelp()
 const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const uiStore = useUIStore()
@@ -494,14 +497,6 @@ function openSpecificSettings() {
 function openAppSettings() {
   if (demoMode.triggerFirstTimeHelp('app-settings-button')) return
   showAppSettings.value = true
-}
-
-function triggerHelpForCurrentMode(_force = false) {
-  demoModeOverlayDriverJs.value?.triggerContextHelp?.(
-    promptStore.getCurrentMode(),
-    showAppSettings.value,
-    showSpecificSettings.value,
-  )
 }
 
 function startTour() {

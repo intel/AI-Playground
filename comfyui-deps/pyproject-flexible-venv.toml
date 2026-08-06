@@ -10,18 +10,18 @@ dependencies = []
 
 [project.optional-dependencies]
 xpu = [
-  "torch>=2.10.0,<2.13",
+  "torch>=2.13.0,<2.14",
   "torchaudio",
   "torchvision",
   "triton-xpu>=3.6.0; sys_platform != 'darwin'",
 ]
 cpu = [
-  "torch>=2.10.0,<2.13",
+  "torch>=2.13.0,<2.14",
   "torchaudio",
   "torchvision",
 ]
 cuda = [
-  "torch>=2.10.0,<2.13",
+  "torch>=2.13.0,<2.14",
   "torchaudio",
   "torchvision",
 ]
@@ -30,9 +30,10 @@ cuda = [
 python-preference = "only-managed"
 link-mode = "clone"
 index-strategy = "unsafe-best-match"
-# Hard ceiling: torch 2.13 fails on Linux due to driver issues. Never resolve
-# beyond the 2.12.x series, including via transitive dependencies.
-constraint-dependencies = ["torch<2.13"]
+# torch 2.13.x: clears PYSEC-2025-194 and lifts the setuptools<82 cap. The earlier
+# 2.13 Linux breakage was a driver-version mismatch, not a code bug — the cu130 /
+# xpu wheels require a recent NVIDIA / Intel GPU driver on Linux. Ensure the target
+# driver floor is met before deploying. Keep in sync with pyproject.toml.
 required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 prerelease = "if-necessary-or-explicit"
 environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
@@ -83,5 +84,5 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu128"
+url = "https://download.pytorch.org/whl/cu130"
 explicit = true

@@ -15,6 +15,9 @@ import { useBackendServices } from '@/assets/js/store/backendServices'
 const props = defineProps<{
   backend: BackendServiceName
   allowedDevicePrefixes?: string[]
+  // Show only the device name (e.g. "CPU") instead of "id: name" (e.g. "cpu: CPU").
+  // Used by TTS, whose ids are torch device strings that add no user value.
+  nameOnly?: boolean
 }>()
 
 const selectInferenceDevice = async (item: string) => {
@@ -42,7 +45,7 @@ const selectedDevice = computed(
 )
 const items = computed(() => visibleDevices.value.map(deviceToItem))
 const deviceToItem = (d: InferenceDevice) => ({
-  label: `${d.id}: ${d.name}`,
+  label: props.nameOnly ? d.name : `${d.id}: ${d.name}`,
   value: d.id,
   active: true,
 })

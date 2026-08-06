@@ -4,11 +4,22 @@ import { z } from 'zod'
 import { spawnProcessAsync } from './osProcessHelper'
 import { appLoggerInstance as appLogger } from '../logging/logger.ts'
 import { buildResources } from './uvBasedBackends/uv.ts'
+import { normalizeDeviceUuid } from './deviceDetection.ts'
+import {
+  categorizeDevice,
+  rankDevicesByCategory,
+  type DeviceCategory,
+  type ReferenceAccelerator,
+} from './deviceArch.ts'
 
 export type GpuHardwareDevice = {
   device: string
   name: string
+  /** PCI model id (Intel, e.g. `0x56A0`); for NVIDIA this is null (see `uuid`). */
   gpuDeviceId: string | null
+  /** Stable vendor UUID when the probe can supply one (NVIDIA nvidia-smi, Intel
+   *  xpu-smi). null on the PowerShell/lspci fallbacks, which expose no UUID. */
+  uuid?: string | null
 }
 
 const XpuSmiDiscoverySchema = z.object({
@@ -57,6 +68,7 @@ export async function detectIntelGpusViaXpuSmi(): Promise<GpuHardwareDevice[]> {
       device: `INTEL_GPU:${d.device_id}`,
       name: d.device_name,
       gpuDeviceId: d.pci_device_id ?? null,
+      uuid: normalizeDeviceUuid(d.uuid),
     }))
   } catch (e) {
     appLogger.warn(
@@ -94,8 +106,11 @@ async function detectIntelGpusViaLspci(): Promise<GpuHardwareDevice[]> {
         // would truncate to just "DG2").
         const nameMatch = line.match(/Intel Corporation (.+?)\s*\[8086:/)
         if (deviceMatch) {
+          // The PCI bus address (first token, e.g. "03:00.0") is unique per
+          // card, keeping two identical Intel GPUs distinguishable on Linux.
+          const busId = line.trim().split(/\s+/)[0]
           devices.push({
-            device: 'INTEL_GPU_LSPCI',
+            device: busId ? `INTEL_GPU_LSPCI:${busId}` : 'INTEL_GPU_LSPCI',
             name: nameMatch ? nameMatch[1].trim() : 'Intel GPU',
             gpuDeviceId: `0x${deviceMatch[1].toUpperCase()}`,
           })
@@ -132,7 +147,10 @@ export function parsePowerShellGpuOutput(output: string): GpuHardwareDevice[] {
     if (!m) continue
     const devId = `0x${m[1].toUpperCase()}`
     devices.push({
-      device: `INTEL_GPU_PNP`,
+      // The full PNP instance path is unique per physical card, so two
+      // identically-named GPUs (e.g. dual Arc Pro B60) stay distinguishable
+      // even though this fallback carries no UUID.
+      device: `INTEL_GPU_PNP:${pnp.toUpperCase()}`,
       name: entry.Name,
       gpuDeviceId: devId,
     })
@@ -196,7 +214,9 @@ export async function detectNvidiaGpusViaSmi(): Promise<GpuHardwareDevice[]> {
     return gpus.map((g) => ({
       device: `NVIDIA_GPU:${g.index}`,
       name: g.name,
-      gpuDeviceId: g.uuid ?? null,
+      // NVIDIA has no PCI model id here; its stable identity is the UUID.
+      gpuDeviceId: null,
+      uuid: normalizeDeviceUuid(g.uuid),
     }))
   } catch (e) {
     appLogger.warn(
@@ -230,6 +250,57 @@ export async function detectGpuHardwareDevices(): Promise<{
 
   const detected = [...nvidia, ...finalIntel]
   return { detected, hasNvidia: nvidia.length > 0 }
+}
+
+function toReferenceAccelerator(device: GpuHardwareDevice): ReferenceAccelerator {
+  const vendor: ReferenceAccelerator['vendor'] = device.device.startsWith('NVIDIA')
+    ? 'nvidia'
+    : device.device.startsWith('INTEL')
+      ? 'intel'
+      : 'unknown'
+  return { vendor, name: device.name, gpuDeviceId: device.gpuDeviceId }
+}
+
+export type ClassifiedGpuHardwareDevice = GpuHardwareDevice & { category: DeviceCategory }
+
+/**
+ * Tag each physically detected GPU with a dgpu/igpu category, using the detected
+ * set as its own classification reference (PCI id → arch table for Intel, vendor
+ * for NVIDIA). Consumed by the setup wizard, which can only show raw hardware
+ * pre-install and needs to label each GPU as dedicated vs integrated.
+ */
+export function classifyDetectedDevices(
+  devices: GpuHardwareDevice[],
+): ClassifiedGpuHardwareDevice[] {
+  const reference = devices.map(toReferenceAccelerator)
+  return devices.map((d) => ({
+    ...d,
+    category: categorizeDevice({ id: d.device, name: d.name }, reference),
+  }))
+}
+
+/**
+ * Pick the id of the best device from a backend's own detected list, preferring
+ * dedicated GPU > integrated GPU > NPU > CPU. Uses the physical GPU probe as the
+ * discreteness reference; if that probe fails or is empty, GPUs rank equally and
+ * the first-detected device wins — matching the previous "first device" default.
+ * Returns undefined only for an empty input list.
+ */
+export async function pickBestDeviceId(
+  devices: { id: string; name: string }[],
+): Promise<string | undefined> {
+  if (devices.length === 0) return undefined
+  let reference: ReferenceAccelerator[] = []
+  try {
+    const probe = await detectGpuHardwareDevices()
+    reference = probe.detected.map(toReferenceAccelerator)
+  } catch (e) {
+    appLogger.warn(
+      `pickBestDeviceId: GPU probe failed, falling back to detection order: ${JSON.stringify(e)}`,
+      'electron-backend',
+    )
+  }
+  return rankDevicesByCategory(devices, reference)[0]?.id
 }
 
 function enrichWithPowerShellIds(

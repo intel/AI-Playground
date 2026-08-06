@@ -38,7 +38,9 @@ def to_ogg_opus(data: bytes) -> bytes:
 
     Raises on failure so callers can fall back to sending the original audio.
     """
-    return _encode(data, container="ogg", codec="libopus", rate=_OPUS_RATE, default_frame_size=960)
+    return _encode(
+        data, container="ogg", codec="libopus", rate=_OPUS_RATE, default_frame_size=960
+    )
 
 
 def to_mp3(data: bytes) -> bytes:
@@ -47,11 +49,17 @@ def to_mp3(data: bytes) -> bytes:
     Raises on failure so callers can fall back to sending the original audio.
     """
     return _encode(
-        data, container="mp3", codec="libmp3lame", rate=_MP3_RATE, default_frame_size=1152
+        data,
+        container="mp3",
+        codec="libmp3lame",
+        rate=_MP3_RATE,
+        default_frame_size=1152,
     )
 
 
-def _encode(data: bytes, *, container: str, codec: str, rate: int, default_frame_size: int) -> bytes:
+def _encode(
+    data: bytes, *, container: str, codec: str, rate: int, default_frame_size: int
+) -> bytes:
     import av
     from av.audio.fifo import AudioFifo
     from av.audio.resampler import AudioResampler
@@ -71,7 +79,11 @@ def _encode(data: bytes, *, container: str, codec: str, rate: int, default_frame
             # full frames from the FIFO and only emit a short final frame on flush.
             frame_size = out_stream.frame_size or default_frame_size
             while True:
-                frame = fifo.read(frame_size) if not flush else fifo.read(frame_size, partial=True)
+                frame = (
+                    fifo.read(frame_size)
+                    if not flush
+                    else fifo.read(frame_size, partial=True)
+                )
                 if frame is None:
                     break
                 frame.pts = None

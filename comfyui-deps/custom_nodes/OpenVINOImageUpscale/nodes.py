@@ -36,7 +36,7 @@ DEFAULT_TILE_SIZE = 512
 TILE_OVERLAP = 32
 MODEL_SCALE = 4
 
-_COMPILED_MODEL_CACHE: dict[tuple[str, str, int | None], "ov.CompiledModel"] = {}
+_COMPILED_MODEL_CACHE: dict[tuple[str, str, int | None], ov.CompiledModel] = {}
 
 
 # --- I/O helpers -----------------------------------------------------------
@@ -44,10 +44,14 @@ _COMPILED_MODEL_CACHE: dict[tuple[str, str, int | None], "ov.CompiledModel"] = {
 
 def _tensor_image_to_pil(image: torch.Tensor) -> Image.Image:
     if image.dim() != 4:
-        raise RuntimeError(f"Expected IMAGE tensor shape NHWC, got {tuple(image.shape)}")
+        raise RuntimeError(
+            f"Expected IMAGE tensor shape NHWC, got {tuple(image.shape)}"
+        )
     tensor = image[0].detach().cpu().clamp(0.0, 1.0).numpy()
     if tensor.shape[-1] < 3:
-        raise RuntimeError(f"Expected IMAGE tensor with at least 3 channels, got {tensor.shape[-1]}")
+        raise RuntimeError(
+            f"Expected IMAGE tensor with at least 3 channels, got {tensor.shape[-1]}"
+        )
     rgb = (tensor[..., :3] * 255.0).round().astype(np.uint8)
     return Image.fromarray(rgb, mode="RGB")
 
@@ -131,7 +135,9 @@ def _resolve_model_file(model_ref: str) -> Path:
         if raw_path.is_file():
             return raw_path
         if raw_path.is_dir():
-            picked = _pick_first_match(raw_path, PREBUILT_MODEL_SUFFIXES + WEIGHTS_SUFFIXES)
+            picked = _pick_first_match(
+                raw_path, PREBUILT_MODEL_SUFFIXES + WEIGHTS_SUFFIXES
+            )
             if picked:
                 return picked
         raise RuntimeError(f"OpenVINO upscale model path does not exist: {raw_path}")
@@ -170,7 +176,9 @@ def _resolve_model_file(model_ref: str) -> Path:
                 if picked:
                     return picked
 
-    searched_roots = ", ".join(str(root) for root in _candidate_model_roots()) or "(none)"
+    searched_roots = (
+        ", ".join(str(root) for root in _candidate_model_roots()) or "(none)"
+    )
     raise RuntimeError(
         f"Could not resolve OpenVINO upscale model '{model_ref}'. Searched: {searched_roots}"
     )
@@ -207,7 +215,9 @@ def _convert_weights_to_ir(weights_path: Path) -> Path:
     arch).
     """
     if ov is None:  # pragma: no cover - guarded by callers
-        raise RuntimeError("OpenVINO Python package is not installed in the ComfyUI environment.")
+        raise RuntimeError(
+            "OpenVINO Python package is not installed in the ComfyUI environment."
+        )
 
     from .rrdbnet import load_rrdbnet_x4plus
 
@@ -257,7 +267,7 @@ def _device_needs_static_shape(device_name: str) -> bool:
 
 def _load_compiled_model(
     model_ref: str, device: str, tile_size: int
-) -> "ov.CompiledModel":
+) -> ov.CompiledModel:
     if ov is None:
         raise RuntimeError(
             "OpenVINO Python package is not installed in the ComfyUI environment. "
@@ -291,7 +301,10 @@ def _load_compiled_model(
     model = core.read_model(model=str(ir_path))
     if needs_static:
         log.info(
-            "Reshaping model to static [1, 3, %d, %d] for %s", tile_size, tile_size, device_name
+            "Reshaping model to static [1, 3, %d, %d] for %s",
+            tile_size,
+            tile_size,
+            device_name,
         )
         input_name = model.input(0).any_name
         model.reshape({input_name: ov.PartialShape([1, 3, tile_size, tile_size])})
@@ -319,7 +332,7 @@ def _feather_mask(h: int, w: int, ramp: int) -> np.ndarray:
     return np.minimum(my[:, None], mx[None, :]).astype(np.float32)
 
 
-def _static_input_hw(compiled_model: "ov.CompiledModel") -> tuple[int, int] | None:
+def _static_input_hw(compiled_model: ov.CompiledModel) -> tuple[int, int] | None:
     """If the compiled model has a fully static NCHW input shape, return its
     (H, W). Otherwise (dynamic spatial dims), return None.
     """
@@ -348,7 +361,7 @@ def _pad_to(chw: np.ndarray, target_h: int, target_w: int) -> np.ndarray:
 
 
 def _run_tiled(
-    compiled_model: "ov.CompiledModel",
+    compiled_model: ov.CompiledModel,
     rgb: np.ndarray,
     tile_size: int,
     overlap: int,
@@ -448,7 +461,9 @@ class OpenVINOImageUpscale:
     FUNCTION = "upscale"
     CATEGORY = "AIPG/openvino"
 
-    def upscale(self, image, model_path, target_scale, device, tile_size=DEFAULT_TILE_SIZE):
+    def upscale(
+        self, image, model_path, target_scale, device, tile_size=DEFAULT_TILE_SIZE
+    ):
         source = _tensor_image_to_pil(image)
         target_scale_f = float(target_scale)
         if target_scale_f <= 1.0:
@@ -468,8 +483,8 @@ class OpenVINOImageUpscale:
         upscaled_uint8 = (upscaled * 255.0).round().astype(np.uint8)
         upscaled_image = Image.fromarray(upscaled_uint8, mode="RGB")
 
-        target_width = max(1, int(round(source.width * target_scale_f)))
-        target_height = max(1, int(round(source.height * target_scale_f)))
+        target_width = max(1, round(source.width * target_scale_f))
+        target_height = max(1, round(source.height * target_scale_f))
         if upscaled_image.size != (target_width, target_height):
             upscaled_image = upscaled_image.resize(
                 (target_width, target_height), Image.BICUBIC

@@ -6,6 +6,7 @@ import { demoAwareStorage } from '../demoAwareStorage'
 const backends = [
   'ai-backend',
   'home-agent-backend',
+  'qwen3-tts-backend',
   'llamacpp-backend',
   'openvino-backend',
   'comfyui-backend',
@@ -38,6 +39,7 @@ export const useBackendServices = defineStore(
     const lastSelectedDeviceIdPerBackend = ref<Record<BackendServiceName, string | null>>({
       'ai-backend': null,
       'home-agent-backend': null,
+      'qwen3-tts-backend': null,
       'comfyui-backend': null,
       'llamacpp-backend': null,
       'openvino-backend': null,
@@ -124,6 +126,7 @@ export const useBackendServices = defineStore(
     const versionState = ref<BackendVersionState>({
       'ai-backend': {},
       'home-agent-backend': {},
+      'qwen3-tts-backend': {},
       'comfyui-backend': {},
       'llamacpp-backend': {},
       'openvino-backend': {},
@@ -520,6 +523,24 @@ export const useBackendServices = defineStore(
       }
     }
 
+    async function ensureEmbeddingServerReady(
+      serviceName: BackendServiceName,
+      embeddingModelName: string,
+    ): Promise<void> {
+      try {
+        const result = await window.electronAPI.ensureEmbeddingServerReady(
+          serviceName,
+          embeddingModelName,
+        )
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to ensure embedding server ready')
+        }
+      } catch (error) {
+        console.error(`Failed to ensure embedding server ready for ${serviceName}:`, error)
+        throw error
+      }
+    }
+
     async function startTranscriptionServer(modelName: string): Promise<void> {
       try {
         const result = await window.electronAPI.startTranscriptionServer(modelName)
@@ -683,6 +704,7 @@ export const useBackendServices = defineStore(
       selectDevice,
       selectSttDevice,
       ensureBackendReadiness,
+      ensureEmbeddingServerReady,
       startTranscriptionServer,
       stopTranscriptionServer,
       getTranscriptionServerUrl,

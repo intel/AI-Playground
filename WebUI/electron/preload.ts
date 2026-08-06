@@ -67,6 +67,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
   saveImage: (url: string) => ipcRenderer.send('saveImage', url),
   saveImageToMediaInput: (dataUri: string) => ipcRenderer.invoke('saveImageToMediaInput', dataUri),
+  saveGeneratedAudio: (audioBase64: string, filename: string) =>
+    ipcRenderer.invoke('saveGeneratedAudio', audioBase64, filename),
+  readLocalAudioAsDataUri: (filePath: string) =>
+    ipcRenderer.invoke('readLocalAudioAsDataUri', filePath),
   readAipgMediaAsBase64: (url: string) => ipcRenderer.invoke('readAipgMediaAsBase64', url),
   wakeupApiService: () => ipcRenderer.send('wakeupApiService'),
   openImageWin: (url: string, title: string, width: number, height: number) =>
@@ -85,14 +89,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('embedInputUsingRag', embedInquiry),
   getEmbeddingServerUrl: (serviceName: string) =>
     ipcRenderer.invoke('getEmbeddingServerUrl', serviceName),
+  ensureEmbeddingServerReady: (serviceName: string, embeddingModelName: string) =>
+    ipcRenderer.invoke('ensureEmbeddingServerReady', serviceName, embeddingModelName),
   getInitSetting: () => ipcRenderer.invoke('getInitSetting'),
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke('updateModelPaths', modelPaths),
   restorePathsSettings: () => ipcRenderer.invoke('restorePathsSettings'),
-  refreshLLMModles: () => ipcRenderer.invoke('refreshLLMModles'),
   loadModels: () => ipcRenderer.invoke('loadModels'),
   zoomIn: () => ipcRenderer.invoke('zoomIn'),
   zoomOut: () => ipcRenderer.invoke('zoomOut'),
-  getDownloadedLLMs: () => ipcRenderer.invoke('getDownloadedLLMs'),
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke('getDownloadedEmbeddingModels'),
@@ -290,5 +294,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
         payload: Record<string, unknown>,
       ) => ipcRenderer.invoke('channel:send', kind, action, payload),
     },
+  },
+  // Cloud Mode provider secrets, encrypted at rest via safeStorage in main.
+  cloudProvider: {
+    saveKey: (providerId: string, key: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('cloudProvider:saveKey', providerId, key),
+    getKey: (providerId: string): Promise<string | null> =>
+      ipcRenderer.invoke('cloudProvider:getKey', providerId),
+    deleteKey: (providerId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('cloudProvider:deleteKey', providerId),
+    getProxyUrl: (): Promise<string> => ipcRenderer.invoke('cloudProvider:getProxyUrl'),
   },
 })

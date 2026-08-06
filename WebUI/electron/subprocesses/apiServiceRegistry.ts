@@ -7,6 +7,7 @@ import getPort, { portNumbers } from 'get-port'
 import { LlamaCppBackendService } from './llamaCppBackendService.ts'
 import { OpenVINOBackendService } from './openVINOBackendService.ts'
 import { HomeAgentBackendService } from './homeAgentBackendService.ts'
+import { Qwen3TtsBackendService } from './qwen3TtsBackendService.ts'
 import { LocalSettings } from '../main.ts'
 
 export type backend =
@@ -15,6 +16,7 @@ export type backend =
   | 'comfyui-backend'
   | 'llamacpp-backend'
   | 'home-agent-backend'
+  | 'qwen3-tts-backend'
 
 export interface ApiServiceRegistry {
   register(apiService: ApiService): void
@@ -173,6 +175,16 @@ export async function aiplaygroundApiServiceRegistry(
         new HomeAgentBackendService(
           'home-agent-backend',
           await getPort({ port: portNumbers(58000, 58999) }),
+          win,
+          settings,
+        ),
+      )
+    }
+    if (settings.isQwen3TtsEnabled) {
+      instance.register(
+        new Qwen3TtsBackendService(
+          'qwen3-tts-backend',
+          await getPort({ port: portNumbers(57000, 57999) }),
           win,
           settings,
         ),

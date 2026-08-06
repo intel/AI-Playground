@@ -1,0 +1,21 @@
+{
+  "type": "chat",
+  "category": "chat",
+  "name": "Assistant",
+  "description": "General-purpose chat. Pick any model and filter it by capability (vision, reasoning, tools, NPU). Supports documents (RAG), tool calling, and a custom system prompt.",
+  "displayPriority": 100,
+  "tags": ["Chat", "Assistant", "General"],
+  "backends": ["llamaCPP", "openVINO"],
+  "preferredModels": {
+    "openVINO": "OpenVINO/Qwen3-8B-int4-cw-ov",
+    "llamaCPP": "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf"
+  },
+  "systemPrompt": "You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help the user accomplish their goals.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "advancedMode": true,
+  "enableRAG": true,
+  "showTools": true,
+  "toolsEnabledByDefault": true,
+  "requiredModels": []
+}

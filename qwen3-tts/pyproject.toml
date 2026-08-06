@@ -1,0 +1,91 @@
+[project]
+name = "aipg-qwen3-tts"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+  "Flask",
+  "flask-cors",
+  "soundfile",
+  "numpy",
+  # Direct deps of the vendored Qwen3-TTS modelling code (vendor/README.md). These were
+  # previously inherited from the `qwen-tts` package, which pinned transformers/accelerate by
+  # equality and pulled gradio for a demo CLI we never import.
+  # transformers 5 is required, not just tolerated: 4.x carries three advisories fixed only in
+  # 5.x (the reachable one is CVE-2026-4372, RCE from a crafted config.json). The vendored code
+  # bridges both via vendor/qwen_tts/_compat.py and produces bit-identical audio on either, but
+  # the floor is the version that verification actually ran on.
+  "transformers>=5.14.0,<6",
+  "accelerate>=1.12.0",
+  "librosa",
+  "huggingface_hub",
+]
+
+# torch ships from a different index per accelerator, so it lives in mutually
+# exclusive extras (mirrors comfyui-deps). The Electron service installs exactly
+# one: 'cuda' in NVIDIA product mode, 'xpu' on Windows, 'cpu' elsewhere. triton-xpu
+# is Intel-only and must NOT be pulled for the CUDA build, so it lives in `xpu`.
+[project.optional-dependencies]
+xpu = [
+  "torch>=2.13.0",
+  "triton-xpu>=3.6.0; sys_platform == 'win32' or sys_platform == 'linux'",
+]
+cuda = [
+  "torch>=2.13.0",
+]
+cpu = [
+  "torch>=2.13.0",
+]
+
+[tool.uv]
+python-preference = "only-managed"
+link-mode = "clone"
+no-build = true
+index-strategy = "unsafe-best-match"
+# torch 2.13.x from the cu130 index, same as comfyui-deps. The earlier 2.13 Linux
+# breakage was a driver-version mismatch, not a code bug — the cu130 / xpu wheels
+# require a recent NVIDIA / Intel GPU driver on Linux. Ensure the target driver
+# floor is met before deploying.
+required-environments = [
+  "sys_platform == 'win32'",
+  "sys_platform == 'darwin'",
+  "sys_platform == 'linux'",
+]
+environments = [
+  "sys_platform == 'win32'",
+  "sys_platform == 'darwin'",
+  "sys_platform == 'linux'",
+]
+conflicts = [
+  [
+    { extra = "xpu" },
+    { extra = "cpu" },
+    { extra = "cuda" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "xpu", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
+  { index = "pytorch-cpu", extra = "cpu" },
+]
+triton-xpu = [
+  { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true

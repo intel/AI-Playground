@@ -13,12 +13,9 @@ import hmac
 import logging
 import os
 import secrets
-from typing import Set
-
-from aiohttp import web
 
 import server  # type: ignore[import-not-found]
-
+from aiohttp import web
 
 _LOG = logging.getLogger("aipg-auth")
 
@@ -29,7 +26,7 @@ _TOKEN: str = os.environ.get("AIPG_LOOPBACK_TOKEN", "")
 
 # Active session cookies. Reset on every ComfyUI process start (the set lives
 # only in memory) so a leaked cookie cannot survive a restart.
-_SESSIONS: Set[str] = set()
+_SESSIONS: set[str] = set()
 
 # Endpoints reachable without auth:
 # - /queue is used by AI Playground's service registry as a health check
@@ -38,11 +35,11 @@ _SESSIONS: Set[str] = set()
 # - / and /index.html are deliberately NOT exempt; an unauthenticated browser
 #   visit redirects to /aipg/login (a friendly "open this from AI Playground"
 #   page) instead of returning a 401 JSON blob.
-_AUTH_EXEMPT_EXACT: Set[str] = {"/queue", "/aipg/launch", "/aipg/login"}
+_AUTH_EXEMPT_EXACT: set[str] = {"/queue", "/aipg/launch", "/aipg/login"}
 
 # Loopback host names accepted in the Host header. ComfyUI binds to
 # 127.0.0.1 by default; we also accept localhost / IPv6 loopback variants.
-_LOOPBACK_HOSTS: Set[str] = {"127.0.0.1", "localhost", "::1", "[::1]"}
+_LOOPBACK_HOSTS: set[str] = {"127.0.0.1", "localhost", "::1", "[::1]"}
 
 _COOKIE_NAME = "aipg_session"
 
@@ -93,7 +90,17 @@ def _is_static_asset(path: str) -> bool:
     /aipg/login HTML page itself can render."""
     if path == "/favicon.ico":
         return True
-    for suffix in (".css", ".css.map", ".js", ".js.map", ".ico", ".png", ".svg", ".woff", ".woff2"):
+    for suffix in (
+        ".css",
+        ".css.map",
+        ".js",
+        ".js.map",
+        ".ico",
+        ".png",
+        ".svg",
+        ".woff",
+        ".woff2",
+    ):
         if path.endswith(suffix):
             return True
     return False
@@ -294,12 +301,16 @@ def _install() -> None:
         return
     instance = getattr(prompt_server, "instance", None)
     if instance is None:
-        _LOG.error("server.PromptServer.instance not available; aipg-auth NOT installed")
+        _LOG.error(
+            "server.PromptServer.instance not available; aipg-auth NOT installed"
+        )
         return
     app_obj = getattr(instance, "app", None)
     routes = getattr(instance, "routes", None)
     if app_obj is None or routes is None:
-        _LOG.error("PromptServer.instance.app/routes not available; aipg-auth NOT installed")
+        _LOG.error(
+            "PromptServer.instance.app/routes not available; aipg-auth NOT installed"
+        )
         return
 
     if any(getattr(m, "_aipg_auth", False) for m in app_obj.middlewares):

@@ -1,0 +1,46 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 811 >>
+stream
+BT /F1 12 Tf 72 720 Td 15 TL
+(AI Playground End-to-End Test Document \(PDF\)) Tj T*
+() Tj T*
+(This PDF fixture backs the retrieval-augmented generation \(RAG\) end-to-end) Tj T*
+(test for PDF sources. It contains a single, easily verifiable fact so the) Tj T*
+(test can send a question and confirm the assistant answered from the source.) Tj T*
+() Tj T*
+(Fact: The secret passphrase for the AI Playground e2e suite is) Tj T*
+("opalescent-narwhal-4271".) Tj T*
+() Tj T*
+(The rest of this text is filler so the document is large enough to be split,) Tj T*
+(embedded and indexed like a normal knowledge source. AI Playground runs local) Tj T*
+(image, video and chat models entirely on-device. When asked for the secret) Tj T*
+(passphrase, a correctly grounded answer must contain opalescent-narwhal-4271.) Tj T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1173
+%%EOF

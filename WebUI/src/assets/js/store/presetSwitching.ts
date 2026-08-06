@@ -39,6 +39,8 @@ function presetToMode(preset: Preset): ModeType {
 const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
+  // Cloud Mode is a remote backend with no local service.
+  cloud: null,
 } as const
 
 type LlmBackend = keyof typeof backendToService
@@ -193,8 +195,10 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         throw new Error(`Preset not found: ${presetName}`)
       }
 
-      // 2. For chat presets, verify backend availability
-      if (preset.type === 'chat') {
+      // 2. For chat presets, verify backend availability. A TTS preset has no LLM
+      //    backend (it drives Qwen3-TTS directly), so it can always be selected —
+      //    readiness is surfaced later as an install banner in the settings panel.
+      if (preset.type === 'chat' && !(preset as ChatPreset).ttsPreset) {
         const chatPreset = preset as ChatPreset
         const hasAvailableBackend = chatPreset.backends.some((b) => isBackendAvailable(b))
 

@@ -7,11 +7,10 @@
   "displayOrder": 10,
   "requiresNvidiaGpu": false,
   "includePresets": [
-    "basic-chat",
+    "assistant",
     "inpaint",
     "manual",
     "outpaint",
-    "rag-chat",
     "sd15",
     "sdxl",
     "SketchToPhoto-HD",

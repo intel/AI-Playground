@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import { appLoggerInstance } from '../logging/logger'
-import { packagedResourcesRoot } from '../aipgRoot.ts'
+import { writableConfigFile } from '../userConfig.ts'
 
 export type McpServerConfig =
   | {
@@ -13,6 +13,7 @@ export type McpServerConfig =
       env?: Record<string, string>
       displayName?: string
       instructions?: string
+      description?: string
     }
   | {
       type: 'http'
@@ -20,21 +21,18 @@ export type McpServerConfig =
       headers?: Record<string, string>
       displayName?: string
       instructions?: string
+      description?: string
     }
 
 type McpConfigFile = {
   mcpServers: Record<string, McpServerConfig>
 }
 
-function getExternalResourcesDir(): string {
-  return path.resolve(
-    app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../external/'),
-  )
-}
-
 export function getMcpConfigPath(): string {
-  const externalRes = getExternalResourcesDir()
-  return path.join(externalRes, app.isPackaged ? 'mcp.json' : 'mcp-dev.json')
+  // Packaged: read/write the per-user config copy (seeded from the shared
+  // default on first use in a shared install; the resources root otherwise).
+  if (app.isPackaged) return writableConfigFile('mcp.json')
+  return path.join(path.resolve(path.join(__dirname, '../../external/')), 'mcp-dev.json')
 }
 
 export function loadMcpServers(): Record<string, McpServerConfig> {

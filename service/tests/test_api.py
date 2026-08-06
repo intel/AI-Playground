@@ -1,7 +1,7 @@
-import sys
-import os
-import unittest
 import logging
+import os
+import sys
+import unittest
 
 
 class TestAPI(unittest.TestCase):
@@ -65,7 +65,6 @@ class TestAPI(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-
 
 
 if __name__ == "__main__":

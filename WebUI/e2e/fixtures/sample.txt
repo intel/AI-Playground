@@ -1,0 +1,14 @@
+AI Playground End-to-End Test Document
+
+This document exists solely as a fixture for the retrieval-augmented generation
+(RAG) end-to-end test. It contains a single, easily verifiable fact so the test
+can send a question and confirm the assistant answered from the attached source.
+
+Fact: The secret passphrase for the AI Playground e2e suite is "opalescent-narwhal-4271".
+
+The rest of this text is filler so the document is large enough to be split,
+embedded and indexed like a normal knowledge source. AI Playground runs local
+image, video and chat models entirely on-device. The retrieval pipeline chunks a
+document, embeds each chunk, and retrieves the most relevant chunks to ground the
+model's answer. When asked for the secret passphrase, a correctly grounded answer
+must contain "opalescent-narwhal-4271".

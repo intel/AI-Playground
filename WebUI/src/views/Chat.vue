@@ -66,7 +66,12 @@
             </button>
           </div>
         </div>
-        <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
+        <div
+          v-else-if="message.role === 'assistant'"
+          role="article"
+          aria-label="Assistant response"
+          class="flex items-start gap-3"
+        >
           <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
           <div class="flex flex-col gap-3 max-w-[90%] w-full text-wrap wrap-break-word">
             <div class="flex items-center gap-2">
@@ -135,20 +140,19 @@
                 v-for="(part, partIndex) in message.parts"
                 :key="`${message.id}-${part.type}-${partIndex}`"
               >
-                <!-- Reasoning part -->
+                <!-- Reasoning part. A turn can carry several reasoning parts
+                     (one per agentic step, and some backends resend cumulative
+                     reasoning), which otherwise renders as several "Reasoned
+                     for…" blocks. Aggregate them into a single block rendered at
+                     the position of the first reasoning part (mirrors the
+                     web-browse aggregation below). -->
                 <ChatReasoningDisplay
-                  v-if="part.type === 'reasoning'"
-                  :text="(part as { text?: string }).text"
-                  :startedAt="
-                    (part as { providerMetadata?: { aipg?: { reasoningStarted?: number } } })
-                      .providerMetadata?.aipg?.reasoningStarted
-                  "
-                  :finishedAt="
-                    (part as { providerMetadata?: { aipg?: { reasoningFinished?: number } } })
-                      .providerMetadata?.aipg?.reasoningFinished
-                  "
+                  v-if="part.type === 'reasoning' && isFirstReasoningPart(message, partIndex)"
+                  :text="mergedReasoningText(message)"
+                  :startedAt="reasoningStartedAtFor(message)"
+                  :finishedAt="reasoningFinishedAtFor(message)"
                   :streaming="
-                    isReasoningStreaming(message, partIndex, i === activeConversation.length - 1)
+                    i === activeConversation.length - 1 && openAiCompatibleChat.reasoningInProgress
                   "
                   :liveStartedAt="openAiCompatibleChat.reasoningStartedAt"
                   :onCopy="copyText"
@@ -157,6 +161,8 @@
                 <!-- Text part -->
                 <template v-else-if="part.type === 'text'">
                   <MarkdownRenderer
+                    role="region"
+                    aria-label="Assistant reply"
                     :content="stripAipgMediaImages((part as any).text ?? '')"
                     :on-copy="copyText"
                   />
@@ -166,7 +172,10 @@
                 <template v-else-if="isToolOrDynamicToolUIPart(part)">
                   <template v-if="isAipgTool(part) && part.type === 'tool-comfyUI'">
                     <div>
-                      <span
+                      <span v-if="part.state === 'input-streaming' && !part.input?.workflow"
+                        >Generating…</span
+                      >
+                      <span v-else
                         >Generating using the preset
                         <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
                       >
@@ -186,7 +195,10 @@
                   </template>
                   <template v-else-if="isAipgTool(part) && part.type === 'tool-comfyUiImageEdit'">
                     <div>
-                      <span
+                      <span v-if="part.state === 'input-streaming' && !part.input?.workflow"
+                        >Editing…</span
+                      >
+                      <span v-else
                         >Editing using the preset
                         <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
                       >
@@ -271,6 +283,23 @@
                         "
                       >
                         <span class="text-muted-foreground">Capturing web page...</span>
+                      </div>
+                    </div>
+                  </template>
+                  <template
+                    v-else-if="isAipgTool(part) && part.type === 'tool-synthesizeTextToSpeech'"
+                  >
+                    <div>
+                      <ChatTtsToolResult
+                        v-if="part.state === 'output-available'"
+                        :output="(part as any).output"
+                      />
+                      <div
+                        v-else-if="
+                          part.state === 'input-streaming' || part.state === 'input-available'
+                        "
+                      >
+                        <span class="text-muted-foreground">Synthesizing speech…</span>
                       </div>
                     </div>
                   </template>
@@ -413,6 +442,7 @@ import ChatWebBrowseDisplay, { type WebBrowseEntry } from '@/components/ChatWebB
 import ChatReasoningDisplay from '@/components/ChatReasoningDisplay.vue'
 import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
 import ChatConfirmation from '@/components/ChatConfirmation.vue'
+import ChatTtsToolResult from '@/components/ChatTtsToolResult.vue'
 import { useConversations } from '@/assets/js/store/conversations'
 import { useActivities } from '@/assets/js/store/activities'
 import { useConfirmations } from '@/assets/js/store/confirmations'
@@ -754,20 +784,48 @@ function webBrowsePartsOf(message: ChatMessage) {
   ) as ToolUIPart<AipgTools>[]
 }
 
-// A reasoning block is "in progress" only when the store — which watches the
-// raw chunk stream — reports reasoning is the model's current output, and this
-// is the latest reasoning part on the last message of the turn. We can't infer
-// this from part positions (a trailing empty text/step-start part can sit after
-// the reasoning part) nor from `reasoningFinished` (bumped to "now" every delta,
-// so it always looks recent). The active block is the last reasoning part.
-function isReasoningStreaming(
-  message: ChatMessage,
-  partIndex: number,
-  isLastMessage: boolean,
-): boolean {
-  if (!isLastMessage || !openAiCompatibleChat.reasoningInProgress) return false
-  const parts = message.parts ?? []
-  return !parts.slice(partIndex + 1).some((part) => part.type === 'reasoning')
+// Reasoning is "in progress" only when the store — which watches the raw chunk
+// stream — reports reasoning is the model's current output, on the last message
+// of the turn. The store flag is authoritative, so the aggregated block below
+// binds straight to it rather than inferring from part positions or the per-delta
+// `reasoningFinished` timestamp (bumped to "now" every delta, so it always looks
+// recent).
+type ReasoningPart = {
+  type: 'reasoning'
+  text?: string
+  providerMetadata?: { aipg?: { reasoningStarted?: number; reasoningFinished?: number } }
+}
+
+function reasoningPartsOf(message: ChatMessage): ReasoningPart[] {
+  return (message.parts ?? []).filter((part) => part.type === 'reasoning') as ReasoningPart[]
+}
+
+// The reasoning block is aggregated across all of a message's reasoning parts and
+// rendered once, at the first one — so we never show the "Reasoned for…" pill
+// more than once per turn.
+function isFirstReasoningPart(message: ChatMessage, partIndex: number): boolean {
+  return (message.parts ?? []).findIndex((part) => part.type === 'reasoning') === partIndex
+}
+
+function mergedReasoningText(message: ChatMessage): string {
+  return reasoningPartsOf(message)
+    .map((part) => (part.text ?? '').trim())
+    .filter((text) => text.length > 0)
+    .join('\n\n')
+}
+
+function reasoningStartedAtFor(message: ChatMessage): number | undefined {
+  const starts = reasoningPartsOf(message)
+    .map((part) => part.providerMetadata?.aipg?.reasoningStarted)
+    .filter((value): value is number => value != null)
+  return starts.length > 0 ? Math.min(...starts) : undefined
+}
+
+function reasoningFinishedAtFor(message: ChatMessage): number | undefined {
+  const finishes = reasoningPartsOf(message)
+    .map((part) => part.providerMetadata?.aipg?.reasoningFinished)
+    .filter((value): value is number => value != null)
+  return finishes.length > 0 ? Math.max(...finishes) : undefined
 }
 
 // Renders the aggregated component only at the position of the first browse part

@@ -6,6 +6,7 @@ import path from 'node:path'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { existingFileOrError, spawnProcessAsync, ProcessError } from './osProcessHelper'
+import { terminateProcessTree } from './processLifecycle.ts'
 import { assert } from 'node:console'
 import { createHash } from 'crypto'
 
@@ -14,7 +15,6 @@ import { promisify } from 'util'
 import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
 import { LocalSettings } from '../main.ts'
-import { terminateProcessTree } from './processLifecycle.ts'
 
 const exec = promisify(childProcess.exec)
 

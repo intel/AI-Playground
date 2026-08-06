@@ -13,13 +13,12 @@ import io
 import logging
 import re
 import threading
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from .base import ChannelBase
 from .commands import HOME_AGENT_COMMANDS
 from .types import SendResult
-
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,9 @@ class TelegramChannel(ChannelBase):
         token = (config.get("token") or "").strip()
         raw_chat = config.get("chatId")
         cleaned_chat = (
-            str(raw_chat).strip() if raw_chat is not None and str(raw_chat).strip() else ""
+            str(raw_chat).strip()
+            if raw_chat is not None and str(raw_chat).strip()
+            else ""
         )
         if not token:
             return {"error": "token required", "_http_status": 400}
@@ -79,7 +80,8 @@ class TelegramChannel(ChannelBase):
                         self._allowed_chat_id = cleaned_chat
                         self._bot_chat_id = cleaned_chat
                         logger.info(
-                            "Telegram bot already running — applied chat_id=%s", cleaned_chat
+                            "Telegram bot already running — applied chat_id=%s",
+                            cleaned_chat,
                         )
                     return {
                         "status": "already_running",
@@ -101,7 +103,9 @@ class TelegramChannel(ChannelBase):
             if thread_to_join.is_alive():
                 logger.warning("Previous Telegram bot thread did not exit within 10s")
 
-        t = threading.Thread(target=self._run_bot, args=(token, cleaned_chat), daemon=True)
+        t = threading.Thread(
+            target=self._run_bot, args=(token, cleaned_chat), daemon=True
+        )
         self._thread = t
         t.start()
         logger.info("Started Telegram bot via channel.set_config")
@@ -113,7 +117,12 @@ class TelegramChannel(ChannelBase):
 
     # ── Channel protocol: outbound sends ─────────────────────────────────
     def _outbound_chat_id(self, hint: str | None = None) -> str | None:
-        for cid in (hint, self._bot_chat_id, self._allowed_chat_id, self._last_seen_chat_id):
+        for cid in (
+            hint,
+            self._bot_chat_id,
+            self._allowed_chat_id,
+            self._last_seen_chat_id,
+        ):
             if cid and str(cid).strip():
                 return str(cid).strip()
         return None
@@ -142,7 +151,9 @@ class TelegramChannel(ChannelBase):
 
     def send_update(self, payload: dict) -> SendResult:
         """Telegram uses sendMessageDraft for streaming updates (no chat.update)."""
-        raw_draft_id = payload.get("draft_id") if "draft_id" in payload else payload.get("draftId")
+        raw_draft_id = (
+            payload.get("draft_id") if "draft_id" in payload else payload.get("draftId")
+        )
         text = payload.get("text", "") or ""
         parse_mode = payload.get("parse_mode") or payload.get("parseMode") or None
         try:
@@ -229,8 +240,10 @@ class TelegramChannel(ChannelBase):
             if voice_bytes is None:
                 try:
                     voice_bytes = to_ogg_opus(audio_bytes)
-                except Exception as exc:  # noqa: BLE001 - best-effort transcode
-                    logger.warning("Opus transcode failed, sending as audio file: %s", exc)
+                except Exception as exc:
+                    logger.warning(
+                        "Opus transcode failed, sending as audio file: %s", exc
+                    )
             if voice_bytes is not None:
                 self._run_coro(
                     self._app_instance.bot.send_voice(  # type: ignore[union-attr]
@@ -304,7 +317,9 @@ class TelegramChannel(ChannelBase):
                 [
                     InlineKeyboardButton(
                         text=str(btn.get("text", "")),
-                        callback_data=str(btn.get("callback_data") or btn.get("callbackData") or ""),
+                        callback_data=str(
+                            btn.get("callback_data") or btn.get("callbackData") or ""
+                        ),
                     )
                     for btn in row
                 ]
@@ -342,7 +357,10 @@ class TelegramChannel(ChannelBase):
         except (TypeError, ValueError):
             return {"error": "message_id must be an integer", "_http_status": 400}
         if message_id == 0:
-            return {"error": "message_id must be a non-zero integer", "_http_status": 400}
+            return {
+                "error": "message_id must be a non-zero integer",
+                "_http_status": 400,
+            }
         try:
             self._run_coro(
                 self._app_instance.bot.edit_message_text(  # type: ignore[union-attr]
@@ -376,13 +394,15 @@ class TelegramChannel(ChannelBase):
     def _run_bot(self, token: str, initial_chat_id: str) -> None:
         """Run the bot in its own asyncio loop (this runs in a daemon thread)."""
         from telegram import Update
-        from telegram.ext import Application, MessageHandler, filters, ContextTypes
+        from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
         self._token = token
         self._allowed_chat_id = (initial_chat_id or "").strip()
         self._bot_chat_id = self._allowed_chat_id
 
-        async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        async def handle_message(
+            update: Update, context: ContextTypes.DEFAULT_TYPE
+        ) -> None:
             if update.message is None:
                 return
             chat_id = str(update.message.chat_id)
@@ -390,11 +410,14 @@ class TelegramChannel(ChannelBase):
             self._record_authorized_chat_id(chat_id)
             if not allow:
                 logger.info(
-                    "Detection mode: received message from chat_id=%s (not yet configured)", chat_id
+                    "Detection mode: received message from chat_id=%s (not yet configured)",
+                    chat_id,
                 )
                 return
             if chat_id != allow:
-                logger.warning("Ignoring message from unauthorized chat_id: %s", chat_id)
+                logger.warning(
+                    "Ignoring message from unauthorized chat_id: %s", chat_id
+                )
                 return
             user_text = update.message.text or ""
             logger.info(
@@ -412,7 +435,9 @@ class TelegramChannel(ChannelBase):
             queued text (defaults to `/<command_name>` for arg-less commands).
             """
 
-            async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            async def handler(
+                update: Update, context: ContextTypes.DEFAULT_TYPE
+            ) -> None:
                 if update.message is None:
                     return
                 chat_id = str(update.message.chat_id)
@@ -422,7 +447,9 @@ class TelegramChannel(ChannelBase):
                     return
                 if chat_id != allow:
                     logger.warning(
-                        "Ignoring /%s from unauthorized chat_id: %s", command_name, chat_id
+                        "Ignoring /%s from unauthorized chat_id: %s",
+                        command_name,
+                        chat_id,
                     )
                     return
                 args = context.args or []
@@ -450,7 +477,9 @@ class TelegramChannel(ChannelBase):
             allow = self._allowed_chat_id
             self._record_authorized_chat_id(chat_id)
             if allow and chat_id != allow:
-                logger.warning("Ignoring imgGen callback from unauthorized chat_id: %s", chat_id)
+                logger.warning(
+                    "Ignoring imgGen callback from unauthorized chat_id: %s", chat_id
+                )
                 try:
                     await cq.answer()
                 except Exception as exc:
@@ -476,7 +505,9 @@ class TelegramChannel(ChannelBase):
             allow = self._allowed_chat_id
             self._record_authorized_chat_id(chat_id)
             if allow and chat_id != allow:
-                logger.warning("Ignoring confirm callback from unauthorized chat_id: %s", chat_id)
+                logger.warning(
+                    "Ignoring confirm callback from unauthorized chat_id: %s", chat_id
+                )
                 try:
                     await cq.answer()
                 except Exception as exc:
@@ -502,7 +533,9 @@ class TelegramChannel(ChannelBase):
             allow = self._allowed_chat_id
             self._record_authorized_chat_id(chat_id)
             if allow and chat_id != allow:
-                logger.warning("Ignoring callback from unauthorized chat_id: %s", chat_id)
+                logger.warning(
+                    "Ignoring callback from unauthorized chat_id: %s", chat_id
+                )
                 try:
                     await cq.answer()
                 except Exception as exc:
@@ -515,12 +548,14 @@ class TelegramChannel(ChannelBase):
                 logger.warning("Failed to ack callback_query: %s", exc)
             if not data.startswith("loadConv:"):
                 return
-            key = data[len("loadConv:"):]
+            key = data[len("loadConv:") :]
             full_text = f"/load {key}".strip()
             logger.info("Telegram load-menu callback: chat_id=%s key=%r", chat_id, key)
             self.queue_append({"text": full_text, "chat_id": chat_id})
 
-        async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        async def handle_photo(
+            update: Update, context: ContextTypes.DEFAULT_TYPE
+        ) -> None:
             if update.message is None or not update.message.photo:
                 return
             chat_id = str(update.message.chat_id)
@@ -528,7 +563,8 @@ class TelegramChannel(ChannelBase):
             self._record_authorized_chat_id(chat_id)
             if not allow:
                 logger.info(
-                    "Detection mode: received photo from chat_id=%s (not yet configured)", chat_id
+                    "Detection mode: received photo from chat_id=%s (not yet configured)",
+                    chat_id,
                 )
                 return
             if chat_id != allow:
@@ -560,7 +596,9 @@ class TelegramChannel(ChannelBase):
                 }
             )
 
-        async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        async def handle_voice(
+            update: Update, context: ContextTypes.DEFAULT_TYPE
+        ) -> None:
             if update.message is None:
                 return
             # Voice notes (OGG/Opus) and uploaded audio files both land here.
@@ -574,7 +612,8 @@ class TelegramChannel(ChannelBase):
             self._record_authorized_chat_id(chat_id)
             if not allow:
                 logger.info(
-                    "Detection mode: received audio from chat_id=%s (not yet configured)", chat_id
+                    "Detection mode: received audio from chat_id=%s (not yet configured)",
+                    chat_id,
                 )
                 return
             if chat_id != allow:
@@ -606,7 +645,9 @@ class TelegramChannel(ChannelBase):
                 }
             )
 
-        async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        async def handle_document(
+            update: Update, context: ContextTypes.DEFAULT_TYPE
+        ) -> None:
             if update.message is None or update.message.document is None:
                 return
             doc = update.message.document
@@ -620,7 +661,9 @@ class TelegramChannel(ChannelBase):
                 )
                 return
             if chat_id != allow:
-                logger.warning("Ignoring document from unauthorized chat_id: %s", chat_id)
+                logger.warning(
+                    "Ignoring document from unauthorized chat_id: %s", chat_id
+                )
                 return
 
             filename = doc.file_name or "document"
@@ -678,10 +721,16 @@ class TelegramChannel(ChannelBase):
             self._shutdown_event = asyncio.Event()
             application = Application.builder().token(token).build()
             self._app_instance = application
-            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+            application.add_handler(
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+            )
             application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-            application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
-            application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+            application.add_handler(
+                MessageHandler(filters.VOICE | filters.AUDIO, handle_voice)
+            )
+            application.add_handler(
+                MessageHandler(filters.Document.ALL, handle_document)
+            )
             # All slash commands are derived from the shared HOME_AGENT_COMMANDS
             # source of truth (see channels/commands.py) so a command can never be
             # registered on one transport but forgotten on another. CommandHandler
@@ -711,7 +760,10 @@ class TelegramChannel(ChannelBase):
 
             try:
                 await application.bot.set_my_commands(
-                    [BotCommand(cmd.name, cmd.description) for cmd in HOME_AGENT_COMMANDS]
+                    [
+                        BotCommand(cmd.name, cmd.description)
+                        for cmd in HOME_AGENT_COMMANDS
+                    ]
                 )
                 logger.info("Registered Telegram bot command menu")
             except Exception as exc:
@@ -729,12 +781,16 @@ class TelegramChannel(ChannelBase):
                     if cid:
                         self._last_seen_chat_id = cid
                         self.persist_identity(cid)
-                        logger.info("Pre-populated chat_id from pending updates: %s", cid)
+                        logger.info(
+                            "Pre-populated chat_id from pending updates: %s", cid
+                        )
                     highest_update_id = max(u.update_id for u in updates)
                     await application.bot.get_updates(
                         offset=highest_update_id + 1, limit=1, timeout=0
                     )
-                    logger.info("Acknowledged updates up to update_id=%d", highest_update_id)
+                    logger.info(
+                        "Acknowledged updates up to update_id=%d", highest_update_id
+                    )
                 if not self._last_seen_chat_id:
                     self._last_seen_chat_id = self.load_persisted_identity()
             except Exception as exc:

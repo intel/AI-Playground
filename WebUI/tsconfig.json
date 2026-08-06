@@ -24,7 +24,16 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts", "electron"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts", "electron", "e2e"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test-results",
+    "playwright-report",
+    "playwright-report-e2e",
+    "blob-report",
+    "playwright/.cache"
+  ],
   "references": [
     {
       "path": "./tsconfig.node.json"

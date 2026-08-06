@@ -28,6 +28,9 @@ export type McpServerInfo = {
   id: string
   name: string
   instructions?: string
+  /** UI-facing help text (what the server is for / how to use it), shown as an info
+   *  tooltip in settings. Distinct from `instructions`, which is fed to the model. */
+  description?: string
 }
 
 export type McpToolCallResult = {
@@ -78,6 +81,7 @@ export function listMcpServers(): McpServerInfo[] {
     id,
     name: server.displayName ?? id,
     instructions: server.instructions,
+    description: server.description,
   }))
 }
 

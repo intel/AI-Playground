@@ -1,0 +1,11 @@
+{
+  "type": "chat",
+  "category": "chat",
+  "name": "Text to Speech",
+  "description": "Generate spoken audio directly from text with Qwen3-TTS. No chat model needed — type what you want said and pick a voice.",
+  "displayPriority": 40,
+  "tags": ["Audio", "Speech"],
+  "backends": ["llamaCPP"],
+  "ttsPreset": true,
+  "requiredModels": []
+}

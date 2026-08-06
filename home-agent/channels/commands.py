@@ -62,7 +62,9 @@ class HomeAgentCommand:
 # Order is preserved for the Telegram command menu and the Slack manifest.
 HOME_AGENT_COMMANDS: tuple[HomeAgentCommand, ...] = (
     HomeAgentCommand("help", "Show available commands", telegram_aliases=("start",)),
-    HomeAgentCommand("chat", "Force a text chat reply (no image generation)", takes_args=True),
+    HomeAgentCommand(
+        "chat", "Force a text chat reply (no image generation)", takes_args=True
+    ),
     HomeAgentCommand(
         "imggen",
         "Pick a preset and generate an image",

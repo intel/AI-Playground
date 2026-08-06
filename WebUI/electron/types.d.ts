@@ -6,6 +6,7 @@ declare type BackendServiceName =
   | 'llamacpp-backend'
   | 'openvino-backend'
   | 'home-agent-backend'
+  | 'qwen3-tts-backend'
 
 // Declare BackendStatus type
 declare type BackendStatus =
@@ -41,6 +42,9 @@ declare interface InferenceDevice {
   id: string
   name: string
   selected: boolean
+  /** Stable vendor UUID when the backend can supply one; used to re-identify a
+   *  device across driver/enumeration changes. undefined/null when unavailable. */
+  uuid?: string | null
 }
 
 declare type StorageTarget = {

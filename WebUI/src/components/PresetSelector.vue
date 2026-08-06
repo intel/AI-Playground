@@ -1,97 +1,77 @@
 <template>
-  <div class="flex flex-col gap-6">
-    <Card class="bg-muted p-3">
-      <div class="grid grid-cols-3 gap-3">
+  <div v-if="selectedPreset" class="flex flex-col gap-6">
+    <!-- Informational card: thumbnail, name, description and tags. The extra
+         right padding keeps the sidebar's floating close arrow (rendered by
+         SideModalBase with hide-header) off the card content. -->
+    <section
+      role="group"
+      :aria-label="`${selectedPreset.name} preset information`"
+      :data-aipg-preset-name="selectedPreset.name"
+      class="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-3 pr-8"
+    >
+      <div class="flex flex-row items-start gap-3">
         <div
-          v-for="preset in filteredPresets"
-          :key="preset.name"
-          class="relative rounded-lg overflow-hidden transition-all duration-200 border-2 aspect-square shadow-md"
-          :class="[
-            selectedPresetName === preset.name
-              ? 'border-primary ring-2 ring-primary'
-              : 'border-transparent hover:border-primary',
-            isPresetDisabled(preset) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-          ]"
-          @click="isPresetDisabled(preset) ? showDisabledReason(preset) : selectPreset(preset.name)"
+          :aria-label="selectedPreset.name"
+          class="relative shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-border shadow-md"
         >
           <img
-            v-if="preset.image"
+            v-if="selectedPreset.image"
             class="absolute inset-0 w-full h-full object-cover"
-            :src="preset.image"
-            :alt="preset.name"
+            :src="selectedPreset.image"
+            :alt="selectedPreset.name"
           />
-          <div class="absolute bottom-0 w-full bg-background/60 text-center py-2">
+          <div class="absolute bottom-0 w-full bg-background/60 text-center py-1">
             <span class="text-foreground text-sm font-semibold">
-              {{ preset.name }}
+              {{ selectedPreset.name }}
             </span>
           </div>
         </div>
-      </div>
-    </Card>
-
-    <div v-if="selectedPreset" class="flex flex-col gap-4">
-      <div class="flex flex-col gap-3">
-        <div class="flex items-center gap-2">
-          <h2 class="text-lg font-semibold">{{ selectedPreset.name }}</h2>
-          <TooltipProvider v-if="extendedDescription" :delay-duration="200">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <InformationCircleIcon
-                  class="w-6 h-6 stroke-2 text-muted-foreground/60 cursor-help"
-                />
-              </TooltipTrigger>
-              <TooltipContent
-                side="right"
-                class="max-w-[320px] text-sm text-justify whitespace-pre-line"
-              >
-                {{ extendedDescription }}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <div class="flex flex-col gap-1 min-w-0">
+          <p v-if="infoDescription" class="text-sm text-muted-foreground whitespace-pre-line">
+            {{ infoDescription }}
+          </p>
         </div>
-        <VariantSelector
-          v-if="selectedPreset.variants && selectedPreset.variants.length > 0"
-          v-model="selectedVariantValue"
-          :options="variantSelectorOptions"
-          :columns="Math.min(variantSelectorOptions.length, 3)"
-        />
       </div>
-      <p v-if="selectedPreset.description" class="text-sm text-muted-foreground">
-        {{ presetsStore.activePresetWithVariant?.description || selectedPreset.description }}
-      </p>
 
       <div
         v-if="
           presetsStore.activePresetWithVariant?.tags &&
           presetsStore.activePresetWithVariant.tags.length > 0
         "
-        class="flex gap-2"
+        class="flex flex-wrap gap-2"
       >
         <span
           v-for="tag in presetsStore.activePresetWithVariant.tags"
           :key="tag"
-          class="px-3 py-1 text-xs bg-primary rounded-full"
+          class="px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full"
         >
           {{ tag }}
         </span>
       </div>
+    </section>
+
+    <!-- Variant picker, aligned with the label/control grid used by the other settings. -->
+    <div
+      v-if="variantSelectorOptions.length > 1"
+      class="grid grid-cols-[120px_1fr] items-center gap-4"
+    >
+      <Label class="whitespace-nowrap">Variant</Label>
+      <VariantSelector
+        v-model="selectedVariantValue"
+        :options="variantSelectorOptions"
+        :columns="Math.min(variantSelectorOptions.length, 3)"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
-import { usePresets, type Preset, type ChatPreset } from '@/assets/js/store/presets'
+import { usePresets } from '@/assets/js/store/presets'
 import { useBackendServices } from '@/assets/js/store/backendServices'
-import { backendToService } from '@/assets/js/store/textInference'
-import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
-import { useHomeAgent } from '@/assets/js/store/homeAgent'
-import { HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
+import { extendedDescriptionText } from '@/assets/js/help/presetHelp'
+import { Label } from '@/components/ui/label'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
-import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import * as toast from '@/assets/js/toast'
-import { InformationCircleIcon } from '@heroicons/vue/24/outline'
 interface Props {
   categories?: string[]
   type?: string
@@ -111,8 +91,6 @@ const emits = defineEmits<{
 
 const presetsStore = usePresets()
 const backendServices = useBackendServices()
-const presetSwitching = usePresetSwitching()
-const homeAgent = useHomeAgent()
 
 const filteredPresets = computed(() => {
   return presetsStore.getPresetsByCategories(props.categories || [], props.type)
@@ -152,10 +130,12 @@ const availableVariants = computed(() => {
 })
 
 const variantSelectorOptions = computed<VariantOption[]>(() => {
+  const presetName = selectedPreset.value?.name ?? ''
   return availableVariants.value.map((variant, index) => ({
     id: `variant-${index}`,
     name: variant.displayName ?? variant.name,
     value: variant.name,
+    presetName,
   }))
 })
 
@@ -195,120 +175,17 @@ watch(
   { immediate: true },
 )
 
-const extendedDescription = computed(() => {
-  const preset = selectedPreset.value
-  const raw = preset?.extendedDescription
-  if (raw == null) return undefined
-  if (typeof raw === 'string') return raw
-  const variant = activeVariantName.value
-  if (variant && variant in raw) return raw[variant]
-  const first = Object.values(raw)[0]
-  return typeof first === 'string' ? first : undefined
-})
+const extendedDescription = computed(() =>
+  extendedDescriptionText(selectedPreset.value, activeVariantName.value),
+)
 
-function isPresetDisabled(preset: Preset): boolean {
-  if (preset.type === 'chat') {
-    const chatPreset = preset as ChatPreset
-
-    // When the Home Agent is off, its dedicated preset is locked — it's enabled
-    // via the header toggle, not the picker.
-    const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
-    if (!homeAgent.isHomeAgentActive && isHomeAgentPreset) {
-      return true
-    }
-
-    // Check if NPU is required but not available
-    if (chatPreset.requiresNpuSupport) {
-      const hasNpuDevice = backendServices.info
-        .find((s) => s.serviceName === 'openvino-backend')
-        ?.devices?.some((d) => d.id.includes('NPU'))
-
-      if (!hasNpuDevice) {
-        return true // Disable if NPU required but not available
-      }
-    }
-
-    // Check if the Phison aiDAPTIV+ build is required but not installed or not active.
-    // The preset is only usable when the SSD-offload binary is on disk AND it is the
-    // currently active build variant.
-    if (chatPreset.requiresPhison) {
-      const phisonReady =
-        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
-          ?.llamaCppPhisonArtifactReady ?? false
-      const phisonActive = backendServices.llamaCppBuildVariant === 'ssd-offload'
-      if (!phisonReady || !phisonActive) {
-        return true // Disable until the Phison build is installed and activated
-      }
-    }
-
-    // Check if any backend is available
-    const hasAvailableBackend = chatPreset.backends.some((backend) => {
-      const serviceName = backendToService[backend]
-      return backendServices.info.find((s) => s.serviceName === serviceName)
-    })
-    return !hasAvailableBackend
-  }
-  return false
-}
-
-function showDisabledReason(preset: Preset) {
-  if (preset.type === 'chat') {
-    const chatPreset = preset as ChatPreset
-    const isHomeAgentPreset = preset.name === HOME_AGENT_CHAT_PRESET_NAME
-    const blueToast = { style: { content: { background: '#3b82f6', color: '#ffffff' } } }
-    if (isHomeAgentPreset && !homeAgent.isHomeAgentActive) {
-      toast.show('Turn on the Home Agent toggle to use this preset.', blueToast)
-      return
-    }
-    if (chatPreset.requiresNpuSupport) {
-      toast.show('NPU device not available. This preset requires an Intel NPU.', {
-        style: {
-          content: { background: '#3b82f6', color: '#ffffff' },
-        },
-      })
-    } else if (chatPreset.requiresPhison) {
-      const phisonReady =
-        backendServices.info.find((s) => s.serviceName === 'llamacpp-backend')
-          ?.llamaCppPhisonArtifactReady ?? false
-      const message = phisonReady
-        ? 'Enable the Phison aiDAPTIV+ SSD build of Llama.cpp to use this preset.'
-        : 'This preset requires the Phison aiDAPTIV+ SSD build of Llama.cpp.'
-      toast.show(message, {
-        style: {
-          content: { background: '#3b82f6', color: '#ffffff' },
-        },
-      })
-    } else {
-      toast.show(`Required backend not available for ${preset.name}`, {
-        style: {
-          content: { background: '#3b82f6', color: '#ffffff' },
-        },
-      })
-    }
-  }
-}
-
-function selectPreset(presetName: string) {
-  // Don't allow selecting if preset switching is in progress
-  if (presetSwitching.isSwitching) {
-    toast.warning('Please wait for current preset change to complete')
-    return
-  }
-
-  const preset = filteredPresets.value.find((p) => p.name === presetName)
-  if (!preset) return
-
-  // Check if preset is actually available
-  if (isPresetDisabled(preset)) {
-    showDisabledReason(preset)
-    return
-  }
-
-  emits('update:modelValue', presetName)
-
-  // Note: lastUsed tracking and variant selection are now handled by the orchestrator
-  // when the parent component calls switchPreset()
-}
+// The "info" description shown beside the preset icon: the extended how-to text
+// (same content the info box used to show), falling back to the preset's base
+// description. Deliberately NOT the variant-merged description, which is the
+// quality-mode (fast/quality) blurb.
+const infoDescription = computed(
+  () => extendedDescription.value || selectedPreset.value?.description,
+)
 
 // Auto-select lastUsed preset on mount if no preset is selected
 onMounted(() => {

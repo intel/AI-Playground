@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { completeOrphanedToolParts } from './toolMessageSanitize'
+import { completeOrphanedToolParts, sanitizeBulkyToolOutputs } from './toolMessageSanitize'
 import type { AipgUiMessage } from './openAiCompatibleChat'
 
 // The helper only inspects `role`, `parts[].type`, and `parts[].state`, so the
@@ -53,5 +53,43 @@ describe('completeOrphanedToolParts', () => {
     ])
     expect((out[0].parts[0] as { type: string }).type).toBe('text')
     expect((out[0].parts[1] as { state: string }).state).toBe('output-error')
+  })
+})
+
+describe('sanitizeBulkyToolOutputs', () => {
+  it('strips audioDataUri from synthesizeTextToSpeech tool output', () => {
+    const huge = 'data:audio/wav;base64,' + 'A'.repeat(1000)
+    const input = [
+      msg('assistant', [
+        {
+          type: 'tool-synthesizeTextToSpeech',
+          state: 'output-available',
+          output: {
+            ok: true,
+            message: 'done',
+            savedFilePath: 'C:\\audio\\x.wav',
+            audioDataUri: huge,
+          },
+        },
+      ]),
+    ]
+    const out = sanitizeBulkyToolOutputs(input)
+    expect(out).not.toBe(input)
+    const output = (out[0].parts[0] as { output: Record<string, unknown> }).output
+    expect(output.savedFilePath).toBe('C:\\audio\\x.wav')
+    expect('audioDataUri' in output).toBe(false)
+  })
+
+  it('returns the same reference when nothing to strip', () => {
+    const input = [
+      msg('assistant', [
+        {
+          type: 'tool-synthesizeTextToSpeech',
+          state: 'output-available',
+          output: { ok: true, message: 'done', savedFilePath: 'C:\\audio\\x.wav' },
+        },
+      ]),
+    ]
+    expect(sanitizeBulkyToolOutputs(input)).toBe(input)
   })
 })
