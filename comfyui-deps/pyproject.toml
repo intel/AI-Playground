@@ -59,6 +59,10 @@ dependencies = [
   "scipy",
   "segment-anything>=1.0",
   "sentencepiece",
+  # setuptools 83.0.0: clears CVE-2026-59890 (MANIFEST.in exclusion bypass via
+  # Unicode NFC/NFD collision). Floor the transitive pin so the no-accelerator
+  # resolution doesn't fall back to the vulnerable 81.x.
+  "setuptools>=83.0.0",
   "simpleeval>=1.0.0",
   "soxr<1.0.0",
   "spandrel",
