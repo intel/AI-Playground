@@ -65,7 +65,9 @@ class RRDBNet(nn.Module):
             raise ValueError(f"RRDBNet here only supports scale=4, got {scale}")
         self.scale = scale
         self.conv_first = nn.Conv2d(num_in_ch, num_feat, 3, 1, 1)
-        self.body = nn.Sequential(*[_RRDB(num_feat, num_grow_ch) for _ in range(num_block)])
+        self.body = nn.Sequential(
+            *[_RRDB(num_feat, num_grow_ch) for _ in range(num_block)]
+        )
         self.conv_body = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
         self.conv_up1 = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
         self.conv_up2 = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
@@ -77,13 +79,19 @@ class RRDBNet(nn.Module):
         feat = self.conv_first(x)
         body_feat = self.conv_body(self.body(feat))
         feat = feat + body_feat
-        feat = self.lrelu(self.conv_up1(F.interpolate(feat, scale_factor=2, mode="nearest")))
-        feat = self.lrelu(self.conv_up2(F.interpolate(feat, scale_factor=2, mode="nearest")))
+        feat = self.lrelu(
+            self.conv_up1(F.interpolate(feat, scale_factor=2, mode="nearest"))
+        )
+        feat = self.lrelu(
+            self.conv_up2(F.interpolate(feat, scale_factor=2, mode="nearest"))
+        )
         out = self.conv_last(self.lrelu(self.conv_hr(feat)))
         return out
 
 
-def _strip_state_dict_prefixes(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+def _strip_state_dict_prefixes(
+    state_dict: dict[str, torch.Tensor],
+) -> dict[str, torch.Tensor]:
     """RealESRGAN checkpoints are sometimes shipped with a `params_ema.` /
     `params.` / `model.` key prefix from BasicSR's training trainer state.
     Pick the namespace that actually contains module weights and strip it."""
@@ -92,7 +100,11 @@ def _strip_state_dict_prefixes(state_dict: dict[str, torch.Tensor]) -> dict[str,
     for prefix in ("params_ema.", "params.", "model."):
         prefixed_keys = [k for k in state_dict if k.startswith(prefix)]
         if prefixed_keys:
-            return {k[len(prefix) :]: v for k, v in state_dict.items() if k.startswith(prefix)}
+            return {
+                k[len(prefix) :]: v
+                for k, v in state_dict.items()
+                if k.startswith(prefix)
+            }
     return state_dict
 
 
@@ -105,9 +117,17 @@ def load_rrdbnet_x4plus(weights_path: str) -> RRDBNet:
         state_dict = load_file(weights_path)
     else:
         loaded = torch.load(weights_path, map_location="cpu", weights_only=True)
-        if isinstance(loaded, dict) and "params_ema" in loaded and isinstance(loaded["params_ema"], dict):
+        if (
+            isinstance(loaded, dict)
+            and "params_ema" in loaded
+            and isinstance(loaded["params_ema"], dict)
+        ):
             state_dict = loaded["params_ema"]
-        elif isinstance(loaded, dict) and "params" in loaded and isinstance(loaded["params"], dict):
+        elif (
+            isinstance(loaded, dict)
+            and "params" in loaded
+            and isinstance(loaded["params"], dict)
+        ):
             state_dict = loaded["params"]
         else:
             state_dict = loaded if isinstance(loaded, dict) else {}

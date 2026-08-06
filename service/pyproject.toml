@@ -8,7 +8,7 @@ dependencies = [
   "marshmallow-dataclass",
   "psutil",
   "Requests",
-  "setuptools",
+  "setuptools>=83.0.0",
   "huggingface_hub",
 ]
 [tool.uv]

@@ -22,7 +22,19 @@ export default defineConfigWithVueTs(
 
   {
     name: 'app/files-to-ignore',
-    ignores: ['**/dist/**', '**/dist-ssr/**', '**/coverage/**', '**/*.cjs'],
+    ignores: [
+      '**/dist/**',
+      '**/dist-ssr/**',
+      '**/coverage/**',
+      '**/*.cjs',
+      // Playwright-generated output (traces, HTML report + bundled trace viewer,
+      // per-run artifacts). Regenerated on every e2e run and never hand-edited.
+      '**/test-results/**',
+      '**/playwright-report/**',
+      '**/playwright-report-e2e/**',
+      '**/blob-report/**',
+      '**/playwright/.cache/**',
+    ],
   },
 
   pluginVue.configs['flat/essential'],

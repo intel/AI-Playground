@@ -104,6 +104,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useMcp } from '@/assets/js/store/mcp'
+import { useErrors } from '@/assets/js/store/errors'
 import * as toast from '@/assets/js/toast'
 import type { McpServerConfig } from '../../electron/subprocesses/mcpServers'
 
@@ -120,6 +121,7 @@ const emits = defineEmits<{
 }>()
 
 const mcp = useMcp()
+const errors = useErrors()
 
 const transport = ref<'stdio' | 'http'>('stdio')
 const displayName = ref('')
@@ -265,7 +267,14 @@ async function handleSubmit() {
       error instanceof Error
         ? error.message
         : `Failed to ${isAddMode.value ? 'add' : 'update'} server`
-    toast.error(errorMessage.value)
+    // The dialog renders errorMessage inline, so report as 'inline' to centralize
+    // logging/de-duplication without a redundant toast.
+    errors.report(error, {
+      category: 'backend',
+      code: `backend/mcp-${isAddMode.value ? 'add' : 'update'}-failed`,
+      surface: 'inline',
+      userMessage: errorMessage.value,
+    })
   } finally {
     isSubmitting.value = false
   }
@@ -300,7 +309,11 @@ async function handleRemove() {
     emits('update:open', false)
     resetForm()
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to remove server')
+    errors.report(error, {
+      category: 'backend',
+      code: 'backend/mcp-remove-failed',
+      userMessage: error instanceof Error ? error.message : 'Failed to remove server',
+    })
   } finally {
     isSubmitting.value = false
   }

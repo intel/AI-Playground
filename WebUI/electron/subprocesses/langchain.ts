@@ -5,8 +5,13 @@ import { LocalFileStore } from 'langchain/storage/file_system'
 
 import { TextLoader } from '@langchain/classic/document_loaders/fs/text'
 import { DocxLoader } from '@langchain/community/document_loaders/fs/docx'
-import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
 import { Document } from '@langchain/classic/document'
+
+// PDFs are parsed with unpdf's worker-free pdf.js build. langchain's own PDFLoader
+// (backed by pdf-parse v2) is unusable in this Electron utility process: pdf-parse
+// detects `process.type === 'utility'` as a browser-like Electron context and takes
+// a browser worker path (blob-URL `import()`, `window.location`) that can't run here.
+import { extractText } from 'unpdf'
 
 import { RecursiveCharacterTextSplitter } from '@langchain/classic/text_splitter'
 
@@ -71,32 +76,37 @@ async function addDocumentToRAGList(document: IndexedDocument): Promise<IndexedD
   return newDocument
 }
 
-async function loadDocument(type: string, filepath: string) {
-  let loader: TextLoader | DocxLoader | PDFLoader
+async function loadDocument(type: string, filepath: string): Promise<Document[]> {
   switch (type) {
     case 'md':
-    case 'txt': {
-      loader = new TextLoader(filepath)
-      break
-    }
-    case 'doc': {
-      loader = new DocxLoader(filepath, { type: 'doc' })
-      break
-    }
-    case 'docx': {
-      loader = new DocxLoader(filepath)
-      break
-    }
-    case 'pdf': {
-      loader = new PDFLoader(filepath)
-      break
-    }
-    default: {
+    case 'txt':
+      return await new TextLoader(filepath).load()
+    case 'doc':
+      return await new DocxLoader(filepath, { type: 'doc' }).load()
+    case 'docx':
+      return await new DocxLoader(filepath).load()
+    case 'pdf':
+      return await loadPdf(filepath)
+    default:
       console.error('Invalid document type')
       throw new Error('Invalid document type')
-    }
   }
-  return await loader.load()
+}
+
+async function loadPdf(filepath: string): Promise<Document[]> {
+  const buffer = await readFile(filepath)
+  // extractText resolves the PDF via getDocumentProxy internally (same Node font/cMap
+  // defaults) and destroys the loading task when done, so we don't hold a proxy ourselves.
+  const { totalPages, text } = await extractText(new Uint8Array(buffer), { mergePages: false })
+  return text
+    .map(
+      (pageText, index) =>
+        new Document({
+          pageContent: pageText,
+          metadata: { source: filepath, pdf: { totalPages }, loc: { pageNumber: index + 1 } },
+        }),
+    )
+    .filter((doc) => doc.pageContent.trim().length > 0)
 }
 
 async function embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<Document[]> {

@@ -16,16 +16,11 @@
           Chat Software
         </h2>
         <div class="flex flex-col gap-2">
-          <div
+          <SetupSidebarTile
             v-for="descriptor in CHANNELS"
             :key="descriptor.kind"
-            class="flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-colors"
-            :class="
-              activeTab === descriptor.kind
-                ? 'border-primary bg-primary/10'
-                : 'border-border hover:bg-muted'
-            "
-            @click="activeTab = descriptor.kind"
+            :selected="activeTab === descriptor.kind"
+            @select="activeTab = descriptor.kind"
           >
             <div class="flex items-center gap-2.5">
               <div
@@ -97,7 +92,7 @@
                 />
               </button>
             </div>
-          </div>
+          </SetupSidebarTile>
         </div>
       </div>
 
@@ -175,22 +170,12 @@
       </div>
     </div>
 
-    <div class="flex items-center justify-between pt-6">
-      <button
-        v-if="!isEditMode"
-        class="py-2 px-5 rounded text-sm font-medium border border-border hover:bg-muted transition-colors"
-        @click="emit('back')"
-      >
-        ← Back
-      </button>
-      <span v-else />
-      <button
-        class="bg-primary py-2 px-8 rounded text-primary-foreground text-sm font-medium transition-colors"
-        @click="emit('done')"
-      >
-        {{ isEditMode ? 'Done' : 'Continue' }}
-      </button>
-    </div>
+    <SetupWizardFooter
+      :show-back="!isEditMode"
+      :primary-label="isEditMode ? 'Done' : 'Continue'"
+      @back="emit('back')"
+      @primary="emit('done')"
+    />
   </div>
 </template>
 
@@ -200,6 +185,8 @@ import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { CHANNELS } from '@/assets/js/store/channels/channelRegistry'
 import type { ChannelKind } from '@/assets/js/store/channels/types'
+import SetupSidebarTile from '@/components/SetupSidebarTile.vue'
+import SetupWizardFooter from '@/components/SetupWizardFooter.vue'
 
 const emit = defineEmits<{
   back: []

@@ -16,3 +16,14 @@ export const getMediaDir = () => {
   }
   return mediaDir
 }
+
+/** Generated TTS and other agent audio (sibling to `media/`, which holds Comfy output and `input/`). */
+export const getAudioDir = () => {
+  if (process.env.USERPROFILE) {
+    return path.join(process.env.USERPROFILE, 'Documents', 'AI-Playground', 'audio')
+  }
+  if (process.env.HOME) {
+    return path.join(process.env.HOME, 'AI-Playground', 'audio')
+  }
+  return path.join(externalResourcesDir(), 'service', 'static', 'audio')
+}

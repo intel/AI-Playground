@@ -21,7 +21,7 @@ describe('parsePowerShellGpuOutput', () => {
 
     expect(result).toEqual([
       {
-        device: 'INTEL_GPU_PNP',
+        device: 'INTEL_GPU_PNP:PCI\\VEN_8086&DEV_FD80&SUBSYS_22128086&REV_01',
         name: 'Intel(R) Graphics',
         gpuDeviceId: '0xFD80',
       },
@@ -65,6 +65,28 @@ describe('parsePowerShellGpuOutput', () => {
     expect(result[1].gpuDeviceId).toBe('0xFD80')
   })
 
+  it('gives two identically-named GPUs distinct device ids (via PNP instance path)', () => {
+    const output = JSON.stringify([
+      {
+        Name: 'Intel(R) Arc(TM) Pro B60 Graphics',
+        PNPDeviceID: 'PCI\\VEN_8086&DEV_E211&SUBSYS_00001234&REV_00\\4&ABC&0&0008',
+      },
+      {
+        Name: 'Intel(R) Arc(TM) Pro B60 Graphics',
+        PNPDeviceID: 'PCI\\VEN_8086&DEV_E211&SUBSYS_00001234&REV_00\\4&DEF&0&0010',
+      },
+    ])
+
+    const result = parsePowerShellGpuOutput(output)
+
+    expect(result).toHaveLength(2)
+    expect(result[0].name).toBe(result[1].name)
+    expect(result[0].gpuDeviceId).toBe('0xE211')
+    // Same model/name, but distinct per-instance device ids so the wizard can
+    // list and select each card independently.
+    expect(result[0].device).not.toBe(result[1].device)
+  })
+
   it('should handle a single object (not array) when only one GPU exists', () => {
     const output = JSON.stringify({
       Name: 'Intel(R) Graphics',
@@ -75,7 +97,7 @@ describe('parsePowerShellGpuOutput', () => {
 
     expect(result).toEqual([
       {
-        device: 'INTEL_GPU_PNP',
+        device: 'INTEL_GPU_PNP:PCI\\VEN_8086&DEV_FD81&SUBSYS_22128086&REV_01',
         name: 'Intel(R) Graphics',
         gpuDeviceId: '0xFD81',
       },

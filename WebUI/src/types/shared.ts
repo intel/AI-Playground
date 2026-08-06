@@ -1,6 +1,9 @@
 import z from 'zod'
 
-export const llmBackendTypes = ['openVINO', 'llamaCPP'] as const
+// 'cloud' is a remote OpenAI-compatible provider backend (e.g. a self-hosted
+// or cloud LLM endpoint). Unlike openVINO/llamaCPP it has no local Python
+// subprocess: inference is proxied directly to a configured provider base URL.
+export const llmBackendTypes = ['openVINO', 'llamaCPP', 'cloud'] as const
 
 // Tool-call parsers supported by the bundled OpenVINO Model Server (OVMS).
 // Used for the `--tool_parser` flag; hermes3 is the fallback when unset.

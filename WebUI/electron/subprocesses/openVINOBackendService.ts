@@ -13,6 +13,10 @@ import { ensureManagedPython, installBackend, uvPipInstallToTarget } from './uvB
 import { binary, extract, restoreTreeWritePermissions } from './tools.ts'
 import { getBundledBackendVersionSync, resolveModels } from '../remoteUpdates.ts'
 import {
+  terminateProcessTree as killProcessTree,
+  waitForServerReadyOrThrow,
+} from './processLifecycle.ts'
+import {
   getMissingPackages,
   hasAptGet,
   hasPkexec,
@@ -21,6 +25,7 @@ import {
   runPkexecInstall,
   waitForTerminalInstall,
 } from './linuxPackageInstaller.ts'
+import { resolveDefaultDevice } from './defaultDeviceSelection.ts'
 
 const execAsync = promisify(exec)
 
@@ -881,7 +886,7 @@ export class OpenVINOBackendService implements ApiService {
       // Try Python-based detection first (provides full device names)
       const pythonDevices = await this.detectDevicesWithPython()
       if (pythonDevices) {
-        this.applyDetectedDevices(pythonDevices)
+        await this.applyDetectedDevices(pythonDevices)
         await this.warnIfNpuSiliconMissingDriver(pythonDevices)
         this.updateStatus()
         return
@@ -896,7 +901,7 @@ export class OpenVINOBackendService implements ApiService {
     // Fallback to OVMS-based detection
     try {
       const ovmsDevices = await this.detectDevicesWithOvms()
-      this.applyDetectedDevices(ovmsDevices)
+      await this.applyDetectedDevices(ovmsDevices)
       await this.warnIfNpuSiliconMissingDriver(ovmsDevices)
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
@@ -1120,7 +1125,7 @@ export class OpenVINOBackendService implements ApiService {
   /**
    * Apply detected devices to the service state.
    */
-  private applyDetectedDevices(devices: { id: string; name: string }[]): void {
+  private async applyDetectedDevices(devices: { id: string; name: string }[]): Promise<void> {
     const mappedDevices: InferenceDevice[] = devices.map((device) => ({
       id: device.id,
       name: device.name,
@@ -1157,10 +1162,19 @@ export class OpenVINOBackendService implements ApiService {
       return result
     }
 
-    // LLM devices: persisted > priority GPU > AUTO
+    // LLM devices: persisted > best physical device (dGPU > iGPU > NPU > CPU) > AUTO.
+    // On first run this auto-selects and persists the best device as the user's
+    // choice; selectByPriority then simply honors that persisted id.
+    const bestLlmId = await resolveDefaultDevice(
+      mappedDevices,
+      this.settings.lastSelectedDevicePerBackend,
+      this.name,
+      this.settings.preferredDevice,
+      this.settings.lastSelectedDeviceUuidPerBackend,
+    )
     this.devices = selectByPriority(
       baseDevices,
-      ['GPU'],
+      bestLlmId ? [bestLlmId] : ['GPU'],
       this.settings.lastSelectedDevicePerBackend[this.name],
     )
 
@@ -1767,6 +1781,31 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   /**
+   * Start (or reuse) ONLY the embedding server, without touching the LLM server.
+   * Used by Cloud Mode RAG: the chat LLM is remote, but embeddings must run on a
+   * local server. Mirrors the embedding branch of ensureBackendReadiness.
+   */
+  async ensureEmbeddingServerReady(embeddingModelName: string): Promise<void> {
+    if (process.platform === 'linux') {
+      await this.ensureLinuxRuntimeDependenciesForStartup()
+    }
+
+    const needsEmbeddingRestart =
+      this.currentEmbeddingModel !== embeddingModelName || !this.ovmsEmbeddingProcess?.isReady
+
+    if (needsEmbeddingRestart) {
+      await this.stopOvmsEmbeddingServer()
+      await this.startOvmsEmbeddingServer(embeddingModelName)
+      this.appLogger.info(`Embedding server ready with model: ${embeddingModelName}`, this.name)
+    } else {
+      this.appLogger.info(
+        `Embedding server already running with model: ${embeddingModelName}`,
+        this.name,
+      )
+    }
+  }
+
+  /**
    * Get the embedding server URL if an embedding server is running
    * @returns The embedding server base URL, or null if no embedding server is running
    */
@@ -2033,6 +2072,7 @@ export class OpenVINOBackendService implements ApiService {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const maxPromptLen = contextSize ?? 8192
       const toolParser = await this.resolveToolParser(modelRepoId)
+      const servedModelName = modelRepoId.split('/').join('---')
 
       this.appLogger.info(
         `Starting OVMS server for model: ${modelRepoId} on port ${this.port} with device ${selectedDevice}`,
@@ -2120,8 +2160,28 @@ export class OpenVINOBackendService implements ApiService {
         }
       })
 
-      // Wait for server to be ready
+      // Wait for the server process to accept connections (/v2/health/ready).
       await this.waitForServerReady(healthUrl, childProcess)
+
+      // /v2/health/ready flips ready when the *server* is up, but the MediaPipe
+      // text-generation graph that backs /v3/chat/completions can register a beat
+      // later — so a request racing that window 404s with "Mediapipe graph definition
+      // with requested name is not found". This bites the agentic image flow, which
+      // stops + restarts the chat server mid-turn (chatBackends → restartChatBackend)
+      // and then immediately issues a follow-up completion. Gate on the model's own
+      // KServe readiness endpoint so we only report ready once the graph is servable.
+      // Best-effort: some OVMS versions may not expose this per-graph — on timeout we
+      // log and proceed (the renderer's route-retry is the backstop) rather than fail
+      // an otherwise-healthy server.
+      const modelReadyUrl = `http://127.0.0.1:${this.port}/v2/models/${servedModelName}/ready`
+      try {
+        await this.waitForServerReady(modelReadyUrl, childProcess, 60)
+      } catch (graphError) {
+        this.appLogger.warn(
+          `OVMS graph readiness probe for "${servedModelName}" did not confirm within budget: ${graphError}`,
+          this.name,
+        )
+      }
       ovmsProcess.isReady = true
 
       this.ovmsLlmProcess = ovmsProcess
@@ -2150,39 +2210,7 @@ export class OpenVINOBackendService implements ApiService {
    * whole tree; we then wait for the OS to reap it and release the handles.
    */
   private async terminateProcessTree(proc: ChildProcess, label: string): Promise<void> {
-    const waitForExit = (ms: number): Promise<boolean> =>
-      new Promise<boolean>((resolve) => {
-        if (proc.exitCode !== null || proc.signalCode !== null) {
-          resolve(true)
-          return
-        }
-        const timeout = setTimeout(() => resolve(false), ms)
-        proc.once('exit', () => {
-          clearTimeout(timeout)
-          resolve(true)
-        })
-      })
-
-    proc.kill('SIGTERM')
-    let exited = await waitForExit(2000)
-    if (exited) return
-
-    this.appLogger.warn(`Force killing OVMS ${label} process tree`, this.name)
-    if (process.platform === 'win32' && proc.pid !== undefined) {
-      try {
-        await execAsync(`taskkill /PID ${proc.pid} /T /F`)
-      } catch (e) {
-        // taskkill exits non-zero when the process is already gone — not fatal.
-        this.appLogger.warn(`taskkill for OVMS ${label} reported: ${e}`, this.name)
-      }
-    } else {
-      proc.kill('SIGKILL')
-    }
-
-    exited = await waitForExit(5000)
-    if (!exited) {
-      this.appLogger.warn(`OVMS ${label} not confirmed exited after force kill`, this.name)
-    }
+    await killProcessTree(proc, { name: this.name, label, appLogger: this.appLogger })
   }
 
   private async stopOvmsLlmServer(): Promise<void> {
@@ -2690,91 +2718,12 @@ export class OpenVINOBackendService implements ApiService {
     childProcess: ChildProcess,
     maxAttempts = 120,
   ): Promise<void> {
-    const delayMs = 1000
-
-    // Track whether the process has exited (process.killed only reflects
-    // signals sent by Node.js — not OS-level kills like OOM or SIGSEGV).
-    let processExited = false
-    let exitCode: number | null = null
-    let exitSignal: string | null = null
-    const stderrChunks: string[] = []
-
-    const onExit = (code: number | null, signal: string | null) => {
-      processExited = true
-      exitCode = code
-      exitSignal = signal
-    }
-    childProcess.on('exit', onExit)
-    childProcess.stderr?.on('data', (data: Buffer) => {
-      stderrChunks.push(data.toString())
-      // Keep only the last 20 lines of stderr for diagnostics
-      if (stderrChunks.length > 20) stderrChunks.shift()
+    await waitForServerReadyOrThrow(healthUrl, childProcess, {
+      name: this.name,
+      maxAttempts,
+      captureExitDiagnostics: true,
+      appLogger: this.appLogger,
     })
-
-    const buildExitErrorMessage = (): string => {
-      const reason = exitSignal
-        ? `killed by signal ${exitSignal}`
-        : exitCode !== null
-          ? `exit code ${exitCode}`
-          : 'exit code null (killed by OS signal, possibly OOM)'
-      const lastStderr = stderrChunks.join('').trim()
-      const stderrSuffix = lastStderr ? `\nLast stderr output:\n${lastStderr.slice(-2000)}` : ''
-      return `OVMS process crashed during startup (${reason})${stderrSuffix}`
-    }
-
-    try {
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        // Check if process has exited (covers OS kills, crashes, OOM, etc.)
-        if (processExited || childProcess.killed) {
-          const msg = buildExitErrorMessage()
-          this.appLogger.warn(
-            `Process for ${this.name} is not alive, aborting health check: ${msg}`,
-            this.name,
-          )
-          throw new Error(msg)
-        }
-
-        try {
-          const response = await fetch(healthUrl, {
-            method: 'GET',
-            signal: AbortSignal.timeout(1000),
-          })
-
-          if (response.ok) {
-            if (processExited || childProcess.killed) {
-              const msg = buildExitErrorMessage()
-              this.appLogger.warn(
-                `Process for ${this.name} exited after health check succeeded: ${msg}`,
-                this.name,
-              )
-              throw new Error(msg)
-            }
-            this.appLogger.info(`Server ready at ${healthUrl}`, this.name)
-            return
-          }
-        } catch (error) {
-          // Re-throw our own errors (from the process-exit check above)
-          if (error instanceof Error && error.message.startsWith('OVMS process crashed')) {
-            throw error
-          }
-          // Server not ready yet — check if the process died while we were waiting
-          if (processExited || childProcess.killed) {
-            const msg = buildExitErrorMessage()
-            this.appLogger.warn(
-              `Process for ${this.name} exited during health check wait: ${msg}`,
-              this.name,
-            )
-            throw new Error(msg)
-          }
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, delayMs))
-      }
-
-      throw new Error(`Server failed to start within ${(maxAttempts * delayMs) / 1000} seconds`)
-    } finally {
-      childProcess.removeListener('exit', onExit)
-    }
   }
 
   // Error management methods for startup failures

@@ -48,6 +48,9 @@ type SetupData = {
   modelLists: ModelLists
   isAdminExec: boolean
   version: string
+  /** True when the model directory cannot be written to (e.g. a read-only
+   * shared folder on an all-users install), so the UI should disable downloads. */
+  modelFolderReadOnly: boolean
 }
 
 type UpdateWorkflowsFromIntelResult = {

@@ -67,6 +67,105 @@ Python backend (`service/`) uses **Ruff** for linting (runs in CI via GitHub Act
 - Tests use `describe` / `it` / `expect`. Mock Electron with `vi.mock('electron', ...)`.
 - Tests live alongside source in `electron/test/` (currently unit tests for Electron main process only).
 
+### E2E tests (Playwright, real Electron) — `WebUI/e2e/`
+
+Drives the **real compiled Electron app** (not a mocked renderer) and actually installs
+backends, so runs take minutes. Separate from Vitest: `.spec.ts` files, config
+`playwright-e2e.config.ts`. Two scripts: `npm run e2e:fast` runs only the quick agentic smoke
+(`agentic-smoke.spec.ts` — install + a haiku text turn + one image turn); `npm run e2e:full`
+runs the whole suite — the full agentic reference flow (`install-backends.spec.ts`, image →
+edit → video) plus one smoke test per chat/image/video preset in `preset-*.spec.ts` — and
+excludes the quick smoke (`--grep-invert "Agentic smoke"`) so backends aren't installed twice.
+
+**Architecture:** `vite --mode test` serves only the renderer (the Electron plugin is
+skipped in test mode — see `vite.config.mts`); the fixture launches the built Electron
+main (`dist/main`, built on demand) pointed at that dev server via `VITE_DEV_SERVER_URL`.
+Close any running dev app first — the single-instance lock makes a second launch attach to
+the existing one.
+
+**Files:** `fixtures.ts` (launch + `window`/`app` fixtures), `appDriver.ts` (`AppDriver`,
+the high-level entry point; exposes `wizard`, `shell`, `main`, `settings`), `pages/*.ts`
+(Page Objects: `SetupWizardPage`, `AppShellPage`, `MainPage` = prompt area + results,
+`SpecificSettingsPage` = the preset settings sidebar), `backends.ts` (parametric model +
+types), `helpers.ts`, `agentic-smoke.spec.ts` (quick `e2e` gate),
+`install-backends.spec.ts` (full agentic reference spec).
+
+**Rules:**
+- **Start every test with the shared setup method:** `await app.installAllBackends()`. It's
+  idempotent (handles fresh-wizard and already-running starts) and is where reusable setup
+  belongs. Keep flows on the driver / page objects, not inlined in specs.
+- **Selectors = interact like a user: role + accessible name/text only.** Use `getByRole`,
+  `getByText`, `getByLabel`. **No test-ids, no CSS classes/`#id`, no xpath/ancestor walking.**
+  If an element has no accessible name (icon-only buttons, anonymous rows), **add minimal
+  ARIA to the app component** (`role="group"`+`aria-label`, `title`/`aria-label` on the
+  control) — a real a11y improvement, not a test hook. See `SetupWizardRow.vue`,
+  `BackendOptions.vue`.
+- **Parametric over per-element.** Backends share one row component; locate a backend's
+  toggle/gear/menu by unique accessible name (`Enable <name>`, `<name> options`).
+- **Type backend params, never `string`.** Use `BackendDisplayName` from `backends.ts`,
+  derived from the app's `BackendServiceName` union via `satisfies Record<...>` (so
+  adding/removing a backend is a compile error here). Import app **types only**
+  (`import type`) — erased at runtime, pulls in no app deps.
+- **Use `test.step(...)`** to label sections.
+- **Fresh app per test** (fixture launches+closes Electron each test): don't depend on
+  prior-test state and don't over-engineer end-of-test cleanup.
+- **Use long timeouts** for install/update waits (`SetupWizardPage.INSTALL_TIMEOUT`).
+
+**Domain gotchas (learned the hard way):**
+- Installing is **one button**: enable each backend's toggle, then click **"Install &
+  Continue"** — there are no per-backend install buttons.
+- **Deactivate a backend with its toggle, not the feature flag.** For "no Home Agent",
+  `wizard.disableBackend('Home Agent')`; do not touch `isHomeAgentEnabled`.
+- **Re-disable on every wizard open** — reopening reseeds install selection and re-enables
+  installed backends, so a toggled-off backend comes back on.
+- **Home Agent left enabled diverts the wizard** to its setup page after install instead of
+  the running app (a common cause of downstream click timeouts).
+- **NVIDIA mode:** OpenVINO is unavailable (dimmed row, disabled toggle) — skip such
+  backends via `wizard.isAvailable(name)`.
+- **Version updates** live in the per-backend gear menu as "Update to <version>", shown only
+  when installed ≠ pinned target.
+- **"Agentic mode" isn't a UI mode** — it's Chat mode with a tool-enabled chat preset (e.g.
+  "Agentic Chat"), which lets the assistant generate/edit images and video from a prompt.
+  Select it via `SpecificSettingsPage` (preset cards are `role="button"`, name = preset name).
+- **Turn completion:** the Send button (`aria-label="Send"`) is removed while a turn runs and
+  returns when done — `MainPage.waitUntilIdle(timeout)` waits on that (image/video runs take
+  minutes; use `IMAGE_TIMEOUT`/`VIDEO_TIMEOUT`). Result assertions use ARIA added to outputs:
+  generated images `alt="Generated result"` (count via `getByRole('img', …)`), videos via
+  `locator('video')`, 3D models `aria-label="Generated 3D model"`, assistant text via
+  `getByRole('article', { name: 'Assistant response' })`. Both the agentic chat tool card
+  (`ChatWorkflowResult.vue`) and the direct Image Gen/Edit/Video panel (`WorkflowResult.vue`)
+  carry the same output ARIA, so one locator covers both surfaces.
+- **Per-preset smoke tests** (`preset-chat/image/video.spec.ts`) are data-driven: each selects
+  one preset via `AppDriver.runChatPreset`/`runComfyPreset`, which `test.skip`s presets absent
+  in the running product mode. Reference-image presets load `e2e/fixtures/input.png` into the
+  settings-sidebar `LoadImage` inputs (accessible name = the field label); chat vision/RAG
+  presets attach a fixture via the prompt-area "+" input (`aria-label="Attach image or document"`).
+- **Settings sidebar re-opens** when returning from the wizard and can occlude controls;
+  `openAppSettings()` is idempotent. Playwright "visible" ignores occlusion.
+- **Optional popups intercept clicks.** The high-memory / video-VRAM warning (`WarningDialog`,
+  `role="dialog"` + `aria-label="Warning"`) fires whenever a gated preset becomes active —
+  *including just switching to a mode whose last-used preset is gated* — so it can appear
+  before any step you control and its backdrop then eats clicks. Handle it globally with
+  `page.addLocatorHandler` (registered in the `window` fixture), scoped by message so it
+  never touches unrelated warnings; the handler ticks "Do not show again" and confirms.
+- **First use of a preset downloads its models.** On a fresh machine almost every preset
+  (chat/image/video) opens the blocking model-download dialog (`DownloadDialog`,
+  `role="dialog"` + `aria-label="Model download"`) on the first send/generate. `AppDriver`
+  clears it via `DownloadDialogPage.resolve()` at every send point; gated models with no HF
+  access can't be confirmed, so those tests `test.skip` instead of hanging.
+- **Timeouts:** the default chat model (Qwen3.5-9B) is a *reasoning* model — its thinking
+  alone can exceed 2 min, so per-turn budgets are minutes (`TEXT/IMAGE/VIDEO_TIMEOUT`), applied
+  *after* any model download is handled separately.
+- **"Close" is ambiguous** — the header's window-close (X) control is `title="Close"`, so an
+  unscoped `getByRole('button', { name: 'Close' })` can match it and **quit the app**. Scope
+  sidebar closes to their region (`getByRole('region', { name: '<title>' })`, via
+  `SideModalBase`'s `role="region"`), and prefer a uniquely-named button (e.g. the wizard's
+  "Continue") over "Close".
+
+**Before claiming it works:** `npm run typecheck` (`vue-tsc`; `e2e/` is in the root
+`tsconfig.json`) and a cheap no-launch smoke: `npx playwright test --config
+playwright-e2e.config.ts --list`.
+
 ## Code Style
 
 ### Formatting (enforced by Prettier + EditorConfig)
@@ -205,6 +304,31 @@ When adding/removing/renaming a command, update all of these:
 Slack commands must be lowercase; use `queued`/`telegram_aliases` in `commands.py` for camelCase
 spellings (e.g. `/imgGen`). The dev mock channel bypasses all of this (it injects raw text straight
 into the dispatcher), so a command working there does NOT prove it works on Telegram/Slack.
+
+## i18n / Translations (English is the Source of Truth)
+
+Locale files live in `WebUI/src/assets/i18n/` (`en-US.json` + 12 others: `de`, `es`, `id`, `it`,
+`ja`, `ko`, `pl`, `th`, `tr`, `vi`, `zh-CN`, `zh-TW`). **`en-US.json` is the single source of
+truth.** The loader (`store/i18n.ts`) merges `en-US` as a fallback under the active locale, so a
+missing key renders in English rather than crashing — but a missing/stale key is still a bug to fix,
+not a feature.
+
+**Whenever you add, change, or remove a key in `en-US.json`, apply the same change to all 12 other
+locale files in the same commit:**
+- **Added key** → add it to every locale with a translation of the new English value.
+- **Changed English value** → re-generate (re-translate) that key in every locale so translations
+  don't drift from the current English wording.
+- **Removed key** → remove it from every locale (no orphan/extra keys).
+
+Rules for the locale files:
+- Every locale must have the **exact same key set** as `en-US.json` — no missing, no extra keys.
+- Preserve `{placeholder}` tokens verbatim (e.g. `{tool}`, `{error}`) — same set per key as English.
+- Do **not** translate product/technical names: `AI Playground`, `ComfyUI`, `HuggingFace`, `MCP`,
+  `GPU`, `vRAM`, `OpenVINO`, `INT4`, `KV Cache`, model ids; keep mode names `Chat`/`Image Gen`/`Image Edit`.
+- Match file format: UTF-8 (raw non-ASCII, not `\u` escaped), 2-space indent, trailing newline.
+
+To keep this mechanical, a parity check is a plain script: load `en-US.json` and each locale, diff
+the key sets, and diff the `{...}` placeholder set per key. Add English keys first, then translate.
 
 ## CI Checks
 

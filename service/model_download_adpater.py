@@ -1,20 +1,22 @@
+import json
 import threading
 from queue import Empty, Queue
-import json
-from typing import List, Optional
 
-from file_downloader import FileDownloader
-from model_downloader import NotEnoughDiskSpaceException, DownloadException
-from psutil._common import bytes2human
-from model_downloader import HFPlaygroundDownloader
 import utils
+from file_downloader import FileDownloader
+from model_downloader import (
+    DownloadException,
+    HFPlaygroundDownloader,
+    NotEnoughDiskSpaceException,
+)
+from psutil._common import bytes2human
 from web_request_bodies import DownloadModelData
 
 
 class Model_Downloader_Adapter:
     msg_queue: Queue
     finish: bool
-    singal: threading.Event
+    signal: threading.Event
     file_downloader: FileDownloader
     hf_downloader: HFPlaygroundDownloader
     has_error: bool
@@ -24,7 +26,7 @@ class Model_Downloader_Adapter:
         self.msg_queue = Queue(-1)
         self.finish = False
         self.user_stop = False
-        self.singal = threading.Event()
+        self.signal = threading.Event()
         self.file_downloader = FileDownloader()
         self.file_downloader.on_download_progress = (
             self.download_model_progress_callback
@@ -40,18 +42,13 @@ class Model_Downloader_Adapter:
 
     def put_msg(self, data):
         self.msg_queue.put_nowait(data)
-        self.singal.set()
+        self.signal.set()
 
     def download_model_progress_callback(
         self, repo_id: str, download_size: int, total_size: int, speed: int
     ):
         print(
-            "download {} {}/{} speed {}".format(
-                repo_id,
-                bytes2human(download_size),
-                bytes2human(total_size),
-                bytes2human(speed),
-            )
+            f"download {repo_id} {bytes2human(download_size)}/{bytes2human(total_size)} speed {bytes2human(speed)}"
         )
         data = {
             "type": "download_model_progress",
@@ -59,11 +56,11 @@ class Model_Downloader_Adapter:
             "download_size": bytes2human(download_size),
             "total_size": bytes2human(total_size),
             "percent": round(download_size / total_size * 100, 2),
-            "speed": "{}/s".format(bytes2human(speed)),
+            "speed": f"{bytes2human(speed)}/s",
         }
         self.put_msg(data)
 
-    def download_model_completed_callback(self, repo_id: str, ex: Optional[Exception]):
+    def download_model_completed_callback(self, repo_id: str, ex: Exception | None):
         if ex is not None:
             self.put_msg({"type": "error", "err_type": "download_exception"})
             self.has_error = True
@@ -97,14 +94,17 @@ class Model_Downloader_Adapter:
             self.put_msg({"type": "error", "err_type": "runtime_error"})
         else:
             self.put_msg({"type": "error", "err_type": "unknown_exception"})
-        print(f"exception:{str(ex)}")
+        print(f"exception:{ex!s}")
 
-    def download(self, model_download_list: List[DownloadModelData]):
+    def download(self, model_download_list: list[DownloadModelData]):
         self.has_error = False
-        threading.Thread(target=self.__start_download, kwargs={"model_download_list": model_download_list}).start()
+        threading.Thread(
+            target=self.__start_download,
+            kwargs={"model_download_list": model_download_list},
+        ).start()
         return self.generator()
 
-    def __start_download(self, model_download_list: List[DownloadModelData]):
+    def __start_download(self, model_download_list: list[DownloadModelData]):
         global _adapter
         self.finish = False
         self.user_stop = False
@@ -120,7 +120,10 @@ class Model_Downloader_Adapter:
 
                 # Copy faceswap/facerestore models to ComfyUI directory after download completes
                 # This must happen here (not in callback) to ensure file is fully written
-                if item.backend == "comfyui" and item.type in ("faceswap", "facerestore"):
+                if item.backend == "comfyui" and item.type in (
+                    "faceswap",
+                    "facerestore",
+                ):
                     utils.copy_faceswap_facerestore_to_comfyui(
                         item.type,
                         item.repo_id,
@@ -132,7 +135,7 @@ class Model_Downloader_Adapter:
             self.error_callback(ex)
         finally:
             self.finish = True
-            self.singal.set()
+            self.signal.set()
             if _adapter is self:
                 _adapter = None
 
@@ -153,8 +156,8 @@ class Model_Downloader_Adapter:
                 except Empty:
                     break
             if not self.finish:
-                self.singal.clear()
-                self.singal.wait()
+                self.signal.clear()
+                self.signal.wait()
             else:
                 break
 

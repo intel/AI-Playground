@@ -1,0 +1,29 @@
+# Pinned Ruff configuration for AI Playground's first-party Python backends.
+#
+# Ruff version is pinned to 0.15.20 in .pre-commit-config.yaml and
+# .github/workflows/ruff.yml — keep all three in sync so the linter behaves
+# identically in editors, pre-commit, and CI.
+#
+# Rule set: Ruff's default (pyflakes + safe pycodestyle) plus import sorting (I),
+# pyupgrade (UP), and Ruff-specific lints (RUF). Broaden it deliberately here
+# rather than letting an editor's ad-hoc selection surface warnings CI never
+# enforces. E501 (line-too-long) is left to the formatter — it can't wrap long
+# strings/comments, so enforcing it would just create unfixable noise.
+
+target-version = "py312"
+line-length = 88
+
+# Vendored / generated trees that we don't own and must not lint.
+extend-exclude = [
+    "ComfyUI",
+    "OpenVINO",
+    "build",
+    "**/.venv",
+    # Qwen3-TTS modelling code copied from the qwen-tts wheel; kept diffable against
+    # upstream, so it must not be reformatted. See qwen3-tts/vendor/README.md.
+    "qwen3-tts/vendor",
+]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "RUF"]
+ignore = ["E501"]  # line length is the formatter's job

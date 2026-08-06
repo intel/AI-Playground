@@ -1,6 +1,6 @@
 {
   "defaults": {
-    "chatPreset": "Vision",
+    "chatPreset": "Assistant",
     "chatModel": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf",
     "imageGenPreset": "Pro Image",
     "imageEditPreset": "Edit by Prompt 2"

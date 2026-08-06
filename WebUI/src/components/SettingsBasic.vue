@@ -1,3 +1,4 @@
+use useErrors if possible
 <template>
   <div class="border-b border-border flex flex-col gap-5 py-4">
     <DemoModeBlocker>
@@ -337,7 +338,9 @@ import { Button } from '@/components/ui/button'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useProductMode } from '@/assets/js/store/productMode'
+import { useCloudMode } from '@/assets/js/store/cloudMode'
 
+const cloudMode = useCloudMode()
 const productModeStore = useProductMode()
 const demoMode = useDemoMode()
 const setupWizardStore = useSetupWizard()
@@ -467,10 +470,19 @@ async function executeRestartBackends() {
 }
 
 const displayComponents = computed(() => {
-  return backendServices.info.map((item) => ({
-    serviceName: item.serviceName,
-    status: item.status,
+  const components = backendServices.info.map((item) => ({
+    serviceName: item.serviceName as string,
+    status: item.status as BackendStatus,
   }))
+  // Cloud Mode is a frontend-only component (remote OpenAI-compatible provider),
+  // so it never appears in backendServices.info. Always surface it here so the status
+  // panel lists it like a backend: "running" when the feature is enabled, otherwise
+  // "not installed" (rather than hiding the row entirely when it's off).
+  components.push({
+    serviceName: 'cloud-mode',
+    status: cloudMode.isFeatureEnabled ? 'running' : 'notInstalled',
+  })
+  return components
 })
 
 // STT device selection

@@ -42,6 +42,7 @@
         :accept="acceptedImageTypes.join(',')"
         type="file"
         class="hidden"
+        :aria-label="props.label ?? languages.COM_LOAD_IMAGE"
         :disabled="props.disabled"
         v-on:change="(e: Event) => handleFilesEvent(imageUrlRef as Ref<string, string>)(e)"
       />
@@ -83,6 +84,8 @@ const props = defineProps<{
   class?: HTMLAttributes['class']
   id: string
   disabled?: boolean
+  /** Human-readable field name, used as the file input's accessible name. */
+  label?: string
 }>()
 
 const emit = defineEmits<{

@@ -9,6 +9,7 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from './presets'
 import { useDeveloperSettings } from './developerSettings'
 import { useHomeAgent } from './homeAgent'
+import { useCloudMode, CLOUD_DEFAULT_MODEL } from './cloudMode'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import * as toast from '@/assets/js/toast.ts'
 import { useActivities } from './activities'
@@ -18,9 +19,12 @@ const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
 type LlmBackendKV = { [key in LlmBackend]: string | null }
 
+// `cloud` has no local Python service — inference is proxied to a remote
+// provider URL — so it maps to null. Callers must tolerate the null lookup.
 export const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
+  cloud: null,
 } as const
 
 export type LlmModel = {
@@ -84,6 +88,7 @@ export const thinkingModels: Record<string, string> = {
 export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
   llamaCPP: 'llamaCPP - GGUF',
   openVINO: 'OpenVINO',
+  cloud: 'Cloud Mode',
 }
 
 export const textInferenceBackendDescription: Record<LlmBackend, string> = {
@@ -91,11 +96,14 @@ export const textInferenceBackendDescription: Record<LlmBackend, string> = {
     'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
   openVINO:
     'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  cloud:
+    'Connects to a remote OpenAI-compatible provider. Use a hosted or cloud model as if it were local.',
 }
 
 export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
   llamaCPP: ['Lightweight', 'Portable'],
   openVINO: ['Intel', 'Optimized', 'Fast'],
+  cloud: ['Remote', 'OpenAI-compatible'],
 }
 
 export const useTextInference = defineStore(
@@ -107,6 +115,7 @@ export const useTextInference = defineStore(
     const presetsStore = usePresets()
     const developerSettings = useDeveloperSettings()
     const homeAgent = useHomeAgent()
+    const cloudMode = useCloudMode()
     const conversations = useConversations()
     const activities = useActivities()
     const i18nState = useI18N().state
@@ -122,11 +131,13 @@ export const useTextInference = defineStore(
     const selectedModels = ref<LlmBackendKV>({
       llamaCPP: null,
       openVINO: null,
+      cloud: null,
     })
 
     const selectedEmbeddingModels = ref<LlmBackendKV>({
       llamaCPP: null,
       openVINO: null,
+      cloud: null,
     })
 
     // Backend readiness state tracking
@@ -134,10 +145,12 @@ export const useTextInference = defineStore(
       lastUsedModel: {
         llamaCPP: null,
         openVINO: null,
+        cloud: null,
       } as LlmBackendKV,
       lastUsedContextSize: {
         llamaCPP: null,
         openVINO: null,
+        cloud: null,
       } as Record<LlmBackend, number | null>,
       isPreparingBackend: false,
     })
@@ -178,6 +191,45 @@ export const useTextInference = defineStore(
           isPredefined: m.isPredefined,
         }
       })
+
+      // Cloud Mode models are not downloaded locally — they come from the
+      // selected provider's fetched /v1/models list. Surface them as type
+      // 'cloud' models so the existing model dropdown (filtered by backend)
+      // picks them up.
+      if (cloudMode.isFeatureEnabled && cloudMode.selectedProvider) {
+        // Fall back to a synthetic "default" model when the provider exposes
+        // none, so the backend stays selectable and chattable (many providers
+        // accept a placeholder model id — see CLOUD_DEFAULT_MODEL).
+        const providerModels = cloudMode.selectedProvider.models.length
+          ? cloudMode.selectedProvider.models
+          : [CLOUD_DEFAULT_MODEL]
+        const selectedCloud = selectedModels.value.cloud
+        const hasValidCloudSelection = providerModels.includes(selectedCloud ?? '')
+        providerModels.forEach((name, index) => {
+          // Capabilities are parsed from the provider's /v1/models response;
+          // models with no advertised capabilities are assumed fully capable so
+          // capability-gated presets (e.g. Vision) can use them. `enable_thinking`
+          // is a local-template kwarg remote providers may reject, so we never
+          // claim the thinking toggle for cloud models (reasoning still surfaces
+          // via the <think> extraction middleware in the chat store).
+          const caps = cloudMode.capabilitiesFor(name)
+          newModels.push({
+            name,
+            mmproj: undefined,
+            type: 'cloud',
+            downloaded: true, // remote — nothing to download
+            active: name === selectedCloud || (!hasValidCloudSelection && index === 0),
+            supportsToolCalling: caps.supportsToolCalling,
+            supportsVision: caps.supportsVision,
+            supportsReasoning: caps.supportsReasoning,
+            supportsThinkingToggle: false,
+            maxContextSize: undefined,
+            npuSupport: undefined,
+            largeMoe: undefined,
+            isPredefined: false,
+          })
+        })
+      }
 
       console.log('llmModels changed', newModels)
       return newModels
@@ -239,6 +291,15 @@ export const useTextInference = defineStore(
       return serviceInfo?.devices.find((d) => d.selected)?.id ?? null
     }
 
+    // Stable UUID of the currently selected device, when the backend exposes one.
+    // Persisted alongside the id so a preset re-binds to the same physical device
+    // even if its backend-local id shifts (driver update / enumeration reorder).
+    const getCurrentDeviceUuid = (): string | null => {
+      const serviceName = backendToService[backend.value] as BackendServiceName
+      const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
+      return serviceInfo?.devices.find((d) => d.selected)?.uuid ?? null
+    }
+
     const backendToAipgBackendName = {
       openVINO: 'openvino',
       llamaCPP: 'llama_cpp',
@@ -256,11 +317,30 @@ export const useTextInference = defineStore(
       console.log('activeModel changed', newActiveModel)
       return newActiveModel
     })
+    // The local backend used to compute RAG embeddings. For a local chat backend
+    // this is the chat backend itself. In Cloud Mode the chat LLM is remote and
+    // cannot embed, so fall back to a local backend that has an embedding model —
+    // preferring one whose service is already set up. This lets documents be
+    // embedded/retrieved locally while chatting with a remote model.
+    const localEmbeddingBackends = ['llamaCPP', 'openVINO'] as const
+    const embeddingBackend = computed<Exclude<LlmBackend, 'cloud'>>(() => {
+      if (backend.value !== 'cloud') return backend.value
+      const hasEmbeddingModel = (b: Exclude<LlmBackend, 'cloud'>) =>
+        llmEmbeddingModels.value.some((m) => m.type === b)
+      const isSetUp = (b: Exclude<LlmBackend, 'cloud'>) =>
+        backendServices.info.find((s) => s.serviceName === backendToService[b])?.isSetUp === true
+      return (
+        localEmbeddingBackends.find((b) => isSetUp(b) && hasEmbeddingModel(b)) ??
+        localEmbeddingBackends.find((b) => hasEmbeddingModel(b)) ??
+        localEmbeddingBackends.find((b) => isSetUp(b)) ??
+        'llamaCPP'
+      )
+    })
+
     const activeEmbeddingModel: Ref<string | undefined> = computed(() => {
       const newActiveEmbeddingModel = llmEmbeddingModels.value
-        .filter((m) => m.type === backend.value)
+        .filter((m) => m.type === embeddingBackend.value)
         .find((m) => m.active)?.name
-      console.log(llmEmbeddingModels)
       console.log('activeEmbeddingModel changed', newActiveEmbeddingModel)
       return newActiveEmbeddingModel
     })
@@ -352,6 +432,57 @@ export const useTextInference = defineStore(
       builtinToolEnablement.value = { ...builtinToolEnablement.value, [toolName]: enabled }
     }
 
+    // Per-workflow (ComfyUI preset) enablement for preset-backed built-in tools
+    // (Generate media, Edit images), keyed by preset name. Default true so all
+    // workflows stay exposed to the model unless explicitly disabled. Persisted
+    // per chat preset via settingsPerPreset (see the save watcher / loader).
+    const builtinToolPresetEnablement = ref<Record<string, boolean>>({})
+
+    function isWorkflowPresetEnabled(presetName: string): boolean {
+      return builtinToolPresetEnablement.value[presetName] ?? true
+    }
+
+    function setWorkflowPresetEnabled(presetName: string, enabled: boolean): void {
+      builtinToolPresetEnablement.value = {
+        ...builtinToolPresetEnablement.value,
+        [presetName]: enabled,
+      }
+    }
+
+    // Default preset per built-in-tool slot, keyed by "<toolName>:<mediaType>"
+    // (e.g. "comfyUI:image", "comfyUiImageEdit:video"). Lets the user pick which
+    // workflow the assistant reaches for by default per use case. Persisted per
+    // chat preset via settingsPerPreset (mirrors builtinToolPresetEnablement).
+    const builtinToolDefaultPresets = ref<Record<string, string>>({})
+
+    // Initial per-slot defaults, preserving the workflows that used to be
+    // hard-coded in the tool descriptions. Used when the user hasn't explicitly
+    // picked a default yet, so behavior is unchanged out of the box. Slots not
+    // listed here fall back to the first available preset.
+    const INITIAL_DEFAULT_WORKFLOWS: Record<string, string> = {
+      'comfyUI:image': 'Draft Image',
+      'comfyUiImageEdit:image': 'Edit By Prompt',
+    }
+
+    // Resolve the effective default for a slot: the stored choice if it is among
+    // the currently-available (enabled) presets, else the previous hard-coded
+    // default, else the first available. Callers pass the candidate list so this
+    // stays free of preset-grouping logic and can never return a disabled preset.
+    function getDefaultWorkflow(key: string, availableNames: string[]): string | null {
+      const stored = builtinToolDefaultPresets.value[key]
+      if (stored && availableNames.includes(stored)) return stored
+      const initial = INITIAL_DEFAULT_WORKFLOWS[key]
+      if (initial && availableNames.includes(initial)) return initial
+      return availableNames[0] ?? null
+    }
+
+    function setDefaultWorkflow(key: string, presetName: string): void {
+      builtinToolDefaultPresets.value = {
+        ...builtinToolDefaultPresets.value,
+        [key]: presetName,
+      }
+    }
+
     const maxTokens = ref<number>(1024)
     const contextSize = ref<number>(8192)
     const temperature = ref<number>(0.7)
@@ -413,7 +544,39 @@ export const useTextInference = defineStore(
     // Per-preset settings persistence
     const settingsPerPreset = ref<Record<string, Record<string, unknown>>>({})
 
+    // Number of inference HTTP requests currently streaming from the chat
+    // backend. Maintained by the chat transport's custom fetch (see
+    // openAiCompatibleChat): incremented when a request starts, decremented when
+    // its response body finishes (completes, is cancelled, or errors). Image
+    // tools consult this via waitForInferenceIdle() so they never tear down the
+    // chat backend while a stream to it is still open (which would reset the
+    // socket mid-stream and surface as a "network error").
+    const activeInferenceStreams = ref(0)
+    function beginInferenceStream() {
+      activeInferenceStreams.value++
+    }
+    function endInferenceStream() {
+      if (activeInferenceStreams.value > 0) activeInferenceStreams.value--
+    }
+    // Resolve once no inference stream is open, or after `timeoutMs` as a
+    // safety valve so a wedged/keep-alive socket can't block image generation
+    // indefinitely. In the common case the stream is already drained (the SDK
+    // finishes each step before running a tool), so this returns immediately.
+    async function waitForInferenceIdle(timeoutMs = 3000): Promise<void> {
+      const start = Date.now()
+      while (activeInferenceStreams.value > 0) {
+        if (Date.now() - start >= timeoutMs) break
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+    }
+
     const currentBackendUrl = computed(() => {
+      // Cloud Mode talks to the main-process loopback proxy (see cloudProxy.ts),
+      // which forwards to the selected remote provider. Networking + error logging
+      // happen in Node, not the renderer.
+      if (backend.value === 'cloud') {
+        return cloudMode.proxyUrl || undefined
+      }
       if (homeAgent.isHomeAgentActive && homeAgent.homeAgentBaseUrl) {
         return homeAgent.homeAgentBaseUrl
       }
@@ -431,6 +594,16 @@ export const useTextInference = defineStore(
     })
 
     async function getDownloadParamsForCurrentModelIfRequired(type: 'llm' | 'embedding') {
+      // Cloud Mode chat LLMs are served remotely — nothing to download. Embedding
+      // models, however, run on a LOCAL backend even in Cloud Mode (see
+      // embeddingBackend), so an embedding download can still be required.
+      if (backend.value === 'cloud' && type === 'llm') return []
+      // For embeddings, resolve against the (possibly local-fallback) embedding
+      // backend; for the LLM, use the chat backend (never 'cloud' here).
+      const localBackend =
+        type === 'embedding'
+          ? embeddingBackend.value
+          : (backend.value as Exclude<LlmBackend, 'cloud'>)
       let model: string | undefined
       if (type === 'llm') {
         model = activeModel.value
@@ -440,10 +613,10 @@ export const useTextInference = defineStore(
       if (!model) return []
 
       const modelMetaData = llmModels.value
-        .filter((m) => m.type === backend.value)
+        .filter((m) => m.type === localBackend)
         .find((m) => m.active)
-      const modelType = type === 'embedding' ? 'embedding' : backendToAipgModelType[backend.value]
-      const backendName = backendToAipgBackendName[backend.value]
+      const modelType = type === 'embedding' ? 'embedding' : backendToAipgModelType[localBackend]
+      const backendName = backendToAipgBackendName[localBackend]
 
       const checkList = [
         {
@@ -452,10 +625,12 @@ export const useTextInference = defineStore(
           backend: backendName,
         },
       ]
-      if (modelMetaData?.mmproj) {
+      // The multimodal projector only applies to a vision LLM — never pull it for
+      // an embedding-only download (its "active model" lookup is incidental here).
+      if (type === 'llm' && modelMetaData?.mmproj) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
-          type: backendToAipgModelType[backend.value],
+          type: backendToAipgModelType[localBackend],
           backend: backendName,
         })
       }
@@ -546,27 +721,22 @@ export const useTextInference = defineStore(
       if (checkedRagList.length === 0) {
         throw new Error('No documents selected')
       }
-      if (!currentBackendUrl.value) {
-        throw new Error('Backend service not found')
-      }
       if (!activeEmbeddingModel.value) {
         throw new Error('No embedding model selected')
       }
 
-      // For llamaCPP and openVINO backends, get the embedding server URL (runs on different port)
-      let backendBaseUrl = currentBackendUrl.value
-      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
-        const serviceName = backendToService[backend.value]
-        const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
-        if (embeddingUrlResult.success && embeddingUrlResult.url) {
-          backendBaseUrl = embeddingUrlResult.url
-        } else {
-          throw new Error(
-            embeddingUrlResult.error ||
-              'Embedding server not available. Please ensure the embedding model is loaded.',
-          )
-        }
+      // Embeddings always run on a LOCAL backend's embedding server (its own
+      // port), even in Cloud Mode where the chat LLM is remote. Resolve that
+      // server's URL from the embedding backend rather than the chat backend.
+      const serviceName = backendToService[embeddingBackend.value]
+      const embeddingUrlResult = await window.electronAPI.getEmbeddingServerUrl(serviceName)
+      if (!embeddingUrlResult.success || !embeddingUrlResult.url) {
+        throw new Error(
+          embeddingUrlResult.error ||
+            'Embedding server not available. Please ensure the embedding model is loaded.',
+        )
       }
+      const backendBaseUrl = embeddingUrlResult.url
 
       const newEmbedInquiry: EmbedInquiry = {
         prompt: prompt,
@@ -612,9 +782,11 @@ export const useTextInference = defineStore(
       try {
         ragRetrievalState.inProgress = true
 
-        // For llamaCPP and openVINO, ensure embedding server is ready before attempting RAG retrieval
-        if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
-          const serviceName = backendToService[backend.value]
+        // Embeddings always run on a LOCAL embedding server (see embeddingBackend),
+        // even in Cloud Mode. Ensure a model is selected and the server is up
+        // before attempting retrieval, skipping RAG gracefully otherwise.
+        {
+          const serviceName = backendToService[embeddingBackend.value]
           if (!activeEmbeddingModel.value) {
             console.warn('No embedding model selected for RAG, skipping RAG retrieval')
             ragRetrievalState.inProgress = false
@@ -933,6 +1105,9 @@ export const useTextInference = defineStore(
     }
 
     async function ensureBackendReadiness(): Promise<void> {
+      // Cloud Mode has no local subprocess and no model to (re)load — the
+      // remote provider is always "ready".
+      if (backend.value === 'cloud') return
       if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
@@ -1016,55 +1191,41 @@ export const useTextInference = defineStore(
       })
     }
 
+    // Cloud Mode RAG: the chat LLM is remote and cannot embed, so bring up a
+    // LOCAL embedding server (embeddingBackend) to embed documents + the query
+    // before sending retrieved snippets to the remote model. No local LLM is
+    // started. Missing/undownloaded models are handled by checkModelAvailability
+    // (which prompts a download) ahead of this call; a truly absent local
+    // embedding model surfaces a toast and RAG is skipped downstream.
+    async function ensureCloudRagEmbeddingServer() {
+      const embeddingModelName = activeEmbeddingModel.value
+      if (!embeddingModelName) {
+        toast.error(
+          'RAG needs a local embedding model. Install one to use documents with Cloud Mode.',
+        )
+        return
+      }
+      const serviceName = backendToService[embeddingBackend.value]
+      startBackendPreparation()
+      try {
+        await backendServices.ensureEmbeddingServerReady(serviceName, embeddingModelName)
+        completeBackendPreparation()
+      } catch (error) {
+        completeBackendPreparation()
+        toast.error(error instanceof Error ? error.message : String(error))
+        throw error
+      }
+    }
+
     async function prepareBackendIfNeeded() {
       console.log('in prepareBackendIfNeeded')
 
-      // Handle NPU device selection if preset locks to NPU
-      // This must happen before backend readiness check
-      if (activePreset.value?.lockDeviceToNpu) {
-        const serviceName = backendToService[backend.value] as BackendServiceName
-        const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-        const npuDevice = serviceInfo?.devices.find((d) => d.id.includes('NPU'))
-
-        if (npuDevice && !npuDevice.selected) {
-          console.log('Selecting NPU device for preset:', activePreset.value.name)
-          startBackendPreparation()
-
-          try {
-            await backendServices.selectDevice(serviceName, npuDevice.id)
-
-            // Restart backend with timeout protection
-            await backendServices.stopService(serviceName)
-
-            // Wait for backend to fully start with timeout
-            const startTimeout = 30000 // 30 seconds
-            const startTime = Date.now()
-            await backendServices.startService(serviceName)
-
-            // Poll until backend is actually running
-            while (Date.now() - startTime < startTimeout) {
-              const currentInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-              if (currentInfo?.status === 'running') {
-                break
-              }
-              if (currentInfo?.status === 'failed') {
-                throw new Error(`Backend failed to start: ${serviceName}`)
-              }
-              await new Promise((resolve) => setTimeout(resolve, 500))
-            }
-
-            const finalInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-            if (finalInfo?.status !== 'running') {
-              throw new Error(`Backend restart timeout: ${serviceName}`)
-            }
-
-            // NPU handling completed successfully
-            completeBackendPreparation()
-          } catch (error) {
-            completeBackendPreparation() // Reset state on error
-            throw error
-          }
-        }
+      // Cloud Mode: the chat LLM is remote — nothing to start, load, or
+      // device-select for chat. But when RAG is active we still need a LOCAL
+      // embedding server running to embed docs + query (see embeddingBackend).
+      if (backend.value === 'cloud') {
+        if (willUseRag.value) await ensureCloudRagEmbeddingServer()
+        return
       }
 
       // Always show loading bar for llamaCPP/openVINO when ensuring backend readiness
@@ -1080,16 +1241,20 @@ export const useTextInference = defineStore(
         }
       }
 
-      const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
-        llamaCPP: 'llamacpp-backend',
-        openVINO: 'openvino-backend',
+      // cloud returned early above, so this only runs for local backends.
+      const inferenceBackendService = backendToService[backend.value]
+      if (inferenceBackendService) {
+        await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
+        backendServices.updateLastUsedBackend(inferenceBackendService)
       }
-      const inferenceBackendService = backendToInferenceService[backend.value]
-      await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
-      backendServices.updateLastUsedBackend(inferenceBackendService)
     }
 
     async function ensureReadyForInference() {
+      // Cloud Mode has no local backend to prepare, but the loopback proxy URL
+      // must be resolved before the first request (it backs currentBackendUrl).
+      if (backend.value === 'cloud') {
+        await cloudMode.ensureProxyUrl()
+      }
       await checkModelAvailability()
       await prepareBackendIfNeeded()
     }
@@ -1143,8 +1308,14 @@ export const useTextInference = defineStore(
       // Load backend - smart selection based on what's running
       if (savedSettings.backend !== undefined) {
         const savedBackend = savedSettings.backend as LlmBackend
+        // Cloud Mode is a global, feature-flagged backend that SettingsChat offers
+        // for any chat preset (see availableBackends), so a preset rarely lists it
+        // in `backends`. Honor a saved 'cloud' choice whenever the feature is on —
+        // otherwise a temporary preset switch (e.g. an image-gen tool call in an
+        // agentic chat) would restore to llamaCPP instead of Cloud Mode.
+        const cloudAllowed = savedBackend === 'cloud' && cloudMode.isFeatureEnabled
         // Only apply saved backend if it's in the preset's allowed backends
-        if (preset.backends?.includes(savedBackend)) {
+        if (preset.backends?.includes(savedBackend) || cloudAllowed) {
           backend.value = savedBackend
         } else {
           // Fall through to smart selection below
@@ -1184,15 +1355,23 @@ export const useTextInference = defineStore(
       const serviceName = backendToService[backend.value] as BackendServiceName
       const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
 
-      if (preset.lockDeviceToNpu) {
-        // NPU Chat: Force NPU selection (handled in prepareBackendIfNeeded)
-        // Don't override here - let the existing lockDeviceToNpu logic handle it
-      } else if (savedSettings.selectedDeviceId !== undefined) {
-        // Restore saved device preference
+      if (savedSettings.selectedDeviceId !== undefined) {
+        // Restore saved device preference. Prefer the saved UUID so the preset
+        // re-binds to the same physical device even if its id shifted (driver
+        // update / enumeration reorder); fall back to the saved id.
         const savedDeviceId = savedSettings.selectedDeviceId as string
-        const deviceExists = serviceInfo?.devices.some((d) => d.id === savedDeviceId)
-        if (deviceExists) {
-          backendServices.selectDevice(serviceName, savedDeviceId)
+        const savedDeviceUuid =
+          typeof savedSettings.selectedDeviceUuid === 'string'
+            ? savedSettings.selectedDeviceUuid
+            : null
+        const byUuid = savedDeviceUuid
+          ? serviceInfo?.devices.find((d) => d.uuid != null && d.uuid === savedDeviceUuid)
+          : undefined
+        const targetId =
+          byUuid?.id ??
+          (serviceInfo?.devices.some((d) => d.id === savedDeviceId) ? savedDeviceId : undefined)
+        if (targetId !== undefined) {
+          backendServices.selectDevice(serviceName, targetId)
         }
       } else {
         // Default to GPU if no preference saved
@@ -1293,6 +1472,16 @@ export const useTextInference = defineStore(
         (savedSettings.aipgToolsEnabled as boolean | undefined) ?? defaultToolsEnabled
       mcpToolsEnabled.value =
         (savedSettings.mcpToolsEnabled as boolean | undefined) ?? defaultToolsEnabled
+
+      // Per-workflow enablement for preset-backed tools (defaults to all-enabled
+      // when unsaved, matching isWorkflowPresetEnabled's default).
+      builtinToolPresetEnablement.value =
+        (savedSettings.builtinToolPresetEnablement as Record<string, boolean> | undefined) ?? {}
+
+      // Per-slot default preset choices (empty when unsaved; getDefaultWorkflow
+      // then falls back to the first available preset for each slot).
+      builtinToolDefaultPresets.value =
+        (savedSettings.builtinToolDefaultPresets as Record<string, string> | undefined) ?? {}
 
       // Load thinking-enabled (defaults to true when unsaved; only takes effect for
       // models that support the toggle via modelSupportsThinkingToggle).
@@ -1429,6 +1618,8 @@ export const useTextInference = defineStore(
         metricsEnabled,
         aipgToolsEnabled,
         mcpToolsEnabled,
+        builtinToolPresetEnablement,
+        builtinToolDefaultPresets,
         thinkingEnabled,
       ],
       () => {
@@ -1446,6 +1637,7 @@ export const useTextInference = defineStore(
           selectedModels: { ...selectedModels.value },
           selectedEmbeddingModels: { ...selectedEmbeddingModels.value },
           selectedDeviceId: getCurrentDeviceId(),
+          selectedDeviceUuid: getCurrentDeviceUuid(),
           maxTokens: maxTokens.value,
           contextSize: contextSize.value,
           temperature: temperature.value,
@@ -1453,6 +1645,8 @@ export const useTextInference = defineStore(
           metricsEnabled: metricsEnabled.value,
           aipgToolsEnabled: aipgToolsEnabled.value,
           mcpToolsEnabled: mcpToolsEnabled.value,
+          builtinToolPresetEnablement: { ...builtinToolPresetEnablement.value },
+          builtinToolDefaultPresets: { ...builtinToolDefaultPresets.value },
           thinkingEnabled: thinkingEnabled.value,
         }
       },
@@ -1474,6 +1668,7 @@ export const useTextInference = defineStore(
           settingsPerPreset.value[settingsKey] = {
             ...settingsPerPreset.value[settingsKey],
             selectedDeviceId: currentDeviceId,
+            selectedDeviceUuid: getCurrentDeviceUuid(),
           }
         }
       },
@@ -1538,24 +1733,38 @@ export const useTextInference = defineStore(
     let initialSettingsLoaded = false
 
     // Initialize chat preset settings on startup.
-    // This handles two cases:
-    // 1. First launch: activePresetName is null → select first chat preset
-    // 2. Subsequent launches: activePresetName is persisted → load settings directly
-    // Note: We call loadSettingsForActivePreset() directly here instead of using
-    // presetSwitching.switchPreset() because the watcher is synchronous.
+    // The app always boots into chat mode (the `prompt` store isn't persisted),
+    // so `activePresetName` must resolve to a *chat* preset here. It may not:
+    //   1. First launch: activePresetName is null.
+    //   2. Subsequent launches: the persisted activePresetName can point at a
+    //      non-chat preset (e.g. an image preset left active after the last
+    //      image-gen session, or a picker-excluded one like Home Agent).
+    // In both cases, reconcile it to the last-used chat preset (falling back to
+    // the highest-priority one). Without this, Chat Settings' PresetSelector —
+    // which filters to chat presets — can't find the active preset and renders
+    // blank, even though the status bar shows the right preset via its own
+    // last-used fallback. Keeping the two in sync is the whole point here.
+    // Note: We set activePresetName / call loadSettingsForActivePreset() directly
+    // instead of presetSwitching.switchPreset() because the watcher is synchronous.
     watch(
       () => presetsStore.chatPresets,
       (chatPresets) => {
         if (chatPresets.length > 0 && !initialSettingsLoaded) {
-          // First launch: no preset is selected, so initialize with the first chat preset
-          if (!presetsStore.activePresetName) {
-            const sortedPresets = [...chatPresets].sort(
-              (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
-            )
-            presetsStore.activePresetName = sortedPresets[0].name
+          const activeIsChatPreset =
+            presetsStore.activePresetName != null &&
+            chatPresets.some((p) => p.name === presetsStore.activePresetName)
+
+          if (!activeIsChatPreset) {
+            const lastUsed = presetsStore.getLastUsedPreset(['chat'])
+            const fallback =
+              (lastUsed ? chatPresets.find((p) => p.name === lastUsed) : undefined) ??
+              [...chatPresets].sort(
+                (a, b) => (b.displayPriority || 0) - (a.displayPriority || 0),
+              )[0]
+            presetsStore.activePresetName = fallback.name
           }
 
-          // Load settings for the active preset (works for both cases)
+          // Load settings for the (now guaranteed chat) active preset
           loadSettingsForActivePreset()
           initialSettingsLoaded = true
         }
@@ -1576,6 +1785,12 @@ export const useTextInference = defineStore(
       builtinToolEnablement,
       isBuiltinToolEnabled,
       setBuiltinToolEnabled,
+      builtinToolPresetEnablement,
+      isWorkflowPresetEnabled,
+      setWorkflowPresetEnabled,
+      builtinToolDefaultPresets,
+      getDefaultWorkflow,
+      setDefaultWorkflow,
       screenshotWindow,
       maxTokens,
       contextSize,
@@ -1651,6 +1866,12 @@ export const useTextInference = defineStore(
 
       // Home Agent
       homeAgentUpstreamUrl,
+
+      // In-flight inference stream tracking (used by image tools to avoid
+      // resetting an open chat-backend socket when freeing the GPU)
+      beginInferenceStream,
+      endInferenceStream,
+      waitForInferenceIdle,
     }
   },
   {

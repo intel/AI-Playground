@@ -7,7 +7,7 @@ endpoint, handling both streaming and non-streaming responses.
 
 import json
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 import requests
 from flask import Request, Response, jsonify, stream_with_context
@@ -71,6 +71,7 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
         return jsonify({"error": "proxy request failed"}), 500
 
     if stream:
+
         def generate() -> Iterator[bytes]:
             saw_done = False
             try:
@@ -78,8 +79,10 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
                     if b"[DONE]" in chunk:
                         saw_done = True
                     yield chunk
-            except (requests.exceptions.ChunkedEncodingError,
-                    requests.exceptions.ConnectionError) as exc:
+            except (
+                requests.exceptions.ChunkedEncodingError,
+                requests.exceptions.ConnectionError,
+            ) as exc:
                 # The upstream LLM server was torn down mid-stream — this is
                 # expected when the app stops llama.cpp to free VRAM for image
                 # generation right after a tool-call has already been streamed.
@@ -87,7 +90,9 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
                 # stream cleanly with a synthetic terminator instead of letting
                 # a ConnectionReset bubble up as a network error that kills the
                 # whole agent turn (and never delivers the reply to the client).
-                logger.warning("Upstream stream interrupted, closing gracefully: %s", exc)
+                logger.warning(
+                    "Upstream stream interrupted, closing gracefully: %s", exc
+                )
                 if not saw_done:
                     yield b"data: [DONE]\n\n"
             finally:
@@ -108,4 +113,3 @@ def proxy_chat_completions(upstream_url: str, flask_request: Request) -> Respons
             upstream_resp.headers.get("Content-Type"), "application/json"
         ),
     )
-

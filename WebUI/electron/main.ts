@@ -32,6 +32,7 @@ import {
   net,
   OpenDialogSyncOptions,
   protocol,
+  safeStorage,
   screen,
   session,
   shell,
@@ -47,8 +48,8 @@ import { promisify } from 'node:util'
 
 const execAsync = promisify(exec)
 import { randomUUID } from 'node:crypto'
-import sudo from 'sudo-prompt'
 import { PathsManager } from './pathsManager'
+import { writableConfigFile } from './userConfig.ts'
 import { appLoggerInstance } from './logging/logger.ts'
 import {
   aiplaygroundApiServiceRegistry,
@@ -60,6 +61,8 @@ import {
 } from './subprocesses/comfyUIBackendService'
 import { AiBackendService } from './subprocesses/aiBackendService'
 import { HomeAgentBackendService } from './subprocesses/homeAgentBackendService'
+import { startCloudProxy, type CloudProxy } from './cloudProxy'
+import { Qwen3TtsBackendService } from './subprocesses/qwen3TtsBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './subprocesses/llamaCppBackendService'
 import { filterPartnerPresets, updateIntelPresets } from './subprocesses/updateIntelPresets.ts'
 import { getGitHubRepoUrl, resolveBackendVersion, resolveModels } from './remoteUpdates.ts'
@@ -97,16 +100,18 @@ import {
   removeMcpServer,
   type McpServerConfig,
 } from './subprocesses/mcpServers'
-import { externalResourcesDir, getMediaDir } from './util.ts'
-import { packagedResourcesRoot } from './aipgRoot.ts'
+import { getAudioDir, getMediaDir } from './util.ts'
+import { packagedResourcesRoot, writableConfigRoot } from './aipgRoot.ts'
 import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
 import {
+  classifyDetectedDevices,
   detectGpuHardwareDevices,
   type GpuHardwareDevice,
 } from './subprocesses/hardwareDiscovery.ts'
+import { registerSettingsPersist } from './subprocesses/defaultDeviceSelection.ts'
 import z from 'zod'
 
 const ProductModeUiI18nSchema = z.object({
@@ -208,10 +213,40 @@ const appLogger = appLoggerInstance
 
 let win: BrowserWindow | null
 let serviceRegistry: ApiServiceRegistryImpl | null = null
+
+// Cloud Mode runs its networking in the main process via a loopback proxy (see
+// cloudProxy.ts), so the renderer never calls remote providers directly. The
+// proxy is started lazily on first use and torn down on quit.
+let cloudProxy: CloudProxy | null = null
+
+function cloudProviderKeyPath(providerId: string): string {
+  return path.join(app.getPath('userData'), `cloud-provider-${providerId}.json`)
+}
+
+// Decrypt a provider's API key from safeStorage on disk. Runs in main only —
+// the plaintext key never crosses the IPC boundary into the renderer.
+function readCloudProviderKey(providerId: string): string | null {
+  try {
+    const raw = fs.readFileSync(cloudProviderKeyPath(providerId), 'utf-8')
+    const blob = JSON.parse(raw) as { data: number[] }
+    return safeStorage.decryptString(Buffer.from(blob.data))
+  } catch {
+    return null
+  }
+}
+
+async function getCloudProxy(): Promise<CloudProxy> {
+  if (!cloudProxy) {
+    cloudProxy = await startCloudProxy(readCloudProviderKey)
+  }
+  return cloudProxy
+}
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 const mediaInputDir = path.join(mediaDir, 'input')
 fs.mkdirSync(mediaInputDir, { recursive: true })
+const audioDir = getAudioDir()
+fs.mkdirSync(audioDir, { recursive: true })
 
 /** Resolve aipg-media://… to an absolute file path under `mediaDir` (no path traversal). */
 function getLocalPathFromAipgMediaUrl(url: string): string | null {
@@ -266,6 +301,21 @@ const appSize = {
 }
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
 const ProductModeSchema = z.enum(['studio', 'essentials', 'nvidia'])
+// User's preferred GPU, captured in the setup wizard. Identified by name
+// (+ PCI id when known) so it can be matched to each backend's own device
+// enumeration.
+const PreferredDeviceSchema = z.object({
+  name: z.string(),
+  gpuDeviceId: z.string().nullable(),
+  // Stable vendor UUID when the pre-install probe supplied one; preferred over
+  // name/PCI when matching this device onto a backend's own detected list.
+  uuid: z.string().nullable().optional(),
+  // Per-instance probe id (GpuHardwareDevice.device); disambiguates two
+  // identically-named GPUs in the wizard when no UUID is available.
+  instanceId: z.string().optional(),
+})
+export type PreferredDevice = z.infer<typeof PreferredDeviceSchema>
+
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'wcl', 'lnl', 'mtl']).nullable().default(null),
@@ -279,6 +329,12 @@ const LocalSettingsSchema = z.object({
   // Gates the Home Agent feature (Telegram bridge backend, setup wizard surface,
   // header toggle, bundled preset). Default false: opt-in by editing settings.json.
   isHomeAgentEnabled: z.boolean().default(false),
+  // Gates the Cloud Mode feature (remote OpenAI-compatible provider backend,
+  // setup wizard surface, chat backend option). Frontend-only — there is no
+  // Python service. Default false: opt-in by toggling it in the setup wizard.
+  isCloudModeEnabled: z.boolean().default(false),
+  // Gates the optional Qwen3-TTS Python sidecar (agent synthesizeTextToSpeech tool).
+  isQwen3TtsEnabled: z.boolean().default(false),
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
   huggingfaceEndpoint: z.string().default('https://huggingface.co'),
@@ -294,6 +350,17 @@ const LocalSettingsSchema = z.object({
   // sub-device. Restored at boot in each service's detectDevices() so the app
   // does not reset to the default GPU (iGPU) on every restart.
   lastSelectedDevicePerBackend: z.record(z.string(), z.string()).default({}),
+  // UUID counterpart of lastSelectedDevicePerBackend, same keys. Lets a backend
+  // re-find the chosen device (and re-derive its current selector id) after a
+  // driver update or enumeration reorder shifts the backend-local id. Empty when
+  // the chosen device exposes no UUID (e.g. OpenVINO/llama.cpp devices).
+  lastSelectedDeviceUuidPerBackend: z.record(z.string(), z.string()).default({}),
+  // Machine-wide preferred inference device, chosen in the setup wizard from the
+  // raw pre-install hardware probe. Consulted by each backend's detectDevices()
+  // (when it has no per-backend selection yet) to pick a matching device, before
+  // falling back to the automatic dGPU > iGPU > NPU > CPU ranking. null = no
+  // explicit preference (use the automatic ranking).
+  preferredDevice: PreferredDeviceSchema.nullable().default(null),
   /** When true, skip hardware probe and treat Phison SSD as detected (optional overlay in userData settings). */
   PhisonSSDdetected: z.boolean().optional().default(false),
 })
@@ -431,7 +498,7 @@ function applyPresetFilter(
 let settings = LocalSettingsSchema.parse({})
 let demoProfile: DemoProfile | null = null
 
-/** Packaged: `resources/settings.json` (same role as dev `external/settings-dev.json`). */
+/** Packaged read-only default: `resources/settings.json` (dev: `external/settings-dev.json`). */
 function getPackagedSettingsPath(): string {
   return path.join(packagedResourcesRoot(), 'settings.json')
 }
@@ -446,10 +513,14 @@ function getUserLocalSettingsPath(): string {
   return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
 }
 
-/** Packaged: read/write `resources/settings.json`. Dev: read/write userData overlay only. */
+/**
+ * Where user settings edits are written. Packaged: the per-user config root
+ * (a private folder in a shared all-users install; the resources root — i.e.
+ * `getPackagedSettingsPath()` — otherwise). Dev: userData overlay only.
+ */
 function getWritableSettingsPath(): string {
   if (app.isPackaged) {
-    return getPackagedSettingsPath()
+    return path.join(writableConfigRoot(), 'settings.json')
   }
   return getUserLocalSettingsPath()
 }
@@ -473,6 +544,10 @@ function persistLocalSettingsToDisk(): void {
   }
 }
 
+// Let backend services persist the settings they auto-populate (e.g. the default
+// device chosen after install) without importing main.ts's private writer.
+registerSettingsPersist(persistLocalSettingsToDisk)
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'aipg-media',
@@ -494,6 +569,10 @@ async function loadSettings() {
   settings = LocalSettingsSchema.parse({})
 
   if (app.isPackaged) {
+    // Read the shipped/shared defaults first, then overlay this user's writable
+    // copy. In a shared all-users install these are two different files (shared
+    // read-only default vs. private per-user edits); otherwise they are the same
+    // file and the overlay merge is an idempotent no-op.
     const packagedPath = getPackagedSettingsPath()
     appLogger.info(`loading packaged settings from ${packagedPath}`, 'electron-backend')
     if (fs.existsSync(packagedPath)) {
@@ -502,6 +581,16 @@ async function loadSettings() {
         settings = LocalSettingsSchema.parse({ ...settings, ...raw })
       } catch (e) {
         appLogger.error(`failed to load settings: ${e}`, 'electron-backend')
+      }
+    }
+    const writablePath = getWritableSettingsPath()
+    if (writablePath !== packagedPath && fs.existsSync(writablePath)) {
+      appLogger.info(`loading per-user settings from ${writablePath}`, 'electron-backend')
+      try {
+        const raw = JSON.parse(fs.readFileSync(writablePath, { encoding: 'utf8' }))
+        settings = LocalSettingsSchema.parse({ ...settings, ...raw })
+      } catch (e) {
+        appLogger.error(`failed to load per-user settings: ${e}`, 'electron-backend')
       }
     }
   } else {
@@ -737,6 +826,11 @@ async function createWindow() {
       // authenticate to the ai-backend Flask service. Must be in the
       // preflight allow-list or the browser blocks the request.
       append('Access-Control-Allow-Headers', 'X-AIPG-Auth')
+      // Cloud Mode proxy routing headers (see cloudProxy.ts) — the renderer
+      // sends these to the loopback proxy, so they must clear preflight too.
+      append('Access-Control-Allow-Headers', 'X-Cloud-Upstream')
+      append('Access-Control-Allow-Headers', 'X-Cloud-Provider')
+      append('Access-Control-Allow-Headers', 'X-Cloud-Auth-Style')
       details.responseHeaders = Object.fromEntries([...headers.entries()].map(([k, v]) => [k, [v]]))
       callback(details)
     } else {
@@ -795,7 +889,7 @@ function spawnLangchainUtilityProcess() {
     })
     langchainChild.postMessage({
       type: 'init',
-      embeddingCachePath: path.join(externalResourcesDir(), 'embeddingCache'),
+      embeddingCachePath: path.join(writableConfigRoot(), 'embeddingCache'),
     })
 
     langchainChild.on('message', (message) => {
@@ -854,6 +948,7 @@ function handleUtilityFunction<T, R>(
 
 app.on('before-quit', () => {
   destroyWebBrowser()
+  cloudProxy?.close()
 })
 
 app.on('quit', async () => {
@@ -955,6 +1050,52 @@ function initEventHandle() {
     return { success: true }
   })
 
+  // ── Cloud Mode provider API keys ────────────────────────────────────────
+  // Keys are encrypted at rest via safeStorage and never persisted in the
+  // renderer. Each provider's key lives in its own file keyed by provider id,
+  // mirroring the Home Agent channel-secret layout. Reading/decryption happens in
+  // main only (readCloudProviderKey); the proxy attaches the bearer token so the
+  // plaintext key never reaches the renderer.
+  ipcMain.handle('cloudProvider:saveKey', (_event, providerId: string, key: string) => {
+    try {
+      const raw = (key ?? '').trim()
+      if (!raw) {
+        // Empty key clears any stored secret.
+        try {
+          fs.unlinkSync(cloudProviderKeyPath(providerId))
+        } catch {
+          /* nothing to remove */
+        }
+        return { success: true }
+      }
+      const blob = safeStorage.encryptString(raw).toJSON()
+      fs.writeFileSync(cloudProviderKeyPath(providerId), JSON.stringify(blob), 'utf-8')
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: String(e) }
+    }
+  })
+
+  ipcMain.handle('cloudProvider:getKey', (_event, providerId: string): string | null =>
+    readCloudProviderKey(providerId),
+  )
+
+  ipcMain.handle('cloudProvider:deleteKey', (_event, providerId: string) => {
+    try {
+      fs.unlinkSync(cloudProviderKeyPath(providerId))
+    } catch {
+      /* already gone */
+    }
+    return { success: true }
+  })
+
+  // Loopback URL of the Cloud Mode proxy. The renderer points its
+  // OpenAI-compatible client and model-list fetch at this URL and tags each
+  // request with X-Cloud-Upstream / X-Cloud-Provider (see cloudProxy.ts).
+  ipcMain.handle('cloudProvider:getProxyUrl', async (): Promise<string> => {
+    return (await getCloudProxy()).url
+  })
+
   ipcMain.handle('detectHardwareForModeRecommendation', async () => {
     let detected: GpuHardwareDevice[] = []
     let hasNvidia = false
@@ -1002,7 +1143,7 @@ function initEventHandle() {
     return {
       success: detectSuccess,
       recommendedMode,
-      detectedDevices: detected,
+      detectedDevices: classifyDetectedDevices(detected),
       hasNvidiaGpu: hasNvidia,
       modeCatalog,
     }
@@ -1123,6 +1264,72 @@ function initEventHandle() {
     return `input/${filename}`
   })
 
+  ipcMain.handle(
+    'saveGeneratedAudio',
+    async (
+      _event,
+      audioBase64: string,
+      filename: string,
+    ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
+      try {
+        if (typeof audioBase64 !== 'string' || typeof filename !== 'string') {
+          return { success: false, error: 'invalid arguments' }
+        }
+        const safeName = path.basename(filename).replace(/[^\w.\-]+/g, '_')
+        let outName = safeName.toLowerCase().endsWith('.wav') ? safeName : `${safeName}.wav`
+        await fs.promises.mkdir(audioDir, { recursive: true })
+        let filePath = path.join(audioDir, outName)
+        if (fs.existsSync(filePath)) {
+          const ext = path.extname(outName)
+          const base = outName.slice(0, outName.length - ext.length)
+          let n = 1
+          while (fs.existsSync(filePath)) {
+            outName = `${base}_${n}${ext}`
+            filePath = path.join(audioDir, outName)
+            n++
+          }
+        }
+        await fs.promises.writeFile(filePath, Buffer.from(audioBase64, 'base64'))
+        return { success: true, filePath }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        appLogger.error(`Failed to save generated audio: ${errorMessage}`, 'electron-backend')
+        return { success: false, error: errorMessage }
+      }
+    },
+  )
+
+  ipcMain.handle(
+    'readLocalAudioAsDataUri',
+    async (
+      _event,
+      filePath: string,
+    ): Promise<{ success: boolean; dataUri?: string; error?: string }> => {
+      try {
+        if (typeof filePath !== 'string' || !filePath.trim()) {
+          return { success: false, error: 'invalid path' }
+        }
+        const audioRoot = path.normalize(getAudioDir())
+        const full = path.normalize(
+          path.isAbsolute(filePath) ? filePath : path.join(audioRoot, filePath),
+        )
+        if (full !== audioRoot && !full.startsWith(audioRoot + path.sep)) {
+          return { success: false, error: 'path outside audio directory' }
+        }
+        const buf = await fs.promises.readFile(full)
+        const ext = path.extname(full).toLowerCase()
+        const mediaType = ext === '.mp3' ? 'audio/mpeg' : 'audio/wav'
+        return {
+          success: true,
+          dataUri: `data:${mediaType};base64,${buf.toString('base64')}`,
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { success: false, error: errorMessage }
+      }
+    },
+  )
+
   // Persist an inbound Home Agent document (base64) to disk so the langchain
   // RAG loaders (which require a real filepath) can index it, and so the
   // persisted ragList entry keeps a stable path. Returns the absolute path.
@@ -1222,7 +1429,12 @@ function initEventHandle() {
   })
 
   const pathsManager = new PathsManager(
-    path.join(externalRes, app.isPackaged ? 'model_config.json' : 'model_config.dev.json'),
+    // Packaged: the per-user writable copy (seeded from the shared default on
+    // first use). Its relative model paths still resolve against the shared
+    // resources root via PathsManager, so downloads/scanning hit shared models.
+    app.isPackaged
+      ? writableConfigFile('model_config.json')
+      : path.join(externalRes, 'model_config.dev.json'),
   )
 
   ipcMain.handle('getInitSetting', (event) => {
@@ -1235,6 +1447,7 @@ function initEventHandle() {
       modelPaths: pathsManager.modelPaths,
       isAdminExec: settings.isAdminExec,
       version: app.getVersion(),
+      modelFolderReadOnly: !pathsManager.isModelDirWritable(),
     }
   })
 
@@ -1245,16 +1458,6 @@ function initEventHandle() {
   ipcMain.handle('updateModelPaths', (_event, modelPaths: ModelPaths) => {
     pathsManager.updateModelPaths(modelPaths)
     return pathsManager.scanAll()
-  })
-
-  ipcMain.handle('refreshLLMModles', (_event) => {
-    // Old ipexllm backend removed - return empty array
-    return []
-  })
-
-  ipcMain.handle('getDownloadedLLMs', (_event) => {
-    // Old ipexllm backend removed - return empty array
-    return []
   })
 
   ipcMain.handle('getDownloadedGGUFLLMs', (_event) => {
@@ -1318,6 +1521,9 @@ function initEventHandle() {
       return service.getLoopbackAuthToken()
     }
     if (service instanceof HomeAgentBackendService) {
+      return service.getLoopbackAuthToken()
+    }
+    if (service instanceof Qwen3TtsBackendService) {
       return service.getLoopbackAuthToken()
     }
     return ''
@@ -1455,8 +1661,17 @@ function initEventHandle() {
         return
       }
       // Persist so the boot-time auto-start can restore this device instead of
-      // resetting to the default GPU on the next restart.
+      // resetting to the default GPU on the next restart. Record the device's
+      // UUID too (when known) so the choice survives a selector-id shift.
       settings.lastSelectedDevicePerBackend[serviceName] = deviceId
+      const selectedDevice = (service as { devices?: InferenceDevice[] }).devices?.find(
+        (d) => d.id === deviceId,
+      )
+      if (selectedDevice?.uuid) {
+        settings.lastSelectedDeviceUuidPerBackend[serviceName] = selectedDevice.uuid
+      } else {
+        delete settings.lastSelectedDeviceUuidPerBackend[serviceName]
+      }
       persistLocalSettingsToDisk()
       return service.selectDevice(deviceId)
     },
@@ -1480,6 +1695,14 @@ function initEventHandle() {
       }
       if ('selectSttDevice' in service && typeof service.selectSttDevice === 'function') {
         settings.lastSelectedDevicePerBackend[`${serviceName}:stt`] = deviceId
+        const selectedStt = (service as { sttDevices?: InferenceDevice[] }).sttDevices?.find(
+          (d) => d.id === deviceId,
+        )
+        if (selectedStt?.uuid) {
+          settings.lastSelectedDeviceUuidPerBackend[`${serviceName}:stt`] = selectedStt.uuid
+        } else {
+          delete settings.lastSelectedDeviceUuidPerBackend[`${serviceName}:stt`]
+        }
         persistLocalSettingsToDisk()
         return service.selectSttDevice(deviceId)
       }
@@ -1643,6 +1866,47 @@ function initEventHandle() {
 
       // For other backends, return the base URL (they might use the same server)
       return { success: true, url: service.baseUrl }
+    },
+  )
+
+  ipcMain.handle(
+    'ensureEmbeddingServerReady',
+    async (_event: IpcMainInvokeEvent, serviceName: string, embeddingModelName: string) => {
+      if (!serviceRegistry) {
+        return { success: false, error: 'Service registry not ready' }
+      }
+      const service = serviceRegistry.getService(serviceName)
+      if (!service) {
+        return { success: false, error: `Service ${serviceName} not found` }
+      }
+
+      // Only the local LLM backends (llamaCPP / openVINO) can host an embedding
+      // server. Used by Cloud Mode RAG to embed locally while chatting remotely.
+      if (
+        'ensureEmbeddingServerReady' in service &&
+        typeof service.ensureEmbeddingServerReady === 'function'
+      ) {
+        try {
+          await service.ensureEmbeddingServerReady(embeddingModelName)
+          appLogger.info(
+            `Embedding server ready for ${serviceName} with model: ${embeddingModelName}`,
+            'electron-backend',
+          )
+          return { success: true }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          appLogger.error(
+            `Failed to ensure embedding server ready for ${serviceName}: ${errorMessage}`,
+            'electron-backend',
+          )
+          return { success: false, error: errorMessage }
+        }
+      }
+
+      return {
+        success: false,
+        error: `Service ${serviceName} does not support a standalone embedding server`,
+      }
     },
   )
 
@@ -2496,33 +2760,6 @@ ipcMain.handle('showSaveDialog', async (_event, options: Electron.SaveDialogOpti
     })
 })
 
-function needAdminPermission() {
-  return new Promise<boolean>((resolve) => {
-    const filename = path.join(externalRes, `${randomUUID()}.txt`)
-    fs.writeFile(filename, '', (err) => {
-      if (err) {
-        if (err && err.code == 'EPERM') {
-          // windir is only defined on Windows; on Linux/macOS this check is skipped.
-          if (
-            process.platform === 'win32' &&
-            process.env.windir &&
-            path.parse(externalRes).root == path.parse(process.env.windir).root
-          ) {
-            resolve(!isAdmin())
-          } else {
-            resolve(false)
-          }
-        } else {
-          resolve(false)
-        }
-      } else {
-        fs.rmSync(filename)
-        resolve(false)
-      }
-    })
-  })
-}
-
 function isAdmin(): boolean {
   if (process.platform !== 'win32') {
     return false
@@ -2582,21 +2819,6 @@ app.whenReady().then(async () => {
     true,
   )
 
-  /*
-    The current user does not have write permission for files in the program directory and is not an administrator.
-    Close the current program and let the user start the program with administrator privileges
-    */
-  if (await needAdminPermission()) {
-    if (singleInstanceLock) {
-      app.releaseSingleInstanceLock()
-    }
-    //It is possible that the program is installed in a directory that requires administrator privileges
-    const message = `start "" "${process.argv.join(' ').trim()}`
-    sudo.exec(message, (_err, _stdout, _stderr) => {
-      app.exit(0)
-    })
-    return
-  }
   /**Single instance processing */
   if (!singleInstanceLock) {
     dialog.showMessageBoxSync({
@@ -2609,12 +2831,18 @@ app.whenReady().then(async () => {
     })
     app.exit()
   } else {
+    // Step markers around each startup await, written straight to the log file
+    // (webContents doesn't exist yet), so a hang before the window appears
+    // pinpoints the exact stage instead of leaving no trace.
+    appLogger.info('startup step: loading settings', 'electron-backend', true)
     const settings = await loadSettings()
 
     // Honor *_proxy env vars for all backend downloads (net.fetch) before any
     // service setup kicks off.
+    appLogger.info('startup step: configuring proxy', 'electron-backend', true)
     await configureProxyFromEnv()
 
+    appLogger.info('startup step: initializing event handlers', 'electron-backend', true)
     initEventHandle()
 
     // Custom protocol docking is file protocol.
@@ -2640,8 +2868,12 @@ app.whenReady().then(async () => {
         headers,
       })
     })
+    appLogger.info('startup step: creating window', 'electron-backend', true)
     const window = await createWindow()
+    appLogger.info('startup step: initializing service registry', 'electron-backend', true)
     await initServiceRegistry(window, settings)
+    appLogger.info('startup step: spawning langchain utility process', 'electron-backend', true)
     spawnLangchainUtilityProcess()
+    appLogger.info('startup step: ready', 'electron-backend', true)
   }
 })

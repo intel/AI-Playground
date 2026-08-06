@@ -119,19 +119,41 @@ type LocalSettings = {
   demoModeResetInSeconds: number | null
   demoModePasscode?: string
   isHomeAgentEnabled: boolean
+  isCloudModeEnabled: boolean
+  isQwen3TtsEnabled?: boolean
   languageOverride: string | null
   remoteRepository: string
   huggingfaceEndpoint: string
   mcpAutoDetectionDismissed: string[]
   openvinoImageGenDevices: string[]
+  preferredDevice: PreferredDevice | null
   /** Dev unpackaged: set via settings-dev.json / userData overlay. */
   PhisonSSDdetected?: boolean
 }
+
+type DeviceCategory = 'dgpu' | 'igpu' | 'npu' | 'cpu' | 'unknown'
 
 type GpuHardwareDevice = {
   device: string
   name: string
   gpuDeviceId: string | null
+  /** Stable vendor UUID when the probe can supply one (NVIDIA via nvidia-smi,
+   *  Intel via xpu-smi). null on the PowerShell/lspci fallbacks. Preferred over
+   *  name for identifying a device across driver/enumeration changes. */
+  uuid?: string | null
+  category?: DeviceCategory
+}
+
+/** User's preferred inference device, chosen in the setup wizard. `uuid` is the
+ *  stable identity (when known); `gpuDeviceId` is the weaker PCI model id. */
+type PreferredDevice = {
+  name: string
+  gpuDeviceId: string | null
+  uuid?: string | null
+  /** Per-instance id from the hardware probe (`GpuHardwareDevice.device`).
+   *  Disambiguates two identically-named GPUs in the wizard when no UUID is
+   *  available (PowerShell/lspci fallback). */
+  instanceId?: string
 }
 
 type ProductModeCatalogFeatureI18n = {
@@ -296,6 +318,13 @@ type electronAPI = {
   getDemoModeSettings(): Promise<DemoModeSettings>
   saveImage(url: string): void
   saveImageToMediaInput(dataUri: string): Promise<string>
+  saveGeneratedAudio(
+    audioBase64: string,
+    filename: string,
+  ): Promise<{ success: boolean; filePath?: string; error?: string }>
+  readLocalAudioAsDataUri(
+    filePath: string,
+  ): Promise<{ success: boolean; dataUri?: string; error?: string }>
   readAipgMediaAsBase64(
     url: string,
   ): Promise<{ success: true; data: string } | { success: false; error: string }>
@@ -309,14 +338,16 @@ type electronAPI = {
   getEmbeddingServerUrl(
     serviceName: string,
   ): Promise<{ success: boolean; url?: string; error?: string }>
+  ensureEmbeddingServerReady(
+    serviceName: string,
+    embeddingModelName: string,
+  ): Promise<{ success: boolean; error?: string }>
   getInitSetting(): Promise<SetupData>
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
-  refreshLLMModles(): Promise<string[]>
   loadModels(): Promise<Model[]>
   zoomIn(): Promise<void>
   zoomOut(): Promise<void>
-  getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<Model[]>
@@ -534,6 +565,12 @@ type electronAPI = {
         error?: string
       }>
     }
+  }
+  cloudProvider: {
+    saveKey(providerId: string, key: string): Promise<{ success: boolean; error?: string }>
+    getKey(providerId: string): Promise<string | null>
+    deleteKey(providerId: string): Promise<{ success: boolean; error?: string }>
+    getProxyUrl(): Promise<string>
   }
 }
 
@@ -821,11 +858,15 @@ type BackendServiceName =
   | 'llamacpp-backend'
   | 'openvino-backend'
   | 'home-agent-backend'
+  | 'qwen3-tts-backend'
 
 type InferenceDevice = {
   id: string
   name: string
   selected: boolean
+  /** Stable vendor UUID when the backend can supply one; used to re-identify a
+   *  device across driver/enumeration changes. undefined/null when unavailable. */
+  uuid?: string | null
 }
 
 type ErrorDetails = {

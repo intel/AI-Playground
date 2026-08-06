@@ -12,6 +12,7 @@ type BackendVersion = z.infer<typeof BackendVersionSchema>
 const BackendVersionsSchema = z.object({
   'ai-backend': BackendVersionSchema.optional(),
   'home-agent-backend': BackendVersionSchema.optional(),
+  'qwen3-tts-backend': BackendVersionSchema.optional(),
   'comfyui-backend': BackendVersionSchema,
   'llamacpp-backend': BackendVersionSchema,
   'openvino-backend': BackendVersionSchema,

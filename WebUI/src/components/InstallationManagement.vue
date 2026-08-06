@@ -433,7 +433,6 @@ import {
   mapToDisplayStatus,
   compareVersions,
 } from '@/lib/utils.ts'
-import * as toast from '@/assets/js/toast.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
@@ -444,6 +443,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import type { ErrorDetails } from '../../electron/subprocesses/service'
 import { useProductMode } from '@/assets/js/store/productMode'
+import { useErrors } from '@/assets/js/store/errors'
 
 const emits = defineEmits<{
   (e: 'close'): void
@@ -456,6 +456,7 @@ type ExtendedApiServiceInformation = ApiServiceInformation & {
 
 const backendServices = useBackendServices()
 const productModeStore = useProductMode()
+const errors = useErrors()
 
 // App version for AI Backend display (fetched directly to avoid timing issues with globalSetup.initSetup)
 const appVersion = ref('...')
@@ -715,10 +716,14 @@ async function installBackend(name: BackendServiceName) {
   if (setupProgress.success) {
     await restartBackend(name)
   } else {
-    const errorMessage = setupProgress.errorDetails
-      ? 'Setup failed - Click the info icon for details'
-      : 'Setup failed'
-    toast.error(errorMessage)
+    errors.report('Backend setup failed', {
+      category: 'setup',
+      code: 'setup/backend-setup-failed',
+      userMessage: setupProgress.errorDetails
+        ? 'Setup failed - Click the info icon for details'
+        : 'Setup failed',
+      context: { serviceName: name },
+    })
     loadingComponents.value.delete(name)
   }
 }
@@ -727,7 +732,12 @@ async function repairBackend(name: BackendServiceName) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
-    toast.error('Service failed to stop')
+    errors.report('Service failed to stop', {
+      category: 'backend',
+      code: 'backend/stop-failed',
+      userMessage: 'Service failed to stop',
+      context: { serviceName: name },
+    })
     return
   }
   await installBackend(name)
@@ -737,7 +747,12 @@ async function restartBackend(name: BackendServiceName) {
   loadingComponents.value.add(name)
   const stopStatus = await backendServices.stopService(name)
   if (stopStatus !== 'stopped') {
-    toast.error('Service failed to stop')
+    errors.report('Service failed to stop', {
+      category: 'backend',
+      code: 'backend/stop-failed',
+      userMessage: 'Service failed to stop',
+      context: { serviceName: name },
+    })
     loadingComponents.value.delete(name)
     return
   }
@@ -745,22 +760,30 @@ async function restartBackend(name: BackendServiceName) {
   try {
     const startStatus = await backendServices.startService(name)
     if (startStatus !== 'running') {
-      // Service failed to start - show detailed error message
+      // Service failed to start - detail is available via the info icon.
       const errorDetails = backendServices.getServiceErrorDetails(name)
-      const errorMessage = errorDetails
-        ? 'Service failed to start - Click the info icon for details'
-        : 'Service failed to start'
-      toast.error(errorMessage)
+      errors.report('Service failed to start', {
+        category: 'backend',
+        code: 'backend/start-failed',
+        userMessage: errorDetails
+          ? 'Service failed to start - Click the info icon for details'
+          : 'Service failed to start',
+        context: { serviceName: name },
+      })
       loadingComponents.value.delete(name)
       return
     }
   } catch (error) {
-    // Exception during startup - show detailed error message
+    // Exception during startup - detail is available via the info icon.
     const errorDetails = backendServices.getServiceErrorDetails(name)
-    const errorMessage = errorDetails
-      ? 'Service startup failed - Click the info icon for details'
-      : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`
-    toast.error(errorMessage)
+    errors.report(error, {
+      category: 'backend',
+      code: 'backend/start-failed',
+      userMessage: errorDetails
+        ? 'Service startup failed - Click the info icon for details'
+        : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`,
+      context: { serviceName: name },
+    })
     loadingComponents.value.delete(name)
     return
   }

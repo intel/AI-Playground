@@ -1,6 +1,7 @@
+import sys
 from json import dumps
 from os import path
-import sys
+
 from huggingface_hub import HfFileSystem, hf_hub_url
 
 

@@ -50,3 +50,37 @@ export function completeOrphanedToolParts(messages: AipgUiMessage[]): AipgUiMess
   })
   return changed ? result : messages
 }
+
+type ToolPartWithOutput = { type: string; output?: Record<string, unknown> }
+
+function stripTtsAudioDataUri(output: Record<string, unknown>): Record<string, unknown> {
+  if (!('audioDataUri' in output)) return output
+  const { audioDataUri: _removed, ...rest } = output
+  return rest
+}
+
+/**
+ * Remove bulky payloads from tool outputs before persistence or model conversion.
+ * Qwen3 TTS stores WAV on disk; embedding base64 in history blows the context window.
+ */
+export function sanitizeBulkyToolOutputs(messages: AipgUiMessage[]): AipgUiMessage[] {
+  let changed = false
+  const result = messages.map((message) => {
+    if (message.role !== 'assistant' || !Array.isArray(message.parts)) return message
+    let messageChanged = false
+    const parts = message.parts.map((part) => {
+      const p = part as ToolPartWithOutput
+      if (p.type !== 'tool-synthesizeTextToSpeech' || !p.output || typeof p.output !== 'object') {
+        return part
+      }
+      const nextOutput = stripTtsAudioDataUri(p.output)
+      if (nextOutput === p.output) return part
+      messageChanged = true
+      return { ...part, output: nextOutput } as (typeof message.parts)[number]
+    })
+    if (!messageChanged) return message
+    changed = true
+    return { ...message, parts }
+  })
+  return changed ? result : messages
+}

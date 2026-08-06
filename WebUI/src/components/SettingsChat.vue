@@ -30,7 +30,10 @@
         </p>
       </div>
 
-      <div class="flex flex-col gap-4">
+      <!-- TTS preset: a direct Qwen3-TTS synthesizer, no LLM controls. -->
+      <SettingsTts v-if="isTtsPreset" />
+
+      <div v-else class="flex flex-col gap-4">
         <!-- Backend selector - only shown when multiple backends are available -->
         <div v-if="!isBackendLocked" class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">Backend</Label>
@@ -41,13 +44,26 @@
             :items="availableBackendItems"
           ></drop-down-new>
         </div>
-        <div v-if="!lockDeviceToNpu" class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <!-- Cloud Mode swaps the hardware "Device" picker for a remote "Provider" picker. -->
+        <div
+          v-if="textInference.backend === 'cloud'"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">Provider</Label>
+          <ProviderSelector />
+        </div>
+        <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.DEVICE }}</Label>
-          <DeviceSelector :backend="backendToService[textInference.backend]" />
+          <DeviceSelector :backend="deviceServiceName" />
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">{{ languages.MODEL }}</Label>
-          <ModelSelector />
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="flex-1 min-w-0">
+              <ModelSelector />
+            </div>
+            <CapabilityIcons v-if="currentModel" :model="currentModel" />
+          </div>
         </div>
         <Button
           variant="secondary"
@@ -119,47 +135,70 @@
             @click="() => (textInference.thinkingEnabled = !textInference.thinkingEnabled)"
           />
         </div>
-        <!-- Built-in Tools toggle - only shown when preset has showTools enabled -->
-        <div
-          v-if="showTools && textInference.modelSupportsToolCalling"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
-        >
-          <Label class="whitespace-nowrap">Built-in tools:</Label>
-          <Checkbox
-            id="tools"
-            :model-value="textInference.aipgToolsEnabled"
-            @click="() => (textInference.aipgToolsEnabled = !textInference.aipgToolsEnabled)"
-          />
-        </div>
+        <!-- Tools require a tool-calling model. The toggles stay visible so the
+             option is discoverable, but are disabled (greyed) when the selected
+             model can't call tools. -->
+        <template v-if="showTools">
+          <!-- Built-in Tools toggle -->
+          <div
+            class="grid grid-cols-[120px_1fr] items-center gap-4"
+            :class="{ 'opacity-50': !textInference.modelSupportsToolCalling }"
+            :title="
+              !textInference.modelSupportsToolCalling
+                ? 'The selected model does not support tool calling.'
+                : undefined
+            "
+          >
+            <Label class="whitespace-nowrap">Built-in tools:</Label>
+            <Checkbox
+              id="tools"
+              :disabled="!textInference.modelSupportsToolCalling"
+              :model-value="textInference.aipgToolsEnabled"
+              @click="
+                textInference.modelSupportsToolCalling &&
+                (textInference.aipgToolsEnabled = !textInference.aipgToolsEnabled)
+              "
+            />
+          </div>
 
-        <div
-          v-if="showTools && textInference.modelSupportsToolCalling"
-          class="pl-2"
-          :class="{ 'opacity-50': !textInference.aipgToolsEnabled }"
-        >
-          <SettingsBuiltinTools />
-        </div>
+          <div
+            v-if="textInference.modelSupportsToolCalling"
+            class="pl-2"
+            :class="{ 'opacity-50': !textInference.aipgToolsEnabled }"
+          >
+            <SettingsBuiltinTools />
+          </div>
 
-        <!-- MCP Tools toggle -->
-        <div
-          v-if="showTools && textInference.modelSupportsToolCalling"
-          class="grid grid-cols-[120px_1fr] items-center gap-4"
-        >
-          <Label class="whitespace-nowrap">MCP tools:</Label>
-          <Checkbox
-            id="mcp-tools"
-            :model-value="textInference.mcpToolsEnabled"
-            @click="() => (textInference.mcpToolsEnabled = !textInference.mcpToolsEnabled)"
-          />
-        </div>
+          <!-- MCP Tools toggle -->
+          <div
+            class="grid grid-cols-[120px_1fr] items-center gap-4"
+            :class="{ 'opacity-50': !textInference.modelSupportsToolCalling }"
+            :title="
+              !textInference.modelSupportsToolCalling
+                ? 'The selected model does not support tool calling.'
+                : undefined
+            "
+          >
+            <Label class="whitespace-nowrap">MCP tools:</Label>
+            <Checkbox
+              id="mcp-tools"
+              :disabled="!textInference.modelSupportsToolCalling"
+              :model-value="textInference.mcpToolsEnabled"
+              @click="
+                textInference.modelSupportsToolCalling &&
+                (textInference.mcpToolsEnabled = !textInference.mcpToolsEnabled)
+              "
+            />
+          </div>
 
-        <div
-          v-if="showTools && textInference.modelSupportsToolCalling"
-          class="pl-2 pt-2"
-          :class="{ 'opacity-50': !textInference.mcpToolsEnabled }"
-        >
-          <SettingsMcp />
-        </div>
+          <div
+            v-if="textInference.modelSupportsToolCalling"
+            class="pl-2 pt-2"
+            :class="{ 'opacity-50': !textInference.mcpToolsEnabled }"
+          >
+            <SettingsMcp />
+          </div>
+        </template>
 
         <!-- Embeddings selector - only shown when RAG is enabled -->
         <div v-if="enableRAG" class="grid grid-cols-[120px_1fr] items-center gap-4">
@@ -225,13 +264,16 @@ import {
   textInferenceBackendDisplayName,
 } from '@/assets/js/store/textInference.ts'
 import DeviceSelector from '@/components/DeviceSelector.vue'
+import ProviderSelector from '@/components/ProviderSelector.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
+import CapabilityIcons from '@/components/CapabilityIcons.vue'
 import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import { ref, computed } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import Rag from '@/components/Rag.vue'
 import SettingsMcp from '@/components/SettingsMcp.vue'
 import SettingsBuiltinTools from '@/components/SettingsBuiltinTools.vue'
+import SettingsTts from '@/components/SettingsTts.vue'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
@@ -241,6 +283,7 @@ import * as toast from '@/assets/js/toast'
 import { useProductMode } from '@/assets/js/store/productMode'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
+import { useCloudMode } from '@/assets/js/store/cloudMode'
 
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
@@ -253,6 +296,13 @@ const backendServices = useBackendServices()
 const productModeStore = useProductMode()
 const conversations = useConversations()
 const homeAgent = useHomeAgent()
+const cloudMode = useCloudMode()
+
+// Non-null service name for the local-backend DeviceSelector (only rendered for
+// non-cloud backends; cloud uses ProviderSelector instead).
+const deviceServiceName = computed(
+  () => backendToService[textInference.backend] ?? 'llamacpp-backend',
+)
 
 const isHomeAgentPresetActive = computed(
   () => presetsStore.activePresetName === HOME_AGENT_CHAT_PRESET_NAME,
@@ -270,17 +320,29 @@ const isBackendLocked = computed(() => {
   return activeChatPreset.value?.backends?.length === 1
 })
 
+// Direct Text-to-Speech preset: hides all LLM controls in favour of SettingsTts.
+const isTtsPreset = computed(() => activeChatPreset.value?.ttsPreset === true)
+
+// Active model (capabilities) for the icon row next to the selector — same
+// source as ModelSelector / PromptStatusBar.
+const currentModel = computed(() =>
+  textInference.llmModels.find((m) => m.active && m.type === textInference.backend),
+)
+
 // UI visibility flags from preset
 const enableRAG = computed(() => activeChatPreset.value?.enableRAG ?? false)
 const showTools = computed(() => activeChatPreset.value?.showTools ?? false)
-const lockDeviceToNpu = computed(() => activeChatPreset.value?.lockDeviceToNpu ?? false)
 const advancedMode = computed(() => activeChatPreset.value?.advancedMode ?? false)
 
 // Get available backends from preset (fallback when none configured on preset)
 const availableBackends = computed(() => {
-  const base = activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
+  let base = activeChatPreset.value?.backends ?? (['llamaCPP', 'openVINO'] as LlmBackend[])
   if (productModeStore.productMode === 'nvidia') {
-    return base.filter((b) => b !== 'openVINO')
+    base = base.filter((b) => b !== 'openVINO')
+  }
+  // Surface Cloud Mode as a selectable backend whenever the feature is enabled.
+  if (cloudMode.isFeatureEnabled && !base.includes('cloud')) {
+    base = [...base, 'cloud']
   }
   return base
 })
@@ -297,6 +359,11 @@ const availableBackendItems = computed(() => {
 // Handle backend change from dropdown
 function handleBackendChange(newBackend: string) {
   textInference.backend = newBackend as LlmBackend
+  // Switching to Cloud Mode refreshes the selected provider's model list
+  // (overwriting it on success) so the picker reflects the live provider state.
+  if (newBackend === 'cloud') {
+    cloudMode.refreshSelectedProviderModels()
+  }
 }
 
 async function handlePresetChange(presetName: string) {
@@ -357,6 +424,9 @@ const documentStats = computed(() => {
 })
 
 function isBackendRunning(backend: LlmBackend): boolean {
+  // Cloud Mode has no local service — it's "ready" once a provider base URL
+  // is configured.
+  if (backend === 'cloud') return !!cloudMode.activeProviderBaseUrl
   const serviceName = backendToService[backend]
   return backendServices.info.find((item) => item.serviceName === serviceName)?.status === 'running'
 }

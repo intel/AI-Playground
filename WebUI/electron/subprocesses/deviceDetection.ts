@@ -6,6 +6,18 @@ export function levelZeroDeviceSelectorEnv(id?: string): { ONEAPI_DEVICE_SELECTO
   return { ONEAPI_DEVICE_SELECTOR: `level_zero:${id ?? '*'}` }
 }
 
+/**
+ * Canonical form for cross-source UUID comparison. Different sources spell the
+ * same GPU's UUID differently — nvidia-smi emits `GPU-<hex>` while torch's
+ * `get_device_properties().uuid` emits the bare hex — so normalize to lowercase
+ * without the `gpu-` prefix. Empty/blank → null ("no usable UUID").
+ */
+export function normalizeDeviceUuid(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const s = raw.trim().toLowerCase().replace(/^gpu-/, '')
+  return s.length > 0 ? s : null
+}
+
 /** Restrict PyTorch/CUDA to one GPU. Omit when id is auto (`*` or undefined) so all devices stay visible. */
 export function cudaVisibleDevicesEnv(id?: string): Record<string, string> {
   if (id === undefined || id === '*') {
@@ -23,20 +35,31 @@ export function openVinoDeviceSelectorEnv(id?: string): { OPENVINO_DEVICE: strin
 }
 
 /**
- * Returns the device list with exactly one device marked `selected`, preferring a
- * previously persisted id when it still exists in the freshly detected list. When
- * the persisted id is absent (or undefined), falls back to `pickDefault` (e.g. the
- * first device, or a priority match). If neither yields a device, no device is
- * marked selected. Used by detectDevices() so a user's GPU choice survives restart.
+ * Returns the device list with exactly one device marked `selected`. Precedence:
+ *   1. a persisted UUID that still matches a detected device — survives driver
+ *      updates / enumeration reordering that would change the backend-local id,
+ *   2. a persisted backend-local id that still exists,
+ *   3. `pickDefault` (e.g. the first device, or a priority match).
+ * If none yields a device, no device is marked selected. Used by detectDevices()
+ * so a user's GPU choice survives restart even when its selector id shifts.
  */
-export function withSelectedDevice<T extends { id: string; selected?: boolean }>(
+export function withSelectedDevice<
+  T extends { id: string; selected?: boolean; uuid?: string | null },
+>(
   devices: T[],
   persistedId: string | undefined,
   pickDefault?: (devices: T[]) => T | undefined,
+  persistedUuid?: string | undefined,
 ): T[] {
-  const persistedMatch =
-    persistedId !== undefined ? devices.find((d) => d.id === persistedId) : undefined
-  const target = persistedMatch ?? pickDefault?.(devices)
+  const uuidMatch =
+    persistedUuid !== undefined && persistedUuid !== ''
+      ? devices.find((d) => d.uuid != null && d.uuid === persistedUuid)
+      : undefined
+  const idMatch =
+    uuidMatch === undefined && persistedId !== undefined
+      ? devices.find((d) => d.id === persistedId)
+      : undefined
+  const target = uuidMatch ?? idMatch ?? pickDefault?.(devices)
   return devices.map((d) => ({ ...d, selected: target !== undefined && d.id === target.id }))
 }
 

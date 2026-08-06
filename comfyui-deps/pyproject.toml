@@ -24,7 +24,7 @@ dependencies = [
   "ftfy",
   "fvcore",
   "gguf>=0.13.0",
-  "gitpython>=3.1.49",
+  "gitpython>=3.1.57",
   "huggingface-hub>0.20",
   "imageio-ffmpeg",
   "importlib_metadata",
@@ -43,7 +43,7 @@ dependencies = [
   "onnx>=1.14.0",
   "onnxruntime",
   "opencv-python>=4.7.0.72",
-  "Pillow>=10.3.0",
+  "Pillow>=12.3.0",
   "protobuf>=6.33.5",
   "psutil",
   "pydantic-settings~=2.0",
@@ -59,6 +59,10 @@ dependencies = [
   "scipy",
   "segment-anything>=1.0",
   "sentencepiece",
+  # setuptools 83.0.0: clears CVE-2026-59890 (MANIFEST.in exclusion bypass via
+  # Unicode NFC/NFD collision). Floor the transitive pin so the no-accelerator
+  # resolution doesn't fall back to the vulnerable 81.x.
+  "setuptools>=83.0.0",
   "simpleeval>=1.0.0",
   "soxr<1.0.0",
   "spandrel",
@@ -88,18 +92,18 @@ dependencies = [
 
 [project.optional-dependencies]
 xpu = [
-  "torch==2.12.1",
+  "torch==2.13.0",
   "torchaudio",
   "torchvision",
   "triton-xpu>=3.6.0; sys_platform != 'darwin'",
 ]
 cpu = [
-  "torch==2.12.1",
+  "torch==2.13.0",
   "torchaudio",
   "torchvision",
 ]
 cuda = [
-  "torch==2.12.1",
+  "torch==2.13.0",
   "torchaudio",
   "torchvision",
 ]
@@ -108,6 +112,10 @@ cuda = [
 python-preference = "only-managed"
 link-mode = "clone"
 index-strategy = "unsafe-best-match"
+# torch 2.13.0: clears PYSEC-2025-194 and lifts the setuptools<82 cap. The earlier
+# 2.13 Linux breakage was a driver-version mismatch, not a code bug — the cu130 /
+# xpu wheels require a recent NVIDIA / Intel GPU driver on Linux. Ensure the target
+# driver floor is met before deploying.
 required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
 prerelease = "if-necessary-or-explicit"
 environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]

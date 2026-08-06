@@ -188,9 +188,19 @@ export const useModels = defineStore(
         ? { Authorization: `Bearer ${hfToken.value}` }
         : {}
       const response = await aipgFetch(
-        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${repo_id}`,
+        `${aipgBackendUrl()}/api/checkHFRepoExists?repo_id=${encodeURIComponent(repo_id)}`,
         { headers },
       )
+      // 503 = backend could not reach Hugging Face (timeout/connection error).
+      // This is NOT the same as "repo does not exist"; throw so callers report
+      // a connectivity problem instead of silently treating the model as
+      // missing (falsy `exists`) and aborting with a misleading message.
+      if (response.status === 503) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(
+          `Could not reach Hugging Face to verify ${repo_id}. Check the machine's network/proxy connectivity to huggingface.co and try again. (${data.message ?? 'read timeout'})`,
+        )
+      }
       const data = await response.json()
       return data.exists
     }
@@ -354,6 +364,42 @@ export const useModels = defineStore(
     }
 
     /**
+     * Check if a Qwen3-TTS model repo exists on disk. The Qwen weights live in the
+     * shared TTS model directory (same as the OpenVINO speech model) and are loaded
+     * locally by the qwen3-tts sidecar.
+     */
+    async function checkQwenTtsModelExists(repoId: string): Promise<boolean> {
+      const results = await checkModelAlreadyLoaded([
+        {
+          repo_id: repoId,
+          type: 'TTS',
+          backend: 'openvino' as const,
+        },
+      ])
+      return results.length > 0 && results[0].already_loaded
+    }
+
+    /**
+     * Return download params for whichever of the given Qwen3-TTS repos are missing,
+     * ready to hand to `showDownloadDialog` (the standard model-download popup).
+     */
+    async function getMissingQwenTtsModels(repoIds: string[]): Promise<DownloadModelParam[]> {
+      const modelPath = getModelPath('TTS', 'openvino')
+      const missing: DownloadModelParam[] = []
+      for (const repoId of repoIds) {
+        if (!(await checkQwenTtsModelExists(repoId))) {
+          missing.push({
+            repo_id: repoId,
+            type: 'TTS',
+            backend: 'openvino',
+            model_path: modelPath,
+          })
+        }
+      }
+      return missing
+    }
+
+    /**
      * Initialize model paths from Electron
      */
     function initPaths(modelPaths: ModelPaths) {
@@ -467,6 +513,8 @@ export const useModels = defineStore(
       getMissingTranscriptionModel,
       checkSpeechModelExists,
       getMissingSpeechModel,
+      checkQwenTtsModelExists,
+      getMissingQwenTtsModels,
       hfTokenIsValid: computed(() => hfToken.value?.startsWith('hf_')),
       hfEndpointIsValid: computed(() => isValidUrl(hfEndpoint.value)),
       verifyHfEndpoint,

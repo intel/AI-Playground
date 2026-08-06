@@ -2,10 +2,19 @@
 const ID2ARCH: { [key: number]: Arch } = {
   // bmg
   0xe202: 'bmg',
-  0xe20b: 'bmg',
-  0xe20c: 'bmg',
+  0xe209: 'bmg', // Arc B580
+  0xe20b: 'bmg', // Arc B580
+  0xe20c: 'bmg', // Arc B570
   0xe20d: 'bmg',
-  0xe212: 'bmg',
+  0xe210: 'bmg',
+  0xe211: 'bmg', // Arc Pro B60
+  0xe212: 'bmg', // Arc Pro B50
+  0xe215: 'bmg',
+  0xe216: 'bmg',
+  0xe220: 'bmg',
+  0xe221: 'bmg',
+  0xe222: 'bmg', // Arc Pro B65
+  0xe223: 'bmg', // Arc Pro B70
 
   // lnl
   0x6420: 'lnl',
@@ -120,3 +129,113 @@ export const getBestDevice = (
     .toSorted((a, b) => a.distanceToBest - b.distanceToBest)[0].id
 
 export type Arch = 'bmg' | 'acm' | 'arl_h' | 'wcl' | 'lnl' | 'mtl' | 'unknown'
+
+// ---------------------------------------------------------------------------
+// Device category classification (drives the post-install default device pick)
+// ---------------------------------------------------------------------------
+// Preference order requested by product: dedicated GPU > integrated GPU > NPU >
+// CPU. Each backend enumerates devices with its own ids, so classification works
+// off the (id, name) pair plus a reference list of physically detected GPUs.
+
+export type DeviceCategory = 'dgpu' | 'igpu' | 'npu' | 'cpu' | 'unknown'
+
+const CATEGORY_RANK: Record<DeviceCategory, number> = {
+  dgpu: 4,
+  igpu: 3,
+  npu: 2,
+  cpu: 1,
+  unknown: 0,
+}
+
+// bmg (Battlemage) and acm (Alchemist / DG2 Arc) ship as discrete add-in cards;
+// every other known Intel arch is an integrated GPU inside a CPU package.
+const DISCRETE_INTEL_ARCHES: ReadonlySet<Arch> = new Set<Arch>(['bmg', 'acm'])
+
+/** Minimal view of a physically detected accelerator, used as classification reference. */
+export type ReferenceAccelerator = {
+  vendor: 'intel' | 'nvidia' | 'amd' | 'unknown'
+  name: string
+  gpuDeviceId: string | null // Intel PCI id like '0x56A0'; null when unknown
+}
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+/**
+ * Best-effort match of a target device name against a list of named candidates.
+ * Returns the candidate whose normalized name is closest by edit distance, but
+ * only when the match is confident (distance under half the longer name) so
+ * unrelated names aren't force-matched. Used both to map a backend device to a
+ * physically detected accelerator and to map the user's preferred device (chosen
+ * pre-install from raw hardware names) onto a backend's own device list.
+ */
+export function bestNameMatch<T extends { name: string }>(
+  target: string,
+  candidates: T[],
+): T | undefined {
+  const normalizedTarget = normalizeName(target)
+  if (normalizedTarget === '' || candidates.length === 0) return undefined
+  let best: { candidate: T; distance: number; length: number } | undefined
+  for (const candidate of candidates) {
+    const normalized = normalizeName(candidate.name)
+    if (normalized === '') continue
+    const distance = levenshteinDistance(normalizedTarget, normalized)
+    if (best === undefined || distance < best.distance) {
+      best = { candidate, distance, length: Math.max(normalizedTarget.length, normalized.length) }
+    }
+  }
+  if (best === undefined) return undefined
+  return best.distance <= best.length * 0.5 ? best.candidate : undefined
+}
+
+function matchReference(
+  name: string,
+  reference: ReferenceAccelerator[],
+): ReferenceAccelerator | undefined {
+  return bestNameMatch(name, reference)
+}
+
+/**
+ * Classify a single backend device into dgpu/igpu/npu/cpu. GPU discreteness is
+ * resolved via the physically detected reference list (PCI id → arch table for
+ * Intel, vendor for NVIDIA). A GPU we can't confidently match is treated as
+ * integrated: still ranked above NPU/CPU, but never mislabeled as discrete.
+ */
+export function categorizeDevice(
+  device: { id: string; name: string },
+  reference: ReferenceAccelerator[],
+): DeviceCategory {
+  const id = device.id.toUpperCase()
+  const name = device.name.toUpperCase()
+  if (id === 'CPU' || name === 'CPU') return 'cpu'
+  if (id.includes('NPU') || name.includes('NPU')) return 'npu'
+
+  const ref = matchReference(device.name, reference)
+  if (ref === undefined) return 'igpu'
+  if (ref.vendor === 'nvidia') return 'dgpu'
+  if (ref.vendor === 'intel' && ref.gpuDeviceId !== null) {
+    const arch = getDeviceArch(Number(ref.gpuDeviceId))
+    return DISCRETE_INTEL_ARCHES.has(arch) ? 'dgpu' : 'igpu'
+  }
+  return 'igpu'
+}
+
+/**
+ * Order a backend's detected devices by category preference
+ * (dGPU > iGPU > NPU > CPU), preserving detection order within a category so
+ * ties fall back to the order the backend reported.
+ */
+export function rankDevicesByCategory<T extends { id: string; name: string }>(
+  devices: T[],
+  reference: ReferenceAccelerator[],
+): T[] {
+  return devices
+    .map((device, index) => ({
+      device,
+      index,
+      rank: CATEGORY_RANK[categorizeDevice(device, reference)],
+    }))
+    .sort((a, b) => b.rank - a.rank || a.index - b.index)
+    .map((entry) => entry.device)
+}

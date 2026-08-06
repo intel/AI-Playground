@@ -9,14 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import SettingsMenu from '@/components/SettingsMenu.vue'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +33,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { z } from 'zod'
-import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
 import * as toast from '@/assets/js/toast'
 
 const backendServices = useBackendServices()
@@ -181,23 +174,18 @@ async function handlePhisonReinstall() {
 </script>
 
 <template>
-  <DropdownMenu v-model:open="menuOpen">
-    <DropdownMenuTrigger>
-      <span class="inline-flex" title="Llama.cpp-Phison aiDAPTIV+ settings">
-        <Cog6ToothIcon class="size-6" />
-      </span>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent>
-      <DropdownMenuLabel>{{ phisonDisplayName }}</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
-        i18nState.BACKEND_REINSTALL
-      }}</DropdownMenuItem>
-      <DropdownMenuItem @select="settingsDialogOpen = true">{{
-        i18nState.COM_SETTINGS || 'Settings'
-      }}</DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+  <SettingsMenu
+    v-model:open="menuOpen"
+    :label="phisonDisplayName"
+    title="Llama.cpp-Phison aiDAPTIV+ settings"
+  >
+    <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
+      i18nState.BACKEND_REINSTALL
+    }}</DropdownMenuItem>
+    <DropdownMenuItem @select="settingsDialogOpen = true">{{
+      i18nState.COM_SETTINGS || 'Settings'
+    }}</DropdownMenuItem>
+  </SettingsMenu>
 
   <AlertDialog v-if="showReinstall" v-model:open="reinstallDialogOpen">
     <AlertDialogContent>

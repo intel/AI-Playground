@@ -5,6 +5,7 @@ import { comfyUiImageEdit } from './comfyUiImageEdit'
 import { captureScreenshot } from './captureScreenshot'
 import { browseWeb, interactWithWebPage, screenshotWebPage, searchWeb } from './browseWeb'
 import { configureHomeAgent, getHomeAgentSettings, listHomeAgentModels } from './configureHomeAgent'
+import { synthesizeTextToSpeech } from './synthesizeTextToSpeech'
 
 export const aipgTools = {
   comfyUI,
@@ -15,6 +16,7 @@ export const aipgTools = {
   browseWeb,
   interactWithWebPage,
   screenshotWebPage,
+  synthesizeTextToSpeech,
 } satisfies ToolSet
 
 export type AipgTools = InferUITools<typeof aipgTools>

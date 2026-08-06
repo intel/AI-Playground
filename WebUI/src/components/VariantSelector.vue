@@ -8,6 +8,8 @@ export interface VariantOption {
   name: string
   value: string
   icon?: string
+  /** Parent preset name — used by contextual help mode */
+  presetName?: string
 }
 
 interface Props {
@@ -42,7 +44,7 @@ const gridClass = computed(() => {
     5: 'grid-cols-5',
     6: 'grid-cols-6',
   }
-  return `grid ${gridColsMap[props.columns] || 'grid-cols-3'} gap-4`
+  return `grid ${gridColsMap[props.columns] || 'grid-cols-3'} gap-2`
 })
 </script>
 
@@ -52,9 +54,12 @@ const gridClass = computed(() => {
       <RadioGroupItem :id="option.id" :value="option.value" class="peer sr-only" />
       <Label
         :for="option.id"
-        class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+        :title="option.name"
+        :data-aipg-preset-name="option.presetName ?? undefined"
+        :data-aipg-variant-name="option.presetName ? option.value : undefined"
+        class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover px-2 py-1.5 text-sm min-w-0 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
       >
-        {{ option.name }}
+        <span class="truncate max-w-full">{{ option.name }}</span>
       </Label>
     </div>
   </RadioGroup>

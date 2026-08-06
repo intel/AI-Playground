@@ -8,18 +8,24 @@ map and handles upstream URL configuration plus loopback auth.
 """
 
 import argparse
-import hmac
 import logging
 import os
 import re
+import sys
 import threading
 
+from channels import registry
+from channels.types import ALL_CHANNEL_KINDS
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from llm_proxy import proxy_chat_completions
 
-from channels import registry
-from channels.types import ALL_CHANNEL_KINDS
+# Shared loopback-auth lives in a sibling backend_shared/ directory so the same
+# logic is used by every local Python backend (see backend_shared/).
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend_shared")
+)
+from aipg_loopback_auth import evaluate_loopback_auth, get_loopback_token
 
 app = Flask(__name__)
 CORS(app)
@@ -28,26 +34,21 @@ CORS(app)
 # Flask binds to 127.0.0.1 but on a shared host any local peer can still reach
 # our port. Require an `X-AIPG-Auth` header matching the per-launch token the
 # Electron main process injected via env. Mirrors the `ai-backend` pattern.
-_LOOPBACK_AUTH_TOKEN = os.environ.get("AIPG_LOOPBACK_TOKEN", "")
-_LOOPBACK_REMOTE_ADDRS = frozenset({"127.0.0.1", "::1"})
-# `/healthy` must remain reachable so the service registry can probe readiness
-# before it has obtained the token.
-_AUTH_EXEMPT_PATHS = frozenset({"/healthy"})
+_LOOPBACK_AUTH_TOKEN = get_loopback_token()
 
 
 @app.before_request
 def _enforce_loopback_and_auth():
-    if request.remote_addr not in _LOOPBACK_REMOTE_ADDRS:
-        return jsonify({"error": "loopback only"}), 403
-    if request.method == "OPTIONS":
-        return None
-    if request.path in _AUTH_EXEMPT_PATHS:
-        return None
-    if not _LOOPBACK_AUTH_TOKEN:
-        return jsonify({"error": "service not provisioned"}), 503
-    provided = request.headers.get("X-AIPG-Auth", "")
-    if not provided or not hmac.compare_digest(provided, _LOOPBACK_AUTH_TOKEN):
-        return jsonify({"error": "unauthorized"}), 401
+    rejection = evaluate_loopback_auth(
+        request.remote_addr,
+        request.method,
+        request.path,
+        request.headers.get("X-AIPG-Auth", ""),
+        expected_token=_LOOPBACK_AUTH_TOKEN,
+    )
+    if rejection is not None:
+        status, message = rejection
+        return jsonify({"error": message}), status
     return None
 
 
@@ -113,7 +114,9 @@ def _install_log_redaction() -> None:
             if isinstance(record.args, tuple):
                 record.args = tuple(_redact_token(a, patterns) for a in record.args)
             elif isinstance(record.args, dict):
-                record.args = {k: _redact_token(v, patterns) for k, v in record.args.items()}
+                record.args = {
+                    k: _redact_token(v, patterns) for k, v in record.args.items()
+                }
         return record
 
     logging.setLogRecordFactory(_redacting_factory)
@@ -139,12 +142,14 @@ logger = logging.getLogger(__name__)
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
+
 @app.get("/healthy")
 def healthy():
     return jsonify({"status": "ok"})
 
 
 # ── Upstream control ──────────────────────────────────────────────────────────
+
 
 @app.post("/set-upstream")
 def set_upstream():
@@ -161,6 +166,7 @@ def set_upstream():
 # ── Channel registry — generic dispatch ───────────────────────────────────────
 # All channel-specific routes funnel through these handlers, which look up
 # the concrete channel from `registry.CHANNELS` and delegate.
+
 
 def _get_channel_or_404(kind: str):
     ch = registry.get(kind)
@@ -234,6 +240,7 @@ def channel_send(kind: str, action: str):
 
 
 # ── Chat completions proxy ────────────────────────────────────────────────────
+
 
 @app.post("/v1/chat/completions")
 def chat_completions():

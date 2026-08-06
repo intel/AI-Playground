@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ref, computed } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
+import { llmBackendTypes } from '@/types/shared'
 
 // DeepPartial utility type
 type DeepPartial<T> = {
@@ -171,8 +172,9 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
   resolutionConfig: ResolutionConfigSchema.optional(),
 })
 
-// LLM Backend enum for chat presets
-const LlmBackendEnum = z.enum(['llamaCPP', 'openVINO'])
+// LLM Backend enum for chat presets. Mirrors the shared backend list so presets
+// can also target the remote Cloud Mode backend.
+const LlmBackendEnum = z.enum(llmBackendTypes)
 
 // Chat Preset Schema - uses 'backends' array instead of single 'backend'
 const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
@@ -199,12 +201,16 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   // Used by presets bundling large MoE models that rely on SSD offload.
   requiresPhison: z.boolean().optional(),
   toolsEnabledByDefault: z.boolean().optional(), // Explicit default for tools toggle
+  // When true, this "chat" preset is a direct Text-to-Speech generator rather than an LLM
+  // chat: selecting it turns the prompt box into a synthesizer (typed text -> Qwen3-TTS
+  // audio, no LLM loaded). The `backends` array is a schema-required placeholder and is
+  // unused. See SettingsTts.vue and the direct-synthesis branch in openAiCompatibleChat.
+  ttsPreset: z.boolean().optional(),
   // UI visibility controls
   enableRAG: z.boolean().optional(), // Show "Add Documents" + embeddings selector (default: false)
   showTools: z.boolean().optional(), // Show "Enable Tools" toggle (default: false)
   filterTxt2TxtOnly: z.boolean().optional(), // Filter out vision AND reasoning models
   filterLargeMoeOnly: z.boolean().optional(), // Only show large Mixture-of-Experts models (e.g. for the Phison aiDAPTIV+ preset)
-  lockDeviceToNpu: z.boolean().optional(), // Lock device selector to NPU
   advancedMode: z.boolean().optional(), // Show advanced features: unspecified models + system prompt editing + vision model support
   // When true, the preset is hidden from the standard chat PresetSelector. Used by built-in
   // presets that drive a specific feature (e.g. Home Agent / Telegram) and should not be

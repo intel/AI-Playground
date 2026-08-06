@@ -3,6 +3,7 @@
     id="advanced-settings-sidebar"
     :is-visible="isVisible"
     :title="`${mapModeToLabel(mode)} Settings`"
+    hide-header
     side="right"
     @close="$emit('close')"
   >

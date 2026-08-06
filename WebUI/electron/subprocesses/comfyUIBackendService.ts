@@ -28,15 +28,19 @@ import {
   type ComfyUiDepsMarker,
 } from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
+import { killStaleProcessesByCommandLine } from './processLifecycle.ts'
 import { getMediaDir } from '../util.ts'
+import { packagedResourcesRoot, writableConfigRoot } from '../aipgRoot.ts'
 import {
   clearLevelZeroRuntimeCache,
   cudaVisibleDevicesEnv,
   levelZeroDeviceSelectorEnv,
   linuxHasIntelGpuPciDevice,
   linuxHasLevelZeroRuntime,
+  normalizeDeviceUuid,
   withSelectedDevice,
 } from './deviceDetection.ts'
+import { resolveDefaultDevice } from './defaultDeviceSelection.ts'
 import {
   getMissingPackages,
   hasAptGet,
@@ -1469,9 +1473,15 @@ try:
     for i in range(device_count):
         try:
             device_name = torch.cuda.get_device_name(i)
-            print(f"{i}|{device_name}")
         except Exception:
-            print(f"{i}|Unknown Device")
+            device_name = "Unknown Device"
+        try:
+            # torch exposes the same GPU UUID as nvidia-smi (bare hex vs "GPU-"
+            # prefix); the TS side normalizes both so they compare equal.
+            uuid = str(getattr(torch.cuda.get_device_properties(i), "uuid", "") or "")
+        except Exception:
+            uuid = ""
+        print(f"{i}|{device_name}|{uuid}")
 except Exception as e:
     print(f"Error detecting CUDA devices: {str(e)}")
     sys.exit(1)
@@ -1498,9 +1508,9 @@ except Exception as e:
           console.error(line)
           continue
         }
-        const parts = line.split('|', 2)
-        if (parts.length === 2) {
-          allDevices.push({ id: parts[0], name: parts[1] })
+        const parts = line.split('|', 3)
+        if (parts.length >= 2) {
+          allDevices.push({ id: parts[0], name: parts[1], uuid: normalizeDeviceUuid(parts[2]) })
         }
       }
     } catch (error) {
@@ -1508,11 +1518,31 @@ except Exception as e:
     }
 
     this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
+    // Best-effort: a failure here (e.g. resolving the preferred device) must not
+    // discard a successfully detected list, or the UI silently falls back to the
+    // "Auto select device" placeholder while the real GPU is in use.
+    let bestCudaId: string | undefined
+    try {
+      bestCudaId = await resolveDefaultDevice(
+        allDevices,
+        this.settings.lastSelectedDevicePerBackend,
+        this.name,
+        this.settings.preferredDevice,
+        this.settings.lastSelectedDeviceUuidPerBackend,
+      )
+    } catch (error) {
+      this.appLogger.warn(
+        `Default CUDA device resolution failed; using first detected device: ${error}`,
+        this.name,
+      )
+    }
     this.devices =
       allDevices.length > 0
         ? withSelectedDevice(
             allDevices.map((d) => ({ ...d, selected: false })),
             this.settings.lastSelectedDevicePerBackend[this.name],
+            (ds) => ds.find((d) => d.id === bestCudaId) ?? ds[0],
+            this.settings.lastSelectedDeviceUuidPerBackend[this.name],
           )
         : availableDevices
     this.updateStatus()
@@ -1522,20 +1552,39 @@ except Exception as e:
     let allDevices: Device[] = []
     try {
       const pythonScript = `
-import torch
 import sys
 
 try:
+    import torch
+    # Intel-torch builds that predate native XPU (torch < 2.5) only register the
+    # torch.xpu backend after intel_extension_for_pytorch is imported. Without
+    # this, torch.xpu.device_count() returns 0 on those builds and the GPU is
+    # wrongly reported as absent (device dropdown falls back to "Auto"). On
+    # native-XPU torch the import is unnecessary and its absence is non-fatal, so
+    # both supported ComfyUI variants enumerate the Intel GPU consistently.
+    try:
+        import intel_extension_for_pytorch  # noqa: F401
+    except Exception:
+        pass
+
+    if not hasattr(torch, "xpu"):
+        print("Error detecting XPU devices: torch has no xpu backend")
+        sys.exit(1)
+
     # Try to get the number of XPU devices
     device_count = torch.xpu.device_count()
 
-    # For each device, get its name and print it
+    # For each device, get its name (and UUID when the build exposes it) and print it
     for i in range(device_count):
         try:
             device_name = torch.xpu.get_device_name(i)
-            print(f"{i}|{device_name}")
-        except Exception as e:
-            print(f"{i}|Unknown Device")
+        except Exception:
+            device_name = "Unknown Device"
+        try:
+            uuid = str(getattr(torch.xpu.get_device_properties(i), "uuid", "") or "")
+        except Exception:
+            uuid = ""
+        print(f"{i}|{device_name}|{uuid}")
 except Exception as e:
     print(f"Error detecting XPU devices: {str(e)}")
     sys.exit(1)
@@ -1569,12 +1618,12 @@ except Exception as e:
             continue
           }
 
-          const parts = line.split('|', 2)
-          if (parts.length == 2) {
+          const parts = line.split('|', 3)
+          if (parts.length >= 2) {
             const id = `${i}`
             const name = parts[1]
 
-            devices.push({ id, name })
+            devices.push({ id, name, uuid: normalizeDeviceUuid(parts[2]) })
           }
         }
         i = i + 1
@@ -1606,9 +1655,28 @@ except Exception as e:
     // A device probe positively confirmed at least one usable XPU device, so it
     // is safe for spawnAPIProcess() to launch as the XPU variant.
     this.usableXpuConfirmed = true
+    // Best-effort (see detectCudaDevicesWithTorch): don't let default-device
+    // resolution errors blank an already-detected device list.
+    let bestXpuId: string | undefined
+    try {
+      bestXpuId = await resolveDefaultDevice(
+        allDevices,
+        this.settings.lastSelectedDevicePerBackend,
+        this.name,
+        this.settings.preferredDevice,
+        this.settings.lastSelectedDeviceUuidPerBackend,
+      )
+    } catch (error) {
+      this.appLogger.warn(
+        `Default XPU device resolution failed; using first detected device: ${error}`,
+        this.name,
+      )
+    }
     this.devices = withSelectedDevice(
       allDevices.map((d) => ({ ...d, selected: false })),
       this.settings.lastSelectedDevicePerBackend[this.name],
+      (ds) => ds.find((d) => d.id === bestXpuId) ?? ds[0],
+      this.settings.lastSelectedDeviceUuidPerBackend[this.name],
     )
     this.updateStatus()
   }
@@ -1646,6 +1714,17 @@ except Exception as e:
     process: ChildProcess
     didProcessExitEarlyTracker: Promise<boolean>
   }> {
+    // Kill any ComfyUI left over from a previous session (e.g. after a hard
+    // crash / force-quit that skipped our clean shutdown). We match on this
+    // backend's python binary path, which is unique to ComfyUI's env dir. The
+    // port is picked fresh each launch, so an orphan sits on a *different* port
+    // and would otherwise run beside the new instance → GPU out-of-memory.
+    await killStaleProcessesByCommandLine(this.getPythonBinaryPath(), {
+      name: this.name,
+      label: 'ComfyUI',
+      appLogger: this.appLogger,
+    })
+
     // Clear any stale SQLite WAL/SHM sidecars from a crashed run that would
     // otherwise block ComfyUI from opening its database.
     this.cleanupStaleComfyUiDbLocks()
@@ -1709,6 +1788,35 @@ except Exception as e:
 
     const additionalEnvVariables = this.getEnvVars()
     const mediaDir = getMediaDir()
+
+    // Shared all-users install: ComfyUI's install (this.serviceDir) lives in the
+    // read-only/shared resources root, so redirect its per-run scratch (user
+    // settings/workflows, temp, uploaded inputs) into this user's private config
+    // root. Output already goes to the per-user media dir below. In non-shared
+    // modes writableConfigRoot() === the resources root, so scratch keeps its
+    // default in-tree location and behaviour is unchanged.
+    const comfyScratchFlags: string[] = []
+    if (writableConfigRoot() !== packagedResourcesRoot()) {
+      const scratch = path.join(writableConfigRoot(), 'comfyui')
+      const userDir = path.join(scratch, 'user')
+      const tempDir = path.join(scratch, 'temp')
+      const inputDir = path.join(scratch, 'input')
+      for (const dir of [userDir, tempDir, inputDir]) {
+        try {
+          filesystem.mkdirSync(dir, { recursive: true })
+        } catch {
+          /* best effort — ComfyUI will surface a clearer error if a dir is missing */
+        }
+      }
+      comfyScratchFlags.push(
+        '--user-directory',
+        userDir,
+        '--temp-directory',
+        tempDir,
+        '--input-directory',
+        inputDir,
+      )
+    }
     // --enable-cors-header is required so ComfyUI's origin_only_middleware
     // doesn't 403 our cross-origin requests from the renderer (Vite dev origin
     // / file:// in prod both trigger Sec-Fetch-Site: cross-site against
@@ -1757,6 +1865,7 @@ except Exception as e:
       'auto',
       '--output-directory',
       mediaDir,
+      ...comfyScratchFlags,
       ...userParameters,
       // For the CPU variant (e.g. Linux studio/essentials without a usable Intel
       // GPU runtime), force ComfyUI onto CPU. Without this, ComfyUI's device

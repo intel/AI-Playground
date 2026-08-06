@@ -11,5 +11,6 @@
   "remoteRepository": "asdf/ai-playground",
   "huggingfaceEndpoint": "https://huggingface.co",
   "openvinoImageGenDevices": ["CPU", "GPU"],
-  "isHomeAgentEnabled": true
+  "isHomeAgentEnabled": true,
+  "isQwen3TtsEnabled": true
 }

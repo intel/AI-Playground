@@ -7,7 +7,6 @@
 import os
 import sys
 
-
 if len(sys.argv) != 3:
     print("Usage: python move_model_files.py <src_dir> <target_dir>")
     sys.exit(1)

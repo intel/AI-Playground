@@ -54,6 +54,7 @@
             "
             class="w-full h-full object-contain p-2"
             :src="currentImage.imageUrl"
+            alt="Generated result"
           />
           <!-- NSFW Blocked Overlay -->
           <div
@@ -70,11 +71,13 @@
             class="w-full h-full object-contain p-2"
             controlsList="nodownload nofullscreen noremoteplayback"
             controls
+            aria-label="Generated result"
           />
           <Model3DViewer
             v-else-if="currentImage && is3D(currentImage)"
             :src="currentImage?.model3dUrl as string"
             class="w-full h-full"
+            aria-label="Generated 3D model"
           />
         </div>
         <div

@@ -1,11 +1,11 @@
 {
   "name": "ai-playground",
   "private": true,
-  "version": "3.1.2-beta",
+  "version": "3.2.0-alpha",
   "license": "MIT",
   "homepage": "https://github.com/intel/AI-Playground",
   "author": {
-    "name": "Intel Corporation",
+    "name": "Intel® Corporation",
     "email": "webadmin@linux.intel.com"
   },
   "scripts": {
@@ -21,6 +21,8 @@
     "build:linux": "cross-env-shell VITE_PLATFORM_TITLE=\"from Intel®\" \"vue-tsc && vite build && electron-builder --config build/build-config.json --linux --x64 --publish never && node --experimental-strip-types ./build/scripts/warn-bundled-wheels.mts\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e:fast": "playwright test --config playwright-e2e.config.ts agentic-smoke.spec.ts",
+    "e2e:full": "playwright test --config playwright-e2e.config.ts --grep-invert \"Agentic smoke\"",
     "lint:eslint": "eslint . --fix",
     "lint": "eslint . --fix",
     "format": "prettier --write .",
@@ -59,22 +61,22 @@
     "marked": "^18.0.5",
     "marked-highlight": "^2.2.4",
     "partysocket": "^1.2.0",
-    "pdf-parse": "^2.4.5",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "radix-vue": "^1.9.17",
     "reka-ui": "^2.10.0",
     "remove": "^0.1.5",
-    "sudo-prompt": "^9.2.1",
     "tailwind-merge": "^3.6.0",
     "three": "^0.183.0",
     "uint8array-extras": "^1.5.0",
+    "unpdf": "^1.8.0",
     "vee-validate": "^5.0.0-beta.1",
     "vue": "^3.5.38",
     "word-extractor": "^1.0.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/adm-zip": "^0.5.8",
     "@types/dompurify": "^3.2.0",
@@ -84,7 +86,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
-    "adm-zip": "^0.5.17",
+    "adm-zip": "^0.6.0",
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
     "electron": "^42.4.1",
@@ -105,6 +107,7 @@
     "vue-tsc": "^3.3.5"
   },
   "overrides": {
+    "js-yaml": "4.3.1",
     "@napi-rs/canvas": "0.1.100",
     "langsmith": "^0.7.1",
     "uuid": "^14.0.0",

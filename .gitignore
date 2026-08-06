@@ -32,6 +32,10 @@ OpenVINO/ovms.zip
 build-envs/
 portable-git/
 models/
+# ...but that blanket rule also matches source directories named "models". The vendored
+# Qwen3-TTS tree has one, and git cannot re-include files whose parent directory is excluded,
+# so the directory itself has to be negated.
+!qwen3-tts/vendor/qwen_tts/core/models/
 
 # Home Agent — runtime Telegram chat id (local dev); never commit
 home-agent/.*id

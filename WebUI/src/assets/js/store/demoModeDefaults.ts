@@ -8,7 +8,7 @@ import demoInputImageUrl from '@/assets/image/dog_with_people.jpg'
 import demoSketchInputImageUrl from '@/assets/image/sketch_of_building.png'
 import demoUpscaleInputImageUrl from '@/assets/image/cat_low_resolution.png'
 
-export const DEMO_CHAT_PRESET = 'Vision'
+export const DEMO_CHAT_PRESET = 'Assistant'
 export const DEMO_CHAT_MODEL = 'unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf'
 export const DEMO_IMAGEGEN_PRESET = 'Pro Image'
 export const DEMO_IMAGEEDIT_PRESET = 'Edit by Prompt 2'
