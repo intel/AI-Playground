@@ -128,8 +128,9 @@ The installer executable will be located in the `build/electron` folder.
 
 > Linux support is experimental. The frontend, AI Backend, LlamaCPP and ComfyUI
 > backends run on Ubuntu x64. The packaged installer/AppImage/.deb supports Ubuntu 24
-> or newer only. See [`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md)
-> for GPU driver requirements.
+> or newer only. Complete host GPU setup **before** installing the app — see
+> [`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md) (Intel OMIX +
+> Vulkan).
 
 The Linux build produces both a single, portable **AppImage** (no installation, no
 root) and a **`.deb`** package for a system-wide install via `apt`.
