@@ -29,7 +29,13 @@ export async function hasPkexec(): Promise<boolean> {
 export async function isAptPackageInstalled(packageName: string): Promise<boolean> {
   try {
     const { stdout } = await execAsync("dpkg-query -W -f='${db:Status-Status}' " + packageName)
-    return stdout.trim() === 'installed'
+    // On multiarch systems (e.g. i386 packages pulled in by Wine/Steam) an
+    // unqualified package name matches one record per installed architecture,
+    // so dpkg-query concatenates the status field with no separator (e.g.
+    // "installedinstalled"). Accept any repetition of "installed", but still
+    // reject unrelated statuses that contain it as a substring (e.g.
+    // "not-installed").
+    return /^(installed)+$/.test(stdout.trim())
   } catch {
     return false
   }
