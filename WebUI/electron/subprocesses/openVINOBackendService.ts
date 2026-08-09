@@ -29,6 +29,39 @@ import { resolveDefaultDevice } from './defaultDeviceSelection.ts'
 
 const execAsync = promisify(exec)
 
+/**
+ * Parse `ldconfig -p` output into a map of soname -> real library path.
+ *
+ * On multiarch systems (e.g. i386 packages pulled in by Wine/Steam) ldconfig -p
+ * lists one entry per installed architecture under the SAME soname, e.g.:
+ *   libxml2.so.16 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libxml2.so.16
+ *   libxml2.so.16 (libc6)        => /usr/lib/i386-linux-gnu/libxml2.so.16
+ * AI Playground's Linux build is x86-64 only, so an i386 (or other foreign-arch)
+ * entry must never win over an x86-64 one, regardless of line order: loading a
+ * 32-bit library into the 64-bit OVMS process fails with "wrong ELF class:
+ * ELFCLASS32". A foreign-arch tag never contains "x86-64"/"x86_64" (i386 is
+ * tagged just "(libc6)" on an amd64 host), so once an x86-64 entry is seen for a
+ * soname it is kept even if a later foreign-arch line repeats that soname.
+ */
+export function parseLdconfigOutput(ldconfigOutput: string): Map<string, string> {
+  const ldconfigMap = new Map<string, string>()
+  const x86_64Sonames = new Set<string>()
+  for (const line of ldconfigOutput.split('\n')) {
+    // Line format: "	libfoo.so.2 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libfoo.so.2"
+    const m = line.match(/^\s*(\S+)\s+\(([^)]*)\)\s+=>\s+(\S+)/)
+    if (!m?.[1] || !m?.[3]) continue
+    const [, soname, tag, libPath] = m
+    const isX86_64 = /x86[-_]64/.test(tag ?? '')
+    if (isX86_64) {
+      ldconfigMap.set(soname, libPath)
+      x86_64Sonames.add(soname)
+    } else if (!x86_64Sonames.has(soname)) {
+      ldconfigMap.set(soname, libPath)
+    }
+  }
+  return ldconfigMap
+}
+
 interface OvmsServerProcess {
   process: ChildProcess
   port: number
@@ -503,12 +536,7 @@ export class OpenVINOBackendService implements ApiService {
       return
     }
 
-    const ldconfigMap = new Map<string, string>()
-    for (const line of ldconfigOutput.split('\n')) {
-      // Line format: "	libfoo.so.2 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libfoo.so.2"
-      const m = line.match(/^\s*(\S+)\s+\([^)]+\)\s+=>\s+(\S+)/)
-      if (m?.[1] && m?.[2]) ldconfigMap.set(m[1], m[2])
-    }
+    const ldconfigMap = parseLdconfigOutput(ldconfigOutput)
 
     for (const missingLib of missingLibs) {
       const symlinkPath = path.join(ovmsLibDir, missingLib)
