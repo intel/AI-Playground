@@ -1,16 +1,17 @@
 # Linux Intel GPU Setup
 
-How AI Playground uses Intel GPUs on Linux, what userspace drivers each backend
-needs, and how to install/verify them. This mirrors the Windows behavior but on
-Linux the GPU runtime is **not bundled** — it must be present on the host.
+How AI Playground uses Intel GPUs on Linux and what must already be on the
+host. AI Playground **does not install** Linux GPU drivers or kernels — prepare
+the system **before** you install the app (AppImage, `.deb`, or dev build).
 
-> TL;DR
+> TL;DR (host prep **before** AI Playground)
 >
-> - **llama.cpp** → needs the **Vulkan** loader + Intel ANV driver.
-> - **ComfyUI (XPU / torch-xpu)** and **OpenVINO (GPU)** → need the Intel
->   **Level Zero** runtime (`libze_loader` + `libze-intel-gpu`).
-> - The card showing up in `lspci` is **not** enough — that's only the PCI
->   device; you also need the compute/Vulkan userspace driver.
+> 1. Follow Intel's **[OMIX install guide](https://dgpu-docs.intel.com/installation-guides/installing-omix.html)** for kernel + compute drivers (`intel-omix`).
+> 2. Install **Vulkan** from Ubuntu (§2b) — required for llama.cpp GPU, not covered by OMIX alone.
+> 3. Verify Level Zero / Vulkan (§3), then install AI Playground and reinstall backends if needed (§5).
+>
+> The card showing up in `lspci` is **not** enough — that's only the PCI device;
+> you need userspace compute and Vulkan drivers on the host first.
 
 ---
 
@@ -39,7 +40,7 @@ drivers you must **reinstall** (or re-pick) the affected backends — see §5.
 
 ### Hardware support note
 
-Intel's `torch-xpu` / IPEX (used by ComfyUI XPU) only supports **Arc (DG2)**,
+Upstream **PyTorch XPU** (`torch.xpu`, used by ComfyUI XPU) only supports **Arc (DG2)**,
 Data Center GPU Max, and **Core-Ultra Xe iGPUs (Meteor/Lunar/Panther Lake)**.
 Older **Gen9 iGPUs (e.g. HD Graphics 630)** are **not** supported by XPU — on
 those, ComfyUI correctly stays on CPU. llama.cpp (Vulkan) and OpenVINO (GPU)
@@ -47,56 +48,48 @@ _can_ still use Gen9.
 
 ---
 
-## 2. Install the drivers (Ubuntu 24.04 "Noble")
+## 2. Host setup before installing AI Playground
 
-The Level Zero / compute-runtime packages are **not** in the stock Ubuntu
-archive — they come from **Intel's GPU repository**. On Noble the packages were
-also renamed (the old `intel-level-zero-gpu` / `level-zero` names were the 22.04
-"Jammy" names; on Noble they are `libze-intel-gpu1` / `libze1`).
+Do this on Ubuntu **before** installing AI Playground. None of these steps are
+run by the app installer; they are standard system administration.
 
-### 2a. Add Intel's graphics repository
+### 2a. Intel OMIX (kernel + compute drivers)
 
-```bash
-sudo apt-get update
-sudo apt-get install -y gpg-agent curl
+Use Intel's documentation as the source of truth for repository setup, kernel
+requirements, `intel-omix` installation, render-group access, and upgrades:
 
-# Use curl (not wget): on corporate networks where http(s)_proxy is set but
-# no_proxy contains \`*.intel.com\`, wget silently bypasses the proxy for the
-# externally-hosted \`repositories.intel.com\` host (it resolves to AWS) and hangs.
-# curl with an explicit \`--proxy\` survives that.
-curl -fsSL ${http_proxy:+--proxy "$http_proxy"} \
-  https://repositories.intel.com/gpu/intel-graphics.key \
-  | sudo gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+**[Installing Intel Open Middleware Xe](https://dgpu-docs.intel.com/installation-guides/installing-omix.html)**
 
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble unified" \
-  | sudo tee /etc/apt/sources.list.d/intel-gpu-noble.list
+Check your GPU, Ubuntu version, and kernel against Intel's
+[OMIX support matrix](https://dgpu-docs.intel.com/overview/support-matrix/omix-support-matrix.html)
+before you start. On Ubuntu 24.04, Intel currently documents **24.04.4**, **26.04**,
+or **24.04 with the 6.17 HWE kernel** for OMIX — follow Intel's prerequisites
+and installation steps there, not a copy in this repo.
 
-sudo apt-get update
-```
+What AI Playground expects after you finish Intel's guide:
 
-> If `apt-get update` 404s on the `unified` component, Intel may have pinned a
-> dated path (e.g. `noble/production/2328 unified`). Check
-> <https://repositories.intel.com/gpu/ubuntu/dists/> for the current component.
+| Host requirement | Used by |
+| ---------------- | ------- |
+| `intel-omix` runtime (Level Zero + OpenCL compute stack) | ComfyUI XPU, OpenVINO GPU |
+| Kernel version Intel documents for your hardware | Stable GPU/NPU binding |
+| Membership in the DRM **render** group (per Intel's guide) | OpenCL / Level Zero device access |
 
-### 2b. Install Level Zero + OpenCL (ComfyUI XPU, OpenVINO GPU)
+You do **not** need `intel-omix-dev` to run AI Playground — that package is for
+building PyTorch/SYCL workloads locally.
 
-```bash
-sudo apt-get install -y \
-  libze-intel-gpu1 \
-  libze1 \
-  intel-opencl-icd \
-  clinfo
-```
+> **Corporate proxy tip.** Intel's guide uses `wget` for the GPG key. If
+> `http(s)_proxy` is set but `no_proxy` includes `*.intel.com`, `wget` may hang
+> because `repositories.intel.com` resolves outside that pattern. Prefer
+> `curl -fsSL ${http_proxy:+--proxy "$http_proxy"} https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --dearmor -o /usr/share/keyrings/intel-graphics.gpg`
+> when fetching the key.
 
-- `libze1` → Level Zero **loader** (`libze_loader.so.1`) — what
-  `linuxHasLevelZeroRuntime()` and OpenVINO look for.
-- `libze-intel-gpu1` → Level Zero **GPU backend** for the Intel GPU.
-- `intel-opencl-icd` → OpenCL (an alternate path OpenVINO GPU can use).
-- `intel-metrics-discovery` is **omitted**: it is not in the
-  Noble \`unified\` component (and is not required for inference). Skip it.
+Optional: install `clinfo` from apt if Intel's procedure does not already, so you
+can verify OpenCL in §3.
 
+### 2b. Vulkan (llama.cpp GPU build — not in OMIX)
 
-### 2c. Install Vulkan (llama.cpp GPU build)
+OMIX covers the compute stack for ComfyUI and OpenVINO; **llama.cpp** still needs
+Vulkan from Ubuntu. Install this on the host before AI Playground as well:
 
 ```bash
 sudo apt-get install -y libvulkan1 mesa-vulkan-drivers vulkan-tools
@@ -106,7 +99,10 @@ sudo apt-get install -y libvulkan1 mesa-vulkan-drivers vulkan-tools
 - `mesa-vulkan-drivers` → provides `libvulkan_intel.so` (the **ANV** driver that
   drives Arc/DG2 and Gen9+ iGPUs).
 
-### 2d. Render-node permissions
+### 2c. Render-node permissions (if not already done)
+
+Intel's OMIX guide adds your user to the **render** group. Some setups also need
+**video** for legacy `i915` paths:
 
 ```bash
 sudo gpasswd -a "$USER" render
@@ -114,7 +110,7 @@ sudo gpasswd -a "$USER" video
 # log out/in (or `newgrp render`) so the group membership applies
 ```
 
-### 2e. (Optional) Install the Intel NPU userspace driver
+### 2d. (Optional) Install the Intel NPU userspace driver
 
 Required only if your CPU has an integrated NPU (Meteor/Lunar/Panther/Arrow Lake)
 **and** you want OpenVINO to enumerate `NPU` as an inference target. Without it,
@@ -160,9 +156,32 @@ ls /usr/lib/x86_64-linux-gnu/libze_intel_npu.so*   # plugin must exist
 > `*.intel.com` `no_proxy` rule does **not** cover. The `${http_proxy:+--proxy ...}`
 > form above forwards the proxy explicitly when one is set.
 
+### 2e. Alternative: legacy `unified` repository (hardware outside OMIX)
+
+If your GPU or Ubuntu/kernel combination is **not** listed in Intel's OMIX support
+matrix (for example some Arc A-series setups on an older 24.04 kernel), install
+Level Zero from Intel's generic GPU repo **before** AI Playground using the
+legacy path:
+
+```bash
+curl -fsSL ${http_proxy:+--proxy "$http_proxy"} \
+  https://repositories.intel.com/gpu/intel-graphics.key \
+  | sudo gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble unified" \
+  | sudo tee /etc/apt/sources.list.d/intel-gpu-noble.list
+
+sudo apt-get update
+sudo apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd clinfo
+```
+
+If `apt-get update` 404s on `unified`, Intel may have pinned a dated path (e.g.
+`noble/production/2328 unified`). Check
+<https://repositories.intel.com/gpu/ubuntu/dists/> for the current component.
+
 ---
 
-## 3. Verify the runtime is visible
+## 3. Verify the runtime is visible (before / after installing AI Playground)
 
 ```bash
 # Kernel binding + render node (Arc exposes /dev/dri/renderD12x)
@@ -179,7 +198,8 @@ vulkaninfo --summary | grep -iE 'deviceName|driverName'  # expect Intel Arc + AN
 ```
 
 If `lspci` lists the GPU but `clinfo` / `vulkaninfo` show no device, the kernel
-sees the card but the **userspace compute/Vulkan driver is missing** — revisit §2.
+sees the card but the **userspace compute/Vulkan driver is missing** — finish §2
+(OMIX or §2e legacy packages, plus §2b for Vulkan) before installing the app.
 
 ### Troubleshooting: `clinfo` reports `Number of platforms 0`
 
@@ -195,35 +215,47 @@ Two common causes (often both):
 Note the **Level Zero loader is separate from the OpenCL ICD**: `libze_loader.so`
 being present (so `linuxHasLevelZeroRuntime()` returns `true`) does **not** mean
 the GPU is usable. torch.xpu / OpenVINO also need the Level Zero **GPU backend**
-`libze-intel-gpu1` (`libze_intel_gpu.so`) and an accessible render node. Confirm
-the GPU is actually live (`clinfo` lists the device, `/dev/dri` accessible)
-**before** reinstalling ComfyUI for XPU, or `torch.xpu.device_count()` will be 0.
+(`libze_intel_gpu.so`, installed via `intel-omix` or `libze-intel-gpu1`) and an
+accessible render node. Confirm the GPU is actually live (`clinfo` lists the
+device, `/dev/dri` accessible) **before** reinstalling ComfyUI for XPU, or
+`torch.xpu.device_count()` will be 0.
 
 ---
 
 ## 4. Kernel requirements
 
+Use Intel's OMIX guide and support matrix (§2a) as the primary kernel guidance for
+your GPU. Additional notes for AI Playground backends:
+
 - **Arc (DG2)** needs a kernel with DG2 `i915` support. Ubuntu 24.04's 6.8
-  kernel supports it out of the box. On older kernels you may need
-  `i915.force_probe=<device-id>` on the kernel command line.
+  kernel supports it out of the box when OMIX does not require a newer HWE build.
+  On older kernels you may need `i915.force_probe=<device-id>` on the kernel
+  command line.
 - **Panther Lake / Lunar Lake / Arrow Lake** use the new **`xe`** kernel driver
   (not `i915`). Needs **kernel ≥ 6.10** — install `linux-generic-hwe-24.04`
-  on Ubuntu 24.04 if your kernel is older.
+  on Ubuntu 24.04 if your kernel is older (OMIX may require **6.17** HWE on
+  24.04; prefer the version Intel documents for your GPU).
 - Confirm the driver bound with `lspci -nnk` → `Kernel driver in use: i915`
   (or `xe`).
 
-### 4a. Verifying live GPU usage (works on both `i915` and `xe`)
+### 4a. Monitoring live GPU usage
+
+For live utilization, frequency, and memory stats on Intel GPUs, use **xpu-smi**
+from Intel's [XPU Manager (xpumanager)](https://github.com/intel/xpumanager)
+repo. Install and run it on the host per that project's Linux documentation
+(for example, `xpu-smi discovery` to list devices, then the `stats` subcommands
+while AI Playground is generating).
 
 `intel_gpu_top` (from `intel-gpu-tools`) does **not** support the `xe` driver
-yet. To see what's actually using the GPU on a `xe`-driven host, look at
-processes holding the render node:
+yet. If you do not have xpu-smi installed, you can still see which processes hold
+the render node on `xe`:
 
 ```bash
 sudo fuser -v /dev/dri/renderD128
 # Healthy AI-Playground inference shows: ovms + ai-playground.bin + python (ComfyUI)
 ```
 
-For instantaneous frequency / busy-time on `xe`, read sysfs:
+For instantaneous frequency on `xe` without xpu-smi, read sysfs:
 
 ```bash
 cat /sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq      # GPU current MHz
@@ -232,10 +264,10 @@ cat /sys/class/drm/card0/device/tile0/gt0/freq0/max_freq
 
 ---
 
-## 5. Make the backends pick up the GPU
+## 5. After AI Playground is installed — make backends pick up the GPU
 
-The GPU build/variant is selected during installation, so after the drivers are
-in place:
+Host drivers must already be in place (§2–§3). The GPU build/variant is selected
+during **backend** installation inside the app, so after drivers are ready:
 
 - **ComfyUI** — detection flips to `xpu` and the UI prompts a reinstall on the
   `cpu → xpu` variant mismatch. Accept it so `torch+xpu` wheels are installed.
