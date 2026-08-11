@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
 import { app, BrowserWindow, ipcMain, net, safeStorage } from 'electron'
@@ -12,7 +13,7 @@ import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.
 // copy avoids the renderer-side store importing electron types and vice
 // versa; the contract is small enough that drift is easy to spot.
 
-type ChannelKind = 'telegram' | 'slack' | 'discord'
+type ChannelKind = 'telegram' | 'slack' | 'discord' | 'local-web'
 
 type EncryptedField = { type: string; data: number[] }
 
@@ -87,11 +88,89 @@ const SECRET_FIELDS: Record<ChannelKind, string[]> = {
   telegram: ['token'],
   slack: ['botToken', 'appToken'],
   discord: ['botToken'],
+  'local-web': ['password'],
 }
 const PUBLIC_FIELDS: Record<ChannelKind, string[]> = {
   telegram: ['chatId'],
   slack: ['userId'],
   discord: ['userId'],
+  'local-web': ['port', 'allowLan', 'sessionId'],
+}
+/** Secrets that are user-chosen passphrases rather than machine-issued tokens.
+ *  Bot tokens never contain whitespace, so stripping all of it defends against a
+ *  copy-paste picking up a stray newline — but a password is whatever the user
+ *  typed, and silently deleting its spaces stores something they can never type
+ *  again (the backend only trims, so the login would always fail). */
+const PASSPHRASE_FIELDS: Record<ChannelKind, string[]> = {
+  telegram: [],
+  slack: [],
+  discord: [],
+  'local-web': ['password'],
+}
+
+/** Normalize one secret before it is encrypted. Exported for tests. */
+export function normalizeChannelSecret(kind: ChannelKind, field: string, value: string): string {
+  const trimmed = (value ?? '').trim()
+  return PASSPHRASE_FIELDS[kind]?.includes(field) ? trimmed : trimmed.replace(/\s+/g, '')
+}
+
+/**
+ * Assemble the on-disk config file for a channel. Pure (the caller supplies the
+ * encryptor) so the field partitioning is testable without Electron.
+ *
+ * The write replaces the whole file, so anything not restated here is lost —
+ * hence both carry-overs: the setup flags, and any secret the caller left blank.
+ */
+export function buildChannelConfigFile(
+  kind: ChannelKind,
+  config: Record<string, string>,
+  existing: ChannelConfigFile | null,
+  encrypt: (secret: string) => EncryptedField,
+): ChannelConfigFile {
+  const encryptedFields: Record<string, EncryptedField> = {}
+  const publicFields: Record<string, string> = {}
+  for (const k of SECRET_FIELDS[kind] ?? []) {
+    const raw = normalizeChannelSecret(kind, k, config[k] ?? '')
+    if (raw) {
+      encryptedFields[k] = encrypt(raw)
+      continue
+    }
+    // A blank secret means "keep what is stored": the setup screens submit an
+    // empty field to leave a saved password/token alone. Dropping it here instead
+    // erased the credential — and left the channel unable to start. Clearing a
+    // channel is `clearChannelConfig`, never an empty save.
+    const kept = existing?.encryptedFields?.[k]
+    if (kept) encryptedFields[k] = kept
+  }
+  for (const k of PUBLIC_FIELDS[kind] ?? []) {
+    publicFields[k] = (config[k] ?? '').trim()
+  }
+  const data: ChannelConfigFile = { kind, encryptedFields, publicFields }
+  // Preserve previously-persisted setup flags so a credential re-save doesn't
+  // silently wipe them. Verification state on credential change is driven
+  // explicitly by the renderer via `saveChannelPrefs`.
+  if (existing?.prefs) data.prefs = existing.prefs
+  return data
+}
+
+/** LAN addresses the local web chat is reachable at. Split out from
+ *  `getLocalWebUrls` so it can be tested against a fixed interface list. */
+export function localWebUrlsFor(
+  port: number,
+  allowLan: boolean,
+  interfaces: Record<string, { family: string; internal: boolean; address: string }[] | undefined>,
+): string[] {
+  const hosts = new Set<string>(['127.0.0.1', 'localhost'])
+  // With LAN access off the server binds loopback only, so listing the machine's
+  // other addresses would offer the user links that can never answer.
+  if (allowLan) {
+    for (const entries of Object.values(interfaces)) {
+      for (const entry of entries ?? []) {
+        if (entry.family === 'IPv4' && !entry.internal) hosts.add(entry.address)
+      }
+    }
+  }
+  return [...hosts].map((host) => `http://${host}:${port}/`)
 }
 
 export class HomeAgentBackendService extends LongLivedPythonApiService {
@@ -318,25 +397,12 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     config: Record<string, string>,
   ): { success: boolean; error?: string } {
     try {
-      const secretKeys = SECRET_FIELDS[kind] ?? []
-      const publicKeys = PUBLIC_FIELDS[kind] ?? []
-      const encryptedFields: Record<string, EncryptedField> = {}
-      const publicFields: Record<string, string> = {}
-      for (const k of secretKeys) {
-        const raw = (config[k] ?? '').trim().replace(/\s+/g, '')
-        if (raw) {
-          encryptedFields[k] = safeStorage.encryptString(raw).toJSON()
-        }
-      }
-      for (const k of publicKeys) {
-        publicFields[k] = (config[k] ?? '').trim()
-      }
-      // Preserve any previously-persisted setup flags so a credential re-save
-      // doesn't silently wipe them. Verification state on credential change is
-      // driven explicitly by the renderer via `saveChannelPrefs`.
-      const existing = this.readChannelConfigFile(kind)
-      const data: ChannelConfigFile = { kind, encryptedFields, publicFields }
-      if (existing?.prefs) data.prefs = existing.prefs
+      const data = buildChannelConfigFile(
+        kind,
+        config,
+        this.readChannelConfigFile(kind),
+        (secret) => safeStorage.encryptString(secret).toJSON(),
+      )
       fs.writeFileSync(this.channelConfigPath(kind), JSON.stringify(data), 'utf-8')
       return { success: true }
     } catch (e) {
@@ -524,7 +590,8 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       | 'document'
       | 'typing'
       | 'keyboard'
-      | 'editMessage',
+      | 'editMessage'
+      | 'history',
     payload: ChannelSendPayload,
   ): Promise<{
     success: boolean
@@ -650,7 +717,31 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
   async channelTest(kind: ChannelKind): Promise<{ success: boolean; error?: string }> {
     if (kind === 'telegram') return this.testTelegram()
     if (kind === 'slack') return this.testSlack()
+    if (kind === 'local-web') return this.testLocalWeb()
     return { success: false, error: `verification not implemented for ${kind}` }
+  }
+
+  /** Verify the local web channel by actually (re)starting its HTTP server in
+   *  the backend with the saved config. Unlike Telegram/Slack there is no cloud
+   *  API to ping — a successful bind IS the verification. */
+  private async testLocalWeb(): Promise<{ success: boolean; error?: string }> {
+    if (this.currentStatus !== 'running') {
+      return { success: false, error: 'Home Agent backend is not running yet.' }
+    }
+    const config = this.loadChannelConfig('local-web')
+    if (!config || !config.password) {
+      return { success: false, error: 'Choose a password for the LAN chat first.' }
+    }
+    const res = await this.channelSetConfig('local-web', config)
+    if (res.status === 'started' || res.status === 'already_running') return { success: true }
+    return { success: false, error: res.error ?? 'Could not start the LAN chat server.' }
+  }
+
+  /** Addresses the local web chat is reachable at, for the given port and LAN
+   *  setting. Pure OS-info helper — it does NOT stand up any server (the server
+   *  lives in the Python backend). */
+  getLocalWebUrls(port: number, allowLan: boolean): string[] {
+    return localWebUrlsFor(port, allowLan, os.networkInterfaces())
   }
 
   // ── Identity detection ──────────────────────────────────────────────────
@@ -790,6 +881,12 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     )
     ipcMain.handle('channel:loadPrefs', (_event, kind: ChannelKind) => this.loadChannelPrefs(kind))
 
+    // Local web chat: expose the URLs the served page is reachable at.
+    // Pure OS-info lookup — the chat server itself lives in the Python backend.
+    ipcMain.handle('homeAgent:localWeb:getUrls', (_event, port: number, allowLan: boolean) =>
+      this.getLocalWebUrls(port, !!allowLan),
+    )
+
     // Backend dispatch — channel-keyed by first arg.
     ipcMain.handle('channel:test', (_event, kind: ChannelKind) => this.channelTest(kind))
     ipcMain.handle(
@@ -823,7 +920,8 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
           | 'document'
           | 'typing'
           | 'keyboard'
-          | 'editMessage',
+          | 'editMessage'
+          | 'history',
         payload: ChannelSendPayload,
       ) => this.channelSend(kind, action, payload),
     )

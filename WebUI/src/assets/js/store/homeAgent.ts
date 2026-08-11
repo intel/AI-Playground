@@ -50,9 +50,11 @@ import {
 import type { ChannelAdapter, RawPart } from './channels/adapter'
 import { escapeHtml } from './channels/adapterHelpers'
 import { isAppError, extractMessage, createAppError, createCancellation } from '../errors/appError'
+import { useErrors } from './errors'
 import { createTelegramAdapter } from './channels/telegramAdapter'
 import { createSlackAdapter } from './channels/slackAdapter'
 import { createMockAdapter, mockChannelBus, type MockInboundMessage } from './channels/mockAdapter'
+import { createLocalWebAdapter } from './channels/localWebAdapter'
 
 // ── Channel registry ────────────────────────────────────────────────────────
 // Kinds we manage in this store. Adding a third one means appending to this
@@ -63,7 +65,7 @@ import { createMockAdapter, mockChannelBus, type MockInboundMessage } from './ch
 // when debug tools are enabled (i.e. `npm run dev`).
 const MOCK_ENABLED = !!window.envVars?.debugToolsEnabled
 const KINDS = (
-  MOCK_ENABLED ? ['telegram', 'slack', 'mock'] : ['telegram', 'slack']
+  MOCK_ENABLED ? ['telegram', 'slack', 'local-web', 'mock'] : ['telegram', 'slack', 'local-web']
 ) as readonly ChannelKind[]
 
 /**
@@ -140,6 +142,7 @@ export const useHomeAgent = defineStore(
     const conversations = useConversations()
     const presetsStore = usePresets()
     const confirmations = useConfirmations()
+    const errors = useErrors()
 
     /**
      * Mirrors `isHomeAgentEnabled` from settings.json. Hydrated once on store
@@ -168,6 +171,7 @@ export const useHomeAgent = defineStore(
       slack: emptyPrefs(),
       discord: emptyPrefs(),
       mock: emptyPrefs(),
+      'local-web': emptyPrefs(),
     })
 
     // Runtime-only per-channel state (secret config + derived `active`). Never
@@ -177,6 +181,7 @@ export const useHomeAgent = defineStore(
       slack: emptyRuntimeState('slack'),
       discord: emptyRuntimeState('discord'),
       mock: emptyRuntimeState('mock'),
+      'local-web': emptyRuntimeState('local-web'),
     })
 
     // Per-channel message queues — `channels[kind].active` flips the polling
@@ -186,6 +191,7 @@ export const useHomeAgent = defineStore(
       slack: [] as ChannelQueueItem[],
       discord: [] as ChannelQueueItem[],
       mock: [] as ChannelQueueItem[],
+      'local-web': [] as ChannelQueueItem[],
     } satisfies Record<ChannelKind, ChannelQueueItem[]>
 
     // Adapter instances — one per kind. Created at setup time; their methods
@@ -196,6 +202,7 @@ export const useHomeAgent = defineStore(
       slack: createSlackAdapter(),
       discord: null, // populated when Discord lands
       mock: MOCK_ENABLED ? createMockAdapter() : null,
+      'local-web': createLocalWebAdapter(),
     }
 
     /**
@@ -503,8 +510,15 @@ export const useHomeAgent = defineStore(
      * empty buckets.
      */
     function createNewRemoteConversation(): string {
+      // Reuse a thread only if it has genuinely never held a message. Check the
+      // *live* chat-store messages, not just the persisted `conversationList`: a
+      // turn is written to `conversationList` only after its reply finishes
+      // streaming (openAiCompatibleChat persists post-stream), so a thread whose turn
+      // has already replied on the channel but not yet persisted still looks empty
+      // there. Reusing it would drop `/new` right back into the thread the user just
+      // chatted in — and then replay that thread's transcript instead of a clean page.
       const existingEmpty = remoteConversationKeys.value.find(
-        (k) => (conversations.conversationList[k] ?? []).length === 0,
+        (k) => (chatStore.getMessagesForKey(k) ?? []).length === 0,
       )
       if (existingEmpty) {
         activeRemoteConversationKey.value = existingEmpty
@@ -524,6 +538,119 @@ export const useHomeAgent = defineStore(
       if (meta?.kind !== 'homeAgent') return false
       activeRemoteConversationKey.value = key
       return true
+    }
+
+    /** Flatten a message's visible text parts into a single string. */
+    function messagePlainText(m: AipgUiMessage): string {
+      return (m.parts as { type: string; text?: string }[])
+        .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && !!p.text)
+        .map((p) => p.text)
+        .join('')
+        .trim()
+    }
+
+    /** Collect the media URLs a message carries — attached `file` parts plus any
+     *  media emitted by tool calls (ComfyUI etc.) — so history replay can re-ship
+     *  pictures, clips and 3D/model files, not just the text. */
+    function messageMedia(m: AipgUiMessage): {
+      images: string[]
+      videos: string[]
+      models: string[]
+    } {
+      const images: string[] = []
+      const videos: string[] = []
+      const models: string[] = []
+      for (const part of m.parts as RawPart[]) {
+        const p = part as RawPart & { url?: string; mediaType?: string }
+        if (p.type === 'file' && p.url) {
+          const mt = p.mediaType ?? 'image/'
+          if (mt.startsWith('video/')) videos.push(p.url)
+          else if (mt.startsWith('image/')) images.push(p.url)
+          else models.push(p.url)
+          continue
+        }
+        for (const item of extractToolMedia(part)) {
+          if (item.kind === 'image') images.push(item.url)
+          else if (item.kind === 'video') videos.push(item.url)
+          else if (item.kind === 'model3d') models.push(item.url)
+        }
+      }
+      return { images, videos, models }
+    }
+
+    /**
+     * Repaint a channel that has no history of its own (the LAN web page) with a
+     * conversation's full transcript. No-op for channels that keep history
+     * natively (Telegram/Slack leave `replayHistory` undefined), so loading a
+     * chat there relies on the platform's own scrollback.
+     */
+    async function replayHistoryToChannel(adapter: ChannelAdapter, key: string): Promise<void> {
+      if (!adapter.replayHistory) return
+      const msgs = chatStore.getMessagesForKey(key) ?? conversations.conversationList[key] ?? []
+      const history: {
+        role: 'user' | 'assistant'
+        text: string
+        images?: string[]
+        videos?: { base64: string; filename: string }[]
+        documents?: { base64: string; filename: string }[]
+      }[] = []
+      for (const m of msgs) {
+        const role = (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant'
+        // Assistant turns render through the SAME formatter as the live reply, so
+        // reasoning blocks, image-gen preset/prompt markers and tool notes look
+        // identical on reload. User turns are just their plain text.
+        const text =
+          role === 'assistant' ? adapter.formatFinal(m.parts as RawPart[]) : messagePlainText(m)
+        // Resolve each media URL (aipg-media://…) to base64 the browser can render
+        // inline — the same conversion the live photo/video sends use.
+        const { images: imageUrls, videos: videoUrls, models: modelUrls } = messageMedia(m)
+        // A media file that can't be read is dropped from the replay, which the
+        // user sees as a missing picture — report it so the omission is traceable
+        // rather than silent. Silent surface: one toast per missing file while
+        // repainting a long thread would be worse than the gap itself.
+        const reportMediaFailure = (cause: unknown, mediaKind: string, url: string) =>
+          errors.report(cause, {
+            category: 'channel',
+            code: 'channel/history-media-read-failed',
+            userMessage: `A ${mediaKind} could not be included when reloading this chat.`,
+            surface: 'silent',
+            context: { mediaKind, url },
+          })
+        const images: string[] = []
+        for (const url of imageUrls) {
+          try {
+            images.push(await mediaToBase64(url))
+          } catch (e) {
+            reportMediaFailure(e, 'image', url)
+          }
+        }
+        const videos: { base64: string; filename: string }[] = []
+        for (const url of videoUrls) {
+          try {
+            videos.push({
+              base64: await mediaToBase64(url),
+              filename: basenameForUrl(url, 'video.mp4'),
+            })
+          } catch (e) {
+            reportMediaFailure(e, 'video', url)
+          }
+        }
+        const documents: { base64: string; filename: string }[] = []
+        for (const url of modelUrls) {
+          try {
+            documents.push({
+              base64: await mediaToBase64(url),
+              filename: basenameForUrl(url, 'model.glb'),
+            })
+          } catch (e) {
+            reportMediaFailure(e, '3D model', url)
+          }
+        }
+        if (text || images.length || videos.length || documents.length) {
+          history.push({ role, text, images, videos, documents })
+        }
+      }
+      await adapter.replayHistory(history)
     }
 
     function ensureActiveRemoteConversation(): string {
@@ -2005,6 +2132,21 @@ export const useHomeAgent = defineStore(
               } else if (item.callback.startsWith('imgGen:preset:')) {
                 const name = item.callback.slice('imgGen:preset:'.length)
                 await handleImgGenPresetCallback(adapter, name, meta)
+              } else if (item.callback.startsWith('loadConv:')) {
+                // Tap on a chat from the /history or /load menu.
+                const key = item.callback.slice('loadConv:'.length)
+                if (switchRemoteConversation(key)) {
+                  focusRemoteChatDiscussion()
+                  const found = listRemoteConversations().find((i) => i.key === key)
+                  await replayHistoryToChannel(adapter, key)
+                  await reply(
+                    adapter,
+                    `📂 Loaded <i>${escapeHtml(found?.title ?? key)}</i>.\nReplies and new messages now use this thread.`,
+                    meta,
+                  )
+                } else {
+                  await reply(adapter, '⚠️ Could not load that chat thread.', meta)
+                }
               }
             } catch (e) {
               console.error(`Error processing ${kind} callback:`, e)
@@ -2052,6 +2194,10 @@ export const useHomeAgent = defineStore(
             } else if (NEW_REGEX.test(text)) {
               const newKey = createNewRemoteConversation()
               focusRemoteChatDiscussion()
+              // Repaint first: on a channel with no history of its own an empty
+              // transcript clears the log, so a new thread starts on a clean page
+              // instead of continuing under the previous thread's messages.
+              await replayHistoryToChannel(adapter, newKey)
               await reply(
                 adapter,
                 `🆕 Started a new chat thread: <i>${homeAgentTitleFor(newKey).replace(/[<>&]/g, '')}</i>.\nNext message will land in this thread.`,
@@ -2075,6 +2221,9 @@ export const useHomeAgent = defineStore(
                 focusRemoteChatDiscussion()
                 const items = listRemoteConversations()
                 const found = items.find((i) => i.key === key)
+                // Repaint the browser log with this thread's transcript first, so
+                // the confirmation line below lands under the restored messages.
+                await replayHistoryToChannel(adapter, key)
                 await reply(
                   adapter,
                   `📂 Loaded <i>${escapeHtml(found?.title ?? key)}</i>.\nReplies and new messages now use this thread.`,

@@ -6,6 +6,7 @@ import { defineAsyncComponent, h, type Component } from 'vue'
 import type { ChannelKind } from './types'
 import { useTelegramSetup } from '../useTelegramSetup'
 import { useSlackSetup } from '../useSlackSetup'
+import { useLocalWebSetup } from '../useLocalWebSetup'
 
 /** Inline 4-color Slack logo. Kept here because nothing else needs it and
  *  promoting it to a stand-alone .vue file would just trade one file for two. */
@@ -53,6 +54,7 @@ const TelegramIcon: Component = {
 export type ChannelSetupComposable =
   | ReturnType<typeof useTelegramSetup>
   | ReturnType<typeof useSlackSetup>
+  | ReturnType<typeof useLocalWebSetup>
 
 export type ChannelCapabilities = {
   /** Channel only operates while a persistent socket / poll is open. Both
@@ -95,14 +97,54 @@ export type ChannelDescriptor = {
   capabilities: ChannelCapabilities
 }
 
+/** Inline "local web / this device" glyph (a monitor with a chat line). */
+const LocalWebIcon: Component = {
+  name: 'LocalWebIcon',
+  setup() {
+    return () =>
+      h(
+        'svg',
+        {
+          class: 'w-5 h-5 text-emerald-500',
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          'stroke-width': '2',
+        },
+        [
+          h('rect', { x: '2', y: '3', width: '20', height: '14', rx: '2' }),
+          h('path', { d: 'M8 21h8M12 17v4' }),
+          h('path', { d: 'M7 8h.01M7 12h6' }),
+        ],
+      )
+  },
+}
+
 // Lazy-load the heavy setup components so the toggle / wizard scaffolding can
 // render without paying their import cost on every page load.
 const TelegramSetupSteps = defineAsyncComponent(() => import('@/components/TelegramSetupSteps.vue'))
 const SlackSetupSteps = defineAsyncComponent(() => import('@/components/SlackSetupSteps.vue'))
+const LocalWebSetupSteps = defineAsyncComponent(() => import('@/components/LocalWebSetupSteps.vue'))
 
 /** Ordered list of channels surfaced in the UI. Index in this array =
  *  default tab order in the setup wizard. */
 export const CHANNELS: ChannelDescriptor[] = [
+  {
+    kind: 'local-web',
+    displayName: 'LAN chat',
+    brandColor: '#10b981',
+    icon: LocalWebIcon,
+    setupComponent: LocalWebSetupSteps,
+    composable: () => useLocalWebSetup(),
+    identityLabel: 'Session',
+    identityHelp: 'Browsers on your LAN sign in with the password you set here.',
+    capabilities: {
+      socketModeOnly: false,
+      supportsDraftStream: true,
+      supportsTyping: true,
+      supportsKeyboard: true,
+    },
+  },
   {
     kind: 'telegram',
     displayName: 'Telegram',

@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .base import Channel
+from .local_web import LocalWebChannel
 from .slack import SlackChannel
 from .telegram import TelegramChannel
 from .types import ChannelKind
@@ -21,6 +22,7 @@ _BASE_DIR = Path(__file__).resolve().parent.parent
 CHANNELS: dict[ChannelKind, Channel] = {
     "telegram": TelegramChannel(_BASE_DIR),
     "slack": SlackChannel(_BASE_DIR),
+    "local-web": LocalWebChannel(_BASE_DIR),
     # "discord": DiscordChannel(_BASE_DIR),  # follow-up PR
 }
 

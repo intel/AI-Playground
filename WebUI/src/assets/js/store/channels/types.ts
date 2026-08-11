@@ -3,7 +3,7 @@
 // means extending `ChannelKind` and adding the matching `ChannelConfig` variant
 // here, then implementing the renderer adapter + python channel module.
 
-export type ChannelKind = 'telegram' | 'slack' | 'discord' | 'mock'
+export type ChannelKind = 'telegram' | 'slack' | 'discord' | 'mock' | 'local-web'
 
 /** Persistent per-channel config. Each variant is keyed by `kind` so the
  *  generic IPC dispatcher can route to the right `safeStorage` blob without
@@ -23,12 +23,22 @@ export type SlackChannelConfig = {
 export type DiscordChannelConfig = { kind: 'discord'; botToken?: string; userId?: string }
 // Dev-only mock channel. Has no credentials — it never touches the backend.
 export type MockChannelConfig = { kind: 'mock' }
+// Local web chat served by the Python backend. `password` gates browser access;
+// `port`/`allowLan` control the bind; `sessionId` is the (constant) identity.
+export type LocalWebChannelConfig = {
+  kind: 'local-web'
+  password: string
+  port: string
+  allowLan: string
+  sessionId: string
+}
 
 export type ChannelConfig =
   | TelegramChannelConfig
   | SlackChannelConfig
   | DiscordChannelConfig
   | MockChannelConfig
+  | LocalWebChannelConfig
 
 /** Pure, dependency-free description of a channel's config shape. Keeping this
  *  here (rather than in the renderer registry, which pulls in Vue components
@@ -48,6 +58,7 @@ export const CHANNEL_FIELD_SPEC: Record<ChannelKind, ChannelFieldSpec> = {
   discord: { requiredSecrets: ['botToken'], identityField: 'userId' },
   // Mock has no secrets, so it is always "ready" and never injected.
   mock: { requiredSecrets: [], identityField: 'identity' },
+  'local-web': { requiredSecrets: ['password'], identityField: 'sessionId' },
 }
 
 /** Runtime-only per-channel state. Lives inside `homeAgent.channels[kind]`,

@@ -7,7 +7,7 @@ import { test, expect } from './fixtures'
 // Text-to-Speech preset) two playable audio results: one from the default voice and a
 // second from a custom voice created mid-test. Excludes "aiDAPTIV™" (Phison) and
 // "Home Agent" per request; the Assistant agentic/tool flow has its own richer
-// coverage in install-backends.spec.ts. A preset not offered in the running product
+// coverage in assistant-media-flow.spec.ts. A preset not offered in the running product
 // mode skips itself.
 
 type ChatCase = {

@@ -4,8 +4,8 @@ import { MainPage } from './pages/MainPage'
 // Quick agentic smoke — the reference flow for `npm run e2e:fast`. Installs backends,
 // switches to the agentic chat preset, then runs two turns: a text turn ("write a
 // haiku") and an image turn ("turn it into an image"). This is the cheap gate; the
-// full four-generation agentic flow (image → edit → video) lives in
-// install-backends.spec.ts and runs in `npm run e2e:full`.
+// full agentic flow (image → edit → video) lives in
+// assistant-media-flow.spec.ts and runs in `npm run e2e:full`.
 //
 // The chat backend is pinned explicitly and the smoke runs once per backend: the
 // "Assistant" preset otherwise uses whichever backend happens to be running, which has

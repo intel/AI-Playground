@@ -15,6 +15,7 @@ import sys
 import threading
 
 from channels import registry
+from channels.actions import send_method_name
 from channels.types import ALL_CHANNEL_KINDS
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -230,11 +231,15 @@ def channel_send(kind: str, action: str):
     if err:
         return err
     payload = request.get_json(silent=True) or {}
-    # `action` is one of: reply | update | photo | typing | keyboard
-    method_name = f"send_{action}"
+    method_name = send_method_name(action)
+    if method_name is None:
+        return jsonify({"error": f"unknown send action: {action}"}), 404
     method = getattr(ch, method_name, None)
     if method is None:
-        return jsonify({"error": f"unknown send action: {action}"}), 404
+        # A known action the channel doesn't implement (e.g. `history`, which only
+        # the local web page needs). Distinguished from an unknown action so a
+        # missing method reads as such in the log.
+        return jsonify({"error": f"channel {kind} does not support {action}"}), 404
     result = method(payload)
     return _result_to_response(result)
 
@@ -266,28 +271,42 @@ if __name__ == "__main__":
     # CLI / manual runs may seed credentials via env; Electron uses
     # /channel/<kind>/config exclusively so the subprocess never starts a bot
     # from env in production.
-    _env_seeds = {
-        "telegram": {
-            "token": os.environ.get("TELEGRAM_BOT_TOKEN", ""),
-            "chatId": os.environ.get("TELEGRAM_CHAT_ID", ""),
-        },
-        "slack": {
-            "botToken": os.environ.get("SLACK_BOT_TOKEN", ""),
-            "appToken": os.environ.get("SLACK_APP_TOKEN", ""),
-            "userId": os.environ.get("SLACK_USER_ID", ""),
-        },
+    # Each entry is (seed, required fields). The required set is named explicitly
+    # rather than inferred from position: fields that carry a literal default
+    # (local-web's port) are always truthy and would silently satisfy a positional
+    # check, so reordering the seed could auto-start a channel with no credentials.
+    _env_seeds: dict[str, tuple[dict[str, str], tuple[str, ...]]] = {
+        "telegram": (
+            {
+                "token": os.environ.get("TELEGRAM_BOT_TOKEN", ""),
+                "chatId": os.environ.get("TELEGRAM_CHAT_ID", ""),
+            },
+            ("token", "chatId"),
+        ),
+        "slack": (
+            {
+                "botToken": os.environ.get("SLACK_BOT_TOKEN", ""),
+                "appToken": os.environ.get("SLACK_APP_TOKEN", ""),
+                "userId": os.environ.get("SLACK_USER_ID", ""),
+            },
+            ("botToken", "appToken"),
+        ),
+        "local-web": (
+            {
+                "password": os.environ.get("LOCAL_WEB_PASSWORD", ""),
+                "port": os.environ.get("LOCAL_WEB_PORT", "8765"),
+                "allowLan": os.environ.get("LOCAL_WEB_ALLOW_LAN", "false"),
+            },
+            ("password",),
+        ),
     }
-    for kind, seed in _env_seeds.items():
-        # Only auto-start when *every* required field is populated.
+    for kind, (seed, required) in _env_seeds.items():
+        # Only auto-start when *every* required field is populated; channels
+        # themselves reject incomplete configs with HTTP 400.
         ch = registry.get(kind)
         if ch is None:
             continue
-        # Decide "has all required fields" by checking that the seed has
-        # truthy values for the keys the channel cares about. We assume the
-        # first one or two keys are required; channels themselves reject
-        # incomplete configs with HTTP 400.
-        first_two_required = list(seed.values())[:2]
-        if all(first_two_required):
+        if all(seed.get(field) for field in required):
             print(f"Auto-starting {kind} from env", flush=True)
             ch.set_config(seed)
         else:

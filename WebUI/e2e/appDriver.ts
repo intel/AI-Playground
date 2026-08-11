@@ -13,6 +13,10 @@ import { BACKENDS, BACKEND_DISPLAY_NAMES } from './backends'
 /** The chat preset that puts the assistant in agentic mode (built-in + MCP tools on). */
 const AGENTIC_PRESET = 'Assistant'
 
+/** The preset the Home Agent runs its channel turns on (its own agentic preset,
+ *  distinct from "Assistant"; see modes/base/presets/home-agent-chat.json). */
+const HOME_AGENT_PRESET = 'Home Agent'
+
 const FIXTURES_DIR = path.join(__dirname, 'fixtures')
 /** A real 768x512 PNG used as the input for edit / image-to-video / reference presets. */
 export const FIXTURE_IMAGE = path.join(FIXTURES_DIR, 'input.png')
@@ -224,6 +228,29 @@ export class AppDriver {
   }
 
   /**
+   * Ensure the Home Agent backend is installed and the app is running. Mirrors
+   * {@link ensureTtsBackendInstalled}: {@link installAllBackends} deliberately
+   * turns Home Agent OFF (it diverts to its own setup page after install), so the
+   * Home-Agent specs re-enable and install it explicitly. Returns false (app left
+   * running) when Home Agent isn't offered in this product mode so the caller can
+   * skip.
+   */
+  async ensureHomeAgentBackendInstalled(): Promise<boolean> {
+    return test.step('Ensure the Home Agent backend is installed', async () => {
+      await this.shell.openSetupWizard()
+      await this.wizard.expectVisible()
+      const available = await this.wizard.isAvailable('Home Agent')
+      if (available) await this.wizard.enable('Home Agent')
+      // "Install & Continue" when Home Agent is pending; else a no-op "Continue".
+      // Enabling Home Agent routes to its own setup page after install, so we do
+      // NOT assert the running shell here — the caller (HomeAgentPage) drives the
+      // setup screen next, whether we landed on it directly or on the shell.
+      await this.wizard.installAndContinue()
+      return available
+    })
+  }
+
+  /**
    * Drive the "Text to Speech" preset end to end: select it, synthesize once with the
    * default voice, then create a custom ("designed") voice and synthesize again with
    * it — asserting a *second*, distinct audio result appears (TTS answers with an audio
@@ -354,6 +381,38 @@ export class AppDriver {
         })
       }
       await this.settings.close('Chat')
+    })
+  }
+
+  /**
+   * Enforce the Home Agent's built-in tool selection so its channel turns can generate
+   * media (image, edit, image-to-video). Tool/workflow enablement is stored per-preset,
+   * so the "Home Agent" preset has to be active while we apply it — activate it, then
+   * reuse the same "all built-in tools + every workflow" defaults the full agentic flow
+   * uses. Best-effort: returns false (relying on the preset's own tool defaults, which
+   * enable tools + all workflows) when the "Home Agent" preset isn't offered in this
+   * product mode or the tools section isn't shown. Leaves the settings sidebar closed.
+   */
+  async enableHomeAgentMediaTools(): Promise<boolean> {
+    return test.step('Enable media generation for the Home Agent preset', async () => {
+      const active = await this.main.selectPreset('Chat', HOME_AGENT_PRESET)
+      if (!active) {
+        test.info().annotations.push({
+          type: 'home-agent-tools',
+          description: `"${HOME_AGENT_PRESET}" preset not offered here — relying on its built-in tool defaults`,
+        })
+        return false
+      }
+      await this.settings.open('Chat')
+      const applied = await this.tools.applyDefaultTools()
+      await this.settings.close('Chat')
+      if (!applied) {
+        test.info().annotations.push({
+          type: 'home-agent-tools',
+          description: 'tools section not shown for the Home Agent preset — relying on defaults',
+        })
+      }
+      return applied
     })
   }
 

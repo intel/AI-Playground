@@ -7,8 +7,13 @@ to spot a contract drift between renderer and backend.
 
 from typing import Literal, TypedDict
 
-ChannelKind = Literal["telegram", "slack", "discord"]
-ALL_CHANNEL_KINDS: tuple[ChannelKind, ...] = ("telegram", "slack", "discord")
+ChannelKind = Literal["telegram", "slack", "discord", "local-web"]
+ALL_CHANNEL_KINDS: tuple[ChannelKind, ...] = (
+    "telegram",
+    "slack",
+    "discord",
+    "local-web",
+)
 
 
 class TelegramConfig(TypedDict, total=False):
@@ -28,6 +33,14 @@ class DiscordConfig(TypedDict, total=False):
     kind: ChannelKind  # "discord"
     botToken: str
     userId: str
+
+
+class LocalWebConfig(TypedDict, total=False):
+    kind: ChannelKind  # "local-web"
+    password: str
+    port: str
+    allowLan: str
+    sessionId: str
 
 
 class RemoteImage(TypedDict):
