@@ -395,6 +395,10 @@ export class AppDriver {
    */
   async enableHomeAgentMediaTools(): Promise<boolean> {
     return test.step('Enable media generation for the Home Agent preset', async () => {
+      // Returning from the Setup Wizard (ensureHomeAgentBackendInstalled) can leave the
+      // App Settings sidebar open; it overlays the main view and would intercept the
+      // hover on the Chat mode button below. Close it first so selectPreset can reach it.
+      await this.shell.ensureSettingsClosed()
       const active = await this.main.selectPreset('Chat', HOME_AGENT_PRESET)
       if (!active) {
         test.info().annotations.push({

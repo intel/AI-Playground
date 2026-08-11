@@ -53,6 +53,11 @@ test.describe('Agentic smoke', () => {
 
       await test.step('Prompt 1: write a haiku → expect a text reply', async () => {
         await app.main.sendPrompt(PROMPTS.haiku)
+        // First use of the pinned chat model pulls it via the download dialog; the
+        // turn stays "busy" until it's confirmed, so resolve it before waiting for
+        // idle (otherwise a fresh machine hangs here until TEXT_TIMEOUT). No-op when
+        // the model is already on disk; skips cleanly if it's gated/unavailable.
+        await app.resolveModelDownloadOrSkip(`the ${backend.name} chat model`)
         // Waits for the turn to go idle, then asserts the actual reply text is on
         // screen — not just the end of the reasoning trace.
         await app.main.waitForAssistantAnswer()
