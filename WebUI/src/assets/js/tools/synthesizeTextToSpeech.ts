@@ -86,12 +86,13 @@ export const synthesizeTextToSpeech = tool({
     // status line changes mid-flight; the activity is always ended (even on throw).
     // A saved voice always resolves to voice_design; otherwise use the given mode.
     const loadMode = args.voiceName ? 'voice_design' : args.mode
-    // Skip the "loading" phase when the model is already resident, so the status is
-    // accurate (only shows "Loading voice model…" when it genuinely has to load).
-    const alreadyLoaded = await qwen3.isModelLoaded(loadMode)
+    // Begin the activity FIRST — before the isModelLoaded probe and backend
+    // start, which can each take a moment — so the "Loading voice model…"
+    // indicator is visible for the whole load rather than only once synthesis
+    // begins. The label is downgraded below when the model is already resident.
     const activityId = activities.begin({
       category: 'tools',
-      label: alreadyLoaded ? 'Generating audio file…' : 'Loading voice model…',
+      label: 'Loading voice model…',
       scope,
     })
     try {
@@ -103,10 +104,11 @@ export const synthesizeTextToSpeech = tool({
         })
       }
 
+      const alreadyLoaded = await qwen3.isModelLoaded(loadMode)
       if (!alreadyLoaded) {
         await qwen3.ensureModelLoaded(loadMode)
-        activities.update(activityId, { label: 'Generating audio file…' })
       }
+      activities.update(activityId, { label: 'Generating audio file…' })
 
       const result = await qwen3.synthesize({
         text: args.text,

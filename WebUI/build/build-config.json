@@ -23,7 +23,7 @@
     {
       "from": "../qwen3-tts",
       "to": "qwen3-tts",
-      "filter": ["*.py", "pyproject.toml", "uv.lock"]
+      "filter": ["*.py", "vendor/**/*.py", "pyproject.toml", "uv.lock"]
     },
     {
       "from": "../OpenVINO",

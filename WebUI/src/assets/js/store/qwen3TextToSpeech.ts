@@ -6,6 +6,7 @@ import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import { useDialogStore } from './dialogs'
 import * as toast from '@/assets/js/toast'
+import { createAppError } from '../errors/appError'
 import { qwen3TtsFetch } from '@/lib/loopbackAuth'
 import { QWEN3_TTS_MODEL_REPOS } from '@/assets/js/qwen3TtsConstants'
 import type {
@@ -97,7 +98,23 @@ export const useQwen3TextToSpeech = defineStore(
       // called by ensureModelLoaded()/synthesize() so we only fetch the model the
       // user actually needs — not both. Starting the service does not download.
       if (info.status !== 'running') {
-        await backendServices.startService('qwen3-tts-backend')
+        const startStatus = await backendServices.startService('qwen3-tts-backend')
+        // The startup guard (LongLivedPythonApiService.assertReadyToStart) rejects
+        // a half-provisioned env (e.g. torch missing) with a 'failed' status
+        // instead of a fake-healthy server. Surface that here as an actionable
+        // reinstall message — otherwise we'd POST to /api/load against a backend
+        // that never started and report an opaque connection error.
+        if (startStatus !== 'running') {
+          const details = backendServices.getServiceErrorDetails('qwen3-tts-backend')
+          const hint = details?.stderr ? ` (${details.stderr.split('\n')[0].trim()})` : ''
+          throw createAppError({
+            category: 'inference',
+            code: 'inference/tts-failed',
+            userMessage:
+              `Text To Speech failed to start — its environment may be incomplete. ` +
+              `Reinstall it from Settings → Installation Management, then try again.${hint}`,
+          })
+        }
       }
       const running = backendServices.info.find((s) => s.serviceName === 'qwen3-tts-backend')
       const baseUrl = running?.baseUrl

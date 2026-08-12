@@ -1329,12 +1329,14 @@ export const useOpenAiCompatibleChat = defineStore(
       // Surface progress while synthesizing: "Loading voice model…" (first use /
       // backend start) then "Generating audio file…". The standalone
       // ChatActivityIndicator renders this because the last message is the user's
-      // (no assistant bubble exists yet).
+      // (no assistant bubble exists yet). Begin the activity FIRST (before the
+      // isModelLoaded probe and backend start, both of which can take a moment),
+      // so the indicator is visible for the whole load — matching how other
+      // backends show "Loading AI Model" from the start of the turn.
       const ttsScope = { kind: 'chat' as const, conversationKey: targetKey }
-      const alreadyLoaded = await qwen3.isModelLoaded()
       const ttsActivityId = activities.begin({
         category: 'tools',
-        label: alreadyLoaded ? 'Generating audio file…' : 'Loading voice model…',
+        label: 'Loading voice model…',
         scope: ttsScope,
       })
 
@@ -1347,10 +1349,11 @@ export const useOpenAiCompatibleChat = defineStore(
         mode: string
       }
       try {
+        const alreadyLoaded = await qwen3.isModelLoaded()
         if (!alreadyLoaded) {
           await qwen3.ensureModelLoaded()
-          activities.update(ttsActivityId, { label: 'Generating audio file…' })
         }
+        activities.update(ttsActivityId, { label: 'Generating audio file…' })
         const result = await qwen3.synthesize({ text: question })
         const label = conversationLabelForTtsFile({
           conversationKey: targetKey,
