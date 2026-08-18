@@ -4,9 +4,9 @@ jobs:
   ruff:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # Lint the whole repo; scope (first-party dirs) and vendored excludes are
       # defined in ruff.toml. Version pinned to match .pre-commit-config.yaml.
-      - uses: astral-sh/ruff-action@v3
+      - uses: astral-sh/ruff-action@v4.1.0
         with:
           version: "0.15.20"

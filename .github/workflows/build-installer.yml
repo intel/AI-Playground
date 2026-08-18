@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install Node.js and npm
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -37,7 +37,7 @@ jobs:
           npm run build
 
       - name: upload release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "installer-windows-${{ github.sha }}"
           path: build/electron/*.exe
@@ -51,10 +51,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install Node.js and npm
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -71,7 +71,7 @@ jobs:
           npm run build:linux
 
       - name: upload release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "installer-linux-${{ github.sha }}"
           path: |
@@ -95,7 +95,7 @@ jobs:
 
     steps:
       - name: Download built installers
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
