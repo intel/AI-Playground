@@ -19,3 +19,6 @@ jobs:
     steps:
       - name: Perform Bandit Analysis
         uses: PyCQA/bandit-action@v1
+        with:
+          # Scope lives in bandit.yaml, shared with `npm run lint:bandit`.
+          configfile: bandit.yaml

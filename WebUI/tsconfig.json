@@ -33,10 +33,5 @@
     "playwright-report-e2e",
     "blob-report",
     "playwright/.cache"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
   ]
 }

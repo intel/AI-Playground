@@ -15,22 +15,15 @@ import {
   rmSync,
 } from 'fs'
 import { pipeline } from 'stream/promises'
-import { getBuildPaths } from './build-paths.mts'
+import { getBuildPaths, getTargetPlatform } from './build-paths.mts'
 import path, { normalize } from 'path'
-import z from 'zod'
 import { execSync } from 'child_process'
 import AdmZip from 'adm-zip'
 
-const target = z
-  .enum(['win32', 'darwin', 'linux'])
-  .safeParse(process.env.TARGET_PLATFORM || process.platform)
-if (!target.success) {
-  console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
-  process.exit(1)
-}
+const targetPlatform = getTargetPlatform()
 
 // Get build paths configuration
-const buildPaths = getBuildPaths(target.data)
+const buildPaths = getBuildPaths(targetPlatform)
 
 interface DownloadResult {
   url: string
@@ -199,7 +192,7 @@ function getLinuxToolchainInstallCommand(): string | undefined {
  * otherwise prints actionable manual instructions. Never fails the fetch.
  */
 function ensureLinuxBuildToolchain(): void {
-  if (target.data !== 'linux') return
+  if (targetPlatform !== 'linux') return
 
   // Require the GNU compilers specifically (gcc/g++), not just the generic
   // cc/c++ aliases: source-only wheels like insightface invoke the GNU
@@ -325,7 +318,7 @@ async function main(): Promise<void> {
     // extract downloads if packed - handle tar.gz, tar.xz on darwin/linux, zip on win32
     for (const download of downloads) {
       if (
-        (target.data === 'darwin' || target.data === 'linux') &&
+        (targetPlatform === 'darwin' || targetPlatform === 'linux') &&
         (download.filePath.endsWith('.tar.gz') || download.filePath.endsWith('.tar.xz'))
       ) {
         console.log(`📦 Extracting ${download.filePath}...`)
@@ -337,7 +330,7 @@ async function main(): Promise<void> {
           console.error(`❌ Extraction failed for ${download.filePath}: ${error}`)
           process.exit(1)
         }
-      } else if (target.data === 'win32' && download.filePath.endsWith('.zip')) {
+      } else if (targetPlatform === 'win32' && download.filePath.endsWith('.zip')) {
         console.log(`📦 Extracting ${download.filePath}...`)
         try {
           const zip = new AdmZip(download.filePath)
@@ -355,8 +348,8 @@ async function main(): Promise<void> {
       darwin: path.join(buildPaths.tmpDir, 'uv-aarch64-apple-darwin', 'uv'),
       linux: path.join(buildPaths.tmpDir, 'uv-x86_64-unknown-linux-gnu', 'uv'),
     }
-    if (target.data in uvSourcePaths) {
-      const uvBinaryPath = uvSourcePaths[target.data]
+    if (targetPlatform in uvSourcePaths) {
+      const uvBinaryPath = uvSourcePaths[targetPlatform]
       const destinationPath = path.join(buildPaths.resourcesDir, 'uv.exe')
       if (existsSync(uvBinaryPath)) {
         renameSync(uvBinaryPath, destinationPath)
@@ -373,7 +366,7 @@ async function main(): Promise<void> {
       win32: path.join(buildPaths.tmpDir, '7zr.exe'),
     }
     {
-      const sevenZrPath = sevenZipSourcePaths[target.data]
+      const sevenZrPath = sevenZipSourcePaths[targetPlatform]
       const destinationPath = path.join(buildPaths.resourcesDir, '7zr.exe')
       if (existsSync(sevenZrPath)) {
         renameSync(sevenZrPath, destinationPath)
@@ -390,7 +383,7 @@ async function main(): Promise<void> {
     // artifacts we actually bundle — `xpu-smi.exe` and its dependent
     // `xpum-2.dll` (the exact DLL name the exe imports) — to the top of
     // resourcesDir so they match the paths referenced in build-config.json.
-    if (target.data === 'win32' && buildPaths.resourceUrls.xpuSmiWinZip) {
+    if (targetPlatform === 'win32' && buildPaths.resourceUrls.xpuSmiWinZip) {
       const xpuSmiFiles = ['xpu-smi.exe', 'xpum-2.dll']
       const extractedDirName = getBaseFileName(buildPaths.resourceUrls.xpuSmiWinZip).replace(
         /\.zip$/i,

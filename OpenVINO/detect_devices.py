@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Query OpenVINO devices and output as JSON."""
+
 import json
 import sys
 

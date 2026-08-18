@@ -675,16 +675,16 @@ class TelegramChannel(ChannelBase):
                         f"{', '.join(_SUPPORTED_DOC_EXTENSIONS)} file to add it to the "
                         "knowledge base."
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to send unsupported-document notice: %s", exc)
                 return
             if doc.file_size and doc.file_size > _MAX_DOC_BYTES:
                 try:
                     await update.message.reply_text(
                         "That document is too large to add to the knowledge base."
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to send document-too-large notice: %s", exc)
                 return
             try:
                 tg_file = await context.bot.get_file(doc.file_id)
@@ -826,5 +826,5 @@ class TelegramChannel(ChannelBase):
             self._shutdown_event = None
             try:
                 loop.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to close Telegram event loop: %s", exc)

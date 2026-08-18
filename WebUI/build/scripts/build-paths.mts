@@ -107,10 +107,28 @@ export interface BuildPaths {
   }
 }
 
+export type TargetPlatform = 'win32' | 'darwin' | 'linux'
+
+/**
+ * Resolve TARGET_PLATFORM (or the host platform); exits on an unsupported value
+ */
+export function getTargetPlatform(): TargetPlatform {
+  const target = z
+    .enum(['win32', 'darwin', 'linux'])
+    .safeParse(process.env.TARGET_PLATFORM || process.platform)
+  if (!target.success) {
+    console.error(
+      `❌ Unsupported TARGET_PLATFORM: ${process.env.TARGET_PLATFORM ?? process.platform}`,
+    )
+    process.exit(1)
+  }
+  return target.data
+}
+
 /**
  * Get complete build paths configuration
  */
-export function getBuildPaths(target: 'win32' | 'darwin' | 'linux'): BuildPaths {
+export function getBuildPaths(target: TargetPlatform): BuildPaths {
   return {
     repoRoot: REPO_ROOT,
     buildDir: BUILD_DIR,
@@ -145,14 +163,7 @@ export function getBuildPaths(target: 'win32' | 'darwin' | 'linux'): BuildPaths 
  * Log build paths for debugging
  */
 export function logBuildPaths(): void {
-  const target = z
-    .enum(['win32', 'darwin', 'linux'])
-    .safeParse(process.env.TARGET_PLATFORM || process.platform)
-  if (!target.success) {
-    console.error(`❌ Unsupported TARGET_PLATFORM: ${target}`)
-    process.exit(1)
-  }
-  const paths = getBuildPaths(target.data)
+  const paths = getBuildPaths(getTargetPlatform())
   console.log('📂 Build Paths Configuration:')
   console.log(`   Repository Root: ${paths.repoRoot}`)
   console.log(`   Build Directory: ${paths.buildDir}`)

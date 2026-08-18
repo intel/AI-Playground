@@ -16,7 +16,7 @@ line-length = 88
 # Vendored / generated trees that we don't own and must not lint.
 extend-exclude = [
     "ComfyUI",
-    "OpenVINO",
+    "OpenVINO/ovms",
     "build",
     "**/.venv",
     # Qwen3-TTS modelling code copied from the qwen-tts wheel; kept diffable against

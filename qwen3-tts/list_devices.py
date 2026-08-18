@@ -55,8 +55,8 @@ def _xpu_name(torch, index: int) -> str:
             name = getter()
             if name:
                 return str(name)
-        except Exception:
-            continue
+        except Exception as exc:  # driver without this accessor; try the next one
+            _log(f"xpu name probe for device {index} failed: {exc}")
     return f"Intel GPU {index}"
 
 

@@ -640,5 +640,5 @@ class SlackChannel(ChannelBase):
             self._shutdown_event = None
             try:
                 loop.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to close Slack event loop: %s", exc)

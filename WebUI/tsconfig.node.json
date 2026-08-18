@@ -1,12 +1,23 @@
 {
   "compilerOptions": {
-    "composite": true,
-    "skipLibCheck": true,
+    "target": "ES2023",
     "module": "ESNext",
+    "lib": ["ES2023"],
+    "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "strict": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["vite.config.ts"]
+  "include": [
+    "vite.config.mts",
+    "vitest.config.ts",
+    "playwright-e2e.config.ts",
+    "eslint.config.ts",
+    "build/scripts/**/*.mts"
+  ]
 }

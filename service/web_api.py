@@ -12,8 +12,8 @@ def auditor(event, args):
 
 try:
     sys.addaudithook(auditor)
-except Exception:
-    pass
+except Exception as exc:  # logging isn't configured this early
+    print(f"could not install DLL-directory audit hook: {exc}", file=sys.stderr)
 
 
 def get_added_dll_directories():

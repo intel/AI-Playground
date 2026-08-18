@@ -13,6 +13,8 @@ Electron main process orchestrates Vue.js frontend and multiple Python/native ba
 - Use **composition over inheritance** — never introduce new class hierarchies.
 - Do **not** use classes unless extending an existing set of classes of the same type.
 - Use **`type`** instead of `interface`, unless an interface is strictly necessary for implementation.
+- **Comment only when it is extremely important**, and keep it to one line where possible.
+  See [Comments](#comments).
 
 ## Build / Dev / Test Commands
 
@@ -57,8 +59,18 @@ npm run fetch-external-resources
 npm run build
 ```
 
-Python is linted with **Ruff** (`ruff check` / `ruff format`, whole-repo config in `ruff.toml`,
-runs in CI) and scanned with **Bandit**. Its tests are stdlib `unittest`, no pytest needed:
+Python is linted with **Ruff** (`ruff check` / `ruff format`, whole-repo config in `ruff.toml`)
+and scanned with **Bandit** (scope in `bandit.yaml`). Both run in CI and are reproducible from
+`WebUI/` via npm — the scripts shell out to `uvx` with the same pinned versions CI uses, so no
+local Python install is needed:
+
+```bash
+npm run lint:python   # both of the below
+npm run lint:ruff     # ruff check + ruff format --check, whole repo
+npm run lint:bandit   # bandit security scan, whole repo
+```
+
+Its tests are stdlib `unittest`, no pytest needed:
 
 ```bash
 python -m unittest discover -s home-agent/tests   # Home Agent channels (real sockets, ~5s)
@@ -201,6 +213,13 @@ page's own JS — login, EventSource, send, reply/media rendering — is caught)
 playwright-e2e.config.ts --list`.
 
 ## Code Style
+
+### Comments
+
+Default to none. Write one only when a reader would otherwise get it wrong — a non-obvious
+constraint, a workaround for external behaviour, or why an obvious approach was rejected.
+Then keep it to a line or two. Do not restate what the code says, narrate a change, or
+explain a tool's documented behaviour.
 
 ### Formatting (enforced by Prettier + EditorConfig)
 

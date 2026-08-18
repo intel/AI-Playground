@@ -4,6 +4,7 @@ import json
 import logging
 import secrets
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import numpy as np
@@ -85,6 +86,25 @@ def _mask_has_inpaint_region(m: np.ndarray) -> bool:
     return float(m.max()) >= 1.0 / 255.0
 
 
+def _build_api_request(
+    url: str, data: bytes, content_type: str
+) -> urllib.request.Request:
+    """Build a POST request. `base_url` is free text, so `file:///...` and other
+    locally-resolved schemes must not reach urlopen."""
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in ("http", "https"):
+        raise RuntimeError(
+            f"Unsupported URL scheme {scheme or '(none)'!r} in {url}: "
+            "base_url must be an http:// or https:// address"
+        )
+    return urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": content_type},
+        method="POST",
+    )
+
+
 def _decode_b64_response(url: str, raw: bytes) -> torch.Tensor:
     try:
         data = json.loads(raw.decode("utf-8"))
@@ -154,14 +174,9 @@ class OpenAICompatibleImageGeneration:
         }
         log.debug("POST %s  body=%s", url, json.dumps(body, ensure_ascii=False))
         payload = json.dumps(body).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
+        req = _build_api_request(url, payload, "application/json")
         try:
-            with urllib.request.urlopen(req, timeout=600) as resp:
+            with urllib.request.urlopen(req, timeout=600) as resp:  # nosec B310 - scheme checked above
                 raw = resp.read()
                 status = resp.status
         except urllib.error.HTTPError as e:
@@ -276,14 +291,9 @@ class OpenAICompatibleImageEdit:
             ", ".join(f"{n}({fn}, {len(c)} bytes)" for n, fn, c, _ in files),
         )
         body, boundary = _encode_multipart_form(fields, files)
-        req = urllib.request.Request(
-            url,
-            data=body,
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-            method="POST",
-        )
+        req = _build_api_request(url, body, f"multipart/form-data; boundary={boundary}")
         try:
-            with urllib.request.urlopen(req, timeout=600) as resp:
+            with urllib.request.urlopen(req, timeout=600) as resp:  # nosec B310 - scheme checked above
                 raw = resp.read()
                 status = resp.status
         except urllib.error.HTTPError as e:
