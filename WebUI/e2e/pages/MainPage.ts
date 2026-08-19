@@ -81,6 +81,50 @@ export class MainPage {
   }
 
   /**
+   * The "Regenerate" control on the last assistant turn (Chat.vue renders it only
+   * for the final message). Re-runs that turn: another LLM answer for a chat
+   * thread, another synthesis for a Text-to-Speech thread.
+   */
+  get regenerateButton(): Locator {
+    return this.page.getByRole('button', { name: 'Regenerate' }).last()
+  }
+
+  /** Re-run the last assistant turn and wait for it to start. */
+  async regenerateLastTurn(): Promise<void> {
+    await expect(this.regenerateButton).toBeVisible({ timeout: 15_000 })
+    await this.regenerateButton.click()
+    await this.expectTurnStarted()
+  }
+
+  /**
+   * Fingerprint of a rendered TTS result's audio — the player's `src` is a data URI
+   * holding the whole WAV, so equal fingerprints mean byte-identical audio.
+   * `index` counts from the end when negative (-1 = the most recent result).
+   *
+   * Used to prove a saved voice is reproducible: the same text spoken by the same
+   * saved voice must come back identical, because the voice's seed is pinned
+   * (`ttsVoiceSeed.ts` → `/api/synthesize` `seed` → `torch.manual_seed`). Hashed
+   * in-page (djb2 over the data URI, prefixed with its length) so multi-MB WAVs
+   * aren't shipped across the CDP bridge.
+   */
+  async ttsAudioFingerprint(index: number = -1): Promise<string> {
+    const players = this.ttsAudioPlayers
+    const count = await players.count()
+    const target = players.nth(index < 0 ? count + index : index)
+    await expect(target, 'expected a rendered TTS audio player to fingerprint').toBeVisible({
+      timeout: 15_000,
+    })
+    return target.evaluate((el) => {
+      const src = (el as HTMLAudioElement).getAttribute('src') ?? ''
+      let hash = 5381
+      for (let i = 0; i < src.length; i++) {
+        hash = ((hash * 33) ^ src.charCodeAt(i)) >>> 0
+      }
+      return `${src.length}:${hash.toString(16)}`
+    })
+  }
+
+  /**
    * The prompt-area attachment file input (the "+" control). Present only when the
    * active preset allows an attachment: a vision chat model (image) or a RAG preset
    * (document). Used for chat-mode attachments; ComfyUI reference images are set in

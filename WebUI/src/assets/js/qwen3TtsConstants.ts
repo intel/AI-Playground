@@ -45,6 +45,13 @@ export type Qwen3TtsSavedVoice = {
   name: string
   instruct: string
   language?: Qwen3TtsLanguage
+  /**
+   * Sampling seed pinned to this voice. Voice-design synthesis is sampled, so the
+   * same description otherwise yields a different-sounding person on every call.
+   * Persisting a seed makes a saved voice reproducible across generations; the
+   * user can re-roll it from settings when they dislike the result.
+   */
+  seed?: number
 }
 
 export const QWEN3_TTS_SPEAKERS: Array<{

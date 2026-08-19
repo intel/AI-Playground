@@ -218,6 +218,24 @@ def _load_model(model_id: str) -> Any:
             raise
 
 
+def _seed_everything(seed: int) -> None:
+    """Pin the sampler so the same request reproduces the same voice.
+
+    Voice design draws a speaker from the description, so without a seed the same
+    saved voice sounds like a different person on every generation. Called with
+    the inference lock held, right before generate().
+    """
+    import torch
+
+    torch.manual_seed(seed)
+    with contextlib.suppress(AttributeError, RuntimeError, OSError):
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    with contextlib.suppress(AttributeError, RuntimeError, OSError):
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            torch.xpu.manual_seed_all(seed)
+
+
 def synthesize_wav(
     *,
     text: str,
@@ -225,6 +243,7 @@ def synthesize_wav(
     speaker: str,
     instruct: str | None,
     mode: SynthesisMode,
+    seed: int | None = None,
 ) -> tuple[bytes, int]:
     import numpy as np
     import soundfile as sf
@@ -248,6 +267,8 @@ def synthesize_wav(
     # Serialize inference: the cached models share one accelerator and the
     # generate paths are not thread-safe, so only one synthesis runs at a time.
     with _infer_lock:
+        if seed is not None:
+            _seed_everything(seed)
         if mode == "voice_design":
             wavs, sr = model.generate_voice_design(
                 text=trimmed,

@@ -256,6 +256,13 @@ export class AppDriver {
    * it — asserting a *second*, distinct audio result appears (TTS answers with an audio
    * bubble, never a text reply). The Text-to-Speech flow must always run to completion:
    * an unavailable preset or a gated model is a failure, never a skip.
+   *
+   * Also covers the regressions reported against this flow:
+   *  - creating a voice pulls the voice-design weights at save time, so no download
+   *    dialog ambushes the first synthesis with it;
+   *  - Regenerate re-synthesizes instead of loading a chat model into a TTS thread;
+   *  - a saved voice is reproducible — the same text comes back as the same audio,
+   *    until the user deliberately re-rolls the voice.
    */
   async runTtsPreset(opts: {
     text: string
@@ -265,7 +272,18 @@ export class AppDriver {
       this.selectModeAndPreset('Chat', 'Text to Speech'))
     expect(available, 'Preset "Text to Speech" must be available in this product mode').toBe(true)
 
-    await this.settings.close('Chat')
+    await test.step('Start from a known voice selection', async () => {
+      // The app's TTS settings persist across runs (saved voices and the active
+      // voice selection live in the store's persisted state), so a second run would
+      // otherwise open with the custom voice a previous run created still selected —
+      // making "the default voice" a designed voice, skipping the preset-speaker path
+      // entirely, and turning "create a voice" into "re-save the same voice". Pin a
+      // built-in speaker and drop the leftover voice so both paths are exercised.
+      await this.settings.open('Chat')
+      await this.settings.deleteTtsVoiceIfPresent(opts.newVoice.name)
+      await this.settings.selectTtsVoice(/^Ryan\b/)
+      await this.settings.close('Chat')
+    })
 
     await test.step('Synthesize speech with the default voice', async () => {
       await this.main.sendPrompt(opts.text)
@@ -280,13 +298,72 @@ export class AppDriver {
         name: opts.newVoice.name,
         description: opts.newVoice.description,
       })
+      // Created voices need the voice-design weights, which are different from the
+      // preset speakers'. Saving the voice is what offers that download, so the
+      // dialog (when the model isn't on disk yet) belongs to THIS step.
+      await this.resolveDownloadsOrFail('the custom-voice Text-to-Speech model')
       await this.settings.close('Chat')
 
       await this.main.sendPrompt(opts.newVoice.text)
-      // A designed voice uses different model weights than the presets, so this turn
-      // may pull its own model via the same download dialog.
-      await this.resolveDownloadsOrFail('the custom-voice Text-to-Speech model')
+      // …and therefore the first synthesis with the new voice must not need one:
+      // `resolve()` returns 'none' when no dialog shows within its window.
+      expect(
+        await this.downloads.resolve(),
+        'the custom-voice model should already be installed by "Save voice" — synthesis must not prompt for a download',
+      ).toBe('none')
       await this.main.waitForTtsAudioCount(2)
+      await expect(
+        this.main.assistantResponses.last(),
+        'the custom-voice result should name the saved voice, not a leftover preset speaker',
+      ).toContainText(opts.newVoice.name)
+    })
+
+    const beforeRegenerate = await this.main.ttsAudioFingerprint()
+
+    await test.step('Regenerate re-synthesizes instead of loading a chat model', async () => {
+      await this.main.regenerateLastTurn()
+      // A TTS thread has no chat model; regenerating must never reach for one.
+      expect(
+        await this.downloads.resolve(),
+        'regenerating a Text-to-Speech turn must not pull a chat model',
+      ).toBe('none')
+      // The audio turn is replaced, not appended to — still two results, the last
+      // of which is audio (a text reply here would mean the LLM path ran).
+      await this.main.waitForTtsAudioCount(2)
+      await expect(
+        this.main.ttsAudioPlayer,
+        'the regenerated turn should be an audio result, not a text reply',
+      ).toBeVisible({ timeout: 15_000 })
+      await expect(this.main.assistantResponses.last()).toContainText(opts.newVoice.name)
+      // Same voice, same text, pinned seed → the same audio back.
+      expect(
+        await this.main.ttsAudioFingerprint(),
+        'regenerating the same text with the same saved voice should reproduce the same audio',
+      ).toBe(beforeRegenerate)
+    })
+
+    await test.step('The saved voice still sounds the same on a later turn', async () => {
+      await this.main.sendPrompt(opts.newVoice.text)
+      expect(await this.downloads.resolve()).toBe('none')
+      await this.main.waitForTtsAudioCount(3)
+      expect(
+        await this.main.ttsAudioFingerprint(),
+        'coming back to a saved voice and synthesizing the same text again should give the same voice',
+      ).toBe(beforeRegenerate)
+    })
+
+    await test.step('Re-rolling the voice draws a different speaker', async () => {
+      await this.settings.open('Chat')
+      await this.settings.rerollTtsVoice(opts.newVoice.name)
+      await this.settings.close('Chat')
+
+      await this.main.sendPrompt(opts.newVoice.text)
+      expect(await this.downloads.resolve()).toBe('none')
+      await this.main.waitForTtsAudioCount(4)
+      expect(
+        await this.main.ttsAudioFingerprint(),
+        're-rolling a saved voice should change how it sounds (otherwise the seed never reaches synthesis)',
+      ).not.toBe(beforeRegenerate)
     })
   }
 

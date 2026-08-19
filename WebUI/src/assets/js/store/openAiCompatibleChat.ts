@@ -1305,7 +1305,12 @@ export const useOpenAiCompatibleChat = defineStore(
     async function synthesizeDirect(
       question: string,
       targetKey: string,
-      opts: { clearInputs: boolean; sideChannel: boolean },
+      opts: {
+        clearInputs: boolean
+        sideChannel: boolean
+        /** Regenerate: the user's message is already in the thread — don't duplicate it. */
+        keepExistingUserMessage?: boolean
+      },
     ): Promise<void> {
       const qwen3 = useQwen3TextToSpeech()
       const chat = getOrCreateChat(targetKey)
@@ -1313,14 +1318,16 @@ export const useOpenAiCompatibleChat = defineStore(
       // Show the user's message right away so the turn isn't blank while we
       // synthesize — this path has no streaming LLM to fill the bubble, and the
       // audio can take a while to generate.
-      const userMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        parts: [{ type: 'text', text: question }],
-        metadata: { timestamp: Date.now() },
-      } as unknown as AipgUiMessage
-      chat.messages.push(userMessage)
-      conversations.updateConversation(chat.messages, targetKey)
+      if (!opts.keepExistingUserMessage) {
+        const userMessage = {
+          id: crypto.randomUUID(),
+          role: 'user',
+          parts: [{ type: 'text', text: question }],
+          metadata: { timestamp: Date.now() },
+        } as unknown as AipgUiMessage
+        chat.messages.push(userMessage)
+        conversations.updateConversation(chat.messages, targetKey)
+      }
       if (opts.clearInputs) {
         messageInput.value = ''
         fileInput.value = []
@@ -1405,6 +1412,45 @@ export const useOpenAiCompatibleChat = defineStore(
       } as unknown as AipgUiMessage
       chat.messages.push(assistantMessage)
       conversations.updateConversation(chat.messages, targetKey)
+    }
+
+    /**
+     * Regenerate an audio turn in a TTS thread: drop the audio message (and
+     * anything after it) and synthesize the same prompt again, keeping the user's
+     * message in place. No LLM is involved — a TTS thread has no chat model.
+     */
+    async function regenerateSynthesis(messageId: string, targetKey: string): Promise<void> {
+      const chat = getOrCreateChat(targetKey)
+      const targetIdx = chat.messages.findIndex((m) => m.id === messageId)
+      if (targetIdx < 0) return
+      const priorUserMessage = [...chat.messages.slice(0, targetIdx)]
+        .reverse()
+        .find((m) => m.role === 'user')
+      const question =
+        priorUserMessage?.parts
+          ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+          .map((p) => p.text)
+          .join('\n\n')
+          .trim() ?? ''
+      if (!question) return
+
+      // A previous Stop leaves `manuallyStopped` set, which would keep `processing`
+      // false for this turn and let the UI accept a second submission mid-synthesis.
+      manuallyStopped.value = false
+      markGenerating(targetKey)
+      try {
+        // Drop the old audio turn first so the retry replaces it rather than
+        // appending a second player under the same prompt.
+        chat.messages.splice(targetIdx, chat.messages.length - targetIdx)
+        conversations.updateConversation(chat.messages, targetKey)
+        await synthesizeDirect(question, targetKey, {
+          clearInputs: false,
+          sideChannel: false,
+          keepExistingUserMessage: true,
+        })
+      } finally {
+        unmarkGenerating(targetKey)
+      }
     }
 
     async function generate(question: string, options?: GenerateOptions) {
@@ -1549,6 +1595,14 @@ export const useOpenAiCompatibleChat = defineStore(
       // so the new turn matches the thread's current profile (matches `generate`).
       textInference.ensureGlobalsMatchConversation(targetKey)
       textInference.stampMetaForConversation(targetKey)
+
+      // TTS preset: re-synthesize the prompt instead of running the LLM. Without
+      // this the regenerate button falls through to `ensureReadyForInference()`
+      // and loads a chat model into a thread that never uses one.
+      if (textInference.activePreset?.ttsPreset) {
+        await regenerateSynthesis(messageId, targetKey)
+        return
+      }
 
       try {
         await textInference.ensureReadyForInference()

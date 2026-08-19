@@ -15,7 +15,15 @@
       v-else-if="!ttsModelDownloaded"
       class="flex items-center justify-between gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-300"
     >
-      <span>The model for the selected voice isn't installed yet.</span>
+      <span>
+        {{
+          qwen3Tts.defaultMode === 'voice_design'
+            ? "The model for created voices isn't installed yet."
+            : "The model for the built-in voices isn't installed yet."
+        }}
+        Built-in voices and voices you create use different models, so each is downloaded once,
+        separately.
+      </span>
       <Button size="sm" :disabled="installing" @click="installModel">
         {{ installing ? 'Installing…' : 'Install model' }}
       </Button>
@@ -70,8 +78,10 @@
       <div>
         <h3 class="text-sm font-medium text-foreground">Create a custom voice</h3>
         <p class="text-xs text-muted-foreground">
-          Describe a voice in words — timbre, age, accent, tone (e.g. “Authoritative American female
-          voice”). Save it to add it to your Voice list and use it in chat by name.
+          Describe a voice in words — timbre, age, accent, tone, and pace (e.g. “Authoritative
+          American female voice speaking at a natural, brisk pace”). Save it to add it to your Voice
+          list and use it in chat by name. A saved voice keeps its sound across sessions; use
+          Re-roll below to draw a different speaker for the same description.
         </p>
       </div>
 
@@ -108,7 +118,9 @@
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <span></span>
         <div>
-          <Button size="sm" :disabled="!canSaveVoice" @click="saveCurrentVoice">Save voice</Button>
+          <Button size="sm" :disabled="!canSaveVoice || savingVoice" @click="saveCurrentVoice">
+            {{ savingVoice ? 'Preparing…' : 'Save voice' }}
+          </Button>
         </div>
       </div>
 
@@ -128,12 +140,24 @@
               <div class="text-sm text-foreground">{{ voice.name }}</div>
               <div class="truncate text-xs text-muted-foreground">{{ voice.instruct }}</div>
             </div>
-            <button
-              class="shrink-0 text-xs text-muted-foreground hover:text-destructive"
-              @click="qwen3Tts.deleteVoice(voice.name)"
-            >
-              Remove
-            </button>
+            <div class="flex shrink-0 items-center gap-3">
+              <!-- A saved voice keeps the same seed so it sounds the same every
+                   time. Re-roll draws a different speaker for the same description
+                   (useful when the current one sounds off — e.g. too slow). -->
+              <button
+                class="text-xs text-muted-foreground hover:text-foreground"
+                title="Draw a different speaker for this description"
+                @click="qwen3Tts.rerollVoiceSeed(voice.name)"
+              >
+                Re-roll
+              </button>
+              <button
+                class="text-xs text-muted-foreground hover:text-destructive"
+                @click="qwen3Tts.deleteVoice(voice.name)"
+              >
+                Remove
+              </button>
+            </div>
           </li>
         </ul>
       </div>
@@ -220,10 +244,16 @@ const voiceItems = computed(() => {
   return [...presets, ...saved]
 })
 
-// Which voice is active: a preset speaker, or a created voice matched by its
-// description. Falls back to empty when a designed voice has no saved match.
+// Which voice is active: a saved voice by name (preferred) or by matching
+// description (older persisted sessions), else a preset speaker.
 const selectedVoiceValue = computed(() => {
   if (qwen3Tts.defaultMode === 'voice_design') {
+    const byName = qwen3Tts.defaultVoiceName
+      ? qwen3Tts.savedVoices.find(
+          (v) => v.name.toLowerCase() === qwen3Tts.defaultVoiceName.toLowerCase(),
+        )
+      : undefined
+    if (byName) return `saved:${byName.name}`
     const match = qwen3Tts.savedVoices.find((v) => v.instruct === qwen3Tts.defaultInstruct)
     return match ? `saved:${match.name}` : ''
   }
@@ -232,20 +262,10 @@ const selectedVoiceValue = computed(() => {
 
 function onSelectVoice(value: string) {
   if (value.startsWith('saved:')) {
-    applySavedVoice(value.slice('saved:'.length))
+    qwen3Tts.applySavedVoice(value.slice('saved:'.length))
   } else {
-    qwen3Tts.defaultMode = 'custom_voice'
-    qwen3Tts.defaultSpeaker = value.replace(/^preset:/, '') as Qwen3TtsSpeakerId
+    qwen3Tts.applyPresetSpeaker(value.replace(/^preset:/, '') as Qwen3TtsSpeakerId)
   }
-}
-
-// A created voice is a voice_design description; apply it as the active voice.
-function applySavedVoice(name: string) {
-  const voice = qwen3Tts.resolveVoice(name)
-  if (!voice) return
-  qwen3Tts.defaultMode = 'voice_design'
-  qwen3Tts.defaultInstruct = voice.instruct
-  if (voice.language) qwen3Tts.defaultLanguage = voice.language
 }
 
 // --- Create-a-voice form (kept separate from the active selection) ---
@@ -257,8 +277,10 @@ const canSaveVoice = computed(
   () => newVoiceName.value.trim().length > 0 && newVoiceInstruct.value.trim().length > 0,
 )
 
-function saveCurrentVoice() {
-  if (!canSaveVoice.value) return
+const savingVoice = ref(false)
+
+async function saveCurrentVoice() {
+  if (!canSaveVoice.value || savingVoice.value) return
   const name = newVoiceName.value.trim()
   qwen3Tts.saveVoice({
     name,
@@ -266,9 +288,23 @@ function saveCurrentVoice() {
     language: newVoiceLanguage.value,
   })
   // Make the freshly created voice the active one, and reset the form.
-  applySavedVoice(name)
+  qwen3Tts.applySavedVoice(name)
   newVoiceName.value = ''
   newVoiceInstruct.value = ''
   newVoiceLanguage.value = 'Auto'
+
+  // Created voices need the voice-design weights, which are a different model
+  // from the preset speakers'. Offer the download here — at the moment the user
+  // creates the voice — instead of ambushing them mid-chat on first use. The
+  // voice stays saved either way if they cancel.
+  savingVoice.value = true
+  try {
+    await qwen3Tts.ensureModelInstalled('voice_design')
+  } catch {
+    // Cancellation / failure is surfaced by the download dialog itself.
+  } finally {
+    savingVoice.value = false
+    await refreshModelInstalled()
+  }
 }
 </script>

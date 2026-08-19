@@ -106,6 +106,14 @@ def synthesize():
     mode = body.get("mode", "custom_voice")
     if mode not in ("custom_voice", "voice_design"):
         return jsonify({"code": -1, "message": f"unsupported mode: {mode}"}), 400
+    # Optional sampler seed: the client pins one per saved voice so the voice is
+    # reproducible across generations. Clamped to a torch-safe non-negative int;
+    # anything unparsable just means "unseeded".
+    seed_raw = body.get("seed")
+    try:
+        seed = abs(int(seed_raw)) % (2**31) if seed_raw is not None else None
+    except (TypeError, ValueError):
+        seed = None
     try:
         wav_bytes, sample_rate = synthesize_wav(
             text=str(text),
@@ -113,6 +121,7 @@ def synthesize():
             speaker=str(speaker),
             instruct=str(instruct) if instruct is not None else None,
             mode=mode,
+            seed=seed,
         )
         encoded = base64.b64encode(wav_bytes).decode("ascii")
         return jsonify(
