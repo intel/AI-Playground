@@ -604,11 +604,9 @@ Ubuntu 24 or newer only:
 - `openvino-backend` runs OVMS against the **system** Python on Linux and detects
   Intel `GPU`/`NPU` devices via its Python detection venv.
 
-**Intel GPU on Linux** (Arc / iGPU): GPU acceleration requires host userspace
-drivers (Vulkan for llama.cpp; Level Zero for ComfyUI-XPU and OpenVINO). The card
-appearing in `lspci` is not sufficient. See
-[`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md) for the full
-driver install/verify procedure and per-backend requirements.
+**Intel GPU on Linux** (Arc / iGPU): install host GPU drivers **before** AI
+Playground (Intel OMIX guide for compute/kernel; Vulkan for llama.cpp). See
+[`docs/linux-intel-gpu-setup.md`](docs/linux-intel-gpu-setup.md).
 
 ### Testing inference end-to-end
 

@@ -1407,7 +1407,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
 
     // On Linux with the XPU variant, expose the Intel oneAPI runtime libraries so
-    // IPEX can resolve libsycl.so / libmkl_sycl.so / libze_loader.so at runtime,
+    // torch.xpu / PyTorch XPU can resolve libsycl.so / libmkl_sycl.so / libze_loader.so at runtime,
     // and use the composite device hierarchy so Level Zero can make large
     // contiguous USM allocations (fixes XPU OOM on shared-memory Intel iGPUs).
     if (process.platform === 'linux' && this.comfyUiVariant === 'xpu') {
